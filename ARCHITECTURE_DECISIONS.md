@@ -13,3 +13,11 @@
 - **Decision**: Use Zustand for local/canvas-specific states and React Query for server states.
 - **Rejected Alternative**: Redux Toolkit. Reason: High boilerplate and slower setup cycles for lightweight interactive states.
 - **Consequences**: Minimal boilerplate, easily decoupled from API queries.
+
+## ADR-003: Prisma 7 SQLite Connection via Driver Adapter
+- **Status**: Proposed
+- **Context**: Prisma 7 has removed support for direct native Rust-based query engines. Initializing the Prisma Client constructor with SQLite now requires a JavaScript driver adapter, or the initialization fails.
+- **Decision**: Install `better-sqlite3` and `@prisma/adapter-better-sqlite3`, and pass the `PrismaBetterSqlite3` adapter to the `PrismaClient` constructor.
+- **Rejected Alternative**: Downgrading to Prisma v6. Reason: Reverting Prisma versions would break dependencies and cause version conflicts with package-lock.json and other workspace configurations.
+- **Consequences**: Adds `better-sqlite3` and its types to dependencies, but enables Prisma 7 compatibility in SQLite local environments.
+

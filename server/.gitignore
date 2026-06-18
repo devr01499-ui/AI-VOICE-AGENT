@@ -1,0 +1,13 @@
+# dependencies
+node_modules/
+
+# production / build
+dist/
+
+# env files
+.env
+.env.*
+
+# database
+*.db
+*.db-journal

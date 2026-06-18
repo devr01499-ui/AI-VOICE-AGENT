@@ -1,4 +1,4 @@
-// Bolna Enterprise API — Database Schema
+// Bolna Voice Runtime Engine — Database Schema
 // Provider: SQLite for local dev. Switch to postgresql for production.
 // Run: npx prisma generate && npx prisma db push
 
@@ -23,14 +23,15 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  apiKeys        ApiKey[]
-  agents         Agent[]
-  calls          Call[]
-  phoneNumbers   PhoneNumber[]
-  knowledgeBases KnowledgeBase[]
-  batches        Batch[]
-  subAccounts    SubAccount[]
-  webhooks       Webhook[]
+  apiKeys              ApiKey[]
+  agents               Agent[]
+  calls                Call[]
+  phoneNumbers         PhoneNumber[]
+  knowledgeBases       KnowledgeBase[]
+  batches              Batch[]
+  subAccounts          SubAccount[]
+  webhooks             Webhook[]
+  providerCredentials  ProviderCredential[]
 
   @@map("users")
 }
@@ -71,12 +72,13 @@ model Agent {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  versions      AgentVersion[]
-  calls         Call[]
-  phoneNumbers  PhoneNumber[]
-  batches       Batch[]
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions       AgentVersion[]
+  calls          Call[]
+  phoneNumbers   PhoneNumber[]
+  batches        Batch[]
   inboundConfigs InboundConfig[]
+  voiceSessions  VoiceSession[]
 
   // Knowledge base relationships stored as JSON array of IDs in agentConfig
   // for simplicity — a proper join table can be added later.
@@ -124,10 +126,13 @@ model Call {
   maxDuration          Int       @default(1800) @map("max_duration")
   createdAt            DateTime  @default(now()) @map("created_at")
 
-  agent     Agent      @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  batch     Batch?     @relation(fields: [batchId], references: [id], onDelete: SetNull)
-  execution Execution?
+  agent              Agent              @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  batch              Batch?             @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  execution          Execution?
+  voiceSessions      VoiceSession[]
+  transcriptSegments TranscriptSegment[]
+  callEvents         CallEvent[]
 
   @@index([agentId])
   @@index([userId])
@@ -373,4 +378,101 @@ model InboundConfig {
   @@index([phoneNumberId])
   @@index([agentId])
   @@map("inbound_configs")
+}
+
+// ─────────────────────────────────────────────
+// VOICE SESSIONS
+// ─────────────────────────────────────────────
+
+model VoiceSession {
+  id              String    @id @default(uuid())
+  callId          String    @map("call_id")
+  agentId         String    @map("agent_id")
+  vobizCallUuid   String?   @map("vobiz_call_uuid")
+  openaiSessionId String?   @map("openai_session_id")
+  status          String    @default("initializing") // initializing | active | closing | closed | error
+  voiceConfig     String    @default("{}") @map("voice_config") // JSON
+  startedAt       DateTime? @map("started_at")
+  endedAt         DateTime? @map("ended_at")
+  durationMs      Int?      @map("duration_ms")
+  latencyAvgMs    Float?    @map("latency_avg_ms")
+  metadata        String    @default("{}") // JSON
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  call  Call  @relation(fields: [callId], references: [id], onDelete: Cascade)
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([callId])
+  @@index([agentId])
+  @@index([status])
+  @@map("voice_sessions")
+}
+
+model TranscriptSegment {
+  id             String   @id @default(uuid())
+  callId         String   @map("call_id")
+  speaker        String   // agent | user
+  content        String
+  startTime      Float    @map("start_time") // seconds from call start
+  endTime        Float?   @map("end_time")
+  sequenceNumber Int      @map("sequence_number")
+  confidence     Float?   // ASR confidence
+  metadata       String   @default("{}") // JSON
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([callId])
+  @@index([callId, sequenceNumber])
+  @@map("transcript_segments")
+}
+
+model CallEvent {
+  id        String   @id @default(uuid())
+  callId    String   @map("call_id")
+  eventType String   @map("event_type") // state_change | error | tool_call | interruption | etc.
+  payload   String   @default("{}") // JSON
+  timestamp DateTime @default(now())
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([callId])
+  @@index([callId, eventType])
+  @@map("call_events")
+}
+
+model ProviderCredential {
+  id           String    @id @default(uuid())
+  userId       String    @map("user_id")
+  providerType String    @map("provider_type") // vobiz | openai | deepgram | elevenlabs
+  credentials  String    // encrypted JSON
+  isActive     Boolean   @default(true) @map("is_active")
+  lastTestedAt DateTime? @map("last_tested_at")
+  healthStatus String    @default("unknown") @map("health_status") // healthy | degraded | down | unknown
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([providerType])
+  @@map("provider_credentials")
+}
+
+model RuntimeMetric {
+  id          String   @id @default(uuid())
+  callId      String?  @map("call_id")
+  metricType  String   @map("metric_type") // latency | audio_quality | error_rate
+  value       Float
+  unit        String   // ms | percent | count
+  tags        String   @default("{}") // JSON key-value pairs
+  recordedAt  DateTime @default(now()) @map("recorded_at")
+
+  @@index([metricType])
+  @@index([callId])
+  @@index([recordedAt])
+  @@map("runtime_metrics")
 }

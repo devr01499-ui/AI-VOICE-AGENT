@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import TestCallDialog from '@/components/TestCallDialog';
 import {
   Users,
   PhoneCall,
@@ -21,6 +22,7 @@ import {
 export default function DashboardHome() {
   const [activeCallCount, setActiveCallCount] = useState(14);
   const [successRate, setSuccessRate] = useState(98.4);
+  const [isTestCallOpen, setIsTestCallOpen] = useState(false);
 
   // Stats configs
   const stats = [
@@ -91,8 +93,7 @@ export default function DashboardHome() {
   ];
 
   const handleTestTrigger = () => {
-    setActiveCallCount(prev => prev + 1);
-    setSuccessRate(prev => Math.min(100, Number((prev + 0.1).toFixed(2))));
+    setIsTestCallOpen(true);
   };
 
   return (
@@ -277,6 +278,14 @@ export default function DashboardHome() {
           </Card>
         </div>
       </div>
+      <TestCallDialog 
+        isOpen={isTestCallOpen} 
+        onClose={() => setIsTestCallOpen(false)} 
+        onCallSimulated={() => {
+          setActiveCallCount(prev => prev + 1);
+          setSuccessRate(prev => Math.min(100, Number((prev + 0.1).toFixed(2))));
+        }} 
+      />
     </div>
   );
 }

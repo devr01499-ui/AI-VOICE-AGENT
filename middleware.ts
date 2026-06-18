@@ -14,7 +14,7 @@ export default function middleware(request: NextRequest) {
     return NextResponse.next();
   }
   
-  return authMiddleware(request as any);
+  return (authMiddleware as any)(request);
 }
 
 export const config = {
