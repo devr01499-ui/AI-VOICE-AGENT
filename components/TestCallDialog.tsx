@@ -42,11 +42,12 @@ interface TestCallDialogProps {
   onClose: () => void;
   onCallSimulated?: () => void;
   fromPhoneNumber?: string;
+  initialCallId?: string | null;
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-export default function TestCallDialog({ isOpen, onClose, onCallSimulated, fromPhoneNumber }: TestCallDialogProps) {
+export default function TestCallDialog({ isOpen, onClose, onCallSimulated, fromPhoneNumber, initialCallId }: TestCallDialogProps) {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
   const [phoneNumber, setPhoneNumber] = useState<string>('+919876543210');
@@ -73,11 +74,22 @@ export default function TestCallDialog({ isOpen, onClose, onCallSimulated, fromP
   useEffect(() => {
     if (isOpen) {
       fetchAgents();
+      if (initialCallId) {
+        setCallId(initialCallId);
+        setCallStatus('ringing');
+        setRecordingUrl(null);
+        setTranscripts([]);
+        setDurationSeconds(0);
+        startPolling(initialCallId);
+      } else {
+        setCallId(null);
+        setCallStatus('idle');
+      }
     }
     return () => {
       stopPolling();
     };
-  }, [isOpen]);
+  }, [isOpen, initialCallId]);
 
   // Scroll to bottom of transcripts when updated
   useEffect(() => {

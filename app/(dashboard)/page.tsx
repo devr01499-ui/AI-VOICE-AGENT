@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import TestCallDialog from '@/components/TestCallDialog';
+import api from '@/lib/api-client';
 import {
   Users,
   PhoneCall,
@@ -17,12 +19,38 @@ import {
   ShieldCheck,
   Zap,
   Volume2,
+  Loader2,
 } from 'lucide-react';
 
 export default function DashboardHome() {
   const [activeCallCount, setActiveCallCount] = useState(14);
   const [successRate, setSuccessRate] = useState(98.4);
   const [isTestCallOpen, setIsTestCallOpen] = useState(false);
+
+  // Agent call form states
+  const [agents, setAgents] = useState<{ id: string; name: string; agentType: string; status: string }[]>([]);
+  const [selectedAgent, setSelectedAgent] = useState<string>('');
+  const [userInputNumber, setUserInputNumber] = useState<string>('+919876543210');
+  const [loadingCall, setLoadingCall] = useState<boolean>(false);
+  const [activeCallId, setActiveCallId] = useState<string | null>(null);
+
+  // Fetch agents on mount
+  useEffect(() => {
+    const fetchAgents = async () => {
+      try {
+        const res = await api.get('/api/v2/agents');
+        if (res.data?.success && res.data?.data) {
+          setAgents(res.data.data);
+          if (res.data.data.length > 0) {
+            setSelectedAgent(res.data.data[0].id);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching agents:', err);
+      }
+    };
+    fetchAgents();
+  }, []);
 
   // Stats configs
   const stats = [
@@ -92,8 +120,24 @@ export default function DashboardHome() {
     },
   ];
 
-  const handleTestTrigger = () => {
-    setIsTestCallOpen(true);
+  const handleTestTrigger = async () => {
+    if (!selectedAgent) return;
+    try {
+      setLoadingCall(true);
+      const response = await api.post('/api/v2/calls', {
+        phoneNumber: userInputNumber,
+        agentId: selectedAgent,
+        userId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      });
+      if (response.data?.success && response.data?.data) {
+        setActiveCallId(response.data.data.callId);
+        setIsTestCallOpen(true);
+      }
+    } catch (error) {
+      console.error('Call failed:', error);
+    } finally {
+      setLoadingCall(false);
+    }
   };
 
   return (
@@ -109,15 +153,42 @@ export default function DashboardHome() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {agents.length > 0 && (
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedAgent}
+                onChange={(e) => setSelectedAgent(e.target.value)}
+                className="rounded-md border border-slate-800 bg-slate-900 text-xs text-white px-3.5 py-1.5 h-9 outline-none focus:border-emerald-500 transition-colors w-40 cursor-pointer"
+              >
+                {agents.map((agent) => (
+                  <option key={agent.id} value={agent.id} className="bg-slate-950 text-white">
+                    {agent.name}
+                  </option>
+                ))}
+              </select>
+              <Input
+                type="tel"
+                placeholder="+919876543210"
+                value={userInputNumber}
+                onChange={(e) => setUserInputNumber(e.target.value)}
+                className="bg-slate-900 border-slate-800 text-xs h-9 text-white focus-visible:ring-emerald-500 w-36 px-3"
+              />
+            </div>
+          )}
           <Button
             onClick={handleTestTrigger}
+            disabled={loadingCall || agents.length === 0}
             variant="outline"
-            className="text-xs bg-slate-900 border-slate-800 text-slate-300 hover:text-white"
+            className="text-xs bg-slate-900 border-slate-800 text-slate-300 hover:text-white h-9"
           >
-            <Activity className="h-3.5 w-3.5 mr-2 text-emerald-400" />
+            {loadingCall ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />
+            ) : (
+              <Activity className="h-3.5 w-3.5 mr-2 text-emerald-400" />
+            )}
             Simulate Active Call
           </Button>
-          <Button variant="premium" className="text-xs">
+          <Button variant="premium" className="text-xs h-9">
             <Plus className="h-4 w-4 mr-1.5" /> Create New Agent
           </Button>
         </div>
@@ -280,7 +351,11 @@ export default function DashboardHome() {
       </div>
       <TestCallDialog 
         isOpen={isTestCallOpen} 
-        onClose={() => setIsTestCallOpen(false)} 
+        onClose={() => {
+          setIsTestCallOpen(false);
+          setActiveCallId(null);
+        }} 
+        initialCallId={activeCallId}
         onCallSimulated={() => {
           setActiveCallCount(prev => prev + 1);
           setSuccessRate(prev => Math.min(100, Number((prev + 0.1).toFixed(2))));
