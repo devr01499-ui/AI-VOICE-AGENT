@@ -54,13 +54,18 @@ const envSchema = z.object({
     .url('VOBIZ_API_URL must be a valid URL'),
 
   // ── OpenAI ──────────────────────────────────
-  OPENAI_API_KEY: z
-    .string({ required_error: 'OPENAI_API_KEY is required' })
-    .min(1, 'OPENAI_API_KEY must not be empty'),
+  OPENAI_API_KEY: z.string().optional(),
 
   OPENAI_REALTIME_MODEL: z
     .string()
     .default('gpt-4o-realtime-preview'),
+
+  // ── Gemini ──────────────────────────────────
+  GEMINI_API_KEY: z.string().optional(),
+
+  GEMINI_REALTIME_MODEL: z
+    .string()
+    .default('gemini-2.0-flash-exp'),
 
   // ── Networking / Tunnels ────────────────────
   PUBLIC_URL: z.string().default(''),

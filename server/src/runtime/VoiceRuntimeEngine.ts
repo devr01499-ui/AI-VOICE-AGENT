@@ -21,6 +21,7 @@ import { CallLifecycleManager } from './CallLifecycleManager';
 import { CallRepository } from '../repositories/CallRepository';
 import { AgentRepository } from '../repositories/AgentRepository';
 import type { AgentConfig, CallStatus } from '../types';
+import { env } from '../config/env';
 
 // ─── Active Call Tracking ─────────────────────────
 
@@ -94,7 +95,9 @@ export class VoiceRuntimeEngine {
       agentConfig.voice = 'alloy';
     }
     if (!agentConfig.llm) {
-      agentConfig.llm = { provider: 'openai', model: 'gpt-4o-realtime-preview' };
+      const defaultProvider = env.GEMINI_API_KEY ? 'gemini' : 'openai';
+      const defaultModel = env.GEMINI_API_KEY ? 'gemini-2.0-flash-exp' : 'gpt-4o-realtime-preview';
+      agentConfig.llm = { provider: defaultProvider, model: defaultModel };
     }
 
     // Initialize lifecycle state

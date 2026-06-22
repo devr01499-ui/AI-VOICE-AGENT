@@ -22,6 +22,7 @@ import type {
   RealtimeEventCallbacks,
 } from '../providers/interfaces/IProvider';
 import type { AgentConfig, SessionMetrics, SessionStatus } from '../types';
+import { env } from '../config/env';
 
 // ─── Internal Session State ──────────────────────────
 
@@ -89,10 +90,19 @@ export class RealtimeSessionManager {
     }
 
     const provider = this.getRealtimeProvider();
+    const defaultModel = provider.name === 'gemini-live' ? env.GEMINI_REALTIME_MODEL : env.OPENAI_REALTIME_MODEL;
+
+    // Cross-provider model override validation
+    let selectedModel = agentConfig.llm.model || defaultModel;
+    if (provider.name === 'gemini-live' && selectedModel.toLowerCase().includes('gpt')) {
+      selectedModel = defaultModel;
+    } else if (provider.name === 'openai-realtime' && selectedModel.toLowerCase().includes('gemini')) {
+      selectedModel = defaultModel;
+    }
 
     // Build session config from agent config
     const sessionConfig: RealtimeSessionConfig = {
-      model: agentConfig.llm.model || 'gpt-4o-realtime-preview',
+      model: selectedModel,
       voice: agentConfig.voice || 'alloy',
       instructions: agentConfig.prompt,
       tools: agentConfig.tools?.map((t) => ({

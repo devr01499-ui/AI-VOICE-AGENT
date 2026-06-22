@@ -10,6 +10,8 @@ import { logger } from '../utils/logger';
 import { ProviderManager } from '../providers/ProviderManager';
 import { VobizProvider } from '../providers/vobiz/VobizProvider';
 import { OpenAIRealtimeProvider } from '../providers/openai/OpenAIRealtimeProvider';
+import { GeminiLiveProvider } from '../providers/gemini/GeminiLiveProvider';
+import { env } from './env';
 
 /**
  * Initializes all providers and registers them with the ProviderManager.
@@ -32,17 +34,38 @@ export async function initializeProviders(): Promise<void> {
     // Non-fatal: server can start without telephony for API development
   }
 
-  // ─── OpenAI Realtime ───────────────────────────
-  try {
-    const openai = new OpenAIRealtimeProvider();
-    await openai.connect();
-    manager.registerProvider(openai);
-    logger.info('Providers: OpenAI Realtime initialized');
-  } catch (err) {
-    logger.error('Providers: OpenAI Realtime initialization failed', {
-      error: err instanceof Error ? err.message : String(err),
-    });
-    // Non-fatal: server can start without realtime for API development
+  // ─── Realtime AI Provider ──────────────────────
+  if (env.GEMINI_API_KEY) {
+    try {
+      const gemini = new GeminiLiveProvider();
+      await gemini.connect();
+      manager.registerProvider(gemini);
+      logger.info('Providers: Google Gemini Live initialized');
+    } catch (err) {
+      logger.error('Providers: Google Gemini Live initialization failed', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  } else if (env.OPENAI_API_KEY) {
+    try {
+      const openai = new OpenAIRealtimeProvider();
+      await openai.connect();
+      manager.registerProvider(openai);
+      logger.info('Providers: OpenAI Realtime initialized');
+    } catch (err) {
+      logger.error('Providers: OpenAI Realtime initialization failed', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  } else {
+    logger.warn('Providers: No realtime AI provider key configured (GEMINI_API_KEY or OPENAI_API_KEY)');
+    // Register GeminiLiveProvider as default fallback
+    try {
+      const gemini = new GeminiLiveProvider();
+      manager.registerProvider(gemini);
+    } catch {
+      // Ignore
+    }
   }
 
   const registered = manager.getRegisteredProviders();

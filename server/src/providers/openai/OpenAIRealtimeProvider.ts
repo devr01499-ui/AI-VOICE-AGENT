@@ -71,7 +71,7 @@ export class OpenAIRealtimeProvider implements IRealtimeProvider {
   private readonly wsBaseUrl = 'wss://api.openai.com/v1/realtime';
 
   constructor() {
-    this.apiKey = env.OPENAI_API_KEY;
+    this.apiKey = env.OPENAI_API_KEY || '';
   }
 
   async connect(): Promise<void> {
