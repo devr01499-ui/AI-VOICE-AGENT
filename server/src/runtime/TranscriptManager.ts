@@ -10,6 +10,7 @@
 import { logger } from '../utils/logger';
 import { TranscriptRepository } from '../repositories/TranscriptRepository';
 import type { Speaker, TranscriptSegmentResponse } from '../types';
+import { TranscriptSegment } from '@prisma/client';
 
 /** Format options for transcript export. */
 export type TranscriptExportFormat = 'json' | 'text';
@@ -75,7 +76,7 @@ export class TranscriptManager {
   async getFullTranscript(callId: string): Promise<TranscriptSegmentResponse[]> {
     const segments = await TranscriptRepository.findByCallId(callId);
 
-    return segments.map((seg) => ({
+    return segments.map((seg: TranscriptSegment) => ({
       id: seg.id,
       speaker: seg.speaker as Speaker,
       content: seg.content,
@@ -94,7 +95,7 @@ export class TranscriptManager {
   ): Promise<TranscriptSegmentResponse[]> {
     const segments = await TranscriptRepository.searchByContent(callId, keyword);
 
-    return segments.map((seg) => ({
+    return segments.map((seg: TranscriptSegment) => ({
       id: seg.id,
       speaker: seg.speaker as Speaker,
       content: seg.content,
@@ -142,8 +143,8 @@ export class TranscriptManager {
   }> {
     const segments = await TranscriptRepository.findByCallId(callId);
 
-    const agentSegments = segments.filter((s) => s.speaker === 'agent').length;
-    const userSegments = segments.filter((s) => s.speaker === 'user').length;
+    const agentSegments = segments.filter((s: TranscriptSegment) => s.speaker === 'agent').length;
+    const userSegments = segments.filter((s: TranscriptSegment) => s.speaker === 'user').length;
 
     let estimatedDurationSeconds = 0;
     if (segments.length > 0) {

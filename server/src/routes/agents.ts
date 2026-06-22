@@ -8,6 +8,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import type { Request, Response, NextFunction } from 'express';
+import { Agent } from '@prisma/client';
 import { AgentRepository } from '../repositories/AgentRepository';
 import { validateParams, validateQuery } from '../middleware/validation';
 
@@ -50,7 +51,7 @@ router.get(
       }
 
       // Parse agentConfig JSON for response
-      const formatted = agents.map((agent) => ({
+      const formatted = agents.map((agent: Agent) => ({
         id: agent.id,
         name: agent.name,
         description: agent.description,

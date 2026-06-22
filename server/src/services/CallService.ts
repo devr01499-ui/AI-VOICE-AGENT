@@ -16,6 +16,7 @@ import { ProviderManager } from '../providers/ProviderManager';
 import { env } from '../config/env';
 import type { CallStatus, CallResponse, TranscriptSegmentResponse, Speaker } from '../types';
 import type { ITelephonyProvider } from '../providers/interfaces/IProvider';
+import { Call, Execution, TranscriptSegment } from '@prisma/client';
 
 // ─── Input Shapes ─────────────────────────────────
 
@@ -208,7 +209,7 @@ export class CallService {
 
     const segments = await TranscriptRepository.findByCallId(callId);
 
-    return segments.map((seg) => ({
+    return segments.map((seg: TranscriptSegment) => ({
       id: seg.id,
       speaker: seg.speaker as Speaker,
       content: seg.content,
@@ -257,7 +258,7 @@ export class CallService {
   ) {
     const calls = await CallRepository.findByUserId(userId, options);
 
-    return calls.map((call) => ({
+    return calls.map((call: Call & { execution: Execution | null }) => ({
       callId: call.id,
       status: call.status as CallStatus,
       phoneNumber: call.recipientPhoneNumber,
