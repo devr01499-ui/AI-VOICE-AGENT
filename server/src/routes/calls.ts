@@ -41,6 +41,17 @@ router.post(
 router.get(
   '/debug/gemini',
   async (req, res) => {
+    let geo: any = {};
+    try {
+      // Query server public IP geo-location
+      const geoRes = await fetch('http://ip-api.com/json/');
+      if (geoRes.ok) {
+        geo = await geoRes.json();
+      }
+    } catch (e) {
+      geo = { error: 'Failed to fetch geo-ip' };
+    }
+
     try {
       const { GeminiLiveProvider } = await import('../providers/gemini/GeminiLiveProvider');
       const { env } = await import('../config/env');
@@ -58,7 +69,7 @@ router.get(
       const callbacks = {};
       const result = await provider.createSession(config, callbacks);
       await provider.closeSession(result.sessionId);
-      res.json({ success: true, apiVersion, model: modelName, sessionId: result.sessionId });
+      res.json({ success: true, apiVersion, model: modelName, sessionId: result.sessionId, geo });
     } catch (err: any) {
       const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
       const openaiKey = process.env.OPENAI_API_KEY || '';
@@ -69,6 +80,7 @@ router.get(
         geminiKeyLength: geminiKey ? geminiKey.length : 0,
         openaiKeyPrefix: openaiKey ? openaiKey.substring(0, 6) : 'missing',
         openaiKeyLength: openaiKey ? openaiKey.length : 0,
+        geo,
         stack: err.stack,
       });
     }
