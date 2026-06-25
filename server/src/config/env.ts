@@ -77,6 +77,11 @@ const envSchema = z.object({
     .trim()
     .default('gemini-2.0-flash-exp'),
 
+  GEMINI_API_VERSION: z
+    .string()
+    .trim()
+    .default('v1beta'),
+
   // ── Networking / Tunnels ────────────────────
   PUBLIC_URL: z.string().trim().default(''),
 

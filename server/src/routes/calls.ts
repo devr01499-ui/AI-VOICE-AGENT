@@ -43,16 +43,22 @@ router.get(
   async (req, res) => {
     try {
       const { GeminiLiveProvider } = await import('../providers/gemini/GeminiLiveProvider');
+      const { env } = await import('../config/env');
+      
+      const apiVersion = (req.query.version as string) || env.GEMINI_API_VERSION || 'v1beta';
+      const modelName = (req.query.model as string) || env.GEMINI_REALTIME_MODEL || 'gemini-2.0-flash-exp';
+
       const provider = new GeminiLiveProvider();
       const config = {
-        model: 'gemini-2.0-flash-exp',
+        model: modelName,
         voice: 'alloy',
         instructions: 'Test.',
-      };
+        apiVersion,
+      } as any;
       const callbacks = {};
       const result = await provider.createSession(config, callbacks);
       await provider.closeSession(result.sessionId);
-      res.json({ success: true, sessionId: result.sessionId });
+      res.json({ success: true, apiVersion, model: modelName, sessionId: result.sessionId });
     } catch (err: any) {
       res.status(500).json({
         success: false,

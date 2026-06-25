@@ -61,7 +61,6 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
   private readonly activeSessions = new Map<string, ActiveSession>();
   private readonly apiKey: string;
-  private readonly wsBaseUrl = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent';
 
   constructor() {
     this.apiKey = env.GEMINI_API_KEY || env.GOOGLE_API_KEY || '';
@@ -94,12 +93,15 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     callbacks: RealtimeEventCallbacks
   ): Promise<RealtimeSessionResult> {
     const model = config.model || env.GEMINI_REALTIME_MODEL;
-    // Format Gemini URL with key query parameter
-    const wsUrl = `${this.wsBaseUrl}?key=${this.apiKey}`;
+    // Format Gemini URL with key query parameter dynamically matching version
+    const apiVersion = (config as any).apiVersion || env.GEMINI_API_VERSION || 'v1beta';
+    const baseUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.${apiVersion}.GenerativeService.BidiGenerateContent`;
+    const wsUrl = `${baseUrl}?key=${this.apiKey}`;
 
     logger.info('GeminiLiveProvider: creating session', {
       model,
       voice: config.voice,
+      apiVersion,
     });
 
     if (!this.apiKey) {
