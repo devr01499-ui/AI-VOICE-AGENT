@@ -60,9 +60,15 @@ router.get(
       await provider.closeSession(result.sessionId);
       res.json({ success: true, apiVersion, model: modelName, sessionId: result.sessionId });
     } catch (err: any) {
+      const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
+      const openaiKey = process.env.OPENAI_API_KEY || '';
       res.status(500).json({
         success: false,
         error: err.message || String(err),
+        geminiKeyPrefix: geminiKey ? geminiKey.substring(0, 6) : 'missing',
+        geminiKeyLength: geminiKey ? geminiKey.length : 0,
+        openaiKeyPrefix: openaiKey ? openaiKey.substring(0, 6) : 'missing',
+        openaiKeyLength: openaiKey ? openaiKey.length : 0,
         stack: err.stack,
       });
     }
