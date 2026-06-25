@@ -37,6 +37,32 @@ router.post(
   CallController.initiateCall
 );
 
+/** GET /api/v2/calls/debug/gemini — Diagnostic endpoint for Gemini Live WebSocket connection. */
+router.get(
+  '/debug/gemini',
+  async (req, res) => {
+    try {
+      const { GeminiLiveProvider } = await import('../providers/gemini/GeminiLiveProvider');
+      const provider = new GeminiLiveProvider();
+      const config = {
+        model: 'gemini-2.0-flash-exp',
+        voice: 'alloy',
+        instructions: 'Test.',
+      };
+      const callbacks = {};
+      const result = await provider.createSession(config, callbacks);
+      await provider.closeSession(result.sessionId);
+      res.json({ success: true, sessionId: result.sessionId });
+    } catch (err: any) {
+      res.status(500).json({
+        success: false,
+        error: err.message || String(err),
+        stack: err.stack,
+      });
+    }
+  }
+);
+
 /** GET /api/v2/calls/:callId — Get call status and details. */
 router.get(
   '/:callId',

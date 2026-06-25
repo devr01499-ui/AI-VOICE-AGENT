@@ -201,6 +201,22 @@ export class AudioStreamHandler {
             callId,
             error: err instanceof Error ? err.message : String(err),
           });
+
+          // Update call status to failed so dashboard does not hang on ringing/connected
+          CallRepository.updateStatus(callId, 'failed')
+            .then(() => {
+              return CallRepository.updateExecution(callId, {
+                outcome: 'unsuccessful',
+                metadata: JSON.stringify({ error: err instanceof Error ? err.message : String(err) }),
+              });
+            })
+            .catch((dbErr) => {
+              logger.error('AudioStreamHandler: failed to update DB status to failed', {
+                callId,
+                error: dbErr instanceof Error ? dbErr.message : String(dbErr),
+              });
+            });
+
           const connRef = this.connections.get(callId);
           if (connRef) {
             connRef.ws.close(1011, 'Failed to start session');
