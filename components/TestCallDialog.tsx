@@ -45,7 +45,10 @@ interface TestCallDialogProps {
   initialCallId?: string | null;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
+  (typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    ? 'http://localhost:3001'
+    : 'https://ai-voice-agent-backend-mv32.onrender.com');
 
 export default function TestCallDialog({ isOpen, onClose, onCallSimulated, fromPhoneNumber, initialCallId }: TestCallDialogProps) {
   const [agents, setAgents] = useState<Agent[]>([]);
