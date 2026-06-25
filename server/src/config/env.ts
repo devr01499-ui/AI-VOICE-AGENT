@@ -75,7 +75,7 @@ const envSchema = z.object({
   GEMINI_REALTIME_MODEL: z
     .string()
     .trim()
-    .default('gemini-2.0-flash-exp'),
+    .default('gemini-2.0-flash'),
 
   GEMINI_API_VERSION: z
     .string()

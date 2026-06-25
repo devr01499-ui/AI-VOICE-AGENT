@@ -57,7 +57,7 @@ router.get(
       const { env } = await import('../config/env');
       
       const apiVersion = (req.query.version as string) || env.GEMINI_API_VERSION || 'v1beta';
-      const modelName = (req.query.model as string) || env.GEMINI_REALTIME_MODEL || 'gemini-2.0-flash-exp';
+      const modelName = (req.query.model as string) || env.GEMINI_REALTIME_MODEL || 'gemini-2.0-flash';
 
       const provider = new GeminiLiveProvider();
       const apiKey = provider.getApiKey();

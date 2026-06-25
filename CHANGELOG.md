@@ -3,6 +3,7 @@
 ## [Unreleased] - 2026-06-25
 ### Added
 - Implemented smart REST-based API key diagnostics on Google Gemini Live provider and call routes to intercept opaque 1008 policy violation WebSocket upgrade closures and print detailed JSON errors.
+- Migrated default model configuration to the GA production model name `gemini-2.0-flash` and implemented dynamic backward-compatibility mapping for `gemini-2.0-flash-exp` database configurations.
 
 ### Fixed
 - Removed trailing slash from Vobiz Account endpoint in the health check, bypassing 307 redirects to private hostnames that caused connection timeouts on startup.

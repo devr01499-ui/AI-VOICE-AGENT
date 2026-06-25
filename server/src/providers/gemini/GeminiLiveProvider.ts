@@ -113,7 +113,12 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     config: RealtimeSessionConfig,
     callbacks: RealtimeEventCallbacks
   ): Promise<RealtimeSessionResult> {
-    const model = config.model || env.GEMINI_REALTIME_MODEL;
+    let model = config.model || env.GEMINI_REALTIME_MODEL;
+    // Map experimental model to production GA model name for backward-compatibility
+    if (model === 'gemini-2.0-flash-exp') {
+      model = 'gemini-2.0-flash';
+    }
+
     // Format Gemini URL with key query parameter dynamically matching version
     const apiVersion = (config as any).apiVersion || env.GEMINI_API_VERSION || 'v1beta';
     const baseUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.${apiVersion}.GenerativeService.BidiGenerateContent`;
