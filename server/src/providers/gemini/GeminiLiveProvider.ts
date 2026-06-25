@@ -66,6 +66,27 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     this.apiKey = env.GEMINI_API_KEY || env.GOOGLE_API_KEY || '';
   }
 
+  public getApiKey(): string {
+    return this.apiKey;
+  }
+
+  public async verifyApiKey(apiKey: string): Promise<string | null> {
+    if (!apiKey) return 'API key is missing';
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as any;
+        if (data && data.error && typeof data.error.message === 'string') {
+          return data.error.message;
+        }
+        return `HTTP error ${res.status}: ${res.statusText}`;
+      }
+      return null;
+    } catch (err: any) {
+      return `Failed to connect to Google API: ${err.message || String(err)}`;
+    }
+  }
+
   async connect(): Promise<void> {
     logger.info('GeminiLiveProvider: ready (connections are per-session)');
   }
@@ -218,7 +239,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         }
       });
 
-      ws.on('close', (code: number, reason: Buffer) => {
+      ws.on('close', async (code: number, reason: Buffer) => {
         logger.info('GeminiLiveProvider: WebSocket closed', {
           sessionId,
           code,
@@ -229,7 +250,23 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         if (!resolved) {
           clearTimeout(connectionTimeout);
           resolved = true;
-          reject(new ProviderError('gemini-live', `WebSocket closed before setup complete (code=${code})`));
+          
+          const keyError = await this.verifyApiKey(this.apiKey);
+          if (keyError) {
+            reject(
+              new ProviderError(
+                'gemini-live',
+                `WebSocket closed before setup complete (code=${code}, reason=${reason.toString()}). API check: ${keyError}`
+              )
+            );
+          } else {
+            reject(
+              new ProviderError(
+                'gemini-live',
+                `WebSocket closed before setup complete (code=${code}, reason=${reason.toString()})`
+              )
+            );
+          }
         }
       });
     });

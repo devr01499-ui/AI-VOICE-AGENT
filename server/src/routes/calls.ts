@@ -60,6 +60,20 @@ router.get(
       const modelName = (req.query.model as string) || env.GEMINI_REALTIME_MODEL || 'gemini-2.0-flash-exp';
 
       const provider = new GeminiLiveProvider();
+      const apiKey = provider.getApiKey();
+
+      // Early REST API key validation check
+      const keyError = await provider.verifyApiKey(apiKey);
+      if (keyError) {
+        return res.status(400).json({
+          success: false,
+          error: `API key validation failed: ${keyError}`,
+          geminiKeyPrefix: apiKey ? apiKey.substring(0, 6) : 'missing',
+          geminiKeyLength: apiKey ? apiKey.length : 0,
+          geo,
+        });
+      }
+
       const config = {
         model: modelName,
         voice: 'alloy',
