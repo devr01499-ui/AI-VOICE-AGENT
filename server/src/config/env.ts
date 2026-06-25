@@ -15,11 +15,13 @@ const envSchema = z.object({
   // ── Database ────────────────────────────────
   DATABASE_URL: z
     .string({ required_error: 'DATABASE_URL is required' })
+    .trim()
     .min(1, 'DATABASE_URL must not be empty'),
 
   // ── Server ──────────────────────────────────
   PORT: z
     .string({ required_error: 'PORT is required' })
+    .trim()
     .regex(/^\d+$/, 'PORT must be a numeric string')
     .transform(Number),
 
@@ -33,45 +35,52 @@ const envSchema = z.object({
 
   FRONTEND_URL: z
     .string()
+    .trim()
     .url('FRONTEND_URL must be a valid URL')
     .default('http://localhost:3000'),
 
   // ── Vobiz Telephony ────────────────────────
   VOBIZ_AUTH_ID: z
     .string({ required_error: 'VOBIZ_AUTH_ID is required' })
+    .trim()
     .min(1, 'VOBIZ_AUTH_ID must not be empty'),
 
   VOBIZ_AUTH_TOKEN: z
     .string({ required_error: 'VOBIZ_AUTH_TOKEN is required' })
+    .trim()
     .min(1, 'VOBIZ_AUTH_TOKEN must not be empty'),
 
   VOBIZ_FROM_NUMBER: z
     .string({ required_error: 'VOBIZ_FROM_NUMBER is required' })
+    .trim()
     .min(1, 'VOBIZ_FROM_NUMBER must not be empty'),
 
   VOBIZ_API_URL: z
     .string({ required_error: 'VOBIZ_API_URL is required' })
+    .trim()
     .url('VOBIZ_API_URL must be a valid URL'),
 
   // ── OpenAI ──────────────────────────────────
-  OPENAI_API_KEY: z.string().optional(),
+  OPENAI_API_KEY: z.string().trim().optional(),
 
   OPENAI_REALTIME_MODEL: z
     .string()
+    .trim()
     .default('gpt-4o-realtime-preview'),
 
   // ── Gemini ──────────────────────────────────
-  GEMINI_API_KEY: z.string().optional(),
-  GOOGLE_API_KEY: z.string().optional(),
+  GEMINI_API_KEY: z.string().trim().optional(),
+  GOOGLE_API_KEY: z.string().trim().optional(),
 
   GEMINI_REALTIME_MODEL: z
     .string()
+    .trim()
     .default('gemini-2.0-flash-exp'),
 
   // ── Networking / Tunnels ────────────────────
-  PUBLIC_URL: z.string().default(''),
+  PUBLIC_URL: z.string().trim().default(''),
 
-  NGROK_AUTH_TOKEN: z.string().default(''),
+  NGROK_AUTH_TOKEN: z.string().trim().default(''),
 });
 
 /**

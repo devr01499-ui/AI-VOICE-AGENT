@@ -55,7 +55,7 @@ export class VobizProvider implements ITelephonyProvider {
     logger.info('VobizProvider: connecting...', { baseUrl: this.baseUrl, isMock: this.isMock });
     const health = await this.healthCheck();
     if (!health.healthy) {
-      throw new ProviderError('vobiz', 'Failed to connect — health check failed');
+      throw new ProviderError('vobiz', `Failed to connect — health check failed: ${health.details || 'Unknown reason'}`);
     }
     logger.info('VobizProvider: connected', { latencyMs: health.latencyMs, isMock: this.isMock });
   }
