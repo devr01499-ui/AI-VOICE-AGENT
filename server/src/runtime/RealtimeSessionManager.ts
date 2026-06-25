@@ -208,6 +208,25 @@ export class RealtimeSessionManager {
   }
 
   /**
+   * Triggers the initial greeting for the active session.
+   */
+  triggerGreeting(callId: string, greetingText?: string): void {
+    const sessionId = this.callToSession.get(callId);
+    if (!sessionId) {
+      logger.warn('RealtimeSessionManager: no session for triggerGreeting', { callId });
+      return;
+    }
+
+    const session = this.sessions.get(sessionId);
+    if (!session || session.status !== 'active') {
+      return;
+    }
+
+    const provider = this.getRealtimeProvider();
+    provider.triggerGreeting(sessionId, greetingText);
+  }
+
+  /**
    * Returns the current state of the session for a call.
    */
   getSessionState(callId: string): { status: SessionStatus; sessionId: string } | null {

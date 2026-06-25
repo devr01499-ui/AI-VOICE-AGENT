@@ -102,5 +102,6 @@ export interface IRealtimeProvider extends IBaseProvider {
   sendAudio(sessionId: string, audioBase64: string): void;
   sendFunctionResult(sessionId: string, callId: string, result: string): void;
   commitAudioBuffer(sessionId: string): void;
+  triggerGreeting(sessionId: string, greetingText?: string): void;
   closeSession(sessionId: string): Promise<void>;
 }

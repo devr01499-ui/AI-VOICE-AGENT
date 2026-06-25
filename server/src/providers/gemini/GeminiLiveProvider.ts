@@ -282,6 +282,33 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     // Gemini handles turns automatically via its speech activity detector
   }
 
+  triggerGreeting(sessionId: string, greetingText?: string): void {
+    const session = this.activeSessions.get(sessionId);
+    if (!session || session.ws.readyState !== WebSocket.OPEN) return;
+
+    logger.info('GeminiLiveProvider: triggering greeting response', { sessionId });
+
+    const textPrompt = greetingText || 'Hi, please start the interview.';
+
+    session.ws.send(
+      JSON.stringify({
+        clientContent: {
+          turns: [
+            {
+              role: 'user',
+              parts: [
+                {
+                  text: textPrompt,
+                },
+              ],
+            },
+          ],
+          turnComplete: true,
+        },
+      })
+    );
+  }
+
   async closeSession(sessionId: string): Promise<void> {
     const session = this.activeSessions.get(sessionId);
     if (!session) return;

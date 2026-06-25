@@ -272,6 +272,39 @@ export class OpenAIRealtimeProvider implements IRealtimeProvider {
     session.ws.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
   }
 
+  triggerGreeting(sessionId: string, greetingText?: string): void {
+    const session = this.activeSessions.get(sessionId);
+    if (!session || session.ws.readyState !== WebSocket.OPEN) return;
+
+    logger.info('OpenAIRealtimeProvider: triggering greeting response', { sessionId });
+
+    const textPrompt = greetingText || 'Hi, please start the interview.';
+
+    // Send conversation item representing the user prompt
+    session.ws.send(
+      JSON.stringify({
+        type: 'conversation.item.create',
+        item: {
+          type: 'message',
+          role: 'user',
+          content: [
+            {
+              type: 'input_text',
+              text: textPrompt,
+            },
+          ],
+        },
+      })
+    );
+
+    // Request the model to respond
+    session.ws.send(
+      JSON.stringify({
+        type: 'response.create',
+      })
+    );
+  }
+
   /** Closes the OpenAI session and its WebSocket. */
   async closeSession(sessionId: string): Promise<void> {
     const session = this.activeSessions.get(sessionId);

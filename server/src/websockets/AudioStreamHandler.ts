@@ -145,13 +145,16 @@ export class AudioStreamHandler {
     if (event.event !== 'start') return;
 
     const conn = this.connections.get(callId);
+    // Parse streamId robustly from both flat and nested structures
+    const rawEvent = event as any;
+    const streamId = rawEvent.streamId || rawEvent.start?.streamId || null;
     if (conn) {
-      conn.streamId = event.streamId;
+      conn.streamId = streamId;
     }
 
     logger.info('AudioStreamHandler: stream started', {
       callId,
-      streamId: event.streamId,
+      streamId,
     });
 
     // Start the runtime engine session
@@ -167,13 +170,31 @@ export class AudioStreamHandler {
         .then((sessionId) => {
           logger.info('AudioStreamHandler: runtime session started', { callId, sessionId });
 
-          // Wire up audio response callback — send OpenAI audio back to Vobiz
+          // Wire up audio response callback — send OpenAI/Gemini audio back to Vobiz
+          const originalSpeechStarted = engine.sessionManager['callbacks'].onSpeechStarted;
           engine.sessionManager.setCallbacks({
             ...engine.sessionManager['callbacks'],
             onAudioResponse: (_callId: string, audioBase64: string) => {
               this.sendAudioToVobiz(_callId, audioBase64);
             },
+            onSpeechStarted: (_callId: string) => {
+              originalSpeechStarted?.(_callId);
+              this.clearAudio(_callId);
+            },
           });
+
+          // Trigger initial greeting after 1 second to stabilize handset audio path
+          setTimeout(() => {
+            try {
+              logger.info('AudioStreamHandler: triggering initial greeting', { callId });
+              engine.sessionManager.triggerGreeting(callId);
+            } catch (err) {
+              logger.error('AudioStreamHandler: failed to trigger greeting', {
+                callId,
+                error: err instanceof Error ? err.message : String(err),
+              });
+            }
+          }, 1000);
         })
         .catch((err) => {
           logger.error('AudioStreamHandler: failed to start runtime session', {
@@ -226,8 +247,9 @@ export class AudioStreamHandler {
       return;
     }
 
+    // Vobiz/Plivo bidirectional streaming protocol requires 'playAudio' event name
     const message = JSON.stringify({
-      event: 'media',
+      event: 'playAudio',
       streamId: conn.streamId ?? '',
       media: {
         contentType: 'audio/x-mulaw',
@@ -240,6 +262,30 @@ export class AudioStreamHandler {
       conn.ws.send(message);
     } catch (err) {
       logger.error('AudioStreamHandler: failed to send audio to Vobiz', {
+        callId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  /**
+   * Clears any active audio in Vobiz playback queue (for interruptions).
+   */
+  private clearAudio(callId: string): void {
+    const conn = this.connections.get(callId);
+    if (!conn || conn.ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    const message = JSON.stringify({
+      event: 'clearAudio',
+    });
+
+    try {
+      conn.ws.send(message);
+      logger.info('AudioStreamHandler: sent clearAudio to Vobiz', { callId });
+    } catch (err) {
+      logger.error('AudioStreamHandler: failed to send clearAudio to Vobiz', {
         callId,
         error: err instanceof Error ? err.message : String(err),
       });
