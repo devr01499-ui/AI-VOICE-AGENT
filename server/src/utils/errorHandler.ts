@@ -46,54 +46,56 @@ export function errorHandler(
       : '') || 'unknown';
 
   // ── Validation errors (400) ──────────────────
-  if (err instanceof ValidationError) {
+  if (err instanceof ValidationError || (err && typeof err === 'object' && 'details' in err && (err as any).code === 'VALIDATION_ERROR')) {
+    const vErr = err as any;
     const body: ErrorResponseBody = {
       success: false,
       error: {
-        code: err.code,
-        message: err.message,
+        code: vErr.code || 'VALIDATION_ERROR',
+        message: vErr.message,
         requestId,
-        details: err.details,
+        details: vErr.details,
       },
     };
 
     logger.warn('Validation error', {
       requestId,
-      code: err.code,
-      details: err.details,
+      code: vErr.code || 'VALIDATION_ERROR',
+      details: vErr.details,
     });
 
-    res.status(err.statusCode).json(body);
+    res.status(vErr.statusCode || 400).json(body);
     return;
   }
 
   // ── Known operational errors ─────────────────
-  if (err instanceof AppError) {
+  if (err instanceof AppError || (err && typeof err === 'object' && 'statusCode' in err && 'code' in err)) {
+    const appErr = err as any;
     const body: ErrorResponseBody = {
       success: false,
       error: {
-        code: err.code,
-        message: err.message,
+        code: appErr.code,
+        message: appErr.message,
         requestId,
       },
     };
 
-    if (err.isOperational) {
+    if (appErr.isOperational !== false) {
       logger.warn('Operational error', {
         requestId,
-        code: err.code,
-        statusCode: err.statusCode,
+        code: appErr.code,
+        statusCode: appErr.statusCode,
       });
     } else {
       logger.error('Non-operational AppError', {
         requestId,
-        code: err.code,
-        statusCode: err.statusCode,
-        stack: err.stack,
+        code: appErr.code,
+        statusCode: appErr.statusCode,
+        stack: appErr.stack,
       });
     }
 
-    res.status(err.statusCode).json(body);
+    res.status(appErr.statusCode).json(body);
     return;
   }
 
