@@ -95,8 +95,9 @@ export class VoiceRuntimeEngine {
       agentConfig.voice = 'alloy';
     }
     if (!agentConfig.llm) {
-      const defaultProvider = env.GEMINI_API_KEY ? 'gemini' : 'openai';
-      const defaultModel = env.GEMINI_API_KEY ? 'gemini-2.0-flash-exp' : 'gpt-4o-realtime-preview';
+      const isGemini = Boolean(env.GEMINI_API_KEY || env.GOOGLE_API_KEY);
+      const defaultProvider = isGemini ? 'gemini' : 'openai';
+      const defaultModel = isGemini ? 'gemini-2.0-flash-exp' : 'gpt-4o-realtime-preview';
       agentConfig.llm = { provider: defaultProvider, model: defaultModel };
     }
 

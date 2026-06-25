@@ -62,6 +62,7 @@ const envSchema = z.object({
 
   // ── Gemini ──────────────────────────────────
   GEMINI_API_KEY: z.string().optional(),
+  GOOGLE_API_KEY: z.string().optional(),
 
   GEMINI_REALTIME_MODEL: z
     .string()

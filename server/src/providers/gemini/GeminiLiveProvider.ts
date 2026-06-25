@@ -64,7 +64,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
   private readonly wsBaseUrl = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent';
 
   constructor() {
-    this.apiKey = env.GEMINI_API_KEY || '';
+    this.apiKey = env.GEMINI_API_KEY || env.GOOGLE_API_KEY || '';
   }
 
   async connect(): Promise<void> {

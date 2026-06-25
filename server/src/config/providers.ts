@@ -35,7 +35,7 @@ export async function initializeProviders(): Promise<void> {
   }
 
   // ─── Realtime AI Provider ──────────────────────
-  if (env.GEMINI_API_KEY) {
+  if (env.GEMINI_API_KEY || env.GOOGLE_API_KEY) {
     try {
       const gemini = new GeminiLiveProvider();
       await gemini.connect();
