@@ -16,6 +16,10 @@ export class GeminiSession {
     this.audioCallbacks.push(callback);
   }
 
+  clearAudioCallbacks(): void {
+    this.audioCallbacks = [];
+  }
+
   addTranscriptCallback(callback: (text: string, isFinal: boolean) => void): void {
     this.transcriptCallbacks.push(callback);
   }

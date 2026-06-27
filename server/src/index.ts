@@ -146,6 +146,29 @@ async function bootstrap(): Promise<void> {
     port: env.PORT,
   });
 
+  // Validate critical environment variables at startup
+  if (!env.PUBLIC_URL || env.PUBLIC_URL.trim() === '') {
+    logger.error('Bolna Server: CRITICAL - PUBLIC_URL not configured');
+    logger.error('Bolna Server: Vobiz will not be able to call back to this server');
+    logger.error('Bolna Server: Set PUBLIC_URL environment variable (use ngrok for local dev)');
+    logger.error('Bolna Server: Example: ngrok http 3001, then set PUBLIC_URL=https://abc123.ngrok.io');
+    process.exit(1);
+  }
+
+  if (!env.VOBIZ_AUTH_ID || !env.VOBIZ_AUTH_TOKEN) {
+    logger.error('Bolna Server: CRITICAL - Vobiz credentials missing');
+    logger.error('Bolna Server: Set VOBIZ_AUTH_ID and VOBIZ_AUTH_TOKEN in .env');
+    process.exit(1);
+  }
+
+  if (!env.GOOGLE_API_KEY && !env.OPENAI_API_KEY && !env.GEMINI_API_KEY) {
+    logger.error('Bolna Server: CRITICAL - No LLM provider configured');
+    logger.error('Bolna Server: Set either GOOGLE_API_KEY or OPENAI_API_KEY or GEMINI_API_KEY in .env');
+    process.exit(1);
+  }
+
+  logger.info('Bolna Server: Critical environment variables validated ✓');
+
   // Verify database connectivity
   try {
     await prisma.$connect();

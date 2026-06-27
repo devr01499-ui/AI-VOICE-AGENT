@@ -94,22 +94,58 @@ export class CallOrchestrator {
     logger.info('CallOrchestrator: startVoiceSession', { callId, agentId });
 
     const agent = await AgentRepository.findById(agentId);
+    if (!agent.agentConfig || agent.agentConfig === '{}') {
+      throw new CallError(callId, 'Agent configuration is empty. Please configure the agent first.');
+    }
+
     let agentConfig: AgentConfig;
     try {
       const rawConfig = JSON.parse(agent.agentConfig) as any;
+
+      // Validate required fields
+      if (!rawConfig.prompt && !rawConfig.system_prompt) {
+        throw new Error('Missing prompt/system_prompt in agent config');
+      }
+
+      const voiceName = rawConfig.voice || rawConfig.voice_config?.voice || 'alloy';
+      const validVoices = ['alloy', 'echo', 'fable', 'onyx', 'shimmer'];
+      if (!validVoices.includes(voiceName.toLowerCase())) {
+        throw new Error(`Invalid voice: ${voiceName}. Must be one of: ${validVoices.join(', ')}`);
+      }
+
+      const llmProvider = rawConfig.llm?.provider || 
+        (Boolean(env.GEMINI_API_KEY || env.GOOGLE_API_KEY) ? 'gemini' : 'openai');
+      const validProviders = ['gemini', 'openai'];
+      if (!validProviders.includes(llmProvider.toLowerCase())) {
+        throw new Error(`Invalid LLM provider: ${llmProvider}`);
+      }
+
+      // Build validated config
       agentConfig = {
-        prompt: rawConfig.prompt || rawConfig.system_prompt || 'You are a helpful voice assistant.',
-        voice: rawConfig.voice || rawConfig.voice_config?.voice || 'alloy',
-        llm: rawConfig.llm || {
-          provider: rawConfig.llm_config?.provider || (Boolean(env.GEMINI_API_KEY || env.GOOGLE_API_KEY) ? 'gemini' : 'openai'),
-          model: rawConfig.llm_config?.model || (Boolean(env.GEMINI_API_KEY || env.GOOGLE_API_KEY) ? 'gemini-2.0-flash' : 'gpt-4o-realtime-preview'),
+        prompt: rawConfig.prompt || rawConfig.system_prompt,
+        voice: voiceName,
+        llm: {
+          provider: llmProvider,
+          model: rawConfig.llm_config?.model || 
+            (llmProvider === 'gemini' ? 'gemini-2.0-flash' : 'gpt-4o-realtime-preview'),
         },
         tools: rawConfig.tools,
         knowledgeBaseIds: rawConfig.knowledgeBaseIds,
         settings: rawConfig.settings,
       };
-    } catch {
-      throw new CallError(callId, 'Invalid agent configuration JSON');
+
+      logger.info('CallOrchestrator: agent config validated', { 
+        callId, 
+        agentId,
+        voice: agentConfig.voice,
+        provider: agentConfig.llm.provider,
+      });
+
+    } catch (err) {
+      throw new CallError(
+        callId, 
+        `Invalid agent configuration: ${err instanceof Error ? err.message : String(err)}`
+      );
     }
 
     // Register active tools

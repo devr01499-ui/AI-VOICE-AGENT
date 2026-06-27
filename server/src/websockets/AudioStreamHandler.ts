@@ -26,6 +26,7 @@ interface ActiveConnection {
     bytesConverted: number;
     conversionErrors: number;
   };
+  sessionId?: string;
 }
 
 // ─── Handler Implementation ──────────────────────────
@@ -169,10 +170,18 @@ export class AudioStreamHandler {
         .then((sessionId) => {
           logger.info('AudioStreamHandler: CallOrchestrator session started', { callId, sessionId });
 
-          // Connect audio response bridge callback (provider -> Vobiz)
-          providerManagerSDK.getProvider('gemini').receiveAudio(sessionId, (audioBase64) => {
+          const currentConn = this.connections.get(callId);
+          if (currentConn) {
+            currentConn.sessionId = sessionId;
+          }
+
+          // Register callback to handle audio responses from provider
+          const provider = providerManagerSDK.getProvider('gemini');
+          provider.registerAudioResponseCallback(sessionId, (audioBase64: string) => {
             this.sendAudioToVobiz(callId, audioBase64);
           });
+
+          logger.info('AudioStreamHandler: audio response callback registered', { callId, sessionId });
 
           // Register speech-started interruption clearance
           eventBus.subscribe(PROVIDER_EVENTS.AI_STARTED_SPEAKING, (payload) => {
@@ -184,8 +193,10 @@ export class AudioStreamHandler {
           // Trigger initial greeting turn text after 1 second
           setTimeout(() => {
             try {
-              logger.info('AudioStreamHandler: triggering greeting text', { callId });
-              providerManagerSDK.sendText(sessionId, 'Hi, please start the interview.');
+              logger.info('AudioStreamHandler: triggering greeting', { callId });
+              const greetingText = 'Hi, please start the interview.';
+              provider.triggerGreeting(sessionId, greetingText);
+              logger.info('AudioStreamHandler: greeting triggered', { callId, sessionId });
             } catch (err) {
               logger.error('AudioStreamHandler: failed to trigger greeting', {
                 callId,
@@ -200,6 +211,12 @@ export class AudioStreamHandler {
             error: err instanceof Error ? err.message : String(err),
           });
 
+          // ✅ Immediately close WebSocket
+          if (conn && conn.ws.readyState === WebSocket.OPEN) {
+            conn.ws.close(1011, 'Session initialization failed');
+          }
+
+          // ✅ Update DB asynchronously
           CallRepository.updateStatus(callId, 'failed')
             .then(() => {
               return CallRepository.updateExecution(callId, {
@@ -208,16 +225,11 @@ export class AudioStreamHandler {
               });
             })
             .catch((dbErr) => {
-              logger.error('AudioStreamHandler: failed to update DB status', {
-                callId,
-                error: dbErr instanceof Error ? dbErr.message : String(dbErr),
-              });
+              logger.error('AudioStreamHandler: cleanup on error failed', { callId, error: dbErr });
             });
 
-          const connRef = this.connections.get(callId);
-          if (connRef) {
-            connRef.ws.close(1011, 'Failed to start session');
-          }
+          // ✅ Clean up connection reference
+          this.connections.delete(callId);
         });
     }).catch((err) => {
       logger.error('AudioStreamHandler: failed to import CallRepository', {
@@ -246,16 +258,20 @@ export class AudioStreamHandler {
       conn.audioStats.bytesReceived += origBuffer.length;
       conn.audioStats.bytesConverted += convBuffer.length;
 
-      if (conn.audioStats.packetsReceived % 100 === 0) {
-        const stats = getAudioConversionStats(mulawAudio, pcm16Audio);
-        logger.debug('AudioStreamHandler: audio conversion stats', {
+      // Log audio packet every 50 packets for visibility
+      if (conn.audioStats.packetsReceived % 50 === 0) {
+        logger.debug('AudioStreamHandler: audio stats', {
           callId,
           packetsReceived: conn.audioStats.packetsReceived,
-          ...stats,
+          bytesReceived: conn.audioStats.bytesReceived,
+          bytesConverted: conn.audioStats.bytesConverted,
+          conversionErrors: conn.audioStats.conversionErrors,
+          avgPacketSize: Math.round(conn.audioStats.bytesReceived / conn.audioStats.packetsReceived),
         });
       }
 
-      callOrchestrator.processAudioStream(callId, pcm16Audio);
+      // ✅ Pass raw mulawAudio to CallOrchestrator (GeminiProvider internally handles PCM16 conversion and resampling)
+      callOrchestrator.processAudioStream(callId, mulawAudio);
     } catch (err) {
       conn.audioStats.conversionErrors++;
       logger.error('AudioStreamHandler: audio conversion error', {
@@ -292,6 +308,12 @@ export class AudioStreamHandler {
     if (!conn || conn.ws.readyState !== WebSocket.OPEN) {
       return;
     }
+
+    const audioBuffer = Buffer.from(audioBase64, 'base64');
+    logger.debug('AudioStreamHandler: sending audio to Vobiz', {
+      callId,
+      bytes: audioBuffer.length,
+    });
 
     const message = JSON.stringify({
       event: 'playAudio',
@@ -345,6 +367,15 @@ export class AudioStreamHandler {
       reason,
       stats: conn?.audioStats,
     });
+
+    // Unregister audio callback
+    if (conn && conn.sessionId) {
+      try {
+        providerManagerSDK.getProvider('gemini').unregisterAudioResponseCallback(conn.sessionId);
+      } catch (err) {
+        logger.warn('AudioStreamHandler: failed to unregister callback', { callId });
+      }
+    }
 
     this.connections.delete(callId);
 

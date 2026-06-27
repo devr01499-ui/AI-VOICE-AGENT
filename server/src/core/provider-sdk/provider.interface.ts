@@ -26,6 +26,10 @@ export interface IRealtimeProviderSDK {
 
   interrupt(sessionId: string): void;
 
+  triggerGreeting(sessionId: string, greetingText?: string): void;
+  registerAudioResponseCallback(sessionId: string, callback: (audioBase64: string) => void): void;
+  unregisterAudioResponseCallback(sessionId: string): void;
+
   ping(sessionId: string): Promise<number>;
   healthCheck(): Promise<HealthCheckResult>;
 }

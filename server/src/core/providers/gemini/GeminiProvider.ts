@@ -126,6 +126,21 @@ export class GeminiProvider implements IRealtimeProviderSDK {
     this.lowLevelProvider.triggerGreeting(sessionId, text);
   }
 
+  triggerGreeting(sessionId: string, greetingText?: string): void {
+    this.lowLevelProvider.triggerGreeting(sessionId, greetingText);
+  }
+
+  registerAudioResponseCallback(sessionId: string, callback: (audioBase64: string) => void): void {
+    this.receiveAudio(sessionId, callback);
+  }
+
+  unregisterAudioResponseCallback(sessionId: string): void {
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      session.clearAudioCallbacks();
+    }
+  }
+
   receiveTranscript(sessionId: string, callback: (text: string, isFinal: boolean) => void): void {
     const session = this.sessions.get(sessionId);
     if (session) {

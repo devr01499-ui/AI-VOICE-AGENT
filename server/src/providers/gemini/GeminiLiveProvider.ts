@@ -68,6 +68,20 @@ export class GeminiLiveProvider implements IRealtimeProvider {
   private readonly activeSessions = new Map<string, ActiveSession>();
   private readonly apiKey: string;
 
+  private readonly setupCompletePromises = new Map<string, Promise<void>>();
+  private readonly setupCompleteResolvers = new Map<string, () => void>();
+  private readonly audioResponseCallbacks = new Map<string, (audioBase64: string) => void>();
+
+  public registerAudioResponseCallback(sessionId: string, callback: (audioBase64: string) => void): void {
+    this.audioResponseCallbacks.set(sessionId, callback);
+    logger.info('GeminiLiveProvider: registered audio response callback', { sessionId });
+  }
+
+  public unregisterAudioResponseCallback(sessionId: string): void {
+    this.audioResponseCallbacks.delete(sessionId);
+    logger.info('GeminiLiveProvider: unregistered audio response callback', { sessionId });
+  }
+
   constructor() {
     this.apiKey = env.GEMINI_API_KEY || env.GOOGLE_API_KEY || '';
   }
@@ -150,19 +164,21 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       throw new ProviderError('gemini-live', 'GEMINI_API_KEY environment variable is missing.');
     }
 
-    return new Promise<RealtimeSessionResult>((resolve, reject) => {
-      const ws = new WebSocket(wsUrl);
+    const sessionId = `gemini-sess-${Date.now()}`;
+    const ws = new WebSocket(wsUrl);
 
-      let sessionId = `gemini-sess-${Date.now()}`;
-      let resolved = false;
+    // Create a promise that resolves when setupComplete is received
+    const setupCompletePromise = new Promise<void>((resolve, reject) => {
+      this.setupCompleteResolvers.set(sessionId, resolve);
 
       const connectionTimeout = setTimeout(() => {
-        if (!resolved) {
-          resolved = true;
+        if (this.setupCompleteResolvers.has(sessionId)) {
+          this.setupCompleteResolvers.delete(sessionId);
+          this.setupCompletePromises.delete(sessionId);
           ws.close();
-          reject(new ProviderError('gemini-live', 'Connection timeout after 15s'));
+          reject(new ProviderError('gemini-live', 'setupComplete timeout after 10s'));
         }
-      }, 15_000);
+      }, 10_000);
 
       ws.on('open', () => {
         logger.debug('GeminiLiveProvider: WebSocket connected, sending setup message');
@@ -222,7 +238,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
           const event = JSON.parse(raw.toString()) as GeminiServerEvent;
 
           // Handshake complete once setupComplete is received
-          if (event.setupComplete && !resolved) {
+          if (event.setupComplete) {
             this.activeSessions.set(sessionId, {
               ws,
               callbacks,
@@ -230,10 +246,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
             });
 
             clearTimeout(connectionTimeout);
-            resolved = true;
-
-            logger.info('GeminiLiveProvider: session created', { sessionId });
-            resolve({ sessionId, ws });
+            resolve();
             return;
           }
 
@@ -253,9 +266,10 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         });
         callbacks.onError?.(sessionId, err);
 
-        if (!resolved) {
+        if (this.setupCompleteResolvers.has(sessionId)) {
           clearTimeout(connectionTimeout);
-          resolved = true;
+          this.setupCompleteResolvers.delete(sessionId);
+          this.setupCompletePromises.delete(sessionId);
           reject(new ProviderError('gemini-live', `WebSocket error: ${err.message}`));
         }
       });
@@ -268,9 +282,10 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         });
         this.activeSessions.delete(sessionId);
 
-        if (!resolved) {
+        if (this.setupCompleteResolvers.has(sessionId)) {
           clearTimeout(connectionTimeout);
-          resolved = true;
+          this.setupCompleteResolvers.delete(sessionId);
+          this.setupCompletePromises.delete(sessionId);
           
           const keyError = await this.verifyApiKey(this.apiKey);
           if (keyError) {
@@ -291,6 +306,16 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         }
       });
     });
+
+    this.setupCompletePromises.set(sessionId, setupCompletePromise);
+
+    // Wait for setupComplete before returning
+    await setupCompletePromise;
+    this.setupCompleteResolvers.delete(sessionId);
+    this.setupCompletePromises.delete(sessionId);
+
+    logger.info('GeminiLiveProvider: session setup complete', { sessionId });
+    return { sessionId, ws };
   }
 
   sendAudio(sessionId: string, audioBase64: string): void {
