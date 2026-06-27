@@ -23,6 +23,7 @@ import type {
 } from '../providers/interfaces/IProvider';
 import type { AgentConfig, SessionMetrics, SessionStatus } from '../types';
 import { env } from '../config/env';
+import { convertInboundAudio, convertOutboundAudio } from '../utils/AudioConverter';
 
 // ─── Internal Session State ──────────────────────────
 
@@ -37,6 +38,8 @@ interface ManagedSession {
   audioPacketsSent: number;
   audioPacketsReceived: number;
   timeoutHandle: ReturnType<typeof setTimeout> | null;
+  inputSampleRate: number;
+  outputSampleRate: number;
 }
 
 // ─── Callback Types for Upstream Consumers ───────────
@@ -127,6 +130,10 @@ export class RealtimeSessionManager {
 
     const { sessionId } = await provider.createSession(sessionConfig, realtimeCallbacks);
 
+    // Determine rates based on provider name
+    const inputSampleRate = provider.name === 'gemini-live' ? 16000 : 24000;
+    const outputSampleRate = provider.name === 'gemini-live' ? 24000 : 24000;
+
     // Track the session
     const managed: ManagedSession = {
       callId,
@@ -139,6 +146,8 @@ export class RealtimeSessionManager {
       audioPacketsSent: 0,
       audioPacketsReceived: 0,
       timeoutHandle: null,
+      inputSampleRate,
+      outputSampleRate,
     };
 
     // Set up max duration timeout
@@ -187,7 +196,9 @@ export class RealtimeSessionManager {
     }
 
     const provider = this.getRealtimeProvider();
-    provider.sendAudio(sessionId, audioBase64);
+    // Convert inbound audio from Vobiz (8kHz mu-law) to PCM16 at provider's input rate
+    const convertedAudio = convertInboundAudio(audioBase64, session.inputSampleRate);
+    provider.sendAudio(sessionId, convertedAudio);
 
     session.audioPacketsSent++;
     session.lastAudioAt = Date.now();
@@ -338,10 +349,13 @@ export class RealtimeSessionManager {
     return {
       onAudioDelta: (_sessionId: string, audioBase64: string) => {
         const session = this.sessions.get(_sessionId);
+        let convertedAudio = audioBase64;
         if (session) {
           session.audioPacketsReceived++;
+          // Convert outbound audio from provider PCM16 rate to Vobiz 8kHz mu-law
+          convertedAudio = convertOutboundAudio(audioBase64, session.outputSampleRate);
         }
-        this.callbacks.onAudioResponse?.(callId, audioBase64);
+        this.callbacks.onAudioResponse?.(callId, convertedAudio);
       },
 
       onTranscriptDelta: (_sessionId: string, delta: string, isFinal: boolean) => {
