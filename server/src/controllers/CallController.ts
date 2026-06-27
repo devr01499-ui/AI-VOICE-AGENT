@@ -9,7 +9,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger';
 import { CallService } from '../services/CallService';
-import { VoiceRuntimeEngine } from '../runtime/VoiceRuntimeEngine';
+import { callOrchestrator } from '../core/orchestrator/CallOrchestrator';
 import { env } from '../config/env';
 
 /**
@@ -199,8 +199,7 @@ export class CallController {
       logger.info('CallController: Vobiz hangup webhook', { callId });
 
       // End the runtime session
-      const engine = VoiceRuntimeEngine.instance;
-      await engine.endSession(callId, 'user_hangup');
+      await callOrchestrator.endCallSession(callId, 'user_hangup');
 
       res.json({ success: true });
     } catch (err) {

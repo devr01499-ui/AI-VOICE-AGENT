@@ -1,27 +1,15 @@
 /**
  * Bolna Server — WebSocket Audio Stream Handler
  * 
- * FIXED VERSION: Now includes μ-law to PCM16 conversion
- * 
- * Handles bidirectional audio streaming between Vobiz telephony and
- * OpenAI/Gemini Realtime. When Vobiz answers a call and opens a WebSocket
- * stream (via the <Stream> XML directive), this handler:
- *
- *   1. Accepts the incoming WebSocket connection
- *   2. Parses the callId from the query string
- *   3. Starts the VoiceRuntimeEngine session for the call
- *   4. Routes incoming audio (Vobiz → OpenAI/Gemini) ✅ WITH CODEC CONVERSION
- *   5. Routes response audio (OpenAI/Gemini → Vobiz)
- *   6. Manages connection lifecycle and cleanup
- *
- * Events emitted: audio:received, audio:processed, transcript:segment,
- * call:status, call:error, call:ended
+ * Refactored to utilize the decoupled Provider SDK & CallOrchestrator.
  */
 
 import { IncomingMessage } from 'http';
 import WebSocket, { WebSocketServer } from 'ws';
 import { logger } from '../utils/logger';
-import { VoiceRuntimeEngine } from '../runtime/VoiceRuntimeEngine';
+import { callOrchestrator } from '../core/orchestrator/CallOrchestrator';
+import { providerManagerSDK } from '../core/provider-sdk/provider.manager';
+import { eventBus, PROVIDER_EVENTS } from '../core/provider-sdk/provider.events';
 import { mulawToPCM16, getAudioConversionStats } from '../utils/audioConverter';
 import type { VobizStreamEvent } from '../types';
 
@@ -154,13 +142,12 @@ export class AudioStreamHandler {
   }
 
   /**
-   * Vobiz stream started — initialize the VoiceRuntimeEngine session.
+   * Vobiz stream started — initialize the CallOrchestrator session.
    */
   private handleStreamStart(callId: string, event: VobizStreamEvent): void {
     if (event.event !== 'start') return;
 
     const conn = this.connections.get(callId);
-    // Parse streamId robustly from both flat and nested structures
     const rawEvent = event as any;
     const streamId = rawEvent.streamId || rawEvent.start?.streamId || null;
     if (conn) {
@@ -172,37 +159,33 @@ export class AudioStreamHandler {
       streamId,
     });
 
-    // Start the runtime engine session
-    // We need to look up the call to get the agentId
-    const engine = VoiceRuntimeEngine.instance;
+    const orchestrator = callOrchestrator;
 
-    // Import CallRepository inline to avoid circular dependency at module level
     import('../repositories/CallRepository').then(({ CallRepository }) => {
       CallRepository.findById(callId)
         .then((call) => {
-          return engine.startSession(callId, call.agentId, call.recipientPhoneNumber);
+          return orchestrator.startVoiceSession(callId, call.agentId, call.recipientPhoneNumber);
         })
         .then((sessionId) => {
-          logger.info('AudioStreamHandler: runtime session started', { callId, sessionId });
+          logger.info('AudioStreamHandler: CallOrchestrator session started', { callId, sessionId });
 
-          // Wire up audio response callback — send OpenAI/Gemini audio back to Vobiz
-          const originalSpeechStarted = engine.sessionManager['callbacks'].onSpeechStarted;
-          engine.sessionManager.setCallbacks({
-            ...engine.sessionManager['callbacks'],
-            onAudioResponse: (_callId: string, audioBase64: string) => {
-              this.sendAudioToVobiz(_callId, audioBase64);
-            },
-            onSpeechStarted: (_callId: string) => {
-              originalSpeechStarted?.(_callId);
-              this.clearAudio(_callId);
-            },
+          // Connect audio response bridge callback (provider -> Vobiz)
+          providerManagerSDK.getProvider('gemini').receiveAudio(sessionId, (audioBase64) => {
+            this.sendAudioToVobiz(callId, audioBase64);
           });
 
-          // Trigger initial greeting after 1 second to stabilize handset audio path
+          // Register speech-started interruption clearance
+          eventBus.subscribe(PROVIDER_EVENTS.AI_STARTED_SPEAKING, (payload) => {
+            if (payload.callId === callId) {
+              this.clearAudio(callId);
+            }
+          });
+
+          // Trigger initial greeting turn text after 1 second
           setTimeout(() => {
             try {
-              logger.info('AudioStreamHandler: triggering initial greeting', { callId });
-              engine.sessionManager.triggerGreeting(callId);
+              logger.info('AudioStreamHandler: triggering greeting text', { callId });
+              providerManagerSDK.sendText(sessionId, 'Hi, please start the interview.');
             } catch (err) {
               logger.error('AudioStreamHandler: failed to trigger greeting', {
                 callId,
@@ -212,12 +195,11 @@ export class AudioStreamHandler {
           }, 1000);
         })
         .catch((err) => {
-          logger.error('AudioStreamHandler: failed to start runtime session', {
+          logger.error('AudioStreamHandler: failed to start orchestrator session', {
             callId,
             error: err instanceof Error ? err.message : String(err),
           });
 
-          // Update call status to failed so dashboard does not hang on ringing/connected
           CallRepository.updateStatus(callId, 'failed')
             .then(() => {
               return CallRepository.updateExecution(callId, {
@@ -226,7 +208,7 @@ export class AudioStreamHandler {
               });
             })
             .catch((dbErr) => {
-              logger.error('AudioStreamHandler: failed to update DB status to failed', {
+              logger.error('AudioStreamHandler: failed to update DB status', {
                 callId,
                 error: dbErr instanceof Error ? dbErr.message : String(dbErr),
               });
@@ -245,35 +227,25 @@ export class AudioStreamHandler {
   }
 
   /**
-   * Vobiz audio media received — convert codec and forward to OpenAI/Gemini.
-   * 
-   * ✅ FIXED: Now converts μ-law (from Vobiz) to PCM16 (for Gemini/OpenAI)
+   * Vobiz audio media received — convert codec and forward to CallOrchestrator.
    */
   private handleMediaEvent(callId: string, event: VobizStreamEvent): void {
     if (event.event !== 'media') return;
 
     const conn = this.connections.get(callId);
-    if (!conn) {
-      return;
-    }
+    if (!conn) return;
 
-    // Update stats
     conn.audioStats.packetsReceived++;
 
     try {
-      // 🔧 CRITICAL FIX: Convert μ-law to PCM16
-      // Vobiz sends: audio/x-mulaw (mu-law compression, 8000 Hz)
-      // Gemini/OpenAI expect: audio/pcm16 (linear PCM, 8000 Hz)
       const mulawAudio = event.media.payload;
       const pcm16Audio = mulawToPCM16(mulawAudio);
 
-      // Track bytes for monitoring
       const origBuffer = Buffer.from(mulawAudio, 'base64');
       const convBuffer = Buffer.from(pcm16Audio, 'base64');
       conn.audioStats.bytesReceived += origBuffer.length;
       conn.audioStats.bytesConverted += convBuffer.length;
 
-      // Log conversion stats periodically (every 100 packets)
       if (conn.audioStats.packetsReceived % 100 === 0) {
         const stats = getAudioConversionStats(mulawAudio, pcm16Audio);
         logger.debug('AudioStreamHandler: audio conversion stats', {
@@ -283,9 +255,7 @@ export class AudioStreamHandler {
         });
       }
 
-      // Send converted PCM16 to engine
-      const engine = VoiceRuntimeEngine.instance;
-      engine.processAudioStream(callId, pcm16Audio);  // ✅ Now sending PCM16, not μ-law!
+      callOrchestrator.processAudioStream(callId, pcm16Audio);
     } catch (err) {
       conn.audioStats.conversionErrors++;
       logger.error('AudioStreamHandler: audio conversion error', {
@@ -301,15 +271,13 @@ export class AudioStreamHandler {
    */
   private handleStreamStop(callId: string, _event: VobizStreamEvent): void {
     const conn = this.connections.get(callId);
-    
     logger.info('AudioStreamHandler: stream stopped', {
       callId,
       stats: conn?.audioStats,
     });
 
-    const engine = VoiceRuntimeEngine.instance;
-    engine.endSession(callId, 'stream_stopped').catch((err) => {
-      logger.error('AudioStreamHandler: failed to end session on stream stop', {
+    callOrchestrator.endCallSession(callId, 'stream_stopped').catch((err) => {
+      logger.error('AudioStreamHandler: failed to end session', {
         callId,
         error: err instanceof Error ? err.message : String(err),
       });
@@ -325,12 +293,11 @@ export class AudioStreamHandler {
       return;
     }
 
-    // Vobiz/Plivo bidirectional streaming protocol requires 'playAudio' event name
     const message = JSON.stringify({
       event: 'playAudio',
       streamId: conn.streamId ?? '',
       media: {
-        contentType: 'audio/x-mulaw',  // Send back to Vobiz in μ-law (its native format)
+        contentType: 'audio/x-mulaw',
         sampleRate: 8000,
         payload: audioBase64,
       },
@@ -381,9 +348,7 @@ export class AudioStreamHandler {
 
     this.connections.delete(callId);
 
-    // Ensure runtime session is cleaned up
-    const engine = VoiceRuntimeEngine.instance;
-    engine.endSession(callId, 'ws_closed').catch((err) => {
+    callOrchestrator.endCallSession(callId, 'ws_closed').catch((err) => {
       logger.error('AudioStreamHandler: cleanup on close failed', {
         callId,
         error: err instanceof Error ? err.message : String(err),

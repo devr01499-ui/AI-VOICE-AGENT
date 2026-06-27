@@ -56,6 +56,7 @@ interface UpdateExecutionData {
   sentimentScore?: number;
   outcome?: string;
   metadata?: string;
+  costBreakdown?: string;
 }
 
 /**

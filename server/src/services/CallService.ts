@@ -11,11 +11,10 @@ import { ValidationError, NotFoundError, CallError } from '../types/errors';
 import { CallRepository } from '../repositories/CallRepository';
 import { AgentRepository } from '../repositories/AgentRepository';
 import { TranscriptRepository } from '../repositories/TranscriptRepository';
-import { VoiceRuntimeEngine } from '../runtime/VoiceRuntimeEngine';
-import { ProviderManager } from '../providers/ProviderManager';
+import { callOrchestrator } from '../core/orchestrator/CallOrchestrator';
+import { VobizService } from '../core/telephony/VobizService';
 import { env } from '../config/env';
 import type { CallStatus, CallResponse, TranscriptSegmentResponse, Speaker } from '../types';
-import type { ITelephonyProvider } from '../providers/interfaces/IProvider';
 import { Call, Execution, TranscriptSegment } from '@prisma/client';
 
 // ─── Input Shapes ─────────────────────────────────
@@ -63,64 +62,35 @@ export class CallService {
 
     const effectiveFromNumber = fromPhoneNumber || env.VOBIZ_FROM_NUMBER;
 
-    // ── Create call record ─────────────────────
-    const call = await CallRepository.create({
-      agentId,
-      userId,
-      recipientPhoneNumber: phoneNumber,
-      fromPhoneNumber: effectiveFromNumber,
-      userData: userData ? JSON.stringify(userData) : '{}',
-      maxDuration: maxDuration ?? 1800,
-    });
-
-    logger.info('CallService: call record created', { callId: call.id, agentId });
-
-    // ── Initiate via Vobiz ─────────────────────
+    // ── Initiate via CallOrchestrator ──────────
     try {
-      const telephony = ProviderManager.instance.getTelephonyProvider();
-      const publicUrl = env.PUBLIC_URL;
+      const callId = await callOrchestrator.initiateOutboundCall(
+        phoneNumber,
+        agentId,
+        userId,
+        effectiveFromNumber,
+        maxDuration ?? 1800
+      );
 
-      if (!publicUrl) {
-        throw new CallError(call.id, 'PUBLIC_URL not configured — Vobiz cannot reach webhook endpoints');
-      }
+      const call = await CallRepository.findById(callId);
 
-      const result = await telephony.initiateCall({
-        to: phoneNumber,
-        from: effectiveFromNumber,
-        answerUrl: `${publicUrl}/api/v2/webhooks/vobiz/answer?callId=${call.id}`,
-        ringUrl: `${publicUrl}/api/v2/webhooks/vobiz/status?callId=${call.id}`,
-        hangupUrl: `${publicUrl}/api/v2/webhooks/vobiz/hangup?callId=${call.id}`,
-      });
-
-      // Update with Vobiz call UUID
-      await CallRepository.updateStatus(call.id, 'ringing');
-
-      logger.info('CallService: call initiated via Vobiz', {
+      return {
         callId: call.id,
-        vobizRequestUuid: result.requestUuid,
-      });
+        status: call.status as CallStatus,
+        phoneNumber: call.recipientPhoneNumber,
+        agentId: call.agentId,
+        createdAt: call.createdAt.toISOString(),
+      };
     } catch (err) {
-      // Call placement failed — update status to failed
-      await CallRepository.updateStatus(call.id, 'failed');
-
       logger.error('CallService: failed to initiate call', {
-        callId: call.id,
         error: err instanceof Error ? err.message : String(err),
       });
 
       throw new CallError(
-        call.id,
+        'unknown',
         `Failed to place call: ${err instanceof Error ? err.message : 'Unknown error'}`
       );
     }
-
-    return {
-      callId: call.id,
-      status: 'ringing' as CallStatus,
-      phoneNumber,
-      agentId,
-      createdAt: call.createdAt.toISOString(),
-    };
   }
 
   /**
@@ -143,8 +113,7 @@ export class CallService {
    */
   static async getCallDetails(callId: string) {
     const call = await CallRepository.findById(callId);
-    const engine = VoiceRuntimeEngine.instance;
-    const sessionInfo = engine.getSessionInfo(callId);
+    const sessionInfo = callOrchestrator.getSessionInfo(callId);
 
     return {
       ...call,
@@ -174,26 +143,15 @@ export class CallService {
     }
 
     // End runtime session
-    const engine = VoiceRuntimeEngine.instance;
-    const sessionActive = engine.getSessionInfo(callId).active;
-    await engine.endSession(callId, 'user_terminated');
+    await callOrchestrator.endCallSession(callId, 'user_terminated');
 
     // Terminate via telephony provider
     try {
-      const telephony = ProviderManager.instance.getTelephonyProvider();
-      await telephony.terminateCall(callId);
+      await VobizService.terminateCall(callId);
     } catch (err) {
       logger.warn('CallService: Vobiz termination failed (call may already be ended)', {
         callId,
         error: err instanceof Error ? err.message : String(err),
-      });
-    }
-
-    // If the session was not active in the engine (so endSession didn't update the DB),
-    // we should manually update the DB status to cancelled.
-    if (!sessionActive) {
-      await CallRepository.updateStatus(callId, 'cancelled', {
-        endTime: new Date(),
       });
     }
 
