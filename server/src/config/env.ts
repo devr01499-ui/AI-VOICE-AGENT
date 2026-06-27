@@ -86,7 +86,10 @@ const envSchema = z.object({
     .default('v1alpha'),
 
   // ── Networking / Tunnels ────────────────────
-  PUBLIC_URL: z.string().trim().default(''),
+  PUBLIC_URL: z
+    .string({ required_error: 'PUBLIC_URL is required' })
+    .trim()
+    .min(1, 'PUBLIC_URL must not be empty'),
 
   NGROK_AUTH_TOKEN: z.string().trim().default(''),
 });
