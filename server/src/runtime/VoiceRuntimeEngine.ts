@@ -82,23 +82,20 @@ export class VoiceRuntimeEngine {
     const agent = await AgentRepository.findById(agentId);
     let agentConfig: AgentConfig;
     try {
-      agentConfig = JSON.parse(agent.agentConfig) as AgentConfig;
+      const rawConfig = JSON.parse(agent.agentConfig) as any;
+      agentConfig = {
+        prompt: rawConfig.prompt || rawConfig.system_prompt || 'You are a helpful voice assistant.',
+        voice: rawConfig.voice || rawConfig.voice_config?.voice || 'alloy',
+        llm: rawConfig.llm || {
+          provider: rawConfig.llm_config?.provider || (Boolean(env.GEMINI_API_KEY || env.GOOGLE_API_KEY) ? 'gemini' : 'openai'),
+          model: rawConfig.llm_config?.model || (Boolean(env.GEMINI_API_KEY || env.GOOGLE_API_KEY) ? 'gemini-2.0-flash' : 'gpt-4o-realtime-preview'),
+        },
+        tools: rawConfig.tools,
+        knowledgeBaseIds: rawConfig.knowledgeBaseIds,
+        settings: rawConfig.settings,
+      };
     } catch {
       throw new CallError(callId, 'Invalid agent configuration JSON');
-    }
-
-    // Provide defaults for missing config fields
-    if (!agentConfig.prompt) {
-      agentConfig.prompt = 'You are a helpful voice assistant.';
-    }
-    if (!agentConfig.voice) {
-      agentConfig.voice = 'alloy';
-    }
-    if (!agentConfig.llm) {
-      const isGemini = Boolean(env.GEMINI_API_KEY || env.GOOGLE_API_KEY);
-      const defaultProvider = isGemini ? 'gemini' : 'openai';
-      const defaultModel = isGemini ? 'gemini-2.0-flash' : 'gpt-4o-realtime-preview';
-      agentConfig.llm = { provider: defaultProvider, model: defaultModel };
     }
 
     // Initialize lifecycle state

@@ -8,6 +8,8 @@
 ### Fixed
 - Removed trailing slash from Vobiz Account endpoint in the health check, bypassing 307 redirects to private hostnames that caused connection timeouts on startup.
 - Fixed critical audio format mismatch between Vobiz (8kHz mu-law) and Gemini/OpenAI (16kHz/24kHz PCM16) by adding high-performance bidirectional G.711 conversion and linear interpolation resampling to RealtimeSessionManager.
+- Resolved Gemini API routing mismatch by mapping database agentConfig keys (llm_config, voice_config) correctly and refactoring RealtimeSessionManager to route calls dynamically to OpenAI Realtime or Gemini Live based on agent configuration, supporting concurrent provider registration at bootstrap.
+
 
 
 ## [Unreleased] - 2026-05-20

@@ -40,6 +40,7 @@ interface ManagedSession {
   timeoutHandle: ReturnType<typeof setTimeout> | null;
   inputSampleRate: number;
   outputSampleRate: number;
+  providerName: string;
 }
 
 // ─── Callback Types for Upstream Consumers ───────────
@@ -92,7 +93,8 @@ export class RealtimeSessionManager {
       throw new SessionError(callId, `Session already exists for call ${callId}`);
     }
 
-    const provider = this.getRealtimeProvider();
+    const providerName = agentConfig.llm.provider === 'gemini' ? 'gemini-live' : 'openai-realtime';
+    const provider = ProviderManager.instance.getProvider<IRealtimeProvider>(providerName);
     const defaultModel = provider.name === 'gemini-live' ? env.GEMINI_REALTIME_MODEL : env.OPENAI_REALTIME_MODEL;
 
     // Cross-provider model override validation
@@ -148,6 +150,7 @@ export class RealtimeSessionManager {
       timeoutHandle: null,
       inputSampleRate,
       outputSampleRate,
+      providerName,
     };
 
     // Set up max duration timeout
@@ -195,7 +198,7 @@ export class RealtimeSessionManager {
       return;
     }
 
-    const provider = this.getRealtimeProvider();
+    const provider = ProviderManager.instance.getProvider<IRealtimeProvider>(session.providerName);
     // Convert inbound audio from Vobiz (8kHz mu-law) to PCM16 at provider's input rate
     const convertedAudio = convertInboundAudio(audioBase64, session.inputSampleRate);
     provider.sendAudio(sessionId, convertedAudio);
@@ -214,7 +217,9 @@ export class RealtimeSessionManager {
       return;
     }
 
-    const provider = this.getRealtimeProvider();
+    const session = this.sessions.get(sessionId);
+    const providerName = session ? session.providerName : 'openai-realtime';
+    const provider = ProviderManager.instance.getProvider<IRealtimeProvider>(providerName);
     provider.sendFunctionResult(sessionId, fnCallId, result);
   }
 
@@ -233,7 +238,7 @@ export class RealtimeSessionManager {
       return;
     }
 
-    const provider = this.getRealtimeProvider();
+    const provider = ProviderManager.instance.getProvider<IRealtimeProvider>(session.providerName);
     provider.triggerGreeting(sessionId, greetingText);
   }
 
@@ -300,7 +305,8 @@ export class RealtimeSessionManager {
     }
 
     try {
-      const provider = this.getRealtimeProvider();
+      const providerName = session ? session.providerName : 'openai-realtime';
+      const provider = ProviderManager.instance.getProvider<IRealtimeProvider>(providerName);
       await provider.closeSession(sessionId);
     } catch (err) {
       logger.warn('RealtimeSessionManager: error closing provider session', {

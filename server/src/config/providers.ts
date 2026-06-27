@@ -35,29 +35,37 @@ export async function initializeProviders(): Promise<void> {
   }
 
   // ─── Realtime AI Provider ──────────────────────
+  let hasRealtime = false;
+
   if (env.GEMINI_API_KEY || env.GOOGLE_API_KEY) {
     try {
       const gemini = new GeminiLiveProvider();
       await gemini.connect();
       manager.registerProvider(gemini);
       logger.info('Providers: Google Gemini Live initialized');
+      hasRealtime = true;
     } catch (err) {
       logger.error('Providers: Google Gemini Live initialization failed', {
         error: err instanceof Error ? err.message : String(err),
       });
     }
-  } else if (env.OPENAI_API_KEY) {
+  }
+
+  if (env.OPENAI_API_KEY) {
     try {
       const openai = new OpenAIRealtimeProvider();
       await openai.connect();
       manager.registerProvider(openai);
       logger.info('Providers: OpenAI Realtime initialized');
+      hasRealtime = true;
     } catch (err) {
       logger.error('Providers: OpenAI Realtime initialization failed', {
         error: err instanceof Error ? err.message : String(err),
       });
     }
-  } else {
+  }
+
+  if (!hasRealtime) {
     logger.warn('Providers: No realtime AI provider key configured (GEMINI_API_KEY or OPENAI_API_KEY)');
     // Register GeminiLiveProvider as default fallback
     try {
