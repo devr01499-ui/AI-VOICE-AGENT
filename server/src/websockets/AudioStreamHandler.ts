@@ -1,15 +1,17 @@
 /**
  * Bolna Server — WebSocket Audio Stream Handler
- *
+ * 
+ * FIXED VERSION: Now includes μ-law to PCM16 conversion
+ * 
  * Handles bidirectional audio streaming between Vobiz telephony and
- * OpenAI Realtime. When Vobiz answers a call and opens a WebSocket
+ * OpenAI/Gemini Realtime. When Vobiz answers a call and opens a WebSocket
  * stream (via the <Stream> XML directive), this handler:
  *
  *   1. Accepts the incoming WebSocket connection
  *   2. Parses the callId from the query string
  *   3. Starts the VoiceRuntimeEngine session for the call
- *   4. Routes incoming audio (Vobiz → OpenAI)
- *   5. Routes response audio (OpenAI → Vobiz)
+ *   4. Routes incoming audio (Vobiz → OpenAI/Gemini) ✅ WITH CODEC CONVERSION
+ *   5. Routes response audio (OpenAI/Gemini → Vobiz)
  *   6. Manages connection lifecycle and cleanup
  *
  * Events emitted: audio:received, audio:processed, transcript:segment,
@@ -20,18 +22,25 @@ import { IncomingMessage } from 'http';
 import WebSocket, { WebSocketServer } from 'ws';
 import { logger } from '../utils/logger';
 import { VoiceRuntimeEngine } from '../runtime/VoiceRuntimeEngine';
+import { mulawToPCM16, getAudioConversionStats } from '../utils/audioConverter';
 import type { VobizStreamEvent } from '../types';
 
-// ─── Active Connection Tracking ───────────────────
+// ─── Active Connection Tracking ───────────────────────
 
 interface ActiveConnection {
   ws: WebSocket;
   callId: string;
   streamId: string | null;
   createdAt: number;
+  audioStats: {
+    packetsReceived: number;
+    bytesReceived: number;
+    bytesConverted: number;
+    conversionErrors: number;
+  };
 }
 
-// ─── Handler Implementation ──────────────────────
+// ─── Handler Implementation ──────────────────────────
 
 export class AudioStreamHandler {
   private readonly connections = new Map<string, ActiveConnection>();
@@ -89,6 +98,12 @@ export class AudioStreamHandler {
       callId,
       streamId: null,
       createdAt: Date.now(),
+      audioStats: {
+        packetsReceived: 0,
+        bytesReceived: 0,
+        bytesConverted: 0,
+        conversionErrors: 0,
+      },
     };
 
     this.connections.set(callId, conn);
@@ -230,20 +245,67 @@ export class AudioStreamHandler {
   }
 
   /**
-   * Vobiz audio media received — forward to OpenAI Realtime via the engine.
+   * Vobiz audio media received — convert codec and forward to OpenAI/Gemini.
+   * 
+   * ✅ FIXED: Now converts μ-law (from Vobiz) to PCM16 (for Gemini/OpenAI)
    */
   private handleMediaEvent(callId: string, event: VobizStreamEvent): void {
     if (event.event !== 'media') return;
 
-    const engine = VoiceRuntimeEngine.instance;
-    engine.processAudioStream(callId, event.media.payload);
+    const conn = this.connections.get(callId);
+    if (!conn) {
+      return;
+    }
+
+    // Update stats
+    conn.audioStats.packetsReceived++;
+
+    try {
+      // 🔧 CRITICAL FIX: Convert μ-law to PCM16
+      // Vobiz sends: audio/x-mulaw (mu-law compression, 8000 Hz)
+      // Gemini/OpenAI expect: audio/pcm16 (linear PCM, 8000 Hz)
+      const mulawAudio = event.media.payload;
+      const pcm16Audio = mulawToPCM16(mulawAudio);
+
+      // Track bytes for monitoring
+      const origBuffer = Buffer.from(mulawAudio, 'base64');
+      const convBuffer = Buffer.from(pcm16Audio, 'base64');
+      conn.audioStats.bytesReceived += origBuffer.length;
+      conn.audioStats.bytesConverted += convBuffer.length;
+
+      // Log conversion stats periodically (every 100 packets)
+      if (conn.audioStats.packetsReceived % 100 === 0) {
+        const stats = getAudioConversionStats(mulawAudio, pcm16Audio);
+        logger.debug('AudioStreamHandler: audio conversion stats', {
+          callId,
+          packetsReceived: conn.audioStats.packetsReceived,
+          ...stats,
+        });
+      }
+
+      // Send converted PCM16 to engine
+      const engine = VoiceRuntimeEngine.instance;
+      engine.processAudioStream(callId, pcm16Audio);  // ✅ Now sending PCM16, not μ-law!
+    } catch (err) {
+      conn.audioStats.conversionErrors++;
+      logger.error('AudioStreamHandler: audio conversion error', {
+        callId,
+        error: err instanceof Error ? err.message : String(err),
+        packetsReceived: conn.audioStats.packetsReceived,
+      });
+    }
   }
 
   /**
    * Vobiz stream stopped — clean up.
    */
   private handleStreamStop(callId: string, _event: VobizStreamEvent): void {
-    logger.info('AudioStreamHandler: stream stopped', { callId });
+    const conn = this.connections.get(callId);
+    
+    logger.info('AudioStreamHandler: stream stopped', {
+      callId,
+      stats: conn?.audioStats,
+    });
 
     const engine = VoiceRuntimeEngine.instance;
     engine.endSession(callId, 'stream_stopped').catch((err) => {
@@ -268,7 +330,7 @@ export class AudioStreamHandler {
       event: 'playAudio',
       streamId: conn.streamId ?? '',
       media: {
-        contentType: 'audio/x-mulaw',
+        contentType: 'audio/x-mulaw',  // Send back to Vobiz in μ-law (its native format)
         sampleRate: 8000,
         payload: audioBase64,
       },
@@ -309,7 +371,13 @@ export class AudioStreamHandler {
   }
 
   private handleClose(callId: string, code: number, reason: string): void {
-    logger.info('AudioStreamHandler: connection closed', { callId, code, reason });
+    const conn = this.connections.get(callId);
+    logger.info('AudioStreamHandler: connection closed', {
+      callId,
+      code,
+      reason,
+      stats: conn?.audioStats,
+    });
 
     this.connections.delete(callId);
 

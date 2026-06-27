@@ -23,7 +23,7 @@ import type {
 } from '../providers/interfaces/IProvider';
 import type { AgentConfig, SessionMetrics, SessionStatus } from '../types';
 import { env } from '../config/env';
-import { convertInboundAudio, convertOutboundAudio } from '../utils/AudioConverter';
+import { convertInboundAudio, convertOutboundAudio } from '../utils/audioConverter';
 
 // ─── Internal Session State ──────────────────────────
 

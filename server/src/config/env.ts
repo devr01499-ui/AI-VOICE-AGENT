@@ -77,10 +77,13 @@ const envSchema = z.object({
     .trim()
     .default('gemini-2.0-flash'),
 
+  // ✅ FIXED: Changed from 'v1beta' to 'v1alpha'
+  // Reason: v1beta endpoint is deprecated/rate-limited for WebSocket Live API
+  // v1alpha is the current stable endpoint for Gemini Live/Multimodal API
   GEMINI_API_VERSION: z
     .string()
     .trim()
-    .default('v1beta'),
+    .default('v1alpha'),
 
   // ── Networking / Tunnels ────────────────────
   PUBLIC_URL: z.string().trim().default(''),

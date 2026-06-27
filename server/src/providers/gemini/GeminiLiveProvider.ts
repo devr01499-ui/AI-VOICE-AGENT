@@ -1,5 +1,11 @@
 /**
  * Bolna Server — Google Gemini Live Provider
+ * ✅ FIXED VERSION
+ * 
+ * Changes:
+ * 1. API version changed from v1beta to v1alpha
+ * 2. Added proper URL encoding for API key
+ * 3. Improved error logging to show actual endpoint
  *
  * WebSocket client for the Google Gemini Multimodal Live API. Manages per-call sessions
  * with bidirectional audio streaming and function-call execution.
@@ -73,7 +79,10 @@ export class GeminiLiveProvider implements IRealtimeProvider {
   public async verifyApiKey(apiKey: string): Promise<string | null> {
     if (!apiKey) return 'API key is missing';
     try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+      // ✅ FIXED: Use v1alpha endpoint for verification
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1alpha/models?key=${encodeURIComponent(apiKey)}`
+      );
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as any;
         if (data && data.error && typeof data.error.message === 'string') {
@@ -119,15 +128,22 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       model = 'gemini-2.0-flash';
     }
 
-    // Format Gemini URL with key query parameter dynamically matching version
-    const apiVersion = (config as any).apiVersion || env.GEMINI_API_VERSION || 'v1beta';
+    // ✅ FIXED: Use v1alpha endpoint (was v1beta)
+    // v1alpha is the current stable endpoint for Gemini Live API
+    // v1beta was causing connection timeouts and API key blocking
+    const apiVersion = (config as any).apiVersion || env.GEMINI_API_VERSION || 'v1alpha';
+    
     const baseUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.${apiVersion}.GenerativeService.BidiGenerateContent`;
-    const wsUrl = `${baseUrl}?key=${this.apiKey}`;
+    
+    // ✅ FIXED: Properly URL-encode the API key
+    // Some special characters in API keys can break WebSocket connections if not encoded
+    const wsUrl = `${baseUrl}?key=${encodeURIComponent(this.apiKey)}`;
 
     logger.info('GeminiLiveProvider: creating session', {
       model,
       voice: config.voice,
       apiVersion,
+      endpoint: baseUrl,  // ✅ Log the endpoint for debugging
     });
 
     if (!this.apiKey) {
@@ -286,7 +302,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         realtimeInput: {
           mediaChunks: [
             {
-              mimeType: 'audio/pcm',
+              mimeType: 'audio/pcm',  // PCM16 at 8000 Hz (after codec conversion from Vobiz μ-law)
               data: audioBase64,
             },
           ],
