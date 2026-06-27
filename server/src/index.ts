@@ -26,7 +26,7 @@ import { requestIdMiddleware } from './middleware/requestId';
 import { initializeProviders } from './config/providers';
 import { ProviderManager } from './providers/ProviderManager';
 import { prisma } from './config/database';
-import { VoiceRuntimeEngine } from './runtime/VoiceRuntimeEngine';
+import { callOrchestrator } from './core/orchestrator/CallOrchestrator';
 import { AudioStreamHandler } from './websockets/AudioStreamHandler';
 
 // ─── Routes ──────────────────────────────────────
@@ -92,10 +92,9 @@ app.get('/health', async (_req, res) => {
     });
 
     // Runtime engine status
-    const engine = VoiceRuntimeEngine.instance;
     const runtime = {
-      activeCalls: engine.getActiveCallCount(),
-      activeSessions: engine.sessionManager.getActiveSessionCount(),
+      activeCalls: callOrchestrator.getActiveCallCount(),
+      activeSessions: callOrchestrator.getActiveCallCount(),
     };
 
     const allHealthy = dbHealthy && Array.from(providerHealth.values()).every((r) => r.healthy);
@@ -194,8 +193,7 @@ async function bootstrap(): Promise<void> {
 
     // Shutdown active voice sessions
     try {
-      const engine = VoiceRuntimeEngine.instance;
-      await engine.shutdownAll();
+      await callOrchestrator.shutdownAll();
     } catch (err) {
       logger.error('Bolna Server: runtime shutdown error', {
         error: err instanceof Error ? err.message : String(err),

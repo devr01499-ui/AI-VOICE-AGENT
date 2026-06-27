@@ -225,6 +225,17 @@ export class CallOrchestrator {
     };
   }
 
+  async shutdownAll(): Promise<void> {
+    logger.info('CallOrchestrator: shutting down all sessions');
+    for (const [callId] of this.activeCalls) {
+      try {
+        await this.endCallSession(callId, 'system_shutdown');
+      } catch (err) {
+        logger.error('CallOrchestrator: failed to end session during shutdown', { callId, err });
+      }
+    }
+  }
+
   // ─── Event Bus Listeners ──────────────────────────
 
   private subscribeToEventBus(): void {
