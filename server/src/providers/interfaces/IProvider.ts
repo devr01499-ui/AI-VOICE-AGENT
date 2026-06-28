@@ -42,12 +42,14 @@ export interface CallStatusResult {
 // ─── Realtime Session Config ──────────────────────────
 
 export interface RealtimeSessionConfig {
+  callId?: string;
   model: string;
   voice: string;
   instructions: string;
   tools?: RealtimeToolDefinition[];
   inputAudioFormat?: string;
   outputAudioFormat?: string;
+  temperature?: number;
 }
 
 export interface RealtimeToolDefinition {

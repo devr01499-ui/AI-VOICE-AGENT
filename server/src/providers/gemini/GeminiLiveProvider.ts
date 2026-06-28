@@ -15,6 +15,7 @@
 import WebSocket from 'ws';
 import { logger } from '../../utils/logger';
 import { ProviderError } from '../../types/errors';
+import { CallError } from '../../utils/CallError';
 import { env } from '../../config/env';
 import type {
   IRealtimeProvider,
@@ -68,8 +69,12 @@ export class GeminiLiveProvider implements IRealtimeProvider {
   private readonly activeSessions = new Map<string, ActiveSession>();
   private readonly apiKey: string;
 
-  private readonly setupCompletePromises = new Map<string, Promise<void>>();
-  private readonly setupCompleteResolvers = new Map<string, () => void>();
+  private readonly setupCompletePromises = new Map<string, {
+    promise: Promise<void>;
+    resolve: () => void;
+    reject: (err: Error) => void;
+    timeoutId: NodeJS.Timeout;
+  }>();
 
   constructor() {
     this.apiKey = env.GEMINI_API_KEY || env.GOOGLE_API_KEY || '';
@@ -125,17 +130,25 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     config: RealtimeSessionConfig,
     callbacks: RealtimeEventCallbacks
   ): Promise<RealtimeSessionResult> {
+    const callId = config.callId || '';
+    if (!config.callId) {
+      throw new Error('callId required in config');
+    }
     if (!config.model) {
-      throw new Error('Model name required');
+      throw new CallError(callId, 'Model required', 'INVALID_CONFIG');
     }
     if (!config.instructions) {
-      throw new Error('Prompt or instructions required');
+      throw new CallError(callId, 'Prompt or instructions required', 'INVALID_CONFIG');
     }
     if (!callbacks) {
-      throw new Error('Callbacks required for session');
+      throw new CallError(callId, 'Callbacks required', 'INVALID_CONFIG');
     }
-    if (typeof callbacks.onAudioDelta !== 'function') {
-      logger.warn('GeminiLiveProvider: missing onAudioDelta callback');
+    if (config.temperature !== undefined && (config.temperature < 0 || config.temperature > 2)) {
+      throw new CallError(callId, 'Invalid temperature', 'INVALID_CONFIG');
+    }
+    const validVoices = ['alloy', 'echo', 'fable', 'onyx', 'shimmer'];
+    if (config.voice && !validVoices.includes(config.voice.toLowerCase())) {
+      throw new CallError(callId, `Invalid voice: ${config.voice}`, 'INVALID_CONFIG');
     }
 
     let model = config.model || env.GEMINI_REALTIME_MODEL;
@@ -169,160 +182,172 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     const sessionId = `gemini-sess-${Date.now()}`;
     const ws = new WebSocket(wsUrl);
 
-    // Create a promise that resolves when setupComplete is received
+    // Create setupComplete waiter
+    let setupResolve: () => void;
+    let setupReject: (err: Error) => void;
+
     const setupCompletePromise = new Promise<void>((resolve, reject) => {
-      this.setupCompleteResolvers.set(sessionId, resolve);
+      setupResolve = resolve;
+      setupReject = reject;
+    });
 
-      const connectionTimeout = setTimeout(() => {
-        if (this.setupCompleteResolvers.has(sessionId)) {
-          this.setupCompleteResolvers.delete(sessionId);
-          this.setupCompletePromises.delete(sessionId);
-          ws.close();
-          reject(new ProviderError('gemini-live', 'setupComplete timeout after 10s'));
-        }
-      }, 10_000);
+    const timeoutId = setTimeout(() => {
+      setupReject(new CallError(callId, 'setupComplete timeout after 10s', 'GEMINI_TIMEOUT'));
+      this.setupCompletePromises.delete(sessionId);
+    }, 10_000);
 
-      ws.on('open', () => {
-        logger.debug('GeminiLiveProvider: WebSocket connected, sending setup message');
+    this.setupCompletePromises.set(sessionId, {
+      promise: setupCompletePromise,
+      resolve: setupResolve!,
+      reject: setupReject!,
+      timeoutId,
+    });
 
-        // Map voices: alloy/shimmer/etc. to Gemini voices (Aoede, Puck, Charon, Fenrir, Kore)
-        const voiceNameMap: Record<string, string> = {
-          alloy: 'Puck',
-          echo: 'Charon',
-          fable: 'Fenrir',
-          onyx: 'Kore',
-          shimmer: 'Aoede',
-        };
-        const geminiVoice = voiceNameMap[config.voice.toLowerCase()] || 'Puck';
+    ws.on('open', () => {
+      logger.debug('GeminiLiveProvider: WebSocket connected, sending setup message');
 
-        // Map tools to Gemini functionDeclarations format
-        const functionDeclarations = config.tools?.map((t) => ({
-          name: t.name,
-          description: t.description,
-          parameters: t.parameters,
-        }));
+      // Map voices: alloy/shimmer/etc. to Gemini voices (Aoede, Puck, Charon, Fenrir, Kore)
+      const voiceNameMap: Record<string, string> = {
+        alloy: 'Puck',
+        echo: 'Charon',
+        fable: 'Fenrir',
+        onyx: 'Kore',
+        shimmer: 'Aoede',
+      };
+      const geminiVoice = voiceNameMap[config.voice.toLowerCase()] || 'Puck';
 
-        const setupMessage = {
-          setup: {
-            model: `models/${model}`,
-            generationConfig: {
-              responseModalities: ['AUDIO'],
-              speechConfig: {
-                voiceConfig: {
-                  prebuiltVoiceConfig: {
-                    voiceName: geminiVoice,
-                  },
+      // Map tools to Gemini functionDeclarations format
+      const functionDeclarations = config.tools?.map((t) => ({
+        name: t.name,
+        description: t.description,
+        parameters: t.parameters,
+      }));
+
+      const setupMessage = {
+        setup: {
+          model: `models/${model}`,
+          generationConfig: {
+            responseModalities: ['AUDIO'],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: {
+                  voiceName: geminiVoice,
                 },
               },
             },
-            systemInstruction: {
-              parts: [
-                {
-                  text: config.instructions,
-                },
-              ],
-            },
-            ...(functionDeclarations && functionDeclarations.length > 0 && {
-              tools: [
-                {
-                  functionDeclarations,
-                },
-              ],
-            }),
           },
-        };
+          systemInstruction: {
+            parts: [
+              {
+                text: config.instructions,
+              },
+            ],
+          },
+          ...(functionDeclarations && functionDeclarations.length > 0 && {
+            tools: [
+              {
+                functionDeclarations,
+              },
+            ],
+          }),
+        },
+      };
 
-        ws.send(JSON.stringify(setupMessage));
-      });
-
-      ws.on('message', (raw: WebSocket.RawData) => {
-        try {
-          const event = JSON.parse(raw.toString()) as GeminiServerEvent;
-
-          // Handshake complete once setupComplete is received
-          if (event.setupComplete) {
-            this.activeSessions.set(sessionId, {
-              ws,
-              callbacks,
-              createdAt: Date.now(),
-            });
-
-            clearTimeout(connectionTimeout);
-            resolve();
-            return;
-          }
-
-          // Handle runtime events
-          this.handleServerEvent(sessionId, event);
-        } catch (err) {
-          logger.error('GeminiLiveProvider: failed to parse server event', {
-            error: err instanceof Error ? err.message : String(err),
-          });
-        }
-      });
-
-      ws.on('error', (err: Error) => {
-        logger.error('GeminiLiveProvider: WebSocket error', {
-          sessionId,
-          error: err.message,
-        });
-        callbacks.onError?.(sessionId, err);
-
-        if (this.setupCompleteResolvers.has(sessionId)) {
-          clearTimeout(connectionTimeout);
-          this.setupCompleteResolvers.delete(sessionId);
-          this.setupCompletePromises.delete(sessionId);
-          reject(new ProviderError('gemini-live', `WebSocket error: ${err.message}`));
-        }
-      });
-
-      ws.on('close', async (code: number, reason: Buffer) => {
-        logger.info('GeminiLiveProvider: WebSocket closed', {
-          sessionId,
-          code,
-          reason: reason.toString(),
-        });
-        this.activeSessions.delete(sessionId);
-
-        if (this.setupCompleteResolvers.has(sessionId)) {
-          clearTimeout(connectionTimeout);
-          this.setupCompleteResolvers.delete(sessionId);
-          this.setupCompletePromises.delete(sessionId);
-          
-          const keyError = await this.verifyApiKey(this.apiKey);
-          if (keyError) {
-            reject(
-              new ProviderError(
-                'gemini-live',
-                `WebSocket closed before setup complete (code=${code}, reason=${reason.toString()}). API check: ${keyError}`
-              )
-            );
-          } else {
-            reject(
-              new ProviderError(
-                'gemini-live',
-                `WebSocket closed before setup complete (code=${code}, reason=${reason.toString()})`
-              )
-            );
-          }
-        }
-      });
+      ws.send(JSON.stringify(setupMessage));
     });
 
-    this.setupCompletePromises.set(sessionId, setupCompletePromise);
+    ws.on('message', (raw: WebSocket.RawData) => {
+      try {
+        const event = JSON.parse(raw.toString()) as GeminiServerEvent;
 
-    // Wait for setupComplete before returning
-    await setupCompletePromise;
-    this.setupCompleteResolvers.delete(sessionId);
-    this.setupCompletePromises.delete(sessionId);
+        // Handshake complete once setupComplete is received
+        if (event.setupComplete) {
+          this.activeSessions.set(sessionId, {
+            ws,
+            callbacks,
+            createdAt: Date.now(),
+          });
 
-    logger.info('GeminiLiveProvider: session setup complete', { sessionId });
+          const handler = this.setupCompletePromises.get(sessionId);
+          if (handler) {
+            clearTimeout(handler.timeoutId);
+            handler.resolve();
+            this.setupCompletePromises.delete(sessionId);
+          }
+          return;
+        }
+
+        // Handle runtime events
+        this.handleServerEvent(sessionId, event);
+      } catch (err) {
+        logger.error('GeminiLiveProvider: failed to parse server event', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    });
+
+    ws.on('error', (err: Error) => {
+      logger.error('GeminiLiveProvider: WebSocket error', {
+        sessionId,
+        error: err.message,
+      });
+      callbacks.onError?.(sessionId, err);
+
+      const handler = this.setupCompletePromises.get(sessionId);
+      if (handler) {
+        clearTimeout(handler.timeoutId);
+        handler.reject(new CallError(callId, `WebSocket error: ${err.message}`, 'NETWORK_ERROR'));
+        this.setupCompletePromises.delete(sessionId);
+      }
+    });
+
+    ws.on('close', async (code: number, reason: Buffer) => {
+      logger.info('GeminiLiveProvider: WebSocket closed', {
+        sessionId,
+        code,
+        reason: reason.toString(),
+      });
+      this.activeSessions.delete(sessionId);
+
+      const handler = this.setupCompletePromises.get(sessionId);
+      if (handler) {
+        clearTimeout(handler.timeoutId);
+        const keyError = await this.verifyApiKey(this.apiKey);
+        const errMsg = keyError 
+          ? `WebSocket closed before setup complete (code=${code}, reason=${reason.toString()}). API check: ${keyError}`
+          : `WebSocket closed before setup complete (code=${code}, reason=${reason.toString()})`;
+        handler.reject(new CallError(callId, errMsg, 'NETWORK_ERROR'));
+        this.setupCompletePromises.delete(sessionId);
+      }
+    });
+
+    try {
+      await setupCompletePromise;
+      logger.info('GeminiLiveProvider: session setup complete', { callId, sessionId });
+    } catch (err) {
+      this.activeSessions.delete(sessionId);
+      this.setupCompletePromises.delete(sessionId);
+      if (err instanceof CallError) {
+        throw err;
+      }
+      throw new CallError(
+        callId,
+        `Session setup failed: ${err instanceof Error ? err.message : String(err)}`,
+        'SESSION_SETUP_FAILED'
+      );
+    }
+
     return { sessionId, ws };
   }
 
   sendAudio(sessionId: string, audioBase64: string): void {
     const session = this.activeSessions.get(sessionId);
     if (!session || session.ws.readyState !== WebSocket.OPEN) return;
+
+    logger.info('GeminiLiveProvider: sending audio to Gemini', {
+      sessionId,
+      bytes: audioBase64.length,
+    });
 
     session.ws.send(
       JSON.stringify({
@@ -430,6 +455,10 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       for (const part of event.serverContent.modelTurn.parts) {
         // Audio output chunk
         if (part.inlineData && part.inlineData.data) {
+          logger.info('GeminiLiveProvider: received audio from Gemini', {
+            sessionId,
+            bytes: part.inlineData.data.length,
+          });
           callbacks.onAudioDelta?.(sessionId, part.inlineData.data);
         }
         // Text transcript chunk

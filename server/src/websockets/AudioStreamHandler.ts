@@ -262,7 +262,7 @@ export class AudioStreamHandler {
 
       // Log audio packet every 50 packets for visibility
       if (conn.audioStats.packetsReceived % 50 === 0) {
-        logger.debug('AudioStreamHandler: audio stats', {
+        logger.info('AudioStreamHandler: audio stats', {
           callId,
           packetsReceived: conn.audioStats.packetsReceived,
           bytesReceived: conn.audioStats.bytesReceived,
@@ -312,7 +312,7 @@ export class AudioStreamHandler {
     }
 
     const audioBuffer = Buffer.from(audioBase64, 'base64');
-    logger.debug('AudioStreamHandler: sending audio to Vobiz', {
+    logger.info('AudioStreamHandler: sending audio to Vobiz', {
       callId,
       bytes: audioBuffer.length,
     });

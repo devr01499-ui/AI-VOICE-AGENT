@@ -11,6 +11,7 @@ export interface ProviderSessionConfig {
   inputAudioFormat?: string;
   outputAudioFormat?: string;
   apiVersion?: string;
+  temperature?: number;
 }
 
 export interface ProviderToolDefinition {

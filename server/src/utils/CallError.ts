@@ -18,4 +18,18 @@ export class CallError extends Error {
       context: this.context,
     };
   }
+
+  getFullContext(): Record<string, any> {
+    return {
+      code: this.code,
+      message: this.message,
+      callId: this.callId,
+      context: this.context,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  isRecoverable(): boolean {
+    return ['GEMINI_TIMEOUT', 'NETWORK_ERROR'].includes(this.code);
+  }
 }

@@ -40,6 +40,7 @@ export class GeminiProvider implements IRealtimeProviderSDK {
 
     // Map SDK ProviderSessionConfig to low-level RealtimeSessionConfig
     const mappedConfig: RealtimeSessionConfig = {
+      callId: config.callId,
       model: config.model,
       voice: config.voice,
       instructions: config.instructions,
@@ -51,6 +52,7 @@ export class GeminiProvider implements IRealtimeProviderSDK {
       })),
       inputAudioFormat: 'pcm16',
       outputAudioFormat: 'pcm16',
+      temperature: config.temperature,
     };
 
     if (config.apiVersion) {
