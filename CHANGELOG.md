@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-06-28
+### Fixed
+- Fixed critical naming mismatch where `ProviderManagerSDK` called `startSession` instead of `createSession` on the provider.
+- Consolidated audio callbacks by passing them directly through `createSession` and removing separate post-init registration maps.
+- Implemented robust `setupComplete` promise tracking with timeout error handling in `GeminiLiveProvider` to prevent race conditions.
+- Resolved silent call disconnects by catching connection initialization failures and closing WebSocket connections immediately to trigger hangup events.
+- Created `CallError` custom exception for rich diagnostic propagation across orchestrator boundaries.
+
 ## [Unreleased] - 2026-06-25
 ### Added
 - Implemented smart REST-based API key diagnostics on Google Gemini Live provider and call routes to intercept opaque 1008 policy violation WebSocket upgrade closures and print detailed JSON errors.
