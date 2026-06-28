@@ -8,8 +8,7 @@ export interface IRealtimeProviderSDK {
   connect(): Promise<void>;
   disconnect(): Promise<void>;
 
-  startSession(
-    callId: string,
+  createSession(
     config: ProviderSessionConfig,
     callbacks: ProviderEventCallbacks
   ): Promise<string>;
@@ -17,7 +16,6 @@ export interface IRealtimeProviderSDK {
   endSession(sessionId: string): Promise<void>;
 
   sendAudio(sessionId: string, audioBase64: string): void;
-  receiveAudio(sessionId: string, callback: (audioBase64: string) => void): void;
 
   sendText(sessionId: string, text: string): void;
   receiveTranscript(sessionId: string, callback: (text: string, isFinal: boolean) => void): void;
@@ -27,8 +25,6 @@ export interface IRealtimeProviderSDK {
   interrupt(sessionId: string): void;
 
   triggerGreeting(sessionId: string, greetingText?: string): void;
-  registerAudioResponseCallback(sessionId: string, callback: (audioBase64: string) => void): void;
-  unregisterAudioResponseCallback(sessionId: string): void;
 
   ping(sessionId: string): Promise<number>;
   healthCheck(): Promise<HealthCheckResult>;

@@ -3,6 +3,7 @@ import { ProviderFactory } from './provider.factory';
 import { ProviderSessionConfig, ProviderEventCallbacks } from './provider.types';
 import { HealthCheckResult } from '../../providers/interfaces/IProvider';
 import { logger } from '../../utils/logger';
+import { CallError } from '../../utils/CallError';
 
 export class ProviderManagerSDK {
   private static _instance: ProviderManagerSDK | null = null;
@@ -40,12 +41,29 @@ export class ProviderManagerSDK {
     callbacks: ProviderEventCallbacks
   ): Promise<string> {
     const provider = this.getProvider(providerName);
-    await provider.initialize();
-    await provider.connect();
+    try {
+      await provider.initialize();
+      await provider.connect();
 
-    const sessionId = await provider.startSession(callId, config, callbacks);
-    this.activeProviderSessions.set(sessionId, providerName);
-    return sessionId;
+      const sessionId = await provider.createSession(config, callbacks);
+      this.activeProviderSessions.set(sessionId, providerName);
+      return sessionId;
+    } catch (err) {
+      if (err instanceof CallError) {
+        throw err;
+      }
+      throw new CallError(
+        callId,
+        `Provider session creation failed: ${err instanceof Error ? err.message : String(err)}`,
+        'PROVIDER_SESSION_FAILED',
+        {
+          providerName,
+          callId,
+          originalError: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined,
+        }
+      );
+    }
   }
 
   async endSession(sessionId: string): Promise<void> {

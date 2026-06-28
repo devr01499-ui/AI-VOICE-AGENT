@@ -90,7 +90,12 @@ export class CallOrchestrator {
   /**
    * Starts a voice provider session once the telephony answers the call.
    */
-  async startVoiceSession(callId: string, agentId: string, phoneNumber: string): Promise<string> {
+  async startVoiceSession(
+    callId: string,
+    agentId: string,
+    phoneNumber: string,
+    onAudioDelta?: (audioBase64: string) => void
+  ): Promise<string> {
     logger.info('CallOrchestrator: startVoiceSession', { callId, agentId });
 
     const agent = await AgentRepository.findById(agentId);
@@ -164,6 +169,7 @@ export class CallOrchestrator {
     // Mapped config structure passed down to SDK Provider
     const providerName = agentConfig.llm.provider === 'openai' ? 'openai' : 'gemini';
     const config: ProviderSessionConfig = {
+      callId,
       model: agentConfig.llm.model,
       voice: agentConfig.voice,
       instructions: agentConfig.prompt,
@@ -176,6 +182,9 @@ export class CallOrchestrator {
     };
 
     const callbacks: ProviderEventCallbacks = {
+      onAudioDelta: (sessId, audioBase64) => {
+        onAudioDelta?.(audioBase64);
+      },
       onTranscriptDelta: (sessId, delta, isFinal) => {
         TranscriptRecorder.recordSegment(callId, 'agent', delta);
       },

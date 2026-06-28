@@ -70,17 +70,6 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
   private readonly setupCompletePromises = new Map<string, Promise<void>>();
   private readonly setupCompleteResolvers = new Map<string, () => void>();
-  private readonly audioResponseCallbacks = new Map<string, (audioBase64: string) => void>();
-
-  public registerAudioResponseCallback(sessionId: string, callback: (audioBase64: string) => void): void {
-    this.audioResponseCallbacks.set(sessionId, callback);
-    logger.info('GeminiLiveProvider: registered audio response callback', { sessionId });
-  }
-
-  public unregisterAudioResponseCallback(sessionId: string): void {
-    this.audioResponseCallbacks.delete(sessionId);
-    logger.info('GeminiLiveProvider: unregistered audio response callback', { sessionId });
-  }
 
   constructor() {
     this.apiKey = env.GEMINI_API_KEY || env.GOOGLE_API_KEY || '';
@@ -136,6 +125,19 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     config: RealtimeSessionConfig,
     callbacks: RealtimeEventCallbacks
   ): Promise<RealtimeSessionResult> {
+    if (!config.model) {
+      throw new Error('Model name required');
+    }
+    if (!config.instructions) {
+      throw new Error('Prompt or instructions required');
+    }
+    if (!callbacks) {
+      throw new Error('Callbacks required for session');
+    }
+    if (typeof callbacks.onAudioDelta !== 'function') {
+      logger.warn('GeminiLiveProvider: missing onAudioDelta callback');
+    }
+
     let model = config.model || env.GEMINI_REALTIME_MODEL;
     // Map experimental model to production GA model name for backward-compatibility
     if (model === 'gemini-2.0-flash-exp') {
@@ -251,7 +253,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
           }
 
           // Handle runtime events
-          this.handleServerEvent(sessionId, event, callbacks);
+          this.handleServerEvent(sessionId, event);
         } catch (err) {
           logger.error('GeminiLiveProvider: failed to parse server event', {
             error: err instanceof Error ? err.message : String(err),
@@ -417,9 +419,12 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
   private handleServerEvent(
     sessionId: string,
-    event: GeminiServerEvent,
-    callbacks: RealtimeEventCallbacks
+    event: GeminiServerEvent
   ): void {
+    const session = this.activeSessions.get(sessionId);
+    if (!session) return;
+    const callbacks = session.callbacks;
+
     // 1. Text or Audio output from model
     if (event.serverContent?.modelTurn?.parts) {
       for (const part of event.serverContent.modelTurn.parts) {

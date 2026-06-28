@@ -31,11 +31,11 @@ export class GeminiProvider implements IRealtimeProviderSDK {
     logger.info('GeminiProvider SDK: disconnected');
   }
 
-  async startSession(
-    callId: string,
+  async createSession(
     config: ProviderSessionConfig,
     callbacks: ProviderEventCallbacks
   ): Promise<string> {
+    const callId = config.callId;
     logger.info('GeminiProvider SDK: starting session for call', { callId });
 
     // Map SDK ProviderSessionConfig to low-level RealtimeSessionConfig
@@ -114,13 +114,6 @@ export class GeminiProvider implements IRealtimeProviderSDK {
     this.lowLevelProvider.sendAudio(sessionId, processedAudio);
   }
 
-  receiveAudio(sessionId: string, callback: (audioBase64: string) => void): void {
-    const session = this.sessions.get(sessionId);
-    if (session) {
-      session.addAudioCallback(callback);
-    }
-  }
-
   sendText(sessionId: string, text: string): void {
     // Gemini Live initiates user turns via clientContent / turns
     this.lowLevelProvider.triggerGreeting(sessionId, text);
@@ -128,17 +121,6 @@ export class GeminiProvider implements IRealtimeProviderSDK {
 
   triggerGreeting(sessionId: string, greetingText?: string): void {
     this.lowLevelProvider.triggerGreeting(sessionId, greetingText);
-  }
-
-  registerAudioResponseCallback(sessionId: string, callback: (audioBase64: string) => void): void {
-    this.receiveAudio(sessionId, callback);
-  }
-
-  unregisterAudioResponseCallback(sessionId: string): void {
-    const session = this.sessions.get(sessionId);
-    if (session) {
-      session.clearAudioCallbacks();
-    }
   }
 
   receiveTranscript(sessionId: string, callback: (text: string, isFinal: boolean) => void): void {

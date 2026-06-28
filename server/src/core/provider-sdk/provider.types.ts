@@ -3,6 +3,7 @@ export type Speaker = 'agent' | 'user' | 'system';
 export type SessionStatus = 'initializing' | 'active' | 'closing' | 'closed' | 'error';
 
 export interface ProviderSessionConfig {
+  callId: string;
   model: string;
   voice: string;
   instructions: string;

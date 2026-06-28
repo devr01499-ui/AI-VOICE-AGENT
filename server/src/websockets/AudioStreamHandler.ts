@@ -165,7 +165,14 @@ export class AudioStreamHandler {
     import('../repositories/CallRepository').then(({ CallRepository }) => {
       CallRepository.findById(callId)
         .then((call) => {
-          return orchestrator.startVoiceSession(callId, call.agentId, call.recipientPhoneNumber);
+          return orchestrator.startVoiceSession(
+            callId,
+            call.agentId,
+            call.recipientPhoneNumber,
+            (audioBase64: string) => {
+              this.sendAudioToVobiz(callId, audioBase64);
+            }
+          );
         })
         .then((sessionId) => {
           logger.info('AudioStreamHandler: CallOrchestrator session started', { callId, sessionId });
@@ -175,13 +182,7 @@ export class AudioStreamHandler {
             currentConn.sessionId = sessionId;
           }
 
-          // Register callback to handle audio responses from provider
-          const provider = providerManagerSDK.getProvider('gemini');
-          provider.registerAudioResponseCallback(sessionId, (audioBase64: string) => {
-            this.sendAudioToVobiz(callId, audioBase64);
-          });
-
-          logger.info('AudioStreamHandler: audio response callback registered', { callId, sessionId });
+          logger.info('AudioStreamHandler: audio response callback registered via startVoiceSession', { callId, sessionId });
 
           // Register speech-started interruption clearance
           eventBus.subscribe(PROVIDER_EVENTS.AI_STARTED_SPEAKING, (payload) => {
@@ -195,6 +196,7 @@ export class AudioStreamHandler {
             try {
               logger.info('AudioStreamHandler: triggering greeting', { callId });
               const greetingText = 'Hi, please start the interview.';
+              const provider = providerManagerSDK.getProvider('gemini');
               provider.triggerGreeting(sessionId, greetingText);
               logger.info('AudioStreamHandler: greeting triggered', { callId, sessionId });
             } catch (err) {
@@ -368,14 +370,7 @@ export class AudioStreamHandler {
       stats: conn?.audioStats,
     });
 
-    // Unregister audio callback
-    if (conn && conn.sessionId) {
-      try {
-        providerManagerSDK.getProvider('gemini').unregisterAudioResponseCallback(conn.sessionId);
-      } catch (err) {
-        logger.warn('AudioStreamHandler: failed to unregister callback', { callId });
-      }
-    }
+
 
     this.connections.delete(callId);
 
