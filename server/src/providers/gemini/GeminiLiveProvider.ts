@@ -239,6 +239,11 @@ export class GeminiLiveProvider implements IRealtimeProvider {
             },
           },
           inputAudioTranscription: {},
+          realtimeInputConfig: {
+            automaticActivityDetection: {
+              disabled: false,
+            },
+          },
           systemInstruction: {
             parts: [
               {
