@@ -201,12 +201,12 @@ export class AudioStreamHandler {
                 return;
               }
 
-              const firstQuestion = "Hi, I'm your AI interviewer. Let's start with an easy one: Tell me about your experience with this role?";
+              const greetingText = 'Hi, please start the interview.';
               const provider = providerManagerSDK.getProvider('gemini');
-              provider.triggerGreeting(sessionId, firstQuestion);
-              logger.info('First screening question sent', { callId, sessionId });
+              provider.triggerGreeting(sessionId, greetingText);
+              logger.info('AudioStreamHandler: greeting triggered', { callId, sessionId });
             } catch (err) {
-              logger.error('Failed to start screening', {
+              logger.error('AudioStreamHandler: failed to trigger greeting', {
                 callId,
                 error: err instanceof Error ? err.message : String(err),
               });

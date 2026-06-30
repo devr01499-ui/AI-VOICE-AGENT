@@ -357,7 +357,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         realtimeInput: {
           mediaChunks: [
             {
-              mimeType: 'audio/pcm',  // PCM16 at 8000 Hz (after codec conversion from Vobiz μ-law)
+              mimeType: 'audio/pcm;rate=16000',
               data: audioBase64,
             },
           ],

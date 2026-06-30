@@ -6,6 +6,8 @@
 - Configured a runtime model name mapping in `GeminiLiveProvider.ts` to map legacy/experimental model names like `gemini-2.0-flash` and `gemini-2.0-flash-exp` to `gemini-2.5-flash-native-audio-latest`.
 - Updated the API version endpoint to use `v1beta` for BidiGenerateContent compatibility.
 - Added debug log statements in `sendAudioToVobiz` to trace outgoing audio flows.
+- Corrected the audio input MIME type to specify the sample rate: 'audio/pcm;rate=16000' in GeminiLiveProvider.ts. This fixes the issue where the Gemini Live API would ignore user speech by failing to run voice activity detection on raw PCM data without a declared rate.
+- Reverted the manual conversation state override in CallOrchestrator.ts to allow the model's configured prompt (system instruction) to drive the conversation flow natively.
 
 ## [Unreleased] - 2026-06-28
 ### Fixed
