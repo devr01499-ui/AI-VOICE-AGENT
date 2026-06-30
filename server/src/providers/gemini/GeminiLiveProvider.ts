@@ -152,9 +152,8 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     }
 
     let model = config.model || env.GEMINI_REALTIME_MODEL;
-    // Map experimental model to production GA model name for backward-compatibility
-    if (model === 'gemini-2.0-flash-exp') {
-      model = 'gemini-2.0-flash';
+    if (model === 'gemini-2.0-flash' || model === 'gemini-2.0-flash-exp') {
+      model = 'gemini-2.5-flash-native-audio-latest';
     }
 
     // ✅ FIXED: Use v1alpha endpoint (was v1beta)

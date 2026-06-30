@@ -194,7 +194,13 @@ export class AudioStreamHandler {
           // Trigger initial greeting turn text after 1 second
           setTimeout(() => {
             try {
-              logger.info('AudioStreamHandler: triggering greeting', { callId });
+              logger.info('AudioStreamHandler: triggering greeting', { callId, sessionId });
+
+              if (!sessionId) {
+                logger.error('AudioStreamHandler: no sessionId for greeting', { callId });
+                return;
+              }
+
               const greetingText = 'Hi, please start the interview.';
               const provider = providerManagerSDK.getProvider('gemini');
               provider.triggerGreeting(sessionId, greetingText);
@@ -308,8 +314,14 @@ export class AudioStreamHandler {
   private sendAudioToVobiz(callId: string, audioBase64: string): void {
     const conn = this.connections.get(callId);
     if (!conn || conn.ws.readyState !== WebSocket.OPEN) {
+      logger.warn('AudioStreamHandler: cannot send audio - no connection', { callId });
       return;
     }
+
+    logger.debug('AudioStreamHandler: sending audio to Vobiz', {
+      callId,
+      bytes: audioBase64?.length || 0,
+    });
 
     const audioBuffer = Buffer.from(audioBase64, 'base64');
     logger.info('AudioStreamHandler: sending audio to Vobiz', {
