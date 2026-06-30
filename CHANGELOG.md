@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-06-30
+### Fixed
+- Added a `!sessionId` check in the greeting `setTimeout` handler to prevent triggering greeting events with an empty session ID.
+- Configured a runtime model name mapping in `GeminiLiveProvider.ts` to map legacy/experimental model names like `gemini-2.0-flash` and `gemini-2.0-flash-exp` to `gemini-2.5-flash-native-audio-latest`.
+- Updated the API version endpoint to use `v1beta` for BidiGenerateContent compatibility.
+- Added debug log statements in `sendAudioToVobiz` to trace outgoing audio flows.
+
 ## [Unreleased] - 2026-06-28
 ### Fixed
 - Fixed critical naming mismatch where `ProviderManagerSDK` called `startSession` instead of `createSession` on the provider.
