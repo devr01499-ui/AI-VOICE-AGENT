@@ -201,12 +201,12 @@ export class AudioStreamHandler {
                 return;
               }
 
-              const greetingText = 'Hi, please start the interview.';
+              const firstQuestion = "Hi, I'm your AI interviewer. Let's start with an easy one: Tell me about your experience with this role?";
               const provider = providerManagerSDK.getProvider('gemini');
-              provider.triggerGreeting(sessionId, greetingText);
-              logger.info('AudioStreamHandler: greeting triggered', { callId, sessionId });
+              provider.triggerGreeting(sessionId, firstQuestion);
+              logger.info('First screening question sent', { callId, sessionId });
             } catch (err) {
-              logger.error('AudioStreamHandler: failed to trigger greeting', {
+              logger.error('Failed to start screening', {
                 callId,
                 error: err instanceof Error ? err.message : String(err),
               });
@@ -266,6 +266,13 @@ export class AudioStreamHandler {
       conn.audioStats.bytesReceived += origBuffer.length;
       conn.audioStats.bytesConverted += convBuffer.length;
 
+      logger.info('AudioStreamHandler: user audio received', {
+        callId,
+        sessionId: conn.sessionId,
+        inputBytes: mulawAudio.length,
+        outputBytes: pcm16Audio?.length || 0,
+      });
+
       // Log audio packet every 50 packets for visibility
       if (conn.audioStats.packetsReceived % 50 === 0) {
         logger.info('AudioStreamHandler: audio stats', {
@@ -280,6 +287,16 @@ export class AudioStreamHandler {
 
       // ✅ Pass raw mulawAudio to CallOrchestrator (GeminiProvider internally handles PCM16 conversion and resampling)
       callOrchestrator.processAudioStream(callId, mulawAudio);
+
+      if (conn.sessionId) {
+        logger.info('AudioStreamHandler: audio sent to Gemini', {
+          callId,
+          sessionId: conn.sessionId,
+          bytes: pcm16Audio?.length || 0,
+        });
+      } else {
+        logger.error('AudioStreamHandler: no sessionId to send audio', { callId });
+      }
     } catch (err) {
       conn.audioStats.conversionErrors++;
       logger.error('AudioStreamHandler: audio conversion error', {

@@ -41,6 +41,9 @@ interface GeminiServerEvent {
     };
     turnComplete?: boolean;
     interrupted?: boolean;
+    inputTranscription?: {
+      text: string;
+    };
   };
   toolCall?: {
     functionCalls?: Array<{
@@ -235,6 +238,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
               },
             },
           },
+          inputAudioTranscription: {},
           systemInstruction: {
             parts: [
               {
@@ -465,6 +469,15 @@ export class GeminiLiveProvider implements IRealtimeProvider {
           callbacks.onTranscriptDelta?.(sessionId, part.text, false);
         }
       }
+    }
+
+    // 1b. User input transcription
+    if (event.serverContent?.inputTranscription?.text) {
+      logger.info('GeminiLiveProvider: received user transcription', {
+        sessionId,
+        text: event.serverContent.inputTranscription.text,
+      });
+      callbacks.onTranscriptDelta?.(sessionId, event.serverContent.inputTranscription.text, true, true);
     }
 
     // 2. Turn Complete

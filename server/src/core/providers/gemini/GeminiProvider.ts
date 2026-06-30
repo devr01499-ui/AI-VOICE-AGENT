@@ -70,8 +70,8 @@ export class GeminiProvider implements IRealtimeProviderSDK {
       onAudioDelta: (_sessId: string, audioBase64: string) => {
         sessionObj.handleOutboundAudio(audioBase64);
       },
-      onTranscriptDelta: (_sessId: string, delta: string, isFinal: boolean) => {
-        sessionObj.handleTranscript(delta, isFinal);
+      onTranscriptDelta: (_sessId: string, delta: string, isFinal: boolean, isUser?: boolean) => {
+        sessionObj.handleTranscript(delta, isFinal, isUser);
       },
       onSpeechStarted: (_sessId: string) => {
         sessionObj.handleSpeechStarted();

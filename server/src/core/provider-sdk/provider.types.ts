@@ -23,7 +23,7 @@ export interface ProviderToolDefinition {
 
 export interface ProviderEventCallbacks {
   onAudioDelta?: (sessionId: string, audioBase64: string) => void;
-  onTranscriptDelta?: (sessionId: string, delta: string, isFinal: boolean) => void;
+  onTranscriptDelta?: (sessionId: string, delta: string, isFinal: boolean, isUser?: boolean) => void;
   onSpeechStarted?: (sessionId: string) => void;
   onSpeechStopped?: (sessionId: string) => void;
   onFunctionCall?: (sessionId: string, callId: string, name: string, args: string) => void;

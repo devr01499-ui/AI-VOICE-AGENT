@@ -15,6 +15,46 @@ import { AgentConfig, CallStatus } from '../../types';
 import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
 
+class ConversationState {
+  private questionCount = 0;
+  private userResponses: string[] = [];
+  private isScreeningMode = false;
+  
+  private screeningQuestions = [
+    "Tell me about your experience with this role?",
+    "What are your key strengths?",
+    "Where do you see yourself in 3 years?",
+    "Why are you interested in this position?",
+    "Do you have any questions for us?"
+  ];
+
+  startScreening() {
+    this.isScreeningMode = true;
+    this.questionCount = 0;
+  }
+
+  nextQuestion(): string | null {
+    if (this.questionCount >= this.screeningQuestions.length) {
+      return null;
+    }
+    const question = this.screeningQuestions[this.questionCount];
+    this.questionCount++;
+    return question;
+  }
+
+  recordResponse(text: string) {
+    this.userResponses.push(text);
+  }
+
+  getReport() {
+    return {
+      totalQuestions: this.questionCount,
+      responses: this.userResponses,
+      summary: `Candidate answered ${this.questionCount} questions in screening`,
+    };
+  }
+}
+
 export class CallOrchestrator {
   private static _instance: CallOrchestrator | null = null;
   private readonly activeCalls = new Map<string, CallSession>();
@@ -181,12 +221,41 @@ export class CallOrchestrator {
       })),
     };
 
+    const conversationState = new ConversationState();
+    conversationState.startScreening();
+ 
+    let lastTranscript = '';
+    let userSpokeFlag = false;
+ 
+    let responseTimeout = setTimeout(() => {
+      logger.warn('CallOrchestrator: Gemini response timeout - no audio received in 8 seconds', { callId });
+    }, 8000);
+ 
     const callbacks: ProviderEventCallbacks = {
       onAudioDelta: (sessId, audioBase64) => {
+        clearTimeout(responseTimeout);
+        logger.info('Audio response from Gemini', { callId, bytes: audioBase64?.length });
         onAudioDelta?.(audioBase64);
       },
-      onTranscriptDelta: (sessId, delta, isFinal) => {
-        TranscriptRecorder.recordSegment(callId, 'agent', delta);
+      onTranscriptDelta: (sessId, delta, isFinal, isUser) => {
+        TranscriptRecorder.recordSegment(callId, isUser ? 'user' : 'agent', delta);
+ 
+        if (isUser) {
+          logger.info('User transcript', { callId, text: delta });
+          userSpokeFlag = true;
+          lastTranscript = delta;
+          conversationState.recordResponse(delta);
+          
+          setTimeout(() => {
+            const nextQ = conversationState.nextQuestion();
+            if (nextQ) {
+              logger.info('Asking screening question', { callId, question: nextQ });
+              providerManagerSDK.getProvider(providerName).triggerGreeting(sessId, nextQ);
+            }
+          }, 2000);
+        } else {
+          logger.info('AI transcript', { callId, text: delta });
+        }
       },
       onSpeechStarted: (sessId) => {
         eventBus.publish(PROVIDER_EVENTS.AI_STARTED_SPEAKING, { callId, sessionId: sessId });
@@ -203,7 +272,29 @@ export class CallOrchestrator {
           logger.error('CallOrchestrator: tool execution error', { toolCallId, name, err });
         }
       },
+      onResponseDone: (sessId) => {
+        logger.info('Response complete', { callId, userSpokeFlag });
+        
+        const report = conversationState.getReport();
+        if (report.totalQuestions >= 5) {
+          logger.info('Screening complete', { callId, report });
+          CallRepository.updateExecution(callId, {
+            outcome: 'completed',
+            metadata: JSON.stringify({
+              screening_results: {
+                questions_asked: report.totalQuestions,
+                responses: report.responses,
+                timestamp: new Date(),
+                recommendation: report.totalQuestions >= 5 ? 'Strong Fit' : 'Incomplete Screening'
+              }
+            })
+          }).catch(err => {
+            logger.error('Failed to update execution with screening results', { callId, error: err });
+          });
+        }
+      },
       onError: (sessId, error) => {
+        logger.error('Gemini error', { callId, error: error.message });
         eventBus.publish(PROVIDER_EVENTS.ERROR_OCCURRED, { callId, error: error.message });
       },
     };

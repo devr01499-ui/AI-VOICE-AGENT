@@ -40,9 +40,9 @@ export class GeminiSession {
     this.callbacks.onAudioDelta?.(this.sessionId, converted);
   }
 
-  handleTranscript(text: string, isFinal: boolean): void {
+  handleTranscript(text: string, isFinal: boolean, isUser?: boolean): void {
     this.transcriptCallbacks.forEach((cb) => cb(text, isFinal));
-    this.callbacks.onTranscriptDelta?.(this.sessionId, text, isFinal);
+    this.callbacks.onTranscriptDelta?.(this.sessionId, text, isFinal, isUser);
   }
 
   handleSpeechStarted(): void {
