@@ -242,6 +242,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
           realtimeInputConfig: {
             automaticActivityDetection: {
               disabled: false,
+              silenceDurationMs: 1500,
             },
           },
           systemInstruction: {
@@ -458,6 +459,13 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     if (!session) return;
     const callbacks = session.callbacks;
 
+    // CRITICAL GATE: Handle immediate user barge-in interruption
+    if (event.serverContent?.interrupted === true) {
+      logger.info('Gemini Session: User barge-in detected. Purging active playback buffers.', { sessionId });
+      callbacks.onSpeechStarted?.(sessionId);
+      return;
+    }
+
     // 1. Text or Audio output from model
     if (event.serverContent?.modelTurn?.parts) {
       for (const part of event.serverContent.modelTurn.parts) {
@@ -490,10 +498,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       callbacks.onResponseDone?.(sessionId);
     }
 
-    // 3. User Interruption detected
-    if (event.serverContent?.interrupted) {
-      callbacks.onSpeechStarted?.(sessionId);
-    }
+
 
     // 4. Function call requested
     if (event.toolCall?.functionCalls) {

@@ -251,59 +251,32 @@ export class AudioStreamHandler {
    */
   private handleMediaEvent(callId: string, event: VobizStreamEvent): void {
     if (event.event !== 'media') return;
-
     const conn = this.connections.get(callId);
     if (!conn) return;
 
-    conn.audioStats.packetsReceived++;
-
     try {
-      const mulawAudio = event.media.payload;
-      const pcm16Audio = mulawToPCM16(mulawAudio);
-
-      const origBuffer = Buffer.from(mulawAudio, 'base64');
-      const convBuffer = Buffer.from(pcm16Audio, 'base64');
-      conn.audioStats.bytesReceived += origBuffer.length;
-      conn.audioStats.bytesConverted += convBuffer.length;
-
-      logger.info('AudioStreamHandler: user audio received', {
-        callId,
-        sessionId: conn.sessionId,
-        inputBytes: mulawAudio.length,
-        outputBytes: pcm16Audio?.length || 0,
-      });
-
-      // Log audio packet every 50 packets for visibility
-      if (conn.audioStats.packetsReceived % 50 === 0) {
-        logger.info('AudioStreamHandler: audio stats', {
-          callId,
-          packetsReceived: conn.audioStats.packetsReceived,
-          bytesReceived: conn.audioStats.bytesReceived,
-          bytesConverted: conn.audioStats.bytesConverted,
-          conversionErrors: conn.audioStats.conversionErrors,
-          avgPacketSize: Math.round(conn.audioStats.bytesReceived / conn.audioStats.packetsReceived),
-        });
-      }
-
-      // ✅ Pass raw mulawAudio to CallOrchestrator (GeminiProvider internally handles PCM16 conversion and resampling)
+      const mulawAudio = event.media.payload; // Base64 raw G.711 stream
+      
+      // Pass to orchestrator ensuring the underlying socket transmits this exact structure:
+      // {
+      //   realtimeInput: {
+      //     mediaChunks: [{
+      //       mimeType: "audio/pcm;rate=16000",
+      //       data: "<Converted_PCM16_Base64>"
+      //     }]
+      //   }
+      // }
       callOrchestrator.processAudioStream(callId, mulawAudio);
-
+      
       if (conn.sessionId) {
         logger.info('AudioStreamHandler: audio sent to Gemini', {
           callId,
           sessionId: conn.sessionId,
-          bytes: pcm16Audio?.length || 0,
+          bytes: mulawAudio.length,
         });
-      } else {
-        logger.error('AudioStreamHandler: no sessionId to send audio', { callId });
       }
     } catch (err) {
-      conn.audioStats.conversionErrors++;
-      logger.error('AudioStreamHandler: audio conversion error', {
-        callId,
-        error: err instanceof Error ? err.message : String(err),
-        packetsReceived: conn.audioStats.packetsReceived,
-      });
+      logger.error('AudioStreamHandler: media pipe execution failed', { callId, error: err });
     }
   }
 
