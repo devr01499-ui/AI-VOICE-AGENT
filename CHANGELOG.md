@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-07-01
+### Added
+- Added ConversationState class in CallOrchestrator.ts to track AI-user conversational phase transitions.
+- Modified processAudioStream in CallOrchestrator.ts to filter outbound user audio based on the current ConversationState.
+- Integrated triggerGreeting handler in CallOrchestrator.ts and AudioStreamHandler.ts to transition conversation state to 'listening' after 1.5 seconds post-greeting.
+- Implemented onResponseDone callback in CallOrchestrator.ts to transition conversation state to 'listening' when AI finishes responding.
+
+### Fixed
+- Fixed Gemini greeting role mismatch in GeminiLiveProvider.ts by setting the role to 'assistant' instead of 'user'.
+
 ## [Unreleased] - 2026-06-30
 ### Fixed
 - Added a `!sessionId` check in the greeting `setTimeout` handler to prevent triggering greeting events with an empty session ID.

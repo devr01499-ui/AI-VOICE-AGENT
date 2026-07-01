@@ -416,7 +416,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         clientContent: {
           turns: [
             {
-              role: 'user',
+              role: 'assistant',
               parts: [
                 {
                   text: textPrompt,

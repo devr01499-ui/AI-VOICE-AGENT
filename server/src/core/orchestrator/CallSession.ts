@@ -1,10 +1,19 @@
 import { CallStatus } from '../../types';
 import { SessionMetrics } from '../provider-sdk/provider.metrics';
 
+export interface IConversationState {
+  phase: 'greeting_sent' | 'listening' | 'processing' | 'responding';
+  isReadyForUserAudio(): boolean;
+  markAsListening(): void;
+  markAsProcessing(): void;
+  markAsResponding(): void;
+}
+
 export class CallSession {
   public providerSessionId: string | null = null;
   public startedAt: number = Date.now();
   public status: CallStatus = 'queued';
+  public conversationState?: IConversationState;
 
   constructor(
     public readonly callId: string,

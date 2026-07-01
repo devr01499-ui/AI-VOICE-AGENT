@@ -202,8 +202,7 @@ export class AudioStreamHandler {
               }
 
               const greetingText = 'Hi, please start the interview.';
-              const provider = providerManagerSDK.getProvider('gemini');
-              provider.triggerGreeting(sessionId, greetingText);
+              callOrchestrator.triggerGreeting(callId, sessionId, greetingText);
               logger.info('AudioStreamHandler: greeting triggered', { callId, sessionId });
             } catch (err) {
               logger.error('AudioStreamHandler: failed to trigger greeting', {

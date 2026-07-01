@@ -2,7 +2,7 @@ import { providerManagerSDK } from '../provider-sdk/provider.manager';
 import { metricsCollector } from '../provider-sdk/provider.metrics';
 import { eventBus, PROVIDER_EVENTS } from '../provider-sdk/provider.events';
 import { ProviderSessionConfig, ProviderEventCallbacks } from '../provider-sdk/provider.types';
-import { CallSession } from './CallSession';
+import { CallSession, IConversationState } from './CallSession';
 import { CallStateMachine } from './CallStateMachine';
 import { VobizService } from '../telephony/VobizService';
 import { TranscriptRecorder } from '../telephony/TranscriptRecorder';
@@ -14,6 +14,26 @@ import { CallError } from '../../types/errors';
 import { AgentConfig, CallStatus } from '../../types';
 import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
+
+class ConversationState implements IConversationState {
+  phase: 'greeting_sent' | 'listening' | 'processing' | 'responding' = 'greeting_sent';
+  
+  isReadyForUserAudio(): boolean {
+    return this.phase === 'listening';
+  }
+  
+  markAsListening() {
+    this.phase = 'listening';
+  }
+  
+  markAsProcessing() {
+    this.phase = 'processing';
+  }
+  
+  markAsResponding() {
+    this.phase = 'responding';
+  }
+}
 
 export class CallOrchestrator {
   private static _instance: CallOrchestrator | null = null;
@@ -164,6 +184,7 @@ export class CallOrchestrator {
     stateMachine.transitionTo('in_progress');
 
     const callSession = new CallSession(callId, agentId, phoneNumber);
+    callSession.conversationState = new ConversationState();
     this.activeCalls.set(callId, callSession);
 
     // Mapped config structure passed down to SDK Provider
@@ -210,7 +231,11 @@ export class CallOrchestrator {
         }
       },
       onResponseDone: (sessId) => {
-        logger.info('Response complete', { callId });
+        const session = this.activeCalls.get(callId);
+        if (session?.conversationState) {
+          session.conversationState.markAsListening();
+          logger.info('AI response complete, listening again', { callId });
+        }
       },
       onError: (sessId, error) => {
         logger.error('Gemini error', { callId, error: error.message });
@@ -231,9 +256,32 @@ export class CallOrchestrator {
    */
   processAudioStream(callId: string, audioBase64: string): void {
     const session = this.activeCalls.get(callId);
-    if (session && session.providerSessionId) {
-      providerManagerSDK.sendAudio(session.providerSessionId, audioBase64);
+    if (!session) return;
+    
+    // Only send audio if AI is ready to listen
+    if (!session.conversationState?.isReadyForUserAudio()) {
+      logger.info('Audio arrived but AI not ready', { callId });
+      return;
     }
+    
+    if (!session.providerSessionId) return;
+    
+    logger.info('Sending user audio to Gemini', { callId, bytes: audioBase64.length });
+    providerManagerSDK.sendAudio(session.providerSessionId, audioBase64);
+  }
+
+  triggerGreeting(callId: string, sessionId: string, greetingText?: string): void {
+    const provider = providerManagerSDK.getProvider('gemini');
+    provider.triggerGreeting(sessionId, greetingText);
+
+    // After greeting sent, mark that we're ready for user input
+    setTimeout(() => {
+      const session = this.activeCalls.get(callId);
+      if (session?.conversationState) {
+        session.conversationState.markAsListening();
+        logger.info('Now listening for user input', { callId });
+      }
+    }, 1500);  // Wait 1.5 seconds after greeting
   }
 
   /**
