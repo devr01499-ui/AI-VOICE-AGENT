@@ -40,6 +40,7 @@ export default function DashboardLayout({
   const navItems = [
     { label: 'Dashboard', href: '/', icon: LayoutDashboard },
     { label: 'Agents Library', href: '/agents', icon: Bot },
+    { label: 'Test HR Agent', href: '/test-hr', icon: Sparkles },
     { label: 'Templates Gallery', href: '/templates', icon: Layers },
     { label: 'Phone Numbers', href: '/phone-numbers', icon: PhoneCall },
     { label: 'Analytics', href: '/analytics', icon: BarChart3 },

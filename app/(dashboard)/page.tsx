@@ -20,7 +20,9 @@ import {
   Zap,
   Volume2,
   Loader2,
+  Sparkles,
 } from 'lucide-react';
+import Link from 'next/link';
 
 export default function DashboardHome() {
   const [activeCallCount, setActiveCallCount] = useState(14);
@@ -192,6 +194,28 @@ export default function DashboardHome() {
             <Plus className="h-4 w-4 mr-1.5" /> Create New Agent
           </Button>
         </div>
+      </div>
+
+      {/* Test HR Agent Promo Banner */}
+      <div className="bg-gradient-to-r from-blue-600/10 to-indigo-600/10 border border-blue-500/20 rounded-xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm shadow-blue-500/5">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
+              <Sparkles className="h-4 w-4 text-blue-400" />
+              Delhi Recruitment Campaign Active
+            </h3>
+          </div>
+          <p className="text-xs text-slate-400">
+            Test the AI recruiter (Priya) calling candidates for the Software Engineer role in Delhi.
+          </p>
+        </div>
+        <Link href="/test-hr">
+          <Button className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-colors shrink-0 h-9 px-4">
+            <PhoneCall className="h-3.5 w-3.5 mr-1.5" />
+            Launch Test Call Portal
+          </Button>
+        </Link>
       </div>
 
       {/* Grid: Stat indicators */}
