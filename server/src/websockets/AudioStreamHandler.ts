@@ -191,6 +191,14 @@ export class AudioStreamHandler {
             }
           });
 
+          // Register user-started speech interruption clearance (barge-in)
+          eventBus.subscribe(PROVIDER_EVENTS.USER_STARTED_SPEAKING, (payload) => {
+            if (payload.callId === callId) {
+              logger.info('AudioStreamHandler: User speech started (barge-in), clearing outbound audio queue', { callId });
+              this.clearAudio(callId);
+            }
+          });
+
           // Trigger initial greeting turn text after 1 second
           setTimeout(() => {
             try {

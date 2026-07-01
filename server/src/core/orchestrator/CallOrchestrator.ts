@@ -14,12 +14,16 @@ import { CallError } from '../../types/errors';
 import { AgentConfig, CallStatus } from '../../types';
 import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
+import { mulawToPCM16 } from '../../utils/audioConverter';
 
 class ConversationState implements IConversationState {
   phase: 'greeting_sent' | 'listening' | 'processing' | 'responding' = 'greeting_sent';
+  lastSpeechTime: number = 0;
+  silenceThresholdMs: number = 1500;
+  speechThreshold: number = 1000;
   
   isReadyForUserAudio(): boolean {
-    return this.phase === 'listening';
+    return this.phase === 'listening' || this.phase === 'processing';
   }
   
   markAsListening() {
@@ -28,6 +32,7 @@ class ConversationState implements IConversationState {
   
   markAsProcessing() {
     this.phase = 'processing';
+    this.lastSpeechTime = Date.now();
   }
   
   markAsResponding() {
@@ -216,6 +221,11 @@ export class CallOrchestrator {
         }
       },
       onSpeechStarted: (sessId) => {
+        const session = this.activeCalls.get(callId);
+        if (session?.conversationState) {
+          session.conversationState.markAsResponding();
+          logger.info('AI speech started, state set to responding', { callId });
+        }
         eventBus.publish(PROVIDER_EVENTS.AI_STARTED_SPEAKING, { callId, sessionId: sessId });
       },
       onSpeechStopped: (sessId) => {
@@ -254,18 +264,67 @@ export class CallOrchestrator {
   /**
    * Streams inbound audio from SIP channel to the provider.
    */
+  private calculateRMS(mulawBase64: string): number {
+    try {
+      const pcm16Base64 = mulawToPCM16(mulawBase64);
+      const buffer = Buffer.from(pcm16Base64, 'base64');
+      const numSamples = buffer.length / 2;
+      if (numSamples === 0) return 0;
+      
+      let sumSquares = 0;
+      for (let i = 0; i < numSamples; i++) {
+        const sample = buffer.readInt16LE(i * 2);
+        sumSquares += sample * sample;
+      }
+      return Math.sqrt(sumSquares / numSamples);
+    } catch (err) {
+      return 0;
+    }
+  }
+
   processAudioStream(callId: string, audioBase64: string): void {
     const session = this.activeCalls.get(callId);
     if (!session) return;
-    
-    // Only send audio if AI is ready to listen
-    if (!session.conversationState?.isReadyForUserAudio()) {
-      logger.info('Audio arrived but AI not ready', { callId });
+
+    const state = session.conversationState as ConversationState;
+    if (!state) return;
+
+    // Run Server-Side VAD on incoming audio
+    const rms = this.calculateRMS(audioBase64);
+    const now = Date.now();
+
+    if (rms > state.speechThreshold) {
+      state.lastSpeechTime = now;
+      if (state.phase === 'listening') {
+        state.markAsProcessing();
+        logger.info('VAD: User started speaking', { callId, rms });
+        eventBus.publish(PROVIDER_EVENTS.USER_STARTED_SPEAKING, { callId });
+      } else if (state.phase === 'responding') {
+        // User barge-in / interruption detected!
+        state.markAsProcessing();
+        logger.info('VAD: User barge-in detected (speech during response)', { callId, rms });
+        eventBus.publish(PROVIDER_EVENTS.USER_STARTED_SPEAKING, { callId });
+      }
+    } else {
+      // Silence detected
+      if (state.phase === 'processing') {
+        const silentDuration = now - state.lastSpeechTime;
+        if (silentDuration >= state.silenceThresholdMs) {
+          state.markAsResponding();
+          logger.info('VAD: Silence duration reached, user finished speaking', { callId, silentDuration });
+          eventBus.publish(PROVIDER_EVENTS.USER_STOPPED_SPEAKING, { callId });
+        }
+      }
+    }
+
+    // Only forward audio if we are in listening or processing state
+    if (!state.isReadyForUserAudio()) {
+      logger.info('Audio arrived but AI not ready (dropped)', { callId, phase: state.phase });
       return;
     }
-    
+
     if (!session.providerSessionId) return;
-    
+
     logger.info('Sending user audio to Gemini', { callId, bytes: audioBase64.length });
     providerManagerSDK.sendAudio(session.providerSessionId, audioBase64);
   }

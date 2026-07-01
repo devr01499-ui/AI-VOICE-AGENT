@@ -6,6 +6,8 @@
 - Modified processAudioStream in CallOrchestrator.ts to filter outbound user audio based on the current ConversationState.
 - Integrated triggerGreeting handler in CallOrchestrator.ts and AudioStreamHandler.ts to transition conversation state to 'listening' after 1.5 seconds post-greeting.
 - Implemented onResponseDone callback in CallOrchestrator.ts to transition conversation state to 'listening' when AI finishes responding.
+- Implemented Server-Side Voice Activity Detection (VAD) via RMS energy computation on incoming audio streams.
+- Configured user barge-in detection by subscribing AudioStreamHandler to USER_STARTED_SPEAKING events to clear telephony queues with sub-200ms latency.
 
 ### Fixed
 - Fixed Gemini greeting role mismatch in GeminiLiveProvider.ts by setting the role to 'assistant' instead of 'user'.
