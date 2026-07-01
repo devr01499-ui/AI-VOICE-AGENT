@@ -38,7 +38,7 @@ export default function DashboardLayout({
 
   // Navigation config matches the required system specification
   const navItems = [
-    { label: 'Dashboard', href: '/', icon: LayoutDashboard },
+    { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { label: 'Agents Library', href: '/agents', icon: Bot },
     { label: 'Test HR Agent', href: '/test-hr', icon: Sparkles },
     { label: 'Templates Gallery', href: '/templates', icon: Layers },
@@ -50,8 +50,8 @@ export default function DashboardLayout({
 
   // Helper to render current breadcrumb label based on active route
   const getBreadcrumb = () => {
-    if (pathname === '/') return 'Dashboard';
-    const active = navItems.find((item) => item.href !== '/' && pathname.startsWith(item.href));
+    if (pathname === '/dashboard') return 'Dashboard';
+    const active = navItems.find((item) => item.href !== '/dashboard' && pathname.startsWith(item.href));
     return active ? active.label : 'Dashboard';
   };
 
@@ -73,8 +73,8 @@ export default function DashboardLayout({
               <Sparkles className="h-4.5 w-4.5 text-white" />
             </div>
             {isSidebarOpen && (
-              <span className="font-semibold text-lg bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent tracking-tight font-sans">
-                bOLNA
+              <span className="font-semibold text-sm bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent tracking-tight font-sans whitespace-nowrap">
+                Clarity AI Voice
               </span>
             )}
           </div>

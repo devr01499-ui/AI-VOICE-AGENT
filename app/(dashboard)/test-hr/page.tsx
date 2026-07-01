@@ -68,7 +68,7 @@ export default function HrTestPage() {
     <div className="max-w-3xl mx-auto space-y-6 py-6 px-4">
       {/* Back button */}
       <div className="flex items-center">
-        <Link href="/" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm font-medium">
+        <Link href="/dashboard" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm font-medium">
           <ArrowLeft className="w-4 h-4" />
           Back to Dashboard
         </Link>
