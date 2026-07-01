@@ -107,7 +107,7 @@ export default function MarketingLayout({
       <main className="flex-1 w-full relative overflow-hidden">
         {/* Ambient background glows */}
         <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[60%] rounded-full bg-blue-600/5 blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[60%] rounded-full bg-indigo-600/5 blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[60%] rounded-full bg-slate-200/5 blur-[120px] pointer-events-none" />
         {children}
       </main>
 

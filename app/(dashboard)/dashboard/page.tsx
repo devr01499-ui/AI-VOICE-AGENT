@@ -12,11 +12,8 @@ import {
   Clock,
   CheckCircle,
   Plus,
-  Play,
-  TrendingUp,
   Activity,
   ArrowUpRight,
-  ShieldCheck,
   Zap,
   Volume2,
   Loader2,
@@ -66,14 +63,14 @@ export default function DashboardHome() {
     {
       label: 'Active Calls',
       value: activeCallCount.toString(),
-      subtext: 'Live on Plivo & Twilio',
+      subtext: 'Live Call Integration Active',
       icon: PhoneCall,
       color: 'text-emerald-400 bg-emerald-950/40 border-emerald-900/30 animate-pulse',
     },
     {
       label: 'Minutes Consumed',
       value: '184,520',
-      subtext: 'ASR + TTS dynamic billing',
+      subtext: 'Orchestrated Call Duration',
       icon: Clock,
       color: 'text-amber-400 bg-amber-950/40 border-amber-900/30',
     },
@@ -82,7 +79,7 @@ export default function DashboardHome() {
       value: `${successRate}%`,
       subtext: 'Target 95.0% threshold',
       icon: CheckCircle,
-      color: 'text-purple-400 bg-purple-950/40 border-purple-900/30',
+      color: 'text-white bg-slate-900 border-white/5',
     },
   ];
 
@@ -91,7 +88,7 @@ export default function DashboardHome() {
     {
       id: 1,
       type: 'agent_deploy',
-      msg: 'Agent "Customer Support" successfully compiled to ElevenLabs V2 TTS',
+      msg: 'Agent "Customer Support" successfully deployed with High-Fidelity Voice Tone',
       time: '2 mins ago',
       badge: 'Success',
       badgeColor: 'bg-emerald-950/50 border-emerald-900 text-emerald-400',
@@ -99,7 +96,7 @@ export default function DashboardHome() {
     {
       id: 2,
       type: 'webhook_trigger',
-      msg: 'HubSpot webhook map triggered on campaign COD Confirmation',
+      msg: 'Customer CRM webhook map triggered on campaign Qualification',
       time: '14 mins ago',
       badge: 'API Link',
       badgeColor: 'bg-blue-950/50 border-blue-900 text-blue-400',
@@ -107,7 +104,7 @@ export default function DashboardHome() {
     {
       id: 3,
       type: 'call_complete',
-      msg: 'Outbound qualification completed on +1 (555) 019-2834',
+      msg: 'Outbound campaign qualification completed on user line',
       time: '28 mins ago',
       badge: 'Completed',
       badgeColor: 'bg-slate-900 border-slate-800 text-slate-300',
@@ -115,10 +112,10 @@ export default function DashboardHome() {
     {
       id: 4,
       type: 'system_alert',
-      msg: 'Deepgram whisper-large translation latency latency stabilized (142ms)',
+      msg: 'Speech transcription response latency stabilized (142ms)',
       time: '1 hour ago',
       badge: 'Optimized',
-      badgeColor: 'bg-purple-950/50 border-purple-900 text-purple-400',
+      badgeColor: 'bg-white/5 border-white/10 text-white',
     },
   ];
 
@@ -151,7 +148,7 @@ export default function DashboardHome() {
             AI Operations Console
           </h1>
           <p className="text-slate-400 text-sm mt-1">
-            Real-time status overview of active voice agents, telephony networks, and latency distributions.
+            Real-time status overview of active voice agents, telephone networks, and latency distributions.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -251,7 +248,7 @@ export default function DashboardHome() {
             <CardHeader className="pb-3 border-b border-slate-800/80">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-lg text-white">System Telemetry & Health</CardTitle>
+                  <CardTitle className="text-lg text-white">System Performance & Quality</CardTitle>
                   <CardDescription className="text-xs text-slate-400">
                     Live operational metrics for voice translation pipelines.
                   </CardDescription>
@@ -264,28 +261,28 @@ export default function DashboardHome() {
             <CardContent className="p-6 space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-slate-950/50 p-4 rounded-lg border border-slate-800/80 space-y-1.5">
-                  <span className="text-[10px] text-slate-500 font-bold tracking-wider uppercase">ASR Latency</span>
+                  <span className="text-[10px] text-slate-500 font-bold tracking-wider uppercase">Transcription Response</span>
                   <div className="text-xl font-bold text-white">124ms</div>
                   <div className="h-1.5 w-full bg-slate-900 rounded overflow-hidden">
                     <div className="h-full bg-blue-500 rounded" style={{ width: '40%' }} />
                   </div>
-                  <span className="text-[10px] text-slate-400">Deepgram Nova-2 Whisper</span>
+                  <span className="text-[10px] text-slate-400">Optimized Speech-to-Text Engine</span>
                 </div>
                 <div className="bg-slate-950/50 p-4 rounded-lg border border-slate-800/80 space-y-1.5">
-                  <span className="text-[10px] text-slate-500 font-bold tracking-wider uppercase">LLM TTFT</span>
+                  <span className="text-[10px] text-slate-500 font-bold tracking-wider uppercase">Turn Transition Time</span>
                   <div className="text-xl font-bold text-white">182ms</div>
                   <div className="h-1.5 w-full bg-slate-900 rounded overflow-hidden">
                     <div className="h-full bg-indigo-500 rounded" style={{ width: '65%' }} />
                   </div>
-                  <span className="text-[10px] text-slate-400">GPT-4o / Claude 3.5 Sonnet</span>
+                  <span className="text-[10px] text-slate-400">Advanced Conversational Model</span>
                 </div>
                 <div className="bg-slate-950/50 p-4 rounded-lg border border-slate-800/80 space-y-1.5">
-                  <span className="text-[10px] text-slate-500 font-bold tracking-wider uppercase">TTS Latency</span>
+                  <span className="text-[10px] text-slate-500 font-bold tracking-wider uppercase">Voice Generation Rate</span>
                   <div className="text-xl font-bold text-white">98ms</div>
                   <div className="h-1.5 w-full bg-slate-900 rounded overflow-hidden">
                     <div className="h-full bg-purple-500 rounded" style={{ width: '30%' }} />
                   </div>
-                  <span className="text-[10px] text-slate-400">ElevenLabs Turbo v2</span>
+                  <span className="text-[10px] text-slate-400">Neural Text-to-Speech Engine</span>
                 </div>
               </div>
 
@@ -295,7 +292,7 @@ export default function DashboardHome() {
                   <Volume2 className="h-5 w-5 text-blue-400 animate-pulse" />
                   <div>
                     <div className="text-xs font-semibold text-white">Primary Pipeline: Webhook Orchestrator</div>
-                    <div className="text-[10px] text-slate-400">Dynamic routing active from Twilio numbers to LLM endpoints.</div>
+                    <div className="text-[10px] text-slate-400">Dynamic call routing active to agent nodes.</div>
                   </div>
                 </div>
                 <Button className="text-xs shrink-0" variant="outline">
@@ -310,11 +307,11 @@ export default function DashboardHome() {
             <Card className="border-slate-800 bg-slate-900/40 backdrop-blur hover:border-slate-700 transition-colors">
               <CardContent className="p-5 flex items-start gap-4">
                 <div className="h-10 w-10 rounded-lg bg-blue-950 border border-blue-900/40 flex items-center justify-center shrink-0">
-                  <Bot className="h-5 w-5 text-blue-400" />
+                  <Volume2 className="h-5 w-5 text-blue-400" />
                 </div>
                 <div className="space-y-1">
                   <h4 className="text-sm font-semibold text-white">Explore Templates</h4>
-                  <p className="text-xs text-slate-400">Browse 15+ production-ready Voice AI workflows.</p>
+                  <p className="text-xs text-slate-400">Browse 15+ production-ready voice AI workflows.</p>
                   <Button variant="link" className="text-blue-400 p-0 h-auto text-xs font-semibold hover:underline">
                     View templates gallery &rarr;
                   </Button>
@@ -323,13 +320,13 @@ export default function DashboardHome() {
             </Card>
             <Card className="border-slate-800 bg-slate-900/40 backdrop-blur hover:border-slate-700 transition-colors">
               <CardContent className="p-5 flex items-start gap-4">
-                <div className="h-10 w-10 rounded-lg bg-purple-950 border border-purple-900/40 flex items-center justify-center shrink-0">
-                  <PhoneCall className="h-5 w-5 text-purple-400" />
+                <div className="h-10 w-10 rounded-lg bg-slate-950 border border-white/5 flex items-center justify-center shrink-0">
+                  <PhoneCall className="h-5 w-5 text-white" />
                 </div>
                 <div className="space-y-1">
                   <h4 className="text-sm font-semibold text-white">Provision Numbers</h4>
-                  <p className="text-xs text-slate-400">Claim, purchase and link Twilio and Plivo numbers.</p>
-                  <Button variant="link" className="text-purple-400 p-0 h-auto text-xs font-semibold hover:underline">
+                  <p className="text-xs text-slate-400">Claim, purchase and link telephone numbers.</p>
+                  <Button variant="link" className="text-white p-0 h-auto text-xs font-semibold hover:underline">
                     Provision a number &rarr;
                   </Button>
                 </div>
@@ -387,9 +384,4 @@ export default function DashboardHome() {
       />
     </div>
   );
-}
-
-// Simple fallback components just to resolve standard React type bindings if needed
-function Bot({ className }: { className?: string }) {
-  return <Volume2 className={className} />;
 }
