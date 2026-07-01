@@ -230,13 +230,13 @@ export class CallOrchestrator {
         }
         eventBus.publish(PROVIDER_EVENTS.AI_STARTED_SPEAKING, { callId, sessionId: sessId });
       },
-      onSpeechStopped: (sessId) => {
+      onSpeechStopped: (sessId, interrupted?: boolean) => {
         const session = this.activeCalls.get(callId);
         if (session?.conversationState && session.conversationState.phase === 'responding') {
           session.conversationState.markAsListening();
           logger.info('AI speech stopped / interrupted, listening again', { callId });
         }
-        eventBus.publish(PROVIDER_EVENTS.AI_STOPPED_SPEAKING, { callId, sessionId: sessId });
+        eventBus.publish(PROVIDER_EVENTS.AI_STOPPED_SPEAKING, { callId, sessionId: sessId, interrupted });
       },
       onFunctionCall: async (sessId, toolCallId, name, args) => {
         try {

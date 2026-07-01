@@ -191,10 +191,17 @@ export class AudioStreamHandler {
             }
           });
 
-          // Register user-started speech interruption clearance (barge-in)
+          // Register user-started speech (tentative trigger) - do not flush queue yet
           eventBus.subscribe(PROVIDER_EVENTS.USER_STARTED_SPEAKING, (payload) => {
             if (payload.callId === callId) {
-              logger.info('AudioStreamHandler: User speech started (barge-in), clearing outbound audio queue', { callId });
+              logger.info('AudioStreamHandler: Local VAD tentative speech detected', { callId });
+            }
+          });
+
+          // Register AI-stopped / interrupted speech (definitive barge-in trigger confirmed by Gemini)
+          eventBus.subscribe(PROVIDER_EVENTS.AI_STOPPED_SPEAKING, (payload) => {
+            if (payload.callId === callId && (payload as any).interrupted) {
+              logger.info('AudioStreamHandler: Gemini confirmed speech interruption (barge-in), clearing outbound audio queue', { callId });
               this.clearAudio(callId);
             }
           });

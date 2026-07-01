@@ -189,7 +189,8 @@ export function pcm16ToUlaw(pcm16Samples: Int16Array): Uint8Array {
 }
 
 /**
- * High-performance resampling using linear interpolation.
+ * High-performance resampling using Catmull-Rom cubic spline interpolation.
+ * Reduces high-frequency aliasing compared to linear interpolation.
  */
 export function resample(
   samples: Int16Array,
@@ -208,12 +209,29 @@ export function resample(
     const srcIndex = i * ratio;
     const indexLow = Math.floor(srcIndex);
     const indexHigh = Math.min(indexLow + 1, samples.length - 1);
-    const weight = srcIndex - indexLow;
+    const t = srcIndex - indexLow;
 
-    const sampleLow = samples[indexLow]!;
-    const sampleHigh = samples[indexHigh]!;
+    // Get 4 surrounding samples for Catmull-Rom cubic spline interpolation
+    const idx0 = Math.max(0, indexLow - 1);
+    const idx1 = indexLow;
+    const idx2 = indexHigh;
+    const idx3 = Math.min(samples.length - 1, indexHigh + 1);
 
-    result[i] = Math.round(sampleLow * (1 - weight) + sampleHigh * weight);
+    const p0 = samples[idx0]!;
+    const p1 = samples[idx1]!;
+    const p2 = samples[idx2]!;
+    const p3 = samples[idx3]!;
+
+    // Catmull-Rom spline coefficients
+    const a = 1.5 * p1 - 1.5 * p2 + 0.5 * p3 - 0.5 * p0;
+    const b = p0 - 2.5 * p1 + 2 * p2 - 0.5 * p3;
+    const c = 0.5 * p2 - 0.5 * p0;
+    const d = p1;
+
+    const interpolated = a * t * t * t + b * t * t + c * t + d;
+    
+    // Clamp to valid 16-bit signed integer range to prevent clipping/wrapping artifacts
+    result[i] = Math.max(-32768, Math.min(32767, Math.round(interpolated)));
   }
 
   return result;
