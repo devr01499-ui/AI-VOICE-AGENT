@@ -40,9 +40,30 @@ const app = express();
 
 // ── Security ──────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false }));
+const allowedOrigins = [
+  env.FRONTEND_URL,
+  'http://localhost:3000',
+  'http://localhost:3001',
+];
+
 app.use(
   cors({
-    origin: env.FRONTEND_URL,
+    origin: (origin, callback) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      const isAllowed =
+        allowedOrigins.includes(origin) ||
+        origin.endsWith('.vercel.app') ||
+        origin.endsWith('.onrender.com');
+      if (isAllowed) {
+        callback(null, true);
+      } else {
+        logger.warn('CORS blocked origin', { origin });
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
     credentials: true,
