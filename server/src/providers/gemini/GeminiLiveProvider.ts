@@ -206,7 +206,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     });
 
     ws.on('open', () => {
-      logger.info('GeminiLiveProvider [HANDSHAKE]: WebSocket opened successfully. Preparing setup message.', { sessionId });
+      logger.info('GeminiLiveProvider: WebSocket successfully opened. Transmission of strict snake_case setup payload initiated.');
 
       // Map voices: alloy/shimmer/etc. to Gemini voices (Aoede, Puck, Charon, Fenrir, Kore)
       const voiceNameMap: Record<string, string> = {
@@ -218,52 +218,55 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       };
       const geminiVoice = voiceNameMap[config.voice.toLowerCase()] || 'Puck';
 
-      // Map tools to Gemini functionDeclarations format
+      // Map tools cleanly to Gemini wire function_declarations format
       const functionDeclarations = config.tools?.map((t) => ({
         name: t.name,
         description: t.description,
-        parameters: t.parameters,
+        parameters: t.parameters, // JSON Schema parameters can remain camelCase/nested as standard
       }));
 
+      // STRICT WIRE PROTOCOL REQUIREMENT: Fields must be snake_case for direct raw WebSockets
       const setupMessage = {
         setup: {
           model: `models/${model}`,
-          generationConfig: {
-            responseModalities: ['AUDIO'],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: {
-                  voiceName: geminiVoice,
+          generation_config: {
+            response_modalities: ['AUDIO'],
+            speech_config: {
+              voice_config: {
+                prebuilt_voice_config: {
+                  voice_name: geminiVoice,
                 },
               },
             },
           },
-          inputAudioTranscription: {},
-          realtimeInputConfig: {
-            automaticActivityDetection: {
-              disabled: false,
-              silenceDurationMs: 1500,
-            },
-          },
-          systemInstruction: {
+          system_instruction: {
             parts: [
               {
                 text: config.instructions,
               },
             ],
           },
+          realtime_input_config: {
+            automatic_activity_detection: {
+              disabled: false,
+            },
+          },
           ...(functionDeclarations && functionDeclarations.length > 0 && {
             tools: [
               {
-                functionDeclarations,
+                function_declarations: functionDeclarations,
               },
             ],
           }),
         },
       };
 
+      logger.info('GeminiLiveProvider: Transmitting completed handshake frame to Google wire socket', {
+        targetModel: setupMessage.setup.model,
+        selectedVoice: geminiVoice
+      });
+
       ws.send(JSON.stringify(setupMessage));
-      logger.info('GeminiLiveProvider [HANDSHAKE]: setupMessage dispatched to Google.', { sessionId, setupMessage: JSON.stringify(setupMessage) });
     });
 
     ws.on('message', (raw: WebSocket.RawData) => {

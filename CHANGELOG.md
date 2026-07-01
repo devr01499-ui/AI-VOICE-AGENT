@@ -17,6 +17,7 @@
 - Fixed potential undefined sample indices inside Catmull-Rom resampling loop inside audioConverter.ts by clamping index boundaries to lastIndex.
 - Added detailed diagnostic logging for Gemini WebSocket handshake frames, setupComplete, and error response packages.
 - Configured media hook raw inbound bytes logging in AudioStreamHandler.ts to track traffic ingestion.
+- Converted Gemini Live setup configuration structure from camelCase fields to strict snake_case wire protocol parameters (generation_config, realtime_input_config, system_instruction, prebuilt_voice_config) to resolve handshake failures.
 
 ## [Unreleased] - 2026-06-30
 ### Fixed
