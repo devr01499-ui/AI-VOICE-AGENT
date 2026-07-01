@@ -271,15 +271,17 @@ export class AudioStreamHandler {
     try {
       const mulawAudio = event.media.payload; // Base64 raw G.711 stream
       
-      // Pass to orchestrator ensuring the underlying socket transmits this exact structure:
-      // {
-      //   realtimeInput: {
-      //     mediaChunks: [{
-      //       mimeType: "audio/pcm;rate=16000",
-      //       data: "<Converted_PCM16_Base64>"
-      //     }]
-      //   }
-      // }
+      // Track and log raw inbound packet payload for diagnostic audit
+      conn.audioStats.packetsReceived++;
+      conn.audioStats.bytesReceived += mulawAudio.length;
+
+      logger.info('AudioStreamHandler [MEDIA HOOK DIAGNOSTIC]: Received raw inbound media payload from Vobiz', {
+        callId,
+        packetIndex: conn.audioStats.packetsReceived,
+        payloadLength: mulawAudio.length,
+        cumulativeBytes: conn.audioStats.bytesReceived
+      });
+      
       callOrchestrator.processAudioStream(callId, mulawAudio);
       
       if (conn.sessionId) {

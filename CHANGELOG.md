@@ -14,6 +14,9 @@
 ### Fixed
 - Fixed Gemini greeting role mismatch in GeminiLiveProvider.ts by setting the role to 'assistant' instead of 'user'.
 - Fixed barge-in event callback in GeminiLiveProvider.ts to trigger onSpeechStopped on interruption, and updated CallOrchestrator.ts to transition conversation state to 'listening' on AI speech stop.
+- Fixed potential undefined sample indices inside Catmull-Rom resampling loop inside audioConverter.ts by clamping index boundaries to lastIndex.
+- Added detailed diagnostic logging for Gemini WebSocket handshake frames, setupComplete, and error response packages.
+- Configured media hook raw inbound bytes logging in AudioStreamHandler.ts to track traffic ingestion.
 
 ## [Unreleased] - 2026-06-30
 ### Fixed

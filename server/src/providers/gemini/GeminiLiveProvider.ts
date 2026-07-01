@@ -206,7 +206,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     });
 
     ws.on('open', () => {
-      logger.debug('GeminiLiveProvider: WebSocket connected, sending setup message');
+      logger.info('GeminiLiveProvider [HANDSHAKE]: WebSocket opened successfully. Preparing setup message.', { sessionId });
 
       // Map voices: alloy/shimmer/etc. to Gemini voices (Aoede, Puck, Charon, Fenrir, Kore)
       const voiceNameMap: Record<string, string> = {
@@ -263,14 +263,24 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       };
 
       ws.send(JSON.stringify(setupMessage));
+      logger.info('GeminiLiveProvider [HANDSHAKE]: setupMessage dispatched to Google.', { sessionId, setupMessage: JSON.stringify(setupMessage) });
     });
 
     ws.on('message', (raw: WebSocket.RawData) => {
       try {
         const event = JSON.parse(raw.toString()) as GeminiServerEvent;
 
+        // Trace error packets from Google
+        if (event.error) {
+          logger.error('GeminiLiveProvider [HANDSHAKE/RUNTIME ERROR]: Google returned error payload', {
+            sessionId,
+            error: JSON.stringify(event.error)
+          });
+        }
+
         // Handshake complete once setupComplete is received
         if (event.setupComplete) {
+          logger.info('GeminiLiveProvider [HANDSHAKE]: setupComplete received from Google.', { sessionId, event: JSON.stringify(event) });
           this.activeSessions.set(sessionId, {
             ws,
             callbacks,

@@ -205,17 +205,20 @@ export function resample(
   const newLength = Math.round(samples.length / ratio);
   const result = new Int16Array(newLength);
 
+  const lastIndex = samples.length - 1;
+  if (lastIndex < 0) return result;
+
   for (let i = 0; i < newLength; i++) {
     const srcIndex = i * ratio;
     const indexLow = Math.floor(srcIndex);
-    const indexHigh = Math.min(indexLow + 1, samples.length - 1);
+    const indexHigh = Math.min(indexLow + 1, lastIndex);
     const t = srcIndex - indexLow;
 
-    // Get 4 surrounding samples for Catmull-Rom cubic spline interpolation
-    const idx0 = Math.max(0, indexLow - 1);
-    const idx1 = indexLow;
-    const idx2 = indexHigh;
-    const idx3 = Math.min(samples.length - 1, indexHigh + 1);
+    // Get 4 surrounding samples for Catmull-Rom cubic spline interpolation safely clamped
+    const idx0 = Math.max(0, Math.min(lastIndex, indexLow - 1));
+    const idx1 = Math.max(0, Math.min(lastIndex, indexLow));
+    const idx2 = Math.max(0, Math.min(lastIndex, indexHigh));
+    const idx3 = Math.max(0, Math.min(lastIndex, indexHigh + 1));
 
     const p0 = samples[idx0]!;
     const p1 = samples[idx1]!;
