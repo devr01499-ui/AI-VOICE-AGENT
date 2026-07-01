@@ -462,7 +462,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     // CRITICAL GATE: Handle immediate user barge-in interruption
     if (event.serverContent?.interrupted === true) {
       logger.info('Gemini Session: User barge-in detected. Purging active playback buffers.', { sessionId });
-      callbacks.onSpeechStarted?.(sessionId);
+      callbacks.onSpeechStopped?.(sessionId);
       return;
     }
 

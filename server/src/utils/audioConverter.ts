@@ -234,12 +234,21 @@ export function convertInboundAudio(
     const pcm16Base64 = mulawToPCM16(mulawBase64);
     const pcmBuffer = Buffer.from(pcm16Base64, 'base64');
     
-    // Step 2: Convert to typed array for resampling
-    const pcm16Samples = new Int16Array(
-      pcmBuffer.buffer,
-      pcmBuffer.byteOffset,
-      pcmBuffer.byteLength / 2
-    );
+    // Step 2: Convert to typed array for resampling with safe alignment
+    let pcm16Samples: Int16Array;
+    if (pcmBuffer.byteOffset % 2 === 0) {
+      pcm16Samples = new Int16Array(
+        pcmBuffer.buffer,
+        pcmBuffer.byteOffset,
+        pcmBuffer.length / 2
+      );
+    } else {
+      const arrayBuffer = pcmBuffer.buffer.slice(
+        pcmBuffer.byteOffset,
+        pcmBuffer.byteOffset + pcmBuffer.length
+      );
+      pcm16Samples = new Int16Array(arrayBuffer, 0, pcmBuffer.length / 2);
+    }
 
     // Step 3: Resample from 8000Hz to provider rate
     const resampled = resample(pcm16Samples, 8000, targetRate);
@@ -267,11 +276,22 @@ export function convertOutboundAudio(
     if (!pcm16Base64) return pcm16Base64;
 
     const pcmBuffer = Buffer.from(pcm16Base64, 'base64');
-    const pcm16Samples = new Int16Array(
-      pcmBuffer.buffer,
-      pcmBuffer.byteOffset,
-      pcmBuffer.byteLength / 2
-    );
+    
+    // Convert to typed array with safe alignment
+    let pcm16Samples: Int16Array;
+    if (pcmBuffer.byteOffset % 2 === 0) {
+      pcm16Samples = new Int16Array(
+        pcmBuffer.buffer,
+        pcmBuffer.byteOffset,
+        pcmBuffer.length / 2
+      );
+    } else {
+      const arrayBuffer = pcmBuffer.buffer.slice(
+        pcmBuffer.byteOffset,
+        pcmBuffer.byteOffset + pcmBuffer.length
+      );
+      pcm16Samples = new Int16Array(arrayBuffer, 0, pcmBuffer.length / 2);
+    }
 
     // Step 1: Downsample from provider rate to 8000Hz
     const downsampled = resample(pcm16Samples, sourceRate, 8000);

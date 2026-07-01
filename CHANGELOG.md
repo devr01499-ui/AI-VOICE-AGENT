@@ -8,9 +8,12 @@
 - Implemented onResponseDone callback in CallOrchestrator.ts to transition conversation state to 'listening' when AI finishes responding.
 - Implemented Server-Side Voice Activity Detection (VAD) via RMS energy computation on incoming audio streams.
 - Configured user barge-in detection by subscribing AudioStreamHandler to USER_STARTED_SPEAKING events to clear telephony queues with sub-200ms latency.
+- Added default system prompt in CallOrchestrator.ts incorporating conversational fillers, micro-pauses, and brevity (under 2 sentences).
+- Added alignment checks for Int16Array construction in audioConverter.ts to prevent start offset unalignment.
 
 ### Fixed
 - Fixed Gemini greeting role mismatch in GeminiLiveProvider.ts by setting the role to 'assistant' instead of 'user'.
+- Fixed barge-in event callback in GeminiLiveProvider.ts to trigger onSpeechStopped on interruption, and updated CallOrchestrator.ts to transition conversation state to 'listening' on AI speech stop.
 
 ## [Unreleased] - 2026-06-30
 ### Fixed

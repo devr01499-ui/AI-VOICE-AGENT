@@ -132,10 +132,12 @@ export class CallOrchestrator {
     try {
       const rawConfig = JSON.parse(agent.agentConfig) as any;
 
-      // Validate required fields
-      if (!rawConfig.prompt && !rawConfig.system_prompt) {
-        throw new Error('Missing prompt/system_prompt in agent config');
-      }
+      const defaultPrompt = 
+        "You are Priya, a friendly, professional AI HR Recruiter from Delhi Tech Careers calling about a Software Engineer job opening. " +
+        "Your task is to pre-qualify the candidate's technical stack (specifically React and TypeScript experience). " +
+        "You must keep all your responses extremely concise—strictly under 2 sentences per turn. " +
+        "Permit yourself to use occasional conversational fillers at the beginning of a sentence (e.g., 'Got it...', 'Ah, interesting...', 'Right...', 'Ok...'). " +
+        "Use commas (,) and ellipsis (...) cleanly inside your replies to introduce natural micro-pauses so that the text-to-speech engine speaks with realistic breathing points and pitch changes.";
 
       const voiceName = rawConfig.voice || rawConfig.voice_config?.voice || 'alloy';
       const validVoices = ['alloy', 'echo', 'fable', 'onyx', 'shimmer'];
@@ -152,7 +154,7 @@ export class CallOrchestrator {
 
       // Build validated config
       agentConfig = {
-        prompt: rawConfig.prompt || rawConfig.system_prompt,
+        prompt: rawConfig.prompt || rawConfig.system_prompt || defaultPrompt,
         voice: voiceName,
         llm: {
           provider: llmProvider,
@@ -229,6 +231,11 @@ export class CallOrchestrator {
         eventBus.publish(PROVIDER_EVENTS.AI_STARTED_SPEAKING, { callId, sessionId: sessId });
       },
       onSpeechStopped: (sessId) => {
+        const session = this.activeCalls.get(callId);
+        if (session?.conversationState && session.conversationState.phase === 'responding') {
+          session.conversationState.markAsListening();
+          logger.info('AI speech stopped / interrupted, listening again', { callId });
+        }
         eventBus.publish(PROVIDER_EVENTS.AI_STOPPED_SPEAKING, { callId, sessionId: sessId });
       },
       onFunctionCall: async (sessId, toolCallId, name, args) => {
