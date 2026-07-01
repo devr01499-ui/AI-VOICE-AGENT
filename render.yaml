@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: bolna-server
+    env: node
+    plan: starter
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 3001
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: VOBIZ_API_KEY
+        sync: false
