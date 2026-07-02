@@ -324,11 +324,6 @@ export class CallOrchestrator {
       }
     }
 
-    // Only forward audio if we are in listening or processing state
-    if (!state.isReadyForUserAudio()) {
-      logger.info('Audio arrived but AI not ready (dropped)', { callId, phase: state.phase });
-      return;
-    }
 
     if (!session.providerSessionId) return;
 

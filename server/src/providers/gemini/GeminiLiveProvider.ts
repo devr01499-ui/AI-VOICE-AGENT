@@ -373,10 +373,10 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
     session.ws.send(
       JSON.stringify({
-        realtimeInput: {
-          mediaChunks: [
+        realtime_input: {
+          media_chunks: [
             {
-              mimeType: 'audio/pcm;rate=16000',
+              mime_type: 'audio/pcm;rate=16000',
               data: audioBase64,
             },
           ],
@@ -398,8 +398,8 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
     session.ws.send(
       JSON.stringify({
-        toolResponse: {
-          functionResponses: [
+        tool_response: {
+          function_responses: [
             {
               response: {
                 output: parsedResult,

@@ -191,10 +191,11 @@ export class AudioStreamHandler {
             }
           });
 
-          // Register user-started speech (tentative trigger) - do not flush queue yet
+          // Register user-started speech (tentative trigger) - clear Vobiz audio queue immediately
           eventBus.subscribe(PROVIDER_EVENTS.USER_STARTED_SPEAKING, (payload) => {
             if (payload.callId === callId) {
-              logger.info('AudioStreamHandler: Local VAD tentative speech detected', { callId });
+              logger.info('AudioStreamHandler: Local VAD tentative speech detected, clearing Vobiz queue', { callId });
+              this.clearAudio(callId);
             }
           });
 
