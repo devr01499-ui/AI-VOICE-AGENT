@@ -17,7 +17,6 @@ import {
   AlertTriangle,
   Zap,
   Clock,
-  Sparkles,
   Cpu,
   Loader2,
   Calendar,
@@ -163,7 +162,7 @@ export default function AgentsPage() {
 
   const handleCreateNew = () => {
     setSelectedAgentId('');
-    setName('New Recruiter Persona');
+    setName('New Recruiter Personal');
     setDescription('Hiring screening voice agent');
     setSelectedVoice('Fenrir');
     setTemperature(0.7);
@@ -427,30 +426,30 @@ export default function AgentsPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'ringing': return 'bg-amber-500/20 border-amber-500 text-amber-300 animate-pulse';
+      case 'ringing': return 'bg-amber-50 border-amber-200 text-amber-800 animate-pulse';
       case 'connected':
-      case 'in_progress': return 'bg-emerald-500/20 border-emerald-500 text-emerald-300';
-      case 'completed': return 'bg-slate-800 border-slate-700 text-slate-400';
-      case 'failed': return 'bg-rose-500/20 border-rose-500 text-rose-300';
-      default: return 'bg-slate-900 border-slate-800 text-slate-400';
+      case 'in_progress': return 'bg-emerald-50 border-emerald-200 text-emerald-800';
+      case 'completed': return 'bg-slate-100 border-slate-200 text-slate-600';
+      case 'failed': return 'bg-rose-50 border-rose-200 text-rose-800';
+      default: return 'bg-slate-50 border-slate-200 text-slate-600';
     }
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-10">
+    <div className="space-y-6 max-w-7xl mx-auto pb-10 bg-white">
       
       {/* Top Header Row */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900/25 p-6 rounded-2xl border border-slate-800/80 backdrop-blur-md">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50 p-6 rounded-2xl border border-slate-200">
         <div>
           <div className="flex items-center gap-2">
-            <span className="p-2 bg-blue-600/10 rounded-lg text-blue-400 border border-blue-500/15">
+            <span className="p-2 bg-emerald-50 rounded-lg text-emerald-600 border border-emerald-200">
               <Bot className="h-5 w-5" />
             </span>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2">
                 HR Voice Configuration Studio
               </h1>
-              <p className="text-slate-400 text-xs mt-0.5">
+              <p className="text-slate-500 text-xs mt-0.5">
                 Refactored visual pipeline manager. Syncs custom agent configuration directly to SQLite/Postgres.
               </p>
             </div>
@@ -465,7 +464,7 @@ export default function AgentsPage() {
                 const found = agents.find((a) => a.id === e.target.value);
                 if (found) loadAgentToForm(found);
               }}
-              className="bg-slate-950 border border-slate-800 text-xs text-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-500 max-w-[200px] cursor-pointer"
+              className="bg-white border border-slate-200 text-xs text-slate-700 rounded-lg px-3 py-2 outline-none focus:border-emerald-500 max-w-[200px] cursor-pointer"
             >
               <option value="">-- Choose Agent Profiles --</option>
               {agents.map((a) => (
@@ -479,7 +478,7 @@ export default function AgentsPage() {
           <Button 
             onClick={handleCreateNew} 
             variant="outline" 
-            className="text-xs bg-slate-950 border-slate-800 hover:text-white"
+            className="text-xs bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
           >
             <Plus className="h-3.5 w-3.5 mr-1" /> New Persona
           </Button>
@@ -490,8 +489,8 @@ export default function AgentsPage() {
       {message && (
         <div className={`p-4 rounded-xl border flex items-center gap-3 text-xs leading-relaxed animate-fade-in ${
           message.type === 'success'
-            ? 'bg-emerald-950/40 border-emerald-800 text-emerald-300 shadow-emerald-900/10'
-            : 'bg-rose-950/40 border-rose-800 text-rose-300 shadow-rose-900/10'
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+            : 'bg-rose-50 border-rose-200 text-rose-800'
         }`}>
           <div className="w-2 h-2 rounded-full bg-current animate-ping shrink-0" />
           <div className="flex-1">{message.text}</div>
@@ -503,13 +502,13 @@ export default function AgentsPage() {
         
         {/* LEFT COLUMN: Agent Settings Form (7 cols) */}
         <div className="lg:col-span-7 space-y-6">
-          <Card className="border-slate-800 bg-slate-900/30 backdrop-blur-xl shadow-xl overflow-hidden">
-            <CardHeader className="border-b border-slate-800 bg-slate-900/15 py-4">
+          <Card className="border-slate-200 bg-white shadow-sm overflow-hidden">
+            <CardHeader className="border-b border-slate-200 bg-slate-50/50 py-4">
               <div className="flex items-center gap-2">
-                <Sliders className="h-4 w-4 text-blue-400" />
+                <Sliders className="h-4 w-4 text-emerald-600" />
                 <div>
-                  <CardTitle className="text-base text-white">Custom Recruiter Profile</CardTitle>
-                  <CardDescription className="text-xs">Establish the core identity and behavioral rules of the conversational agent.</CardDescription>
+                  <CardTitle className="text-base text-slate-800">Custom Recruiter Profile</CardTitle>
+                  <CardDescription className="text-xs text-slate-500">Establish the core identity and behavioral rules of the conversational agent.</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -518,20 +517,20 @@ export default function AgentsPage() {
               {/* Agent Name & Description */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Agent Name</label>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Agent Name</label>
                   <Input 
                     value={name} 
                     onChange={(e) => setName(e.target.value)}
-                    className="bg-slate-950 border-slate-800 focus-visible:ring-blue-500 text-xs text-white" 
+                    className="bg-white border-slate-200 focus-visible:ring-emerald-500 text-xs text-slate-800" 
                     placeholder="e.g. Priya Tech Screener"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Short Subtitle</label>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Short Subtitle</label>
                   <Input 
                     value={description} 
                     onChange={(e) => setDescription(e.target.value)}
-                    className="bg-slate-950 border-slate-800 focus-visible:ring-blue-500 text-xs text-white" 
+                    className="bg-white border-slate-200 focus-visible:ring-emerald-500 text-xs text-slate-800" 
                     placeholder="e.g. Pre-qualifies React engineers"
                   />
                 </div>
@@ -539,7 +538,7 @@ export default function AgentsPage() {
 
               {/* Target Voice Selection Cards */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Voice Models Selection</label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Voice Models Selection</label>
                 <div className="grid grid-cols-1 sm:grid-cols-5 gap-2.5">
                   {VOICE_MODELS.map((model) => {
                     const isSelected = selectedVoice.toLowerCase() === model.id.toLowerCase();
@@ -549,18 +548,18 @@ export default function AgentsPage() {
                         onClick={() => setSelectedVoice(model.id)}
                         className={`p-3 rounded-lg border text-left cursor-pointer transition-all duration-200 flex flex-col justify-between ${
                           isSelected 
-                            ? 'bg-blue-600/10 border-blue-500 text-blue-300 shadow-lg shadow-blue-500/5 scale-[1.02]' 
-                            : 'bg-slate-950 border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-300'
+                            ? 'bg-emerald-50/50 border-emerald-500 text-emerald-800 font-bold scale-[1.02]' 
+                            : 'bg-white border-slate-200 hover:border-slate-355 text-slate-600 hover:text-slate-855'
                         }`}
                         title={model.desc}
                       >
                         <div className="flex items-center justify-between mb-2">
-                          <Cpu className={`h-4 w-4 ${isSelected ? 'text-blue-400' : 'text-slate-500'}`} />
-                          <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-blue-400 animate-pulse' : 'bg-slate-800'}`} />
+                          <Cpu className={`h-4 w-4 ${isSelected ? 'text-emerald-600' : 'text-slate-400'}`} />
+                          <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-emerald-600 animate-pulse' : 'bg-slate-200'}`} />
                         </div>
                         <div>
                           <span className="text-xs font-bold block truncate">{model.id}</span>
-                          <span className="text-[9px] text-slate-500 block truncate mt-0.5">{model.name.split(' ')[0]}</span>
+                          <span className="text-[9px] text-slate-400 block truncate mt-0.5">{model.name.split(' ')[0]}</span>
                         </div>
                       </div>
                     );
@@ -569,13 +568,13 @@ export default function AgentsPage() {
               </div>
 
               {/* Slider: Temperature */}
-              <div className="space-y-3 bg-slate-950/45 p-4 rounded-xl border border-slate-800/80">
+              <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">LLM Temperature</span>
-                  <span className="text-blue-400 font-mono font-bold">{temperature.toFixed(1)}</span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">LLM Temperature</span>
+                  <span className="text-emerald-700 font-mono font-bold">{temperature.toFixed(1)}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-[10px] text-slate-500 font-mono">0.0</span>
+                  <span className="text-[10px] text-slate-400 font-mono">0.0</span>
                   <input
                     type="range"
                     min="0.0"
@@ -583,9 +582,9 @@ export default function AgentsPage() {
                     step="0.1"
                     value={temperature}
                     onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                    className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500 focus:outline-none"
+                    className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600 focus:outline-none"
                   />
-                  <span className="text-[10px] text-slate-500 font-mono">2.0</span>
+                  <span className="text-[10px] text-slate-400 font-mono">2.0</span>
                 </div>
                 <p className="text-[9px] text-slate-500 italic mt-1 leading-normal">
                   Higher levels promote creativity, while lower values restrict model hallucination risks on qualification parameters.
@@ -594,12 +593,12 @@ export default function AgentsPage() {
 
               {/* Textarea: Prompt engineering */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">System Instructions & Prompt Engineering Scripts</label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">System Instructions & Prompt Engineering Scripts</label>
                 <textarea
                   value={instructions}
                   onChange={(e) => setInstructions(e.target.value)}
                   rows={8}
-                  className="w-full rounded-lg border border-slate-800 bg-slate-950 text-xs text-slate-300 p-4 outline-none focus:border-blue-500 transition-colors leading-relaxed font-mono resize-none stable-scrollbar"
+                  className="w-full rounded-lg border border-slate-200 bg-white text-xs text-slate-700 p-4 outline-none focus:border-emerald-500 transition-colors leading-relaxed font-mono resize-none stable-scrollbar"
                   placeholder="Insert hiring pre-qualification instruction scripts here..."
                 />
               </div>
@@ -608,7 +607,7 @@ export default function AgentsPage() {
               <Button
                 onClick={handleSaveAgent}
                 disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-5 rounded-lg text-xs tracking-wider uppercase transition-all shadow-md shadow-blue-900/10 flex justify-center items-center gap-1.5"
+                className="w-full bg-emerald-600 hover:bg-emerald-555 text-white font-semibold py-5 rounded-lg text-xs tracking-wider uppercase transition-all shadow-sm flex justify-center items-center gap-1.5"
               >
                 {loading ? (
                   <>
@@ -629,13 +628,13 @@ export default function AgentsPage() {
         <div className="lg:col-span-5 space-y-6">
           
           {/* Section: Live Playground Card */}
-          <Card className="border-slate-800 bg-slate-900/30 backdrop-blur-xl shadow-xl overflow-hidden">
-            <CardHeader className="border-b border-slate-800 bg-slate-900/15 py-4">
+          <Card className="border-slate-200 bg-white shadow-sm overflow-hidden">
+            <CardHeader className="border-b border-slate-200 bg-slate-50/50 py-4">
               <div className="flex items-center gap-2">
-                <Settings className="h-4 w-4 text-emerald-400" />
+                <Settings className="h-4 w-4 text-emerald-600" />
                 <div>
-                  <CardTitle className="text-base text-white">Live Automation Platform</CardTitle>
-                  <CardDescription className="text-xs">Bind scheduling tools and dial candidates over live SIP WebSocket lines.</CardDescription>
+                  <CardTitle className="text-base text-slate-800">Live Automation Platform</CardTitle>
+                  <CardDescription className="text-xs text-slate-500">Bind scheduling tools and dial candidates over live SIP WebSocket lines.</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -643,11 +642,11 @@ export default function AgentsPage() {
               
               {/* Automation switches */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Automation Capabilities Matrix</label>
-                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800/80 flex items-center justify-between">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Automation Capabilities Matrix</label>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <span className="text-xs font-bold text-slate-200 flex items-center gap-1">
-                      <Calendar className="h-3.5 w-3.5 text-blue-400" /> Auto-Schedule Calendar Tool
+                    <span className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                      <Calendar className="h-3.5 w-3.5 text-emerald-600" /> Auto-Schedule Calendar Tool
                     </span>
                     <span className="text-[10px] text-slate-500 block leading-tight">
                       Injects calendar scheduling tool schema declarations dynamically.
@@ -662,16 +661,16 @@ export default function AgentsPage() {
                       onChange={(e) => setAutoSchedule(e.target.checked)}
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-355 after:border-slate-355 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
                   </label>
                 </div>
               </div>
 
               {/* Phone playground dialer */}
-              <div className="space-y-3 bg-slate-950/45 p-4 rounded-xl border border-slate-800/80">
+              <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Telephony Dialer (E.164)</label>
-                  <div className="flex items-center gap-1 text-[10px] text-slate-500">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Telephony Dialer (E.164)</label>
+                  <div className="flex items-center gap-1 text-[10px] text-slate-400">
                     <Clock className="h-3 w-3" />
                     <span>Mock trigger fallback support</span>
                   </div>
@@ -684,16 +683,16 @@ export default function AgentsPage() {
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
                       placeholder="+919876543210"
-                      className="pl-9 bg-slate-950 border-slate-800 text-xs text-white placeholder-slate-600 focus-visible:ring-emerald-500 focus-visible:ring-offset-0 focus-visible:border-emerald-500"
+                      className="pl-9 bg-white border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus-visible:ring-emerald-500 focus-visible:ring-offset-0 focus-visible:border-emerald-500"
                     />
-                    <Phone className="h-3.5 w-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Phone className="h-3.5 w-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   </div>
 
                   {['initiating', 'ringing', 'connected', 'in_progress'].includes(callStatus) ? (
                     <Button
                       onClick={handleHangUp}
                       variant="destructive"
-                      className="bg-rose-600 hover:bg-rose-500 text-xs px-4"
+                      className="bg-rose-600 hover:bg-rose-500 text-white text-xs px-4"
                     >
                       <PhoneOff className="h-4 w-4" />
                     </Button>
@@ -715,27 +714,27 @@ export default function AgentsPage() {
                   <span>{getStatusLabel(callStatus)}</span>
                 </div>
                 {['connected', 'in_progress'].includes(callStatus) && (
-                  <span className="font-mono text-white tracking-widest">{formatSecToTime(duration)}</span>
+                  <span className="font-mono text-slate-800 tracking-widest">{formatSecToTime(duration)}</span>
                 )}
               </div>
 
               {/* Live Log Monitor */}
               <div className="space-y-1.5 pt-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                  <Activity className="h-3.5 w-3.5 text-emerald-400 animate-pulse" /> Live Speech Transcript Monitor
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                  <Activity className="h-3.5 w-3.5 text-emerald-600 animate-pulse" /> Live Speech Transcript Monitor
                 </label>
-                <div className="h-72 rounded-lg border border-slate-800 bg-slate-950 p-4 overflow-y-auto space-y-3.5 stable-scrollbar">
+                <div className="h-72 rounded-lg border border-slate-200 bg-white p-4 overflow-y-auto space-y-3.5 stable-scrollbar">
                   {transcripts.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-600 space-y-2">
+                    <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400 space-y-2">
                       {['initiating', 'ringing', 'connected', 'in_progress'].includes(callStatus) ? (
                         <>
-                          <Loader2 className="h-5 w-5 animate-spin text-emerald-500" />
-                          <span className="text-xs font-semibold text-slate-400">Awaiting audio payload delta streams...</span>
-                          <span className="text-[9px] text-slate-600">WebSocket connection is active. Say hello to trigger ASR.</span>
+                          <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
+                          <span className="text-xs font-semibold text-slate-500">Awaiting audio payload delta streams...</span>
+                          <span className="text-[9px] text-slate-400">WebSocket connection is active. Say hello to trigger ASR.</span>
                         </>
                       ) : (
                         <>
-                          <Zap className="h-5 w-5 text-slate-700" />
+                          <Zap className="h-5 w-5 text-slate-355" />
                           <span className="text-xs font-semibold">No live transcript stream active.</span>
                           <span className="text-[9px]">Save your agent, dial the playground caller, and transcripts will print here.</span>
                         </>
@@ -746,7 +745,7 @@ export default function AgentsPage() {
                       if (t.speaker === 'system') {
                         return (
                           <div key={t.id} className="flex justify-center my-2">
-                            <span className="px-3 py-1 bg-amber-950/20 border border-amber-900/40 text-amber-300 text-[10px] font-semibold rounded-full flex items-center gap-1 animate-pulse">
+                            <span className="px-3 py-1 bg-amber-50 border border-amber-250 text-amber-800 text-[10px] font-semibold rounded-full flex items-center gap-1">
                               <AlertTriangle className="h-3 w-3 shrink-0" />
                               {t.text}
                             </span>
@@ -763,16 +762,16 @@ export default function AgentsPage() {
                         >
                           <div className={`h-7 w-7 rounded-full border flex items-center justify-center shrink-0 ${
                             isAgent 
-                              ? 'bg-slate-900 border-slate-800 text-blue-400' 
-                              : 'bg-blue-950/50 border-blue-900 text-blue-300'
+                              ? 'bg-slate-100 border-slate-200 text-slate-600' 
+                              : 'bg-emerald-50 border-emerald-200 text-emerald-700'
                           }`}>
                             {isAgent ? <Bot className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
                           </div>
                           
                           <div className={`rounded-xl px-3.5 py-2 border text-xs leading-relaxed ${
                             isAgent
-                              ? 'bg-slate-900/80 border-slate-800/80 text-white rounded-bl-none'
-                              : 'bg-blue-600/10 border-blue-500/20 text-blue-300 rounded-br-none shadow-md shadow-blue-500/5'
+                              ? 'bg-slate-50 border-slate-200 text-slate-700 rounded-bl-none'
+                              : 'bg-emerald-50/50 border-emerald-250 text-emerald-800 rounded-br-none shadow-sm'
                           }`}>
                             <p>{t.text}</p>
                           </div>

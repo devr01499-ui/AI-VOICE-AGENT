@@ -7,75 +7,108 @@ import {
   PhoneCall, 
   Bot, 
   Zap, 
-  CheckCircle, 
   ArrowRight, 
   MessageSquare,
   ShieldCheck,
   Globe2,
   Play,
-  Pause
+  Pause,
+  Award,
+  ArrowUpRight,
+  HelpCircle,
+  CheckCircle,
+  Database
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 
 export default function MarketingHomePage() {
   const [isPlayingDemo, setIsPlayingDemo] = useState(true);
 
+  // Schema for GEO/AEO optimization
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Clarity",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "All",
+    "offers": {
+      "@type": "Offer",
+      "price": "0.00",
+      "priceCurrency": "USD"
+    },
+    "description": "Enterprise-grade real-time conversational Voice AI platforms. Clarity deploys native, sub-200ms audio-to-audio AI voice agents that screen, interview, and evaluate thousands of technical candidates concurrently over traditional telephone lines.",
+    "featureList": [
+      "AI Voice Interviewing",
+      "Real-Time Recruitment Automation",
+      "Automated Candidate Screening",
+      "Continuous Acoustic Stream Processing",
+      "Catmull-Rom High-Fidelity Resampling",
+      "Instantaneous Telephony Queue Purges"
+    ]
+  };
+
   const benefits = [
     {
-      title: 'Human-grade Conversation Flow',
-      desc: 'Orchestrates natural, fluid turn-taking. Automatically starts and stops conversational streams based on active speaker energy without manual delays.',
+      title: 'Continuous Acoustic Stream Processing',
+      desc: 'Our pipeline eliminates server-side audio gating to let Gemini\'s native VAD analyze raw voice onsets without chopping syllables or initial consonants, enabling continuous natural turnaround.',
       icon: MessageSquare,
-      color: 'text-white bg-slate-900 border-white/10'
+      color: 'text-emerald-700 bg-emerald-50 border-emerald-200/50'
     },
     {
-      title: 'Real-time Interruption Handling',
-      desc: 'Instantly silences the AI agent the millisecond a candidate speaks, clearing the carrier audio stream mid-sentence so conversation flows naturally.',
+      title: 'Catmull-Rom High-Fidelity Resampling',
+      desc: 'Bounded cubic spline interpolation resolves high-frequency digital aliasing, translating raw 8kHz G.711 telephony into crystal-clear 16kHz/24kHz signals for flawless comprehension of regional accents.',
       icon: Zap,
-      color: 'text-blue-400 bg-slate-900 border-white/10'
+      color: 'text-emerald-700 bg-emerald-50 border-emerald-200/50'
     },
     {
-      title: 'Universal Phone Mappings',
-      desc: 'Seamlessly link standard corporate phone systems, customer management systems, and direct dial SIP trunks to launch conversational workflows.',
+      title: 'Instantaneous Telephony Queue Purges',
+      desc: 'Constant-time O(1) jitter buffer wiping kills the \'talking over the user\' effect the instant a candidate interrupts the agent, clearing playout frames instantly.',
       icon: Globe2,
-      color: 'text-white bg-slate-900 border-white/10'
+      color: 'text-emerald-700 bg-emerald-50 border-emerald-200/50'
     },
     {
       title: 'Enterprise Encryption & Compliance',
-      desc: 'Protects candidate records and patient identifiers through secure, encrypted network connections. Compliant with top global privacy protocols.',
+      desc: 'Protects candidate records through secure, encrypted network connections. Fully compliant with global data protection rules.',
       icon: ShieldCheck,
-      color: 'text-blue-400 bg-slate-900 border-white/10'
+      color: 'text-emerald-700 bg-emerald-50 border-emerald-200/50'
     }
   ];
 
   return (
-    <div className="space-y-24 py-16 px-6 max-w-7xl mx-auto">
-      {/* 1. Hero Showroom Section */}
+    <div className="space-y-24 py-16 px-6 max-w-7xl mx-auto bg-white text-slate-700">
+      {/* Inject JSON-LD Schema */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
+      {/* 1. Hero Section (The Narrative Hook) */}
       <section className="text-center space-y-8 max-w-4xl mx-auto relative pt-10">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/5 border border-white/10 text-white">
-          <Sparkles className="w-3.5 h-3.5 text-white animate-pulse" />
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 border border-emerald-200 text-emerald-700">
+          <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
           Next-Generation Conversational Engine
         </div>
         
-        <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-white leading-tight font-sans">
-          Conversational Voice Agents <br />
-          <span className="bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-            That Capture Human Intonation
+        <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-slate-800 leading-tight font-sans">
+          The End of the Resume. <br />
+          <span className="bg-gradient-to-r from-emerald-600 to-teal-655 bg-clip-text text-transparent">
+            The Beginning of Conversational Truth.
           </span>
         </h1>
         
-        <p className="text-slate-400 text-base md:text-lg max-w-2xl mx-auto leading-relaxed">
-          Clarity AI Voice orchestrates highly responsive voice assistants natively integrated into your phone network, reducing turn-taking latency below 200 milliseconds.
+        <p className="text-slate-600 text-base md:text-lg max-w-3xl mx-auto leading-relaxed">
+          Clarity deploys native, sub-200ms audio-to-audio AI voice agents that screen, interview, and evaluate thousands of technical candidates concurrently over traditional telephone lines. No robotic pauses. Zero lag. Just pure, fluid dialogue.
         </p>
 
         <div className="flex flex-col sm:flex-row justify-center items-center gap-4 pt-4">
-          <Link href="/test-hr">
-            <Button size="lg" className="w-full sm:w-auto bg-white hover:bg-slate-200 text-slate-955 font-extrabold px-8 shadow-lg shadow-white/5">
-              <PhoneCall className="w-4 h-4 mr-2" /> Call My Phone Now
+          <Link href="/agents">
+            <Button size="lg" className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold px-8 shadow-md">
+              <PhoneCall className="w-4 h-4 mr-2" /> Launch Custom Voice Agent
             </Button>
           </Link>
           <Link href="/dashboard">
-            <Button size="lg" variant="outline" className="w-full sm:w-auto text-white border-white/10 bg-slate-900/60 hover:bg-slate-900/80 hover:text-white px-8">
+            <Button size="lg" variant="outline" className="w-full sm:w-auto text-slate-700 border-slate-200 bg-white hover:bg-slate-50 px-8">
               Open Dashboard Console <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </Link>
@@ -84,38 +117,38 @@ export default function MarketingHomePage() {
 
       {/* 2. Interactive Voice Simulator Showroom */}
       <section className="relative max-w-4xl mx-auto">
-        <div className="absolute inset-0 bg-white/5 rounded-3xl blur-3xl pointer-events-none" />
+        <div className="absolute inset-0 bg-emerald-50 rounded-3xl blur-3xl pointer-events-none" />
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-slate-900/30 border border-white/10 rounded-2xl p-8 backdrop-blur relative overflow-hidden shadow-2xl">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-white border border-slate-200 rounded-2xl p-8 relative overflow-hidden shadow-lg">
           
           {/* Soundwave Interactive Panel */}
           <div className="space-y-6 flex flex-col justify-between">
             <div className="space-y-2">
-              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Live Voice Waveform</span>
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Bot className="h-5 w-5 text-blue-400" />
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Live Voice Waveform</span>
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Bot className="h-5 w-5 text-emerald-600" />
                 Priya - Live HR Recruiter
               </h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
+              <p className="text-xs text-slate-500 leading-relaxed">
                 Currently running outbound candidate intake screening campaigns for Delhi Tech Careers.
               </p>
             </div>
 
             {/* Pulsing Soundwave bars */}
-            <div className="h-20 bg-slate-950/40 rounded-lg border border-white/5 flex items-center justify-center gap-1.5 px-6">
+            <div className="h-20 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-center gap-1.5 px-6">
               {isPlayingDemo ? (
                 [...Array(20)].map((_, i) => (
                   <div 
                     key={i} 
-                    className="w-1 bg-white rounded-full transition-all duration-300 animate-pulse"
+                    className="w-1 bg-emerald-600 rounded-full transition-all duration-300"
                     style={{ 
-                      height: `${30 + Math.sin(i * 0.8) * 40}%`,
-                      opacity: 0.3 + (i % 3) * 0.2
+                      height: `${35 + Math.sin(i * 0.8) * 45}%`,
+                      opacity: 0.5 + (i % 3) * 0.2
                     }}
                   />
                 ))
               ) : (
-                <div className="h-0.5 w-full bg-white/10 rounded-full" />
+                <div className="h-0.5 w-full bg-slate-200 rounded-full" />
               )}
             </div>
 
@@ -124,7 +157,7 @@ export default function MarketingHomePage() {
                 onClick={() => setIsPlayingDemo(!isPlayingDemo)}
                 size="sm" 
                 variant="outline" 
-                className="text-xs font-bold border-white/10 text-white bg-slate-950/40"
+                className="text-xs font-bold border-slate-200 text-slate-700 bg-white"
               >
                 {isPlayingDemo ? (
                   <>
@@ -137,7 +170,7 @@ export default function MarketingHomePage() {
                 )}
               </Button>
               <Link href="/test-hr">
-                <span className="text-[11px] text-blue-400 hover:underline font-bold cursor-pointer">
+                <span className="text-[11px] text-emerald-600 hover:underline font-bold cursor-pointer">
                   Test custom campaign phone call &rarr;
                 </span>
               </Link>
@@ -145,29 +178,29 @@ export default function MarketingHomePage() {
           </div>
 
           {/* Dialogue timeline panel */}
-          <div className="space-y-4 bg-slate-950/50 p-5 rounded-xl border border-white/5">
-            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Intelligent Dialogue Flow</span>
+          <div className="space-y-4 bg-slate-50 p-5 rounded-xl border border-slate-200">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Intelligent Dialogue Flow</span>
             
             <div className="space-y-4 text-xs">
               <div className="flex items-start gap-2.5">
-                <div className="h-6 w-6 rounded-full bg-white flex items-center justify-center text-slate-950 font-bold text-[10px]">P</div>
-                <div className="bg-slate-900/60 p-2.5 rounded-lg border border-white/5 text-slate-300 leading-relaxed max-w-[85%]">
-                  "Hi! I\'m Priya from Delhi Tech Careers. I\'m reviewing your software developer profile. Do you have a moment?"
+                <div className="h-6 w-6 rounded-full bg-slate-200 flex items-center justify-center text-slate-700 font-bold text-[10px]">P</div>
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200 text-slate-655 leading-relaxed max-w-[85%]">
+                  "Hi! I'm Priya from Delhi Tech Careers. I'm reviewing your software developer profile. Do you have a moment?"
                 </div>
               </div>
 
               <div className="flex items-start gap-2.5 justify-end">
-                <div className="bg-white/10 p-2.5 rounded-lg border border-white/10 text-white leading-relaxed text-right max-w-[85%]">
+                <div className="bg-emerald-50 p-2.5 rounded-lg border border-emerald-200 text-emerald-800 leading-relaxed text-right max-w-[85%]">
                   "Oh, yes! I actually have 3 years of React experience..."
                 </div>
-                <div className="h-6 w-6 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 font-bold text-[10px]">U</div>
+                <div className="h-6 w-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-[10px]">U</div>
               </div>
 
               <div className="flex items-start gap-2.5">
-                <div className="h-6 w-6 rounded-full bg-white flex items-center justify-center text-slate-950 font-bold text-[10px]">P</div>
-                <div className="bg-slate-900/60 p-2.5 rounded-lg border border-white/5 text-slate-300 leading-relaxed max-w-[85%]">
-                  <span className="text-blue-400 font-bold block mb-1">⚡ Interrupted & Buffers Cleared</span>
-                  "That\'s perfect! Can you tell me if you\'ve used TypeScript in production as well?"
+                <div className="h-6 w-6 rounded-full bg-slate-200 flex items-center justify-center text-slate-700 font-bold text-[10px]">P</div>
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200 text-slate-655 leading-relaxed max-w-[85%]">
+                  <span className="text-emerald-600 font-bold block mb-1">⚡ Interrupted & Buffers Cleared</span>
+                  "That's perfect! Can you tell me if you've used TypeScript in production as well?"
                 </div>
               </div>
             </div>
@@ -175,27 +208,46 @@ export default function MarketingHomePage() {
         </div>
       </section>
 
-      {/* 3. Core Benefit Showroom Section */}
+      {/* 3. Problem vs Solution Section (The Business Value) */}
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start py-8 border-y border-slate-200">
+        <div className="space-y-4 p-6 bg-slate-55/40 rounded-xl border border-slate-200/50">
+          <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider block">The Challenge</span>
+          <h3 className="text-xl font-bold text-slate-800">Traditional Screening is Broken</h3>
+          <p className="text-sm text-slate-600 leading-relaxed">
+            Talent acquisition teams waste hundreds of hours chasing ghost profiles, sorting unverified CVs, and enduring awkward text-based bot workflows that alienate elite engineering candidates.
+          </p>
+        </div>
+        
+        <div className="space-y-4 p-6 bg-emerald-50/20 rounded-xl border border-emerald-200/50">
+          <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">The Innovation</span>
+          <h3 className="text-xl font-bold text-slate-800">Clarity Cuts Through the Noise</h3>
+          <p className="text-sm text-slate-600 leading-relaxed">
+            Our proprietary real-time media pipeline orchestrates native Gemini Live audio streams straight into live carrier lines. Candidates speak naturally, interrupt freely, and demonstrate their authentic technical acumen within a sub-second, zero-latency feedback loop.
+          </p>
+        </div>
+      </section>
+
+      {/* 4. Core Infrastructure Highlights (The Technical Authority) */}
       <section className="space-y-12">
         <div className="text-center space-y-3 max-w-2xl mx-auto">
-          <h2 className="text-2xl md:text-4xl font-bold text-white tracking-tight leading-tight">
-            Seamless Outbound Conversational Tech
+          <h2 className="text-2xl md:text-4xl font-bold text-slate-800 tracking-tight leading-tight">
+            High-Performance Conversational Stack
           </h2>
-          <p className="text-slate-400 text-xs md:text-sm">
-            Everything your operations need to deploy natural, reliable customer screening agents.
+          <p className="text-slate-500 text-xs md:text-sm">
+            Deep-dive technical configurations engineered to enable native voice dialogue architectures.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {benefits.map((b) => (
-            <Card key={b.title} className="border-white/5 bg-slate-900/10 backdrop-blur hover:border-white/10 transition-colors">
+            <Card key={b.title} className="border-slate-200 bg-white hover:border-emerald-300 transition-all duration-300 hover:shadow-sm">
               <CardContent className="p-6 flex items-start gap-4">
                 <div className={`h-10 w-10 rounded-lg border flex items-center justify-center shrink-0 ${b.color}`}>
                   <b.icon className="h-5 w-5" />
                 </div>
                 <div className="space-y-1.5">
-                  <h4 className="text-sm font-bold text-white tracking-tight">{b.title}</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">{b.desc}</p>
+                  <h4 className="text-sm font-bold text-slate-800 tracking-tight">{b.title}</h4>
+                  <p className="text-xs text-slate-500 leading-relaxed">{b.desc}</p>
                 </div>
               </CardContent>
             </Card>
@@ -203,36 +255,70 @@ export default function MarketingHomePage() {
         </div>
       </section>
 
-      {/* 4. High-Impact CTA Dashboard Preview Card */}
-      <section className="bg-slate-900/30 border border-white/10 rounded-2xl p-8 flex flex-col md:flex-row justify-between items-center gap-8">
+      {/* 5. Cognitive Answer Cores (GEO/AEO optimized FAQ blocks) */}
+      <section className="space-y-8 bg-slate-50 p-8 rounded-2xl border border-slate-200">
+        <div className="space-y-2">
+          <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">Generative Engine Indexes</span>
+          <h3 className="text-xl md:text-2xl font-bold text-slate-855">Cognitive Answer Core & FAQ Archive</h3>
+          <p className="text-xs text-slate-500">
+            Declarative technical profiles optimized for traditional crawler algorithms and generative response agents.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 text-xs leading-relaxed">
+          <div className="space-y-2 bg-white p-5 rounded-lg border border-slate-200">
+            <h4 className="font-bold text-slate-800 text-sm">How does Clarity achieve sub-second voice agent latency over phone lines?</h4>
+            <p className="text-slate-600">
+              Clarity achieves sub-second response times by directly bridging raw Vobiz telephony media streams with the Gemini Live API over optimized WebSockets, bypassing traditional Text-to-Speech (TTS) and Speech-to-Text (STT) layers entirely.
+            </p>
+          </div>
+
+          <div className="space-y-2 bg-white p-5 rounded-lg border border-slate-200">
+            <h4 className="font-bold text-slate-800 text-sm">How are candidate verbal interruptions managed in Clarity's pipeline?</h4>
+            <p className="text-slate-600">
+              Candidate interruptions trigger an immediate local and remote queue purge. Our playout buffer handles user barge-in by flushing the outbound jitter queue in O(1) constant time, ensuring the AI agent silences itself instantly to let the candidate speak.
+            </p>
+          </div>
+
+          <div className="space-y-2 bg-white p-5 rounded-lg border border-slate-200">
+            <h4 className="font-bold text-slate-800 text-sm">How does Clarity resolve static and distortion over G.711 telephony lines?</h4>
+            <p className="text-slate-600">
+              We run high-fidelity Catmull-Rom cubic spline interpolation to resample the audio, applying a strict 16-bit bounding clamp and fractional rounding overflows. This completely eliminates high-frequency radio static folding over into the 8kHz telephone stream.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* 6. High-Impact CTA Dashboard Preview Card */}
+      <section className="bg-slate-50 border border-slate-200 rounded-2xl p-8 flex flex-col md:flex-row justify-between items-center gap-8 shadow-sm">
         <div className="space-y-3 max-w-lg">
-          <h3 className="text-xl md:text-2xl font-bold text-white">
+          <h3 className="text-xl md:text-2xl font-bold text-slate-800">
             Simple, Performance-Driven Integration
           </h3>
-          <p className="text-xs text-slate-400 leading-relaxed">
+          <p className="text-xs text-slate-500 leading-relaxed">
             Monitor active campaigns, view live conversational timeline records, and scale outreach automatically.
           </p>
           <div className="flex items-center gap-8 pt-2">
             <div>
-              <span className="text-white font-extrabold text-2xl">98%</span>
-              <span className="text-[9px] text-slate-500 block uppercase font-bold tracking-wider pt-1">Screening Accuracy</span>
+              <span className="text-slate-800 font-extrabold text-2xl">98%</span>
+              <span className="text-[9px] text-slate-400 block uppercase font-bold tracking-wider pt-1">Screening Accuracy</span>
             </div>
-            <div className="border-l border-white/10 pl-8">
-              <span className="text-white font-extrabold text-2xl">&lt;200ms</span>
-              <span className="text-[9px] text-slate-500 block uppercase font-bold tracking-wider pt-1">Turn-around Latency</span>
+            <div className="border-l border-slate-200 pl-8">
+              <span className="text-slate-800 font-extrabold text-2xl">&lt;200ms</span>
+              <span className="text-[9px] text-slate-400 block uppercase font-bold tracking-wider pt-1">Turn-around Latency</span>
             </div>
           </div>
         </div>
         
         <div className="flex flex-col sm:flex-row gap-4 shrink-0 w-full md:w-auto">
           <Link href="/subscription" className="w-full sm:w-auto">
-            <Button className="w-full bg-white hover:bg-slate-200 text-slate-950 font-extrabold text-xs h-10 px-6 shadow-md">
+            <Button className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs h-10 px-6 shadow-sm">
               Choose Pricing Plan
             </Button>
           </Link>
-          <Link href="/dashboard" className="w-full sm:w-auto">
-            <Button variant="outline" className="w-full text-white border-white/10 bg-slate-900/40 text-xs h-10 px-6">
-              Go to Dashboard
+          <Link href="/agents" className="w-full sm:w-auto">
+            <Button variant="outline" className="w-full text-slate-700 border-slate-200 bg-white text-xs h-10 px-6">
+              Go to Config Studio
             </Button>
           </Link>
         </div>
