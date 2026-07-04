@@ -143,7 +143,7 @@ export default function MarketingLayout({
             <h4 className="text-xs font-bold uppercase text-slate-700 tracking-widest mb-4">Resources</h4>
             <ul className="space-y-2 text-xs text-slate-500">
               <li><Link href="/blog" className="hover:text-emerald-700 transition-colors">Technical Articles & Insights</Link></li>
-              <li><a href="https://docs.bolna.ai" target="_blank" rel="noreferrer" className="hover:text-emerald-700 transition-colors font-semibold flex items-center gap-1">Developer API Docs <Globe className="h-3 w-3" /></a></li>
+              <li><a href="https://docs.clarityvoice.ai" target="_blank" rel="noreferrer" className="hover:text-emerald-700 transition-colors font-semibold flex items-center gap-1">Developer API Docs <Globe className="h-3 w-3" /></a></li>
               <li><Link href="/contact" className="hover:text-emerald-700 transition-colors">Book a Live Telephony Demo</Link></li>
             </ul>
           </div>

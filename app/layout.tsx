@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Bolna Platform | Visual Voice AI Agent Orchestration',
+  title: 'Claritiy Voice Platform | Visual Voice AI Agent Orchestration',
   description: 'Enterprise no-code visual constructor for building, managing, and tracking production conversational Voice AI agents.',
 };
 

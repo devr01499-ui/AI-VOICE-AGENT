@@ -1,4 +1,4 @@
-// Bolna Voice Runtime Engine — Database Schema
+// Claritiy Voice Runtime Engine — Database Schema
 // Provider: SQLite for local dev. Switch to postgresql for production.
 // Run: npx prisma generate && npx prisma db push
 

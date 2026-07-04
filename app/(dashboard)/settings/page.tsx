@@ -77,7 +77,7 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-200 gap-4">
               <div>
                 <span className="text-xs font-bold text-slate-700 block">Production Client Token</span>
-                <span className="text-[10px] text-slate-400 font-mono">bolna_live_pk_**********************828a</span>
+                <span className="text-[10px] text-slate-400 font-mono">clarity_voice_live_pk_**********************828a</span>
               </div>
               <Button size="sm" variant="outline" className="text-xs bg-white border-slate-250 text-slate-600 hover:text-emerald-700 rounded-xl">
                 Reveal Key

@@ -13,7 +13,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const errorParam = searchParams.get('error');
   
-  const [email, setEmail] = useState('admin@bolna.ai');
+  const [email, setEmail] = useState('admin@clarityvoice.ai');
   const [password, setPassword] = useState('password123');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(errorParam ? 'Invalid email or password.' : '');
@@ -55,7 +55,7 @@ function LoginForm() {
             <AudioLines className="h-6 w-6 text-blue-500" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-white font-sans mt-2">
-            Welcome to <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">bOLNA</span>
+            Welcome to <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">Claritiy Voice</span>
           </h1>
           <p className="text-sm text-slate-400">
             Enterprise Voice AI Agent Orchestration
