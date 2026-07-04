@@ -146,32 +146,22 @@ export class CallOrchestrator {
       const llmProvider = rawConfig.llm?.provider || 
         (Boolean(env.GEMINI_API_KEY || env.GOOGLE_API_KEY) ? 'gemini' : 'openai');
 
-      let compiledPrompt = agent.systemPrompt || rawConfig.prompt || rawConfig.system_prompt || defaultPrompt;
-      if (agent.flowGraph) {
+      let systemInstructions: string;
+      if (!agent.flowGraph || agent.flowGraph === "" || agent.flowGraph === "{}") {
+        logger.warn('CallOrchestrator: Empty visual canvas detected. Injected default prompt block sequence safely.');
+        systemInstructions = agent.systemPrompt || "You are a professional corporate assistant for Clarity.";
+      } else {
         try {
-          const parsedGraph = JSON.parse(agent.flowGraph);
-          if (parsedGraph && Array.isArray(parsedGraph.nodes)) {
-            const flowNodes = parsedGraph.nodes.map((n: any) => ({
-              id: n.id,
-              type: n.type,
-              data: {
-                message: n.message || n.data?.message,
-                text: n.message || n.data?.text,
-                phoneNumber: n.phoneNumber || n.data?.phoneNumber,
-              },
-              transitions: n.transitions || []
-            }));
-            const { compileFlowToPrompt } = require('./FlowCompiler');
-            compiledPrompt = compileFlowToPrompt(agent.name, flowNodes);
-            logger.info('CallOrchestrator compiled visual flowGraph on-the-fly successfully');
-          }
-        } catch (flowErr) {
-          logger.error('Error compiling flowGraph in orchestrator', { error: String(flowErr) });
+          const FlowCompiler = require('./FlowCompiler');
+          systemInstructions = FlowCompiler.compile(agent.flowGraph, agent.name);
+        } catch (parseError) {
+          logger.error('CallOrchestrator: Canvas layout parsing failed. Utilizing baseline system instruction prompt block.', { error: String(parseError) });
+          systemInstructions = agent.systemPrompt || "You are a professional corporate assistant for Clarity.";
         }
       }
 
       agentConfig = {
-        prompt: compiledPrompt,
+        prompt: systemInstructions,
         voice: finalVoice,
         llm: {
           provider: llmProvider,
