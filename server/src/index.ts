@@ -138,9 +138,12 @@ app.get('/health', async (_req, res) => {
   }
 });
 
+import { CallController } from './controllers/CallController';
+
 // ─── API Routes ──────────────────────────────────
 
 app.use('/api/v2/calls', callRoutes);
+app.post('/api/calls/outbound', CallController.initiateCall);
 app.use('/api/v2/agents', agentRoutes);
 app.use('/api/v2/webhooks', webhookRoutes);
 

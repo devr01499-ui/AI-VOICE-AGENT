@@ -495,7 +495,7 @@ Start at the welcome-node.`;
       setDuration(0);
       setCallId(null);
 
-      const res = await fetch(`${API_BASE_URL}/api/v2/calls`, {
+      const res = await fetch(`${API_BASE_URL}/api/calls/outbound`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -965,13 +965,17 @@ Start at the welcome-node.`;
               {/* Integrated Dialer Playground */}
               <div className="border-t border-slate-100 pt-4 space-y-3.5">
                 <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Dialer Playground</label>
-                  <div className="flex gap-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Telephony Simulator</label>
+                  <div className="flex flex-col gap-2">
                     <Input type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} className="bg-white border-slate-200 rounded-xl text-xs" />
                     {['initiating', 'ringing', 'connected', 'in_progress'].includes(callStatus) ? (
-                      <Button onClick={handleHangUp} variant="destructive" className="bg-rose-600 hover:bg-rose-500 rounded-xl px-4"><PhoneOff className="h-4 w-4" /></Button>
+                      <Button onClick={handleHangUp} variant="destructive" className="bg-rose-600 hover:bg-rose-500 rounded-xl w-full text-xs font-bold py-3.5 h-10">
+                        Hang Up Connection
+                      </Button>
                     ) : (
-                      <Button onClick={handleInitiateCall} className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl px-4"><Phone className="h-4 w-4" /></Button>
+                      <Button onClick={handleInitiateCall} className="bg-emerald-600 hover:bg-emerald-555 text-white rounded-xl w-full text-xs font-bold py-3.5 h-10">
+                        Initiate Live Screen Call
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -987,11 +991,20 @@ Start at the welcome-node.`;
                     {transcripts.length === 0 ? (
                       <div className="h-full flex items-center justify-center text-slate-400 text-xs">No active sessions. Start call to monitor speech.</div>
                     ) : (
-                      transcripts.map((t) => (
-                        <div key={t.id} className={`flex max-w-[85%] ${t.speaker === 'agent' ? 'mr-auto' : 'ml-auto flex-row-reverse'}`}>
-                          <div className={`rounded-xl px-3 py-2 border text-xs ${t.speaker === 'agent' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-emerald-50 border-emerald-250 text-emerald-800'}`}>{t.text}</div>
-                        </div>
-                      ))
+                      transcripts.map((t) => {
+                        const isAgent = t.speaker === 'agent';
+                        return (
+                          <div key={t.id} className={`flex max-w-[85%] ${isAgent ? 'mr-auto' : 'ml-auto flex-row-reverse'}`}>
+                            <div className={`rounded-2xl px-3 py-2 border text-xs leading-relaxed ${
+                              isAgent 
+                                ? 'bg-[#1E293B] text-[#F8FAFC] border-[#334155]' // Clarity AI responses inside a charcoal slate visual box
+                                : 'bg-[#E8E3D9]/60 text-slate-800 border-slate-200' // Candidate inputs styled with a distinct text frame bubble
+                            }`}>
+                              {t.text}
+                            </div>
+                          </div>
+                        );
+                      })
                     )}
                     <div ref={scrollRef} />
                   </div>
