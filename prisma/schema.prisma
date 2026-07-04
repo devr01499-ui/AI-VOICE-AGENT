@@ -34,6 +34,7 @@ model User {
   webhooks             Webhook[]
   providerCredentials  ProviderCredential[]
   userAnalytics        UserAnalytics?
+  callSessions         CallSession[]
 
   @@map("users")
 }
@@ -503,6 +504,7 @@ model UserAnalytics {
 
 model CallSession {
   id             String    @id @default(uuid())
+  userId         String    @map("user_id")
   agentId        String    @map("agent_id")
   callId         String    @unique @map("call_id")
   status         String    @default("queued")
@@ -512,7 +514,9 @@ model CallSession {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   agent          Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("call_sessions")
 }
