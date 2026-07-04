@@ -45,10 +45,37 @@ interface TestCallDialogProps {
   initialCallId?: string | null;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
-  (typeof window !== 'undefined' && window.location.hostname === 'localhost'
-    ? 'http://localhost:3001'
-    : 'https://ai-voice-agent-backend-mv32.onrender.com');
+import { getBackendUrl } from '@/lib/api-client';
+
+const API_BASE_URL = getBackendUrl();
+
+const getAuthHeaders = (additional: Record<string, string> = {}) => {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    'x-user-id': 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    ...additional
+  };
+};
+
+const secureFetch = async (url: string, options: RequestInit = {}) => {
+  try {
+    const res = await fetch(url, {
+      ...options,
+      headers: getAuthHeaders(options.headers as Record<string, string>)
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      const errorMsg = `API Error ${res.status}: ${body.error || body.message || res.statusText}`;
+      console.error('[secureFetch Network Trace]', { url, status: res.status, statusText: res.statusText, body });
+      throw new Error(errorMsg);
+    }
+    return res;
+  } catch (err) {
+    console.error('[secureFetch Connection Error]', { url, error: err });
+    throw err;
+  }
+};
 
 export default function TestCallDialog({ isOpen, onClose, onCallSimulated, fromPhoneNumber, initialCallId }: TestCallDialogProps) {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -124,8 +151,7 @@ export default function TestCallDialog({ isOpen, onClose, onCallSimulated, fromP
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`${API_BASE_URL}/api/v2/agents`);
-      if (!res.ok) throw new Error('Failed to load agents');
+      const res = await secureFetch(`${API_BASE_URL}/api/v2/agents`);
       const json = await res.json();
       if (json.success && json.data) {
         setAgents(json.data);
@@ -160,9 +186,8 @@ export default function TestCallDialog({ isOpen, onClose, onCallSimulated, fromP
       setDurationSeconds(0);
       setCallStatus('initiating');
 
-      const res = await fetch(`${API_BASE_URL}/api/v2/calls`, {
+      const res = await secureFetch(`${API_BASE_URL}/api/v2/calls`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phoneNumber,
           agentId: selectedAgentId,
@@ -200,10 +225,9 @@ export default function TestCallDialog({ isOpen, onClose, onCallSimulated, fromP
     if (!callId) return;
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE_URL}/api/v2/calls/${callId}/terminate`, {
+      const res = await secureFetch(`${API_BASE_URL}/api/v2/calls/${callId}/terminate`, {
         method: 'POST',
       });
-      if (!res.ok) throw new Error('Failed to hang up call');
       setCallStatus('cancelled');
       stopPolling();
       // Final poll to get final transcripts and recording URL
@@ -232,8 +256,7 @@ export default function TestCallDialog({ isOpen, onClose, onCallSimulated, fromP
   const pollCallDetails = async (cId: string) => {
     try {
       // 1. Poll Status & Recording Url
-      const statusRes = await fetch(`${API_BASE_URL}/api/v2/calls/${cId}`);
-      if (!statusRes.ok) return;
+      const statusRes = await secureFetch(`${API_BASE_URL}/api/v2/calls/${cId}`);
       const statusJson = await statusRes.json();
       if (statusJson.success && statusJson.data) {
         const details = statusJson.data;
@@ -255,12 +278,10 @@ export default function TestCallDialog({ isOpen, onClose, onCallSimulated, fromP
       }
 
       // 2. Poll Transcripts
-      const transcriptRes = await fetch(`${API_BASE_URL}/api/v2/calls/${cId}/transcript`);
-      if (transcriptRes.ok) {
-        const transJson = await transcriptRes.json();
-        if (transJson.success && transJson.data) {
-          setTranscripts(transJson.data);
-        }
+      const transcriptRes = await secureFetch(`${API_BASE_URL}/api/v2/calls/${cId}/transcript`);
+      const transJson = await transcriptRes.json();
+      if (transJson.success && transJson.data) {
+        setTranscripts(transJson.data);
       }
     } catch (err) {
       loggerError('Polling error', err);
