@@ -1,55 +1,64 @@
 'use client';
 
 import React from 'react';
-import { Database, Search, ArrowUpRight, Plus, Link as LinkIcon, FileText } from 'lucide-react';
+import { Database, Plus, Upload, Link2, FileText, CheckCircle } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
 export default function KnowledgeBasePage() {
+  const documents = [
+    { id: 'doc-1', title: 'IndiCorp Returns Dispatch Guideline', type: 'PDF Document', size: '2.4 MB', status: 'Indexed' },
+    { id: 'doc-2', title: 'Product FAQ list reference', type: 'URL Webpage', size: 'https://indicorp.in/faq', status: 'Indexed' }
+  ];
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-800 tracking-tight">Knowledge Base</h1>
-          <p className="text-xs text-slate-400">Manage documents, URLs, and QA context indexing to optimize LLM RAG performance.</p>
-        </div>
-        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-555 text-white font-bold rounded-xl text-xs h-9 px-4">
-          <Plus className="h-4 w-4 mr-1.5" /> Add Data Source
-        </Button>
+    <div className="space-y-6 bg-[#FDFBF7]">
+      <div>
+        <h1 className="text-xl font-bold tracking-tight text-slate-800 flex items-center gap-2">
+          <Database className="h-5 w-5 text-emerald-600" /> Knowledge Base RAG
+        </h1>
+        <p className="text-xs text-slate-400 mt-1">Upload flat-file documents or index web URLs to train your voice AI agent on internal knowledge bases.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="border border-slate-200 bg-white p-6 rounded-2xl shadow-sm flex flex-col justify-between space-y-4">
-          <div className="space-y-2">
-            <div className="h-9 w-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700">
-              <FileText className="h-4.5 w-4.5" />
-            </div>
-            <h3 className="text-xs font-bold text-slate-800">Static Documents</h3>
-            <p className="text-[11px] text-slate-400 leading-relaxed">Upload PDF, TXT, or markdown documentation to seed agent contexts.</p>
-          </div>
-          <span className="text-[10px] text-slate-400 font-bold block pt-2 border-t border-slate-100">0 Files Processed</span>
-        </div>
+        <Card className="border-slate-200 bg-white shadow-sm rounded-3xl overflow-hidden md:col-span-2">
+          <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-5 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-bold text-slate-800">Indexed Sources</CardTitle>
+            <Database className="h-4.5 w-4.5 text-slate-400" />
+          </CardHeader>
+          <CardContent className="p-0 divide-y divide-slate-100">
+            {documents.map((d) => (
+              <div key={d.id} className="p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-400">
+                    <FileText className="h-4.5 w-4.5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-700 block">{d.title}</span>
+                    <span className="text-[10px] text-slate-400 font-medium">{d.type} • {d.size}</span>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-250/50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <CheckCircle className="h-3 w-3" /> {d.status}
+                </span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
 
-        <div className="border border-slate-200 bg-white p-6 rounded-2xl shadow-sm flex flex-col justify-between space-y-4">
-          <div className="space-y-2">
-            <div className="h-9 w-9 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-700">
-              <LinkIcon className="h-4.5 w-4.5" />
-            </div>
-            <h3 className="text-xs font-bold text-slate-800">URL Scraping</h3>
-            <p className="text-[11px] text-slate-400 leading-relaxed">Scrape product URLs or directories periodically to sync documentation.</p>
-          </div>
-          <span className="text-[10px] text-slate-400 font-bold block pt-2 border-t border-slate-100">0 Links Connected</span>
-        </div>
-
-        <div className="border border-slate-200 bg-white p-6 rounded-2xl shadow-sm flex flex-col justify-between space-y-4">
-          <div className="space-y-2">
-            <div className="h-9 w-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700">
-              <Database className="h-4.5 w-4.5" />
-            </div>
-            <h3 className="text-xs font-bold text-slate-800">Q&A Knowledge Base</h3>
-            <p className="text-[11px] text-slate-400 leading-relaxed">Insert explicit query-answer strings to resolve hard-coded instructions.</p>
-          </div>
-          <span className="text-[10px] text-slate-400 font-bold block pt-2 border-t border-slate-100">0 Q&A Pairs Configured</span>
-        </div>
+        <Card className="border-slate-200 bg-white shadow-sm rounded-3xl overflow-hidden md:col-span-1">
+          <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-5">
+            <CardTitle className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Add Source</CardTitle>
+          </CardHeader>
+          <CardContent className="p-5 space-y-3.5">
+            <Button className="w-full text-xs bg-emerald-600 hover:bg-emerald-555 text-white rounded-xl py-5">
+              <Upload className="h-4 w-4 mr-1.5" /> Upload File (PDF/TXT)
+            </Button>
+            <Button variant="outline" className="w-full text-xs border-slate-200 text-slate-700 bg-white rounded-xl py-5">
+              <Link2 className="h-4 w-4 mr-1.5" /> Index Website URL
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

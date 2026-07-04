@@ -16,13 +16,15 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-[#FDFBF7]">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-white">Settings</h1>
-        <p className="text-slate-400 text-sm mt-1">Configure your corporate account details, system credentials, and usage tiers.</p>
+        <h1 className="text-xl font-bold tracking-tight text-slate-800 flex items-center gap-2">
+          <Settings className="h-5 w-5 text-emerald-600" /> Account Settings
+        </h1>
+        <p className="text-xs text-slate-400 mt-1">Configure your corporate account details, system credentials, and usage tiers.</p>
       </div>
 
-      <div className="flex gap-4 border-b border-slate-800/80 pb-px shrink-0">
+      <div className="flex gap-4 border-b border-slate-200 pb-px shrink-0">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
@@ -31,8 +33,8 @@ export default function SettingsPage() {
               onClick={() => setActiveTab(tab.id as any)}
               className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-all focus:outline-none ${
                 isActive 
-                  ? 'border-blue-500 text-blue-400 font-bold' 
-                  : 'border-transparent text-slate-400 hover:text-slate-200'
+                  ? 'border-emerald-600 text-emerald-700 font-bold' 
+                  : 'border-transparent text-slate-400 hover:text-slate-700'
               }`}
             >
               <tab.icon className="h-4 w-4" /> {tab.label}
@@ -42,78 +44,78 @@ export default function SettingsPage() {
       </div>
 
       {activeTab === 'profile' && (
-        <Card className="border-slate-800 bg-slate-900/40 backdrop-blur">
-          <CardHeader>
-            <CardTitle className="text-lg text-white">Profile Details</CardTitle>
+        <Card className="border-slate-200 bg-white shadow-sm rounded-3xl overflow-hidden">
+          <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-5">
+            <CardTitle className="text-sm font-bold text-slate-800">Profile Details</CardTitle>
             <CardDescription className="text-slate-400 text-xs">Manage your dashboard display name and email address settings.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 p-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Name</label>
-                <Input defaultValue="Rohit Kumar Sha" className="bg-slate-950 border-slate-800 text-slate-300" />
+                <label className="text-xs font-semibold text-slate-600">Name</label>
+                <Input defaultValue="Rohit Kumar Sha" className="bg-white border-slate-200 text-slate-700 rounded-xl" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Corporate Email</label>
-                <Input defaultValue="admin@bolna.ai" className="bg-slate-950 border-slate-800 text-slate-300" disabled />
+                <label className="text-xs font-semibold text-slate-600">Corporate Email</label>
+                <Input defaultValue="devr01499@gmail.com" className="bg-white border-slate-200 text-slate-700 rounded-xl" disabled />
               </div>
             </div>
           </CardContent>
-          <CardFooter className="border-t border-slate-800/50 pt-4 flex justify-end">
-            <Button variant="premium" className="text-xs">Save Changes</Button>
+          <CardFooter className="border-t border-slate-100 pt-4 flex justify-end bg-slate-50/50 p-4">
+            <Button className="text-xs bg-emerald-600 hover:bg-emerald-555 text-white rounded-xl">Save Changes</Button>
           </CardFooter>
         </Card>
       )}
 
       {activeTab === 'keys' && (
-        <Card className="border-slate-800 bg-slate-900/40 backdrop-blur">
-          <CardHeader>
-            <CardTitle className="text-lg text-white">M2M Integration Tokens</CardTitle>
+        <Card className="border-slate-200 bg-white shadow-sm rounded-3xl overflow-hidden">
+          <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-5">
+            <CardTitle className="text-sm font-bold text-slate-800">M2M Integration Tokens</CardTitle>
             <CardDescription className="text-slate-400 text-xs">API keys enabling secure calls triggers from your CRMs and backends.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-3.5 bg-slate-950/60 rounded-lg border border-slate-800/80 gap-4">
+          <CardContent className="space-y-4 p-5">
+            <div className="flex items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-200 gap-4">
               <div>
-                <span className="text-xs font-bold text-white block">Production Client Token</span>
-                <span className="text-[10px] text-slate-500 font-mono">bolna_live_pk_**********************828a</span>
+                <span className="text-xs font-bold text-slate-700 block">Production Client Token</span>
+                <span className="text-[10px] text-slate-400 font-mono">bolna_live_pk_**********************828a</span>
               </div>
-              <Button size="sm" variant="outline" className="text-xs bg-slate-950 border-slate-800 text-slate-400 hover:text-white">
+              <Button size="sm" variant="outline" className="text-xs bg-white border-slate-250 text-slate-600 hover:text-emerald-700 rounded-xl">
                 Reveal Key
               </Button>
             </div>
           </CardContent>
-          <CardFooter className="border-t border-slate-800/50 pt-4 flex justify-between items-center flex-wrap gap-4">
-            <span className="text-[10px] text-slate-500 flex items-center gap-1.5">
-              <ShieldAlert className="h-3.5 w-3.5 text-amber-500" /> Do not reveal tokens in public git repositories.
+          <CardFooter className="border-t border-slate-100 pt-4 flex justify-between items-center bg-slate-50/50 p-4">
+            <span className="text-[10px] text-slate-400 flex items-center gap-1.5 font-semibold">
+              <ShieldAlert className="h-4 w-4 text-amber-600" /> Do not reveal tokens in public git repositories.
             </span>
-            <Button variant="premium" className="text-xs">Generate New Key</Button>
+            <Button className="text-xs bg-emerald-600 hover:bg-emerald-555 text-white rounded-xl">Generate New Key</Button>
           </CardFooter>
         </Card>
       )}
 
       {activeTab === 'billing' && (
-        <Card className="border-slate-800 bg-slate-900/40 backdrop-blur">
-          <CardHeader>
-            <CardTitle className="text-lg text-white">Subscription Billing</CardTitle>
+        <Card className="border-slate-200 bg-white shadow-sm rounded-3xl overflow-hidden">
+          <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-5">
+            <CardTitle className="text-sm font-bold text-slate-800">Subscription Billing</CardTitle>
             <CardDescription className="text-slate-400 text-xs">Track active pricing tiers and minute usage balances.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="p-4 bg-slate-950/40 border border-slate-800/80 rounded-lg flex items-center justify-between flex-wrap gap-4">
+          <CardContent className="space-y-4 p-5">
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between flex-wrap gap-4">
               <div>
-                <span className="text-xs font-bold text-blue-400 uppercase tracking-wider block">Active Plan</span>
-                <span className="text-base font-bold text-white">Enterprise AI Developer (Sandbox)</span>
+                <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider block">Active Plan</span>
+                <span className="text-sm font-extrabold text-slate-800">Enterprise AI Developer (Sandbox)</span>
               </div>
-              <Button size="sm" variant="premium">Upgrade Plan</Button>
+              <Button className="text-xs bg-emerald-600 hover:bg-emerald-555 text-white rounded-xl">Upgrade Plan</Button>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-slate-950/20 p-4 border border-slate-800/60 rounded-lg space-y-1.5">
-                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Call minutes used</span>
-                <span className="text-lg font-bold text-white">184,520 / 500,000</span>
+              <div className="bg-slate-50 p-4 border border-slate-200 rounded-xl space-y-1.5">
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Call minutes used</span>
+                <span className="text-base font-extrabold text-slate-800">184,520 / 500,000</span>
               </div>
-              <div className="bg-slate-950/20 p-4 border border-slate-800/60 rounded-lg space-y-1.5">
-                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">API credit balance</span>
-                <span className="text-lg font-bold text-white">$1,245.00 remaining</span>
+              <div className="bg-slate-50 p-4 border border-slate-200 rounded-xl space-y-1.5">
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">API credit balance</span>
+                <span className="text-base font-extrabold text-slate-850">12,450 Credits remaining</span>
               </div>
             </div>
           </CardContent>

@@ -28,7 +28,49 @@ const callIdParamSchema = z.object({
   callId: z.string().uuid('callId must be a valid UUID'),
 });
 
+import { prisma } from '../config/database';
+
 // ─── Routes ──────────────────────────────────────
+
+/** GET /api/v2/calls — List all calls (isolated to the authenticated userId). */
+router.get(
+  '/',
+  async (req, res, next) => {
+    try {
+      const { status, limit, offset } = req.query as {
+        status?: string;
+        limit?: string;
+        offset?: string;
+      };
+
+      const SEEDED_USER_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+
+      const calls = await prisma.call.findMany({
+        where: {
+          userId: SEEDED_USER_ID,
+          ...(status ? { status } : {}),
+        },
+        include: {
+          agent: {
+            select: {
+              name: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit ? parseInt(limit, 10) : 50,
+        skip: offset ? parseInt(offset, 10) : 0,
+      });
+
+      res.json({
+        success: true,
+        data: calls,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 /** POST /api/v2/calls — Initiate a new outbound call. */
 router.post(
