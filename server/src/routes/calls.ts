@@ -1,13 +1,9 @@
-/**
- * Bolna Server — Call Routes
- *
- * Maps HTTP endpoints to CallController methods with validation.
- */
-
 import { Router } from 'express';
 import { z } from 'zod';
 import { CallController } from '../controllers/CallController';
 import { validateBody, validateParams } from '../middleware/validation';
+import { getUserIdFromRequest } from '../utils/auth';
+import { prisma } from '../config/database';
 
 const router = Router();
 
@@ -28,8 +24,6 @@ const callIdParamSchema = z.object({
   callId: z.string().uuid('callId must be a valid UUID'),
 });
 
-import { prisma } from '../config/database';
-
 // ─── Routes ──────────────────────────────────────
 
 /** GET /api/v2/calls — List all calls (isolated to the authenticated userId). */
@@ -37,17 +31,21 @@ router.get(
   '/',
   async (req, res, next) => {
     try {
+      const userId = getUserIdFromRequest(req);
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'Unauthorized' });
+        return;
+      }
+
       const { status, limit, offset } = req.query as {
         status?: string;
         limit?: string;
         offset?: string;
       };
 
-      const SEEDED_USER_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
-
       const calls = await prisma.call.findMany({
         where: {
-          userId: SEEDED_USER_ID,
+          userId: userId,
           ...(status ? { status } : {}),
         },
         include: {
@@ -76,6 +74,16 @@ router.get(
 router.post(
   '/',
   validateBody(initiateCallSchema),
+  async (req, res, next) => {
+    const userId = getUserIdFromRequest(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+    // Force set the authenticated userId in body to prevent body spoofing
+    req.body.userId = userId;
+    next();
+  },
   CallController.initiateCall
 );
 
@@ -83,6 +91,11 @@ router.post(
 router.get(
   '/debug/gemini',
   async (req, res) => {
+    const userId = getUserIdFromRequest(req);
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+
     let geo: any = {};
     try {
       // Query server public IP geo-location
@@ -148,6 +161,22 @@ router.get(
 router.get(
   '/:callId',
   validateParams(callIdParamSchema),
+  async (req, res, next) => {
+    const userId = getUserIdFromRequest(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+    const callId = req.params.callId as string;
+    const exists = await prisma.call.findFirst({
+      where: { id: callId, userId }
+    });
+    if (!exists) {
+      res.status(404).json({ success: false, error: 'Call record not found or inaccessible' });
+      return;
+    }
+    next();
+  },
   CallController.getCallStatus
 );
 
@@ -155,6 +184,22 @@ router.get(
 router.post(
   '/:callId/terminate',
   validateParams(callIdParamSchema),
+  async (req, res, next) => {
+    const userId = getUserIdFromRequest(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+    const callId = req.params.callId as string;
+    const exists = await prisma.call.findFirst({
+      where: { id: callId, userId }
+    });
+    if (!exists) {
+      res.status(404).json({ success: false, error: 'Call record not found or inaccessible' });
+      return;
+    }
+    next();
+  },
   CallController.terminateCall
 );
 
@@ -162,6 +207,22 @@ router.post(
 router.get(
   '/:callId/transcript',
   validateParams(callIdParamSchema),
+  async (req, res, next) => {
+    const userId = getUserIdFromRequest(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+    const callId = req.params.callId as string;
+    const exists = await prisma.call.findFirst({
+      where: { id: callId, userId }
+    });
+    if (!exists) {
+      res.status(404).json({ success: false, error: 'Call record not found or inaccessible' });
+      return;
+    }
+    next();
+  },
   CallController.getCallTranscript
 );
 

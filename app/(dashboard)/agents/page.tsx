@@ -43,6 +43,15 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ||
     ? 'http://localhost:3001'
     : 'https://ai-voice-agent-backend-mv32.onrender.com');
 
+const getAuthHeaders = (additional: Record<string, string> = {}) => {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    'x-user-id': 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    ...additional
+  };
+};
+
 const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || 
   (typeof window !== 'undefined' && window.location.hostname === 'localhost'
     ? 'ws://localhost:3001'
@@ -279,7 +288,9 @@ export default function AgentsPage() {
 
   const fetchAgents = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v2/agents`);
+      const res = await fetch(`${API_BASE_URL}/api/v2/agents`, {
+        headers: getAuthHeaders()
+      });
       if (res.ok) {
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
@@ -368,7 +379,7 @@ export default function AgentsPage() {
     try {
       const res = await fetch(`${API_BASE_URL}/api/v2/agents/optimize`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ description: promptDescription })
       });
       if (res.ok) {
@@ -442,7 +453,7 @@ export default function AgentsPage() {
 
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(payload)
       });
 
@@ -506,7 +517,7 @@ Start at the welcome-node.`;
 
       const res = await fetch(`${API_BASE_URL}/api/calls/outbound`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           phoneNumber,
           agentId: selectedAgentId,
@@ -532,7 +543,10 @@ Start at the welcome-node.`;
   const handleHangUp = async () => {
     if (!callId) return;
     try {
-      await fetch(`${API_BASE_URL}/api/v2/calls/${callId}/terminate`, { method: 'POST' });
+      await fetch(`${API_BASE_URL}/api/v2/calls/${callId}/terminate`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
       setCallStatus('completed');
       stopCallMonitoring();
     } catch (e) {
@@ -564,7 +578,9 @@ Start at the welcome-node.`;
 
     pollRef.current = setInterval(async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/v2/calls/${cId}`);
+        const res = await fetch(`${API_BASE_URL}/api/v2/calls/${cId}`, {
+          headers: getAuthHeaders()
+        });
         if (res.ok) {
           const json = await res.json();
           if (json.success && json.data) {

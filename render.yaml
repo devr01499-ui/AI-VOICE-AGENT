@@ -15,5 +15,13 @@ services:
         sync: false
       - key: GEMINI_API_KEY
         sync: false
-      - key: VOBIZ_API_KEY
+      - key: VOBIZ_AUTH_ID
+        sync: false
+      - key: VOBIZ_AUTH_TOKEN
+        sync: false
+      - key: VOBIZ_FROM_NUMBER
+        sync: false
+      - key: VOBIZ_API_URL
+        sync: false
+      - key: PUBLIC_URL
         sync: false

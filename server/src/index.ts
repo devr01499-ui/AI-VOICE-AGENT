@@ -33,6 +33,7 @@ import { eventBus, PROVIDER_EVENTS } from './core/provider-sdk/provider.events';
 // ─── Routes ──────────────────────────────────────
 import callRoutes from './routes/calls';
 import agentRoutes from './routes/agents';
+import { getUserIdFromRequest } from './utils/auth';
 import webhookRoutes from './routes/webhooks';
 
 // ─── Express App ─────────────────────────────────
@@ -143,7 +144,15 @@ import { CallController } from './controllers/CallController';
 // ─── API Routes ──────────────────────────────────
 
 app.use('/api/v2/calls', callRoutes);
-app.post('/api/calls/outbound', CallController.initiateCall);
+app.post('/api/calls/outbound', (req, res, next) => {
+  const userId = getUserIdFromRequest(req);
+  if (!userId) {
+    res.status(401).json({ success: false, error: 'Unauthorized' });
+    return;
+  }
+  req.body.userId = userId;
+  next();
+}, CallController.initiateCall);
 app.use('/api/v2/agents', agentRoutes);
 app.use('/api/v2/webhooks', webhookRoutes);
 

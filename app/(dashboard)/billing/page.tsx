@@ -10,6 +10,15 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ||
     ? 'http://localhost:3001'
     : 'https://ai-voice-agent-backend-mv32.onrender.com');
 
+const getAuthHeaders = (additional: Record<string, string> = {}) => {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    'x-user-id': 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    ...additional
+  };
+};
+
 interface UserProfile {
   id: string;
   email: string;
@@ -27,7 +36,9 @@ export default function BillingPage() {
 
   const fetchProfile = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v2/agents/me/profile`);
+      const res = await fetch(`${API_BASE_URL}/api/v2/agents/me/profile`, {
+        headers: getAuthHeaders()
+      });
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {

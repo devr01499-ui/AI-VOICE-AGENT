@@ -11,10 +11,9 @@ import { Agent } from '@prisma/client';
 import { AgentRepository } from '../repositories/AgentRepository';
 import { validateParams, validateQuery } from '../middleware/validation';
 import { prisma } from '../config/database';
+import { getUserIdFromRequest } from '../utils/auth';
 
 const router = Router();
-
-const SEEDED_USER_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 
 // ─── Validation Schemas ──────────────────────────
 
@@ -35,8 +34,14 @@ router.get(
   '/me/profile',
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const userId = getUserIdFromRequest(req);
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'Unauthorized' });
+        return;
+      }
+
       const user = await prisma.user.findUnique({
-        where: { id: SEEDED_USER_ID },
+        where: { id: userId },
         select: {
           id: true,
           email: true,
@@ -59,6 +64,12 @@ router.post(
   '/optimize',
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const userId = getUserIdFromRequest(req);
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'Unauthorized' });
+        return;
+      }
+
       const { description } = req.body;
       if (!description) {
         res.status(400).json({ success: false, error: 'Description is required' });
@@ -96,6 +107,12 @@ router.get(
   validateQuery(listQuerySchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const userId = getUserIdFromRequest(req);
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'Unauthorized' });
+        return;
+      }
+
       const { status, limit, offset } = req.query as {
         status?: string;
         limit?: string;
@@ -105,7 +122,7 @@ router.get(
       // Strict user-wise database isolation
       const agents = await prisma.agent.findMany({
         where: {
-          userId: SEEDED_USER_ID,
+          userId: userId,
           ...(status ? { status } : {}),
         },
         orderBy: { createdAt: 'desc' },
@@ -149,11 +166,17 @@ router.get(
   validateParams(agentIdParamSchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const userId = getUserIdFromRequest(req);
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'Unauthorized' });
+        return;
+      }
+
       const agentId = req.params.agentId as string;
       
       // Strict user-wise lookup constraint
       const agent = await prisma.agent.findFirst({
-        where: { id: agentId, userId: SEEDED_USER_ID }
+        where: { id: agentId, userId: userId }
       });
 
       if (!agent) {
@@ -200,6 +223,12 @@ router.post(
   '/',
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const userId = getUserIdFromRequest(req);
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'Unauthorized' });
+        return;
+      }
+
       const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, temperature, systemPrompt, flowGraph } = req.body;
 
       const newAgent = await prisma.agent.create({
@@ -210,7 +239,7 @@ router.post(
           status: status || 'draft',
           agentConfig: typeof agentConfig === 'string' ? agentConfig : JSON.stringify(agentConfig || {}),
           tags: typeof tags === 'string' ? tags : JSON.stringify(tags || []),
-          userId: SEEDED_USER_ID,
+          userId: userId,
           workspaceId: workspaceId || null,
           model: model || null,
           voiceName: voiceName || null,
@@ -236,12 +265,18 @@ router.put(
   validateParams(agentIdParamSchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const userId = getUserIdFromRequest(req);
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'Unauthorized' });
+        return;
+      }
+
       const agentId = req.params.agentId as string;
       const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, temperature, systemPrompt, flowGraph } = req.body;
 
       // Verify ownership before updating
       const exists = await prisma.agent.findFirst({
-        where: { id: agentId, userId: SEEDED_USER_ID }
+        where: { id: agentId, userId: userId }
       });
 
       if (!exists) {

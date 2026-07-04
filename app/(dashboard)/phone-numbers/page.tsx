@@ -57,6 +57,15 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ||
     ? 'http://localhost:3001'
     : 'https://ai-voice-agent-backend-mv32.onrender.com');
 
+const getAuthHeaders = (additional: Record<string, string> = {}) => {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    'x-user-id': 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    ...additional
+  };
+};
+
 export default function PhoneNumbersPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loadingAgents, setLoadingAgents] = useState<boolean>(false);
@@ -105,7 +114,9 @@ export default function PhoneNumbersPage() {
   const fetchAgents = async () => {
     try {
       setLoadingAgents(true);
-      const res = await fetch(`${API_BASE_URL}/api/v2/agents`);
+      const res = await fetch(`${API_BASE_URL}/api/v2/agents`, {
+        headers: getAuthHeaders()
+      });
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {

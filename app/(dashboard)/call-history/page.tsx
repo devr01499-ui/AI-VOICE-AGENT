@@ -25,6 +25,15 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ||
     ? 'http://localhost:3001'
     : 'https://ai-voice-agent-backend-mv32.onrender.com');
 
+const getAuthHeaders = (additional: Record<string, string> = {}) => {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    'x-user-id': 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    ...additional
+  };
+};
+
 interface CallRecord {
   id: string;
   agentId: string;
@@ -66,7 +75,9 @@ export default function CallHistoryPage() {
   const fetchCalls = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE_URL}/api/v2/calls`);
+      const res = await fetch(`${API_BASE_URL}/api/v2/calls`, {
+        headers: getAuthHeaders()
+      });
       if (res.ok) {
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
@@ -87,7 +98,9 @@ export default function CallHistoryPage() {
     setTranscripts([]);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v2/calls/${call.id}/transcript`);
+      const res = await fetch(`${API_BASE_URL}/api/v2/calls/${call.id}/transcript`, {
+        headers: getAuthHeaders()
+      });
       if (res.ok) {
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
