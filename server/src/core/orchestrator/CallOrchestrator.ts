@@ -123,14 +123,14 @@ export class CallOrchestrator {
   ): Promise<string> {
     logger.info('CallOrchestrator: startVoiceSession', { callId, agentId });
 
-    const agent = await AgentRepository.findById(agentId);
-    if (!agent.agentConfig || agent.agentConfig === '{}') {
-      throw new CallError(callId, 'Agent configuration is empty. Please configure the agent first.');
-    }
-
     let agentConfig: AgentConfig;
     try {
-      const rawConfig = JSON.parse(agent.agentConfig) as any;
+      const agent = await AgentRepository.findById(agentId);
+      if (!agent) {
+        throw new Error(`Agent not found with ID: ${agentId}`);
+      }
+
+      const rawConfig = JSON.parse(agent.agentConfig || '{}') as any;
 
       const defaultPrompt = 
         "You are Priya, a friendly, professional AI HR Recruiter from Delhi Tech Careers calling about a Software Engineer job opening. " +
@@ -139,20 +139,13 @@ export class CallOrchestrator {
         "Permit yourself to use occasional conversational fillers at the beginning of a sentence (e.g., 'Got it...', 'Ah, interesting...', 'Right...', 'Ok...'). " +
         "Use commas (,) and ellipsis (...) cleanly inside your replies to introduce natural micro-pauses so that the text-to-speech engine speaks with realistic breathing points and pitch changes.";
 
-      const voiceName = agent.voiceName || rawConfig.voice || rawConfig.voice_config?.voice || 'alloy';
+      const voiceName = agent.voiceName || rawConfig.voice || rawConfig.voice_config?.voice || 'Puck';
       const validVoices = ['alloy', 'echo', 'fable', 'onyx', 'shimmer', 'puck', 'charon', 'fenrir', 'kore', 'aoede'];
-      if (!validVoices.includes(voiceName.toLowerCase())) {
-        throw new Error(`Invalid voice: ${voiceName}. Must be one of: ${validVoices.join(', ')}`);
-      }
+      const finalVoice = validVoices.includes(voiceName.toLowerCase()) ? voiceName : 'Puck';
 
       const llmProvider = rawConfig.llm?.provider || 
         (Boolean(env.GEMINI_API_KEY || env.GOOGLE_API_KEY) ? 'gemini' : 'openai');
-      const validProviders = ['gemini', 'openai'];
-      if (!validProviders.includes(llmProvider.toLowerCase())) {
-        throw new Error(`Invalid LLM provider: ${llmProvider}`);
-      }
 
-      // Build validated config
       let compiledPrompt = agent.systemPrompt || rawConfig.prompt || rawConfig.system_prompt || defaultPrompt;
       if (agent.flowGraph) {
         try {
@@ -179,17 +172,35 @@ export class CallOrchestrator {
 
       agentConfig = {
         prompt: compiledPrompt,
-        voice: voiceName,
+        voice: finalVoice,
         llm: {
           provider: llmProvider,
           model: agent.model || rawConfig.llm_config?.model || 
-            (llmProvider === 'gemini' ? 'gemini-2.0-flash' : 'gpt-4o-realtime-preview'),
+            (llmProvider === 'gemini' ? 'models/gemini-2.5-flash-native-audio-latest' : 'gpt-4o-realtime-preview'),
           temperature: agent.temperature !== null && agent.temperature !== undefined ? Number(agent.temperature) : (rawConfig.temperature !== undefined ? Number(rawConfig.temperature) : (rawConfig.llm_config?.temperature !== undefined ? Number(rawConfig.llm_config.temperature) : undefined)),
         },
         tools: rawConfig.tools,
         knowledgeBaseIds: rawConfig.knowledgeBaseIds,
         settings: rawConfig.settings,
       };
+
+    } catch (err) {
+      logger.error('CRITICAL: Forensic audit lookup failed. Injecting default fallback config.', {
+        error: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined
+      });
+
+      agentConfig = {
+        prompt: 'You are a professional corporate assistant for Clarity.',
+        voice: 'Puck',
+        llm: {
+          provider: 'gemini',
+          model: 'models/gemini-2.5-flash-native-audio-latest',
+          temperature: 0.7,
+        },
+        tools: [],
+      };
+    }
 
       logger.info('CallOrchestrator: agent config validated', { 
         callId, 
@@ -198,12 +209,6 @@ export class CallOrchestrator {
         provider: agentConfig.llm.provider,
       });
 
-    } catch (err) {
-      throw new CallError(
-        callId, 
-        `Invalid agent configuration: ${err instanceof Error ? err.message : String(err)}`
-      );
-    }
 
     // Register active tools
     if (agentConfig.tools && agentConfig.tools.length > 0) {

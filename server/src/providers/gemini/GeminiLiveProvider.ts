@@ -221,7 +221,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         kore: 'Kore',
         aoede: 'Aoede',
       };
-      const geminiVoice = voiceNameMap[config.voice.toLowerCase()] || 'Puck';
+      const geminiVoice = voiceNameMap[(config.voice || 'Puck').toLowerCase()] || 'Puck';
 
       // Map tools cleanly to Gemini wire function_declarations format
       const functionDeclarations = config.tools?.map((t) => ({

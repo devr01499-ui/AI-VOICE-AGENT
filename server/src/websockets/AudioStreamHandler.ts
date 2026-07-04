@@ -164,6 +164,22 @@ export class AudioStreamHandler {
       streamId,
     });
 
+    // Explicitly acknowledge connection setup immediately to keep Vobiz carrier channel active
+    const ackMessage = JSON.stringify({
+      event: 'acknowledged',
+      callId: callId,
+      streamId: streamId || '',
+      timestamp: Date.now()
+    });
+    try {
+      if (conn) {
+        conn.ws.send(ackMessage);
+        logger.info('AudioStreamHandler [HANDSHAKE]: Sent connection acknowledgment to Vobiz carrier link', { callId, streamId });
+      }
+    } catch (ackErr) {
+      logger.error('AudioStreamHandler: failed to send acknowledgment', { callId, error: ackErr });
+    }
+
     const orchestrator = callOrchestrator;
 
     import('../repositories/CallRepository').then(({ CallRepository }) => {
