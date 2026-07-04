@@ -52,10 +52,9 @@ interface PhoneNumberConfig {
   outboundTransport: 'TCP' | 'UDP' | 'TLS';
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
-  (typeof window !== 'undefined' && window.location.hostname === 'localhost'
-    ? 'http://localhost:3001'
-    : 'https://ai-voice-agent-backend-mv32.onrender.com');
+import { getBackendUrl } from '@/lib/api-client';
+
+const API_BASE_URL = getBackendUrl();
 
 const getAuthHeaders = (additional: Record<string, string> = {}) => {
   return {

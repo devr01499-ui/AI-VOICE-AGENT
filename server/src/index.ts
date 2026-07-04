@@ -46,7 +46,8 @@ app.use(cors({
   origin: [
     'http://localhost:3000',
     'http://localhost:3001',
-    'https://ai-voice-agent-frontend.vercel.app' // Update with your actual Vercel domain URL
+    'https://ai-voice-agent-frontend.vercel.app',
+    'https://ai-voice-agent-kohl-alpha.vercel.app'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
