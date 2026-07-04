@@ -28,6 +28,7 @@ import { ProviderManager } from './providers/ProviderManager';
 import { prisma } from './config/database';
 import { callOrchestrator } from './core/orchestrator/CallOrchestrator';
 import { AudioStreamHandler } from './websockets/AudioStreamHandler';
+import { eventBus, PROVIDER_EVENTS } from './core/provider-sdk/provider.events';
 
 // ─── Routes ──────────────────────────────────────
 import callRoutes from './routes/calls';
@@ -215,6 +216,62 @@ async function bootstrap(): Promise<void> {
 
   const audioHandler = new AudioStreamHandler();
   audioHandler.initialize(wss);
+
+  // Create WebSocket server for browser clients to stream live transcripts
+  const wssTranscript = new WebSocketServer({
+    server,
+    path: '/live-transcript',
+  });
+
+  wssTranscript.on('connection', (ws, req) => {
+    try {
+      const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
+      const callId = url.searchParams.get('callId');
+
+      if (!callId) {
+        ws.close(1008, 'Missing callId');
+        return;
+      }
+
+      logger.info('Browser client connected to live-transcript stream', { callId });
+
+      const onTranscript = (payload: any) => {
+        if (payload.callId === callId) {
+          ws.send(JSON.stringify({
+            event: 'transcript',
+            speaker: payload.speaker,
+            text: payload.text,
+            isFinal: payload.isFinal
+          }));
+        }
+      };
+
+      const onStoppedSpeaking = (payload: any) => {
+        if (payload.callId === callId && payload.interrupted) {
+          ws.send(JSON.stringify({
+            event: 'interrupted'
+          }));
+        }
+      };
+
+      eventBus.subscribe(PROVIDER_EVENTS.TRANSCRIPT_UPDATED, onTranscript);
+      eventBus.subscribe(PROVIDER_EVENTS.AI_STOPPED_SPEAKING, onStoppedSpeaking);
+
+      ws.on('close', () => {
+        logger.info('Browser client disconnected from live-transcript stream', { callId });
+        eventBus.unsubscribe(PROVIDER_EVENTS.TRANSCRIPT_UPDATED, onTranscript);
+        eventBus.unsubscribe(PROVIDER_EVENTS.AI_STOPPED_SPEAKING, onStoppedSpeaking);
+      });
+
+      ws.on('error', (err) => {
+        logger.error('Browser live-transcript WebSocket error', { callId, error: err.message });
+      });
+
+    } catch (err) {
+      logger.error('Error in live-transcript connection', { error: String(err) });
+      ws.close(1011, 'Internal Server Error');
+    }
+  });
 
   // Start listening
   server.listen(env.PORT, () => {

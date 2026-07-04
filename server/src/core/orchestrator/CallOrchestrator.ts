@@ -140,7 +140,7 @@ export class CallOrchestrator {
         "Use commas (,) and ellipsis (...) cleanly inside your replies to introduce natural micro-pauses so that the text-to-speech engine speaks with realistic breathing points and pitch changes.";
 
       const voiceName = rawConfig.voice || rawConfig.voice_config?.voice || 'alloy';
-      const validVoices = ['alloy', 'echo', 'fable', 'onyx', 'shimmer'];
+      const validVoices = ['alloy', 'echo', 'fable', 'onyx', 'shimmer', 'puck', 'charon', 'fenrir', 'kore', 'aoede'];
       if (!validVoices.includes(voiceName.toLowerCase())) {
         throw new Error(`Invalid voice: ${voiceName}. Must be one of: ${validVoices.join(', ')}`);
       }
@@ -160,6 +160,7 @@ export class CallOrchestrator {
           provider: llmProvider,
           model: rawConfig.llm_config?.model || 
             (llmProvider === 'gemini' ? 'gemini-2.0-flash' : 'gpt-4o-realtime-preview'),
+          temperature: rawConfig.temperature !== undefined ? Number(rawConfig.temperature) : (rawConfig.llm_config?.temperature !== undefined ? Number(rawConfig.llm_config.temperature) : undefined),
         },
         tools: rawConfig.tools,
         knowledgeBaseIds: rawConfig.knowledgeBaseIds,
@@ -207,6 +208,7 @@ export class CallOrchestrator {
         description: t.description,
         parameters: t.parameters,
       })),
+      temperature: agentConfig.llm.temperature,
     };
 
     const callbacks: ProviderEventCallbacks = {
@@ -221,6 +223,12 @@ export class CallOrchestrator {
         } else {
           logger.info('AI transcript', { callId, text: delta });
         }
+        eventBus.publish(PROVIDER_EVENTS.TRANSCRIPT_UPDATED, {
+          callId,
+          speaker: isUser ? 'user' : 'agent',
+          text: delta,
+          isFinal,
+        });
       },
       onSpeechStarted: (sessId) => {
         const session = this.activeCalls.get(callId);

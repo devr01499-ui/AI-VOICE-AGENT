@@ -215,6 +215,11 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         fable: 'Fenrir',
         onyx: 'Kore',
         shimmer: 'Aoede',
+        puck: 'Puck',
+        charon: 'Charon',
+        fenrir: 'Fenrir',
+        kore: 'Kore',
+        aoede: 'Aoede',
       };
       const geminiVoice = voiceNameMap[config.voice.toLowerCase()] || 'Puck';
 
