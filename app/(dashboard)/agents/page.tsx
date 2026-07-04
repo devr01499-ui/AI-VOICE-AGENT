@@ -38,8 +38,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 
-const API_BASE_URL = 'http://localhost:3001';
-const WS_BASE_URL = 'ws://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
+  (typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    ? 'http://localhost:3001'
+    : 'https://ai-voice-agent-backend-mv32.onrender.com');
+
+const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || 
+  (typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    ? 'ws://localhost:3001'
+    : 'wss://ai-voice-agent-backend-mv32.onrender.com');
 
 const VOICE_MODELS = [
   { id: 'Aoede', name: 'Aoede (Acoustic)', desc: 'High pitch female speaker' },

@@ -5,7 +5,10 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { CreditCard, Database, DollarSign, ArrowUpRight, History, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
-const API_BASE_URL = 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
+  (typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    ? 'http://localhost:3001'
+    : 'https://ai-voice-agent-backend-mv32.onrender.com');
 
 interface UserProfile {
   id: string;
