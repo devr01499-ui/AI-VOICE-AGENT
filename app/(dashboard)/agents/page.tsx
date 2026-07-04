@@ -38,10 +38,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
-  (typeof window !== 'undefined' && window.location.hostname === 'localhost'
-    ? 'http://localhost:3001'
-    : 'https://ai-voice-agent-backend-mv32.onrender.com');
+const getBackendUrl = () => {
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return 'http://localhost:3001';
+  }
+  return process.env.NEXT_PUBLIC_BACKEND_URL || 'https://ai-voice-agent-backend-mv32.onrender.com';
+};
+
+const API_BASE_URL = getBackendUrl();
 
 const getAuthHeaders = (additional: Record<string, string> = {}) => {
   return {
@@ -50,6 +54,25 @@ const getAuthHeaders = (additional: Record<string, string> = {}) => {
     'x-user-id': 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
     ...additional
   };
+};
+
+const secureFetch = async (url: string, options: RequestInit = {}) => {
+  try {
+    const res = await fetch(url, {
+      ...options,
+      headers: getAuthHeaders(options.headers as Record<string, string>)
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      const errorMsg = `API Error ${res.status}: ${body.error || body.message || res.statusText}`;
+      console.error('[secureFetch Network Trace]', { url, status: res.status, statusText: res.statusText, body });
+      throw new Error(errorMsg);
+    }
+    return res;
+  } catch (err) {
+    console.error('[secureFetch Connection Error]', { url, error: err });
+    throw err;
+  }
 };
 
 const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || 
@@ -288,16 +311,12 @@ export default function AgentsPage() {
 
   const fetchAgents = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v2/agents`, {
-        headers: getAuthHeaders()
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && Array.isArray(json.data)) {
-          setAgents(json.data);
-          if (json.data.length > 0 && !selectedAgentId) {
-            loadAgent(json.data[0]);
-          }
+      const res = await secureFetch(`${API_BASE_URL}/api/v2/agents`);
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setAgents(json.data);
+        if (json.data.length > 0 && !selectedAgentId) {
+          loadAgent(json.data[0]);
         }
       }
     } catch (err) {
@@ -377,21 +396,16 @@ export default function AgentsPage() {
     }
     setOptimizing(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v2/agents/optimize`, {
+      const res = await secureFetch(`${API_BASE_URL}/api/v2/agents/optimize`, {
         method: 'POST',
-        headers: getAuthHeaders(),
         body: JSON.stringify({ description: promptDescription })
       });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.data) {
-          setInstructions(json.data.prompt);
-          setSelectedVoice(json.data.voiceName);
-          setTemperature(json.data.temperature);
-          showToast('success', 'Enriched instruction script successfully loaded.');
-        }
-      } else {
-        throw new Error('Failed optimization endpoint response');
+      const json = await res.json();
+      if (json.success && json.data) {
+        setInstructions(json.data.prompt);
+        setSelectedVoice(json.data.voiceName);
+        setTemperature(json.data.temperature);
+        showToast('success', 'Enriched instruction script successfully loaded.');
       }
     } catch (err) {
       console.error(err);
@@ -451,13 +465,10 @@ export default function AgentsPage() {
         : `${API_BASE_URL}/api/v2/agents`;
       const method = selectedAgentId ? 'PUT' : 'POST';
 
-      const res = await fetch(url, {
+      const res = await secureFetch(url, {
         method,
-        headers: getAuthHeaders(),
         body: JSON.stringify(payload)
       });
-
-      if (!res.ok) throw new Error('Failed to update database schema');
 
       const json = await res.json();
       if (json.success) {
@@ -515,9 +526,8 @@ Start at the welcome-node.`;
       setDuration(0);
       setCallId(null);
 
-      const res = await fetch(`${API_BASE_URL}/api/calls/outbound`, {
+      const res = await secureFetch(`${API_BASE_URL}/api/calls/outbound`, {
         method: 'POST',
-        headers: getAuthHeaders(),
         body: JSON.stringify({
           phoneNumber,
           agentId: selectedAgentId,
@@ -525,7 +535,6 @@ Start at the welcome-node.`;
         })
       });
 
-      if (!res.ok) throw new Error('Dialer trigger failed');
       const json = await res.json();
       if (json.success && json.data) {
         setCallId(json.data.callId);
@@ -543,9 +552,8 @@ Start at the welcome-node.`;
   const handleHangUp = async () => {
     if (!callId) return;
     try {
-      await fetch(`${API_BASE_URL}/api/v2/calls/${callId}/terminate`, {
-        method: 'POST',
-        headers: getAuthHeaders()
+      await secureFetch(`${API_BASE_URL}/api/v2/calls/${callId}/terminate`, {
+        method: 'POST'
       });
       setCallStatus('completed');
       stopCallMonitoring();
@@ -578,16 +586,12 @@ Start at the welcome-node.`;
 
     pollRef.current = setInterval(async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/v2/calls/${cId}`, {
-          headers: getAuthHeaders()
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json.success && json.data) {
-            setCallStatus(json.data.status);
-            if (['completed', 'failed', 'no_answer', 'busy', 'cancelled'].includes(json.data.status)) {
-              stopCallMonitoring();
-            }
+        const res = await secureFetch(`${API_BASE_URL}/api/v2/calls/${cId}`);
+        const json = await res.json();
+        if (json.success && json.data) {
+          setCallStatus(json.data.status);
+          if (['completed', 'failed', 'no_answer', 'busy', 'cancelled'].includes(json.data.status)) {
+            stopCallMonitoring();
           }
         }
       } catch (e) {

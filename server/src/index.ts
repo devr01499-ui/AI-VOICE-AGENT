@@ -42,35 +42,16 @@ const app = express();
 
 // ── Security ──────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false }));
-const allowedOrigins = [
-  env.FRONTEND_URL,
-  'http://localhost:3000',
-  'http://localhost:3001',
-];
-
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin) {
-        callback(null, true);
-        return;
-      }
-      const isAllowed =
-        allowedOrigins.includes(origin) ||
-        origin.endsWith('.vercel.app') ||
-        origin.endsWith('.onrender.com');
-      if (isAllowed) {
-        callback(null, true);
-      } else {
-        logger.warn('CORS blocked origin', { origin });
-        callback(new Error(`Origin ${origin} not allowed by CORS`));
-      }
-    },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
-    credentials: true,
-  })
-);
+app.use(cors({
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://ai-voice-agent-frontend.vercel.app' // Update with your actual Vercel domain URL
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // ── Body Parsing ──────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
@@ -299,12 +280,15 @@ async function bootstrap(): Promise<void> {
     }
   });
 
+  const PORT = process.env.PORT || 3001;
+
   // Start listening
-  server.listen(env.PORT, () => {
-    logger.info(`Bolna Server: listening on port ${env.PORT}`, {
-      health: `http://localhost:${env.PORT}/health`,
-      api: `http://localhost:${env.PORT}/api/v2`,
-      ws: `ws://localhost:${env.PORT}/audio-stream`,
+  server.listen(PORT, () => {
+    logger.info(`Clarity Backend Server running natively on port ${PORT}`);
+    logger.info(`Bolna Server: listening on port ${PORT}`, {
+      health: `http://localhost:${PORT}/health`,
+      api: `http://localhost:${PORT}/api/v2`,
+      ws: `ws://localhost:${PORT}/audio-stream`,
     });
 
     logger.info('Bolna Server: ready ✓');
