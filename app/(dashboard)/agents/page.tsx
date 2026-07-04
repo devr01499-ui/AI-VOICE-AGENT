@@ -193,6 +193,7 @@ export default function AgentsPage() {
   // Mode A: Prompt Description input
   const [promptDescription, setPromptDescription] = useState<string>('A helpful dental receptionist who books appointment dates...');
   const [optimizing, setOptimizing] = useState<boolean>(false);
+  const [dialing, setDialing] = useState<boolean>(false);
 
   // Mode B: Interactive flowGraph node editor
   const [flowNodes, setFlowNodes] = useState<FlowNode[]>([
@@ -490,6 +491,7 @@ Start at the welcome-node.`;
       return;
     }
     try {
+      setDialing(true);
       setCallStatus('initiating');
       setTranscripts([]);
       setDuration(0);
@@ -515,6 +517,8 @@ Start at the welcome-node.`;
     } catch (e) {
       console.error(e);
       setCallStatus('failed');
+    } finally {
+      setDialing(false);
     }
   };
 
@@ -969,11 +973,13 @@ Start at the welcome-node.`;
                   <div className="flex flex-col gap-2">
                     <Input type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} className="bg-white border-slate-200 rounded-xl text-xs" />
                     {['initiating', 'ringing', 'connected', 'in_progress'].includes(callStatus) ? (
-                      <Button onClick={handleHangUp} variant="destructive" className="bg-rose-600 hover:bg-rose-500 rounded-xl w-full text-xs font-bold py-3.5 h-10">
+                      <Button onClick={handleHangUp} disabled={dialing} variant="destructive" className="bg-rose-600 hover:bg-rose-500 rounded-xl w-full text-xs font-bold py-3.5 h-10 flex items-center justify-center gap-1.5">
+                        {dialing && <Loader2 className="h-4 w-4 animate-spin" />}
                         Hang Up Connection
                       </Button>
                     ) : (
-                      <Button onClick={handleInitiateCall} className="bg-emerald-600 hover:bg-emerald-555 text-white rounded-xl w-full text-xs font-bold py-3.5 h-10">
+                      <Button onClick={handleInitiateCall} disabled={dialing} className="bg-emerald-600 hover:bg-emerald-555 text-white rounded-xl w-full text-xs font-bold py-3.5 h-10 flex items-center justify-center gap-1.5">
+                        {dialing && <Loader2 className="h-4 w-4 animate-spin" />}
                         Initiate Live Screen Call
                       </Button>
                     )}

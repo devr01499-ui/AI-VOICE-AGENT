@@ -153,8 +153,32 @@ export class CallOrchestrator {
       }
 
       // Build validated config
+      let compiledPrompt = agent.systemPrompt || rawConfig.prompt || rawConfig.system_prompt || defaultPrompt;
+      if (agent.flowGraph) {
+        try {
+          const parsedGraph = JSON.parse(agent.flowGraph);
+          if (parsedGraph && Array.isArray(parsedGraph.nodes)) {
+            const flowNodes = parsedGraph.nodes.map((n: any) => ({
+              id: n.id,
+              type: n.type,
+              data: {
+                message: n.message || n.data?.message,
+                text: n.message || n.data?.text,
+                phoneNumber: n.phoneNumber || n.data?.phoneNumber,
+              },
+              transitions: n.transitions || []
+            }));
+            const { compileFlowToPrompt } = require('./FlowCompiler');
+            compiledPrompt = compileFlowToPrompt(agent.name, flowNodes);
+            logger.info('CallOrchestrator compiled visual flowGraph on-the-fly successfully');
+          }
+        } catch (flowErr) {
+          logger.error('Error compiling flowGraph in orchestrator', { error: String(flowErr) });
+        }
+      }
+
       agentConfig = {
-        prompt: agent.systemPrompt || rawConfig.prompt || rawConfig.system_prompt || defaultPrompt,
+        prompt: compiledPrompt,
         voice: voiceName,
         llm: {
           provider: llmProvider,
