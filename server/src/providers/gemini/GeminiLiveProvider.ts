@@ -249,6 +249,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
           realtime_input_config: {
             automatic_activity_detection: {
               disabled: false,
+              silence_duration_ms: 600,
             },
           },
           ...(functionDeclarations && functionDeclarations.length > 0 && {

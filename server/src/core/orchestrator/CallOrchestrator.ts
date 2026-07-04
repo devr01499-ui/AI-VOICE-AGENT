@@ -19,7 +19,7 @@ import { mulawToPCM16 } from '../../utils/audioConverter';
 class ConversationState implements IConversationState {
   phase: 'greeting_sent' | 'listening' | 'processing' | 'responding' = 'greeting_sent';
   lastSpeechTime: number = 0;
-  silenceThresholdMs: number = 1500;
+  silenceThresholdMs: number = 600;
   speechThreshold: number = 1000;
   
   isReadyForUserAudio(): boolean {

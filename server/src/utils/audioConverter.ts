@@ -233,8 +233,14 @@ export function resample(
 
     const interpolated = a * t * t * t + b * t * t + c * t + d;
     
-    // Clamp to valid 16-bit signed integer range to prevent clipping/wrapping artifacts
-    result[i] = Math.max(-32768, Math.min(32767, Math.round(interpolated)));
+    // Ensure the Catmull-Rom spline output sample values are rounded and strictly clamped:
+    let processedSample = Math.round(interpolated);
+
+    // Prevent digital wrapping distortion/crackle
+    if (processedSample > 32767) processedSample = 32767;
+    if (processedSample < -32768) processedSample = -32768;
+
+    result[i] = processedSample;
   }
 
   return result;

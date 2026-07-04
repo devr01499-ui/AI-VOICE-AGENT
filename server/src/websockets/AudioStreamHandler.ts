@@ -27,6 +27,8 @@ interface ActiveConnection {
     conversionErrors: number;
   };
   sessionId?: string;
+  playbackQueue: string[]; // Sequential array buffer for outbound payloads
+  isPlayoutActive: boolean;
 }
 
 // ─── Handler Implementation ──────────────────────────
@@ -93,6 +95,8 @@ export class AudioStreamHandler {
         bytesConverted: 0,
         conversionErrors: 0,
       },
+      playbackQueue: [],
+      isPlayoutActive: false,
     };
 
     this.connections.set(callId, conn);
@@ -192,12 +196,12 @@ export class AudioStreamHandler {
           });
 
           // Register user-started speech (tentative trigger) - clear Vobiz audio queue immediately
-          eventBus.subscribe(PROVIDER_EVENTS.USER_STARTED_SPEAKING, (payload) => {
-            if (payload.callId === callId) {
-              logger.info('AudioStreamHandler: Local VAD tentative speech detected, clearing Vobiz queue', { callId });
-              this.clearAudio(callId);
-            }
-          });
+          // eventBus.subscribe(PROVIDER_EVENTS.USER_STARTED_SPEAKING, (payload) => {
+          //   if (payload.callId === callId) {
+          //     logger.info('AudioStreamHandler: Local VAD tentative speech detected, clearing Vobiz queue', { callId });
+          //     this.clearAudio(callId);
+          //   }
+          // });
 
           // Register AI-stopped / interrupted speech (definitive barge-in trigger confirmed by Gemini)
           eventBus.subscribe(PROVIDER_EVENTS.AI_STOPPED_SPEAKING, (payload) => {
@@ -316,9 +320,40 @@ export class AudioStreamHandler {
   }
 
   /**
-   * Sends audio data back to Vobiz via the WebSocket connection.
+   * Pushes audio chunk to playout queue and starts sequential playout if inactive.
    */
   private sendAudioToVobiz(callId: string, audioBase64: string): void {
+    const conn = this.connections.get(callId);
+    if (!conn) return;
+
+    conn.playbackQueue.push(audioBase64);
+
+    if (!conn.isPlayoutActive) {
+      this.flushNextAudioChunk(callId);
+    }
+  }
+
+  /**
+   * Playout pump to send audio sequentially to Vobiz.
+   */
+  private flushNextAudioChunk(callId: string): void {
+    const conn = this.connections.get(callId);
+    if (!conn || conn.playbackQueue.length === 0) {
+      if (conn) conn.isPlayoutActive = false;
+      return;
+    }
+
+    conn.isPlayoutActive = true;
+    const nextChunkBase64 = conn.playbackQueue.shift()!;
+    this.sendAudioToVobizDirect(callId, nextChunkBase64);
+
+    setTimeout(() => this.flushNextAudioChunk(callId), 30);
+  }
+
+  /**
+   * Sends audio data immediately to Vobiz via the WebSocket connection.
+   */
+  private sendAudioToVobizDirect(callId: string, audioBase64: string): void {
     const conn = this.connections.get(callId);
     if (!conn || conn.ws.readyState !== WebSocket.OPEN) {
       logger.warn('AudioStreamHandler: cannot send audio - no connection', { callId });
@@ -364,6 +399,10 @@ export class AudioStreamHandler {
     if (!conn || conn.ws.readyState !== WebSocket.OPEN) {
       return;
     }
+
+    // Clear buffer queue immediately to drop any pending outbound frames on user barge-in!
+    conn.playbackQueue = [];
+    conn.isPlayoutActive = false;
 
     const message = JSON.stringify({
       event: 'clearAudio',
