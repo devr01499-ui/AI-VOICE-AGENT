@@ -54,6 +54,42 @@ router.get(
   }
 );
 
+/** POST /api/v2/agents/optimize — Low-Code Prompt Optimizer helper. */
+router.post(
+  '/optimize',
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { description } = req.body;
+      if (!description) {
+        res.status(400).json({ success: false, error: 'Description is required' });
+        return;
+      }
+
+      // Enrichment logic: append architectural filler, brevity boundaries, and voice pausing cues
+      const enrichedPrompt = `You are a professional voice AI assistant.
+Role description: ${description}
+
+CONVERSATIONAL RULES & VOICE METADATA:
+1. BREVITY BOUNDARIES: Keep answers strictly under 2 sentences. Never read raw bullet points or list items.
+2. VOICE PAUSING CUES: Pause slightly when introducing new topics. Use "..." or brief phrasing to give natural transitions.
+3. CONVERSATIONAL FILLERS: Speak naturally using polite fillers like "sure", "uh-huh", "got it" to sound human.
+4. TARGET REDIRECTS: If caller drifts off-topic, gently redirect them to the primary call objective.`;
+
+      res.json({
+        success: true,
+        data: {
+          prompt: enrichedPrompt,
+          model: 'gemini-2.0-flash',
+          voiceName: 'Puck',
+          temperature: 0.7,
+        }
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 /** GET /api/v2/agents — List all agents (isolated to the authenticated userId). */
 router.get(
   '/',
@@ -90,6 +126,7 @@ router.get(
         voiceName: agent.voiceName,
         temperature: agent.temperature,
         systemPrompt: agent.systemPrompt,
+        flowGraph: agent.flowGraph,
         agentConfig: agent.agentConfig,
         createdAt: agent.createdAt.toISOString(),
         updatedAt: agent.updatedAt.toISOString(),
@@ -145,6 +182,7 @@ router.get(
           voiceName: agent.voiceName,
           temperature: agent.temperature,
           systemPrompt: agent.systemPrompt,
+          flowGraph: agent.flowGraph,
           agentConfig: parsedConfig,
           tags: JSON.parse(agent.tags || '[]'),
           createdAt: agent.createdAt.toISOString(),
@@ -162,7 +200,7 @@ router.post(
   '/',
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, temperature, systemPrompt } = req.body;
+      const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, temperature, systemPrompt, flowGraph } = req.body;
 
       const newAgent = await prisma.agent.create({
         data: {
@@ -178,6 +216,7 @@ router.post(
           voiceName: voiceName || null,
           temperature: temperature !== undefined ? Number(temperature) : null,
           systemPrompt: systemPrompt || null,
+          flowGraph: flowGraph || null,
         },
       });
 
@@ -198,7 +237,7 @@ router.put(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const agentId = req.params.agentId as string;
-      const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, temperature, systemPrompt } = req.body;
+      const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, temperature, systemPrompt, flowGraph } = req.body;
 
       // Verify ownership before updating
       const exists = await prisma.agent.findFirst({
@@ -228,6 +267,7 @@ router.put(
           ...(voiceName !== undefined && { voiceName }),
           ...(temperature !== undefined && { temperature: temperature !== null ? Number(temperature) : null }),
           ...(systemPrompt !== undefined && { systemPrompt }),
+          ...(flowGraph !== undefined && { flowGraph }),
         },
       });
 
