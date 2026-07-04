@@ -38,9 +38,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 
-import { getBackendUrl } from '@/lib/api-client';
-
-const API_BASE_URL = getBackendUrl();
+const API_BASE_URL = 
+  process.env.NEXT_PUBLIC_API_URL || 
+  process.env.NEXT_PUBLIC_BACKEND_URL || 
+  (typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    ? 'http://localhost:3001'
+    : 'https://ai-voice-agent-backend-mv32.onrender.com');
 
 const getAuthHeaders = (additional: Record<string, string> = {}) => {
   return {
@@ -70,7 +73,11 @@ const secureFetch = async (url: string, options: RequestInit = {}) => {
   }
 };
 
-const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || 
+const WS_BASE_URL = 
+  process.env.NEXT_PUBLIC_WS_URL || 
+  (process.env.NEXT_PUBLIC_BACKEND_URL 
+    ? process.env.NEXT_PUBLIC_BACKEND_URL.replace(/^http/, 'ws') 
+    : null) || 
   (typeof window !== 'undefined' && window.location.hostname === 'localhost'
     ? 'ws://localhost:3001'
     : 'wss://ai-voice-agent-backend-mv32.onrender.com');

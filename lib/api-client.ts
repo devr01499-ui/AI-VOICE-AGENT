@@ -1,16 +1,22 @@
 import axios from 'axios';
 
 export const getBackendUrl = (): string => {
-  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-    return 'http://localhost:3001';
-  }
-  
-  // Primary choice: Vercel environment variable. Final absolute fallback: Live Render instance.
-  return process.env.NEXT_PUBLIC_BACKEND_URL || 'https://ai-voice-agent-backend-mv32.onrender.com';
+  return (
+    process.env.NEXT_PUBLIC_API_URL || 
+    process.env.NEXT_PUBLIC_BACKEND_URL || 
+    (typeof window !== 'undefined' && window.location.hostname === 'localhost'
+      ? 'http://localhost:3001'
+      : 'https://ai-voice-agent-backend-mv32.onrender.com')
+  );
 };
 
 const api = axios.create({
-  baseURL: getBackendUrl(),
+  baseURL: 
+    process.env.NEXT_PUBLIC_API_URL || 
+    process.env.NEXT_PUBLIC_BACKEND_URL || 
+    (typeof window !== 'undefined' && window.location.hostname === 'localhost'
+      ? 'http://localhost:3001'
+      : 'https://ai-voice-agent-backend-mv32.onrender.com'),
   headers: {
     'Content-Type': 'application/json',
   },
