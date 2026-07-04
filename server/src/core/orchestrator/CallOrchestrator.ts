@@ -139,7 +139,7 @@ export class CallOrchestrator {
         "Permit yourself to use occasional conversational fillers at the beginning of a sentence (e.g., 'Got it...', 'Ah, interesting...', 'Right...', 'Ok...'). " +
         "Use commas (,) and ellipsis (...) cleanly inside your replies to introduce natural micro-pauses so that the text-to-speech engine speaks with realistic breathing points and pitch changes.";
 
-      const voiceName = rawConfig.voice || rawConfig.voice_config?.voice || 'alloy';
+      const voiceName = agent.voiceName || rawConfig.voice || rawConfig.voice_config?.voice || 'alloy';
       const validVoices = ['alloy', 'echo', 'fable', 'onyx', 'shimmer', 'puck', 'charon', 'fenrir', 'kore', 'aoede'];
       if (!validVoices.includes(voiceName.toLowerCase())) {
         throw new Error(`Invalid voice: ${voiceName}. Must be one of: ${validVoices.join(', ')}`);
@@ -154,13 +154,13 @@ export class CallOrchestrator {
 
       // Build validated config
       agentConfig = {
-        prompt: rawConfig.prompt || rawConfig.system_prompt || defaultPrompt,
+        prompt: agent.systemPrompt || rawConfig.prompt || rawConfig.system_prompt || defaultPrompt,
         voice: voiceName,
         llm: {
           provider: llmProvider,
-          model: rawConfig.llm_config?.model || 
+          model: agent.model || rawConfig.llm_config?.model || 
             (llmProvider === 'gemini' ? 'gemini-2.0-flash' : 'gpt-4o-realtime-preview'),
-          temperature: rawConfig.temperature !== undefined ? Number(rawConfig.temperature) : (rawConfig.llm_config?.temperature !== undefined ? Number(rawConfig.llm_config.temperature) : undefined),
+          temperature: agent.temperature !== null && agent.temperature !== undefined ? Number(agent.temperature) : (rawConfig.temperature !== undefined ? Number(rawConfig.temperature) : (rawConfig.llm_config?.temperature !== undefined ? Number(rawConfig.llm_config.temperature) : undefined)),
         },
         tools: rawConfig.tools,
         knowledgeBaseIds: rawConfig.knowledgeBaseIds,

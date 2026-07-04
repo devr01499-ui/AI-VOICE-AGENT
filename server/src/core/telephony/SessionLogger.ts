@@ -1,3 +1,4 @@
+import { prisma } from '../../config/database';
 import { CallRepository } from '../../repositories/CallRepository';
 import { metricsCollector } from '../provider-sdk/provider.metrics';
 import { logger } from '../../utils/logger';
@@ -11,27 +12,32 @@ export class SessionLogger {
       const metrics = providerSessionId ? metricsCollector.getMetrics(providerSessionId) : null;
       
       const durationSeconds = metrics ? Math.round(metrics.sessionDurationMs / 1000) : 0;
+      const durationMinutes = durationSeconds / 60;
 
-      // Mock Cost Calculation: $0.0002 / second, plus $0.005 / token
-      const audioSeconds = durationSeconds;
       const inputTokens = metrics?.tokenUsage.inputTokens || 0;
       const outputTokens = metrics?.tokenUsage.outputTokens || 0;
       
-      const costAmount = (audioSeconds * 0.0002) + ((inputTokens + outputTokens) * 0.00005);
+      // Calculate costs based on the strict cost sheet
+      // Vobiz: 45 paise / minute
+      const vobizCost = 0.45 * durationMinutes;
+      // Gemini: weighted input/output tokens (paise conversion)
+      const geminiInputCost = inputTokens * 0.006;  // approx rate per token in paise
+      const geminiOutputCost = outputTokens * 0.025; // approx rate per token in paise
+      const totalCost = vobizCost + geminiInputCost + geminiOutputCost;
 
       const metadata = {
         reason,
         metrics: metrics || undefined,
-        costAmount,
+        costAmount: totalCost,
       };
 
       // 1. Update Execution table metadata
       await CallRepository.updateExecution(callId, {
         outcome: reason === 'completed' || reason === 'user_hangup' ? 'successful' : 'unsuccessful',
         costBreakdown: JSON.stringify({
-          telephonyCost: audioSeconds * 0.0001,
-          aiCost: (inputTokens + outputTokens) * 0.00005,
-          total: costAmount,
+          telephonyCost: vobizCost,
+          aiCost: geminiInputCost + geminiOutputCost,
+          total: totalCost,
         }),
         metadata: JSON.stringify(metadata),
       });
@@ -41,7 +47,48 @@ export class SessionLogger {
         durationSeconds,
       });
 
-      logger.info('SessionLogger: recorded session end results', { callId, durationSeconds, costAmount });
+      // 3. Atomically perform user-wise isolation and billing adjustments
+      const call = await prisma.call.findUnique({
+        where: { id: callId },
+        select: { userId: true },
+      });
+
+      if (call?.userId) {
+        await prisma.$transaction([
+          // Deduct net cost from billing balance
+          prisma.user.update({
+            where: { id: call.userId },
+            data: {
+              billingBalance: {
+                decrement: totalCost
+              }
+            }
+          }),
+          // Increment user analytics record
+          prisma.userAnalytics.upsert({
+            where: { userId: call.userId },
+            create: {
+              userId: call.userId,
+              totalCallsCreated: 1,
+              totalMinutesConsumed: durationMinutes,
+              aggregatedGeminiCost: geminiInputCost + geminiOutputCost,
+              aggregatedVobizCost: vobizCost,
+            },
+            update: {
+              totalCallsCreated: { increment: 1 },
+              totalMinutesConsumed: { increment: durationMinutes },
+              aggregatedGeminiCost: { increment: geminiInputCost + geminiOutputCost },
+              aggregatedVobizCost: { increment: vobizCost },
+            }
+          })
+        ]);
+        logger.info('SessionLogger: recorded user-wise session end results & balance deduction', { 
+          callId, 
+          userId: call.userId,
+          durationMinutes, 
+          totalCost 
+        });
+      }
 
     } catch (err) {
       logger.error('SessionLogger: failed to log call session metrics', {

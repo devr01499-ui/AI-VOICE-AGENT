@@ -15,13 +15,14 @@ datasource db {
 // ─────────────────────────────────────────────
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  fullName     String   @map("full_name")
-  accountType  String   @default("free") @map("account_type") // free | developer | professional | enterprise
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id             String   @id @default(uuid())
+  email          String   @unique
+  passwordHash   String   @map("password_hash")
+  fullName       String   @map("full_name")
+  accountType    String   @default("free") @map("account_type") // free | developer | professional | enterprise
+  billingBalance Float    @default(100.0) @map("billing_balance")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   apiKeys              ApiKey[]
   agents               Agent[]
@@ -32,6 +33,7 @@ model User {
   subAccounts          SubAccount[]
   webhooks             Webhook[]
   providerCredentials  ProviderCredential[]
+  userAnalytics        UserAnalytics?
 
   @@map("users")
 }
@@ -60,17 +62,22 @@ model ApiKey {
 // ─────────────────────────────────────────────
 
 model Agent {
-  id          String   @id @default(uuid())
-  userId      String   @map("user_id")
-  name        String
-  description String?
-  agentType   String   @default("conversational") @map("agent_type") // conversational | task_oriented
-  status      String   @default("draft") // draft | active | inactive
-  agentConfig String   @default("{}") @map("agent_config") // JSON: voice_config, llm_config, asr_config, etc.
-  version     Int      @default(1)
-  tags        String   @default("[]") // JSON array
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  name           String
+  description    String?
+  agentType      String   @default("conversational") @map("agent_type") // conversational | task_oriented
+  status         String   @default("draft") // draft | active | inactive
+  agentConfig    String   @default("{}") @map("agent_config") // JSON: voice_config, llm_config, asr_config, etc.
+  workspaceId    String?  @map("workspace_id")
+  model          String?
+  voiceName      String?  @map("voice_name")
+  temperature    Float?
+  systemPrompt   String?  @map("system_prompt")
+  version        Int      @default(1)
+  tags           String   @default("[]") // JSON array
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   versions       AgentVersion[]
@@ -79,6 +86,7 @@ model Agent {
   batches        Batch[]
   inboundConfigs InboundConfig[]
   voiceSessions  VoiceSession[]
+  callSessions   CallSession[]
 
   // Knowledge base relationships stored as JSON array of IDs in agentConfig
   // for simplicity — a proper join table can be added later.
@@ -475,4 +483,35 @@ model RuntimeMetric {
   @@index([callId])
   @@index([recordedAt])
   @@map("runtime_metrics")
+}
+
+model UserAnalytics {
+  id                    String   @id @default(uuid())
+  userId                String   @unique @map("user_id")
+  totalCallsCreated     Int      @default(0) @map("total_calls_created")
+  totalMinutesConsumed  Float    @default(0.0) @map("total_minutes_consumed")
+  aggregatedGeminiCost  Float    @default(0.0) @map("aggregated_gemini_cost")
+  aggregatedVobizCost   Float    @default(0.0) @map("aggregated_vobiz_cost")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_analytics")
+}
+
+model CallSession {
+  id             String    @id @default(uuid())
+  agentId        String    @map("agent_id")
+  callId         String    @unique @map("call_id")
+  status         String    @default("queued")
+  transcript     String    @default("[]") @map("transcript") // JSON array of timestamps and content
+  userSentiment  String?   @map("user_sentiment")
+  recordingUrl   String?   @map("recording_url")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  agent          Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@map("call_sessions")
 }

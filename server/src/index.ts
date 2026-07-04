@@ -195,6 +195,20 @@ async function bootstrap(): Promise<void> {
   try {
     await prisma.$connect();
     logger.info('Bolna Server: database connected');
+    
+    // Seed default workspace user to prevent multi-tenant lookups failing
+    await prisma.user.upsert({
+      where: { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' },
+      update: {},
+      create: {
+        id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+        email: 'devr01499@gmail.com',
+        fullName: 'Rohit Kumar Sha',
+        passwordHash: 'seeded-dev-hash-12345',
+        billingBalance: 1000.0, // Seed 1000 credits
+      }
+    });
+    logger.info('Bolna Server: Seeded dev workspace user devr01499@gmail.com ✓');
   } catch (err) {
     logger.error('Bolna Server: database connection failed', {
       error: err instanceof Error ? err.message : String(err),
