@@ -36,10 +36,7 @@ export default function DashboardLayout({
 
   // Navigation config matches the required system specification
   const navItems = [
-    { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { label: 'Agents Library', href: '/agents', icon: Bot },
-    { label: 'Test HR Agent', href: '/test-hr', icon: Sparkles },
-    { label: 'Templates Gallery', href: '/templates', icon: Layers },
     { label: 'Phone Numbers', href: '/phone-numbers', icon: PhoneCall },
     { label: 'Analytics', href: '/analytics', icon: BarChart3 },
     { label: 'Integrations', href: '/integrations', icon: Link2 },
@@ -48,9 +45,9 @@ export default function DashboardLayout({
 
   // Helper to render current breadcrumb label based on active route
   const getBreadcrumb = () => {
-    if (pathname === '/dashboard') return 'Dashboard';
-    const active = navItems.find((item) => item.href !== '/dashboard' && pathname.startsWith(item.href));
-    return active ? active.label : 'Dashboard';
+    if (pathname === '/agents') return 'Agents Library';
+    const active = navItems.find((item) => item.href !== '/agents' && pathname.startsWith(item.href));
+    return active ? active.label : 'Agents Library';
   };
 
   const activeUser = session?.user as any;
