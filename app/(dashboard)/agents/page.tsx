@@ -27,7 +27,10 @@ import {
   ArrowRight,
   Sparkles,
   Link2,
-  ShieldAlert
+  ShieldAlert,
+  Trash2,
+  Workflow,
+  MessageSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -44,10 +47,25 @@ const VOICE_MODELS = [
   { id: 'Kore', name: 'Kore (Calm)', desc: 'Soft gentle female' }
 ];
 
+interface FlowTransition {
+  condition: string;
+  targetId: string;
+}
+
+interface FlowNode {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  phoneNumber?: string;
+  transitions: FlowTransition[];
+}
+
 interface Agent {
   id: string;
   name: string;
   description: string;
+  agentType: string; // 'prompt' | 'flow'
   agentConfig: string; // JSON string
   temperature?: number;
   systemPrompt?: string;
@@ -65,22 +83,62 @@ interface Transcript {
 export default function AgentsPage() {
   const { data: session } = useSession();
 
-  // Agent attributes
+  // Agent type selector: 'prompt' vs 'flow'
+  const [agentMode, setAgentMode] = useState<'prompt' | 'flow'>('prompt');
+
+  // Agent core attributes
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
-  const [name, setName] = useState<string>('Delhi Intake Agent');
-  const [description, setDescription] = useState<string>('Handles multi-industry inquiries');
+  const [name, setName] = useState<string>('Delhi Office Receptionist');
+  const [description, setDescription] = useState<string>('Dynamic Multi-Industry Inquiries Router');
   const [selectedVoice, setSelectedVoice] = useState<string>('Puck');
   const [temperature, setTemperature] = useState<number>(0.7);
   const [instructions, setInstructions] = useState<string>(
     'You are Priya, a customer service assistant. You qualify caller requests, answer FAQs about products, and schedule follow-ups.'
   );
 
-  // Studio states
+  // Conversational Flow node canvas state
+  const [flowNodes, setFlowNodes] = useState<FlowNode[]>([
+    {
+      id: 'begin',
+      type: 'begin',
+      title: 'Begin Call',
+      message: 'Trigger Call Connection',
+      transitions: [{ condition: 'Handshake Success', targetId: 'welcome-node' }]
+    },
+    {
+      id: 'welcome-node',
+      type: 'conversation',
+      title: 'Welcome Node',
+      message: 'Hello! Thanks for calling customer support. How can I help you today?',
+      transitions: [
+        { condition: 'user wants to return package', targetId: 'transfer-support' },
+        { condition: 'user wants to speak with live representative', targetId: 'ending-node' }
+      ]
+    },
+    {
+      id: 'transfer-support',
+      type: 'call_transfer',
+      title: 'Transfer Call',
+      message: 'Sure, redirecting your call to our returns dispatch department.',
+      phoneNumber: '+919876543210',
+      transitions: []
+    },
+    {
+      id: 'ending-node',
+      type: 'ending',
+      title: 'Ending Node',
+      message: 'Thank you for your response. Have a great day!',
+      transitions: []
+    }
+  ]);
+  const [selectedNodeId, setSelectedNodeId] = useState<string>('welcome-node');
+
+  // Settings & tab controllers
   const [autoSchedule, setAutoSchedule] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>('agent-settings');
 
-  // Call states
+  // Telephony playground states
   const [phoneNumber, setPhoneNumber] = useState<string>('+919876543210');
   const [callStatus, setCallStatus] = useState<string>('idle');
   const [duration, setDuration] = useState<number>(0);
@@ -96,7 +154,15 @@ export default function AgentsPage() {
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const logEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Load agents on startup
+  // Auto compile flow-node structure to system instructions when nodes change
+  useEffect(() => {
+    if (agentMode === 'flow') {
+      const compiled = compileFlowToInstructions(flowNodes);
+      setInstructions(compiled);
+    }
+  }, [flowNodes, agentMode]);
+
+  // Load agents list on startup
   useEffect(() => {
     fetchAgents();
   }, []);
@@ -112,7 +178,7 @@ export default function AgentsPage() {
     return () => clearInterval(timer);
   }, [callStatus]);
 
-  // Scroll to log bottom on updates
+  // Scroll to transcript log bottom
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [transcripts]);
@@ -129,7 +195,6 @@ export default function AgentsPage() {
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
           setAgents(json.data);
-          // Auto select first agent if present
           if (json.data.length > 0 && !selectedAgentId) {
             loadAgentToForm(json.data[0]);
           }
@@ -144,13 +209,19 @@ export default function AgentsPage() {
     setSelectedAgentId(agent.id);
     setName(agent.name);
     setDescription(agent.description || '');
+    setAgentMode((agent.agentType === 'flow' ? 'flow' : 'prompt'));
     
-    // Attempt to extract configuration payload
     try {
       const config = JSON.parse(agent.agentConfig || '{}');
       setSelectedVoice(agent.voiceName || config.voiceName || 'Puck');
       setTemperature(agent.temperature ?? config.temperature ?? 0.7);
       setInstructions(agent.systemPrompt || config.systemPrompt || '');
+      
+      // Load flow nodes if saved in agentConfig
+      if (agent.agentType === 'flow' && config.flowNodes) {
+        setFlowNodes(config.flowNodes);
+      }
+      
       if (config.tools && Array.isArray(config.tools)) {
         setAutoSchedule(config.tools.some((t: any) => t.name === 'auto_schedule_calendar'));
       }
@@ -161,20 +232,70 @@ export default function AgentsPage() {
     }
   };
 
+  const compileFlowToInstructions = (nodes: FlowNode[]): string => {
+    let p = `You are ${name}, an advanced Conversational Voice AI agent executing a state machine graph flow.
+
+RULES:
+1. You must track your active node location in the state machine.
+2. The user will speak. You must listen, respond, and evaluate if their response matches any transitions from your current node.
+3. If a transition condition matches, change your current node and speak the output message of that new node.
+4. If a node requires tool execution (e.g. End Call, Call Transfer, In-Call SMS), execute that tool immediately.
+
+CURRENT GRAPH STATE MACHINE DETAILS:
+`;
+
+    for (const n of nodes) {
+      p += `\n- NODE [${n.id}] (${n.type})
+  Message/Speech: "${n.message}"`;
+      if (n.transitions.length > 0) {
+        p += `\n  Transitions:`;
+        for (const t of n.transitions) {
+          p += `\n    * If user intent matches: "${t.condition}" -> Transition to Node [${t.targetId}]`;
+        }
+      }
+    }
+
+    p += `\n\nTOOL EXECUTION PROTOCOLS:
+- If you transition to a node of type "ending", you must call the tool "hang_up()".
+- If you transition to a node of type "call_transfer", you must call the tool "transfer_call(phoneNumber: "${phoneNumber}")".
+- If you transition to a node of type "in_call_sms", you must call the tool "send_sms(phoneNumber: "${phoneNumber}", message: "transaction status update")".
+
+Begin at the Welcome Node (welcome-node).`;
+
+    return p;
+  };
+
   const handleCreateNew = () => {
     setSelectedAgentId('');
-    setName('New Multi-Industry Agent');
+    setName('New Custom Agent');
     setDescription('Intake, screening, scheduling operations');
     setSelectedVoice('Puck');
     setTemperature(0.7);
     setInstructions('You are Priya, a customer service assistant. You qualify caller requests, answer FAQs, and schedule bookings.');
+    setFlowNodes([
+      {
+        id: 'begin',
+        type: 'begin',
+        title: 'Begin Call',
+        message: 'Trigger Call Connection',
+        transitions: [{ condition: 'Handshake Success', targetId: 'welcome-node' }]
+      },
+      {
+        id: 'welcome-node',
+        type: 'conversation',
+        title: 'Welcome Node',
+        message: 'Hello! How can I help you today?',
+        transitions: []
+      }
+    ]);
+    setSelectedNodeId('welcome-node');
     setAutoSchedule(true);
   };
 
   const handleSaveAgent = async () => {
     setLoading(true);
     
-    // Setup target tools
+    // Tools schema compilation
     const tools = [];
     if (autoSchedule) {
       tools.push({
@@ -193,6 +314,7 @@ export default function AgentsPage() {
     const payload = {
       name,
       description,
+      agentType: agentMode,
       voiceName: selectedVoice,
       temperature,
       systemPrompt: instructions,
@@ -200,6 +322,7 @@ export default function AgentsPage() {
         voiceName: selectedVoice,
         temperature,
         systemPrompt: instructions,
+        flowNodes: agentMode === 'flow' ? flowNodes : undefined,
         tools
       })
     };
@@ -288,17 +411,9 @@ export default function AgentsPage() {
   const startCallMonitoring = (cId: string) => {
     stopCallMonitoring();
 
-    // 1. WebSocket stream subscription
     const wsUrl = `${WS_BASE_URL}/live-transcript?callId=${cId}`;
-    console.log('Connecting to WebSocket transcript stream:', wsUrl);
-    
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
-
-    ws.onopen = () => {
-      setWsConnected(true);
-      console.log('WebSocket stream established.');
-    };
 
     ws.onmessage = (event) => {
       try {
@@ -334,16 +449,10 @@ export default function AgentsPage() {
           ]);
         }
       } catch (e) {
-        console.error('Error parsing transcript websocket packet:', e);
+        console.error('Error parsing transcript:', e);
       }
     };
 
-    ws.onclose = () => {
-      setWsConnected(false);
-      console.log('WebSocket stream closed.');
-    };
-
-    // 2. HTTP Polling fallback for status updates
     pollRef.current = setInterval(async () => {
       try {
         const res = await fetch(`${API_BASE_URL}/api/v2/calls/${cId}`);
@@ -352,15 +461,13 @@ export default function AgentsPage() {
           if (json.success && json.data) {
             const status = json.data.status;
             setCallStatus(status);
-            
-            const terminalStates = ['completed', 'failed', 'no_answer', 'busy', 'cancelled'];
-            if (terminalStates.includes(status)) {
+            if (['completed', 'failed', 'no_answer', 'busy', 'cancelled'].includes(status)) {
               stopCallMonitoring();
             }
           }
         }
       } catch (e) {
-        console.error('Polling status error:', e);
+        console.error(e);
       }
     }, 1500);
   };
@@ -407,28 +514,110 @@ export default function AgentsPage() {
     }
   };
 
+  // Node adjustments
+  const handleUpdateNodeField = (field: keyof FlowNode, val: any) => {
+    setFlowNodes((prev) =>
+      prev.map((n) => (n.id === selectedNodeId ? { ...n, [field]: val } : n))
+    );
+  };
+
+  const handleAddNodeTransition = () => {
+    const active = flowNodes.find((n) => n.id === selectedNodeId);
+    if (!active) return;
+    
+    const updatedTransitions = [
+      ...active.transitions,
+      { condition: 'user says yes', targetId: 'ending-node' }
+    ];
+    handleUpdateNodeField('transitions', updatedTransitions);
+  };
+
+  const handleUpdateTransition = (idx: number, field: keyof FlowTransition, val: string) => {
+    const active = flowNodes.find((n) => n.id === selectedNodeId);
+    if (!active) return;
+    
+    const updatedTransitions = active.transitions.map((t, i) =>
+      i === idx ? { ...t, [field]: val } : t
+    );
+    handleUpdateNodeField('transitions', updatedTransitions);
+  };
+
+  const handleRemoveTransition = (idx: number) => {
+    const active = flowNodes.find((n) => n.id === selectedNodeId);
+    if (!active) return;
+    
+    const updatedTransitions = active.transitions.filter((_, i) => i !== idx);
+    handleUpdateNodeField('transitions', updatedTransitions);
+  };
+
+  const handleAddCanvasNode = (type: string) => {
+    const newId = `${type}-${Date.now()}`;
+    const newNode: FlowNode = {
+      id: newId,
+      type,
+      title: `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
+      message: type === 'ending' ? 'Thank you for your time. Goodbye!' : 'Message text template prompt...',
+      transitions: []
+    };
+    setFlowNodes((prev) => [...prev, newNode]);
+    setSelectedNodeId(newId);
+  };
+
+  const handleDeleteCanvasNode = (id: string) => {
+    if (id === 'begin' || id === 'welcome-node') {
+      showNotification('error', 'Cannot delete primary root nodes.');
+      return;
+    }
+    setFlowNodes((prev) => prev.filter((n) => n.id !== id));
+    setSelectedNodeId('welcome-node');
+  };
+
+  const activeNode = flowNodes.find((n) => n.id === selectedNodeId);
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-10 bg-white">
       
-      {/* Top Header Row */}
+      {/* Top Header Row with Mode Selector */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50 p-6 rounded-3xl border border-slate-200">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="p-2 bg-emerald-50 rounded-xl text-emerald-600 border border-emerald-200">
-              <Bot className="h-5 w-5" />
-            </span>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2 font-sans">
-                Voice Configuration Studio
-              </h1>
-              <p className="text-slate-500 text-xs mt-0.5">
-                Refactored visual pipeline manager. Syncs custom agent configuration directly to SQLite/Postgres.
-              </p>
-            </div>
+        <div className="flex items-center gap-3">
+          <span className="p-2 bg-emerald-555 rounded-2xl text-white">
+            <Workflow className="h-5 w-5" />
+          </span>
+          <div>
+            <h1 className="text-xl font-extrabold text-slate-800 tracking-tight flex items-center gap-2 font-sans">
+              Voice Agent Configuration Studio
+            </h1>
+            <p className="text-slate-500 text-xs mt-0.5">
+              Select your design mode: simple instructions prompt, or visual state transitions canvas flow.
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          {/* Method Selectors */}
+          <div className="flex border border-slate-200 bg-white p-1 rounded-xl">
+            <button
+              onClick={() => setAgentMode('prompt')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                agentMode === 'prompt' 
+                  ? 'bg-emerald-600 text-white shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Prompt-Based
+            </button>
+            <button
+              onClick={() => setAgentMode('flow')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                agentMode === 'flow' 
+                  ? 'bg-emerald-600 text-white shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Flow-Wise Canvas
+            </button>
+          </div>
+
           {agents.length > 0 && (
             <select
               value={selectedAgentId}
@@ -436,12 +625,12 @@ export default function AgentsPage() {
                 const found = agents.find((a) => a.id === e.target.value);
                 if (found) loadAgentToForm(found);
               }}
-              className="bg-white border border-slate-200 text-xs text-slate-700 rounded-xl px-3 py-2 outline-none focus:border-emerald-500 max-w-[200px] cursor-pointer"
+              className="bg-white border border-slate-200 text-xs text-slate-700 rounded-xl px-3 py-2 outline-none focus:border-emerald-500 max-w-[200px]"
             >
-              <option value="">-- Choose Agent Profiles --</option>
+              <option value="">-- Choose Profile --</option>
               {agents.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.name}
+                  {a.name} ({a.agentType})
                 </option>
               ))}
             </select>
@@ -457,407 +646,502 @@ export default function AgentsPage() {
         </div>
       </div>
 
-      {/* Floating Status Notification Toast */}
-      {message && (
-        <div className={`p-4 rounded-xl border flex items-center gap-3 text-xs leading-relaxed animate-fade-in ${
-          message.type === 'success'
-            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-            : 'bg-rose-50 border-rose-200 text-rose-800'
-        }`}>
-          <div className="w-2 h-2 rounded-full bg-current animate-ping shrink-0" />
-          <div className="flex-1">{message.text}</div>
-        </div>
-      )}
-
-      {/* THREE-PANEL RETELL STUDIO LAYOUT */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        
-        {/* PANEL 1: LEFT LAYOUT PANEL (Node Palette / Agent Details) - 3 cols */}
-        <div className="xl:col-span-3 space-y-6">
-          <Card className="border-slate-200 bg-white shadow-sm rounded-3xl overflow-hidden">
-            <CardHeader className="border-b border-slate-200 bg-slate-50/50 py-4 px-5">
-              <div className="flex items-center gap-2">
-                <Layers className="h-4 w-4 text-emerald-600" />
-                <CardTitle className="text-sm font-bold text-slate-800">Node Palette</CardTitle>
-              </div>
-              <CardDescription className="text-[10px]">Draggable pipeline assets.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-5 space-y-4">
+      {/* ──────────────────────────────────────────────────────── */}
+      {/* 1. SIMPLE PROMPT MODE VIEW                              */}
+      {/* ──────────────────────────────────────────────────────── */}
+      {agentMode === 'prompt' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-7 space-y-6">
+            <Card className="border-slate-200 bg-white shadow-sm rounded-3xl overflow-hidden">
+              <CardHeader className="border-b border-slate-200 bg-slate-50/50 py-4 px-6">
+                <CardTitle className="text-sm font-bold text-slate-855">Prompt-Based Profile Instructions</CardTitle>
+                <CardDescription className="text-xs text-slate-400">Configure global prompt instructions to direct conversational behaviors.</CardDescription>
+              </CardHeader>
               
-              <div className="space-y-2">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Dialogue Nodes</span>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-grab hover:bg-slate-100 transition-colors text-xs font-semibold text-slate-700">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                    <span>Conversation Nodes</span>
-                  </div>
-                  <div className="flex items-center gap-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-grab hover:bg-slate-100 transition-colors text-xs font-semibold text-slate-700">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                    <span>Subagents Node</span>
-                  </div>
-                  <div className="flex items-center gap-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-grab hover:bg-slate-100 transition-colors text-xs font-semibold text-slate-700">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                    <span>Custom Functions</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Routing Nodes</span>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-grab hover:bg-slate-100 transition-colors text-xs font-semibold text-slate-700">
-                    <div className="w-1.5 h-1.5 rounded-full bg-amber-600" />
-                    <span>Call Transfers</span>
-                  </div>
-                  <div className="flex items-center gap-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-grab hover:bg-slate-100 transition-colors text-xs font-semibold text-slate-700">
-                    <div className="w-1.5 h-1.5 rounded-full bg-amber-600" />
-                    <span>Logic Splits</span>
-                  </div>
-                  <div className="flex items-center gap-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-grab hover:bg-slate-100 transition-colors text-xs font-semibold text-slate-700">
-                    <div className="w-1.5 h-1.5 rounded-full bg-amber-600" />
-                    <span>Variable Extraction</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Analytical metrics card */}
-              <div className="p-4 bg-emerald-50/40 border border-emerald-250/50 rounded-2xl space-y-2 mt-4">
-                <span className="text-[9px] font-bold text-emerald-800 uppercase tracking-wider block">Edge Telemetry</span>
-                <div className="space-y-1 text-xs">
-                  <div className="flex justify-between font-semibold text-slate-700">
-                    <span>Session Cost:</span>
-                    <span className="text-emerald-700">$0.11/min</span>
-                  </div>
-                  <div className="flex justify-between font-semibold text-slate-700">
-                    <span>Playout Latency:</span>
-                    <span className="text-emerald-700">970-1450ms</span>
-                  </div>
-                </div>
-              </div>
-
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* PANEL 2: CENTER CANVAS PANEL (Visual Flow Workspace) - 5 cols */}
-        <div className="xl:col-span-5 space-y-6">
-          <Card className="border-slate-200 bg-white shadow-sm rounded-3xl overflow-hidden min-h-[500px] flex flex-col justify-between">
-            <CardHeader className="border-b border-slate-200 bg-slate-50/50 py-4 px-5">
-              <div className="flex items-center gap-2">
-                <GitBranch className="h-4 w-4 text-emerald-600" />
-                <CardTitle className="text-sm font-bold text-slate-800">Visual Flow Workspace</CardTitle>
-              </div>
-              <CardDescription className="text-[10px]">Interactable conversation routing graph.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-6 flex-1 flex flex-col items-center justify-center relative bg-slate-50/20">
-              
-              {/* Graphic Flow Representation */}
-              <div className="w-full max-w-xs space-y-12 relative flex flex-col items-center py-6">
-                
-                {/* SVG Connections */}
-                <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-between py-10 z-0">
-                  <svg className="w-full h-full text-slate-300" viewBox="0 0 100 240" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <line x1="50" y1="20" x2="50" y2="85" stroke="currentColor" strokeWidth="2" strokeDasharray="4 4" />
-                    <line x1="50" y1="120" x2="50" y2="185" stroke="currentColor" strokeWidth="2" strokeDasharray="4 4" />
-                  </svg>
-                </div>
-
-                {/* Begin Node */}
-                <div className="relative z-10 w-40 bg-white border border-slate-200 px-4 py-2.5 rounded-xl shadow-sm text-center">
-                  <div className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest mb-0.5">Start</div>
-                  <div className="text-xs font-bold text-slate-800">Begin Call</div>
-                </div>
-
-                {/* Welcome Node containing Greeting */}
-                <div className="relative z-10 w-48 bg-white border border-emerald-455 px-4 py-3 rounded-2xl shadow-sm space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-bold text-emerald-700 uppercase tracking-widest">Greeting Node</span>
-                    <Sparkles className="h-3 w-3 text-emerald-600" />
-                  </div>
-                  <div className="text-[10px] text-slate-500 font-medium leading-relaxed bg-slate-50 p-2 rounded-lg border border-slate-200">
-                    "Hi! I'm Priya. How can I help you today?"
-                  </div>
-                </div>
-
-                {/* End Call Node */}
-                <div className="relative z-10 w-40 bg-white border border-slate-200 px-4 py-2.5 rounded-xl shadow-sm text-center">
-                  <div className="text-[9px] font-bold text-rose-600 uppercase tracking-widest mb-0.5">Termination</div>
-                  <div className="text-xs font-bold text-slate-800">End Call</div>
-                </div>
-
-              </div>
-
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* PANEL 3: RIGHT SETTINGS PANEL (Global Setting System Tab Accordion) - 4 cols */}
-        <div className="xl:col-span-4 space-y-6">
-          <Card className="border-slate-200 bg-white shadow-sm rounded-3xl overflow-hidden">
-            
-            {/* Header Accordion Links */}
-            <div className="border-b border-slate-200 bg-slate-50/50 flex text-center text-xs">
-              <button 
-                onClick={() => setActiveTab('agent-settings')}
-                className={`flex-1 py-3.5 font-bold transition-all border-b-2 ${
-                  activeTab === 'agent-settings' 
-                    ? 'border-emerald-600 text-emerald-700 bg-white' 
-                    : 'border-transparent text-slate-500 hover:text-slate-855'
-                }`}
-              >
-                Configuration
-              </button>
-              <button 
-                onClick={() => setActiveTab('playground')}
-                className={`flex-1 py-3.5 font-bold transition-all border-b-2 ${
-                  activeTab === 'playground' 
-                    ? 'border-emerald-600 text-emerald-700 bg-white' 
-                    : 'border-transparent text-slate-500 hover:text-slate-855'
-                }`}
-              >
-                Testing Dialer
-              </button>
-            </div>
-
-            {/* TAB CONTENT: Agent Settings / Speech Config */}
-            {activeTab === 'agent-settings' && (
               <CardContent className="p-6 space-y-5">
-                
-                {/* Agent settings */}
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Agent Name</label>
-                    <Input 
-                      value={name} 
-                      onChange={(e) => setName(e.target.value)}
-                      className="bg-white border-slate-200 focus-visible:ring-emerald-500 text-xs text-slate-855 rounded-xl"
-                    />
+                    <Input value={name} onChange={(e) => setName(e.target.value)} className="bg-white border-slate-200 rounded-xl focus-visible:ring-emerald-500 text-xs" />
                   </div>
-                  
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Agent Subtitle</label>
-                    <Input 
-                      value={description} 
-                      onChange={(e) => setDescription(e.target.value)}
-                      className="bg-white border-slate-200 focus-visible:ring-emerald-500 text-xs text-slate-855 rounded-xl"
-                    />
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Description</label>
+                    <Input value={description} onChange={(e) => setDescription(e.target.value)} className="bg-white border-slate-200 rounded-xl focus-visible:ring-emerald-500 text-xs" />
                   </div>
-
-                  {/* Speech Settings: Voice Models selection */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Voice Models</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {VOICE_MODELS.map((model) => {
-                        const isSelected = selectedVoice.toLowerCase() === model.id.toLowerCase();
-                        return (
-                          <div
-                            key={model.id}
-                            onClick={() => setSelectedVoice(model.id)}
-                            className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all duration-200 flex flex-col justify-between ${
-                              isSelected 
-                                ? 'bg-emerald-50/50 border-emerald-500 text-emerald-800 font-bold scale-[1.01]' 
-                                : 'bg-white border-slate-200 hover:border-slate-355 text-slate-600 hover:text-slate-800'
-                            }`}
-                          >
-                            <span className="text-xs font-bold block truncate">{model.id}</span>
-                            <span className="text-[9px] text-slate-400 block truncate">{model.name}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Temperature slider */}
-                  <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">LLM Temperature</span>
-                      <span className="text-emerald-700 font-mono font-bold">{temperature.toFixed(1)}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-[10px] text-slate-400 font-mono">0.0</span>
-                      <input
-                        type="range"
-                        min="0.0"
-                        max="2.0"
-                        step="0.1"
-                        value={temperature}
-                        onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600 focus:outline-none"
-                      />
-                      <span className="text-[10px] text-slate-400 font-mono">2.0</span>
-                    </div>
-                  </div>
-
-                  {/* System instruction textarea */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">System Instructions</label>
-                    <textarea
-                      value={instructions}
-                      onChange={(e) => setInstructions(e.target.value)}
-                      rows={6}
-                      className="w-full rounded-xl border border-slate-200 bg-white text-xs text-slate-700 p-3 outline-none focus:border-emerald-500 transition-colors font-mono resize-none stable-scrollbar"
-                    />
-                  </div>
-
-                  {/* Auto Schedule Switch */}
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <span className="text-xs font-bold text-slate-700 flex items-center gap-1">
-                        <Calendar className="h-3.5 w-3.5 text-emerald-600" /> Auto-Schedule Calendar Tool
-                      </span>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={autoSchedule}
-                        onChange={(e) => setAutoSchedule(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:border-slate-400 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
-                    </label>
-                  </div>
-
-                  {/* Save Trigger Button */}
-                  <Button
-                    onClick={handleSaveAgent}
-                    disabled={loading}
-                    className="w-full bg-emerald-600 hover:bg-emerald-555 text-white font-semibold py-5 rounded-2xl text-xs tracking-wider uppercase transition-all shadow-sm flex justify-center items-center gap-1.5"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" /> Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4" /> Save Configuration
-                      </>
-                    )}
-                  </Button>
-
                 </div>
 
-              </CardContent>
-            )}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Voice Models Selection</label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {VOICE_MODELS.map((model) => {
+                      const isSelected = selectedVoice.toLowerCase() === model.id.toLowerCase();
+                      return (
+                        <div
+                          key={model.id}
+                          onClick={() => setSelectedVoice(model.id)}
+                          className={`p-3 rounded-xl border cursor-pointer text-left transition-all ${
+                            isSelected ? 'bg-emerald-50/40 border-emerald-500 text-emerald-800 font-bold' : 'bg-white border-slate-200 text-slate-500'
+                          }`}
+                        >
+                          <span className="text-xs font-bold block truncate">{model.id}</span>
+                          <span className="text-[9px] text-slate-400 block truncate">{model.name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
 
-            {/* TAB CONTENT: Testing Dialer Playground */}
-            {activeTab === 'playground' && (
+                <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                  <div className="flex justify-between items-center text-xs mb-1">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">LLM Temperature</span>
+                    <span className="text-emerald-700 font-mono font-bold">{temperature.toFixed(1)}</span>
+                  </div>
+                  <input
+                    type="range" min="0.0" max="2.0" step="0.1"
+                    value={temperature} onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                    className="w-full accent-emerald-600"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Prompt Instructions Script</label>
+                  <textarea
+                    value={instructions} onChange={(e) => setInstructions(e.target.value)} rows={8}
+                    className="w-full rounded-xl border border-slate-200 bg-white text-xs p-4 outline-none focus:border-emerald-500 font-mono resize-none stable-scrollbar"
+                  />
+                </div>
+
+                <Button onClick={handleSaveAgent} disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-555 text-white font-bold py-5 rounded-2xl text-xs uppercase tracking-widest shadow-sm">
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Save className="h-4 w-4 mr-1.5" />}
+                  Save Prompt Agent
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="lg:col-span-5 space-y-6">
+            {/* Play Dialer Playground */}
+            <Card className="border-slate-200 bg-white shadow-sm rounded-3xl overflow-hidden">
+              <CardHeader className="border-b border-slate-200 bg-slate-50/50 py-4 px-6">
+                <CardTitle className="text-sm font-bold text-slate-800">Testing Dialer Playground</CardTitle>
+              </CardHeader>
               <CardContent className="p-6 space-y-4">
-                
-                {/* Phone playground dialer */}
                 <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Telephony Dialer (E.164)</label>
                   <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Input
-                        type="tel"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        placeholder="+919876543210"
-                        className="pl-9 bg-white border-slate-200 text-xs text-slate-800 rounded-xl focus-visible:ring-emerald-500 focus-visible:ring-offset-0 focus-visible:border-emerald-500"
-                      />
-                      <Phone className="h-3.5 w-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    </div>
-
+                    <Input type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} className="bg-white border-slate-200 rounded-xl text-xs" />
                     {['initiating', 'ringing', 'connected', 'in_progress'].includes(callStatus) ? (
-                      <Button
-                        onClick={handleHangUp}
-                        variant="destructive"
-                        className="bg-rose-600 hover:bg-rose-500 text-white text-xs px-4 rounded-xl"
-                      >
-                        <PhoneOff className="h-4 w-4" />
-                      </Button>
+                      <Button onClick={handleHangUp} variant="destructive" className="bg-rose-600 hover:bg-rose-500 rounded-xl px-4"><PhoneOff className="h-4 w-4" /></Button>
                     ) : (
-                      <Button
-                        onClick={handleInitiateCall}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-4 font-bold rounded-xl"
-                      >
-                        <Phone className="h-3.5 w-3.5 mr-1" /> Call
-                      </Button>
+                      <Button onClick={handleInitiateCall} className="bg-emerald-600 hover:bg-emerald-500 rounded-xl px-4"><Phone className="h-4 w-4 mr-1" /> Call</Button>
                     )}
                   </div>
                 </div>
 
-                {/* Live transcript status bar */}
                 <div className={`p-3 rounded-xl border text-xs flex items-center justify-between transition-all ${getStatusColor(callStatus)}`}>
-                  <div className="flex items-center gap-2 font-semibold">
-                    <div className={`w-2 h-2 rounded-full bg-current ${['initiating', 'ringing', 'connected', 'in_progress'].includes(callStatus) ? 'animate-ping' : ''}`} />
-                    <span>{getStatusLabel(callStatus)}</span>
-                  </div>
-                  {['connected', 'in_progress'].includes(callStatus) && (
-                    <span className="font-mono text-slate-800 tracking-widest">{formatSecToTime(duration)}</span>
-                  )}
+                  <span className="font-semibold">{getStatusLabel(callStatus)}</span>
+                  {['connected', 'in_progress'].includes(callStatus) && <span className="font-mono text-slate-800">{formatSecToTime(duration)}</span>}
                 </div>
 
-                {/* Live Log Monitor */}
-                <div className="space-y-1.5 pt-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                    <Activity className="h-3.5 w-3.5 text-emerald-600 animate-pulse" /> Live Speech Transcript Monitor
-                  </label>
-                  <div className="h-72 rounded-2xl border border-slate-200 bg-white p-4 overflow-y-auto space-y-3.5 stable-scrollbar">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Live speech timeline</label>
+                  <div className="h-64 rounded-2xl border border-slate-200 bg-white p-4 overflow-y-auto space-y-3 stable-scrollbar">
                     {transcripts.length === 0 ? (
-                      <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400 space-y-2">
-                        {['initiating', 'ringing', 'connected', 'in_progress'].includes(callStatus) ? (
-                          <>
-                            <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
-                            <span className="text-xs font-semibold text-slate-500">Awaiting audio delta stream...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Volume2 className="h-5 w-5 text-slate-300" />
-                            <span className="text-xs font-semibold">No active call transcript.</span>
-                          </>
-                        )}
-                      </div>
+                      <div className="h-full flex items-center justify-center text-slate-400 text-xs">No active logs. Click call to test.</div>
                     ) : (
-                      transcripts.map((t) => {
-                        if (t.speaker === 'system') {
-                          return (
-                            <div key={t.id} className="flex justify-center my-2">
-                              <span className="px-3 py-1 bg-amber-50 border border-amber-250 text-amber-800 text-[10px] font-semibold rounded-full flex items-center gap-1">
-                                <AlertTriangle className="h-3 w-3 shrink-0" />
-                                {t.text}
-                              </span>
-                            </div>
-                          );
-                        }
-                        const isAgent = t.speaker === 'agent';
-                        return (
-                          <div
-                            key={t.id}
-                            className={`flex items-end gap-2.5 max-w-[85%] animate-fade-in ${
-                              isAgent ? 'mr-auto' : 'ml-auto flex-row-reverse'
-                            }`}
-                          >
-                            <div className={`h-7 w-7 rounded-full border flex items-center justify-center shrink-0 ${
-                              isAgent 
-                                ? 'bg-slate-100 border-slate-200 text-slate-600' 
-                                : 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                            }`}>
-                              {isAgent ? <Bot className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
-                            </div>
-                            
-                            <div className={`rounded-xl px-3.5 py-2 border text-xs leading-relaxed ${
-                              isAgent
-                                ? 'bg-slate-55 bg-slate-50 border-slate-200 text-slate-700 rounded-bl-none'
-                                : 'bg-emerald-50/50 border-emerald-250 text-emerald-800 rounded-br-none shadow-sm'
-                            }`}>
-                              <p>{t.text}</p>
-                            </div>
-                          </div>
-                        );
-                      })
+                      transcripts.map((t) => (
+                        <div key={t.id} className={`flex max-w-[85%] ${t.speaker === 'agent' ? 'mr-auto' : 'ml-auto flex-row-reverse'}`}>
+                          <div className={`rounded-xl px-3 py-2 border text-xs ${t.speaker === 'agent' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-emerald-50 border-emerald-250 text-emerald-800'}`}>{t.text}</div>
+                        </div>
+                      ))
                     )}
                     <div ref={logEndRef} />
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────────────────────────────────────────────── */}
+      {/* 2. CONVERSATIONAL FLOW VISUAL CANVAS MODE VIEW          */}
+      {/* ──────────────────────────────────────────────────────── */}
+      {agentMode === 'flow' && (
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+          
+          {/* PANEL 1: LEFT LAYOUT PANEL (Node Palette / Agent Details) */}
+          <div className="xl:col-span-3 space-y-6">
+            <Card className="border-slate-200 bg-white shadow-sm rounded-3xl overflow-hidden">
+              <CardHeader className="border-b border-slate-200 bg-slate-50/50 py-4 px-5">
+                <div className="flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-emerald-600" />
+                  <CardTitle className="text-xs font-bold text-slate-800">Node Palette</CardTitle>
+                </div>
+                <CardDescription className="text-[10px]">Click list items to insert blocks onto canvas.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 space-y-3.5">
+                
+                {/* Node insertion triggers */}
+                <div className="space-y-1.5">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Dialogue Nodes</span>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    <button onClick={() => handleAddCanvasNode('conversation')} className="flex items-center gap-2 p-2.5 bg-slate-50 border border-slate-200 hover:border-emerald-500 rounded-xl text-left text-[11px] font-semibold text-slate-700 transition-all">
+                      <MessageSquare className="h-3.5 w-3.5 text-emerald-600" /> Conversation
+                    </button>
+                    <button onClick={() => handleAddCanvasNode('subagent')} className="flex items-center gap-2 p-2.5 bg-slate-50 border border-slate-200 hover:border-emerald-500 rounded-xl text-left text-[11px] font-semibold text-slate-700 transition-all">
+                      <Bot className="h-3.5 w-3.5 text-emerald-600" /> Subagent
+                    </button>
+                    <button onClick={() => handleAddCanvasNode('function')} className="flex items-center gap-2 p-2.5 bg-slate-50 border border-slate-200 hover:border-emerald-500 rounded-xl text-left text-[11px] font-semibold text-slate-700 transition-all">
+                      <Cpu className="h-3.5 w-3.5 text-emerald-600" /> Function
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Routing Tools</span>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    <button onClick={() => handleAddCanvasNode('call_transfer')} className="flex items-center gap-2 p-2.5 bg-slate-50 border border-slate-200 hover:border-emerald-500 rounded-xl text-left text-[11px] font-semibold text-slate-700 transition-all">
+                      <Phone className="h-3.5 w-3.5 text-amber-600" /> Call Transfer
+                    </button>
+                    <button onClick={() => handleAddCanvasNode('in_call_sms')} className="flex items-center gap-2 p-2.5 bg-slate-50 border border-slate-200 hover:border-emerald-500 rounded-xl text-left text-[11px] font-semibold text-slate-700 transition-all">
+                      <Volume2 className="h-3.5 w-3.5 text-amber-600" /> In-Call SMS
+                    </button>
+                    <button onClick={() => handleAddCanvasNode('ending')} className="flex items-center gap-2 p-2.5 bg-slate-50 border border-slate-200 hover:border-emerald-500 rounded-xl text-left text-[11px] font-semibold text-slate-700 transition-all">
+                      <GitBranch className="h-3.5 w-3.5 text-rose-600" /> Ending Node
+                    </button>
+                  </div>
+                </div>
+
+                {/* Telemetry footer */}
+                <div className="p-3 bg-emerald-50/40 border border-emerald-250/50 rounded-2xl space-y-1 mt-2 text-[11px]">
+                  <span className="text-[9px] font-bold text-emerald-800 uppercase tracking-wider block">Flow Telemetry</span>
+                  <div className="flex justify-between font-semibold text-slate-600">
+                    <span>Cost:</span>
+                    <span className="text-emerald-700">$0.11/min</span>
+                  </div>
+                  <div className="flex justify-between font-semibold text-slate-600">
+                    <span>Latency:</span>
+                    <span className="text-emerald-700">970-1450ms</span>
+                  </div>
+                  <div className="flex justify-between font-semibold text-slate-600">
+                    <span>Tokens:</span>
+                    <span className="text-emerald-700">834 - 834</span>
+                  </div>
+                </div>
 
               </CardContent>
-            )}
+            </Card>
+          </div>
 
-          </Card>
+          {/* PANEL 2: CENTER CANVAS PANEL (Visual Flow Workspace) */}
+          <div className="xl:col-span-5 space-y-6">
+            <Card className="border-slate-200 bg-white shadow-sm rounded-3xl overflow-hidden min-h-[550px] flex flex-col justify-between relative bg-slate-50/15">
+              <CardHeader className="border-b border-slate-200 bg-slate-50/50 py-4 px-5 z-10 shrink-0">
+                <div className="flex items-center gap-2">
+                  <Workflow className="h-4 w-4 text-emerald-600" />
+                  <CardTitle className="text-xs font-bold text-slate-800">Visual Flow Workspace</CardTitle>
+                </div>
+              </CardHeader>
+              
+              <CardContent className="p-6 flex-1 flex flex-col items-center overflow-y-auto space-y-8 relative py-12">
+                
+                {/* SVG link lines between flow elements */}
+                <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-between py-12 z-0">
+                  <svg className="w-full h-full text-slate-200" viewBox="0 0 100 350" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <line x1="50" y1="20" x2="50" y2="330" stroke="currentColor" strokeWidth="2.5" strokeDasharray="5 5" />
+                  </svg>
+                </div>
+
+                {flowNodes.map((node) => {
+                  const isSelected = selectedNodeId === node.id;
+                  let nodeColor = 'border-slate-200 bg-white';
+                  if (node.type === 'begin') nodeColor = 'border-emerald-200 bg-emerald-50/30 text-emerald-800';
+                  else if (node.type === 'ending') nodeColor = 'border-rose-250 bg-rose-50/30 text-rose-800';
+                  else if (node.type === 'call_transfer') nodeColor = 'border-amber-250 bg-amber-50/30 text-amber-800';
+
+                  return (
+                    <div
+                      key={node.id}
+                      onClick={() => setSelectedNodeId(node.id)}
+                      className={`w-64 border rounded-2xl p-4 shadow-sm relative z-10 cursor-pointer transition-all ${
+                        isSelected 
+                          ? 'border-emerald-500 scale-[1.02] ring-2 ring-emerald-500/10' 
+                          : 'hover:border-slate-350'
+                      } ${nodeColor}`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[9px] font-bold uppercase tracking-widest block opacity-75">{node.type}</span>
+                        <div className="flex items-center gap-1">
+                          {node.type !== 'begin' && node.type !== 'welcome-node' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteCanvasNode(node.id);
+                              }}
+                              className="text-slate-400 hover:text-rose-600 transition-colors"
+                              title="Delete Node"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                          <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-emerald-600 animate-pulse' : 'bg-slate-300'}`} />
+                        </div>
+                      </div>
+                      <h4 className="text-xs font-bold text-slate-800">{node.title}</h4>
+                      <p className="text-[10px] text-slate-500 truncate mt-1 leading-normal">
+                        {node.message}
+                      </p>
+                      
+                      {node.transitions.length > 0 && (
+                        <div className="mt-2.5 pt-2 border-t border-slate-100 space-y-1">
+                          <span className="text-[8px] font-bold text-slate-400 uppercase block tracking-wider">Transitions</span>
+                          {node.transitions.map((t, idx) => (
+                            <div key={idx} className="flex justify-between items-center text-[9px] bg-slate-50 px-2 py-0.5 rounded border text-slate-500">
+                              <span className="truncate max-w-[120px]">{t.condition}</span>
+                              <ChevronRight className="h-3 w-3 shrink-0" />
+                              <span className="font-bold truncate max-w-[60px]">{t.targetId}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* PANEL 3: RIGHT SETTINGS PANEL (Global Setting System Tab Accordion) */}
+          <div className="xl:col-span-4 space-y-6">
+            <Card className="border-slate-200 bg-white shadow-sm rounded-3xl overflow-hidden">
+              
+              {/* Selector links */}
+              <div className="border-b border-slate-200 bg-slate-50/50 flex text-center text-xs">
+                <button
+                  onClick={() => setActiveTab('node-settings')}
+                  className={`flex-1 py-3.5 font-bold transition-all border-b-2 ${
+                    activeTab === 'node-settings' 
+                      ? 'border-emerald-600 text-emerald-700 bg-white' 
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Node Settings
+                </button>
+                <button
+                  onClick={() => setActiveTab('global-settings')}
+                  className={`flex-1 py-3.5 font-bold transition-all border-b-2 ${
+                    activeTab === 'global-settings' 
+                      ? 'border-emerald-600 text-emerald-700 bg-white' 
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Global Settings
+                </button>
+                <button
+                  onClick={() => setActiveTab('flow-playground')}
+                  className={`flex-1 py-3.5 font-bold transition-all border-b-2 ${
+                    activeTab === 'flow-playground' 
+                      ? 'border-emerald-600 text-emerald-700 bg-white' 
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Playground Test
+                </button>
+              </div>
+
+              {/* TAB: Node Editor Settings */}
+              {activeTab === 'node-settings' && (
+                <CardContent className="p-5 space-y-4">
+                  {activeNode ? (
+                    <div className="space-y-4">
+                      <div className="pb-3 border-b border-slate-100">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Active Selection</span>
+                        <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                          <Bot className="h-4.5 w-4.5 text-emerald-600" /> {activeNode.title}
+                        </h3>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Node Title</label>
+                        <Input
+                          value={activeNode.title}
+                          onChange={(e) => handleUpdateNodeField('title', e.target.value)}
+                          className="bg-white border-slate-200 text-xs rounded-xl"
+                        />
+                      </div>
+
+                      {activeNode.type === 'call_transfer' && (
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Transfer Phone Number</label>
+                          <Input
+                            value={activeNode.phoneNumber || ''}
+                            onChange={(e) => handleUpdateNodeField('phoneNumber', e.target.value)}
+                            className="bg-white border-slate-200 text-xs rounded-xl font-mono"
+                          />
+                        </div>
+                      )}
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Message Speech Text</label>
+                        <textarea
+                          value={activeNode.message}
+                          onChange={(e) => handleUpdateNodeField('message', e.target.value)}
+                          rows={4}
+                          className="w-full rounded-xl border border-slate-200 bg-white text-xs p-3 outline-none focus:border-emerald-500 font-mono resize-none stable-scrollbar"
+                        />
+                      </div>
+
+                      {/* Transitions editor */}
+                      <div className="space-y-3 pt-3 border-t border-slate-100">
+                        <div className="flex justify-between items-center">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Outbound Transitions</label>
+                          {activeNode.type !== 'ending' && activeNode.type !== 'call_transfer' && (
+                            <button
+                              onClick={handleAddNodeTransition}
+                              className="text-[10px] text-emerald-700 hover:underline font-bold"
+                            >
+                              + Add Link
+                            </button>
+                          )}
+                        </div>
+
+                        {activeNode.transitions.length === 0 ? (
+                          <div className="text-[10px] text-slate-400 italic bg-slate-50 p-3 rounded-xl text-center">No transitions linked. Node terminates conversation or loops back.</div>
+                        ) : (
+                          <div className="space-y-2.5">
+                            {activeNode.transitions.map((t, idx) => (
+                              <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 relative">
+                                <button
+                                  onClick={() => handleRemoveTransition(idx)}
+                                  className="absolute right-2 top-2 text-slate-455 hover:text-rose-600 transition-colors"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+
+                                <div className="space-y-1">
+                                  <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block">Conditional Intent (NLP Match)</span>
+                                  <Input
+                                    value={t.condition}
+                                    onChange={(e) => handleUpdateTransition(idx, 'condition', e.target.value)}
+                                    className="bg-white border-slate-200 text-xs h-7 rounded-lg"
+                                  />
+                                </div>
+
+                                <div className="space-y-1">
+                                  <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block">Target Node Destination</span>
+                                  <select
+                                    value={t.targetId}
+                                    onChange={(e) => handleUpdateTransition(idx, 'targetId', e.target.value)}
+                                    className="bg-white border border-slate-200 text-[10px] text-slate-700 rounded-lg px-2 py-1 outline-none w-full"
+                                  >
+                                    {flowNodes.map((fn) => (
+                                      <option key={fn.id} value={fn.id}>
+                                        {fn.title} ({fn.type})
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
+                  ) : (
+                    <div className="text-slate-400 text-xs text-center py-10">Select a node block from visual workspace to edit its values.</div>
+                  )}
+                </CardContent>
+              )}
+
+              {/* TAB: Global Settings / System Prompt compilations */}
+              {activeTab === 'global-settings' && (
+                <CardContent className="p-5 space-y-4">
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Agent Name</label>
+                      <Input value={name} onChange={(e) => setName(e.target.value)} className="bg-white border-slate-200 text-xs rounded-xl" />
+                    </div>
+
+                    <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Voice Settings</label>
+                      <select
+                        value={selectedVoice}
+                        onChange={(e) => setSelectedVoice(e.target.value)}
+                        className="bg-white border border-slate-200 text-xs text-slate-700 rounded-xl px-3 py-2 outline-none w-full cursor-pointer"
+                      >
+                        {VOICE_MODELS.map((m) => (
+                          <option key={m.id} value={m.id}>{m.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Compiled system instructions preview */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Compiled State Graph Prompt</label>
+                      <textarea
+                        value={instructions}
+                        readOnly
+                        rows={8}
+                        className="w-full rounded-xl border border-slate-250 bg-slate-50 text-[10px] p-3 outline-none font-mono resize-none stable-scrollbar leading-relaxed text-slate-500"
+                        title="Auto-compiled prompt schema"
+                      />
+                    </div>
+
+                    {/* Save Button */}
+                    <Button onClick={handleSaveAgent} disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-555 text-white font-bold py-5 rounded-2xl text-xs uppercase tracking-widest shadow-sm">
+                      {loading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Save className="h-4 w-4 mr-1.5" />}
+                      Save Flow Graph
+                    </Button>
+                  </div>
+                </CardContent>
+              )}
+
+              {/* TAB: Playground */}
+              {activeTab === 'flow-playground' && (
+                <CardContent className="p-5 space-y-4">
+                  <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Telephony Dialer (E.164)</label>
+                    <div className="flex gap-2">
+                      <Input type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} className="bg-white border-slate-200 rounded-xl text-xs" />
+                      {['initiating', 'ringing', 'connected', 'in_progress'].includes(callStatus) ? (
+                        <Button onClick={handleHangUp} variant="destructive" className="bg-rose-600 hover:bg-rose-500 rounded-xl px-4"><PhoneOff className="h-4 w-4" /></Button>
+                      ) : (
+                        <Button onClick={handleInitiateCall} className="bg-emerald-600 hover:bg-emerald-500 rounded-xl px-4"><Phone className="h-4 w-4 mr-1" /> Call</Button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className={`p-3 rounded-xl border text-xs flex items-center justify-between transition-all ${getStatusColor(callStatus)}`}>
+                    <span className="font-semibold">{getStatusLabel(callStatus)}</span>
+                    {['connected', 'in_progress'].includes(callStatus) && <span className="font-mono text-slate-800">{formatSecToTime(duration)}</span>}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Live speech timeline</label>
+                    <div className="h-64 rounded-2xl border border-slate-200 bg-white p-4 overflow-y-auto space-y-3 stable-scrollbar">
+                      {transcripts.length === 0 ? (
+                        <div className="h-full flex items-center justify-center text-slate-400 text-xs">No active logs. Click call to test.</div>
+                      ) : (
+                        transcripts.map((t) => (
+                          <div key={t.id} className={`flex max-w-[85%] ${t.speaker === 'agent' ? 'mr-auto' : 'ml-auto flex-row-reverse'}`}>
+                            <div className={`rounded-xl px-3 py-2 border text-xs ${t.speaker === 'agent' ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-emerald-50 border-emerald-250 text-emerald-800'}`}>{t.text}</div>
+                          </div>
+                        ))
+                      )}
+                      <div ref={logEndRef} />
+                    </div>
+                  </div>
+                </CardContent>
+              )}
+
+            </Card>
+          </div>
+
         </div>
-
-      </div>
+      )}
 
     </div>
   );

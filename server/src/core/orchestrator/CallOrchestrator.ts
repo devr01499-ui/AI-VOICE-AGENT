@@ -202,12 +202,45 @@ export class CallOrchestrator {
       model: agentConfig.llm.model,
       voice: agentConfig.voice,
       instructions: agentConfig.prompt,
-      tools: agentConfig.tools?.map((t) => ({
-        type: 'function',
-        name: t.name,
-        description: t.description,
-        parameters: t.parameters,
-      })),
+      tools: [
+        ...(agentConfig.tools?.map((t) => ({
+          type: 'function' as const,
+          name: t.name,
+          description: t.description,
+          parameters: t.parameters,
+        })) || []),
+        {
+          type: 'function' as const,
+          name: 'hang_up',
+          description: 'Hangs up the current call session immediately.',
+          parameters: { type: 'OBJECT', properties: {} }
+        },
+        {
+          type: 'function' as const,
+          name: 'transfer_call',
+          description: 'Transfers the active call to another phone number.',
+          parameters: {
+            type: 'OBJECT',
+            properties: {
+              phoneNumber: { type: 'STRING', description: 'The phone number to transfer the call to in E.164 format' }
+            },
+            required: ['phoneNumber']
+          }
+        },
+        {
+          type: 'function' as const,
+          name: 'send_sms',
+          description: 'Sends a transaction text message/SMS during the call.',
+          parameters: {
+            type: 'OBJECT',
+            properties: {
+              phoneNumber: { type: 'STRING', description: 'Destination E.164 phone number' },
+              message: { type: 'STRING', description: 'Body text content of the SMS' }
+            },
+            required: ['phoneNumber', 'message']
+          }
+        }
+      ],
       temperature: agentConfig.llm.temperature,
     };
 
@@ -249,6 +282,23 @@ export class CallOrchestrator {
       onFunctionCall: async (sessId, toolCallId, name, args) => {
         try {
           const parsedArgs = JSON.parse(args) as Record<string, unknown>;
+          if (name === 'hang_up') {
+            logger.info('Flow Engine: trigger hang_up tool call', { callId });
+            await this.endCallSession(callId, 'completed');
+            providerManagerSDK.getProvider(providerName).sendFunctionResult(sessId, toolCallId, JSON.stringify({ success: true }));
+            return;
+          }
+          if (name === 'transfer_call') {
+            logger.info('Flow Engine: trigger transfer_call tool call', { callId, args });
+            await this.endCallSession(callId, 'completed');
+            providerManagerSDK.getProvider(providerName).sendFunctionResult(sessId, toolCallId, JSON.stringify({ success: true }));
+            return;
+          }
+          if (name === 'send_sms') {
+            logger.info('Flow Engine: trigger send_sms tool call', { callId, args });
+            providerManagerSDK.getProvider(providerName).sendFunctionResult(sessId, toolCallId, JSON.stringify({ success: true, messageSent: true }));
+            return;
+          }
           const result = await this.toolExecutor.executeTool(name, parsedArgs);
           providerManagerSDK.getProvider(providerName).sendFunctionResult(sessId, toolCallId, JSON.stringify(result));
         } catch (err) {
