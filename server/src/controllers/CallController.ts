@@ -29,17 +29,55 @@ export class CallController {
    */
   static async initiateCall(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { phoneNumber, agentId, userId, userData, maxDuration, fromPhoneNumber } = req.body as {
-        phoneNumber: string;
-        agentId: string;
-        userId?: string;
-        userData?: Record<string, unknown>;
-        maxDuration?: number;
-        fromPhoneNumber?: string;
-      };
+      const body = req.body as any;
+      const phoneNumber = body.phoneNumber || body.recipientNumber;
+      const agentId = body.agentId;
+      const userId = body.userId;
+      const userData = body.userData;
+      const maxDuration = body.maxDuration;
+      const fromPhoneNumber = body.fromPhoneNumber;
+
+      if (!phoneNumber) {
+        res.status(400).json({ success: false, error: 'recipientNumber or phoneNumber is required' });
+        return;
+      }
+      if (!agentId) {
+        res.status(400).json({ success: false, error: 'agentId is required' });
+        return;
+      }
 
       // Default userId for development (auth is bypassed)
       const effectiveUserId = userId ?? 'dev-user-001';
+
+      // Seed/upsert MVP Agent & User dynamically if they do not exist to prevent foreign key errors
+      const prisma = (await import('../config/database')).prisma;
+
+      // 1. Ensure user exists
+      await prisma.user.upsert({
+        where: { id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" },
+        update: {},
+        create: {
+          id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+          email: "devr01499@gmail.com",
+          fullName: "devr01499",
+          passwordHash: "$2b$10$UnSeededPasswordHashPlaceholder",
+        }
+      });
+
+      // 2. Ensure agent exists
+      await prisma.agent.upsert({
+        where: { id: agentId },
+        update: {},
+        create: {
+          id: agentId,
+          name: "Clarity HR Screening Agent",
+          systemPrompt: "You are Clarity AI, a highly professional, senior executive talent acquisition manager for Clarity. Your sole mission is to execute a brief, high-signal preliminary phone screening with the candidate on the line. - Personality: Articulate, warm, objective, professional, and conversational. - Constraints: Keep your utterances concise and tightly focused. Never output multi-paragraph answers or text formatting characters. Do not use markdown blocks. Speak naturally, allowing comfortable pauses, and avoid talking over the candidate. - Flow: First, greet them and confirm you are speaking with the applicant. Second, ask them to briefly detail their hands-on engineering experiences deploying large language models or low-latency system components. Third, inquire about their expected salary bounds. Finally, thank them for their time and state that our executive operations board will follow up with next steps.",
+          voiceName: "Puck",
+          model: "models/gemini-2.5-flash-native-audio-latest",
+          userId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+          status: "active"
+        }
+      });
 
       const result = await CallService.createCall({
         phoneNumber,
@@ -52,6 +90,7 @@ export class CallController {
 
       res.status(201).json({
         success: true,
+        callId: result.callId,
         data: result,
       });
     } catch (err) {

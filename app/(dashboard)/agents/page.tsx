@@ -62,9 +62,9 @@ export default function AgentsPage() {
     setDialing(true);
     
     try {
-      const res = await api.post('/api/calls/outbound', { 
+      const res = await api.post('/api/v2/calls/outbound', { 
         recipientNumber: phoneNumber,
-        agentId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" // Force our HR agent ID
+        agentId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" // Seeded MVP ID
       });
       
       if (res.data && res.data.success) {
@@ -93,10 +93,10 @@ export default function AgentsPage() {
     }
   };
 
-  const startWebSocketMonitoring = (cId: string) => {
+  const startWebSocketMonitoring = (callId: string) => {
     stopWebSocketMonitoring();
-    const envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'https://ai-voice-agent-backend-mv32.onrender.com';
-    const wsTarget = envUrl.replace(/^http/, 'ws') + `/api/v2/calls/stream/${cId}`;
+    const { apiBase } = getRuntimeUrls();
+    const wsTarget = apiBase.replace(/^http/, 'ws') + `/api/v2/calls/stream/${callId}`;
     const ws = new WebSocket(wsTarget);
     wsRef.current = ws;
     
@@ -133,7 +133,7 @@ export default function AgentsPage() {
 
     pollRef.current = setInterval(async () => {
       try {
-        const res = await api.get(`/api/v2/calls/${cId}`);
+        const res = await api.get(`/api/v2/calls/${callId}`);
         if (res.data && res.data.success && res.data.data) {
           const status = res.data.data.status;
           if (status === 'connected' || status === 'in_progress') {

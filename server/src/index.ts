@@ -135,6 +135,15 @@ app.post('/api/calls/outbound', (req, res, next) => {
   req.body.userId = userId;
   next();
 }, CallController.initiateCall);
+app.post('/api/v2/calls/outbound', (req, res, next) => {
+  const userId = getUserIdFromRequest(req);
+  if (!userId) {
+    res.status(401).json({ success: false, error: 'Unauthorized' });
+    return;
+  }
+  req.body.userId = userId;
+  next();
+}, CallController.initiateCall);
 app.use('/api/v2/agents', agentRoutes);
 app.use('/api/v2/webhooks', webhookRoutes);
 
