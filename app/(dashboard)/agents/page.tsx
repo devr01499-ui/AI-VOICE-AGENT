@@ -82,9 +82,11 @@ export default function AgentsPage() {
       } else {
         setCallStatus('failed');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Outbound Signaling Failure:", err);
       setCallStatus('failed');
+      const errorMsg = err.response?.data?.message || err.message || "Backend unreachable";
+      alert(`Outbound Connection Failed: ${errorMsg}`);
     } finally {
       setDialing(false);
     }
