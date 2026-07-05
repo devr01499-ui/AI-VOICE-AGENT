@@ -11,19 +11,6 @@ interface Transcript {
   timestamp: number;
 }
 
-interface Agent {
-  id: string;
-  name: string;
-  description: string;
-  agentType: string;
-  agentConfig: string;
-  flowGraph?: string;
-  temperature?: number;
-  systemPrompt?: string;
-  voiceName?: string;
-  status: string;
-}
-
 export default function AgentsPage() {
   const { data: session } = useSession();
 
@@ -35,13 +22,13 @@ export default function AgentsPage() {
     return { apiBase, wsBase };
   };
 
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [selectedAgentId, setSelectedAgentId] = useState<string>('');
+  // 1. STATE SCHEMAS
   const [phoneNumber, setPhoneNumber] = useState<string>('+919876543210');
-  const [callStatus, setCallStatus] = useState<string>('idle');
-  const [duration, setDuration] = useState<number>(0);
+  const [callStatus, setCallStatus] = useState<'idle' | 'ringing' | 'connected' | 'completed' | 'failed'>('idle');
+  const [callDuration, setCallDuration] = useState<number>(0);
   const [transcripts, setTranscripts] = useState<Transcript[]>([]);
-  const [callId, setCallId] = useState<string | null>(null);
+  const [activeCallId, setActiveCallId] = useState<string | null>(null);
+  
   const [dialing, setDialing] = useState<boolean>(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -50,13 +37,9 @@ export default function AgentsPage() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    fetchAgents();
-  }, []);
-
-  useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (['connected', 'in_progress'].includes(callStatus)) {
-      timer = setInterval(() => setDuration((prev) => prev + 1), 1000);
+    if (callStatus === 'connected') {
+      timer = setInterval(() => setCallDuration((prev) => prev + 1), 1000);
     }
     return () => clearInterval(timer);
   }, [callStatus]);
@@ -70,66 +53,51 @@ export default function AgentsPage() {
     setTimeout(() => setToast(null), 5000);
   };
 
-  const fetchAgents = async () => {
+  // 2. THE OUTBOUND TRANSACTION LOOP
+  const handleStartCall = async () => {
+    if (!phoneNumber) return;
+    setCallStatus('ringing');
+    setTranscripts([]);
+    setCallDuration(0);
+    setDialing(true);
+    
     try {
-      const { apiBase } = getRuntimeUrls();
-      const res = await api.get(`${apiBase}/api/v2/agents`);
-      if (res.data && res.data.success && res.data.data.length > 0) {
-        setAgents(res.data.data);
-        setSelectedAgentId(res.data.data[0].id);
-      }
-    } catch (err: any) {
-      console.error('Fetch agents failure:', err);
-    }
-  };
-
-  const handleInitiateCall = async () => {
-    const activeAgentId = selectedAgentId || 'default-agent';
-    try {
-      setDialing(true);
-      setCallStatus('initiating');
-      setTranscripts([]);
-      setDuration(0);
-      setCallId(null);
-
-      const { apiBase } = getRuntimeUrls();
-      const res = await api.post(`${apiBase}/api/calls/outbound`, {
-        phoneNumber,
-        agentId: activeAgentId,
-        userId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
+      const res = await api.post('/api/calls/outbound', { 
+        recipientNumber: phoneNumber,
+        agentId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" // Force our HR agent ID
       });
-
-      if (res.data && res.data.success && res.data.data) {
-        setCallId(res.data.data.callId);
-        setCallStatus(res.data.data.status);
-        startCallMonitoring(res.data.data.callId);
+      
+      if (res.data && res.data.success) {
+        setActiveCallId(res.data.callId);
+        startWebSocketMonitoring(res.data.callId);
+      } else {
+        setCallStatus('failed');
       }
-    } catch (err: any) {
-      console.error('Call placement failed:', err);
+    } catch (err) {
+      console.error("Outbound Signaling Failure:", err);
       setCallStatus('failed');
-      showToast('error', `Call placement failed: ${err.message || 'Backend unreachable'}`);
     } finally {
       setDialing(false);
     }
   };
 
+  // 3. THE DISCONNECT CHAIN
   const handleHangUp = async () => {
-    if (!callId) return;
+    if (!activeCallId) return;
     try {
-      const { apiBase } = getRuntimeUrls();
-      await api.post(`${apiBase}/api/v2/calls/${callId}/terminate`);
+      await api.post('/api/calls/hangup', { callId: activeCallId });
+    } finally {
       setCallStatus('completed');
-      stopCallMonitoring();
-    } catch (err: any) {
-      console.error('Failed to terminate call:', err);
-      showToast('error', `Failed to terminate call: ${err.message || 'Backend unreachable'}`);
+      setActiveCallId(null);
+      stopWebSocketMonitoring();
     }
   };
 
-  const startCallMonitoring = (cId: string) => {
-    stopCallMonitoring();
-    const { apiBase, wsBase } = getRuntimeUrls();
-    const ws = new WebSocket(`${wsBase}/live-transcript?callId=${cId}`);
+  const startWebSocketMonitoring = (cId: string) => {
+    stopWebSocketMonitoring();
+    const { wsBase } = getRuntimeUrls();
+    const wsUrl = `${wsBase}/live-transcript?callId=${cId}`;
+    const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
     
     ws.onmessage = (event) => {
@@ -156,11 +124,14 @@ export default function AgentsPage() {
 
     pollRef.current = setInterval(async () => {
       try {
-        const res = await api.get(`${apiBase}/api/v2/calls/${cId}`);
+        const res = await api.get(`/api/v2/calls/${cId}`);
         if (res.data && res.data.success && res.data.data) {
-          setCallStatus(res.data.data.status);
-          if (['completed', 'failed', 'no_answer', 'busy', 'cancelled'].includes(res.data.data.status)) {
-            stopCallMonitoring();
+          const status = res.data.data.status;
+          if (status === 'connected' || status === 'in_progress') {
+            setCallStatus('connected');
+          } else if (['completed', 'failed', 'no_answer', 'busy', 'cancelled'].includes(status)) {
+            setCallStatus(status === 'completed' ? 'completed' : 'failed');
+            stopWebSocketMonitoring();
           }
         }
       } catch (e) {
@@ -169,7 +140,7 @@ export default function AgentsPage() {
     }, 1500);
   };
 
-  const stopCallMonitoring = () => {
+  const stopWebSocketMonitoring = () => {
     if (wsRef.current) wsRef.current.close();
     if (pollRef.current) clearInterval(pollRef.current);
   };
@@ -184,8 +155,7 @@ export default function AgentsPage() {
     switch (status) {
       case 'initiating': return 'Connecting Line...';
       case 'ringing': return 'Phone Ringing...';
-      case 'connected':
-      case 'in_progress': return 'Active Channel';
+      case 'connected': return 'Active Channel';
       case 'completed': return 'Call Finished';
       case 'failed': return 'Failed Connect';
       default: return 'Online Playground';
@@ -239,7 +209,7 @@ export default function AgentsPage() {
           </div>
 
           <div className="mt-2">
-            {['initiating', 'ringing', 'connected', 'in_progress'].includes(callStatus) ? (
+            {['ringing', 'connected'].includes(callStatus) ? (
               <button
                 onClick={handleHangUp}
                 disabled={dialing}
@@ -249,7 +219,7 @@ export default function AgentsPage() {
               </button>
             ) : (
               <button
-                onClick={handleInitiateCall}
+                onClick={handleStartCall}
                 disabled={dialing}
                 className="w-full p-4 bg-[#10B981] hover:bg-[#059669] text-[#F8FAFC] border-none rounded-xl text-sm font-bold cursor-pointer shadow-lg hover:shadow-xl transition-all"
               >
@@ -263,11 +233,11 @@ export default function AgentsPage() {
             <span className="text-[#94A3B8] font-medium">Line Status</span>
             <div className="flex items-center gap-2">
               <span className={`h-2 w-2 rounded-full inline-block ${
-                ['connected', 'in_progress'].includes(callStatus) ? 'bg-[#10B981]' : (callStatus === 'idle' ? 'bg-[#64748B]' : 'bg-[#F59E0B]')
+                callStatus === 'connected' ? 'bg-[#10B981]' : (callStatus === 'idle' ? 'bg-[#64748B]' : 'bg-[#F59E0B]')
               }`} />
               <strong className="text-[#F8FAFC]">{getStatusLabel(callStatus)}</strong>
-              {['connected', 'in_progress'].includes(callStatus) && (
-                <span className="text-[#10B981] font-mono ml-1.5">({formatSecToTime(duration)})</span>
+              {callStatus === 'connected' && (
+                <span className="text-[#10B981] font-mono ml-1.5">({formatSecToTime(callDuration)})</span>
               )}
             </div>
           </div>
