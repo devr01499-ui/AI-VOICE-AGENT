@@ -14,12 +14,10 @@ interface Transcript {
 export default function AgentsPage() {
   const { data: session } = useSession();
 
-  const getRuntimeUrls = () => {
+  const getRuntimeUrl = () => {
     const envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
     const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
-    const apiBase = envUrl || (isLocal ? 'http://localhost:3001' : 'https://ai-voice-agent-backend-mv32.onrender.com');
-    const wsBase = process.env.NEXT_PUBLIC_WS_URL || apiBase.replace(/^http/, 'ws');
-    return { apiBase, wsBase };
+    return envUrl || (isLocal ? 'http://localhost:3001' : 'https://ai-voice-agent-backend-mv32.onrender.com');
   };
 
   // 1. STATE SCHEMAS
@@ -63,22 +61,35 @@ export default function AgentsPage() {
   };
 
   // 2. THE OUTBOUND TRANSACTION LOOP
-  const handleStartCall = async () => {
+  const handleInitiateCall = async () => {
     if (!phoneNumber) return;
     setCallStatus('ringing');
     setTranscripts([]);
     setCallDuration(0);
     setDialing(true);
+
+    const selectedAgentId = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
+    const setCallId = setActiveCallId;
+    const startCallMonitoring = startWebSocketMonitoring;
     
     try {
-      const res = await api.post('/api/v2/calls/outbound', { 
-        phoneNumber: phoneNumber, // <-- Change from recipientNumber to phoneNumber
-        agentId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+      const apiBase = getRuntimeUrl();
+      const res = await fetch(`${apiBase}/api/v2/calls`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoneNumber: phoneNumber,
+          agentId: selectedAgentId,
+          userId: 'dev-user-001'
+        })
       });
-      
-      if (res.data && res.data.success) {
-        setActiveCallId(res.data.callId);
-        startWebSocketMonitoring(res.data.callId);
+
+      const json = await res.json();
+      if (json.success && json.data) {
+        const actualCallId = json.data.callId || json.data.id;
+        setCallId(actualCallId);
+        setCallStatus(json.data.status || 'ringing');
+        startCallMonitoring(actualCallId);
       } else {
         setCallStatus('failed');
       }
@@ -94,9 +105,11 @@ export default function AgentsPage() {
 
   // 3. THE DISCONNECT CHAIN
   const handleHangUp = async () => {
-    if (!activeCallId) return;
+    const callId = activeCallId;
+    if (!callId) return;
     try {
-      await api.post('/api/calls/hangup', { callId: activeCallId });
+      const apiBase = getRuntimeUrl();
+      await fetch(`${apiBase}/api/v2/calls/${callId}/terminate`, { method: 'POST' });
     } finally {
       setCallStatus('completed');
       setActiveCallId(null);
@@ -140,7 +153,7 @@ export default function AgentsPage() {
 
   const startWebSocketMonitoring = (callId: string) => {
     stopWebSocketMonitoring();
-    const { apiBase } = getRuntimeUrls();
+    const apiBase = getRuntimeUrl();
     const wsTarget = apiBase.replace(/^http/, 'ws') + `/api/v2/calls/stream/${callId}`;
     const ws = new WebSocket(wsTarget);
     wsRef.current = ws;
@@ -273,7 +286,7 @@ export default function AgentsPage() {
               </button>
             ) : (
               <button
-                onClick={handleStartCall}
+                onClick={handleInitiateCall}
                 disabled={dialing}
                 className="w-full p-4 bg-[#10B981] hover:bg-[#059669] text-[#F8FAFC] border-none rounded-xl text-sm font-bold cursor-pointer shadow-lg hover:shadow-xl transition-all"
               >
