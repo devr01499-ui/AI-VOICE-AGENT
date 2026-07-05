@@ -447,10 +447,7 @@ Start at the welcome-node.`;
 
   // Dialer pipeline
   const handleInitiateCall = async () => {
-    if (!selectedAgentId) {
-      showToast('error', 'Please save agent before testing.');
-      return;
-    }
+    const activeAgentId = selectedAgentId || 'default-agent';
     try {
       setDialing(true);
       setCallStatus('initiating');
@@ -461,7 +458,7 @@ Start at the welcome-node.`;
       const { apiBase } = getRuntimeUrls();
       const res = await api.post(`${apiBase}/api/calls/outbound`, {
         phoneNumber,
-        agentId: selectedAgentId,
+        agentId: activeAgentId,
         userId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
       });
 

@@ -214,26 +214,12 @@ export function resample(
     const indexHigh = Math.min(indexLow + 1, lastIndex);
     const t = srcIndex - indexLow;
 
-    // Get 4 surrounding samples for Catmull-Rom cubic spline interpolation safely clamped
-    const idx0 = Math.max(0, Math.min(lastIndex, indexLow - 1));
-    const idx1 = Math.max(0, Math.min(lastIndex, indexLow));
-    const idx2 = Math.max(0, Math.min(lastIndex, indexHigh));
-    const idx3 = Math.max(0, Math.min(lastIndex, indexHigh + 1));
+    const sampleLow = samples[indexLow]!;
+    const sampleHigh = samples[indexHigh]!;
 
-    const p0 = samples[idx0]!;
-    const p1 = samples[idx1]!;
-    const p2 = samples[idx2]!;
-    const p3 = samples[idx3]!;
-
-    // Catmull-Rom spline coefficients
-    const a = 1.5 * p1 - 1.5 * p2 + 0.5 * p3 - 0.5 * p0;
-    const b = p0 - 2.5 * p1 + 2 * p2 - 0.5 * p3;
-    const c = 0.5 * p2 - 0.5 * p0;
-    const d = p1;
-
-    const interpolated = a * t * t * t + b * t * t + c * t + d;
+    // Linear interpolation
+    const interpolated = (1 - t) * sampleLow + t * sampleHigh;
     
-    // Ensure the Catmull-Rom spline output sample values are rounded and strictly clamped:
     let processedSample = Math.round(interpolated);
 
     // Prevent digital wrapping distortion/crackle

@@ -101,6 +101,20 @@ export class AudioStreamHandler {
 
     this.connections.set(callId, conn);
 
+    // Transmit connection setup acknowledgment frame instantly to prevent carrier timeout
+    const ackMessage = JSON.stringify({
+      event: 'acknowledged',
+      callId: callId,
+      streamId: '',
+      timestamp: Date.now()
+    });
+    try {
+      ws.send(ackMessage);
+      logger.info('AudioStreamHandler [HANDSHAKE]: Sent instant setup acknowledgment to Vobiz carrier link', { callId });
+    } catch (ackErr) {
+      logger.error('AudioStreamHandler: failed to send setup acknowledgment', { callId, error: ackErr });
+    }
+
     // Wire up event handlers
     ws.on('message', (data: WebSocket.RawData) => {
       this.handleMessage(callId, data);

@@ -149,15 +149,12 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     if (config.temperature !== undefined && (config.temperature < 0 || config.temperature > 2)) {
       throw new CallError(callId, 'Invalid temperature', 'INVALID_CONFIG');
     }
-    const validVoices = ['alloy', 'echo', 'fable', 'onyx', 'shimmer'];
+    const validVoices = ['alloy', 'echo', 'fable', 'onyx', 'shimmer', 'puck', 'charon', 'fenrir', 'kore', 'aoede'];
     if (config.voice && !validVoices.includes(config.voice.toLowerCase())) {
       throw new CallError(callId, `Invalid voice: ${config.voice}`, 'INVALID_CONFIG');
     }
 
-    let model = config.model || env.GEMINI_REALTIME_MODEL;
-    if (model === 'gemini-2.0-flash' || model === 'gemini-2.0-flash-exp') {
-      model = 'gemini-2.5-flash-native-audio-latest';
-    }
+    const model = 'gemini-2.5-flash-native-audio-latest';
 
     // ✅ FIXED: Use v1alpha endpoint (was v1beta)
     // v1alpha is the current stable endpoint for Gemini Live API
@@ -221,7 +218,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         kore: 'Kore',
         aoede: 'Aoede',
       };
-      const geminiVoice = voiceNameMap[(config.voice || 'Puck').toLowerCase()] || 'Puck';
+      const geminiVoice = 'Puck';
 
       // Map tools cleanly to Gemini wire function_declarations format
       const functionDeclarations = config.tools?.map((t) => ({

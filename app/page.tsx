@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation';
+'use client';
 
-export default function RootPage() {
-  redirect('/agents');
-}
+import AgentsPage from './(dashboard)/agents/page';
+
+export default AgentsPage;

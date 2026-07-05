@@ -4,8 +4,8 @@ import AuthProvider from '@/providers/AuthProvider';
 import QueryProvider from '@/providers/QueryProvider';
 
 export const metadata: Metadata = {
-  title: 'Claritiy Voice Platform | Visual Voice AI Agent Orchestration',
-  description: 'Enterprise no-code visual constructor for building, managing, and tracking production conversational Voice AI agents.',
+  title: 'Clarity Voice AI - Automated HR Screening Arena',
+  description: 'Production Telephony MVP for low-latency automated HR candidate screening.',
 };
 
 export default function RootLayout({

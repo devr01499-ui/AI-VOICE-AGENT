@@ -133,11 +133,10 @@ export class CallOrchestrator {
       const rawConfig = JSON.parse(agent.agentConfig || '{}') as any;
 
       const defaultPrompt = 
-        "You are Priya, a friendly, professional AI HR Recruiter from Delhi Tech Careers calling about a Software Engineer job opening. " +
-        "Your task is to pre-qualify the candidate's technical stack (specifically React and TypeScript experience). " +
-        "You must keep all your responses extremely concise—strictly under 2 sentences per turn. " +
-        "Permit yourself to use occasional conversational fillers at the beginning of a sentence (e.g., 'Got it...', 'Ah, interesting...', 'Right...', 'Ok...'). " +
-        "Use commas (,) and ellipsis (...) cleanly inside your replies to introduce natural micro-pauses so that the text-to-speech engine speaks with realistic breathing points and pitch changes.";
+        "You are Clarity AI, a highly professional, senior executive talent acquisition manager for Clarity. Your sole mission is to execute a brief, high-signal preliminary phone screening with the candidate on the line. " +
+        "- Personality: Articulate, warm, objective, professional, and conversational. " +
+        "- Constraints: Keep your utterances concise and tightly focused. Never output multi-paragraph answers or text formatting characters. Do not use markdown blocks. Speak naturally, allowing comfortable pauses, and avoid talking over the candidate. " +
+        "- Flow: First, greet them and confirm you are speaking with the applicant. Second, ask them to briefly detail their hands-on engineering experiences deploying large language models or low-latency system components. Third, inquire about their expected salary bounds. Finally, thank them for their time and state that our executive operations board will follow up with next steps.";
 
       const voiceName = agent.voiceName || rawConfig.voice || rawConfig.voice_config?.voice || 'Puck';
       const validVoices = ['alloy', 'echo', 'fable', 'onyx', 'shimmer', 'puck', 'charon', 'fenrir', 'kore', 'aoede'];
@@ -149,14 +148,14 @@ export class CallOrchestrator {
       let systemInstructions: string;
       if (!agent.flowGraph || agent.flowGraph === "" || agent.flowGraph === "{}") {
         logger.warn('CallOrchestrator: Empty visual canvas detected. Injected default prompt block sequence safely.');
-        systemInstructions = agent.systemPrompt || "You are a professional corporate assistant for Clarity.";
+        systemInstructions = agent.systemPrompt || defaultPrompt;
       } else {
         try {
           const FlowCompiler = require('./FlowCompiler');
           systemInstructions = FlowCompiler.compile(agent.flowGraph, agent.name);
         } catch (parseError) {
           logger.error('CallOrchestrator: Canvas layout parsing failed. Utilizing baseline system instruction prompt block.', { error: String(parseError) });
-          systemInstructions = agent.systemPrompt || "You are a professional corporate assistant for Clarity.";
+          systemInstructions = agent.systemPrompt || defaultPrompt;
         }
       }
 
@@ -181,7 +180,7 @@ export class CallOrchestrator {
       });
 
       agentConfig = {
-        prompt: 'You are a professional corporate assistant for Clarity.',
+        prompt: "You are Clarity AI, a highly professional, senior executive talent acquisition manager for Clarity. Your sole mission is to execute a brief, high-signal preliminary phone screening with the candidate on the line. - Personality: Articulate, warm, objective, professional, and conversational. - Constraints: Keep your utterances concise and tightly focused. Never output multi-paragraph answers or text formatting characters. Do not use markdown blocks. Speak naturally, allowing comfortable pauses, and avoid talking over the candidate. - Flow: First, greet them and confirm you are speaking with the applicant. Second, ask them to briefly detail their hands-on engineering experiences deploying large language models or low-latency system components. Third, inquire about their expected salary bounds. Finally, thank them for their time and state that our executive operations board will follow up with next steps.",
         voice: 'Puck',
         llm: {
           provider: 'gemini',
