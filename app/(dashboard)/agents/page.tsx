@@ -69,15 +69,23 @@ export default function AgentsPage() {
     setDialing(true);
 
     try {
-      const res = await fetch('/api/v2/calls', {
+      // Explicitly target the production Render cloud container architecture
+      const BACKEND_BASE = process.env.NEXT_PUBLIC_API_URL || "https://ai-voice-agent-backend-mv32.onrender.com";
+      
+      // Clean any potential trailing slashes from the environment configuration string
+      const absoluteApiTarget = `${BACKEND_BASE.replace(/\/$/, '')}/api/v2/calls`;
+      
+      console.log("Dispatching absolute outbound call signaling to engine:", absoluteApiTarget);
+
+      const res = await fetch(absoluteApiTarget, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'x-user-id': 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-          'x-request-id': typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `req-${Date.now()}`
+          'x-request-id': typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2)
         },
         body: JSON.stringify({
-          phoneNumber: phoneNumber, // Match backend controller body exactly
+          phoneNumber: phoneNumber,
           agentId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
           userId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
         })
