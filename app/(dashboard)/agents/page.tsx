@@ -36,6 +36,15 @@ export default function AgentsPage() {
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
+  // SIP Trunk connection states
+  const [showSipForm, setShowSipForm] = useState<boolean>(false);
+  const [sipName, setSipName] = useState<string>('');
+  const [sipUri, setSipUri] = useState<string>('');
+  const [sipUsername, setSipUsername] = useState<string>('');
+  const [sipPassword, setSipPassword] = useState<string>('');
+  const [sipOutboundProxy, setSipOutboundProxy] = useState<string>('');
+  const [registeringSip, setRegisteringSip] = useState<boolean>(false);
+
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (callStatus === 'connected') {
@@ -90,6 +99,40 @@ export default function AgentsPage() {
       setCallStatus('completed');
       setActiveCallId(null);
       stopWebSocketMonitoring();
+    }
+  };
+
+  const handleConnectSipTrunk = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sipUri) {
+      showToast('error', 'SIP URI is required');
+      return;
+    }
+    setRegisteringSip(true);
+    try {
+      const res = await api.post('/api/v2/calls/sip-trunks', {
+        name: sipName,
+        sipUri,
+        username: sipUsername,
+        password: sipPassword,
+        outboundProxy: sipOutboundProxy
+      });
+      if (res.data && res.data.success) {
+        showToast('success', 'SIP Trunk registered successfully!');
+        setShowSipForm(false);
+        setSipName('');
+        setSipUri('');
+        setSipUsername('');
+        setSipPassword('');
+        setSipOutboundProxy('');
+      } else {
+        showToast('error', 'Registration failed');
+      }
+    } catch (err: any) {
+      console.error(err);
+      showToast('error', `Failed to register: ${err.message || 'Error occurred'}`);
+    } finally {
+      setRegisteringSip(false);
     }
   };
 
@@ -283,6 +326,95 @@ export default function AgentsPage() {
               )}
               <div ref={scrollRef} />
             </div>
+          </div>
+
+          {/* SIP Trunk connection manager */}
+          <div className="mt-4 pt-4 border-t border-[#1E293B]">
+            <button
+              onClick={() => setShowSipForm(!showSipForm)}
+              className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold cursor-pointer transition-all"
+            >
+              {showSipForm ? 'Hide SIP Trunk Config' : 'Configure SIP Trunk Connection'}
+            </button>
+
+            {showSipForm && (
+              <form onSubmit={handleConnectSipTrunk} className="mt-4 flex flex-col gap-3.5 text-xs">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1.5">
+                    Trunk Name (Friendly)
+                  </label>
+                  <input
+                    type="text"
+                    value={sipName}
+                    onChange={(e) => setSipName(e.target.value)}
+                    placeholder="Clarity Primary Trunk"
+                    className="w-full bg-[#0F172A] border border-[#334155] rounded-md p-2 text-xs text-[#F8FAFC] outline-none focus:border-[#10B981] transition-all box-border"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1.5">
+                    SIP URI *
+                  </label>
+                  <input
+                    type="text"
+                    value={sipUri}
+                    onChange={(e) => setSipUri(e.target.value)}
+                    placeholder="sip:trunk.example.com"
+                    required
+                    className="w-full bg-[#0F172A] border border-[#334155] rounded-md p-2 text-xs text-[#F8FAFC] outline-none focus:border-[#10B981] transition-all box-border"
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1.5">
+                      Username
+                    </label>
+                    <input
+                      type="text"
+                      value={sipUsername}
+                      onChange={(e) => setSipUsername(e.target.value)}
+                      placeholder="User"
+                      className="w-full bg-[#0F172A] border border-[#334155] rounded-md p-2 text-xs text-[#F8FAFC] outline-none focus:border-[#10B981] transition-all box-border"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1.5">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      value={sipPassword}
+                      onChange={(e) => setSipPassword(e.target.value)}
+                      placeholder="Password"
+                      className="w-full bg-[#0F172A] border border-[#334155] rounded-md p-2 text-xs text-[#F8FAFC] outline-none focus:border-[#10B981] transition-all box-border"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1.5">
+                    Outbound Proxy
+                  </label>
+                  <input
+                    type="text"
+                    value={sipOutboundProxy}
+                    onChange={(e) => setSipOutboundProxy(e.target.value)}
+                    placeholder="proxy.example.com"
+                    className="w-full bg-[#0F172A] border border-[#334155] rounded-md p-2 text-xs text-[#F8FAFC] outline-none focus:border-[#10B981] transition-all box-border"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={registeringSip}
+                  className="w-full py-2 bg-[#10B981] hover:bg-[#059669] text-white border-none rounded-md text-xs font-bold cursor-pointer transition-all shadow-md mt-1"
+                >
+                  {registeringSip ? 'Connecting...' : 'Register SIP Trunk'}
+                </button>
+              </form>
+            )}
           </div>
 
         </div>

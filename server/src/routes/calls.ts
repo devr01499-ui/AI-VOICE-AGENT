@@ -226,4 +226,33 @@ router.get(
   CallController.getCallTranscript
 );
 
+/** POST /api/v2/calls/sip-trunks — Register a new SIP Trunk. */
+router.post(
+  '/sip-trunks',
+  async (req, res, next) => {
+    try {
+      const { name, sipUri, username, password, outboundProxy } = req.body;
+      const userId = getUserIdFromRequest(req) || 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+      
+      const trunk = await prisma.sipTrunk.create({
+        data: {
+          userId,
+          name: name || 'Primary SIP Trunk',
+          sipUri,
+          username,
+          password,
+          outboundProxy,
+          codecs: '["PCMU","PCMA"]',
+          dtmfMode: 'rfc2833',
+          status: 'active'
+        }
+      });
+      
+      res.status(201).json({ success: true, data: trunk });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 export default router;
