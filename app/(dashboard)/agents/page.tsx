@@ -68,12 +68,14 @@ export default function AgentsPage() {
     setCallDuration(0);
     setDialing(true);
 
-    const setCallId = setActiveCallId;
-    
     try {
       const res = await fetch('/api/v2/calls', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+          'x-request-id': typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `req-${Date.now()}`
+        },
         body: JSON.stringify({
           phoneNumber: phoneNumber, // Match backend controller body exactly
           agentId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
@@ -84,7 +86,10 @@ export default function AgentsPage() {
       const json = await res.json();
       if (json.success && json.data) {
         const actualCallId = json.data.callId || json.data.id;
-        setCallId(actualCallId);
+        if (!actualCallId) {
+          throw new Error("Unable to resolve call identifier from backend response");
+        }
+        setActiveCallId(actualCallId);
         setCallStatus('ringing');
         startWebSocketMonitoring(actualCallId); // Launch live transcript pipeline
       } else {
@@ -151,8 +156,19 @@ export default function AgentsPage() {
   const startWebSocketMonitoring = (callId: string) => {
     stopWebSocketMonitoring();
     const apiBase = getRuntimeUrl();
-    const wsTarget = apiBase.replace(/^http/, 'ws') + `/api/v2/calls/stream/${callId}`;
-    const ws = new WebSocket(wsTarget);
+    
+    // Ensure absolute ws/wss target and prevent Mixed Content blocks dynamically at runtime
+    let wsTarget = apiBase;
+    if (wsTarget.startsWith('/')) {
+      if (typeof window !== 'undefined') {
+        wsTarget = window.location.origin.replace(/^http/, 'ws') + wsTarget;
+      }
+    } else {
+      wsTarget = wsTarget.replace(/^http/, 'ws');
+    }
+    
+    const wsUrl = `${wsTarget}/live-transcript?callId=${callId}`;
+    const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
     
     ws.onmessage = (event) => {

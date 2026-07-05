@@ -28,6 +28,7 @@ api.interceptors.request.use(
     // Automatically attach tokens or active workspace credentials if needed
     config.headers['Authorization'] = 'Bearer a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
     config.headers['x-user-id'] = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+    config.headers['x-request-id'] = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `req-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
     return config;
   },
   (error) => {
