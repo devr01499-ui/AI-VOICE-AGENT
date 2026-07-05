@@ -75,7 +75,7 @@ export default function AgentsPage() {
       // Clean any potential trailing slashes from the environment configuration string
       const absoluteApiTarget = `${BACKEND_BASE.replace(/\/$/, '')}/api/v2/calls`;
       
-      console.log("Dispatching absolute outbound call signaling to engine:", absoluteApiTarget);
+      console.log("Routing outbound call directly to the versioned endpoint:", absoluteApiTarget);
 
       const res = await fetch(absoluteApiTarget, {
         method: 'POST',
