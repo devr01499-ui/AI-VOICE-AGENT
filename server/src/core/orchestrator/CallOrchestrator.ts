@@ -14,7 +14,6 @@ import { CallError } from '../../types/errors';
 import { AgentConfig, CallStatus } from '../../types';
 import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
-import { mulawToPCM16 } from '../../utils/audioConverter';
 
 class ConversationState implements IConversationState {
   phase: 'greeting_sent' | 'listening' | 'processing' | 'responding' = 'greeting_sent';
@@ -347,9 +346,8 @@ export class CallOrchestrator {
   /**
    * Streams inbound audio from SIP channel to the provider.
    */
-  private calculateRMS(mulawBase64: string): number {
+  private calculateRMS(pcm16Base64: string): number {
     try {
-      const pcm16Base64 = mulawToPCM16(mulawBase64);
       const buffer = Buffer.from(pcm16Base64, 'base64');
       const numSamples = buffer.length / 2;
       if (numSamples === 0) return 0;

@@ -61,26 +61,23 @@ export default function AgentsPage() {
   };
 
   // 2. THE OUTBOUND TRANSACTION LOOP
-  const handleInitiateCall = async () => {
+  const handleStartCall = async () => {
     if (!phoneNumber) return;
     setCallStatus('ringing');
     setTranscripts([]);
     setCallDuration(0);
     setDialing(true);
 
-    const selectedAgentId = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
     const setCallId = setActiveCallId;
-    const startCallMonitoring = startWebSocketMonitoring;
     
     try {
-      const apiBase = getRuntimeUrl();
-      const res = await fetch(`${apiBase}/api/v2/calls`, {
+      const res = await fetch('/api/v2/calls', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phoneNumber: phoneNumber,
-          agentId: selectedAgentId,
-          userId: 'dev-user-001'
+          phoneNumber: phoneNumber, // Match backend controller body exactly
+          agentId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+          userId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
         })
       });
 
@@ -88,8 +85,8 @@ export default function AgentsPage() {
       if (json.success && json.data) {
         const actualCallId = json.data.callId || json.data.id;
         setCallId(actualCallId);
-        setCallStatus(json.data.status || 'ringing');
-        startCallMonitoring(actualCallId);
+        setCallStatus('ringing');
+        startWebSocketMonitoring(actualCallId); // Launch live transcript pipeline
       } else {
         setCallStatus('failed');
       }
@@ -286,7 +283,7 @@ export default function AgentsPage() {
               </button>
             ) : (
               <button
-                onClick={handleInitiateCall}
+                onClick={handleStartCall}
                 disabled={dialing}
                 className="w-full p-4 bg-[#10B981] hover:bg-[#059669] text-[#F8FAFC] border-none rounded-xl text-sm font-bold cursor-pointer shadow-lg hover:shadow-xl transition-all"
               >

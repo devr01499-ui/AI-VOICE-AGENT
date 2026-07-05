@@ -130,6 +130,7 @@ model Call {
   startTime            DateTime? @map("start_time")
   endTime              DateTime? @map("end_time")
   durationSeconds      Int?      @map("duration_seconds")
+  telemetryId          String?   @map("telemetry_id")
   userData             String    @default("{}") @map("user_data") // JSON
   webhookUrl           String?   @map("webhook_url")
   recordingEnabled     Boolean   @default(true) @map("recording_enabled")

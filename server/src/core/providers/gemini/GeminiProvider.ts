@@ -2,9 +2,66 @@ import { IRealtimeProviderSDK } from '../../provider-sdk/provider.interface';
 import { ProviderSessionConfig, ProviderEventCallbacks } from '../../provider-sdk/provider.types';
 import { HealthCheckResult, RealtimeSessionConfig } from '../../../providers/interfaces/IProvider';
 import { GeminiLiveProvider as LowLevelGeminiLive } from '../../../providers/gemini/GeminiLiveProvider';
-import { GeminiSession } from './GeminiSession';
 import { metricsCollector } from '../../provider-sdk/provider.metrics';
 import { logger } from '../../../utils/logger';
+
+class GeminiSession {
+  private audioCallbacks: ((audioBase64: string) => void)[] = [];
+  private transcriptCallbacks: ((text: string, isFinal: boolean) => void)[] = [];
+
+  constructor(
+    public readonly sessionId: string,
+    public readonly callId: string,
+    private readonly callbacks: ProviderEventCallbacks
+  ) {}
+
+  addAudioCallback(callback: (audioBase64: string) => void): void {
+    this.audioCallbacks.push(callback);
+  }
+
+  clearAudioCallbacks(): void {
+    this.audioCallbacks = [];
+  }
+
+  addTranscriptCallback(callback: (text: string, isFinal: boolean) => void): void {
+    this.transcriptCallbacks.push(callback);
+  }
+
+  handleInboundAudio(audioBase64: string): string {
+    metricsCollector.recordAudioChunkSent(this.sessionId);
+    // Raw PCM16 passthrough (no conversion, because native 16kHz L16 streaming is used)
+    return audioBase64;
+  }
+
+  handleOutboundAudio(audioBase64: string): void {
+    metricsCollector.recordAudioChunkReceived(this.sessionId);
+    // Raw PCM16 passthrough (no conversion)
+    this.audioCallbacks.forEach((cb) => cb(audioBase64));
+    this.callbacks.onAudioDelta?.(this.sessionId, audioBase64);
+  }
+
+  handleTranscript(text: string, isFinal: boolean, isUser?: boolean): void {
+    this.transcriptCallbacks.forEach((cb) => cb(text, isFinal));
+    this.callbacks.onTranscriptDelta?.(this.sessionId, text, isFinal, isUser);
+  }
+
+  handleSpeechStarted(): void {
+    this.callbacks.onSpeechStarted?.(this.sessionId);
+  }
+
+  handleSpeechStopped(): void {
+    this.callbacks.onSpeechStopped?.(this.sessionId);
+  }
+
+  handleFunctionCall(callId: string, name: string, args: string): void {
+    this.callbacks.onFunctionCall?.(this.sessionId, callId, name, args);
+  }
+
+  handleError(error: Error): void {
+    metricsCollector.incrementError(this.sessionId);
+    this.callbacks.onError?.(this.sessionId, error);
+  }
+}
 
 export class GeminiProvider implements IRealtimeProviderSDK {
   public readonly name = 'gemini-live';

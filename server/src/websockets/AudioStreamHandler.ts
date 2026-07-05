@@ -10,7 +10,6 @@ import { logger } from '../utils/logger';
 import { callOrchestrator } from '../core/orchestrator/CallOrchestrator';
 import { providerManagerSDK } from '../core/provider-sdk/provider.manager';
 import { eventBus, PROVIDER_EVENTS } from '../core/provider-sdk/provider.events';
-import { mulawToPCM16, getAudioConversionStats } from '../utils/audioConverter';
 import type { VobizStreamEvent } from '../types';
 
 // ─── Active Connection Tracking ───────────────────────

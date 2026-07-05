@@ -33,7 +33,9 @@
     "typescript": "^5.8.0",
     "uuid": "^11.1.0",
     "ws": "^8.18.0",
-    "zod": "^3.25.0"
+    "zod": "^3.25.0",
+    "@pipecat-ai/gemini": "^0.1.2",
+    "pipecat-core": "^0.1.2"
   },
   "devDependencies": {
     "tsx": "^4.19.0"

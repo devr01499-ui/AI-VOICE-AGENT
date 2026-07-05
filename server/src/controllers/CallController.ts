@@ -11,6 +11,7 @@ import { logger } from '../utils/logger';
 import { CallService } from '../services/CallService';
 import { callOrchestrator } from '../core/orchestrator/CallOrchestrator';
 import { env } from '../config/env';
+import { prisma } from '../config/database';
 
 /**
  * Handles all call-related HTTP endpoints.
@@ -169,12 +170,25 @@ export class CallController {
    */
   static async handleVobizAnswer(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const callId = (req.query.callId as string) || (req.body?.CallUUID as string);
+      const requestUuid = req.body?.RequestUUID as string;
+      const callUuid = req.body?.CallUUID as string;
 
-      if (!callId) {
-        res.status(400).send('<Response><Speak>Error: missing call ID</Speak></Response>');
+      // Search database records for an active call matching either tracking token
+      const callSession = await prisma.call.findFirst({
+        where: {
+          OR: [
+            { id: requestUuid },
+            { id: callUuid },
+            { telemetryId: requestUuid }
+          ]
+        }
+      });
+
+      if (!callSession) {
+        res.status(200).send('<Response><Speak>Session mismatch</Speak></Response>');
         return;
       }
+      const callId = callSession.id;
 
       logger.info('CallController: Vobiz answer webhook', { callId });
 
@@ -188,7 +202,7 @@ export class CallController {
 
       const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Stream streamTimeout="1800" keepCallAlive="true" bidirectional="true" contentType="audio/x-mulaw;rate=8000">
+  <Stream streamTimeout="1800" keepCallAlive="true" bidirectional="true" contentType="audio/x-l16;rate=16000">
     ${streamUrl}
   </Stream>
 </Response>`;
@@ -207,13 +221,26 @@ export class CallController {
    */
   static async handleVobizStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const callId = (req.query.callId as string) || (req.body?.CallUUID as string);
-      const callStatus = (req.body?.CallStatus as string) || 'unknown';
+      const requestUuid = req.body?.RequestUUID as string;
+      const callUuid = req.body?.CallUUID as string;
 
-      if (!callId) {
-        res.status(400).json({ success: false, message: 'Missing callId' });
+      // Search database records for an active call matching either tracking token
+      const callSession = await prisma.call.findFirst({
+        where: {
+          OR: [
+            { id: requestUuid },
+            { id: callUuid },
+            { telemetryId: requestUuid }
+          ]
+        }
+      });
+
+      if (!callSession) {
+        res.status(200).send('<Response><Speak>Session mismatch</Speak></Response>');
         return;
       }
+      const callId = callSession.id;
+      const callStatus = (req.body?.CallStatus as string) || 'unknown';
 
       logger.info('CallController: Vobiz status webhook', { callId, callStatus });
 
@@ -233,14 +260,35 @@ export class CallController {
    */
   static async handleVobizHangup(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const callId = (req.query.callId as string) || (req.body?.CallUUID as string);
+      const requestUuid = req.body?.RequestUUID as string;
+      const callUuid = req.body?.CallUUID as string;
 
-      if (!callId) {
-        res.status(400).json({ success: false, message: 'Missing callId' });
+      // Search database records for an active call matching either tracking token
+      const callSession = await prisma.call.findFirst({
+        where: {
+          OR: [
+            { id: requestUuid },
+            { id: callUuid },
+            { telemetryId: requestUuid }
+          ]
+        }
+      });
+
+      if (!callSession) {
+        res.status(200).send('<Response><Speak>Session mismatch</Speak></Response>');
         return;
       }
+      const callId = callSession.id;
+      const duration = req.body?.Duration ? parseInt(req.body.Duration as string, 10) : 0;
 
-      logger.info('CallController: Vobiz hangup webhook', { callId });
+      logger.info('CallController: Vobiz hangup webhook', { callId, duration });
+
+      if (duration > 0) {
+        await prisma.call.update({
+          where: { id: callId },
+          data: { durationSeconds: duration }
+        });
+      }
 
       // End the runtime session
       await callOrchestrator.endCallSession(callId, 'user_hangup');
