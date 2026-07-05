@@ -95,9 +95,9 @@ export default function AgentsPage() {
 
   const startWebSocketMonitoring = (cId: string) => {
     stopWebSocketMonitoring();
-    const { wsBase } = getRuntimeUrls();
-    const wsUrl = `${wsBase}/live-transcript?callId=${cId}`;
-    const ws = new WebSocket(wsUrl);
+    const envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'https://ai-voice-agent-backend-mv32.onrender.com';
+    const wsTarget = envUrl.replace(/^http/, 'ws') + `/api/v2/calls/stream/${cId}`;
+    const ws = new WebSocket(wsTarget);
     wsRef.current = ws;
     
     ws.onmessage = (event) => {
@@ -118,8 +118,17 @@ export default function AgentsPage() {
       }
     };
 
+    ws.onclose = () => {
+      setCallStatus('completed');
+      setActiveCallId(null);
+      stopWebSocketMonitoring();
+    };
+
     ws.onerror = (error) => {
       console.error('Live monitor WebSocket error:', error);
+      setCallStatus('completed');
+      setActiveCallId(null);
+      stopWebSocketMonitoring();
     };
 
     pollRef.current = setInterval(async () => {
@@ -261,9 +270,9 @@ export default function AgentsPage() {
                       className={`flex w-full ${isAgent ? 'justify-start' : 'justify-end'}`}
                     >
                       <div className={`p-2.5 rounded-xl text-xs leading-relaxed max-w-[85%] text-left ${
-                        isAgent ? 'bg-[#1E293B] border border-[#334155] rounded-bl-sm text-[#F8FAFC]' : 'bg-[#064E3B] border border-[#065F46] rounded-br-sm text-[#F8FAFC]'
+                        isAgent ? 'bg-[#4F46E5]/20 text-[#818CF8] border border-[#4F46E5]/40' : 'bg-[#1E293B] text-slate-100 border border-slate-700'
                       }`}>
-                        <span className={`block text-[10px] font-bold uppercase mb-1 ${isAgent ? 'text-[#38BDF8]' : 'text-[#34D399]'}`}>
+                        <span className={`block text-[10px] font-bold uppercase mb-1 ${isAgent ? 'text-[#818CF8]' : 'text-slate-400'}`}>
                           {isAgent ? 'Clarity Recruiter' : 'Candidate'}
                         </span>
                         {t.text}
