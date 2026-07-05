@@ -2,85 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import {
-  Bot,
-  Sliders,
-  Play,
-  Save,
-  Plus,
-  Loader2,
-  Phone,
-  PhoneOff,
-  Activity,
-  User,
-  AlertTriangle,
-  Cpu,
-  Calendar,
-  Layers,
-  ChevronRight,
-  GitBranch,
-  Volume2,
-  FileText,
-  HelpCircle,
-  Database,
-  ArrowRight,
-  Sparkles,
-  Link2,
-  ShieldAlert,
-  Trash2,
-  Workflow,
-  MessageSquare,
-  FileSpreadsheet,
-  CheckCircle,
-  Share2
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-
-const API_BASE_URL = 
-  process.env.NEXT_PUBLIC_API_URL || 
-  process.env.NEXT_PUBLIC_BACKEND_URL || 
-  (typeof window !== 'undefined' && window.location.hostname === 'localhost'
-    ? 'http://localhost:3001'
-    : 'https://ai-voice-agent-backend-mv32.onrender.com');
-
-const getAuthHeaders = (additional: Record<string, string> = {}) => {
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-    'x-user-id': 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-    ...additional
-  };
-};
-
-const secureFetch = async (url: string, options: RequestInit = {}) => {
-  try {
-    const res = await fetch(url, {
-      ...options,
-      headers: getAuthHeaders(options.headers as Record<string, string>)
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      const errorMsg = `API Error ${res.status}: ${body.error || body.message || res.statusText}`;
-      console.error('[secureFetch Network Trace]', { url, status: res.status, statusText: res.statusText, body });
-      throw new Error(errorMsg);
-    }
-    return res;
-  } catch (err) {
-    console.error('[secureFetch Connection Error]', { url, error: err });
-    throw err;
-  }
-};
-
-const WS_BASE_URL = 
-  process.env.NEXT_PUBLIC_WS_URL || 
-  (process.env.NEXT_PUBLIC_BACKEND_URL 
-    ? process.env.NEXT_PUBLIC_BACKEND_URL.replace(/^http/, 'ws') 
-    : null) || 
-  (typeof window !== 'undefined' && window.location.hostname === 'localhost'
-    ? 'ws://localhost:3001'
-    : 'wss://ai-voice-agent-backend-mv32.onrender.com');
+import api from '@/lib/api-client';
 
 const VOICE_MODELS = [
   { id: 'Aoede', name: 'Aoede (Acoustic)', desc: 'High pitch female speaker' },
@@ -219,6 +141,16 @@ const BLUEPRINTS: Blueprint[] = [
 export default function AgentsPage() {
   const { data: session } = useSession();
 
+  const getRuntimeUrls = () => {
+    const envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
+    const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+    
+    const apiBase = envUrl || (isLocal ? 'http://localhost:3001' : 'https://ai-voice-agent-backend-mv32.onrender.com');
+    const wsBase = process.env.NEXT_PUBLIC_WS_URL || apiBase.replace(/^http/, 'ws');
+    
+    return { apiBase, wsBase };
+  };
+
   // Switchable generation modes: prompt | canvas | prebuilt
   const [creationMode, setCreationMode] = useState<'prompt' | 'canvas' | 'prebuilt'>('prompt');
 
@@ -313,16 +245,17 @@ export default function AgentsPage() {
 
   const fetchAgents = async () => {
     try {
-      const res = await secureFetch(`${API_BASE_URL}/api/v2/agents`);
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        setAgents(json.data);
-        if (json.data.length > 0 && !selectedAgentId) {
-          loadAgent(json.data[0]);
+      const { apiBase } = getRuntimeUrls();
+      const res = await api.get(`${apiBase}/api/v2/agents`);
+      if (res.data && res.data.success) {
+        setAgents(res.data.data);
+        if (res.data.data.length > 0 && !selectedAgentId) {
+          loadAgent(res.data.data[0]);
         }
       }
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error('Core Client Network Trace Failure:', err);
+      showToast('error', `Connectivity Fault: ${err.message || 'Backend unreachable'}`);
     }
   };
 
@@ -398,20 +331,19 @@ export default function AgentsPage() {
     }
     setOptimizing(true);
     try {
-      const res = await secureFetch(`${API_BASE_URL}/api/v2/agents/optimize`, {
-        method: 'POST',
-        body: JSON.stringify({ description: promptDescription })
+      const { apiBase } = getRuntimeUrls();
+      const res = await api.post(`${apiBase}/api/v2/agents/optimize`, {
+        description: promptDescription
       });
-      const json = await res.json();
-      if (json.success && json.data) {
-        setInstructions(json.data.prompt);
-        setSelectedVoice(json.data.voiceName);
-        setTemperature(json.data.temperature);
+      if (res.data && res.data.success && res.data.data) {
+        setInstructions(res.data.data.prompt);
+        setSelectedVoice(res.data.data.voiceName);
+        setTemperature(res.data.data.temperature);
         showToast('success', 'Enriched instruction script successfully loaded.');
       }
-    } catch (err) {
-      console.error(err);
-      showToast('error', 'Error optimizing prompt instructions.');
+    } catch (err: any) {
+      console.error('Core Client Network Trace Failure:', err);
+      showToast('error', `Error optimizing prompt instructions: ${err.message || 'Backend unreachable'}`);
     } finally {
       setOptimizing(false);
     }
@@ -462,27 +394,25 @@ export default function AgentsPage() {
     };
 
     try {
+      const { apiBase } = getRuntimeUrls();
       const url = selectedAgentId 
-        ? `${API_BASE_URL}/api/v2/agents/${selectedAgentId}`
-        : `${API_BASE_URL}/api/v2/agents`;
-      const method = selectedAgentId ? 'PUT' : 'POST';
+        ? `${apiBase}/api/v2/agents/${selectedAgentId}`
+        : `${apiBase}/api/v2/agents`;
 
-      const res = await secureFetch(url, {
-        method,
-        body: JSON.stringify(payload)
-      });
+      const res = selectedAgentId 
+        ? await api.put(url, payload)
+        : await api.post(url, payload);
 
-      const json = await res.json();
-      if (json.success) {
+      if (res.data && res.data.success) {
         showToast('success', 'Agent Configuration schema updated successfully.');
         await fetchAgents();
-        if (!selectedAgentId && json.data) {
-          loadAgent(json.data);
+        if (!selectedAgentId && res.data.data) {
+          loadAgent(res.data.data);
         }
       }
-    } catch (err) {
-      console.error(err);
-      showToast('error', 'Error writing configuration changes.');
+    } catch (err: any) {
+      console.error('Core Client Network Trace Failure:', err);
+      showToast('error', `Error writing configuration changes: ${err.message || 'Backend unreachable'}`);
     } finally {
       setLoading(false);
     }
@@ -528,24 +458,22 @@ Start at the welcome-node.`;
       setDuration(0);
       setCallId(null);
 
-      const res = await secureFetch(`${API_BASE_URL}/api/calls/outbound`, {
-        method: 'POST',
-        body: JSON.stringify({
-          phoneNumber,
-          agentId: selectedAgentId,
-          userId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
-        })
+      const { apiBase } = getRuntimeUrls();
+      const res = await api.post(`${apiBase}/api/calls/outbound`, {
+        phoneNumber,
+        agentId: selectedAgentId,
+        userId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
       });
 
-      const json = await res.json();
-      if (json.success && json.data) {
-        setCallId(json.data.callId);
-        setCallStatus(json.data.status);
-        startCallMonitoring(json.data.callId);
+      if (res.data && res.data.success && res.data.data) {
+        setCallId(res.data.data.callId);
+        setCallStatus(res.data.data.status);
+        startCallMonitoring(res.data.data.callId);
       }
-    } catch (e) {
-      console.error(e);
+    } catch (err: any) {
+      console.error('Core Client Network Trace Failure:', err);
       setCallStatus('failed');
+      showToast('error', `Call placement failed: ${err.message || 'Backend unreachable'}`);
     } finally {
       setDialing(false);
     }
@@ -554,20 +482,22 @@ Start at the welcome-node.`;
   const handleHangUp = async () => {
     if (!callId) return;
     try {
-      await secureFetch(`${API_BASE_URL}/api/v2/calls/${callId}/terminate`, {
-        method: 'POST'
-      });
+      const { apiBase } = getRuntimeUrls();
+      await api.post(`${apiBase}/api/v2/calls/${callId}/terminate`);
       setCallStatus('completed');
       stopCallMonitoring();
-    } catch (e) {
-      console.error(e);
+    } catch (err: any) {
+      console.error('Core Client Network Trace Failure:', err);
+      showToast('error', `Failed to terminate call: ${err.message || 'Backend unreachable'}`);
     }
   };
 
   const startCallMonitoring = (cId: string) => {
     stopCallMonitoring();
-    const ws = new WebSocket(`${WS_BASE_URL}/live-transcript?callId=${cId}`);
+    const { apiBase, wsBase } = getRuntimeUrls();
+    const ws = new WebSocket(`${wsBase}/live-transcript?callId=${cId}`);
     wsRef.current = ws;
+    
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
@@ -586,18 +516,25 @@ Start at the welcome-node.`;
       }
     };
 
+    ws.onerror = (error) => {
+      console.error('[WebSocket Error Metrics] Live monitor thread encountered an issue:', error);
+    };
+
+    ws.onclose = (event) => {
+      console.log('[WebSocket Close Metrics] Live monitor socket closed. Code:', event.code, 'Reason:', event.reason, 'WasClean:', event.wasClean);
+    };
+
     pollRef.current = setInterval(async () => {
       try {
-        const res = await secureFetch(`${API_BASE_URL}/api/v2/calls/${cId}`);
-        const json = await res.json();
-        if (json.success && json.data) {
-          setCallStatus(json.data.status);
-          if (['completed', 'failed', 'no_answer', 'busy', 'cancelled'].includes(json.data.status)) {
+        const res = await api.get(`${apiBase}/api/v2/calls/${cId}`);
+        if (res.data && res.data.success && res.data.data) {
+          setCallStatus(res.data.data.status);
+          if (['completed', 'failed', 'no_answer', 'busy', 'cancelled'].includes(res.data.data.status)) {
             stopCallMonitoring();
           }
         }
       } catch (e) {
-        console.error(e);
+        console.error('[Call Polling Failure] Error fetching call status:', e);
       }
     }, 1500);
   };
@@ -666,57 +603,39 @@ Start at the welcome-node.`;
   const activeNode = flowNodes.find((n) => n.id === selectedNodeId);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-10 bg-[#FDFBF7]">
-      
+    <div>
       {/* Notifications toast */}
       {toast && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-2xl border text-xs shadow-md animate-in fade-in duration-350 ${
-          toast.type === 'success' ? 'bg-emerald-50 border-emerald-250 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'
-        }`}>
+        <div style={{ border: '1px solid black', padding: '10px', margin: '10px 0', background: '#ffebeb' }}>
           {toast.text}
         </div>
       )}
 
       {/* Top Header Card */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-3">
-          <span className="p-2.5 bg-emerald-600 rounded-2xl text-white">
-            <Workflow className="h-5 w-5" />
-          </span>
-          <div>
-            <h1 className="text-lg font-bold text-slate-800 tracking-tight font-sans">
-              Tri-Mode Agent Studio
-            </h1>
-            <p className="text-slate-400 text-xs mt-0.5">
-              Rebuild, design, and configure voice AI configurations across three optimized creation engines.
-            </p>
-          </div>
+      <header style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #ccc' }}>
+        <div>
+          <h1>Tri-Mode Agent Studio</h1>
+          <p>Rebuild, design, and configure voice AI configurations across three optimized creation engines.</p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           {/* Tri-Mode Selector Tab */}
-          <div className="flex border border-slate-200 bg-slate-50 p-1 rounded-xl shrink-0">
+          <div>
             <button
               onClick={() => setCreationMode('prompt')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                creationMode === 'prompt' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'
-              }`}
+              disabled={creationMode === 'prompt'}
             >
               Prompt-Base
             </button>
             <button
               onClick={() => setCreationMode('canvas')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                creationMode === 'canvas' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'
-              }`}
+              disabled={creationMode === 'canvas'}
             >
               Canvas Flow
             </button>
             <button
               onClick={() => setCreationMode('prebuilt')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                creationMode === 'prebuilt' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'
-              }`}
+              disabled={creationMode === 'prebuilt'}
             >
               Pre-built Blueprints
             </button>
@@ -729,7 +648,6 @@ Start at the welcome-node.`;
                 const found = agents.find((a) => a.id === e.target.value);
                 if (found) loadAgent(found);
               }}
-              className="bg-white border border-slate-200 text-xs text-slate-700 rounded-xl px-3 py-2 outline-none focus:border-emerald-500"
             >
               <option value="">-- Select Profile --</option>
               {agents.map((a) => (
@@ -738,93 +656,79 @@ Start at the welcome-node.`;
             </select>
           )}
 
-          <Button 
-            onClick={handleCreateNew} 
-            variant="outline" 
-            className="text-xs bg-white border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl px-3"
-          >
-            <Plus className="h-4 w-4 mr-1" /> New Persona
-          </Button>
+          <button onClick={handleCreateNew}>
+            New Persona
+          </button>
         </div>
-      </div>
+      </header>
 
       {/* Main Studio Frame Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div style={{ display: 'flex', gap: '20px', marginTop: '20px' }}>
         
         {/* Left Side Studio Controller */}
-        <div className="lg:col-span-8 space-y-6">
+        <div style={{ flex: 2 }}>
           
           {/* MODE A: PROMPT-BASE */}
           {creationMode === 'prompt' && (
-            <Card className="border-slate-200 bg-white shadow-sm rounded-3xl overflow-hidden">
-              <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-5">
-                <CardTitle className="text-sm font-bold text-slate-800">Prompt Optimizer Low-Code Engine</CardTitle>
-                <CardDescription className="text-xs text-slate-400">Describe the assistant role in plain English and let the system optimize details.</CardDescription>
-              </CardHeader>
-              <CardContent className="p-6 space-y-5">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase block tracking-wider">Natural Language Description</label>
+            <div style={{ border: '1px solid #ccc', padding: '15px' }}>
+              <h2>Prompt Optimizer Low-Code Engine</h2>
+              <p>Describe the assistant role in plain English and let the system optimize details.</p>
+              
+              <div style={{ margin: '10px 0' }}>
+                <label style={{ display: 'block', fontWeight: 'bold' }}>Natural Language Description</label>
+                <textarea
+                  value={promptDescription}
+                  onChange={(e) => setPromptDescription(e.target.value)}
+                  rows={4}
+                  placeholder="e.g., You are a patient dental clinic receptionist scheduling appointments..."
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <button onClick={handleOptimizePrompt} disabled={optimizing}>
+                {optimizing ? 'Optimizing...' : 'Optimize & Generate Agent'}
+              </button>
+
+              <div style={{ marginTop: '20px', borderTop: '1px solid #ccc', paddingTop: '15px' }}>
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontWeight: 'bold' }}>Agent Name</label>
+                    <input value={name} onChange={(e) => setName(e.target.value)} style={{ width: '100%' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontWeight: 'bold' }}>Description</label>
+                    <input value={description} onChange={(e) => setDescription(e.target.value)} style={{ width: '100%' }} />
+                  </div>
+                </div>
+
+                <div style={{ margin: '10px 0' }}>
+                  <label style={{ display: 'block', fontWeight: 'bold' }}>System Instructions script</label>
                   <textarea
-                    value={promptDescription}
-                    onChange={(e) => setPromptDescription(e.target.value)}
-                    rows={4}
-                    placeholder="e.g., You are a patient dental clinic receptionist scheduling appointments..."
-                    className="w-full rounded-xl border border-slate-200 bg-white text-xs p-4 outline-none focus:border-emerald-500 resize-none stable-scrollbar"
+                    value={instructions}
+                    onChange={(e) => setInstructions(e.target.value)}
+                    rows={6}
+                    style={{ width: '100%' }}
                   />
                 </div>
-                <Button 
-                  onClick={handleOptimizePrompt} 
-                  disabled={optimizing} 
-                  className="w-full bg-emerald-600 hover:bg-emerald-555 text-white font-bold py-4 rounded-xl text-xs uppercase tracking-wider"
-                >
-                  {optimizing ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Sparkles className="h-4 w-4 mr-1.5" />}
-                  Optimize & Generate Agent
-                </Button>
 
-                <div className="border-t border-slate-100 pt-5 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase block">Agent Name</label>
-                      <Input value={name} onChange={(e) => setName(e.target.value)} className="bg-white border-slate-200 text-xs rounded-xl" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase block">Description</label>
-                      <Input value={description} onChange={(e) => setDescription(e.target.value)} className="bg-white border-slate-200 text-xs rounded-xl" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase block">System Instructions script</label>
-                    <textarea
-                      value={instructions}
-                      onChange={(e) => setInstructions(e.target.value)}
-                      rows={6}
-                      className="w-full rounded-xl border border-slate-200 bg-white text-xs p-4 outline-none focus:border-emerald-500 font-mono resize-none stable-scrollbar"
-                    />
-                  </div>
-
-                  <Button onClick={handleSaveAgent} disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-555 text-white font-bold py-4 rounded-xl text-xs uppercase tracking-wider">
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Save className="h-4 w-4 mr-1.5" />}
-                    Save Agent Profile
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                <button onClick={handleSaveAgent} disabled={loading}>
+                  {loading ? 'Saving...' : 'Save Agent Profile'}
+                </button>
+              </div>
+            </div>
           )}
 
           {/* MODE B: CONVERSATION FLOW ENGINE */}
           {creationMode === 'canvas' && (
-            <Card className="border-slate-200 bg-white shadow-sm rounded-3xl overflow-hidden min-h-[500px] flex flex-col justify-between relative bg-slate-50/10">
-              <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-4 z-10 flex flex-row justify-between items-center flex-wrap gap-2">
+            <div style={{ border: '1px solid #ccc', padding: '15px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <CardTitle className="text-sm font-bold text-slate-800">Visual Flow Graph</CardTitle>
-                  <CardDescription className="text-[10px] text-slate-400">Map custom interactive components and publish structure to agentConfig.</CardDescription>
+                  <h3>Visual Flow Graph</h3>
+                  <p>Map custom interactive components and publish structure to agentConfig.</p>
                 </div>
-                <div className="flex gap-2">
+                <div style={{ display: 'flex', gap: '10px' }}>
                   <select 
                     onChange={(e) => handleAddCanvasNode(e.target.value)}
                     defaultValue=""
-                    className="bg-white border border-slate-200 text-[10px] rounded-lg px-2.5 py-1.5 outline-none font-bold text-slate-700 cursor-pointer"
                   >
                     <option value="" disabled>+ Add Node</option>
                     <option value="conversation">Conversation Block</option>
@@ -832,95 +736,71 @@ Start at the welcome-node.`;
                     <option value="call_transfer">Call Transfer</option>
                     <option value="ending">Call End</option>
                   </select>
-                  <Button onClick={handleSaveAgent} disabled={loading} className="text-xs bg-emerald-600 hover:bg-emerald-555 text-white rounded-lg py-1.5 px-3 h-8">
-                    {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Save className="h-3.5 w-3.5 mr-1" />}
-                    Publish Flow
-                  </Button>
+                  <button onClick={handleSaveAgent} disabled={loading}>
+                    {loading ? 'Publishing...' : 'Publish Flow'}
+                  </button>
                 </div>
-              </CardHeader>
+              </div>
               
-              <CardContent className="p-6 flex-1 flex flex-col items-center overflow-y-auto space-y-8 relative py-12">
-                {/* SVG connectors */}
-                <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-between py-12 z-0">
-                  <svg className="w-full h-full text-slate-200" viewBox="0 0 100 350" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <line x1="50" y1="20" x2="50" y2="330" stroke="currentColor" strokeWidth="2" strokeDasharray="4 4" />
-                  </svg>
-                </div>
-
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
                 {flowNodes.map((n) => {
                   const isSelected = selectedNodeId === n.id;
-                  let borderClass = 'border-slate-200 bg-white';
-                  if (n.type === 'begin') borderClass = 'border-emerald-250 bg-emerald-50/20 text-emerald-800';
-                  else if (n.type === 'ending') borderClass = 'border-rose-250 bg-rose-50/20 text-rose-800';
-                  else if (n.type === 'call_transfer') borderClass = 'border-amber-250 bg-amber-50/20 text-amber-800';
-                  else if (n.type === 'logic_split') borderClass = 'border-indigo-250 bg-indigo-50/20 text-indigo-800';
-
                   return (
                     <div
                       key={n.id}
                       onClick={() => setSelectedNodeId(n.id)}
-                      className={`w-64 border rounded-2xl p-4 shadow-sm relative z-10 cursor-pointer transition-all ${
-                        isSelected ? 'border-emerald-500 scale-[1.02] ring-2 ring-emerald-500/10 font-semibold' : 'hover:border-slate-350'
-                      } ${borderClass}`}
+                      style={{
+                        border: isSelected ? '2px solid green' : '1px solid #ccc',
+                        padding: '10px',
+                        cursor: 'pointer'
+                      }}
                     >
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-[8px] font-bold uppercase tracking-widest block opacity-75">{n.type}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '10px', textTransform: 'uppercase' }}>{n.type}</span>
                         {n.id !== 'begin' && n.id !== 'welcome-node' && (
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteNode(n.id);
                             }}
-                            className="text-slate-400 hover:text-rose-600 transition-colors"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete
                           </button>
                         )}
                       </div>
-                      <h4 className="text-xs font-bold text-slate-800">{n.title}</h4>
-                      <p className="text-[10px] text-slate-500 truncate mt-1 leading-normal">{n.message}</p>
+                      <h4>{n.title}</h4>
+                      <p>{n.message}</p>
                       
                       {n.transitions.map((t, idx) => (
-                        <div key={idx} className="mt-2 text-[9px] bg-slate-50 border border-slate-200 p-1.5 rounded-lg flex items-center justify-between text-slate-500">
-                          <span className="truncate max-w-[120px]">{t.condition}</span>
-                          <ChevronRight className="h-3 w-3 text-slate-400" />
-                          <span className="font-bold truncate max-w-[60px]">{t.targetId}</span>
+                        <div key={idx} style={{ fontSize: '11px', background: '#f5f5f5', padding: '4px', margin: '4px 0' }}>
+                          <span>If intent matches: "{t.condition}" -{'>'} Transition to [{t.targetId}]</span>
                         </div>
                       ))}
                     </div>
                   );
                 })}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
 
           {/* MODE C: PRE-BUILT TURNKEY AGENTS */}
           {creationMode === 'prebuilt' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               {BLUEPRINTS.map((bp) => (
-                <Card 
+                <div 
                   key={bp.id} 
-                  className="border-slate-200 bg-white hover:border-slate-350 hover:shadow-sm cursor-pointer transition-all rounded-3xl overflow-hidden"
+                  style={{ border: '1px solid #ccc', padding: '15px', cursor: 'pointer' }}
                   onClick={() => handleInjectBlueprint(bp)}
                 >
-                  <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-5">
-                    <span className="text-[8px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-250/50 px-2.5 py-0.5 rounded-full uppercase tracking-wider block w-fit">
-                      {bp.toolName}
-                    </span>
-                    <CardTitle className="text-sm font-bold text-slate-800 mt-2">{bp.title}</CardTitle>
-                    <CardDescription className="text-[11px] text-slate-400">{bp.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-5 text-[11px] text-slate-500 space-y-2">
-                    <div className="flex justify-between">
-                      <span>Optimal Voice:</span>
-                      <span className="font-semibold text-slate-700">{bp.voiceName}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Temperature Boundary:</span>
-                      <span className="font-semibold text-slate-700">{bp.temperature.toFixed(1)}</span>
-                    </div>
-                  </CardContent>
-                </Card>
+                  <span style={{ fontSize: '10px', textTransform: 'uppercase', color: '#666' }}>{bp.toolName}</span>
+                  <h3>{bp.title}</h3>
+                  <p>{bp.description}</p>
+                  <div style={{ fontSize: '11px', marginTop: '5px' }}>
+                    <span>Optimal Voice: <strong>{bp.voiceName}</strong></span>
+                    <br />
+                    <span>Temperature Boundary: <strong>{bp.temperature.toFixed(1)}</strong></span>
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -928,126 +808,116 @@ Start at the welcome-node.`;
         </div>
 
         {/* Right Side Settings Tabs & Dialer */}
-        <div className="lg:col-span-4 space-y-6">
-          <Card className="border-slate-200 bg-white shadow-sm rounded-3xl overflow-hidden">
+        <div style={{ flex: 1, border: '1px solid #ccc', padding: '15px' }}>
+          <div>
+            <h3>Settings Details</h3>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '10px' }}>
             
-            {/* Accordion sub selector */}
-            <div className="flex border-b border-slate-200 text-center text-xs">
-              <button
-                onClick={() => setPhoneNumber('+919876543210')}
-                className="flex-1 py-3.5 font-bold text-emerald-700 border-b-2 border-emerald-600 bg-white"
+            {/* Canvas active node context editor */}
+            {creationMode === 'canvas' && activeNode && (
+              <div style={{ border: '1px solid #ccc', padding: '10px', background: '#f9f9f9' }}>
+                <strong>Selected Block Config</strong>
+                <div style={{ margin: '5px 0' }}>
+                  <label style={{ display: 'block', fontSize: '11px' }}>Block Title</label>
+                  <input value={activeNode.title} onChange={(e) => handleUpdateNodeField('title', e.target.value)} style={{ width: '100%' }} />
+                </div>
+                {activeNode.type === 'call_transfer' && (
+                  <div style={{ margin: '5px 0' }}>
+                    <label style={{ display: 'block', fontSize: '11px' }}>SIP Target Number</label>
+                    <input value={activeNode.phoneNumber || ''} onChange={(e) => handleUpdateNodeField('phoneNumber', e.target.value)} style={{ width: '100%' }} />
+                  </div>
+                )}
+                <div style={{ margin: '5px 0' }}>
+                  <label style={{ display: 'block', fontSize: '11px' }}>Dialogue Speech Message</label>
+                  <textarea
+                    value={activeNode.message}
+                    onChange={(e) => handleUpdateNodeField('message', e.target.value)}
+                    rows={3}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Core Audio and parameter options */}
+            <div>
+              <label style={{ display: 'block', fontWeight: 'bold' }}>Target Voice Persona</label>
+              <select
+                value={selectedVoice}
+                onChange={(e) => setSelectedVoice(e.target.value)}
+                style={{ width: '100%' }}
               >
-                Settings Details
-              </button>
+                {VOICE_MODELS.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
             </div>
 
-            <CardContent className="p-5 space-y-4">
-              
-              {/* Canvas active node context editor */}
-              {creationMode === 'canvas' && activeNode && (
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Selected Block Config</span>
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-slate-500 uppercase block">Block Title</label>
-                    <Input value={activeNode.title} onChange={(e) => handleUpdateNodeField('title', e.target.value)} className="bg-white border-slate-200 text-xs rounded-xl h-8" />
-                  </div>
-                  {activeNode.type === 'call_transfer' && (
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-slate-500 uppercase block">SIP Target Number</label>
-                      <Input value={activeNode.phoneNumber || ''} onChange={(e) => handleUpdateNodeField('phoneNumber', e.target.value)} className="bg-white border-slate-200 text-xs rounded-xl h-8 font-mono" />
-                    </div>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>LLM Temperature</span>
+                <strong>{temperature.toFixed(1)}</strong>
+              </div>
+              <input
+                type="range" min="0.0" max="2.0" step="0.1"
+                value={temperature} onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            {/* Integrated Dialer Playground */}
+            <div style={{ borderTop: '1px solid #ccc', paddingTop: '15px' }}>
+              <div>
+                <label style={{ display: 'block', fontWeight: 'bold' }}>Telephony Simulator</label>
+                <input type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} style={{ width: '100%' }} />
+                <div style={{ marginTop: '10px' }}>
+                  {['initiating', 'ringing', 'connected', 'in_progress'].includes(callStatus) ? (
+                    <button onClick={handleHangUp} disabled={dialing} style={{ width: '100%', padding: '10px', background: 'red', color: 'white' }}>
+                      Hang Up Connection
+                    </button>
+                  ) : (
+                    <button onClick={handleInitiateCall} disabled={dialing} style={{ width: '100%', padding: '10px', background: 'green', color: 'white' }}>
+                      Initiate Live Screen Call
+                    </button>
                   )}
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-slate-500 uppercase block">Dialogue Speech Message</label>
-                    <textarea
-                      value={activeNode.message}
-                      onChange={(e) => handleUpdateNodeField('message', e.target.value)}
-                      rows={3}
-                      className="w-full rounded-xl border border-slate-200 bg-white text-xs p-2 outline-none focus:border-emerald-500 font-mono resize-none stable-scrollbar"
-                    />
-                  </div>
                 </div>
-              )}
-
-              {/* Core Audio and parameter options */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase block tracking-wider">Target Voice Persona</label>
-                <select
-                  value={selectedVoice}
-                  onChange={(e) => setSelectedVoice(e.target.value)}
-                  className="bg-white border border-slate-200 text-xs text-slate-700 rounded-xl px-3 py-2 outline-none w-full cursor-pointer"
-                >
-                  {VOICE_MODELS.map((m) => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </select>
               </div>
 
-              <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                <div className="flex justify-between items-center text-xs mb-1">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">LLM Temperature</span>
-                  <span className="text-emerald-700 font-mono font-bold">{temperature.toFixed(1)}</span>
-                </div>
-                <input
-                  type="range" min="0.0" max="2.0" step="0.1"
-                  value={temperature} onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                  className="w-full accent-emerald-600"
-                />
+              <div style={{ border: '1px solid #ccc', padding: '8px', marginTop: '10px' }}>
+                Status: <strong>{getStatusLabel(callStatus)}</strong>
+                {['connected', 'in_progress'].includes(callStatus) && <span style={{ marginLeft: '10px' }}>{formatSecToTime(duration)}</span>}
               </div>
 
-              {/* Integrated Dialer Playground */}
-              <div className="border-t border-slate-100 pt-4 space-y-3.5">
-                <div className="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Telephony Simulator</label>
-                  <div className="flex flex-col gap-2">
-                    <Input type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} className="bg-white border-slate-200 rounded-xl text-xs" />
-                    {['initiating', 'ringing', 'connected', 'in_progress'].includes(callStatus) ? (
-                      <Button onClick={handleHangUp} disabled={dialing} variant="destructive" className="bg-rose-600 hover:bg-rose-500 rounded-xl w-full text-xs font-bold py-3.5 h-10 flex items-center justify-center gap-1.5">
-                        {dialing && <Loader2 className="h-4 w-4 animate-spin" />}
-                        Hang Up Connection
-                      </Button>
-                    ) : (
-                      <Button onClick={handleInitiateCall} disabled={dialing} className="bg-emerald-600 hover:bg-emerald-555 text-white rounded-xl w-full text-xs font-bold py-3.5 h-10 flex items-center justify-center gap-1.5">
-                        {dialing && <Loader2 className="h-4 w-4 animate-spin" />}
-                        Initiate Live Screen Call
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-                <div className={`p-3 rounded-xl border text-xs flex items-center justify-between transition-all ${getStatusColor(callStatus)}`}>
-                  <span className="font-semibold">{getStatusLabel(callStatus)}</span>
-                  {['connected', 'in_progress'].includes(callStatus) && <span className="font-mono text-slate-800">{formatSecToTime(duration)}</span>}
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Dialogue transcription logs</label>
-                  <div className="h-56 rounded-2xl border border-slate-200 bg-white p-4 overflow-y-auto space-y-3 stable-scrollbar">
-                    {transcripts.length === 0 ? (
-                      <div className="h-full flex items-center justify-center text-slate-400 text-xs">No active sessions. Start call to monitor speech.</div>
-                    ) : (
-                      transcripts.map((t) => {
-                        const isAgent = t.speaker === 'agent';
-                        return (
-                          <div key={t.id} className={`flex max-w-[85%] ${isAgent ? 'mr-auto' : 'ml-auto flex-row-reverse'}`}>
-                            <div className={`rounded-2xl px-3 py-2 border text-xs leading-relaxed ${
-                              isAgent 
-                                ? 'bg-[#1E293B] text-[#F8FAFC] border-[#334155]' // Clarity AI responses inside a charcoal slate visual box
-                                : 'bg-[#E8E3D9]/60 text-slate-800 border-slate-200' // Candidate inputs styled with a distinct text frame bubble
-                            }`}>
-                              {t.text}
-                            </div>
+              <div style={{ marginTop: '15px' }}>
+                <label style={{ display: 'block', fontWeight: 'bold' }}>Dialogue transcription logs</label>
+                <div style={{ height: '200px', border: '1px solid #ccc', overflowY: 'auto', padding: '8px', background: 'white' }}>
+                  {transcripts.length === 0 ? (
+                    <div style={{ color: '#999' }}>No active sessions. Start call to monitor speech.</div>
+                  ) : (
+                    transcripts.map((t) => {
+                      const isAgent = t.speaker === 'agent';
+                      return (
+                        <div key={t.id} style={{ display: 'flex', justifyContent: isAgent ? 'flex-start' : 'flex-end', margin: '5px 0' }}>
+                          <div style={{
+                            padding: '6px 10px',
+                            borderRadius: '8px',
+                            background: isAgent ? '#f0f0f0' : '#e0e0ff',
+                            maxWidth: '80%'
+                          }}>
+                            <strong>{t.speaker}:</strong> {t.text}
                           </div>
-                        );
-                      })
-                    )}
-                    <div ref={scrollRef} />
-                  </div>
+                        </div>
+                      );
+                    })
+                  )}
+                  <div ref={scrollRef} />
                 </div>
               </div>
+            </div>
 
-            </CardContent>
-          </Card>
+          </div>
         </div>
 
       </div>

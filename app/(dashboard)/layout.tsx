@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -37,6 +37,17 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const { data: session } = useSession();
+
+  useEffect(() => {
+    if (
+      typeof window !== 'undefined' && 
+      window.location.protocol === 'http:' && 
+      window.location.hostname !== 'localhost'
+    ) {
+      console.warn('Clarity Voice Security Warning: Unencrypted connection detected. Redirecting to secure execution layer...');
+      window.location.replace(window.location.href.replace(/^http:/, 'https:'));
+    }
+  }, []);
 
   const buildItems = [
     { label: 'Agents', href: '/agents', icon: Bot },

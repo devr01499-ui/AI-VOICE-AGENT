@@ -26,6 +26,8 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     // Automatically attach tokens or active workspace credentials if needed
+    config.headers['Authorization'] = 'Bearer a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+    config.headers['x-user-id'] = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
     return config;
   },
   (error) => {
