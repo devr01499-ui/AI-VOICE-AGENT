@@ -159,7 +159,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     // ✅ FIXED: Use v1alpha endpoint (was v1beta)
     // v1alpha is the current stable endpoint for Gemini Live API
     // v1beta was causing connection timeouts and API key blocking
-    const apiVersion = (config as any).apiVersion || env.GEMINI_API_VERSION || 'v1alpha';
+    const apiVersion = 'v1alpha';
     
     const baseUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.${apiVersion}.GenerativeService.BidiGenerateContent`;
     
