@@ -72,8 +72,8 @@ export default function AgentsPage() {
     
     try {
       const res = await api.post('/api/v2/calls/outbound', { 
-        recipientNumber: phoneNumber,
-        agentId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" // Seeded MVP ID
+        phoneNumber: phoneNumber, // <-- Change from recipientNumber to phoneNumber
+        agentId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
       });
       
       if (res.data && res.data.success) {

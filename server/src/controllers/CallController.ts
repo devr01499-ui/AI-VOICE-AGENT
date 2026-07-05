@@ -29,18 +29,23 @@ export class CallController {
    */
   static async initiateCall(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const targetNumber = req.body.phoneNumber || req.body.recipientNumber;
+      const agentId = req.body.agentId;
+
+      if (!targetNumber) {
+        res.status(400).json({ 
+          success: false, 
+          message: "Signaling Validation Failure: No valid destination number (phoneNumber/recipientNumber) found in request payload." 
+        });
+        return;
+      }
+      const phoneNumber = targetNumber;
+
       const body = req.body as any;
-      const phoneNumber = body.phoneNumber || body.recipientNumber;
-      const agentId = body.agentId;
       const userId = body.userId;
       const userData = body.userData;
       const maxDuration = body.maxDuration;
       const fromPhoneNumber = body.fromPhoneNumber;
-
-      if (!phoneNumber) {
-        res.status(400).json({ success: false, error: 'recipientNumber or phoneNumber is required' });
-        return;
-      }
       if (!agentId) {
         res.status(400).json({ success: false, error: 'agentId is required' });
         return;
