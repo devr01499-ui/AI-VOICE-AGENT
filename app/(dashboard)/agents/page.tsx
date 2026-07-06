@@ -273,148 +273,195 @@ export default function AgentsPage() {
         </div>
       )}
 
-      {/* Main Glassmorphism Panel */}
-      <div className="bg-[#141C2F] border border-[#1E293B] rounded-xl p-8 max-w-lg w-full shadow-2xl text-center relative z-10">
-        <div className="h-1 w-20 bg-[#10B981] rounded-full mx-auto mb-6 shadow-[0_0_10px_#10B981]" />
-
-        <h1 className="text-2xl font-extrabold mb-2 tracking-tight bg-gradient-to-r from-[#F8FAFC] to-[#94A3B8] bg-clip-text text-transparent">
-          Clarity Voice AI
-        </h1>
-        <p className="text-sm text-[#94A3B8] font-medium mb-8">
-          Automated HR Screening Arena
-        </p>
-
-        {/* Telephony input & action controls */}
-        <div className="flex flex-col gap-5 text-left">
+      {/* Grid Layout Panel */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl w-full z-10">
+        
+        {/* Left Column: Recruiter Profile Card */}
+        <div className="bg-[#141C2F] border border-[#1E293B] rounded-xl p-8 shadow-2xl flex flex-col justify-between text-left">
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#64748B] mb-2">
-              Candidate Phone Number (E.164)
-            </label>
-            <input
-              type="tel"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              placeholder="+91XXXXXXXXXX"
-              className="w-full bg-[#0F172A] border border-[#334155] rounded-lg p-3.5 text-sm font-mono text-[#F8FAFC] outline-none focus:border-[#10B981] transition-all box-border"
-            />
-          </div>
+            <div className="h-1 w-20 bg-[#6366F1] rounded-full mb-6 shadow-[0_0_10px_#6366F1]" />
+            <h2 className="text-xl font-bold mb-2 tracking-tight text-white">Active Voice Recruiter</h2>
+            <p className="text-xs text-[#94A3B8] font-medium mb-6">Customer Support screening agent details</p>
+            
+            <div className="flex flex-col gap-4 text-xs">
+              <div className="bg-[#0F172A] border border-[#1E293B] rounded-lg p-4">
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1">Agent Name</span>
+                <span className="text-[#F8FAFC] font-semibold text-sm">Clarity HR Customer Support Screener</span>
+              </div>
 
-          <div className="mt-2">
-            {['ringing', 'connected'].includes(callStatus) ? (
-              <button
-                onClick={handleHangUp}
-                disabled={dialing}
-                className="w-full p-4 bg-[#DC2626] hover:bg-[#B91C1C] text-[#F8FAFC] border-none rounded-xl text-sm font-bold cursor-pointer shadow-lg hover:shadow-xl transition-all"
-              >
-                Hang Up Connection
-              </button>
-            ) : (
-              <button
-                onClick={handleStartCall}
-                disabled={dialing}
-                className="w-full p-4 bg-[#10B981] hover:bg-[#059669] text-[#F8FAFC] border-none rounded-xl text-sm font-bold cursor-pointer shadow-lg hover:shadow-xl transition-all"
-              >
-                Initiate Live Screen Call
-              </button>
-            )}
-          </div>
+              <div className="bg-[#0F172A] border border-[#1E293B] rounded-lg p-4">
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-2">Screening Questions</span>
+                <ul className="list-decimal pl-4 space-y-2 text-[#94A3B8]">
+                  <li>Describe a situation where you resolved conflict with a frustrated customer.</li>
+                  <li>How do you handle high call volumes while remaining warm and positive?</li>
+                  <li>What are your expected salary bounds for this position?</li>
+                </ul>
+              </div>
 
-          {/* Interactive call status tracker */}
-          <div className="flex justify-between items-center bg-[#0F172A] border border-[#1E293B] rounded-lg p-3 text-xs">
-            <span className="text-[#94A3B8] font-medium">Line Status</span>
-            <div className="flex items-center gap-2">
-              <span className={`h-2 w-2 rounded-full inline-block ${
-                callStatus === 'connected' ? 'bg-[#10B981]' : (callStatus === 'idle' ? 'bg-[#64748B]' : 'bg-[#F59E0B]')
-              }`} />
-              <strong className="text-[#F8FAFC]">{getStatusLabel(callStatus)}</strong>
-              {callStatus === 'connected' && (
-                <span className="text-[#10B981] font-mono ml-1.5">({formatSecToTime(callDuration)})</span>
-              )}
-            </div>
-          </div>
-
-          {/* Dialogue transcription logs */}
-          <div className="mt-2">
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#64748B] mb-2">
-              Live Dialogue Transcription
-            </label>
-            <div className="h-44 bg-[#0F172A] border border-[#1E293B] rounded-xl p-4 overflow-y-auto flex flex-col gap-3 scroll-smooth">
-              {transcripts.length === 0 ? (
-                <div className="h-full flex items-center justify-center text-[#475569] text-xs font-medium">
-                  Awaiting screening stream connection...
+              <div className="bg-[#0F172A] border border-[#1E293B] rounded-lg p-4 flex justify-between items-center">
+                <div>
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-0.5">Model engine</span>
+                  <span className="text-[#F8FAFC] font-mono">Gemini 2.5 Flash</span>
                 </div>
-              ) : (
-                transcripts.map((t) => {
-                  const isAgent = t.speaker === 'agent';
-                  return (
-                    <div
-                      key={t.id}
-                      className={`flex w-full ${isAgent ? 'justify-start' : 'justify-end'}`}
-                    >
-                      <div className={`p-2.5 rounded-xl text-xs leading-relaxed max-w-[85%] text-left ${
-                        isAgent ? 'bg-[#4F46E5]/20 text-[#818CF8] border border-[#4F46E5]/40' : 'bg-[#1E293B] text-slate-100 border border-slate-700'
-                      }`}>
-                        <span className={`block text-[10px] font-bold uppercase mb-1 ${isAgent ? 'text-[#818CF8]' : 'text-slate-400'}`}>
-                          {isAgent ? 'Clarity Recruiter' : 'Candidate'}
-                        </span>
-                        {t.text}
-                      </div>
+                <span className="px-2.5 py-1 rounded bg-[#6366F1]/10 text-[#818CF8] text-[10px] font-bold border border-[#4F46E5]/30">Realtime API</span>
+              </div>
+
+              <div className="bg-[#0F172A] border border-[#1E293B] rounded-lg p-4 flex justify-between items-center">
+                <div>
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-0.5">Voice Tone</span>
+                  <span className="text-[#F8FAFC] font-semibold">Puck (Human-like, Clear, Smooth)</span>
+                </div>
+                <span className="px-2.5 py-1 rounded bg-[#10B981]/10 text-[#34D399] text-[10px] font-bold border border-[#059669]/30">Active</span>
+              </div>
+            </div>
+          </div>
+          <div className="text-[10px] text-[#64748B] mt-6 text-center border-t border-[#1E293B] pt-4 font-mono">
+            Agent ID: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11
+          </div>
+        </div>
+
+        {/* Right Column: Main Glassmorphism Panel */}
+        <div className="bg-[#141C2F] border border-[#1E293B] rounded-xl p-8 shadow-2xl text-center relative flex flex-col justify-between">
+          <div>
+            <div className="h-1 w-20 bg-[#10B981] rounded-full mx-auto mb-6 shadow-[0_0_10px_#10B981]" />
+
+            <h1 className="text-2xl font-extrabold mb-2 tracking-tight bg-gradient-to-r from-[#F8FAFC] to-[#94A3B8] bg-clip-text text-transparent">
+              Clarity Voice AI
+            </h1>
+            <p className="text-sm text-[#94A3B8] font-medium mb-8">
+              Automated HR Screening Arena
+            </p>
+
+            {/* Telephony input & action controls */}
+            <div className="flex flex-col gap-5 text-left">
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#64748B] mb-2">
+                  Candidate Phone Number (E.164)
+                </label>
+                <input
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="+91XXXXXXXXXX"
+                  className="w-full bg-[#0F172A] border border-[#334155] rounded-lg p-3.5 text-sm font-mono text-[#F8FAFC] outline-none focus:border-[#10B981] transition-all box-border"
+                />
+              </div>
+
+              <div className="mt-2">
+                {['ringing', 'connected'].includes(callStatus) ? (
+                  <button
+                    onClick={handleHangUp}
+                    disabled={dialing}
+                    className="w-full p-4 bg-[#DC2626] hover:bg-[#B91C1C] text-[#F8FAFC] border-none rounded-xl text-sm font-bold cursor-pointer shadow-lg hover:shadow-xl transition-all"
+                  >
+                    Hang Up Connection
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleStartCall}
+                    disabled={dialing}
+                    className="w-full p-4 bg-[#10B981] hover:bg-[#059669] text-[#F8FAFC] border-none rounded-xl text-sm font-bold cursor-pointer shadow-lg hover:shadow-xl transition-all"
+                  >
+                    Initiate Live Screen Call
+                  </button>
+                )}
+              </div>
+
+              {/* Interactive call status tracker */}
+              <div className="flex justify-between items-center bg-[#0F172A] border border-[#1E293B] rounded-lg p-3 text-xs">
+                <span className="text-[#94A3B8] font-medium">Line Status</span>
+                <div className="flex items-center gap-2">
+                  <span className={`h-2 w-2 rounded-full inline-block ${
+                    callStatus === 'connected' ? 'bg-[#10B981]' : (callStatus === 'idle' ? 'bg-[#64748B]' : 'bg-[#F59E0B]')
+                  }`} />
+                  <strong className="text-[#F8FAFC]">{getStatusLabel(callStatus)}</strong>
+                  {callStatus === 'connected' && (
+                    <span className="text-[#10B981] font-mono ml-1.5">({formatSecToTime(callDuration)})</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Dialogue transcription logs */}
+              <div className="mt-2">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#64748B] mb-2">
+                  Live Dialogue Transcription
+                </label>
+                <div className="w-full h-44 bg-[#0F172A] border border-[#1E293B] rounded-lg p-4 overflow-y-auto flex flex-col gap-3 font-sans text-xs box-border">
+                  {transcripts.length === 0 ? (
+                    <div className="text-[#64748B] text-center italic my-auto">
+                      Dialogue streams will render here in real-time...
                     </div>
-                  );
-                })
-              )}
-              <div ref={scrollRef} />
+                  ) : (
+                    transcripts.map((t) => (
+                      <div key={t.id} className="flex flex-col gap-1">
+                        <span className={`font-bold tracking-wide uppercase text-[9px] ${
+                          t.speaker === 'agent' ? 'text-[#818CF8]' : 'text-[#34D399]'
+                        }`}>
+                          {t.speaker === 'agent' ? 'Clarity Recruiter' : 'Candidate'}
+                        </span>
+                        <p className="text-[#E2E8F0] m-0 leading-relaxed font-medium">{t.text}</p>
+                      </div>
+                    ))
+                  )}
+                  <div ref={scrollRef} />
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* SIP Trunk connection manager */}
-          <div className="mt-4 pt-4 border-t border-[#1E293B]">
-            <button
-              onClick={() => setShowSipForm(!showSipForm)}
-              className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold cursor-pointer transition-all"
-            >
-              {showSipForm ? 'Hide SIP Trunk Config' : 'Configure SIP Trunk Connection'}
-            </button>
+          {/* SIP Trunking panel */}
+          <div className="mt-8 pt-6 border-t border-[#1E293B] text-left">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-xs font-semibold text-[#94A3B8]">External SIP Carrier Trunk</span>
+              <button
+                onClick={() => setShowSipForm(!showSipForm)}
+                className="text-[10px] font-bold px-2 py-1 rounded bg-[#334155] hover:bg-[#475569] text-[#F8FAFC] border-none cursor-pointer transition-all"
+              >
+                {showSipForm ? 'Collapse Configuration' : 'Configure Custom Trunk'}
+              </button>
+            </div>
 
             {showSipForm && (
-              <form onSubmit={handleConnectSipTrunk} className="mt-4 flex flex-col gap-3.5 text-xs">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1.5">
-                    Trunk Name (Friendly)
-                  </label>
-                  <input
-                    type="text"
-                    value={sipName}
-                    onChange={(e) => setSipName(e.target.value)}
-                    placeholder="Clarity Primary Trunk"
-                    className="w-full bg-[#0F172A] border border-[#334155] rounded-md p-2 text-xs text-[#F8FAFC] outline-none focus:border-[#10B981] transition-all box-border"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1.5">
-                    SIP URI *
-                  </label>
-                  <input
-                    type="text"
-                    value={sipUri}
-                    onChange={(e) => setSipUri(e.target.value)}
-                    placeholder="sip:trunk.example.com"
-                    required
-                    className="w-full bg-[#0F172A] border border-[#334155] rounded-md p-2 text-xs text-[#F8FAFC] outline-none focus:border-[#10B981] transition-all box-border"
-                  />
-                </div>
-
-                <div className="flex gap-2">
+              <form onSubmit={handleConnectSipTrunk} className="flex flex-col gap-4 bg-[#0F172A] border border-[#1E293B] rounded-lg p-4 box-border">
+                <div className="flex gap-4">
                   <div className="flex-1">
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1.5">
-                      Username
+                      Carrier Name
+                    </label>
+                    <input
+                      type="text"
+                      value={sipName}
+                      onChange={(e) => setSipName(e.target.value)}
+                      placeholder="e.g. Twilio / Vobiz"
+                      required
+                      className="w-full bg-[#0F172A] border border-[#334155] rounded-md p-2 text-xs text-[#F8FAFC] outline-none focus:border-[#10B981] transition-all box-border"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1.5">
+                      SIP URI (Domain / IP)
+                    </label>
+                    <input
+                      type="text"
+                      value={sipUri}
+                      onChange={(e) => setSipUri(e.target.value)}
+                      placeholder="sip.carrier.com"
+                      required
+                      className="w-full bg-[#0F172A] border border-[#334155] rounded-md p-2 text-xs text-[#F8FAFC] outline-none focus:border-[#10B981] transition-all box-border"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1.5">
+                      Username / Auth ID
                     </label>
                     <input
                       type="text"
                       value={sipUsername}
                       onChange={(e) => setSipUsername(e.target.value)}
-                      placeholder="User"
+                      placeholder="Username"
                       className="w-full bg-[#0F172A] border border-[#334155] rounded-md p-2 text-xs text-[#F8FAFC] outline-none focus:border-[#10B981] transition-all box-border"
                     />
                   </div>
