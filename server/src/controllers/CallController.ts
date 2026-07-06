@@ -176,13 +176,15 @@ export class CallController {
    */
   static async handleVobizAnswer(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const queryCallId = req.query.callId as string;
       const requestUuid = req.body?.RequestUUID as string;
       const callUuid = req.body?.CallUUID as string;
 
-      // Search database records for an active call matching either tracking token
+      // Search database records for an active call matching tracking token or query callId
       const callSession = await prisma.call.findFirst({
         where: {
           OR: [
+            ...(queryCallId ? [{ id: queryCallId }] : []),
             { id: requestUuid },
             { id: callUuid },
             { telemetryId: requestUuid }
@@ -191,6 +193,7 @@ export class CallController {
       });
 
       if (!callSession) {
+        logger.error('handleVobizAnswer: Session mismatch', { queryCallId, requestUuid, callUuid });
         res.status(200).send('<Response><Speak>Session mismatch</Speak></Response>');
         return;
       }
@@ -227,13 +230,15 @@ export class CallController {
    */
   static async handleVobizStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const queryCallId = req.query.callId as string;
       const requestUuid = req.body?.RequestUUID as string;
       const callUuid = req.body?.CallUUID as string;
 
-      // Search database records for an active call matching either tracking token
+      // Search database records for an active call matching tracking token or query callId
       const callSession = await prisma.call.findFirst({
         where: {
           OR: [
+            ...(queryCallId ? [{ id: queryCallId }] : []),
             { id: requestUuid },
             { id: callUuid },
             { telemetryId: requestUuid }
@@ -242,6 +247,7 @@ export class CallController {
       });
 
       if (!callSession) {
+        logger.error('handleVobizStatus: Session mismatch', { queryCallId, requestUuid, callUuid });
         res.status(200).send('<Response><Speak>Session mismatch</Speak></Response>');
         return;
       }
@@ -266,13 +272,15 @@ export class CallController {
    */
   static async handleVobizHangup(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const queryCallId = req.query.callId as string;
       const requestUuid = req.body?.RequestUUID as string;
       const callUuid = req.body?.CallUUID as string;
 
-      // Search database records for an active call matching either tracking token
+      // Search database records for an active call matching tracking token or query callId
       const callSession = await prisma.call.findFirst({
         where: {
           OR: [
+            ...(queryCallId ? [{ id: queryCallId }] : []),
             { id: requestUuid },
             { id: callUuid },
             { telemetryId: requestUuid }
@@ -281,6 +289,7 @@ export class CallController {
       });
 
       if (!callSession) {
+        logger.error('handleVobizHangup: Session mismatch', { queryCallId, requestUuid, callUuid });
         res.status(200).send('<Response><Speak>Session mismatch</Speak></Response>');
         return;
       }
