@@ -32,6 +32,7 @@ interface UpdateCallData {
   startTime?: Date;
   endTime?: Date;
   durationSeconds?: number;
+  telemetryId?: string;
   userData?: string;
   webhookUrl?: string;
   recordingEnabled?: boolean;

@@ -90,13 +90,18 @@ export class CallOrchestrator {
         throw new Error('env.PUBLIC_URL not configured');
       }
 
-      await VobizService.placeCall({
+      const result = await VobizService.placeCall({
         to: phoneNumber,
         from: fromPhoneNumber,
         answerUrl: `${publicUrl}/api/v2/webhooks/vobiz/answer?callId=${call.id}`,
         ringUrl: `${publicUrl}/api/v2/webhooks/vobiz/status?callId=${call.id}`,
         hangupUrl: `${publicUrl}/api/v2/webhooks/vobiz/hangup?callId=${call.id}`,
       });
+
+      if (result && result.requestUuid) {
+        await CallRepository.update(call.id, { telemetryId: result.requestUuid });
+        logger.info('CallOrchestrator: call telemetryId updated', { callId: call.id, requestUuid: result.requestUuid });
+      }
 
       stateMachine.transitionTo('ringing');
       await CallRepository.updateStatus(call.id, 'ringing');
