@@ -69,13 +69,9 @@ export default function AgentsPage() {
     setDialing(true);
 
     try {
-      // Explicitly target the production Render cloud container architecture
-      const BACKEND_BASE = process.env.NEXT_PUBLIC_API_URL || "https://ai-voice-agent-backend-mv32.onrender.com";
-      
-      // Clean any potential trailing slashes from the environment configuration string
-      const absoluteApiTarget = `${BACKEND_BASE.replace(/\/$/, '')}/api/v2/calls`;
-      
-      console.log("Routing outbound call directly to the versioned endpoint:", absoluteApiTarget);
+      // Hardcode the verified Render endpoint destination to break environmental caching
+      const absoluteApiTarget = "https://ai-voice-agent-backend-mv32.onrender.com/api/v2/calls";
+      console.log("CTO Audit: Dispatching direct cross-origin signaling payload to:", absoluteApiTarget);
 
       const res = await fetch(absoluteApiTarget, {
         method: 'POST',
@@ -85,12 +81,19 @@ export default function AgentsPage() {
           'x-request-id': typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2)
         },
         body: JSON.stringify({
-          phoneNumber: phoneNumber,
+          phoneNumber: phoneNumber.trim(),
           agentId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
           userId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
         })
       });
 
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const rawText = await res.text();
+        console.error("Critical Network Intercept: Server returned non-JSON payload", rawText);
+        throw new Error(`Server returned invalid content-type (${contentType}). Check backend container logs.`);
+      }
+      
       const json = await res.json();
       if (json.success && json.data) {
         const actualCallId = json.data.callId || json.data.id;
