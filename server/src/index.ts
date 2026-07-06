@@ -163,6 +163,41 @@ app.use((_req, res) => {
 
 app.use(errorHandler);
 
+async function seedTestEnvironment() {
+  const TEST_UUID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
+  
+  console.log("CTO Audit: Running core system data rehydration checks...");
+  
+  // Hydrate User Table
+  await prisma.user.upsert({
+    where: { id: TEST_UUID },
+    update: {},
+    create: {
+      id: TEST_UUID,
+      email: "cto-test@clarity.ai",
+      fullName: "Core Tester",
+      passwordHash: "secure_dev_password_hash",
+      billingBalance: 1000.0
+    }
+  });
+
+  // Hydrate Agent Table
+  await prisma.agent.upsert({
+    where: { id: TEST_UUID },
+    update: {},
+    create: {
+      id: TEST_UUID,
+      userId: TEST_UUID,
+      name: "Clarity HR Screener Agent",
+      systemPrompt: "You are Clarity AI, a talent acquisition representative. Keep your responses to a single sentence.",
+      voiceName: "Puck",
+      model: "gemini-2.5-flash"
+    }
+  });
+  
+  console.log("CTO Audit: Test framework data entities seeded successfully.");
+}
+
 // ─── Server Bootstrap ────────────────────────────
 
 async function bootstrap(): Promise<void> {
@@ -300,6 +335,9 @@ async function bootstrap(): Promise<void> {
       api: `http://localhost:${PORT}/api/v2`,
       ws: `ws://localhost:${PORT}/audio-stream`,
     });
+
+    // Call this method within the server listen block
+    seedTestEnvironment().catch(err => console.error("Database seed failure:", err));
 
     logger.info('Bolna Server: ready ✓');
   });
