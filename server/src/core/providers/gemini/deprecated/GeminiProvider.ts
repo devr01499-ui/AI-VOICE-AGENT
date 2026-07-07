@@ -1,9 +1,10 @@
-import { IRealtimeProviderSDK } from '../../provider-sdk/provider.interface';
-import { ProviderSessionConfig, ProviderEventCallbacks } from '../../provider-sdk/provider.types';
-import { HealthCheckResult, RealtimeSessionConfig } from '../../../providers/interfaces/IProvider';
-import { GeminiLiveProvider as LowLevelGeminiLive } from '../../../providers/gemini/GeminiLiveProvider';
-import { metricsCollector } from '../../provider-sdk/provider.metrics';
-import { logger } from '../../../utils/logger';
+import { IRealtimeProviderSDK } from '../../../provider-sdk/provider.interface';
+import { ProviderSessionConfig, ProviderEventCallbacks } from '../../../provider-sdk/provider.types';
+import { HealthCheckResult, RealtimeSessionConfig } from '../../../../providers/interfaces/IProvider';
+import { GeminiLiveProvider as LowLevelGeminiLive } from '../../../../providers/gemini/GeminiLiveProvider';
+import { metricsCollector } from '../../../provider-sdk/provider.metrics';
+import { logger } from '../../../../utils/logger';
+import { convertInboundAudio, convertOutboundAudio } from '../../../../utils/audioConverter';
 
 class GeminiSession {
   private audioCallbacks: ((audioBase64: string) => void)[] = [];
@@ -29,15 +30,16 @@ class GeminiSession {
 
   handleInboundAudio(audioBase64: string): string {
     metricsCollector.recordAudioChunkSent(this.sessionId);
-    // Raw PCM16 passthrough (no conversion, because native 16kHz L16 streaming is used)
-    return audioBase64;
+    // Transcode incoming 8kHz mu-law telephony bytes up to 16kHz PCM16 linear
+    return convertInboundAudio(audioBase64);
   }
 
   handleOutboundAudio(audioBase64: string): void {
     metricsCollector.recordAudioChunkReceived(this.sessionId);
-    // Raw PCM16 passthrough (no conversion)
-    this.audioCallbacks.forEach((cb) => cb(audioBase64));
-    this.callbacks.onAudioDelta?.(this.sessionId, audioBase64);
+    // Compress Gemini PCM streams back to standard 8kHz mu-law for the telephony trunk
+    const telephonyCompressedAudio = convertOutboundAudio(audioBase64);
+    this.audioCallbacks.forEach((cb) => cb(telephonyCompressedAudio));
+    this.callbacks.onAudioDelta?.(this.sessionId, telephonyCompressedAudio);
   }
 
   handleTranscript(text: string, isFinal: boolean, isUser?: boolean): void {

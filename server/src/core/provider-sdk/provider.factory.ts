@@ -1,5 +1,5 @@
 import { IRealtimeProviderSDK } from './provider.interface';
-import { GeminiProvider } from '../providers/gemini/GeminiProvider';
+import { GeminiProvider } from '../providers/gemini/deprecated/GeminiProvider';
 
 export class ProviderFactory {
   static create(name: string): IRealtimeProviderSDK {

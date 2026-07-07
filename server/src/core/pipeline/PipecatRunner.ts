@@ -1,6 +1,8 @@
 import { Pipeline } from 'pipecat-core';
 import { GeminiLiveLLMService } from '@pipecat-ai/gemini';
 import { logger } from '../../utils/logger';
+import { convertInboundAudio, convertOutboundAudio } from '../../utils/audioConverter';
+import { eventBus, PROVIDER_EVENTS } from '../provider-sdk/provider.events';
 
 export class PipecatRunner {
   private readonly pipeline: Pipeline;
@@ -8,15 +10,26 @@ export class PipecatRunner {
 
   constructor(
     public readonly callId: string,
+    config: {
+      model: string;
+      voice: string;
+      instructions: string;
+    },
     private readonly onAudioOutput: (audioBase64: string) => void
   ) {
+    logger.info('PipecatRunner: initializing pipeline', {
+      callId,
+      model: config.model,
+      voice: config.voice,
+    });
+
     // 2. SECURE THE MULTIMODAL PROVIDER BUS
     this.geminiService = new GeminiLiveLLMService({
       apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '',
-      model: 'models/gemini-2.5-flash-native-audio-latest',
+      model: config.model,
       apiVersion: 'v1alpha',
-      voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } },
-      systemInstruction: "You are Clarity AI, a professional talent manager running a brief, concise candidate screening interview. Be warm, speak in brief sentences, allow natural pauses, and stop immediately if the user talks over you."
+      voiceConfig: { prebuiltVoiceConfig: { voiceName: config.voice } },
+      systemInstruction: config.instructions
     });
 
     // 1. PIPELINE INGESTION INTERFACE
@@ -28,6 +41,12 @@ export class PipecatRunner {
       if (speechStarted) {
         logger.info('PipecatRunner: VAD detected user speech. Flushing pipeline output queue (barge-in defense).', { callId: this.callId });
         this.pipeline.flushOutputQueue();
+        
+        // Notify socket handlers that speech has been interrupted (barge-in)
+        eventBus.publish(PROVIDER_EVENTS.AI_STOPPED_SPEAKING, {
+          callId: this.callId,
+          interrupted: true,
+        });
       }
     });
 
@@ -35,8 +54,9 @@ export class PipecatRunner {
     // Catch Gemini's returned native audio frames and stream the binary buffers directly down the Vobiz socket
     this.pipeline.addOutputSink((frame: { type: string; data: Buffer }) => {
       if (frame && frame.type === 'audio' && frame.data) {
-        const audioBase64 = frame.data.toString('base64');
-        this.onAudioOutput(audioBase64);
+        const pcm24Base64 = frame.data.toString('base64');
+        const telephonyCompressed = convertOutboundAudio(pcm24Base64);
+        this.onAudioOutput(telephonyCompressed);
       }
     });
   }
@@ -45,12 +65,25 @@ export class PipecatRunner {
    * Consume incoming 16kHz L16 byte arrays straight from Vobiz WebSocket connections.
    */
   handleInboundAudio(audioBase64: string): void {
-    const buffer = Buffer.from(audioBase64, 'base64');
+    const pcm16Base64 = convertInboundAudio(audioBase64);
+    const buffer = Buffer.from(pcm16Base64, 'base64');
     this.pipeline.pushInputFrame({
       type: 'audio',
       data: buffer,
       sampleRate: 16000,
       channels: 1
+    });
+  }
+
+  /**
+   * Triggers the greeting turn text frame in the pipeline.
+   */
+  triggerGreeting(greetingText?: string): void {
+    logger.info('PipecatRunner: triggering greeting turn', { callId: this.callId });
+    const textPrompt = greetingText || 'Hi, please start the interview.';
+    this.pipeline.pushInputFrame({
+      type: 'text',
+      data: Buffer.from(textPrompt)
     });
   }
 

@@ -1,5 +1,6 @@
 import { CallStatus } from '../../types';
 import { SessionMetrics } from '../provider-sdk/provider.metrics';
+import { PipecatRunner } from '../pipeline/PipecatRunner';
 
 export interface IConversationState {
   phase: 'greeting_sent' | 'listening' | 'processing' | 'responding';
@@ -11,6 +12,7 @@ export interface IConversationState {
 
 export class CallSession {
   public providerSessionId: string | null = null;
+  public pipecatRunner?: PipecatRunner;
   public startedAt: number = Date.now();
   public status: CallStatus = 'queued';
   public conversationState?: IConversationState;

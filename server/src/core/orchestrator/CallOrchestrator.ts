@@ -1,17 +1,13 @@
-import { providerManagerSDK } from '../provider-sdk/provider.manager';
-import { metricsCollector } from '../provider-sdk/provider.metrics';
+import { PipecatRunner } from '../pipeline/PipecatRunner';
 import { eventBus, PROVIDER_EVENTS } from '../provider-sdk/provider.events';
-import { ProviderSessionConfig, ProviderEventCallbacks } from '../provider-sdk/provider.types';
 import { CallSession, IConversationState } from './CallSession';
 import { CallStateMachine } from './CallStateMachine';
 import { VobizService } from '../telephony/VobizService';
-import { TranscriptRecorder } from '../telephony/TranscriptRecorder';
 import { SessionLogger } from '../telephony/SessionLogger';
 import { AgentRepository } from '../../repositories/AgentRepository';
 import { CallRepository } from '../../repositories/CallRepository';
 import { ToolExecutor } from '../../runtime/ToolExecutor';
-import { CallError } from '../../types/errors';
-import { AgentConfig, CallStatus } from '../../types';
+import { CallStatus, AgentConfig } from '../../types';
 import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
 
@@ -195,13 +191,12 @@ export class CallOrchestrator {
       };
     }
 
-      logger.info('CallOrchestrator: agent config validated', { 
-        callId, 
-        agentId,
-        voice: agentConfig.voice,
-        provider: agentConfig.llm.provider,
-      });
-
+    logger.info('CallOrchestrator: agent config validated', { 
+      callId, 
+      agentId,
+      voice: agentConfig.voice,
+      provider: agentConfig.llm.provider,
+    });
 
     // Register active tools
     if (agentConfig.tools && agentConfig.tools.length > 0) {
@@ -217,202 +212,50 @@ export class CallOrchestrator {
     callSession.conversationState = new ConversationState();
     this.activeCalls.set(callId, callSession);
 
-    // Mapped config structure passed down to SDK Provider
-    const providerName = agentConfig.llm.provider === 'openai' ? 'openai' : 'gemini';
-    const config: ProviderSessionConfig = {
+    // Instantiate and execute the Pipecat runner asynchronously
+    const pipecatRunner = new PipecatRunner(
       callId,
-      model: agentConfig.llm.model,
-      voice: agentConfig.voice,
-      instructions: agentConfig.prompt,
-      tools: [
-        ...(agentConfig.tools?.map((t) => ({
-          type: 'function' as const,
-          name: t.name,
-          description: t.description,
-          parameters: t.parameters,
-        })) || []),
-        {
-          type: 'function' as const,
-          name: 'hang_up',
-          description: 'Hangs up the current call session immediately.',
-          parameters: { type: 'OBJECT', properties: {} }
-        },
-        {
-          type: 'function' as const,
-          name: 'transfer_call',
-          description: 'Transfers the active call to another phone number.',
-          parameters: {
-            type: 'OBJECT',
-            properties: {
-              phoneNumber: { type: 'STRING', description: 'The phone number to transfer the call to in E.164 format' }
-            },
-            required: ['phoneNumber']
-          }
-        },
-        {
-          type: 'function' as const,
-          name: 'send_sms',
-          description: 'Sends a transaction text message/SMS during the call.',
-          parameters: {
-            type: 'OBJECT',
-            properties: {
-              phoneNumber: { type: 'STRING', description: 'Destination E.164 phone number' },
-              message: { type: 'STRING', description: 'Body text content of the SMS' }
-            },
-            required: ['phoneNumber', 'message']
-          }
-        }
-      ],
-      temperature: agentConfig.llm.temperature,
-    };
-
-    const callbacks: ProviderEventCallbacks = {
-      onAudioDelta: (sessId, audioBase64) => {
-        logger.info('Audio response from Gemini', { callId, bytes: audioBase64?.length });
+      {
+        model: agentConfig.llm.model,
+        voice: agentConfig.voice,
+        instructions: agentConfig.prompt,
+      },
+      (audioBase64: string) => {
         onAudioDelta?.(audioBase64);
-      },
-      onTranscriptDelta: (sessId, delta, isFinal, isUser) => {
-        TranscriptRecorder.recordSegment(callId, isUser ? 'user' : 'agent', delta);
-        if (isUser) {
-          logger.info('User transcript', { callId, text: delta });
-        } else {
-          logger.info('AI transcript', { callId, text: delta });
-        }
-        eventBus.publish(PROVIDER_EVENTS.TRANSCRIPT_UPDATED, {
-          callId,
-          speaker: isUser ? 'user' : 'agent',
-          text: delta,
-          isFinal,
-        });
-      },
-      onSpeechStarted: (sessId) => {
-        const session = this.activeCalls.get(callId);
-        if (session?.conversationState) {
-          session.conversationState.markAsResponding();
-          logger.info('AI speech started, state set to responding', { callId });
-        }
-        eventBus.publish(PROVIDER_EVENTS.AI_STARTED_SPEAKING, { callId, sessionId: sessId });
-      },
-      onSpeechStopped: (sessId, interrupted?: boolean) => {
-        const session = this.activeCalls.get(callId);
-        if (session?.conversationState && session.conversationState.phase === 'responding') {
-          session.conversationState.markAsListening();
-          logger.info('AI speech stopped / interrupted, listening again', { callId });
-        }
-        eventBus.publish(PROVIDER_EVENTS.AI_STOPPED_SPEAKING, { callId, sessionId: sessId, interrupted });
-      },
-      onFunctionCall: async (sessId, toolCallId, name, args) => {
-        try {
-          const parsedArgs = JSON.parse(args) as Record<string, unknown>;
-          if (name === 'hang_up') {
-            logger.info('Flow Engine: trigger hang_up tool call', { callId });
-            await this.endCallSession(callId, 'completed');
-            providerManagerSDK.getProvider(providerName).sendFunctionResult(sessId, toolCallId, JSON.stringify({ success: true }));
-            return;
-          }
-          if (name === 'transfer_call') {
-            logger.info('Flow Engine: trigger transfer_call tool call', { callId, args });
-            await this.endCallSession(callId, 'completed');
-            providerManagerSDK.getProvider(providerName).sendFunctionResult(sessId, toolCallId, JSON.stringify({ success: true }));
-            return;
-          }
-          if (name === 'send_sms') {
-            logger.info('Flow Engine: trigger send_sms tool call', { callId, args });
-            providerManagerSDK.getProvider(providerName).sendFunctionResult(sessId, toolCallId, JSON.stringify({ success: true, messageSent: true }));
-            return;
-          }
-          const result = await this.toolExecutor.executeTool(name, parsedArgs);
-          providerManagerSDK.getProvider(providerName).sendFunctionResult(sessId, toolCallId, JSON.stringify(result));
-        } catch (err) {
-          logger.error('CallOrchestrator: tool execution error', { toolCallId, name, err });
-        }
-      },
-      onResponseDone: (sessId) => {
-        const session = this.activeCalls.get(callId);
-        if (session?.conversationState) {
-          session.conversationState.markAsListening();
-          logger.info('AI response complete, listening again', { callId });
-        }
-      },
-      onError: (sessId, error) => {
-        logger.error('Gemini error', { callId, error: error.message });
-        eventBus.publish(PROVIDER_EVENTS.ERROR_OCCURRED, { callId, error: error.message });
-      },
-    };
+      }
+    );
 
-    const providerSessionId = await providerManagerSDK.startSession(providerName, callId, config, callbacks);
-    callSession.setProviderSessionId(providerSessionId);
+    callSession.pipecatRunner = pipecatRunner;
+
+    // Start pipeline execution asynchronously
+    pipecatRunner.start().catch((err) => {
+      logger.error('CallOrchestrator: PipecatRunner execution error', { callId, error: err });
+    });
 
     await CallRepository.updateStatus(callId, 'in_progress', { startTime: new Date() });
 
-    return providerSessionId;
+    const sessionId = `pipecat-sess-${Date.now()}`;
+    callSession.setProviderSessionId(sessionId);
+
+    return sessionId;
   }
 
   /**
    * Streams inbound audio from SIP channel to the provider.
    */
-  private calculateRMS(pcm16Base64: string): number {
-    try {
-      const buffer = Buffer.from(pcm16Base64, 'base64');
-      const numSamples = buffer.length / 2;
-      if (numSamples === 0) return 0;
-      
-      let sumSquares = 0;
-      for (let i = 0; i < numSamples; i++) {
-        const sample = buffer.readInt16LE(i * 2);
-        sumSquares += sample * sample;
-      }
-      return Math.sqrt(sumSquares / numSamples);
-    } catch (err) {
-      return 0;
-    }
-  }
-
   processAudioStream(callId: string, audioBase64: string): void {
     const session = this.activeCalls.get(callId);
-    if (!session) return;
+    if (!session || !session.pipecatRunner) return;
 
-    const state = session.conversationState as ConversationState;
-    if (!state) return;
-
-    // Run Server-Side VAD on incoming audio
-    const rms = this.calculateRMS(audioBase64);
-    const now = Date.now();
-
-    if (rms > state.speechThreshold) {
-      state.lastSpeechTime = now;
-      if (state.phase === 'listening') {
-        state.markAsProcessing();
-        logger.info('VAD: User started speaking', { callId, rms });
-        eventBus.publish(PROVIDER_EVENTS.USER_STARTED_SPEAKING, { callId });
-      } else if (state.phase === 'responding') {
-        // User barge-in / interruption detected!
-        state.markAsProcessing();
-        logger.info('VAD: User barge-in detected (speech during response)', { callId, rms });
-        eventBus.publish(PROVIDER_EVENTS.USER_STARTED_SPEAKING, { callId });
-      }
-    } else {
-      // Silence detected
-      if (state.phase === 'processing') {
-        const silentDuration = now - state.lastSpeechTime;
-        if (silentDuration >= state.silenceThresholdMs) {
-          state.markAsResponding();
-          logger.info('VAD: Silence duration reached, user finished speaking', { callId, silentDuration });
-          eventBus.publish(PROVIDER_EVENTS.USER_STOPPED_SPEAKING, { callId });
-        }
-      }
-    }
-
-
-    if (!session.providerSessionId) return;
-
-    logger.info('Sending user audio to Gemini', { callId, bytes: audioBase64.length });
-    providerManagerSDK.sendAudio(session.providerSessionId, audioBase64);
+    logger.debug('Sending user audio to PipecatRunner', { callId, bytes: audioBase64.length });
+    session.pipecatRunner.handleInboundAudio(audioBase64);
   }
 
   triggerGreeting(callId: string, sessionId: string, greetingText?: string): void {
-    const provider = providerManagerSDK.getProvider('gemini');
-    provider.triggerGreeting(sessionId, greetingText);
+    const session = this.activeCalls.get(callId);
+    if (session?.pipecatRunner) {
+      session.pipecatRunner.triggerGreeting(greetingText);
+    }
 
     // After greeting sent, mark that we're ready for user input
     setTimeout(() => {
@@ -432,8 +275,8 @@ export class CallOrchestrator {
 
     const session = this.activeCalls.get(callId);
     if (session) {
-      if (session.providerSessionId) {
-        await providerManagerSDK.endSession(session.providerSessionId);
+      if (session.pipecatRunner) {
+        await session.pipecatRunner.stop();
       }
       this.activeCalls.delete(callId);
     }
@@ -454,16 +297,9 @@ export class CallOrchestrator {
   getSessionInfo(callId: string) {
     const session = this.activeCalls.get(callId);
     const active = Boolean(session);
-    const providerSessionId = session?.providerSessionId;
-    const metrics = providerSessionId ? metricsCollector.getMetrics(providerSessionId) : null;
     return {
       active,
-      metrics: metrics ? {
-        latencyAvgMs: metrics.latencyMs,
-        durationMs: Date.now() - session!.startedAt,
-        audioPacketsReceived: metrics.audioChunksReceived,
-        audioPacketsSent: metrics.audioChunksSent,
-      } : null,
+      metrics: null,
       conversationTurns: 0,
     };
   }
