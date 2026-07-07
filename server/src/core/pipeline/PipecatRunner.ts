@@ -1,5 +1,5 @@
-import { Pipeline } from 'pipecat-core';
-import { GeminiLiveLLMService } from '@pipecat-ai/gemini';
+import { Pipeline } from './pipecat/core';
+import { GeminiLiveLLMService } from './pipecat/gemini';
 import { logger } from '../../utils/logger';
 import { convertInboundAudio, convertOutboundAudio } from '../../utils/audioConverter';
 import { eventBus, PROVIDER_EVENTS } from '../provider-sdk/provider.events';
@@ -14,8 +14,10 @@ export class PipecatRunner {
       model: string;
       voice: string;
       instructions: string;
+      tools?: any[];
     },
-    private readonly onAudioOutput: (audioBase64: string) => void
+    private readonly onAudioOutput: (audioBase64: string) => void,
+    onFunctionCall?: (toolCallId: string, name: string, args: string) => Promise<string>
   ) {
     logger.info('PipecatRunner: initializing pipeline', {
       callId,
@@ -29,11 +31,12 @@ export class PipecatRunner {
       model: config.model,
       apiVersion: 'v1alpha',
       voiceConfig: { prebuiltVoiceConfig: { voiceName: config.voice } },
-      systemInstruction: config.instructions
+      systemInstruction: config.instructions,
+      tools: config.tools,
     });
 
     // 1. PIPELINE INGESTION INTERFACE
-    this.pipeline = new Pipeline([this.geminiService]);
+    this.pipeline = new Pipeline([this.geminiService], this.callId, onFunctionCall);
 
     // 3. NATIVE ASYNC BARGE-IN DEFENSE
     // Register the Pipecat pipeline's VAD observer hook.

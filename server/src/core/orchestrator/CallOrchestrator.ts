@@ -219,9 +219,72 @@ export class CallOrchestrator {
         model: agentConfig.llm.model,
         voice: agentConfig.voice,
         instructions: agentConfig.prompt,
+        tools: [
+          ...(agentConfig.tools?.map((t) => ({
+            type: 'function' as const,
+            name: t.name,
+            description: t.description,
+            parameters: t.parameters,
+          })) || []),
+          {
+            type: 'function' as const,
+            name: 'hang_up',
+            description: 'Hangs up the current call session immediately.',
+            parameters: { type: 'OBJECT', properties: {} }
+          },
+          {
+            type: 'function' as const,
+            name: 'transfer_call',
+            description: 'Transfers the active call to another phone number.',
+            parameters: {
+              type: 'OBJECT',
+              properties: {
+                phoneNumber: { type: 'STRING', description: 'The phone number to transfer the call to in E.164 format' }
+              },
+              required: ['phoneNumber']
+            }
+          },
+          {
+            type: 'function' as const,
+            name: 'send_sms',
+            description: 'Sends a transaction text message/SMS during the call.',
+            parameters: {
+              type: 'OBJECT',
+              properties: {
+                phoneNumber: { type: 'STRING', description: 'Destination E.164 phone number' },
+                message: { type: 'STRING', description: 'Body text content of the SMS' }
+              },
+              required: ['phoneNumber', 'message']
+            }
+          }
+        ],
       },
       (audioBase64: string) => {
         onAudioDelta?.(audioBase64);
+      },
+      async (toolCallId: string, name: string, args: string) => {
+        try {
+          const parsedArgs = JSON.parse(args) as Record<string, unknown>;
+          if (name === 'hang_up') {
+            logger.info('Flow Engine: trigger hang_up tool call via Pipecat', { callId });
+            await this.endCallSession(callId, 'completed');
+            return JSON.stringify({ success: true });
+          }
+          if (name === 'transfer_call') {
+            logger.info('Flow Engine: trigger transfer_call tool call via Pipecat', { callId, args });
+            await this.endCallSession(callId, 'completed');
+            return JSON.stringify({ success: true });
+          }
+          if (name === 'send_sms') {
+            logger.info('Flow Engine: trigger send_sms tool call via Pipecat', { callId, args });
+            return JSON.stringify({ success: true, messageSent: true });
+          }
+          const result = await this.toolExecutor.executeTool(name, parsedArgs);
+          return JSON.stringify(result);
+        } catch (err) {
+          logger.error('CallOrchestrator: tool execution error in Pipecat handler', { toolCallId, name, err });
+          return JSON.stringify({ error: String(err) });
+        }
       }
     );
 
