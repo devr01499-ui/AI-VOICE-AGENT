@@ -246,21 +246,13 @@ export function convertInboundAudio(
     const pcm16Base64 = mulawToPCM16(base64MuLaw);
     const pcmBuffer = Buffer.from(pcm16Base64, 'base64');
     
-    // Step 2: Convert to typed array for resampling with safe alignment
-    let pcm16Samples: Int16Array;
-    if (pcmBuffer.byteOffset % 2 === 0) {
-      pcm16Samples = new Int16Array(
-        pcmBuffer.buffer,
-        pcmBuffer.byteOffset,
-        pcmBuffer.length / 2
-      );
-    } else {
-      const arrayBuffer = pcmBuffer.buffer.slice(
-        pcmBuffer.byteOffset,
-        pcmBuffer.byteOffset + pcmBuffer.length
-      );
-      pcm16Samples = new Int16Array(arrayBuffer, 0, pcmBuffer.length / 2);
-    }
+    // Step 2: Convert to typed array for resampling with safe alignment and isolation from Node.js Buffer pool
+    const cleanBytes = new Uint8Array(pcmBuffer);
+    const pcm16Samples = new Int16Array(
+      cleanBytes.buffer,
+      cleanBytes.byteOffset,
+      cleanBytes.length / 2
+    );
 
     // Step 3: Resample from 8000Hz to provider rate (Gemini Live expects 16000Hz)
     const resampled = resample(pcm16Samples, 8000, 16000);
@@ -288,21 +280,13 @@ export function convertOutboundAudio(
 
     const pcmBuffer = Buffer.from(base64PCM, 'base64');
     
-    // Convert to typed array with safe alignment
-    let pcm16Samples: Int16Array;
-    if (pcmBuffer.byteOffset % 2 === 0) {
-      pcm16Samples = new Int16Array(
-        pcmBuffer.buffer,
-        pcmBuffer.byteOffset,
-        pcmBuffer.length / 2
-      );
-    } else {
-      const arrayBuffer = pcmBuffer.buffer.slice(
-        pcmBuffer.byteOffset,
-        pcmBuffer.byteOffset + pcmBuffer.length
-      );
-      pcm16Samples = new Int16Array(arrayBuffer, 0, pcmBuffer.length / 2);
-    }
+    // Convert to typed array with safe alignment and isolation from Node.js Buffer pool
+    const cleanBytes = new Uint8Array(pcmBuffer);
+    const pcm16Samples = new Int16Array(
+      cleanBytes.buffer,
+      cleanBytes.byteOffset,
+      cleanBytes.length / 2
+    );
 
     // Downsample from Gemini's native rate (24000Hz) to 8000Hz
     const downsampled = resample(pcm16Samples, 24000, 8000);

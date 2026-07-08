@@ -267,8 +267,7 @@ async function bootstrap(): Promise<void> {
 
   // Create WebSocket server for audio streaming
   const wss = new WebSocketServer({
-    server,
-    path: '/audio-stream',
+    noServer: true,
   });
 
   const audioHandler = new AudioStreamHandler();
@@ -276,8 +275,31 @@ async function bootstrap(): Promise<void> {
 
   // Create WebSocket server for browser clients to stream live transcripts
   const wssTranscript = new WebSocketServer({
-    server,
-    path: '/live-transcript',
+    noServer: true,
+  });
+
+  // Handle server upgrades manually to route requests to the correct WebSocket server
+  server.on('upgrade', (request, socket, head) => {
+    try {
+      const url = new URL(request.url ?? '', `http://${request.headers.host || 'localhost'}`);
+      const pathname = url.pathname;
+
+      if (pathname === '/audio-stream') {
+        wss.handleUpgrade(request, socket, head, (ws) => {
+          wss.emit('connection', ws, request);
+        });
+      } else if (pathname === '/live-transcript') {
+        wssTranscript.handleUpgrade(request, socket, head, (ws) => {
+          wssTranscript.emit('connection', ws, request);
+        });
+      } else {
+        logger.warn('WebSocket upgrade request rejected — unhandled path', { pathname });
+        socket.destroy();
+      }
+    } catch (err) {
+      logger.error('Error handling WebSocket upgrade', { error: String(err) });
+      socket.destroy();
+    }
   });
 
   wssTranscript.on('connection', (ws, req) => {

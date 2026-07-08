@@ -254,7 +254,7 @@ export class CallController {
       const callId = callSession.id;
       const callStatus = (req.body?.CallStatus as string) || 'unknown';
 
-      logger.info('CallController: Vobiz status webhook', { callId, callStatus });
+      logger.info('CallController: Vobiz status webhook', { callId, callStatus, body: req.body });
 
       await CallService.handleStatusUpdate(callId, callStatus);
 
@@ -296,7 +296,7 @@ export class CallController {
       const callId = callSession.id;
       const duration = req.body?.Duration ? parseInt(req.body.Duration as string, 10) : 0;
 
-      logger.info('CallController: Vobiz hangup webhook', { callId, duration });
+      logger.info('CallController: Vobiz hangup webhook', { callId, duration, body: req.body });
 
       if (duration > 0) {
         await prisma.call.update({

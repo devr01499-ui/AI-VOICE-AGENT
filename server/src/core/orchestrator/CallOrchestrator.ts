@@ -290,16 +290,15 @@ export class CallOrchestrator {
 
     callSession.pipecatRunner = pipecatRunner;
 
-    // Start pipeline execution asynchronously
-    pipecatRunner.start().catch((err) => {
-      logger.error('CallOrchestrator: PipecatRunner execution error', { callId, error: err });
-    });
+    // Start pipeline execution and await connection setup to complete
+    logger.info('CallOrchestrator: starting pipeline execution and awaiting connection setup', { callId });
+    await pipecatRunner.start();
+    logger.info('CallOrchestrator: pipeline execution started successfully', { callId });
 
     await CallRepository.updateStatus(callId, 'in_progress', { startTime: new Date() });
 
     const sessionId = `pipecat-sess-${Date.now()}`;
-    callSession.setProviderSessionId(sessionId);
-
+    logger.info('CallOrchestrator: sessionId generated', { callId, sessionId });
     return sessionId;
   }
 

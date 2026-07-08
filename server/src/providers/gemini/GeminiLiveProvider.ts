@@ -227,37 +227,36 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         parameters: t.parameters, // JSON Schema parameters can remain camelCase/nested as standard
       }));
 
-      // STRICT WIRE PROTOCOL REQUIREMENT: Fields must be snake_case for direct raw WebSockets
+      // STRICT WIRE PROTOCOL REQUIREMENT: Fields must be camelCase for direct raw WebSockets in Google AI Studio
       const setupMessage = {
         setup: {
           model: `models/${model}`,
-          generation_config: {
-            response_modalities: ['AUDIO'],
-            speech_config: {
-              voice_config: {
-                prebuilt_voice_config: {
-                  voice_name: geminiVoice,
+          generationConfig: {
+            responseModalities: ['AUDIO'],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: {
+                  voiceName: geminiVoice,
                 },
               },
             },
           },
-          system_instruction: {
+          systemInstruction: {
             parts: [
               {
                 text: config.instructions,
               },
             ],
           },
-          realtime_input_config: {
-            automatic_activity_detection: {
+          realtimeInputConfig: {
+            automaticActivityDetection: {
               disabled: false,
-              silence_duration_ms: 600,
             },
           },
           ...(functionDeclarations && functionDeclarations.length > 0 && {
             tools: [
               {
-                function_declarations: functionDeclarations,
+                functionDeclarations: functionDeclarations,
               },
             ],
           }),
@@ -374,12 +373,15 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       bytes: audioBase64.length,
     });
 
+    // STRICT WIRE REQ: High-frequency streaming data chunks must use snake_case
+    // Google's wire protocol requires snake_case for realtime_input streaming,
+    // even though the one-time setup message uses camelCase.
     session.ws.send(
       JSON.stringify({
-        realtimeInput: {
-          mediaChunks: [
+        realtime_input: {
+          media_chunks: [
             {
-              mimeType: 'audio/pcm;rate=16000',
+              mime_type: 'audio/pcm;rate=16000',
               data: audioBase64,
             },
           ],
