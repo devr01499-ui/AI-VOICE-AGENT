@@ -269,8 +269,43 @@ export function convertInboundAudio(
 }
 
 /**
- * Base64 stream helper to convert outbound audio (provider PCM16 at sourceRate)
+ * Encodes a single 16-bit PCM sample to a G.711 mu-law byte.
+ * Extracted as a named helper so it can be unit-tested independently.
+ */
+export function encodeMuLawSample(pcm: number): number {
+  let sample = pcm;
+
+  // Extract and strip sign
+  const sign = (sample & 0x8000) >> 8;
+  if (sample < 0) sample = -sample;
+
+  // Clip to valid range
+  if (sample > 32635) sample = 32635;
+
+  // G.711 bias + segment encoding
+  sample += 132;
+  let exponent = 7;
+  let mask = 0x4000;
+  while ((sample & mask) === 0 && exponent > 0) {
+    exponent--;
+    mask >>= 1;
+  }
+  const mantissa = (sample >> (exponent + 3)) & 0x0f;
+  const ulawByte = ~(sign | (exponent << 4) | mantissa) & 0xff;
+
+  // Avoid 0x00 to prevent signaling anomalies in some carrier nodes
+  return ulawByte === 0 ? 0x02 : ulawByte;
+}
+
+/**
+ * Base64 stream helper to convert outbound audio (Gemini PCM16 at 24kHz)
  * back to Vobiz telephony standard (G.711 mu-law 8kHz).
+ *
+ * CRITICAL: Gemini Live API outputs PCM16 at exactly 24000 Hz.
+ * Vobiz expects G.711 mu-law at exactly 8000 Hz.
+ * Ratio = 24000 / 8000 = 3 — a clean integer stride, so we use direct
+ * 3:1 decimation (every 3rd sample) instead of interpolation to avoid
+ * artefacts and reduce processing latency.
  */
 export function convertOutboundAudio(
   base64PCM: string
@@ -279,24 +314,25 @@ export function convertOutboundAudio(
     if (!base64PCM) return base64PCM;
 
     const pcmBuffer = Buffer.from(base64PCM, 'base64');
-    
-    // Convert to typed array with safe alignment and isolation from Node.js Buffer pool
-    const cleanBytes = new Uint8Array(pcmBuffer);
-    const pcm16Samples = new Int16Array(
-      cleanBytes.buffer,
-      cleanBytes.byteOffset,
-      cleanBytes.length / 2
+    // Isolate from Node.js Buffer pool before Int16Array view
+    const samples16 = new Int16Array(
+      new Uint8Array(pcmBuffer).buffer
     );
 
-    // Downsample from Gemini's native rate (24000Hz) to 8000Hz
-    const downsampled = resample(pcm16Samples, 24000, 8000);
+    // 24kHz → 8kHz: strict 3:1 stride decimation
+    const targetLength = Math.floor(samples16.length / 3);
+    const muLawBuffer = new Uint8Array(targetLength);
 
-    // Step 2: Compress PCM16 to 8-bit G.711 mu-law bytes
-    const ulawBytes = pcm16ToUlaw(downsampled);
+    for (let i = 0; i < targetLength; i++) {
+      const sample = samples16[i * 3]!; // Absolute 3:1 step stride
+      muLawBuffer[i] = encodeMuLawSample(sample); // Convert to G.711 byte
+    }
 
-    // Step 3: Return base64-encoded mu-law payload
-    const outBuffer = Buffer.from(ulawBytes.buffer, ulawBytes.byteOffset, ulawBytes.byteLength);
-    return outBuffer.toString('base64');
+    return Buffer.from(
+      muLawBuffer.buffer,
+      muLawBuffer.byteOffset,
+      muLawBuffer.byteLength
+    ).toString('base64');
   } catch (err) {
     logger.error('audioConverter: convertOutboundAudio failed', {
       error: err instanceof Error ? err.message : String(err),

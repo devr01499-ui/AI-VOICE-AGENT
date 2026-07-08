@@ -361,29 +361,23 @@ export class AudioStreamHandler {
       return;
     }
 
+    // Decode base64 → raw binary mu-law buffer
+    // Vobiz carrier trunk expects a native binary WebSocket frame (not a JSON text frame)
+    const binaryVoicePacket = Buffer.from(audioBase64, 'base64');
+
     logger.debug('AudioStreamHandler: sending audio to Vobiz', {
       callId,
-      bytes: audioBase64?.length || 0,
+      bytes: binaryVoicePacket.length,
     });
 
-    const audioBuffer = Buffer.from(audioBase64, 'base64');
     logger.info('AudioStreamHandler: sending audio to Vobiz', {
       callId,
-      bytes: audioBuffer.length,
-    });
-
-    const message = JSON.stringify({
-      event: 'playAudio',
-      streamId: conn.streamId ?? '',
-      media: {
-        contentType: 'audio/x-mulaw',
-        sampleRate: 8000,
-        payload: audioBase64,
-      },
+      bytes: binaryVoicePacket.length,
     });
 
     try {
-      conn.ws.send(message);
+      // Emit as raw binary data block — never as a text/JSON frame
+      conn.ws.send(binaryVoicePacket, { binary: true });
     } catch (err) {
       logger.error('AudioStreamHandler: failed to send audio to Vobiz', {
         callId,
