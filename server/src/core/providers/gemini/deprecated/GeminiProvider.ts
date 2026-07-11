@@ -31,13 +31,13 @@ class GeminiSession {
   handleInboundAudio(audioBase64: string): string {
     metricsCollector.recordAudioChunkSent(this.sessionId);
     // Transcode incoming 8kHz mu-law telephony bytes up to 16kHz PCM16 linear
-    return convertInboundAudio(audioBase64);
+    return convertInboundAudio(audioBase64).toString('base64');
   }
 
   handleOutboundAudio(audioBase64: string): void {
     metricsCollector.recordAudioChunkReceived(this.sessionId);
     // Compress Gemini PCM streams back to standard 8kHz mu-law for the telephony trunk
-    const telephonyCompressedAudio = convertOutboundAudio(audioBase64);
+    const telephonyCompressedAudio = convertOutboundAudio(Buffer.from(audioBase64, 'base64'));
     this.audioCallbacks.forEach((cb) => cb(telephonyCompressedAudio));
     this.callbacks.onAudioDelta?.(this.sessionId, telephonyCompressedAudio);
   }

@@ -57,8 +57,7 @@ export class PipecatRunner {
     // Catch Gemini's returned native audio frames and stream the binary buffers directly down the Vobiz socket
     this.pipeline.addOutputSink((frame: { type: string; data: Buffer }) => {
       if (frame && frame.type === 'audio' && frame.data) {
-        const pcm24Base64 = frame.data.toString('base64');
-        const telephonyCompressed = convertOutboundAudio(pcm24Base64);
+        const telephonyCompressed = convertOutboundAudio(frame.data);
         this.onAudioOutput(telephonyCompressed);
       }
     });
@@ -68,8 +67,7 @@ export class PipecatRunner {
    * Consume incoming 16kHz L16 byte arrays straight from Vobiz WebSocket connections.
    */
   handleInboundAudio(audioBase64: string): void {
-    const pcm16Base64 = convertInboundAudio(audioBase64);
-    const buffer = Buffer.from(pcm16Base64, 'base64');
+    const buffer = convertInboundAudio(audioBase64);
     this.pipeline.pushInputFrame({
       type: 'audio',
       data: buffer,

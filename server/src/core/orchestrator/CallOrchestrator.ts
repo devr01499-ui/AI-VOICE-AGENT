@@ -309,6 +309,12 @@ export class CallOrchestrator {
     const session = this.activeCalls.get(callId);
     if (!session || !session.pipecatRunner) return;
 
+    // Do not stream user audio to Gemini until the initial greeting has been triggered and played.
+    // This prevents early static, telephony ringback, or handshake noise from disrupting VAD and greeting generation.
+    if (!session.inboundAudioAllowed) {
+      return;
+    }
+
     logger.debug('Sending user audio to PipecatRunner', { callId, bytes: audioBase64.length });
     session.pipecatRunner.handleInboundAudio(audioBase64);
   }
@@ -319,12 +325,15 @@ export class CallOrchestrator {
       session.pipecatRunner.triggerGreeting(greetingText);
     }
 
-    // After greeting sent, mark that we're ready for user input
+    // Enable inbound audio streaming and mark as listening after 1.5 seconds
     setTimeout(() => {
       const session = this.activeCalls.get(callId);
-      if (session?.conversationState) {
-        session.conversationState.markAsListening();
-        logger.info('Now listening for user input', { callId });
+      if (session) {
+        session.inboundAudioAllowed = true;
+        if (session.conversationState) {
+          session.conversationState.markAsListening();
+        }
+        logger.info('Now listening for user input and streaming audio to Gemini', { callId });
       }
     }, 1500);  // Wait 1.5 seconds after greeting
   }

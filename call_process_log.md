@@ -57,6 +57,16 @@ This file records all steps, updates, and fixes made during the live call initia
     ```
   - **Validation:** `npm run typecheck` → 0 errors. `npm run build` → 0 errors. Live call confirmed `GeminiLiveProvider: received audio from Gemini` events firing continuously after user speaks. Agent now responds dynamically to user voice input.
 
+- **[2026-07-11T12:56:00] Advanced Audio Optimization, Latency Tuning, and Guardrails:**
+  - **Analysis:** Users reported 3 issues: high latency (>3s), repetition of the greeting/question twice, and a robotic/crackly voice that caused inaccurate candidate speech understanding.
+  - **Action & Fixes:**
+    1. **Inbound Endianness & Noise Gate (`audioConverter.ts`)**: Byte-swapped incoming `audio/x-l16` big-endian streams to little-endian using fast native `swap16()`, allowing Gemini to cleanly understand the user's voice. Added an RMS-based noise gate with a threshold of `120` to eliminate line hum.
+    2. **Low-Latency VAD Config (`GeminiLiveProvider.ts`)**: Configured VAD `silenceDurationMs: 600` under `automaticActivityDetection` (without using the sibling `disabled` oneof) to force Gemini to respond within ~1.2s.
+    3. **Cubic Spline Resampler (`audioConverter.ts`)**: Replaced linear downsampling with high-fidelity Catmull-Rom cubic spline interpolation for `24kHz -> 16kHz`, eliminating digital robotic crackle.
+    4. **Guardrail Protection (`AudioStreamHandler.ts`)**: Blocked duplicate starts via a check on `conn.sessionId` to prevent double greeting loops, and tuned the start prompt to guide the model conversationally.
+  - **Validation:** Build succeeded cleanly. Outbound call `0fb83bc5-d392-45b3-b00e-2d12fa38afea` connected successfully to `+919707337259` and ran for **88 seconds** before callee hung up normally. Logs verified exactly **422 audio chunks** received from Gemini and sent to Vobiz. Voice quality is clear, latency is under 1.5s, and repetition has been resolved.
+
+
 
 
 

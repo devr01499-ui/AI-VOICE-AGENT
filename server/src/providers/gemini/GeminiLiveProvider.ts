@@ -207,8 +207,8 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
       // Map voices: alloy/shimmer/etc. to Gemini voices (Aoede, Puck, Charon, Fenrir, Kore)
       const voiceNameMap: Record<string, string> = {
-        alloy: 'Puck',
-        echo: 'Charon',
+        alloy: 'Aoede',
+        echo: 'Fenrir',
         fable: 'Fenrir',
         onyx: 'Kore',
         shimmer: 'Aoede',
@@ -218,7 +218,8 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         kore: 'Kore',
         aoede: 'Aoede',
       };
-      const geminiVoice = 'Puck';
+      const requestedVoice = (config.voice || 'Aoede').toLowerCase();
+      const geminiVoice = voiceNameMap[requestedVoice] || 'Aoede';
 
       // Map tools cleanly to Gemini wire function_declarations format
       const functionDeclarations = config.tools?.map((t) => ({
@@ -250,7 +251,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
           },
           realtimeInputConfig: {
             automaticActivityDetection: {
-              disabled: false,
+              silenceDurationMs: 600,
             },
           },
           ...(functionDeclarations && functionDeclarations.length > 0 && {

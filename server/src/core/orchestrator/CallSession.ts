@@ -16,6 +16,7 @@ export class CallSession {
   public startedAt: number = Date.now();
   public status: CallStatus = 'queued';
   public conversationState?: IConversationState;
+  public inboundAudioAllowed: boolean = false;
 
   constructor(
     public readonly callId: string,

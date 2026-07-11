@@ -28,6 +28,8 @@ interface ActiveConnection {
   sessionId?: string;
   playbackQueue: string[]; // Sequential array buffer for outbound payloads
   isPlayoutActive: boolean;
+  sessionReady: boolean;       // True once Gemini session setup is confirmed
+  inboundAudioBuffer: string[]; // Buffer audio packets arriving before session is ready
 }
 
 // ─── Handler Implementation ──────────────────────────
@@ -96,6 +98,8 @@ export class AudioStreamHandler {
       },
       playbackQueue: [],
       isPlayoutActive: false,
+      sessionReady: false,
+      inboundAudioBuffer: [],
     };
 
     this.connections.set(callId, conn);
@@ -155,6 +159,10 @@ export class AudioStreamHandler {
     const rawEvent = event as any;
     const streamId = rawEvent.streamId || rawEvent.start?.streamId || null;
     if (conn) {
+      if (conn.sessionId) {
+        logger.info('AudioStreamHandler: stream start event received, but session is already active. Ignoring duplication.', { callId, sessionId: conn.sessionId });
+        return;
+      }
       conn.streamId = streamId;
     }
 
@@ -185,6 +193,10 @@ export class AudioStreamHandler {
           const currentConn = this.connections.get(callId);
           if (currentConn) {
             currentConn.sessionId = sessionId;
+            // Mark session as ready and discard early handshake/ringing buffer (just silence/noise)
+            currentConn.sessionReady = true;
+            currentConn.inboundAudioBuffer = [];
+            logger.info('AudioStreamHandler: session marked ready. Discarded early handshake buffer to prevent VAD flooding.', { callId });
           }
 
           logger.info('AudioStreamHandler: audio response callback registered via startVoiceSession', { callId, sessionId });
@@ -196,14 +208,6 @@ export class AudioStreamHandler {
             }
           });
 
-          // Register user-started speech (tentative trigger) - clear Vobiz audio queue immediately
-          // eventBus.subscribe(PROVIDER_EVENTS.USER_STARTED_SPEAKING, (payload) => {
-          //   if (payload.callId === callId) {
-          //     logger.info('AudioStreamHandler: Local VAD tentative speech detected, clearing Vobiz queue', { callId });
-          //     this.clearAudio(callId);
-          //   }
-          // });
-
           // Register AI-stopped / interrupted speech (definitive barge-in trigger confirmed by Gemini)
           eventBus.subscribe(PROVIDER_EVENTS.AI_STOPPED_SPEAKING, (payload) => {
             if (payload.callId === callId && (payload as any).interrupted) {
@@ -212,26 +216,18 @@ export class AudioStreamHandler {
             }
           });
 
-          // Trigger initial greeting turn text after 1 second
-          setTimeout(() => {
-            try {
-              logger.info('AudioStreamHandler: triggering greeting', { callId, sessionId });
-
-              if (!sessionId) {
-                logger.error('AudioStreamHandler: no sessionId for greeting', { callId });
-                return;
-              }
-
-              const greetingText = 'Hi, please start the interview.';
-              callOrchestrator.triggerGreeting(callId, sessionId, greetingText);
-              logger.info('AudioStreamHandler: greeting triggered', { callId, sessionId });
-            } catch (err) {
-              logger.error('AudioStreamHandler: failed to trigger greeting', {
-                callId,
-                error: err instanceof Error ? err.message : String(err),
-              });
-            }
-          }, 1000);
+          // Trigger initial greeting — immediately once session is up (no delay needed since setup already took time)
+          try {
+            logger.info('AudioStreamHandler: triggering greeting', { callId, sessionId });
+            const greetingText = 'Please greet me, confirm my name, and begin the screening interview.';
+            callOrchestrator.triggerGreeting(callId, sessionId, greetingText);
+            logger.info('AudioStreamHandler: greeting triggered', { callId, sessionId });
+          } catch (err) {
+            logger.error('AudioStreamHandler: failed to trigger greeting', {
+              callId,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
         })
         .catch((err) => {
           logger.error('AudioStreamHandler: failed to start orchestrator session', {
@@ -267,7 +263,8 @@ export class AudioStreamHandler {
   }
 
   /**
-   * Vobiz audio media received — convert codec and forward to CallOrchestrator.
+   * Vobiz audio media received — forward to CallOrchestrator.
+   * Buffers audio packets if the Gemini session is not yet ready.
    */
   private handleMediaEvent(callId: string, event: VobizStreamEvent): void {
     if (event.event !== 'media') return;
@@ -275,26 +272,25 @@ export class AudioStreamHandler {
     if (!conn) return;
 
     try {
-      const mulawAudio = event.media.payload; // Base64 raw G.711 stream
-      
-      // Track and log raw inbound packet payload for diagnostic audit
-      conn.audioStats.packetsReceived++;
-      conn.audioStats.bytesReceived += mulawAudio.length;
+      const audioPayload = event.media.payload; // Base64 L16 PCM at 16kHz
 
-      logger.info('AudioStreamHandler [MEDIA HOOK DIAGNOSTIC]: Received raw inbound media payload from Vobiz', {
-        callId,
-        packetIndex: conn.audioStats.packetsReceived,
-        payloadLength: mulawAudio.length,
-        cumulativeBytes: conn.audioStats.bytesReceived
-      });
-      
-      callOrchestrator.processAudioStream(callId, mulawAudio);
-      
+      // Track stats
+      conn.audioStats.packetsReceived++;
+      conn.audioStats.bytesReceived += audioPayload.length;
+
+      // If session not ready yet, buffer the audio
+      if (!conn.sessionReady) {
+        conn.inboundAudioBuffer.push(audioPayload);
+        return;
+      }
+
+      callOrchestrator.processAudioStream(callId, audioPayload);
+
       if (conn.sessionId) {
         logger.info('AudioStreamHandler: audio sent to Gemini', {
           callId,
           sessionId: conn.sessionId,
-          bytes: mulawAudio.length,
+          bytes: audioPayload.length,
         });
       }
     } catch (err) {
@@ -353,6 +349,11 @@ export class AudioStreamHandler {
 
   /**
    * Sends audio data immediately to Vobiz via the WebSocket connection.
+   *
+   * CRITICAL FIX: Vobiz bidirectional stream expects a JSON `playAudio` event
+   * with base64-encoded L16 PCM payload — NOT raw binary WebSocket frames.
+   * The stream was configured with contentType="audio/x-l16;rate=16000" so
+   * we must send the same format back.
    */
   private sendAudioToVobizDirect(callId: string, audioBase64: string): void {
     const conn = this.connections.get(callId);
@@ -361,23 +362,24 @@ export class AudioStreamHandler {
       return;
     }
 
-    // Decode base64 → raw binary mu-law buffer
-    // Vobiz carrier trunk expects a native binary WebSocket frame (not a JSON text frame)
-    const binaryVoicePacket = Buffer.from(audioBase64, 'base64');
-
-    logger.debug('AudioStreamHandler: sending audio to Vobiz', {
-      callId,
-      bytes: binaryVoicePacket.length,
+    // Send as JSON playAudio event with base64 L16 payload
+    // Vobiz bidirectional stream protocol requires this JSON envelope
+    const playAudioEvent = JSON.stringify({
+      event: 'playAudio',
+      media: {
+        contentType: 'audio/x-l16',
+        sampleRate: 16000,
+        payload: audioBase64,
+      },
     });
 
     logger.info('AudioStreamHandler: sending audio to Vobiz', {
       callId,
-      bytes: binaryVoicePacket.length,
+      bytes: audioBase64.length,
     });
 
     try {
-      // Emit as raw binary data block — never as a text/JSON frame
-      conn.ws.send(binaryVoicePacket, { binary: true });
+      conn.ws.send(playAudioEvent);
     } catch (err) {
       logger.error('AudioStreamHandler: failed to send audio to Vobiz', {
         callId,

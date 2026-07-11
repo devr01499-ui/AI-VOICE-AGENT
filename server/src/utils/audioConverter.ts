@@ -189,82 +189,63 @@ export function pcm16ToUlaw(pcm16Samples: Int16Array): Uint8Array {
 }
 
 /**
- * High-performance resampling using Catmull-Rom cubic spline interpolation.
- * Reduces high-frequency aliasing compared to linear interpolation.
+ * Applies a noise gate to PCM16 samples, zeroing out signals below the RMS threshold.
+ * This prevents line static/hum from keeping the VAD open and reducing response latency.
  */
-export function resample(
-  samples: Int16Array,
-  fromRate: number,
-  toRate: number
-): Int16Array {
-  if (fromRate === toRate) {
-    return samples;
+export function applyNoiseGate(samples: Int16Array, threshold = 120): void {
+  let sum = 0;
+  for (let i = 0; i < samples.length; i++) {
+    sum += samples[i]! * samples[i]!;
   }
-
-  const ratio = fromRate / toRate;
-  const newLength = Math.round(samples.length / ratio);
-  const result = new Int16Array(newLength);
-
-  const lastIndex = samples.length - 1;
-  if (lastIndex < 0) return result;
-
-  for (let i = 0; i < newLength; i++) {
-    const srcIndex = i * ratio;
-    const indexLow = Math.floor(srcIndex);
-    const indexHigh = Math.min(indexLow + 1, lastIndex);
-    const t = srcIndex - indexLow;
-
-    const sampleLow = samples[indexLow]!;
-    const sampleHigh = samples[indexHigh]!;
-
-    // Linear interpolation
-    const interpolated = (1 - t) * sampleLow + t * sampleHigh;
-    
-    let processedSample = Math.round(interpolated);
-
-    // Prevent digital wrapping distortion/crackle
-    if (processedSample > 32767) processedSample = 32767;
-    if (processedSample < -32768) processedSample = -32768;
-
-    result[i] = processedSample;
+  const rms = Math.sqrt(sum / samples.length);
+  if (rms < threshold) {
+    samples.fill(0);
   }
-
-  return result;
 }
 
 /**
- * Base64 stream helper to convert inbound audio (Vobiz G.711 mu-law 8kHz)
- * to PCM16 at target provider sample rate.
+ * Base64 stream helper for inbound audio from Vobiz.
+ *
+ * IMPORTANT: Vobiz is configured with contentType="audio/x-l16;rate=16000"
+ * which means it sends raw Linear 16-bit PCM at 16kHz.
+ * However, telephony streams send data in big-endian (network byte order),
+ * whereas Gemini expects little-endian PCM16.
+ *
+ * We decode the base64 payload, swap bytes using native fast swap16,
+ * apply a noise gate, and return the clean Buffer directly.
  */
-export function convertInboundAudio(
-  base64MuLaw: string
-): string {
-  try {
-    if (!base64MuLaw) return base64MuLaw;
 
-    // Step 1: Decode mu-law to 8kHz PCM16 buffer
-    const pcm16Base64 = mulawToPCM16(base64MuLaw);
-    const pcmBuffer = Buffer.from(pcm16Base64, 'base64');
+export function convertInboundAudio(
+  base64L16: string
+): Buffer {
+  if (!base64L16) return Buffer.alloc(0);
+
+  try {
+    const buffer = Buffer.from(base64L16, 'base64');
     
-    // Step 2: Convert to typed array for resampling with safe alignment and isolation from Node.js Buffer pool
-    const cleanBytes = new Uint8Array(pcmBuffer);
-    const pcm16Samples = new Int16Array(
-      cleanBytes.buffer,
-      cleanBytes.byteOffset,
-      cleanBytes.length / 2
+    // Ensure even length for 16-bit word processing
+    const evenLength = buffer.length - (buffer.length % 2);
+    const targetBuffer = buffer.length === evenLength ? buffer : buffer.subarray(0, evenLength);
+    
+    // Inbound PCM from Vobiz is already little-endian. Swapping was causing high-energy static (19000 RMS).
+    // Do not swap16().
+
+    // Map to Int16Array for noise gate
+    const samples = new Int16Array(
+      targetBuffer.buffer,
+      targetBuffer.byteOffset,
+      targetBuffer.length / 2
     );
 
-    // Step 3: Resample from 8000Hz to provider rate (Gemini Live expects 16000Hz)
-    const resampled = resample(pcm16Samples, 8000, 16000);
+    // Filter line static/hum
+    applyNoiseGate(samples, 120);
 
-    // Step 4: Convert back to base64
-    const outBuffer = Buffer.from(resampled.buffer, resampled.byteOffset, resampled.byteLength);
-    return outBuffer.toString('base64');
+    return targetBuffer;
   } catch (err) {
     logger.error('audioConverter: convertInboundAudio failed', {
       error: err instanceof Error ? err.message : String(err),
     });
-    return base64MuLaw;
+    return Buffer.alloc(0);
   }
 }
 
@@ -299,44 +280,93 @@ export function encodeMuLawSample(pcm: number): number {
 
 /**
  * Base64 stream helper to convert outbound audio (Gemini PCM16 at 24kHz)
- * back to Vobiz telephony standard (G.711 mu-law 8kHz).
+ * to Vobiz L16 format at 16kHz.
  *
- * CRITICAL: Gemini Live API outputs PCM16 at exactly 24000 Hz.
- * Vobiz expects G.711 mu-law at exactly 8000 Hz.
- * Ratio = 24000 / 8000 = 3 — a clean integer stride, so we use direct
- * 3:1 decimation (every 3rd sample) instead of interpolation to avoid
- * artefacts and reduce processing latency.
+ * IMPORTANT: Vobiz stream is configured with contentType="audio/x-l16;rate=16000"
+ * so it expects raw L16 PCM at 16kHz back — NOT mu-law.
+ *
+ * Gemini Live API outputs PCM16 at exactly 24000 Hz.
+ * We need to downsample 24kHz → 16kHz (ratio = 1.5) using cubic spline interpolation.
  */
 export function convertOutboundAudio(
-  base64PCM: string
+  pcmBuffer: Buffer
 ): string {
   try {
-    if (!base64PCM) return base64PCM;
+    if (!pcmBuffer || pcmBuffer.length === 0) return '';
 
-    const pcmBuffer = Buffer.from(base64PCM, 'base64');
-    // Isolate from Node.js Buffer pool before Int16Array view
-    const samples16 = new Int16Array(
-      new Uint8Array(pcmBuffer).buffer
+    // Safe Int16Array view on the buffer slice
+    const samples24k = new Int16Array(
+      pcmBuffer.buffer,
+      pcmBuffer.byteOffset,
+      pcmBuffer.length / 2
     );
 
-    // 24kHz → 8kHz: strict 3:1 stride decimation
-    const targetLength = Math.floor(samples16.length / 3);
-    const muLawBuffer = new Uint8Array(targetLength);
-
-    for (let i = 0; i < targetLength; i++) {
-      const sample = samples16[i * 3]!; // Absolute 3:1 step stride
-      muLawBuffer[i] = encodeMuLawSample(sample); // Convert to G.711 byte
-    }
+    // Resample 24kHz → 16kHz using Catmull-Rom cubic spline interpolation
+    const resampled = resample(samples24k, 24000, 16000);
 
     return Buffer.from(
-      muLawBuffer.buffer,
-      muLawBuffer.byteOffset,
-      muLawBuffer.byteLength
+      resampled.buffer,
+      resampled.byteOffset,
+      resampled.byteLength
     ).toString('base64');
   } catch (err) {
     logger.error('audioConverter: convertOutboundAudio failed', {
       error: err instanceof Error ? err.message : String(err),
     });
-    return base64PCM;
+    return '';
   }
+}
+
+/**
+ * High-performance resampling using Catmull-Rom cubic spline interpolation.
+ * Reduces high-frequency aliasing compared to linear interpolation.
+ */
+export function resample(
+  samples: Int16Array,
+  fromRate: number,
+  toRate: number
+): Int16Array {
+  if (fromRate === toRate) {
+    return samples;
+  }
+
+  const ratio = fromRate / toRate;
+  const newLength = Math.round(samples.length / ratio);
+  const result = new Int16Array(newLength);
+
+  const lastIndex = samples.length - 1;
+  if (lastIndex < 0) return result;
+
+  for (let i = 0; i < newLength; i++) {
+    const srcIndex = i * ratio;
+    const index1 = Math.floor(srcIndex);
+    const t = srcIndex - index1;
+
+    // Get 4 points for cubic interpolation
+    const index0 = Math.max(0, index1 - 1);
+    const index2 = Math.min(lastIndex, index1 + 1);
+    const index3 = Math.min(lastIndex, index1 + 2);
+
+    const y0 = samples[index0]!;
+    const y1 = samples[index1]!;
+    const y2 = samples[index2]!;
+    const y3 = samples[index3]!;
+
+    // Catmull-Rom spline formulation
+    const a = -0.5 * y0 + 1.5 * y1 - 1.5 * y2 + 0.5 * y3;
+    const b = y0 - 2.5 * y1 + 2.0 * y2 - 0.5 * y3;
+    const c = -0.5 * y0 + 0.5 * y2;
+    const d = y1;
+
+    const interpolated = a * t * t * t + b * t * t + c * t + d;
+    let processedSample = Math.round(interpolated);
+
+    // Prevent digital wrapping distortion/crackle
+    if (processedSample > 32767) processedSample = 32767;
+    if (processedSample < -32768) processedSample = -32768;
+
+    result[i] = processedSample;
+  }
+
+  return result;
 }
