@@ -63,11 +63,9 @@ export class PipecatRunner {
     });
   }
 
-  /**
-   * Consume incoming 16kHz L16 byte arrays straight from Vobiz WebSocket connections.
-   */
   handleInboundAudio(audioBase64: string): void {
-    const buffer = convertInboundAudio(audioBase64);
+    const base64Str = convertInboundAudio(audioBase64);
+    const buffer = Buffer.from(base64Str, 'base64');
     this.pipeline.pushInputFrame({
       type: 'audio',
       data: buffer,

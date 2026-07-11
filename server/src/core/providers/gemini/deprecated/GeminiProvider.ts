@@ -30,8 +30,8 @@ class GeminiSession {
 
   handleInboundAudio(audioBase64: string): string {
     metricsCollector.recordAudioChunkSent(this.sessionId);
-    // Transcode incoming 8kHz mu-law telephony bytes up to 16kHz PCM16 linear
-    return convertInboundAudio(audioBase64).toString('base64');
+    // Transcode incoming G.711 mu-law telephony bytes up to 16kHz PCM16 linear
+    return convertInboundAudio(audioBase64);
   }
 
   handleOutboundAudio(audioBase64: string): void {

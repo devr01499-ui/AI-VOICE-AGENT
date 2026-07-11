@@ -215,22 +215,20 @@ export function applyNoiseGate(samples: Int16Array, threshold = 120): void {
  * apply a noise gate, and return the clean Buffer directly.
  */
 
-export function convertInboundAudio(
-  base64MuLaw: string
-): Buffer {
-  if (!base64MuLaw) return Buffer.alloc(0);
+export function convertInboundAudio(base64MuLaw: string): string {
+  if (!base64MuLaw) return '';
 
-  try {
-    const buffer = Buffer.from(base64MuLaw, 'base64');
-    
-    // Ensure even length for 16-bit word processing
-    const evenLength = buffer.length - (buffer.length % 2);
-    const targetBuffer = buffer.length === evenLength ? buffer : buffer.subarray(0, evenLength);
-    
-    // Inbound PCM from Vobiz is already little-endian. Swapping was causing high-energy static (19000 RMS).
-    // Do not swap16().
+  const inputBuffer = Buffer.from(base64MuLaw, 'base64');
+  
+  // Auto-detect: G.711 mu-law 8kHz has 1 byte/sample (e.g. 160 bytes for 20ms),
+  // whereas L16 PCM 16kHz has 2 bytes/sample (e.g. 640 bytes for 20ms).
+  const isL16 = inputBuffer.length > 320;
 
-    // Map to Int16Array for noise gate
+  if (isL16) {
+    // Process as L16 PCM 16kHz Little-Endian
+    const evenLength = inputBuffer.length - (inputBuffer.length % 2);
+    const targetBuffer = inputBuffer.length === evenLength ? inputBuffer : inputBuffer.subarray(0, evenLength);
+    
     const samples16 = new Int16Array(
       targetBuffer.buffer,
       targetBuffer.byteOffset,
@@ -238,25 +236,60 @@ export function convertInboundAudio(
     );
 
     const samples = samples16.length;
-
-    // Inside conversion loop: Calculate sample energy
     let sumSquares = 0;
     for (let i = 0; i < samples; i++) {
       sumSquares += samples16[i] * samples16[i];
     }
     const rms = Math.sqrt(sumSquares / samples);
     if (rms < 120) {
-      // Zero out frame to block phone line hum/buzz
       samples16.fill(0);
     }
-
-    return targetBuffer;
-  } catch (err) {
-    logger.error('audioConverter: convertInboundAudio failed', {
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return Buffer.alloc(0);
+    return targetBuffer.toString('base64');
   }
+
+  // Else, process as G.711 mu-law 8kHz (decode and upsample to 16kHz)
+  const totalInputSamples = inputBuffer.length;
+  const targetSamples = totalInputSamples * 2;
+  const outBuffer = Buffer.alloc(targetSamples * 2);
+  const samples16 = new Int16Array(outBuffer.buffer, outBuffer.byteOffset, targetSamples);
+
+  let sumSquares = 0;
+  for (let i = 0; i < totalInputSamples; i++) {
+    const muLawSample = inputBuffer[i];
+    const linearSample = decodeMuLawSample(muLawSample); 
+
+    const idx1 = i * 2;
+    const idx2 = i * 2 + 1;
+    
+    samples16[idx1] = linearSample;
+    samples16[idx2] = linearSample;
+
+    sumSquares += linearSample * linearSample;
+    sumSquares += linearSample * linearSample;
+  }
+
+  const rms = Math.sqrt(sumSquares / targetSamples);
+  if (rms < 120) {
+    samples16.fill(0);
+  }
+
+  return outBuffer.toString('base64');
+}
+
+/**
+ * Standalone Named Helper: Decodes a single 8-bit G.711 mu-law byte to a 16-bit linear PCM sample.
+ */
+function decodeMuLawSample(muLawByte: number): number {
+  // Flip the bits as G.711 mu-law inherently complements data bits
+  const sign = (muLawByte & 0x80) === 0 ? -1 : 1;
+  const exponent = (muLawByte & 0x70) >> 4;
+  const mantissa = muLawByte & 0x0F;
+  
+  let sample = (mantissa << 3) + 132;
+  sample <<= exponent;
+  sample -= 132;
+  
+  return sign * sample;
 }
 
 /**
