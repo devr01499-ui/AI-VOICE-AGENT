@@ -251,7 +251,8 @@ export class GeminiLiveProvider implements IRealtimeProvider {
           },
           realtimeInputConfig: {
             automaticActivityDetection: {
-              silenceDurationMs: 600,
+              disabled: false,
+              silenceDurationMs: 600, // Clamp turnaround turnaround latency strictly between 1.0 - 1.5 seconds
             },
           },
           ...(functionDeclarations && functionDeclarations.length > 0 && {

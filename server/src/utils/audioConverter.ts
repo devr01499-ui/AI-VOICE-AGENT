@@ -216,12 +216,12 @@ export function applyNoiseGate(samples: Int16Array, threshold = 120): void {
  */
 
 export function convertInboundAudio(
-  base64L16: string
+  base64MuLaw: string
 ): Buffer {
-  if (!base64L16) return Buffer.alloc(0);
+  if (!base64MuLaw) return Buffer.alloc(0);
 
   try {
-    const buffer = Buffer.from(base64L16, 'base64');
+    const buffer = Buffer.from(base64MuLaw, 'base64');
     
     // Ensure even length for 16-bit word processing
     const evenLength = buffer.length - (buffer.length % 2);
@@ -231,14 +231,24 @@ export function convertInboundAudio(
     // Do not swap16().
 
     // Map to Int16Array for noise gate
-    const samples = new Int16Array(
+    const samples16 = new Int16Array(
       targetBuffer.buffer,
       targetBuffer.byteOffset,
       targetBuffer.length / 2
     );
 
-    // Filter line static/hum
-    applyNoiseGate(samples, 120);
+    const samples = samples16.length;
+
+    // Inside conversion loop: Calculate sample energy
+    let sumSquares = 0;
+    for (let i = 0; i < samples; i++) {
+      sumSquares += samples16[i] * samples16[i];
+    }
+    const rms = Math.sqrt(sumSquares / samples);
+    if (rms < 120) {
+      // Zero out frame to block phone line hum/buzz
+      samples16.fill(0);
+    }
 
     return targetBuffer;
   } catch (err) {
