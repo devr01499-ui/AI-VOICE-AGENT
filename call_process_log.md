@@ -66,6 +66,15 @@ This file records all steps, updates, and fixes made during the live call initia
     4. **Guardrail Protection (`AudioStreamHandler.ts`)**: Blocked duplicate starts via a check on `conn.sessionId` to prevent double greeting loops, and tuned the start prompt to guide the model conversationally.
   - **Validation:** Build succeeded cleanly. Outbound call `0fb83bc5-d392-45b3-b00e-2d12fa38afea` connected successfully to `+919707337259` and ran for **88 seconds** before callee hung up normally. Logs verified exactly **422 audio chunks** received from Gemini and sent to Vobiz. Voice quality is clear, latency is under 1.5s, and repetition has been resolved.
 
+- **[2026-07-11T13:48:00] Endianness Correction, Setup Alignment, and Push to Remote:**
+  - **Analysis:** During verification call, we noticed the agent was silent after the greeting turn. Added periodic RMS diagnostic logging and discovered quiet line noise had an RMS of **19,000+**. This proved that Vobiz is actually streaming little-endian PCM16, and our byte-swapping converted it to loud static noise, breaking VAD and speech recognition. Additionally, we fixed a WebSocket 1007 crash by moving `inputAudioTranscription` from `generationConfig` to the parent `setup` block where the Google Live wire protocol parser expects it.
+  - **Action & Fixes:**
+    1. **Audio Endianness Fix**: Removed `targetBuffer.swap16()` in `convertInboundAudio`. Noise floor RMS immediately dropped from `19,000` to a clean `216`, fully restoring speech recognition.
+    2. **Transcription Clean up**: Moved `inputAudioTranscription` to parent `setup` block, then fully removed it to avoid extra token costs since Gemini handles speech-to-speech turn taking natively.
+    3. **Gated Inbound Stream**: Kept early media silent for the first 1.5 seconds of the call until greeting plays, preventing early noise from flooding VAD.
+  - **Validation:** Outbound call `45cecd99-1436-41e2-9abc-bcefca8a7e84` connected to `+919707337259` and ran successfully for **104 seconds**. Gemini responded dynamically to user speech, generating **394 audio response chunks**. The user confirmed call is connected and working perfectly. Pushed local changes successfully to remote `main` branch to trigger automatic production deployments on Vercel and Render.
+
+
 
 
 
