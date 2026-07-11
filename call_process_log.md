@@ -74,6 +74,15 @@ This file records all steps, updates, and fixes made during the live call initia
     3. **Gated Inbound Stream**: Kept early media silent for the first 1.5 seconds of the call until greeting plays, preventing early noise from flooding VAD.
   - **Validation:** Outbound call `45cecd99-1436-41e2-9abc-bcefca8a7e84` connected to `+919707337259` and ran successfully for **104 seconds**. Gemini responded dynamically to user speech, generating **394 audio response chunks**. The user confirmed call is connected and working perfectly. Pushed local changes successfully to remote `main` branch to trigger automatic production deployments on Vercel and Render.
 
+- **[2026-07-11T13:59:00] Critical Core Refactoring & Platform Compilation Lockdown:**
+  - **Analysis & Core Request:** Discrepancy alignment required constructing the explicit little-endian RMS noise gate energy-calculation loop within `convertInboundAudio`, and injecting the VAD overrides directly (`disabled: false`, `silenceDurationMs: 600`) in `GeminiLiveProvider.ts`.
+  - **Action & Fixes:**
+    1. **RMS Gate constructed in utils**: Implemented inline calculation loop in `convertInboundAudio` mapping `samples16` to `samples` length and zeroing out frame under energy threshold 120.
+    2. **Tuned VAD variables**: Configured `automaticActivityDetection` directly with `disabled: false` and `silenceDurationMs: 600` in setup message payload.
+    3. **Workspaces lockdown compilation**: Verified that both spaces compile cleanly without warning using `npm run typecheck && npm run build`.
+  - **Validation:** Typecheck and build completed with 0 errors across server and Next.js workspaces. Commits successfully pushed to Git remote main branch, triggering automated production redeploys.
+
+
 
 
 
