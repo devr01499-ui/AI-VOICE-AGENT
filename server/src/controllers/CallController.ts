@@ -55,10 +55,8 @@ export class CallController {
       // Default userId for development (auth is bypassed)
       const effectiveUserId = userId ?? 'dev-user-001';
 
-      // Seed/upsert MVP Agent & User dynamically if they do not exist to prevent foreign key errors
+      // Seed/upsert MVP User dynamically if they do not exist to prevent foreign key errors
       const prisma = (await import('../config/database')).prisma;
-
-      // 1. Ensure user exists
       await prisma.user.upsert({
         where: { id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" },
         update: {},
@@ -70,26 +68,30 @@ export class CallController {
         }
       });
 
-      // 2. Ensure agent exists
-      await prisma.agent.upsert({
-        where: { id: agentId },
-        update: {
-          name: "Clarity HR Customer Support Screener",
-          systemPrompt: "You are Clarity AI, a highly professional senior HR recruiter running a phone screening interview for a Customer Support role. Speak in a warm, friendly, smooth, and highly conversational tone, just like a supportive human interviewer. Pause naturally and wait for candidate responses. Never output markdown formatting or bullet points. Your screening flow consists of three distinct questions: 1. \"First, could you share a specific situation where you successfully resolved a conflict with a frustrated customer?\" 2. \"Second, how do you manage high call volumes while keeping a positive and warm tone throughout the day?\" 3. \"And finally, what are your expected salary bounds for this Customer Support position?\" Be polite, listen actively, and say \"uh-huh\" or \"got it\" when they finish speaking to show smooth, realistic turn-taking. If they talk over you, stop speaking immediately.",
-          voiceName: "Puck",
-          model: "models/gemini-2.5-flash-native-audio-latest",
-          status: "active"
-        },
-        create: {
-          id: agentId,
-          name: "Clarity HR Customer Support Screener",
-          systemPrompt: "You are Clarity AI, a highly professional senior HR recruiter running a phone screening interview for a Customer Support role. Speak in a warm, friendly, smooth, and highly conversational tone, just like a supportive human interviewer. Pause naturally and wait for candidate responses. Never output markdown formatting or bullet points. Your screening flow consists of three distinct questions: 1. \"First, could you share a specific situation where you successfully resolved a conflict with a frustrated customer?\" 2. \"Second, how do you manage high call volumes while keeping a positive and warm tone throughout the day?\" 3. \"And finally, what are your expected salary bounds for this Customer Support position?\" Be polite, listen actively, and say \"uh-huh\" or \"got it\" when they finish speaking to show smooth, realistic turn-taking. If they talk over you, stop speaking immediately.",
-          voiceName: "Puck",
-          model: "models/gemini-2.5-flash-native-audio-latest",
-          userId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
-          status: "active"
-        }
+      // Ensure dynamic agent context matching
+      const activeAgent = await prisma.agent.findUnique({
+        where: { id: agentId }
       });
+
+      if (!activeAgent) {
+        if (agentId === "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11") {
+          // Only seed default agent if it is the legacy agent id and is missing
+          await prisma.agent.create({
+            data: {
+              id: agentId,
+              name: "Clarity HR Customer Support Screener",
+              systemPrompt: "You are Clarity AI, a highly professional senior HR recruiter running a phone screening interview for a Customer Support role. Speak in a warm, friendly, smooth, and highly conversational tone, just like a supportive human interviewer. Pause naturally and wait for candidate responses. Never output markdown formatting or bullet points. Your screening flow consists of three distinct questions: 1. \"First, could you share a specific situation where you successfully resolved a conflict with a frustrated customer?\" 2. \"Second, how do you manage high call volumes while keeping a positive and warm tone throughout the day?\" 3. \"And finally, what are your expected salary bounds for this Customer Support position?\" Be polite, listen actively, and say \"uh-huh\" or \"got it\" when they finish speaking to show smooth, realistic turn-taking. If they talk over you, stop speaking immediately.",
+              voiceName: "Puck",
+              model: "models/gemini-2.5-flash-native-audio-latest",
+              userId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+              status: "active"
+            }
+          });
+        } else {
+          res.status(404).json({ success: false, error: `Agent with ID ${agentId} not found` });
+          return;
+        }
+      }
 
       const result = await CallService.createCall({
         phoneNumber,
