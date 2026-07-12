@@ -1395,6 +1395,12 @@ function DashAgents() {
 
   function handleDelete(agentId: string) {
     if (window.confirm("Are you sure you want to delete this agent? It will be deleted forever.")) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(agentId);
+      if (!isUuid) {
+        setAgents(prev => prev.filter(x => x.id !== agentId));
+        return;
+      }
+
       fetch(`https://ai-voice-agent-backend-mv32.onrender.com/api/v2/agents/${agentId}`, {
         method: "DELETE",
         headers: {
@@ -1405,7 +1411,8 @@ function DashAgents() {
         if (res.status === 200 || res.status === 204) {
           setAgents(prev => prev.filter(x => x.id !== agentId));
         } else {
-          alert(`Failed to delete agent: ${res.statusText}`);
+          const body = await res.json().catch(() => ({}));
+          alert(`Failed to delete agent: ${body.error || res.statusText}`);
         }
       })
       .catch((err) => {

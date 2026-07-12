@@ -316,4 +316,42 @@ router.put(
   }
 );
 
+/** DELETE /api/v2/agents/:agentId — Delete an existing agent. */
+router.delete(
+  '/:agentId',
+  validateParams(agentIdParamSchema),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getUserIdFromRequest(req);
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'Unauthorized' });
+        return;
+      }
+
+      const agentId = req.params.agentId as string;
+
+      // Verify ownership before deleting
+      const exists = await prisma.agent.findFirst({
+        where: { id: agentId, userId: userId }
+      });
+
+      if (!exists) {
+        res.status(404).json({ success: false, error: 'Agent not found' });
+        return;
+      }
+
+      await prisma.agent.delete({
+        where: { id: agentId },
+      });
+
+      res.json({
+        success: true,
+        message: 'Agent deleted successfully',
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 export default router;
