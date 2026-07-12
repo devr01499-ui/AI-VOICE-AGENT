@@ -34,9 +34,10 @@ import { eventBus, PROVIDER_EVENTS } from './core/provider-sdk/provider.events';
 import callRoutes from './routes/calls';
 import agentRoutes from './routes/agents';
 import numbersRoutes from './routes/numbers';
-import { getUserIdFromRequest } from './utils/auth';
+import { getUserIdFromRequest, verifySupabaseToken } from './utils/auth';
 import webhookRoutes from './routes/webhooks';
 import { SandboxStreamHandler } from './websockets/SandboxStreamHandler';
+import { requireAuth } from './middleware/auth';
 
 // ─── Express App ─────────────────────────────────
 
@@ -127,7 +128,7 @@ import { CallController } from './controllers/CallController';
 
 // ─── API Routes ──────────────────────────────────
 
-app.use('/api/v2/calls', callRoutes);
+app.use('/api/v2/calls', requireAuth, callRoutes);
 app.post('/api/calls/outbound', (req, res, next) => {
   const userId = getUserIdFromRequest(req);
   if (!userId) {
@@ -137,17 +138,9 @@ app.post('/api/calls/outbound', (req, res, next) => {
   req.body.userId = userId;
   next();
 }, CallController.initiateCall);
-app.post('/api/v2/calls/outbound', (req, res, next) => {
-  const userId = getUserIdFromRequest(req);
-  if (!userId) {
-    res.status(401).json({ success: false, error: 'Unauthorized' });
-    return;
-  }
-  req.body.userId = userId;
-  next();
-}, CallController.initiateCall);
-app.use('/api/v2/agents', agentRoutes);
-app.use('/api/v2/numbers', numbersRoutes);
+app.post('/api/v2/calls/outbound', requireAuth, CallController.initiateCall);
+app.use('/api/v2/agents', requireAuth, agentRoutes);
+app.use('/api/v2/numbers', requireAuth, numbersRoutes);
 app.use('/api/v2/webhooks', webhookRoutes);
 
 // ─── 404 Handler ─────────────────────────────────
@@ -322,8 +315,29 @@ async function bootstrap(): Promise<void> {
           wssTranscript.emit('connection', ws, request);
         });
       } else if (pathname === '/api/v2/sandbox/test-stream') {
-        wssSandbox.handleUpgrade(request, socket, head, (ws) => {
-          wssSandbox.emit('connection', ws, request);
+        const token = url.searchParams.get('token');
+        if (!token) {
+          logger.warn('WebSocket upgrade request rejected — missing auth session token');
+          socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+          socket.destroy();
+          return;
+        }
+
+        verifySupabaseToken(token).then((verified) => {
+          if (!verified) {
+            logger.warn('WebSocket upgrade request rejected — invalid or expired auth session token');
+            socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+            socket.destroy();
+            return;
+          }
+
+          wssSandbox.handleUpgrade(request, socket, head, (ws) => {
+            wssSandbox.emit('connection', ws, request);
+          });
+        }).catch((err) => {
+          logger.error('Error during WebSocket upgrade authentication', { error: String(err) });
+          socket.write('HTTP/1.1 500 Internal Server Error\r\n\r\n');
+          socket.destroy();
         });
       } else {
         logger.warn('WebSocket upgrade request rejected — unhandled path', { pathname });

@@ -53,17 +53,17 @@ export class CallController {
       }
 
       // Default userId for development (auth is bypassed)
-      const effectiveUserId = userId ?? 'dev-user-001';
+      const effectiveUserId = userId ?? 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 
       // Seed/upsert MVP User dynamically if they do not exist to prevent foreign key errors
       const prisma = (await import('../config/database')).prisma;
       await prisma.user.upsert({
-        where: { id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" },
+        where: { id: effectiveUserId },
         update: {},
         create: {
-          id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
-          email: "devr01499@gmail.com",
-          fullName: "devr01499",
+          id: effectiveUserId,
+          email: effectiveUserId === 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' ? "devr01499@gmail.com" : `user-${effectiveUserId}@supabase.io`,
+          fullName: effectiveUserId === 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' ? "devr01499" : "Supabase User",
           passwordHash: "$2b$10$UnSeededPasswordHashPlaceholder",
         }
       });

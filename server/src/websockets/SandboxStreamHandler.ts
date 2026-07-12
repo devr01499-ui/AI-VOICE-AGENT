@@ -3,6 +3,7 @@ import WebSocket, { WebSocketServer } from 'ws';
 import { logger } from '../utils/logger';
 import { prisma } from '../config/database';
 import { GeminiLiveProvider } from '../providers/gemini/GeminiLiveProvider';
+import { verifySupabaseToken } from '../utils/auth';
 
 interface ActiveSandboxSession {
   ws: WebSocket;
@@ -28,10 +29,17 @@ export class SandboxStreamHandler {
   private async handleConnection(ws: WebSocket, req: IncomingMessage): Promise<void> {
     const url = new URL(req.url ?? '/', `http://${req.headers.host || 'localhost'}`);
     const agentId = url.searchParams.get('agentId');
+    const token = url.searchParams.get('token');
 
     if (!agentId) {
       logger.warn('SandboxStreamHandler: Rejected connection — missing agentId');
       ws.close(1008, 'Missing agentId parameter');
+      return;
+    }
+
+    if (!token) {
+      logger.warn('SandboxStreamHandler: Rejected connection — missing token parameter');
+      ws.close(1008, 'Missing token parameter');
       return;
     }
 
@@ -46,13 +54,28 @@ export class SandboxStreamHandler {
     this.connections.set(connectionId, session);
 
     try {
-      // 1. Fetch the exact agent rules
+      // 1. Verify Supabase JWT token
+      const verified = await verifySupabaseToken(token);
+      if (!verified) {
+        throw new Error('Invalid or expired authentication token');
+      }
+
+      let userId = verified.sub;
+      if (verified.email === 'devr01499@gmail.com') {
+        userId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+      }
+
+      // 2. Fetch the exact agent rules
       const agent = await prisma.agent.findUnique({
         where: { id: agentId },
       });
 
       if (!agent) {
         throw new Error(`Agent with ID ${agentId} not found in workspace database`);
+      }
+
+      if (agent.userId !== userId) {
+        throw new Error('Access denied: Agent is not associated with this workspace session context');
       }
 
       // 2. Setup Gemini Live configuration

@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { supabase } from "./lib/supabaseClient";
+import AuthGateway from "./components/auth/AuthGateway";
+import { Session } from "@supabase/supabase-js";
 import {
   fetchAgents, fetchCalls, fetchProfile, createAgent, updateAgent,
   initiateCall, getCallTranscript, getLiveTranscriptWsUrl,
@@ -1429,9 +1432,10 @@ function DashAgents() {
 
   async function fetchWorkspaceNumbers() {
     try {
+      const token = session?.access_token;
       const res = await fetch("https://ai-voice-agent-backend-mv32.onrender.com/api/v2/numbers", {
         headers: {
-          "x-user-id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+          ...(token ? { "Authorization": `Bearer ${token}` } : { "x-user-id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" }),
         }
       });
       const data = await res.json();
@@ -1475,7 +1479,9 @@ function DashAgents() {
       const host = window.location.host === 'localhost:5173' || window.location.host === 'localhost:3000'
         ? 'localhost:3001'
         : 'ai-voice-agent-backend-mv32.onrender.com';
-      const wsUrl = `${wsProtocol}//${host}/api/v2/sandbox/test-stream?agentId=${selected.id}`;
+      const token = session?.access_token;
+      const tokenParam = token ? `&token=${token}` : '';
+      const wsUrl = `${wsProtocol}//${host}/api/v2/sandbox/test-stream?agentId=${selected.id}${tokenParam}`;
       
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
@@ -1606,16 +1612,17 @@ function DashAgents() {
   function handleLaunchLiveCall() {
     if (!selected || !destinationPhone) return;
     setTestCallStatus('calling');
+    const token = session?.access_token;
     fetch("https://ai-voice-agent-backend-mv32.onrender.com/api/v2/calls", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-user-id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+        ...(token ? { "Authorization": `Bearer ${token}` } : { "x-user-id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" }),
       },
       body: JSON.stringify({
         phoneNumber: destinationPhone,
         agentId: selected.id,
-        userId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+        userId: token ? undefined : "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
         fromPhoneNumber: selectedNumber || undefined,
       }),
     })
@@ -2721,11 +2728,11 @@ function DashSettings() {
 }
 
 // ── Main DashboardPage ──
-function DashboardPage() {
+function DashboardPage({ session }: { session: Session }) {
   const [section, setSection] = useState<DashSection>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [profile, setProfile] = useState<ApiProfile | null>(null);
-  useEffect(() => { fetchProfile().then(setProfile).catch(() => {}); }, []);
+  useEffect(() => { fetchProfile().then(setProfile).catch(() => {}); }, [session]);
 
   const navGroups = [
     {label:"Workspace",items:[{id:"overview",icon:LayoutDashboard,label:"Overview"},{id:"agents",icon:Bot,label:"Agents"},{id:"batch",icon:Radio,label:"Batch Calls"},{id:"calls",icon:PhoneIncoming,label:"Call Logs"}]},
@@ -2756,11 +2763,18 @@ function DashboardPage() {
           ))}
         </nav>
         {sidebarOpen&&(
-          <div className="p-2 border-t border-border">
+          <div className="p-2 border-t border-border flex flex-col gap-1">
             <div className="flex items-center gap-2 px-2 py-1.5">
               <div className="w-6 h-6 bg-foreground rounded-full flex items-center justify-center flex-shrink-0"><span className="text-xs text-white font-bold">{(profile?.fullName ?? profile?.email ?? 'U').charAt(0).toUpperCase()}</span></div>
-              <div className="min-w-0"><p className="text-xs font-medium truncate" style={{fontFamily:"'Figtree',sans-serif"}}>{profile?.fullName ?? profile?.email ?? 'User'}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{profile?.billingBalance != null ? `Balance: $${profile.billingBalance}` : 'Growth plan'}</p></div>
+              <div className="min-w-0 flex-1"><p className="text-xs font-medium truncate" style={{fontFamily:"'Figtree',sans-serif"}}>{profile?.fullName ?? profile?.email ?? 'User'}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{profile?.billingBalance != null ? `Balance: $${profile.billingBalance}` : 'Growth plan'}</p></div>
             </div>
+            <button 
+              onClick={() => supabase.auth.signOut()} 
+              className="text-left text-[10px] text-red-500 font-semibold px-2 py-1 hover:bg-red-50 rounded transition-all"
+              style={{fontFamily:"'Figtree',sans-serif"}}
+            >
+              Sign Out
+            </button>
           </div>
         )}
       </div>
@@ -2795,10 +2809,21 @@ function DashboardPage() {
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
   const [page, setPage] = useState<Page>("home");
+  const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
     window.scrollTo({ top: 0 });
   }, [page]);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+      setSession(currentSession);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   return (
     <>
@@ -2827,7 +2852,9 @@ export default function App() {
           {page === "home" && <HomePage setPage={setPage} />}
           {page === "industries" && <IndustriesPage setPage={setPage} />}
           {page === "pricing" && <PricingPage setPage={setPage} />}
-          {page === "dashboard" && <DashboardPage />}
+          {page === "dashboard" && (
+            session ? <DashboardPage session={session} /> : <AuthGateway />
+          )}
         </motion.div>
       </AnimatePresence>
     </>

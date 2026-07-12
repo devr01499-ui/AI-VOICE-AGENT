@@ -9,6 +9,7 @@
  */
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+import { supabase } from "./lib/supabaseClient";
 
 export const API_BASE: string =
   (import.meta as any).env?.VITE_API_BASE_URL ??
@@ -101,9 +102,14 @@ async function apiFetch<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_BASE}${path}`;
+
+  // Asynchronously retrieve active Supabase session
+  const sessionResult = await supabase.auth.getSession();
+  const token = sessionResult.data?.session?.access_token;
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    "x-user-id": DEV_USER_ID,
+    ...(token ? { "Authorization": `Bearer ${token}` } : { "x-user-id": DEV_USER_ID }),
     ...(options.headers as Record<string, string> | undefined),
   };
 
