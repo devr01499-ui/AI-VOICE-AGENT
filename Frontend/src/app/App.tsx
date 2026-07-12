@@ -1174,16 +1174,11 @@ const KB_SEED = [
   {id:"kb5",name:"Insurance Policy Handbook 2025.pdf",type:"pdf",size:"8.7 MB",status:"error",chunks:0,uploaded:"2025-06-15",agents:[]},
 ];
 const VOICES_SEED = [
-  {id:"v1",name:"Nova",gender:"female",accent:"American",provider:"builtin",lang:"EN"},
-  {id:"v2",name:"Aria",gender:"female",accent:"British",provider:"builtin",lang:"EN, FR"},
-  {id:"v3",name:"James",gender:"male",accent:"American",provider:"builtin",lang:"EN, ES"},
-  {id:"v4",name:"Sophie",gender:"female",accent:"Australian",provider:"builtin",lang:"EN"},
-  {id:"v5",name:"Marcus",gender:"male",accent:"British",provider:"builtin",lang:"EN, DE"},
-  {id:"v6",name:"Yuki",gender:"female",accent:"Japanese",provider:"builtin",lang:"JA, EN"},
-  {id:"v7",name:"Elena",gender:"female",accent:"Spanish",provider:"builtin",lang:"ES, EN"},
-  {id:"v8",name:"Rahul",gender:"male",accent:"Indian",provider:"builtin",lang:"HI, EN"},
-  {id:"vc1",name:"Sarah Mitchell (Clone)",gender:"female",accent:"American",provider:"clone",lang:"EN"},
-  {id:"vc2",name:"Dr. Chen (Clone)",gender:"male",accent:"American",provider:"clone",lang:"EN"},
+  {id:"Aoede",name:"Aoede",gender:"female",accent:"Clear/friendly female voice",provider:"builtin",lang:"EN"},
+  {id:"Charon",name:"Charon",gender:"male",accent:"Warm/stable male voice",provider:"builtin",lang:"EN"},
+  {id:"Fenrir",name:"Fenrir",gender:"male",accent:"Smooth/deep male voice",provider:"builtin",lang:"EN"},
+  {id:"Kore",name:"Kore",gender:"female",accent:"Bright female voice",provider:"builtin",lang:"EN"},
+  {id:"Puck",name:"Puck",gender:"male",accent:"Energetic male voice",provider:"builtin",lang:"EN"},
 ];
 const CAMPAIGNS_SEED = [
   {id:"c1",name:"Insurance Renewal — June 2025",agentId:"a3",numberId:"pn3",status:"completed",total:4800,called:4800,connected:3912,converted:1240,created:"2025-05-28"},
@@ -1337,6 +1332,8 @@ function DashAgents() {
             model: a.model ?? 'gemini-2.5-flash',
             kb: [],
             numbers: [],
+            isRecordingEnabled: a.isRecordingEnabled ?? false,
+            isTranscriptionEnabled: a.isTranscriptionEnabled ?? false,
             created: a.createdAt?.slice(0, 10) ?? '',
           } as unknown as AgentRow)));
         }
@@ -1351,18 +1348,36 @@ function DashAgents() {
   const [filter, setFilter] = useState<"all"|"prompt"|"conversational">("all");
   const [createType, setCreateType] = useState<"prompt"|"conversational">("prompt");
   const [detailTab, setDetailTab] = useState<"config"|"prompt"|"knowledge"|"calls">("config");
-  const [form, setForm] = useState({name:"",lang:"EN",voice:"v1",model:"claude-sonnet-4-6",systemPrompt:"",welcomeMsg:"",endPhrase:"goodbye",temperature:"0.7",maxTurns:"20",kb:[] as string[],steps:[{id:"s1",label:"Greet caller",cond:""},{id:"s2",label:"Verify identity",cond:"if account found"},{id:"s3",label:"Handle intent",cond:""}]});
+  const [form, setForm] = useState({name:"",lang:"EN",voice:"Aoede",model:"claude-sonnet-4-6",systemPrompt:"",welcomeMsg:"",endPhrase:"goodbye",temperature:"0.7",maxTurns:"20",kb:[] as string[],steps:[{id:"s1",label:"Greet caller",cond:""},{id:"s2",label:"Verify identity",cond:"if account found"},{id:"s3",label:"Handle intent",cond:""}]});
   const [testCallStatus, setTestCallStatus] = useState<'idle'|'calling'|'done'|'error'>('idle');
   const [saveStatus, setSaveStatus] = useState<'idle'|'saving'|'done'|'error'>('idle');
 
   function handleTestCall() {
     if (!selected) return;
+    const phone = window.prompt("Please enter the phone number to call (e.g. +1234567890):");
+    if (!phone) return;
     setTestCallStatus('calling');
-    initiateCall({
-      phoneNumber: (NUMBERS_SEED.find(n => (selected.numbers as string[]).includes(n.id))?.number) || '+10000000000',
-      agentId: (selected.id as string),
-      userId: DEV_USER_ID,
-    }).then(() => setTestCallStatus('done')).catch(() => setTestCallStatus('error')).finally(() => setTimeout(() => setTestCallStatus('idle'), 3000));
+    fetch("https://ai-voice-agent-backend-mv32.onrender.com/api/v2/calls", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+      },
+      body: JSON.stringify({
+        phoneNumber: phone,
+        agentId: selected.id,
+        userId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+      }),
+    })
+    .then(async (res) => {
+      if (res.status === 200 || res.status === 201) {
+        setTestCallStatus('done');
+      } else {
+        setTestCallStatus('error');
+      }
+    })
+    .catch(() => setTestCallStatus('error'))
+    .finally(() => setTimeout(() => setTestCallStatus('idle'), 3000));
   }
 
   function handleSaveAgent() {
@@ -1373,7 +1388,30 @@ function DashAgents() {
       model: selected.model as string,
       voiceName: selected.voice as string,
       status: selected.status as string,
+      isRecordingEnabled: !!selected.isRecordingEnabled,
+      isTranscriptionEnabled: !!selected.isTranscriptionEnabled,
     }).then(() => { setSaveStatus('done'); loadAgents(); }).catch(() => setSaveStatus('error')).finally(() => setTimeout(() => setSaveStatus('idle'), 2000));
+  }
+
+  function handleDelete(agentId: string) {
+    if (window.confirm("Are you sure you want to delete this agent? It will be deleted forever.")) {
+      fetch(`https://ai-voice-agent-backend-mv32.onrender.com/api/v2/agents/${agentId}`, {
+        method: "DELETE",
+        headers: {
+          "x-user-id": DEV_USER_ID,
+        }
+      })
+      .then(async (res) => {
+        if (res.status === 200 || res.status === 204) {
+          setAgents(prev => prev.filter(x => x.id !== agentId));
+        } else {
+          alert(`Failed to delete agent: ${res.statusText}`);
+        }
+      })
+      .catch((err) => {
+        alert(`Failed to delete agent: ${err.message}`);
+      });
+    }
   }
 
   function handleCreate() {
@@ -1414,10 +1452,10 @@ function DashAgents() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="bg-white border border-border rounded-xl p-5 space-y-4">
             <p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>Basic</p>
-            <DField label="Agent name"><DInput defaultValue={selected.name as string}/></DField>
-            <DField label="Voice"><DSelect defaultValue={VOICES_SEED.find(v=>v.name===selected.voice)?.id}>{VOICES_SEED.map(v=><option key={v.id} value={v.id}>{v.name} ({v.accent}) {v.provider==="clone"?"★":""}</option>)}</DSelect></DField>
-            <DField label="Language"><DSelect defaultValue={selected.lang as string}><option>EN</option><option>EN, ES</option><option>EN, FR</option><option>EN, DE</option></DSelect></DField>
-            <DField label="LLM Model"><DSelect defaultValue={selected.model as string}><option value="claude-sonnet-4-6">Claude Sonnet 4.6</option><option value="claude-opus-4-8">Claude Opus 4.8</option><option value="gpt-4o">GPT-4o</option><option value="gpt-4o-mini">GPT-4o mini</option><option value="gemini-1.5-pro">Gemini 1.5 Pro</option></DSelect></DField>
+            <DField label="Agent name"><DInput value={selected.name as string} onChange={e=>setSelected(prev=>prev?{...prev,name:e.target.value}:null)}/></DField>
+            <DField label="Voice"><DSelect value={selected.voice as string} onChange={e=>setSelected(prev=>prev?{...prev,voice:e.target.value}:null)}>{VOICES_SEED.map(v=><option key={v.id} value={v.id}>{v.name} ({v.accent})</option>)}</DSelect></DField>
+            <DField label="Language"><DSelect value={selected.lang as string} onChange={e=>setSelected(prev=>prev?{...prev,lang:e.target.value}:null)}><option>EN</option><option>EN, ES</option><option>EN, FR</option><option>EN, DE</option></DSelect></DField>
+            <DField label="LLM Model"><DSelect value={selected.model as string} onChange={e=>setSelected(prev=>prev?{...prev,model:e.target.value}:null)}><option value="claude-sonnet-4-6">Claude Sonnet 4.6</option><option value="claude-opus-4-8">Claude Opus 4.8</option><option value="gpt-4o">GPT-4o</option><option value="gpt-4o-mini">GPT-4o mini</option><option value="gemini-1.5-pro">Gemini 1.5 Pro</option></DSelect></DField>
           </div>
           <div className="bg-white border border-border rounded-xl p-5 space-y-4">
             <p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>Advanced</p>
@@ -1425,8 +1463,8 @@ function DashAgents() {
             <DField label="Max turns (20)"><input type="range" min="5" max="50" defaultValue="20" className="w-full accent-foreground"/></DField>
             <DField label="Silence timeout (ms)"><DInput type="number" defaultValue="2000"/></DField>
             <DField label="Interruption sensitivity"><DSelect><option>low</option><option>medium</option><option>high</option></DSelect></DField>
-            <div className="flex items-center justify-between"><div><p className="text-sm font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>Call recording</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Record all calls for compliance</p></div><DToggle on={true} set={()=>{}}/></div>
-            <div className="flex items-center justify-between"><div><p className="text-sm font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>Live transcription</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Stream transcript to dashboard</p></div><DToggle on={true} set={()=>{}}/></div>
+            <div className="flex items-center justify-between"><div><p className="text-sm font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>Call recording</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Record all calls for compliance</p></div><DToggle on={!!selected.isRecordingEnabled} set={v=>setSelected(prev=>prev?{...prev,isRecordingEnabled:v}:null)}/></div>
+            <div className="flex items-center justify-between"><div><p className="text-sm font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>Live transcription</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Stream transcript to dashboard</p></div><DToggle on={!!selected.isTranscriptionEnabled} set={v=>setSelected(prev=>prev?{...prev,isTranscriptionEnabled:v}:null)}/></div>
           </div>
         </div>
       )}
@@ -1567,7 +1605,12 @@ function DashAgents() {
                 <td className="px-4 py-3 text-sm" style={{fontFamily:"'DM Mono',monospace"}}>{a.csat??"—"}</td>
                 <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{a.voice as string}</td>
                 <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{a.model as string}</td>
-                <td className="px-4 py-3"><DBtn size="sm" variant="ghost" onClick={()=>{setSelected(a);setView("detail");setDetailTab("config");}}><Edit3 className="w-3.5 h-3.5"/> Configure</DBtn></td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <DBtn size="sm" variant="ghost" onClick={()=>{setSelected(a);setView("detail");setDetailTab("config");}}><Edit3 className="w-3.5 h-3.5"/> Configure</DBtn>
+                    <DBtn size="sm" variant="danger" onClick={()=>handleDelete(a.id as string)}><Trash2 className="w-3.5 h-3.5"/> Delete</DBtn>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>

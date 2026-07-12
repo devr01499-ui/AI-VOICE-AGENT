@@ -36,6 +36,8 @@ export interface ApiAgent {
   systemPrompt: string | null;
   flowGraph: string | null;
   agentConfig: unknown;
+  isRecordingEnabled?: boolean;
+  isTranscriptionEnabled?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -88,6 +90,8 @@ export interface CreateAgentPayload {
   agentConfig?: Record<string, unknown>;
   tags?: string[];
   workspaceId?: string;
+  isRecordingEnabled?: boolean;
+  isTranscriptionEnabled?: boolean;
 }
 
 // ─── Core Fetch Helper ────────────────────────────────────────────────────────
