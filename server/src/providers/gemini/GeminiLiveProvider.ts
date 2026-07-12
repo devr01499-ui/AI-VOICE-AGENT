@@ -68,6 +68,13 @@ interface ActiveSession {
 export class GeminiLiveProvider implements IRealtimeProvider {
   public readonly name = 'gemini-live';
   public readonly type = 'realtime';
+  public currentAgent?: {
+    systemPrompt?: string;
+    instruction?: string;
+    voice?: string;
+    model?: string;
+  };
+  public ws!: WebSocket;
 
   private readonly activeSessions = new Map<string, ActiveSession>();
   private readonly apiKey: string;
@@ -181,6 +188,15 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     const sessionId = `gemini-sess-${Date.now()}`;
     const ws = new WebSocket(wsUrl);
 
+    // Bind context instances
+    this.currentAgent = {
+      systemPrompt: config.instructions,
+      instruction: config.instructions,
+      voice: config.voice,
+      model: `models/${model}`,
+    };
+    this.ws = ws;
+
     // Create setupComplete waiter
     let setupResolve: () => void;
     let setupReject: (err: Error) => void;
@@ -205,6 +221,16 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     ws.on('open', () => {
       logger.info('GeminiLiveProvider: WebSocket successfully opened. Transmission of strict snake_case setup payload initiated.');
 
+      // Map tools cleanly to Gemini wire function_declarations format
+      const functionDeclarations = config.tools?.map((t) => ({
+        name: t.name,
+        description: t.description,
+        parameters: t.parameters, // JSON Schema parameters can remain camelCase/nested as standard
+      }));
+
+      const systemInstructionString = this.currentAgent?.systemPrompt || this.currentAgent?.instruction || "Default assistant prompt";
+      const agentVoiceMapping = this.currentAgent?.voice || "Aoede";
+
       // Map voices: alloy/shimmer/etc. to Gemini voices (Aoede, Puck, Charon, Fenrir, Kore)
       const voiceNameMap: Record<string, string> = {
         alloy: 'Aoede',
@@ -218,42 +244,29 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         kore: 'Kore',
         aoede: 'Aoede',
       };
-      const requestedVoice = (config.voice || 'Aoede').toLowerCase();
-      const geminiVoice = voiceNameMap[requestedVoice] || 'Aoede';
+      const geminiVoice = voiceNameMap[agentVoiceMapping.toLowerCase()] || agentVoiceMapping;
 
-      // Map tools cleanly to Gemini wire function_declarations format
-      const functionDeclarations = config.tools?.map((t) => ({
-        name: t.name,
-        description: t.description,
-        parameters: t.parameters, // JSON Schema parameters can remain camelCase/nested as standard
-      }));
-
-      // STRICT WIRE PROTOCOL REQUIREMENT: Fields must be camelCase for direct raw WebSockets in Google AI Studio
       const setupMessage = {
         setup: {
-          model: `models/${model}`,
+          model: this.currentAgent?.model || "models/gemini-2.5-flash-native-audio-latest",
           generationConfig: {
-            responseModalities: ['AUDIO'],
+            responseModalities: ["AUDIO"],
             speechConfig: {
               voiceConfig: {
                 prebuiltVoiceConfig: {
-                  voiceName: geminiVoice,
-                },
-              },
-            },
+                  voiceName: geminiVoice
+                }
+              }
+            }
           },
           systemInstruction: {
-            parts: [
-              {
-                text: config.instructions,
-              },
-            ],
+            parts: [{ text: systemInstructionString }]
           },
           realtimeInputConfig: {
             automaticActivityDetection: {
               disabled: false,
-              silenceDurationMs: 600, // Clamp turnaround latency strictly between 1.0 - 1.5 seconds
-            },
+              silenceDurationMs: 600
+            }
           },
           ...(functionDeclarations && functionDeclarations.length > 0 && {
             tools: [
@@ -262,7 +275,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
               },
             ],
           }),
-        },
+        }
       };
 
       logger.info('GeminiLiveProvider: Transmitting completed handshake frame to Google wire socket', {
@@ -270,7 +283,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         selectedVoice: geminiVoice
       });
 
-      ws.send(JSON.stringify(setupMessage));
+      this.ws.send(JSON.stringify(setupMessage));
     });
 
     ws.on('message', (raw: WebSocket.RawData) => {

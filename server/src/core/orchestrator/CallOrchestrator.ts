@@ -124,11 +124,13 @@ export class CallOrchestrator {
     logger.info('CallOrchestrator: startVoiceSession', { callId, agentId });
 
     let agentConfig: AgentConfig;
+    let activeAgent: any = null;
     try {
       const agent = await AgentRepository.findById(agentId);
       if (!agent) {
         throw new Error(`Agent not found with ID: ${agentId}`);
       }
+      activeAgent = agent;
 
       const rawConfig = JSON.parse(agent.agentConfig || '{}') as any;
 
@@ -179,12 +181,18 @@ export class CallOrchestrator {
         stack: err instanceof Error ? err.stack : undefined
       });
 
+      activeAgent = {
+        systemPrompt: "You are Clarity AI, a highly professional, senior executive talent acquisition manager for Clarity. Your sole mission is to execute a brief, high-signal preliminary phone screening with the candidate on the line. - Personality: Articulate, warm, objective, professional, and conversational. - Constraints: Keep your utterances concise and tightly focused. Never output multi-paragraph answers or text formatting characters. Do not use markdown blocks. Speak naturally, allowing comfortable pauses, and avoid talking over the candidate. - Flow: First, greet them and confirm you are speaking with the applicant. Second, ask them to briefly detail their hands-on engineering experiences deploying large language models or low-latency system components. Third, inquire about their expected salary bounds. Finally, thank them for their time and state that our executive operations board will follow up with next steps.",
+        voiceName: 'Puck',
+        model: 'models/gemini-2.5-flash-native-audio-latest',
+      };
+
       agentConfig = {
-        prompt: "You are Clarity AI, a highly professional, senior executive talent acquisition manager for Clarity. Your sole mission is to execute a brief, high-signal preliminary phone screening with the candidate on the line. - Personality: Articulate, warm, objective, professional, and conversational. - Constraints: Keep your utterances concise and tightly focused. Never output multi-paragraph answers or text formatting characters. Do not use markdown blocks. Speak naturally, allowing comfortable pauses, and avoid talking over the candidate. - Flow: First, greet them and confirm you are speaking with the applicant. Second, ask them to briefly detail their hands-on engineering experiences deploying large language models or low-latency system components. Third, inquire about their expected salary bounds. Finally, thank them for their time and state that our executive operations board will follow up with next steps.",
-        voice: 'Puck',
+        prompt: activeAgent.systemPrompt,
+        voice: activeAgent.voiceName,
         llm: {
           provider: 'gemini',
-          model: 'models/gemini-2.5-flash-native-audio-latest',
+          model: activeAgent.model,
           temperature: 0.7,
         },
         tools: [],
@@ -208,7 +216,7 @@ export class CallOrchestrator {
     this.stateMachines.set(callId, stateMachine);
     stateMachine.transitionTo('in_progress');
 
-    const callSession = new CallSession(callId, agentId, phoneNumber);
+    const callSession = new CallSession(callId, agentId, phoneNumber, activeAgent);
     callSession.conversationState = new ConversationState();
     this.activeCalls.set(callId, callSession);
 

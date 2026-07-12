@@ -21,7 +21,8 @@ export class CallSession {
   constructor(
     public readonly callId: string,
     public readonly agentId: string,
-    public readonly recipientPhoneNumber: string
+    public readonly recipientPhoneNumber: string,
+    public readonly agent?: { systemPrompt?: string | null; voiceName?: string | null; model?: string | null }
   ) {}
 
   updateStatus(status: CallStatus): void {
