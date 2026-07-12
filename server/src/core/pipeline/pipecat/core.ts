@@ -1,6 +1,7 @@
 import { GeminiLiveLLMService } from './gemini';
 import { GeminiLiveProvider } from '../../../providers/gemini/GeminiLiveProvider';
 import { logger } from '../../../utils/logger';
+import { eventBus, PROVIDER_EVENTS } from '../../provider-sdk/provider.events';
 
 export class Pipeline {
   private readonly service: GeminiLiveLLMService;
@@ -64,6 +65,38 @@ export class Pipeline {
             data: Buffer.from(audioBase64, 'base64'),
           });
         }
+      },
+      onTranscriptDelta: (sessId: string, text: string, isUser: boolean, isFinal?: boolean) => {
+        // 1. Pipe to the socket event stream
+        eventBus.publish(PROVIDER_EVENTS.TRANSCRIPT_UPDATED, {
+          callId: this.callId,
+          speaker: isUser ? 'user' : 'agent',
+          text,
+          isFinal: isFinal !== undefined ? isFinal : true,
+        });
+
+        // 2. Commit to database dynamically
+        import('../../../config/database').then(({ prisma }) => {
+          prisma.transcriptSegment.count({
+            where: { callId: this.callId }
+          }).then(seqCount => {
+            prisma.transcriptSegment.create({
+              data: {
+                callId: this.callId,
+                speaker: isUser ? 'user' : 'agent',
+                content: text,
+                startTime: 0,
+                sequenceNumber: seqCount + 1,
+              }
+            }).catch(err => {
+              logger.error('Pipeline: Failed to create transcript segment', { callId: this.callId, error: err.message });
+            });
+          }).catch(err => {
+            logger.error('Pipeline: Failed to count transcript segments', { callId: this.callId, error: err.message });
+          });
+        }).catch(err => {
+          logger.error('Pipeline: Failed to load database adapter for transcript segment logging', { callId: this.callId, error: err.message });
+        });
       },
       onSpeechStopped: (sessId: string, interrupted?: boolean) => {
         if (interrupted && this.onVadSpeechStartedCallback) {

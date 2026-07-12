@@ -161,6 +161,9 @@ export class CallOrchestrator {
         }
       }
 
+      const isRecordingEnabled = rawConfig.isRecordingEnabled ?? rawConfig.settings?.isRecordingEnabled ?? false;
+      const isTranscriptionEnabled = rawConfig.isTranscriptionEnabled ?? rawConfig.settings?.isTranscriptionEnabled ?? false;
+
       agentConfig = {
         prompt: systemInstructions,
         voice: finalVoice,
@@ -172,7 +175,10 @@ export class CallOrchestrator {
         },
         tools: rawConfig.tools,
         knowledgeBaseIds: rawConfig.knowledgeBaseIds,
-        settings: rawConfig.settings,
+        settings: {
+          isRecordingEnabled,
+          isTranscriptionEnabled,
+        },
       };
 
     } catch (err) {
@@ -227,6 +233,8 @@ export class CallOrchestrator {
         model: agentConfig.llm.model,
         voice: agentConfig.voice,
         instructions: agentConfig.prompt,
+        isRecordingEnabled: agentConfig.settings?.isRecordingEnabled || false,
+        isTranscriptionEnabled: agentConfig.settings?.isTranscriptionEnabled || false,
         tools: [
           ...(agentConfig.tools?.map((t) => ({
             type: 'function' as const,

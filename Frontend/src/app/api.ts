@@ -263,3 +263,39 @@ export function getLiveTranscriptWsUrl(callId: string): string {
   const wsBase = API_BASE.replace(/^http/, "ws");
   return `${wsBase}/live-transcript?callId=${callId}`;
 }
+
+export interface ApiKnowledgeBase {
+  id: string;
+  name: string;
+  agentId: string;
+  createdAt: string;
+  sizeChars: number;
+}
+
+export async function fetchKBList(): Promise<ApiKnowledgeBase[]> {
+  return apiFetch<ApiKnowledgeBase[]>('/api/v2/knowledge-base');
+}
+
+export async function uploadKBDocument(name: string, agentId: string, fileBase64: string): Promise<ApiKnowledgeBase> {
+  return apiFetch<ApiKnowledgeBase>('/api/v2/knowledge-base/upload', {
+    method: 'POST',
+    body: JSON.stringify({ name, agentId, fileBase64 }),
+  });
+}
+
+export async function scrapeKBUrl(url: string, agentId: string): Promise<ApiKnowledgeBase> {
+  return apiFetch<ApiKnowledgeBase>('/api/v2/knowledge-base/scrape', {
+    method: 'POST',
+    body: JSON.stringify({ url, agentId }),
+  });
+}
+
+export async function deleteKBDocument(id: string): Promise<void> {
+  return apiFetch<void>(`/api/v2/knowledge-base/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function fetchAnalyticsSummary(): Promise<any> {
+  return apiFetch<any>('/api/v2/analytics/summary');
+}

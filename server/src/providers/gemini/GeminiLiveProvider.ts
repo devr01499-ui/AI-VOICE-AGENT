@@ -218,7 +218,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       timeoutId,
     });
 
-    ws.on('open', () => {
+    ws.on('open', async () => {
       logger.info('GeminiLiveProvider: WebSocket successfully opened. Transmission of strict snake_case setup payload initiated.');
 
       // Map tools cleanly to Gemini wire function_declarations format
@@ -228,7 +228,41 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         parameters: t.parameters, // JSON Schema parameters can remain camelCase/nested as standard
       }));
 
-      const systemInstructionString = this.currentAgent?.systemPrompt || this.currentAgent?.instruction || "Default assistant prompt";
+      let systemInstructionString = this.currentAgent?.systemPrompt || this.currentAgent?.instruction || "Default assistant prompt";
+
+      // Fetch the active KnowledgeBase text assets linked to the agentId
+      if (config.callId) {
+        try {
+          const prismaInstance = (await import('../../config/database')).prisma;
+          // Find the call log to resolve agentId
+          const callLog = await prismaInstance.call.findUnique({
+            where: { id: config.callId },
+            select: { agentId: true }
+          });
+
+          if (callLog?.agentId) {
+            const kbDocs = await prismaInstance.knowledgeBase.findMany({
+              where: { agentId: callLog.agentId }
+            });
+
+            if (kbDocs.length > 0) {
+              const kbText = kbDocs.map(d => `[DOCUMENT: ${d.name}]\n${d.contentText}`).join('\n\n');
+              systemInstructionString = `${systemInstructionString}\n\n[KNOWLEDGE BASE CONTEXT]\n${kbText}`;
+              logger.info('GeminiLiveProvider: Successfully injected knowledge base context into systemInstruction prompt', { 
+                callId: config.callId,
+                docsCount: kbDocs.length,
+                totalChars: kbText.length
+              });
+            }
+          }
+        } catch (kbErr) {
+          logger.error('GeminiLiveProvider: Failed to load knowledge base context for session setup', { 
+            callId: config.callId,
+            error: String(kbErr) 
+          });
+        }
+      }
+
       const agentVoiceMapping = this.currentAgent?.voice || "Aoede";
 
       // Map voices: alloy/shimmer/etc. to Gemini voices (Aoede, Puck, Charon, Fenrir, Kore)

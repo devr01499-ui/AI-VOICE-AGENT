@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { Pipeline } from './pipecat/core';
 import { GeminiLiveLLMService } from './pipecat/gemini';
 import { logger } from '../../utils/logger';
@@ -7,6 +9,7 @@ import { eventBus, PROVIDER_EVENTS } from '../provider-sdk/provider.events';
 export class PipecatRunner {
   private readonly pipeline: Pipeline;
   private readonly geminiService: GeminiLiveLLMService;
+  private recordingStream?: fs.WriteStream;
 
   constructor(
     public readonly callId: string,
@@ -14,6 +17,8 @@ export class PipecatRunner {
       model: string;
       voice: string;
       instructions: string;
+      isRecordingEnabled?: boolean;
+      isTranscriptionEnabled?: boolean;
       tools?: any[];
     },
     private readonly onAudioOutput: (audioBase64: string) => void,
@@ -23,7 +28,24 @@ export class PipecatRunner {
       callId,
       model: config.model,
       voice: config.voice,
+      isRecordingEnabled: config.isRecordingEnabled,
+      isTranscriptionEnabled: config.isTranscriptionEnabled,
     });
+
+    // 1. Setup call recording stream if enabled
+    if (config.isRecordingEnabled) {
+      try {
+        const recordingsDir = path.join(process.cwd(), 'recordings');
+        if (!fs.existsSync(recordingsDir)) {
+          fs.mkdirSync(recordingsDir, { recursive: true });
+        }
+        const recordingPath = path.join(recordingsDir, `${this.callId}.pcm`);
+        this.recordingStream = fs.createWriteStream(recordingPath);
+        logger.info('PipecatRunner: Call recording enabled. Created write stream', { recordingPath });
+      } catch (err) {
+        logger.error('PipecatRunner: Failed to initialize call recording write stream', { error: String(err) });
+      }
+    }
 
     // 2. SECURE THE MULTIMODAL PROVIDER BUS
     this.geminiService = new GeminiLiveLLMService({
@@ -57,6 +79,11 @@ export class PipecatRunner {
     // Catch Gemini's returned native audio frames and stream the binary buffers directly down the Vobiz socket
     this.pipeline.addOutputSink((frame: { type: string; data: Buffer }) => {
       if (frame && frame.type === 'audio' && frame.data) {
+        // Record output audio stream if active
+        if (this.recordingStream) {
+          this.recordingStream.write(frame.data);
+        }
+
         const telephonyCompressed = convertOutboundAudio(frame.data);
         this.onAudioOutput(telephonyCompressed);
       }
@@ -66,6 +93,12 @@ export class PipecatRunner {
   handleInboundAudio(audioBase64: string): void {
     const base64Str = convertInboundAudio(audioBase64);
     const buffer = Buffer.from(base64Str, 'base64');
+
+    // Record input audio stream if active
+    if (this.recordingStream) {
+      this.recordingStream.write(buffer);
+    }
+
     this.pipeline.pushInputFrame({
       type: 'audio',
       data: buffer,
@@ -99,6 +132,10 @@ export class PipecatRunner {
    */
   async stop(): Promise<void> {
     logger.info('PipecatRunner: stopping pipeline execution', { callId: this.callId });
+    if (this.recordingStream) {
+      this.recordingStream.end();
+      logger.info('PipecatRunner: Closed call recording write stream', { callId: this.callId });
+    }
     await this.pipeline.stop();
   }
 }

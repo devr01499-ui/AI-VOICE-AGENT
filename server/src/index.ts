@@ -38,6 +38,8 @@ import { getUserIdFromRequest, verifySupabaseToken } from './utils/auth';
 import webhookRoutes from './routes/webhooks';
 import { SandboxStreamHandler } from './websockets/SandboxStreamHandler';
 import { requireAuth } from './middleware/auth';
+import kbRoutes from './routes/knowledgeBase';
+import analyticsRoutes from './routes/analytics';
 
 // ─── Express App ─────────────────────────────────
 
@@ -141,6 +143,8 @@ app.post('/api/calls/outbound', (req, res, next) => {
 app.post('/api/v2/calls/outbound', requireAuth, CallController.initiateCall);
 app.use('/api/v2/agents', requireAuth, agentRoutes);
 app.use('/api/v2/numbers', requireAuth, numbersRoutes);
+app.use('/api/v2/knowledge-base', requireAuth, kbRoutes);
+app.use('/api/v2/analytics', requireAuth, analyticsRoutes);
 app.use('/api/v2/webhooks', webhookRoutes);
 
 // ─── 404 Handler ─────────────────────────────────

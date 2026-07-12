@@ -2,9 +2,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "./lib/supabaseClient";
 import AuthGateway from "./components/auth/AuthGateway";
 import { Session } from "@supabase/supabase-js";
+import { AnalyticsOverview } from "./components/analytics/AnalyticsOverview";
 import {
   fetchAgents, fetchCalls, fetchProfile, createAgent, updateAgent,
   initiateCall, getCallTranscript, getLiveTranscriptWsUrl,
+  fetchKBList, uploadKBDocument, scrapeKBUrl, deleteKBDocument,
   DEV_USER_ID, DEFAULT_AGENT_ID,
   type ApiAgent, type ApiCall, type ApiProfile,
 } from "./api";
@@ -2425,70 +2427,153 @@ function DashNumbers() {
 }
 
 // ── Knowledge Base ──
-function DashKnowledge() {
-  const [docs, setDocs] = useState([...KB_SEED]);
+function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
+  const [docs, setDocs] = useState<ApiKnowledgeBase[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [addTab, setAddTab] = useState<"file"|"url">("file");
   const [url, setUrl] = useState("");
+  const [selectedAgentId, setSelectedAgentId] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  function addUrl() {
-    const d={id:`kb${Date.now()}`,name:url,type:"url" as const,size:"—",status:"indexing" as const,chunks:0,uploaded:new Date().toISOString().slice(0,10),agents:[]};
-    setDocs(p=>[...p,d]); setShowAdd(false); setUrl("");
-    setTimeout(()=>setDocs(p=>p.map(x=>x.id===d.id?{...x,status:"ready" as const,chunks:Math.floor(Math.random()*200)+50}:x)),3500);
+  const loadDocs = async () => {
+    try {
+      setLoading(true);
+      const list = await fetchKBList();
+      setDocs(list);
+    } catch (err) {
+      console.error("Failed to load knowledge base", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDocs();
+  }, []);
+
+  useEffect(() => {
+    if (apiAgents && apiAgents.length > 0 && !selectedAgentId) {
+      setSelectedAgentId(apiAgents[0].id);
+    }
+  }, [apiAgents]);
+
+  async function addUrl() {
+    if (!url || !selectedAgentId) return;
+    try {
+      setLoading(true);
+      await scrapeKBUrl(url, selectedAgentId);
+      setShowAdd(false);
+      setUrl("");
+      await loadDocs();
+    } catch (err) {
+      console.error("Failed to crawl URL", err);
+    } finally {
+      setLoading(false);
+    }
   }
-  function addFile(e:React.ChangeEvent<HTMLInputElement>) {
-    const file=e.target.files?.[0]; if(!file) return;
-    const ext=(file.name.split(".").pop()||"pdf") as "pdf"|"docx"|"txt"|"csv";
-    const d={id:`kb${Date.now()}`,name:file.name,type:ext,size:`${(file.size/1024/1024).toFixed(1)} MB`,status:"indexing" as const,chunks:0,uploaded:new Date().toISOString().slice(0,10),agents:[]};
-    setDocs(p=>[...p,d]); setShowAdd(false);
-    setTimeout(()=>setDocs(p=>p.map(x=>x.id===d.id?{...x,status:"ready" as const,chunks:Math.floor(Math.random()*300)+80}:x)),4000);
+
+  function addFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !selectedAgentId) return;
+    
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const result = event.target?.result as string;
+      const base64Data = result.split(',')[1];
+      
+      try {
+        setLoading(true);
+        await uploadKBDocument(file.name, selectedAgentId, base64Data);
+        setShowAdd(false);
+        await loadDocs();
+      } catch (err) {
+        console.error("Failed to upload document", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Are you sure you want to delete this document?")) return;
+    try {
+      setLoading(true);
+      await deleteKBDocument(id);
+      await loadDocs();
+    } catch (err) {
+      console.error("Failed to delete document", err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{docs.length} documents · {docs.filter(d=>d.status==="ready").length} indexed</p>
+        <p className="text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{docs.length} documents uploaded</p>
         <DBtn onClick={()=>setShowAdd(true)}><Plus className="w-4 h-4"/> Add document</DBtn>
       </div>
       <div className="grid grid-cols-3 gap-4">
-        {[{label:"Total documents",v:docs.length},{label:"Total chunks",v:docs.reduce((s,d)=>s+d.chunks,0).toLocaleString()},{label:"Indexing",v:docs.filter(d=>d.status==="indexing").length}].map(s=>(
+        {[{label:"Total documents",v:docs.length},{label:"Total characters",v:docs.reduce((s,d)=>s+d.sizeChars,0).toLocaleString()},{label:"Indexed sources",v:docs.length}].map(s=>(
           <div key={s.label} className="bg-white border border-border rounded-xl p-4"><p className="text-xs text-muted-foreground mb-2" style={{fontFamily:"'DM Mono',monospace"}}>{s.label.toUpperCase()}</p><p className="text-2xl font-bold" style={{fontFamily:"'Instrument Serif',serif"}}>{s.v}</p></div>
         ))}
       </div>
-      <div className="bg-white border border-border rounded-xl overflow-hidden">
-        <table className="w-full">
-          <thead><tr className="border-b border-border bg-muted/30">{["Document","Type","Size","Chunks","Status","Attached to","Uploaded",""].map(h=><th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
-          <tbody className="divide-y divide-border">
-            {docs.map(d=>(
-              <tr key={d.id} className="hover:bg-muted/20 transition-colors">
-                <td className="px-4 py-3 max-w-[180px]"><div className="flex items-center gap-2"><FileText className="w-4 h-4 text-muted-foreground flex-shrink-0"/><p className="text-sm text-foreground truncate" style={{fontFamily:"'Figtree',sans-serif"}}>{d.name}</p></div></td>
-                <td className="px-4 py-3"><DBadge>{d.type.toUpperCase()}</DBadge></td>
-                <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{d.size}</td>
-                <td className="px-4 py-3 text-xs" style={{fontFamily:"'DM Mono',monospace"}}>{d.chunks||"—"}</td>
-                <td className="px-4 py-3"><DBadge v={d.status==="ready"?"success":d.status==="indexing"?"warning":"error"}><SDot status={d.status}/> {d.status}</DBadge></td>
-                <td className="px-4 py-3"><div className="flex flex-wrap gap-1">{d.agents.map(aid=><span key={aid} className="text-xs bg-muted rounded px-1.5 py-0.5" style={{fontFamily:"'Figtree',sans-serif"}}>{AGENTS_SEED.find(a=>a.id===aid)?.name?.split(" ")[0]}</span>)}{d.agents.length===0&&<span className="text-xs text-muted-foreground">None</span>}</div></td>
-                <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{d.uploaded}</td>
-                <td className="px-4 py-3"><div className="flex gap-1">{d.status==="error"&&<DBtn size="sm" variant="ghost"><RefreshCw className="w-3.5 h-3.5"/></DBtn>}<DBtn size="sm" variant="ghost"><Trash2 className="w-3.5 h-3.5 text-red-400"/></DBtn></div></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="bg-white border border-border rounded-xl overflow-hidden shadow-sm">
+        {loading && docs.length === 0 ? (
+          <div className="p-8 text-center text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>LOADING DATASETS...</div>
+        ) : (
+          <table className="w-full">
+            <thead><tr className="border-b border-border bg-muted/30">{["Document / URL","Linked Agent","Size","Uploaded",""].map(h=><th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
+            <tbody className="divide-y divide-border">
+              {docs.map(d=>(
+                <tr key={d.id} className="hover:bg-muted/20 transition-colors">
+                  <td className="px-4 py-3 max-w-[240px]"><div className="flex items-center gap-2"><FileText className="w-4 h-4 text-muted-foreground flex-shrink-0"/><p className="text-sm text-foreground truncate font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>{d.name}</p></div></td>
+                  <td className="px-4 py-3"><span className="text-xs bg-muted rounded px-1.5 py-0.5 font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>{apiAgents.find(a=>a.id===d.agentId)?.name || "Default Agent"}</span></td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{(d.sizeChars / 1024).toFixed(1)} KB</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{new Date(d.createdAt).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-right"><DBtn size="sm" variant="ghost" onClick={() => handleDelete(d.id)}><Trash2 className="w-3.5 h-3.5 text-red-400"/></DBtn></td>
+                </tr>
+              ))}
+              {docs.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="text-center p-8 text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>NO DOCUMENTS UPLOADED YET.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
       <DModal open={showAdd} onClose={()=>setShowAdd(false)} title="Add to knowledge base">
         <div className="space-y-4">
           <div className="flex gap-2 border-b border-border pb-3">{(["file","url"] as const).map(t=><button key={t} onClick={()=>setAddTab(t)} className={`text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${addTab===t?"bg-foreground text-white":"text-muted-foreground hover:text-foreground"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{t==="file"?"Upload file":"Crawl URL"}</button>)}</div>
+          
+          <div className="mb-2">
+            <label className="text-xs font-semibold text-muted-foreground block mb-1.5" style={{fontFamily:"'DM Mono',monospace"}}>LINK TO AI AGENT</label>
+            <select 
+              value={selectedAgentId} 
+              onChange={e => setSelectedAgentId(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-white focus:outline-none"
+            >
+              <option value="">Select an Agent...</option>
+              {apiAgents.map(a => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+          </div>
+
           {addTab==="file"?(
             <div className="border-2 border-dashed border-border rounded-xl p-10 text-center cursor-pointer hover:bg-muted/20 transition-colors" onClick={()=>fileRef.current?.click()}>
               <Upload className="w-7 h-7 text-muted-foreground mx-auto mb-3"/>
               <p className="text-sm font-medium mb-1" style={{fontFamily:"'Figtree',sans-serif"}}>Drop file or click to browse</p>
-              <p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>PDF, DOCX, TXT, CSV — max 50 MB</p>
-              <input ref={fileRef} type="file" accept=".pdf,.docx,.txt,.csv" className="hidden" onChange={addFile}/>
+              <p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>TXT, PDF, CSV, DOCX — max 500 KB text extraction</p>
+              <input ref={fileRef} type="file" accept=".txt,.pdf,.csv,.docx" className="hidden" onChange={addFile}/>
             </div>
           ):(
             <div className="space-y-3">
-              <DField label="URL to crawl" hint="We crawl the page and all linked sub-pages on the same domain."><DInput placeholder="https://example.com/help-center" value={url} onChange={e=>setUrl(e.target.value)}/></DField>
-              <DBtn onClick={addUrl} disabled={!url}><Link className="w-4 h-4"/> Start crawl</DBtn>
+              <DField label="URL to crawl" hint="Crawl target page source and extract raw text context."><DInput placeholder="https://example.com/help-center" value={url} onChange={e=>setUrl(e.target.value)}/></DField>
+              <DBtn onClick={addUrl} disabled={!url || !selectedAgentId}><Link className="w-4 h-4"/> Start crawl</DBtn>
             </div>
           )}
         </div>
@@ -2568,76 +2653,7 @@ function DashVoices() {
 
 // ── Analytics ──
 function DashAnalytics() {
-  const weekly=[{day:"Mon",calls:890,connected:712,resolved:634},{day:"Tue",calls:1120,connected:924,resolved:810},{day:"Wed",calls:980,connected:784,resolved:712},{day:"Thu",calls:1340,connected:1142,resolved:980},{day:"Fri",calls:1284,connected:1056,resolved:920},{day:"Sat",calls:420,connected:344,resolved:318},{day:"Sun",calls:310,connected:248,resolved:224}];
-  const maxC=Math.max(...weekly.map(d=>d.calls));
-  return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        {[{label:"Calls this week",value:"6,344",delta:"+18%",good:true},{label:"Avg handle time",value:"3m 42s",delta:"−0:08",good:true},{label:"FCR rate",value:"91.4%",delta:"+2.1%",good:true},{label:"Minutes used",value:"7,820 / 12k",delta:"65%",good:null}].map(s=>(
-          <div key={s.label} className="bg-white border border-border rounded-xl p-4"><p className="text-xs text-muted-foreground mb-2" style={{fontFamily:"'DM Mono',monospace"}}>{s.label.toUpperCase()}</p><p className="text-2xl font-bold mb-1" style={{fontFamily:"'Instrument Serif',serif"}}>{s.value}</p><p className={`text-xs ${s.good===true?"text-emerald-600":s.good===false?"text-red-500":"text-muted-foreground"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{s.delta}</p></div>
-        ))}
-      </div>
-      <div className="bg-white border border-border rounded-xl p-6">
-        <div className="flex items-center justify-between mb-6">
-          <p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>Calls per day — this week</p>
-          <div className="flex gap-4 text-xs" style={{fontFamily:"'Figtree',sans-serif"}}>
-            <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-foreground rounded-sm"/>Total</span>
-            <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-foreground/40 rounded-sm"/>Connected</span>
-            <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-foreground/15 rounded-sm"/>Resolved</span>
-          </div>
-        </div>
-        <div className="flex items-end gap-2 h-40">
-          {weekly.map(d=>(
-            <div key={d.day} className="flex-1 flex flex-col items-center gap-1.5">
-              <div className="w-full flex items-end justify-center gap-0.5 flex-1">
-                <div className="flex-1 bg-foreground rounded-t-sm hover:bg-foreground/80 transition-colors" style={{height:`${(d.calls/maxC)*148}px`}}/>
-                <div className="flex-1 bg-foreground/40 rounded-t-sm" style={{height:`${(d.connected/maxC)*148}px`}}/>
-                <div className="flex-1 bg-foreground/15 rounded-t-sm" style={{height:`${(d.resolved/maxC)*148}px`}}/>
-              </div>
-              <span className="text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{d.day}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <div className="bg-white border border-border rounded-xl p-5">
-          <p className="text-sm font-semibold mb-4" style={{fontFamily:"'Figtree',sans-serif"}}>Call intent breakdown</p>
-          <div className="space-y-3">
-            {[{label:"Billing & payments",pct:28},{label:"Appointment scheduling",pct:22},{label:"Claims & policies",pct:19},{label:"Technical support",pct:16},{label:"Other",pct:15}].map(item=>(
-              <div key={item.label} className="flex items-center gap-3">
-                <span className="text-xs text-muted-foreground w-40 flex-shrink-0" style={{fontFamily:"'Figtree',sans-serif"}}>{item.label}</span>
-                <div className="flex-1 bg-muted rounded-full h-1.5 overflow-hidden"><motion.div initial={{width:0}} animate={{width:`${item.pct}%`}} transition={{duration:0.8,ease:"easeOut"}} className="h-full bg-foreground rounded-full"/></div>
-                <span className="text-xs font-medium w-8 text-right" style={{fontFamily:"'DM Mono',monospace"}}>{item.pct}%</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="bg-white border border-border rounded-xl p-5">
-          <p className="text-sm font-semibold mb-4" style={{fontFamily:"'Figtree',sans-serif"}}>Agent performance</p>
-          <div className="space-y-3">
-            {AGENTS_SEED.filter(a=>a.calls>0).map(a=>(
-              <div key={a.id} className="flex items-center gap-3">
-                <div className="w-6 h-6 bg-muted rounded-md flex items-center justify-center flex-shrink-0">{a.type==="prompt"?<Cpu className="w-3 h-3 text-muted-foreground"/>:<MessageSquare className="w-3 h-3 text-muted-foreground"/>}</div>
-                <p className="text-xs w-36 flex-shrink-0 truncate" style={{fontFamily:"'Figtree',sans-serif"}}>{a.name}</p>
-                <div className="flex-1 bg-muted rounded-full h-1.5 overflow-hidden"><div className="h-full bg-foreground rounded-full" style={{width:`${(a.calls/5124)*100}%`}}/></div>
-                <span className="text-xs text-muted-foreground w-12 text-right" style={{fontFamily:"'DM Mono',monospace"}}>{a.calls.toLocaleString()}</span>
-                <span className="text-xs w-6 text-right" style={{fontFamily:"'DM Mono',monospace"}}>{a.csat??"—"}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className="bg-white border border-border rounded-xl p-5">
-        <p className="text-sm font-semibold mb-4" style={{fontFamily:"'Figtree',sans-serif"}}>Hourly call volume heatmap — today</p>
-        <div className="grid gap-1" style={{gridTemplateColumns:"repeat(24,1fr)"}}>
-          {Array.from({length:24},(_,h)=>{
-            const intensity=h<6?0.05:h<8?0.15:h<9?0.4:h<11?0.85:h<13?0.7:h<15?0.95:h<17?0.8:h<19?0.5:h<21?0.25:0.08;
-            return (<div key={h} className="flex flex-col items-center gap-1"><div className="w-full h-9 rounded-sm transition-opacity hover:opacity-80" style={{backgroundColor:`rgba(10,10,10,${intensity})`}} title={`${h}:00`}/>{h%6===0&&<span className="text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{h}h</span>}</div>);
-          })}
-        </div>
-      </div>
-    </div>
-  );
+  return <AnalyticsOverview />;
 }
 
 // ── Settings ──
@@ -2732,7 +2748,12 @@ function DashboardPage({ session }: { session: Session }) {
   const [section, setSection] = useState<DashSection>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [profile, setProfile] = useState<ApiProfile | null>(null);
-  useEffect(() => { fetchProfile().then(setProfile).catch(() => {}); }, [session]);
+  const [apiAgents, setApiAgents] = useState<ApiAgent[]>([]);
+  
+  useEffect(() => { 
+    fetchProfile().then(setProfile).catch(() => {}); 
+    fetchAgents().then(setApiAgents).catch(() => {});
+  }, [session]);
 
   const navGroups = [
     {label:"Workspace",items:[{id:"overview",icon:LayoutDashboard,label:"Overview"},{id:"agents",icon:Bot,label:"Agents"},{id:"batch",icon:Radio,label:"Batch Calls"},{id:"calls",icon:PhoneIncoming,label:"Call Logs"}]},
@@ -2794,7 +2815,7 @@ function DashboardPage({ session }: { session: Session }) {
               {section==="batch"&&<DashBatch/>}
               {section==="calls"&&<DashCallLogs/>}
               {section==="numbers"&&<DashNumbers/>}
-              {section==="knowledge"&&<DashKnowledge/>}
+              {section==="knowledge"&&<DashKnowledge apiAgents={apiAgents}/>}
               {section==="voices"&&<DashVoices/>}
               {section==="analytics"&&<DashAnalytics/>}
               {section==="settings"&&<DashSettings/>}

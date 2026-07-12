@@ -82,7 +82,7 @@ model Agent {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   versions       AgentVersion[]
   calls          Call[]
   phoneNumbers   PhoneNumber[]
@@ -90,6 +90,7 @@ model Agent {
   inboundConfigs InboundConfig[]
   voiceSessions  VoiceSession[]
   callSessions   CallSession[]
+  knowledgeBases KnowledgeBase[]
 
   // Knowledge base relationships stored as JSON array of IDs in agentConfig
   // for simplicity — a proper join table can be added later.
@@ -203,39 +204,19 @@ model PhoneNumber {
 // ─────────────────────────────────────────────
 
 model KnowledgeBase {
-  id             String   @id @default(uuid())
-  userId         String   @map("user_id")
-  name           String
-  description    String?
-  type           String   @default("documents") // documents | qa_pairs | urls
-  embeddingModel String   @default("openai_ada_002") @map("embedding_model")
-  chunkingStrategy String @default("{}") @map("chunking_strategy") // JSON
-  documentCount  Int      @default(0) @map("document_count")
-  status         String   @default("ready") // indexing | ready | failed
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id          String   @id @default(uuid())
+  name        String
+  contentText String   @map("content_text")
+  agentId     String   @map("agent_id")
+  userId      String   @map("user_id")
+  createdAt   DateTime @default(now()) @map("created_at")
 
-  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  documents KbDocument[]
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([agentId])
   @@map("knowledge_bases")
-}
-
-model KbDocument {
-  id              String   @id @default(uuid())
-  knowledgeBaseId String   @map("knowledge_base_id")
-  filename        String
-  fileUrl         String?  @map("file_url")
-  fileSize        Int      @default(0) @map("file_size")
-  status          String   @default("processing") // processing | indexed | failed
-  chunkCount      Int      @default(0) @map("chunk_count")
-  uploadedAt      DateTime @default(now()) @map("uploaded_at")
-
-  knowledgeBase KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
-
-  @@index([knowledgeBaseId])
-  @@map("kb_documents")
 }
 
 // ─────────────────────────────────────────────

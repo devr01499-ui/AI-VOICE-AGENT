@@ -42,6 +42,8 @@ export interface AgentConfig {
     maxCallDuration?: number; // seconds
     greeting?: string;
     endCallPhrases?: string[];
+    isRecordingEnabled?: boolean;
+    isTranscriptionEnabled?: boolean;
   };
 }
 
