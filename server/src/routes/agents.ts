@@ -231,7 +231,7 @@ router.post(
         return;
       }
 
-      const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, temperature, systemPrompt, flowGraph } = req.body;
+      const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, systemVoice, temperature, systemPrompt, flowGraph } = req.body;
 
       const newAgent = await prisma.agent.create({
         data: {
@@ -245,7 +245,8 @@ router.post(
           workspaceId: workspaceId || null,
           model: model || null,
           voiceName: voiceName || null,
-          temperature: temperature !== undefined ? Number(temperature) : null,
+          systemVoice: systemVoice || 'Puck',
+          temperature: temperature !== undefined ? Number(temperature) : 0.7,
           systemPrompt: systemPrompt || null,
           flowGraph: flowGraph || null,
         },
@@ -274,7 +275,7 @@ router.put(
       }
 
       const agentId = req.params.agentId as string;
-      const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, temperature, systemPrompt, flowGraph } = req.body;
+      const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, systemVoice, temperature, systemPrompt, flowGraph } = req.body;
 
       // Verify ownership before updating
       const exists = await prisma.agent.findFirst({
@@ -286,8 +287,9 @@ router.put(
         return;
       }
 
-      const updatedAgent = await prisma.agent.update({
-        where: { id: agentId },
+      // Explicitly update only matching records with composite tenant criteria
+      await prisma.agent.updateMany({
+        where: { id: agentId, userId: userId },
         data: {
           ...(name !== undefined && { name }),
           ...(description !== undefined && { description }),
@@ -302,15 +304,42 @@ router.put(
           ...(workspaceId !== undefined && { workspaceId }),
           ...(model !== undefined && { model }),
           ...(voiceName !== undefined && { voiceName }),
-          ...(temperature !== undefined && { temperature: temperature !== null ? Number(temperature) : null }),
+          ...(systemVoice !== undefined && { systemVoice }),
+          ...(temperature !== undefined && { temperature: temperature !== null ? Number(temperature) : 0.7 }),
           ...(systemPrompt !== undefined && { systemPrompt }),
           ...(flowGraph !== undefined && { flowGraph }),
         },
       });
 
+      const updatedAgent = await prisma.agent.findFirst({
+        where: { id: agentId, userId: userId }
+      });
+
+      if (!updatedAgent) {
+        res.status(404).json({ success: false, error: 'Agent not found after update' });
+        return;
+      }
+
       res.json({
         success: true,
-        data: updatedAgent,
+        data: {
+          id: updatedAgent.id,
+          name: updatedAgent.name,
+          description: updatedAgent.description,
+          agentType: updatedAgent.agentType,
+          status: updatedAgent.status,
+          version: updatedAgent.version,
+          workspaceId: updatedAgent.workspaceId,
+          model: updatedAgent.model,
+          voiceName: updatedAgent.voiceName,
+          systemVoice: updatedAgent.systemVoice,
+          temperature: updatedAgent.temperature,
+          systemPrompt: updatedAgent.systemPrompt,
+          flowGraph: updatedAgent.flowGraph,
+          tags: JSON.parse(updatedAgent.tags || '[]'),
+          createdAt: updatedAgent.createdAt.toISOString(),
+          updatedAt: updatedAgent.updatedAt.toISOString(),
+        },
       });
     } catch (err) {
       next(err);
@@ -342,8 +371,8 @@ router.delete(
         return;
       }
 
-      await prisma.agent.delete({
-        where: { id: agentId },
+      await prisma.agent.deleteMany({
+        where: { id: agentId, userId: userId },
       });
 
       res.json({

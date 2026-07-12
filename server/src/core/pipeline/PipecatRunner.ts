@@ -10,6 +10,7 @@ export class PipecatRunner {
   private readonly geminiService: GeminiLiveLLMService;
   private readonly isRecordingEnabled: boolean;
   private readonly userId: string;
+  private readonly agentId: string;
   private audioChunks: Buffer[] = [];
 
   constructor(
@@ -19,6 +20,7 @@ export class PipecatRunner {
       voice: string;
       instructions: string;
       userId: string;
+      agentId: string;
       isRecordingEnabled?: boolean;
       isTranscriptionEnabled?: boolean;
       tools?: any[];
@@ -28,6 +30,7 @@ export class PipecatRunner {
   ) {
     this.isRecordingEnabled = config.isRecordingEnabled || false;
     this.userId = config.userId;
+    this.agentId = config.agentId;
 
     logger.info('PipecatRunner: initializing pipeline', {
       callId,
@@ -52,7 +55,7 @@ export class PipecatRunner {
     });
 
     // 1. PIPELINE INGESTION INTERFACE
-    this.pipeline = new Pipeline([this.geminiService], this.callId, onFunctionCall, this.userId);
+    this.pipeline = new Pipeline([this.geminiService], this.callId, onFunctionCall, this.userId, this.agentId);
 
     // 3. NATIVE ASYNC BARGE-IN DEFENSE
     // Register the Pipecat pipeline's VAD observer hook.

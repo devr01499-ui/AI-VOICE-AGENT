@@ -76,7 +76,8 @@ model Agent {
   workspaceId    String?  @map("workspace_id")
   model          String?
   voiceName      String?  @map("voice_name")
-  temperature    Float?
+  systemVoice    String   @default("Puck") @map("system_voice")
+  temperature    Float?   @default(0.7)
   systemPrompt   String?  @map("system_prompt")
   version        Int      @default(1)
   tags           String   @default("[]") // JSON array

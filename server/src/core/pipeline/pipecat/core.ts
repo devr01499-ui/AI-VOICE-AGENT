@@ -14,7 +14,8 @@ export class Pipeline {
     services: any[],
     private readonly callId: string,
     private readonly onFunctionCallCallback?: (toolCallId: string, name: string, args: string) => Promise<string>,
-    private readonly userId?: string
+    private readonly userId?: string,
+    private readonly agentId?: string
   ) {
     this.service = services[0];
     this.provider = new GeminiLiveProvider();
@@ -57,6 +58,7 @@ export class Pipeline {
       instructions: this.service.config.systemInstruction,
       tools: this.service.config.tools,
       userId: this.userId,
+      agentId: this.agentId,
     };
 
     const callbacks = {

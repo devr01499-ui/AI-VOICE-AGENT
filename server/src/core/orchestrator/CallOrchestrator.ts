@@ -235,6 +235,7 @@ export class CallOrchestrator {
         voice: agentConfig.voice,
         instructions: agentConfig.prompt,
         userId: activeAgent.userId,
+        agentId: agentId,
         isRecordingEnabled: agentConfig.settings?.isRecordingEnabled || false,
         isTranscriptionEnabled: agentConfig.settings?.isTranscriptionEnabled || false,
         tools: [

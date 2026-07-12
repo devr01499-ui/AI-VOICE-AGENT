@@ -311,7 +311,29 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         }
       }
 
-      const agentVoiceMapping = this.currentAgent?.voice || "Aoede";
+      let systemVoiceVal = 'Puck';
+      let temperatureVal = 0.7;
+
+      if (config.agentId) {
+        try {
+          const prismaInstance = (await import('../../config/database')).prisma;
+          const dbAgent = await prismaInstance.agent.findUnique({
+            where: { id: config.agentId },
+            select: { systemVoice: true, temperature: true }
+          });
+          if (dbAgent) {
+            systemVoiceVal = dbAgent.systemVoice || 'Puck';
+            temperatureVal = dbAgent.temperature ?? 0.7;
+          }
+        } catch (dbErr) {
+          logger.error('GeminiLiveProvider: Failed to fetch agent parameters from database', { 
+            agentId: config.agentId, 
+            error: String(dbErr) 
+          });
+        }
+      }
+
+      const agentVoiceMapping = systemVoiceVal || this.currentAgent?.voice || "Puck";
 
       // Map voices: alloy/shimmer/etc. to Gemini voices (Aoede, Puck, Charon, Fenrir, Kore)
       const voiceNameMap: Record<string, string> = {
@@ -339,7 +361,8 @@ export class GeminiLiveProvider implements IRealtimeProvider {
                   voiceName: geminiVoice
                 }
               }
-            }
+            },
+            temperature: temperatureVal
           },
           systemInstruction: {
             parts: [{ text: systemInstructionString }]

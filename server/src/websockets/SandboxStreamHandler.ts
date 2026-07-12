@@ -81,6 +81,7 @@ export class SandboxStreamHandler {
       // 2. Setup Gemini Live configuration
       const config = {
         callId: connectionId,
+        agentId: agentId,
         model: agent.model || 'models/gemini-2.5-flash-native-audio-latest',
         voice: agent.voiceName || 'Aoede',
         instructions: agent.systemPrompt || 'You are a helpful assistant.',

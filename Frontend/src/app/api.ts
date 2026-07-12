@@ -39,6 +39,7 @@ export interface ApiAgent {
   agentConfig: unknown;
   isRecordingEnabled?: boolean;
   isTranscriptionEnabled?: boolean;
+  systemVoice?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -95,6 +96,7 @@ export interface CreateAgentPayload {
   workspaceId?: string;
   isRecordingEnabled?: boolean;
   isTranscriptionEnabled?: boolean;
+  systemVoice?: string;
 }
 
 // ─── Core Fetch Helper ────────────────────────────────────────────────────────

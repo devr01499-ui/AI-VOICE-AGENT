@@ -51,6 +51,7 @@ export interface RealtimeSessionConfig {
   outputAudioFormat?: string;
   temperature?: number;
   userId?: string;
+  agentId?: string;
 }
 
 export interface RealtimeToolDefinition {

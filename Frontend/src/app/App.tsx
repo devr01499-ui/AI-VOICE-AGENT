@@ -3,6 +3,7 @@ import { supabase } from "./lib/supabaseClient";
 import AuthGateway from "./components/auth/AuthGateway";
 import { Session } from "@supabase/supabase-js";
 import BillingGateway from "./components/settings/BillingGateway";
+import AgentConfigPanel from "./components/agents/AgentConfigPanel";
 import { AnalyticsOverview } from "./components/analytics/AnalyticsOverview";
 import {
   fetchAgents, fetchCalls, fetchProfile, createAgent, updateAgent,
@@ -1719,24 +1720,11 @@ function DashAgents() {
         ))}
       </div>
       {detailTab==="config" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="bg-white border border-border rounded-xl p-5 space-y-4">
-            <p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>Basic</p>
-            <DField label="Agent name"><DInput value={selected.name as string} onChange={e=>setSelected(prev=>prev?{...prev,name:e.target.value}:null)}/></DField>
-            <DField label="Voice"><DSelect value={selected.voice as string} onChange={e=>setSelected(prev=>prev?{...prev,voice:e.target.value}:null)}>{VOICES_SEED.map(v=><option key={v.id} value={v.id}>{v.name} ({v.accent})</option>)}</DSelect></DField>
-            <DField label="Language"><DSelect value={selected.lang as string} onChange={e=>setSelected(prev=>prev?{...prev,lang:e.target.value}:null)}><option>EN</option><option>EN, ES</option><option>EN, FR</option><option>EN, DE</option></DSelect></DField>
-            <DField label="LLM Model"><DSelect value={selected.model as string} onChange={e=>setSelected(prev=>prev?{...prev,model:e.target.value}:null)}><option value="claude-sonnet-4-6">Claude Sonnet 4.6</option><option value="claude-opus-4-8">Claude Opus 4.8</option><option value="gpt-4o">GPT-4o</option><option value="gpt-4o-mini">GPT-4o mini</option><option value="gemini-1.5-pro">Gemini 1.5 Pro</option></DSelect></DField>
-          </div>
-          <div className="bg-white border border-border rounded-xl p-5 space-y-4">
-            <p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>Advanced</p>
-            <DField label="Temperature (0.7)"><input type="range" min="0" max="1" step="0.05" defaultValue="0.7" className="w-full accent-foreground"/></DField>
-            <DField label="Max turns (20)"><input type="range" min="5" max="50" defaultValue="20" className="w-full accent-foreground"/></DField>
-            <DField label="Silence timeout (ms)"><DInput type="number" defaultValue="2000"/></DField>
-            <DField label="Interruption sensitivity"><DSelect><option>low</option><option>medium</option><option>high</option></DSelect></DField>
-            <div className="flex items-center justify-between"><div><p className="text-sm font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>Call recording</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Record all calls for compliance</p></div><DToggle on={!!selected.isRecordingEnabled} set={v=>setSelected(prev=>prev?{...prev,isRecordingEnabled:v}:null)}/></div>
-            <div className="flex items-center justify-between"><div><p className="text-sm font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>Live transcription</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Stream transcript to dashboard</p></div><DToggle on={!!selected.isTranscriptionEnabled} set={v=>setSelected(prev=>prev?{...prev,isTranscriptionEnabled:v}:null)}/></div>
-          </div>
-        </div>
+        <AgentConfigPanel 
+          agent={selected} 
+          onUpdate={(fields) => setSelected(prev => prev ? { ...prev, ...fields } : null)} 
+          onSaveStatus={setSaveStatus}
+        />
       )}
       {detailTab==="prompt" && (
         <div className="bg-white border border-border rounded-xl p-5 space-y-3">
