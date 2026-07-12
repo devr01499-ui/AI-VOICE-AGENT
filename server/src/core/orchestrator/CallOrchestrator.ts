@@ -191,6 +191,7 @@ export class CallOrchestrator {
         systemPrompt: "You are Clarity AI, a highly professional, senior executive talent acquisition manager for Clarity. Your sole mission is to execute a brief, high-signal preliminary phone screening with the candidate on the line. - Personality: Articulate, warm, objective, professional, and conversational. - Constraints: Keep your utterances concise and tightly focused. Never output multi-paragraph answers or text formatting characters. Do not use markdown blocks. Speak naturally, allowing comfortable pauses, and avoid talking over the candidate. - Flow: First, greet them and confirm you are speaking with the applicant. Second, ask them to briefly detail their hands-on engineering experiences deploying large language models or low-latency system components. Third, inquire about their expected salary bounds. Finally, thank them for their time and state that our executive operations board will follow up with next steps.",
         voiceName: 'Puck',
         model: 'models/gemini-2.5-flash-native-audio-latest',
+        userId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
       };
 
       agentConfig = {
@@ -233,6 +234,7 @@ export class CallOrchestrator {
         model: agentConfig.llm.model,
         voice: agentConfig.voice,
         instructions: agentConfig.prompt,
+        userId: activeAgent.userId,
         isRecordingEnabled: agentConfig.settings?.isRecordingEnabled || false,
         isTranscriptionEnabled: agentConfig.settings?.isTranscriptionEnabled || false,
         tools: [

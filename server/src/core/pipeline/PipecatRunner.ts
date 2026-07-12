@@ -1,15 +1,16 @@
-import * as fs from 'fs';
-import * as path from 'path';
 import { Pipeline } from './pipecat/core';
 import { GeminiLiveLLMService } from './pipecat/gemini';
 import { logger } from '../../utils/logger';
 import { convertInboundAudio, convertOutboundAudio } from '../../utils/audioConverter';
 import { eventBus, PROVIDER_EVENTS } from '../provider-sdk/provider.events';
+import { supabaseClient } from '../../utils/supabase';
 
 export class PipecatRunner {
   private readonly pipeline: Pipeline;
   private readonly geminiService: GeminiLiveLLMService;
-  private recordingStream?: fs.WriteStream;
+  private readonly isRecordingEnabled: boolean;
+  private readonly userId: string;
+  private audioChunks: Buffer[] = [];
 
   constructor(
     public readonly callId: string,
@@ -17,6 +18,7 @@ export class PipecatRunner {
       model: string;
       voice: string;
       instructions: string;
+      userId: string;
       isRecordingEnabled?: boolean;
       isTranscriptionEnabled?: boolean;
       tools?: any[];
@@ -24,27 +26,19 @@ export class PipecatRunner {
     private readonly onAudioOutput: (audioBase64: string) => void,
     onFunctionCall?: (toolCallId: string, name: string, args: string) => Promise<string>
   ) {
+    this.isRecordingEnabled = config.isRecordingEnabled || false;
+    this.userId = config.userId;
+
     logger.info('PipecatRunner: initializing pipeline', {
       callId,
       model: config.model,
       voice: config.voice,
-      isRecordingEnabled: config.isRecordingEnabled,
-      isTranscriptionEnabled: config.isTranscriptionEnabled,
+      userId: config.userId,
+      isRecordingEnabled: this.isRecordingEnabled,
     });
 
-    // 1. Setup call recording stream if enabled
-    if (config.isRecordingEnabled) {
-      try {
-        const recordingsDir = path.join(process.cwd(), 'recordings');
-        if (!fs.existsSync(recordingsDir)) {
-          fs.mkdirSync(recordingsDir, { recursive: true });
-        }
-        const recordingPath = path.join(recordingsDir, `${this.callId}.pcm`);
-        this.recordingStream = fs.createWriteStream(recordingPath);
-        logger.info('PipecatRunner: Call recording enabled. Created write stream', { recordingPath });
-      } catch (err) {
-        logger.error('PipecatRunner: Failed to initialize call recording write stream', { error: String(err) });
-      }
+    if (this.isRecordingEnabled) {
+      logger.info('PipecatRunner: Call recording enabled in memory.');
     }
 
     // 2. SECURE THE MULTIMODAL PROVIDER BUS
@@ -80,8 +74,8 @@ export class PipecatRunner {
     this.pipeline.addOutputSink((frame: { type: string; data: Buffer }) => {
       if (frame && frame.type === 'audio' && frame.data) {
         // Record output audio stream if active
-        if (this.recordingStream) {
-          this.recordingStream.write(frame.data);
+        if (this.isRecordingEnabled) {
+          this.audioChunks.push(frame.data);
         }
 
         const telephonyCompressed = convertOutboundAudio(frame.data);
@@ -95,8 +89,8 @@ export class PipecatRunner {
     const buffer = Buffer.from(base64Str, 'base64');
 
     // Record input audio stream if active
-    if (this.recordingStream) {
-      this.recordingStream.write(buffer);
+    if (this.isRecordingEnabled) {
+      this.audioChunks.push(buffer);
     }
 
     this.pipeline.pushInputFrame({
@@ -132,10 +126,31 @@ export class PipecatRunner {
    */
   async stop(): Promise<void> {
     logger.info('PipecatRunner: stopping pipeline execution', { callId: this.callId });
-    if (this.recordingStream) {
-      this.recordingStream.end();
-      logger.info('PipecatRunner: Closed call recording write stream', { callId: this.callId });
+    
+    if (this.isRecordingEnabled && this.audioChunks.length > 0) {
+      const audioBuffer = Buffer.concat(this.audioChunks);
+      const bucketPath = `${this.userId}/${this.callId}.pcm`;
+      logger.info('PipecatRunner: Uploading call recording memory buffer to Supabase storage', { bucketPath, sizeBytes: audioBuffer.length });
+
+      try {
+        const { data, error } = await supabaseClient
+          .storage
+          .from('call-recordings')
+          .upload(bucketPath, audioBuffer, {
+            contentType: 'audio/x-pcm',
+            upsert: true
+          });
+
+        if (error) {
+          logger.error('PipecatRunner: Supabase storage upload failed', { error: error.message });
+        } else {
+          logger.info('PipecatRunner: Supabase storage upload successful', { path: data?.path });
+        }
+      } catch (err) {
+        logger.error('PipecatRunner: Exception during Supabase storage upload', { error: String(err) });
+      }
     }
+
     await this.pipeline.stop();
   }
 }
