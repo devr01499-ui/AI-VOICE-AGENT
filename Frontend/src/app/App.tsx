@@ -1307,6 +1307,42 @@ function DashOverview() {
   );
 }
 
+// ── Web Audio Sandbox Conversion Helpers ──
+function floatTo16BitPCM(input: Float32Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(input.length * 2);
+  const view = new DataView(buffer);
+  for (let i = 0; i < input.length; i++) {
+    const s = Math.max(-1, Math.min(1, input[i]));
+    view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+  return buffer;
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return window.btoa(binary);
+}
+
+function base64ToFloat32(base64: string): Float32Array {
+  const binaryString = window.atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  const int16Array = new Int16Array(bytes.buffer);
+  const float32Array = new Float32Array(int16Array.length);
+  for (let i = 0; i < int16Array.length; i++) {
+    float32Array[i] = int16Array[i] / 32768.0;
+  }
+  return float32Array;
+}
+
 // ── Agents ──
 type AgentView = "list"|"create"|"detail";
 function DashAgents() {
@@ -1352,10 +1388,223 @@ function DashAgents() {
   const [testCallStatus, setTestCallStatus] = useState<'idle'|'calling'|'done'|'error'>('idle');
   const [saveStatus, setSaveStatus] = useState<'idle'|'saving'|'done'|'error'>('idle');
 
-  function handleTestCall() {
+  const [showPicker, setShowPicker] = useState(false);
+  const [pickerError, setPickerError] = useState('');
+  const [numbersList, setNumbersList] = useState<any[]>([]);
+  const [selectedNumber, setSelectedNumber] = useState('');
+  const [destinationPhone, setDestinationPhone] = useState('');
+  const [sandboxOpen, setSandboxOpen] = useState(false);
+  const [sandboxActive, setSandboxActive] = useState(false);
+  const [sandboxTranscript, setSandboxTranscript] = useState<{ speaker: 'agent' | 'user'; text: string }[]>([]);
+  const [sandboxLatency, setSandboxLatency] = useState<number | null>(null);
+
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const playbackContextRef = useRef<AudioContext | null>(null);
+  const processorNodeRef = useRef<ScriptProcessorNode | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const lastEmitTimeRef = useRef<number>(0);
+  const nextPlaybackTimeRef = useRef<number>(0);
+
+  useEffect(() => {
+    return () => {
+      // Disconnect and clean up resources on unmount (DISCONNECT LIFECYCLE MANAGEMENT)
+      if (micStreamRef.current) {
+        micStreamRef.current.getTracks().forEach(t => t.stop());
+      }
+      if (processorNodeRef.current) {
+        processorNodeRef.current.disconnect();
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {});
+      }
+      if (playbackContextRef.current) {
+        playbackContextRef.current.close().catch(() => {});
+      }
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, []);
+
+  async function fetchWorkspaceNumbers() {
+    try {
+      const res = await fetch("https://ai-voice-agent-backend-mv32.onrender.com/api/v2/numbers", {
+        headers: {
+          "x-user-id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+        }
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setNumbersList(data.data);
+        if (data.data.length > 0) {
+          setSelectedNumber(data.data[0].phoneNumber);
+        }
+      } else {
+        setNumbersList([]);
+      }
+    } catch (err: any) {
+      setPickerError(err.message || 'Failed to retrieve workspace numbers.');
+    }
+  }
+
+  async function startSandbox() {
     if (!selected) return;
-    const phone = window.prompt("Please enter the phone number to call (e.g. +1234567890):");
-    if (!phone) return;
+    setSandboxTranscript([{ speaker: 'agent', text: 'Initializing browser sandbox audio pipeline...' }]);
+    setSandboxOpen(true);
+    setSandboxActive(true);
+    setSandboxLatency(null);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      micStreamRef.current = stream;
+
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
+        sampleRate: 16000,
+      });
+      audioContextRef.current = audioContext;
+
+      const playbackContext = new (window.AudioContext || (window as any).webkitAudioContext)({
+        sampleRate: 24000,
+      });
+      playbackContextRef.current = playbackContext;
+      nextPlaybackTimeRef.current = 0;
+
+      const isHttps = window.location.protocol === 'https:';
+      const wsProtocol = isHttps ? 'wss:' : 'ws:';
+      const host = window.location.host === 'localhost:5173' || window.location.host === 'localhost:3000'
+        ? 'localhost:3001'
+        : 'ai-voice-agent-backend-mv32.onrender.com';
+      const wsUrl = `${wsProtocol}//${host}/api/v2/sandbox/test-stream?agentId=${selected.id}`;
+      
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        setSandboxTranscript(prev => [...prev, { speaker: 'agent', text: 'Connected to Gemini Live. Speak into your microphone.' }]);
+        
+        const source = audioContext.createMediaStreamSource(stream);
+        const processor = audioContext.createScriptProcessor(2048, 1, 1);
+        processorNodeRef.current = processor;
+
+        source.connect(processor);
+        processor.connect(audioContext.destination);
+
+        processor.onaudioprocess = (e) => {
+          const inputData = e.inputBuffer.getChannelData(0);
+          
+          let isSpeaking = false;
+          for (let i = 0; i < inputData.length; i++) {
+            if (Math.abs(inputData[i]) > 0.01) {
+              isSpeaking = true;
+              break;
+            }
+          }
+          if (isSpeaking) {
+            lastEmitTimeRef.current = Date.now();
+          }
+
+          const pcmBuffer = floatTo16BitPCM(inputData);
+          const base64 = arrayBufferToBase64(pcmBuffer);
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ event: 'audio', data: base64 }));
+          }
+        };
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.event === 'audio' && msg.data) {
+            const floats = base64ToFloat32(msg.data);
+            const audioBuffer = playbackContext.createBuffer(1, floats.length, 24000);
+            audioBuffer.copyToChannel(floats, 0);
+
+            const sourceNode = playbackContext.createBufferSource();
+            sourceNode.buffer = audioBuffer;
+            sourceNode.connect(playbackContext.destination);
+
+            const currentTime = playbackContext.currentTime;
+            const startTime = Math.max(currentTime, nextPlaybackTimeRef.current);
+            sourceNode.start(startTime);
+            nextPlaybackTimeRef.current = startTime + audioBuffer.duration;
+          } else if (msg.event === 'transcript' && msg.text) {
+            if (lastEmitTimeRef.current > 0) {
+              const delta = Date.now() - lastEmitTimeRef.current;
+              setSandboxLatency(delta);
+            }
+
+            setSandboxTranscript(prev => {
+              const last = prev[prev.length - 1];
+              const speaker = msg.isUser ? 'user' : 'agent';
+              if (last && last.speaker === speaker) {
+                return [...prev.slice(0, -1), { speaker, text: last.text + msg.text }];
+              } else {
+                return [...prev, { speaker, text: msg.text }];
+              }
+            });
+          } else if (msg.event === 'interrupted') {
+            nextPlaybackTimeRef.current = 0;
+            setSandboxTranscript(prev => [...prev, { speaker: 'agent', text: '*Interrupted*' }]);
+          } else if (msg.event === 'error') {
+            setSandboxTranscript(prev => [...prev, { speaker: 'agent', text: `[Error]: ${msg.message}` }]);
+          }
+        } catch (e: any) {
+          console.error('Failed to parse sandbox event message', e);
+        }
+      };
+
+      ws.onerror = (e) => {
+        setSandboxTranscript(prev => [...prev, { speaker: 'agent', text: 'WebSocket error occurred during sandbox session.' }]);
+        setSandboxActive(false);
+      };
+
+      ws.onclose = () => {
+        setSandboxTranscript(prev => [...prev, { speaker: 'agent', text: 'Sandbox connection closed.' }]);
+        setSandboxActive(false);
+      };
+
+    } catch (err: any) {
+      setSandboxTranscript(prev => [...prev, { speaker: 'agent', text: `Initialization failed: ${err.message}` }]);
+      setSandboxActive(false);
+    }
+  }
+
+  function stopSandbox() {
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach(t => t.stop());
+      micStreamRef.current = null;
+    }
+    if (processorNodeRef.current) {
+      processorNodeRef.current.disconnect();
+      processorNodeRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
+    if (playbackContextRef.current) {
+      playbackContextRef.current.close().catch(() => {});
+      playbackContextRef.current = null;
+    }
+    if (wsRef.current) {
+      if (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING) {
+        wsRef.current.close();
+      }
+      wsRef.current = null;
+    }
+    setSandboxActive(false);
+    setSandboxOpen(false);
+    setSandboxLatency(null);
+  }
+
+  function handleTestCall() {
+    setShowPicker(true);
+    fetchWorkspaceNumbers();
+  }
+
+  function handleLaunchLiveCall() {
+    if (!selected || !destinationPhone) return;
     setTestCallStatus('calling');
     fetch("https://ai-voice-agent-backend-mv32.onrender.com/api/v2/calls", {
       method: "POST",
@@ -1364,9 +1613,10 @@ function DashAgents() {
         "x-user-id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
       },
       body: JSON.stringify({
-        phoneNumber: phone,
+        phoneNumber: destinationPhone,
         agentId: selected.id,
         userId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+        fromPhoneNumber: selectedNumber || undefined,
       }),
     })
     .then(async (res) => {
@@ -1377,7 +1627,10 @@ function DashAgents() {
       }
     })
     .catch(() => setTestCallStatus('error'))
-    .finally(() => setTimeout(() => setTestCallStatus('idle'), 3000));
+    .finally(() => {
+      setTimeout(() => setTestCallStatus('idle'), 3000);
+      setShowPicker(false);
+    });
   }
 
   function handleSaveAgent() {
@@ -1503,6 +1756,200 @@ function DashAgents() {
               </tr>
             ))}
           </tbody></table>
+        </div>
+      )}
+      {/* ── Caller ID & Dialer Picker Modal ── */}
+      {showPicker && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-border rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center pb-2 border-b border-border">
+              <h3 className="text-base font-semibold text-foreground flex items-center gap-2" style={{fontFamily:"'Figtree',sans-serif"}}>
+                <PhoneCall className="w-5 h-5 text-muted-foreground"/> Test Voice Agent
+              </h3>
+              <button onClick={() => setShowPicker(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="w-5 h-5"/>
+              </button>
+            </div>
+
+            {pickerError ? (
+              <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0"/>
+                <p>{pickerError}</p>
+              </div>
+            ) : null}
+
+            {/* Selection buttons */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPicker(false);
+                  startSandbox();
+                }}
+                className="border border-border rounded-xl p-4 text-center hover:border-foreground/30 hover:bg-muted/10 transition-all flex flex-col items-center gap-2"
+              >
+                <Headphones className="w-8 h-8 text-muted-foreground"/>
+                <div>
+                  <p className="text-xs font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>Desktop Browser</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Test instantly in-browser</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  // Allow clicking only if numbers list contains entries
+                  if (numbersList.length > 0) {
+                    // Handled conditionally below
+                  }
+                }}
+                className={`border rounded-xl p-4 text-center transition-all flex flex-col items-center gap-2 ${
+                  numbersList.length === 0 ? "opacity-50 cursor-not-allowed border-dashed border-border" : "border-border hover:border-foreground/30 hover:bg-muted/10"
+                }`}
+                disabled={numbersList.length === 0}
+              >
+                <Phone className="w-8 h-8 text-muted-foreground"/>
+                <div>
+                  <p className="text-xs font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>Live Phone Call</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Test on a mobile device</p>
+                </div>
+              </button>
+            </div>
+
+            {/* Live call dialer options */}
+            {numbersList.length === 0 ? (
+              <div className="bg-amber-50/50 border border-amber-200/60 rounded-xl p-4 space-y-2">
+                <div className="flex items-start gap-2.5 text-amber-800">
+                  <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0"/>
+                  <div className="text-xs space-y-1">
+                    <p className="font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>No Active Numbers Found</p>
+                    <p className="text-amber-700/90 leading-relaxed">No active phone numbers found in this workspace. Please provision a business number under the 'Phone Numbers' tab or use Desktop Testing mode.</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3 pt-2">
+                <DField label="Caller ID (Outgoing Number)">
+                  <DSelect value={selectedNumber} onChange={(e) => setSelectedNumber(e.target.value)}>
+                    {numbersList.map((num) => (
+                      <option key={num.id} value={num.phoneNumber}>
+                        {num.phoneNumber} {num.agent ? `(${num.agent.name})` : ''}
+                      </option>
+                    ))}
+                  </DSelect>
+                </DField>
+
+                <DField label="Destination Phone Number">
+                  <DInput
+                    placeholder="e.g. +1234567890"
+                    value={destinationPhone}
+                    onChange={(e) => setDestinationPhone(e.target.value)}
+                  />
+                </DField>
+
+                <DBtn
+                  onClick={handleLaunchLiveCall}
+                  className="w-full"
+                  disabled={!destinationPhone || testCallStatus === 'calling'}
+                >
+                  {testCallStatus === 'calling' ? 'Launching...' : 'Launch Call'}
+                </DBtn>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Persistent Right-Hand Audio Sandbox Drawer ── */}
+      {sandboxOpen && (
+        <div className="fixed inset-0 bg-black/10 backdrop-blur-[1px] z-40 flex justify-end">
+          {/* Back click overlay to stop sandbox */}
+          <div className="absolute inset-0" onClick={stopSandbox} />
+          
+          <div className="relative w-full max-w-md bg-white border-l border-border h-full shadow-2xl flex flex-col z-50">
+            {/* Header */}
+            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/20">
+              <div className="flex items-center gap-2.5">
+                <div className="relative">
+                  <div className="w-8 h-8 rounded-lg bg-foreground/5 flex items-center justify-center">
+                    <Headphones className="w-4 h-4 text-foreground"/>
+                  </div>
+                  {sandboxActive && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full animate-ping"/>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Desktop Testing Sandbox</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className={`w-1.5 h-1.5 rounded-full ${sandboxActive ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground'}`}/>
+                    <span className="text-[10px] text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>
+                      {sandboxActive ? 'Connected' : 'Offline'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {sandboxLatency !== null && (
+                  <div className="flex items-center gap-1 bg-foreground/[0.03] px-2 py-1 rounded-md text-[10px] text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>
+                    <Activity className="w-3 h-3 text-muted-foreground"/> {sandboxLatency}ms latency
+                  </div>
+                )}
+                <button onClick={stopSandbox} className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-muted/80 transition-colors">
+                  <X className="w-5 h-5"/>
+                </button>
+              </div>
+            </div>
+
+            {/* Transcript scroll pane */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/5">
+              {sandboxTranscript.map((msg, i) => (
+                <div
+                  key={i}
+                  className={`flex ${msg.speaker === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-xs shadow-sm ${
+                    msg.speaker === 'user'
+                      ? 'bg-foreground text-white rounded-tr-none'
+                      : 'bg-white border border-border text-foreground rounded-tl-none'
+                  }`} style={{fontFamily:"'Figtree',sans-serif", lineHeight: 1.4}}>
+                    <p className="font-semibold text-[9px] uppercase tracking-wider mb-1 opacity-70">
+                      {msg.speaker === 'user' ? 'You' : 'Agent'}
+                    </p>
+                    <p className="whitespace-pre-wrap">{msg.text}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Live telemetry VAD visualizer & controls footer */}
+            <div className="p-4 border-t border-border bg-white space-y-3 shadow-md">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold" style={{fontFamily:"'DM Mono',monospace"}}>Microphone Pipeline</span>
+                <SoundWave active={sandboxActive} bars={16} className="h-4"/>
+              </div>
+
+              <div className="flex gap-2">
+                {sandboxActive ? (
+                  <button
+                    onClick={stopSandbox}
+                    className="w-full py-2 px-4 rounded-xl text-xs font-semibold bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-colors flex items-center justify-center gap-1.5"
+                    style={{fontFamily:"'Figtree',sans-serif"}}
+                  >
+                    <StopCircle className="w-4 h-4"/> Stop Session
+                  </button>
+                ) : (
+                  <button
+                    onClick={startSandbox}
+                    className="w-full py-2 px-4 rounded-xl text-xs font-semibold bg-foreground text-white hover:bg-foreground/90 transition-colors flex items-center justify-center gap-1.5"
+                    style={{fontFamily:"'Figtree',sans-serif"}}
+                  >
+                    <Mic className="w-4 h-4"/> Restart Session
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

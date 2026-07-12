@@ -33,8 +33,10 @@ import { eventBus, PROVIDER_EVENTS } from './core/provider-sdk/provider.events';
 // ─── Routes ──────────────────────────────────────
 import callRoutes from './routes/calls';
 import agentRoutes from './routes/agents';
+import numbersRoutes from './routes/numbers';
 import { getUserIdFromRequest } from './utils/auth';
 import webhookRoutes from './routes/webhooks';
+import { SandboxStreamHandler } from './websockets/SandboxStreamHandler';
 
 // ─── Express App ─────────────────────────────────
 
@@ -145,6 +147,7 @@ app.post('/api/v2/calls/outbound', (req, res, next) => {
   next();
 }, CallController.initiateCall);
 app.use('/api/v2/agents', agentRoutes);
+app.use('/api/v2/numbers', numbersRoutes);
 app.use('/api/v2/webhooks', webhookRoutes);
 
 // ─── 404 Handler ─────────────────────────────────
@@ -252,6 +255,24 @@ async function bootstrap(): Promise<void> {
       }
     });
     logger.info('Bolna Server: Seeded dev workspace user devr01499@gmail.com ✓');
+
+    // Seed default workspace phone number if missing
+    await prisma.phoneNumber.upsert({
+      where: { phoneNumber: '+12345678901' },
+      update: {},
+      create: {
+        id: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+        phoneNumber: '+12345678901',
+        userId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+        countryCode: 'US',
+        type: 'local',
+        telephonyProvider: 'vobiz',
+        capabilities: '["voice"]',
+        status: 'active',
+        monthlyCost: 1.0,
+      }
+    });
+    logger.info('Bolna Server: Seeded dev workspace phone number +12345678901 ✓');
   } catch (err) {
     logger.error('Bolna Server: database connection failed', {
       error: err instanceof Error ? err.message : String(err),
@@ -278,6 +299,14 @@ async function bootstrap(): Promise<void> {
     noServer: true,
   });
 
+  // Create WebSocket server for browser client sandbox tester streams
+  const wssSandbox = new WebSocketServer({
+    noServer: true,
+  });
+
+  const sandboxHandler = new SandboxStreamHandler();
+  sandboxHandler.initialize(wssSandbox);
+
   // Handle server upgrades manually to route requests to the correct WebSocket server
   server.on('upgrade', (request, socket, head) => {
     try {
@@ -291,6 +320,10 @@ async function bootstrap(): Promise<void> {
       } else if (pathname === '/live-transcript') {
         wssTranscript.handleUpgrade(request, socket, head, (ws) => {
           wssTranscript.emit('connection', ws, request);
+        });
+      } else if (pathname === '/api/v2/sandbox/test-stream') {
+        wssSandbox.handleUpgrade(request, socket, head, (ws) => {
+          wssSandbox.emit('connection', ws, request);
         });
       } else {
         logger.warn('WebSocket upgrade request rejected — unhandled path', { pathname });
