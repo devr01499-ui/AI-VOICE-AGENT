@@ -84,6 +84,7 @@ export class SandboxStreamHandler {
         model: agent.model || 'models/gemini-2.5-flash-native-audio-latest',
         voice: agent.voiceName || 'Aoede',
         instructions: agent.systemPrompt || 'You are a helpful assistant.',
+        userId: userId,
       };
 
       const callbacks = {

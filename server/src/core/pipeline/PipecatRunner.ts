@@ -52,7 +52,7 @@ export class PipecatRunner {
     });
 
     // 1. PIPELINE INGESTION INTERFACE
-    this.pipeline = new Pipeline([this.geminiService], this.callId, onFunctionCall);
+    this.pipeline = new Pipeline([this.geminiService], this.callId, onFunctionCall, this.userId);
 
     // 3. NATIVE ASYNC BARGE-IN DEFENSE
     // Register the Pipecat pipeline's VAD observer hook.

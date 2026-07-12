@@ -47,6 +47,8 @@ router.get(
           email: true,
           fullName: true,
           billingBalance: true,
+          geminiApiKey: true,
+          callingBalanceMinutes: true,
         }
       });
       res.json({

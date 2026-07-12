@@ -63,6 +63,7 @@ interface ActiveSession {
   ws: WebSocket;
   callbacks: RealtimeEventCallbacks;
   createdAt: number;
+  balanceInterval?: NodeJS.Timeout;
 }
 
 export class GeminiLiveProvider implements IRealtimeProvider {
@@ -161,29 +162,40 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       throw new CallError(callId, `Invalid voice: ${config.voice}`, 'INVALID_CONFIG');
     }
 
-    const model = 'gemini-2.5-flash-native-audio-latest';
-
-    // ✅ FIXED: Use v1alpha endpoint (was v1beta)
-    // v1alpha is the current stable endpoint for Gemini Live API
-    // v1beta was causing connection timeouts and API key blocking
-    const apiVersion = 'v1alpha';
-    
-    const baseUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.${apiVersion}.GenerativeService.BidiGenerateContent`;
-    
-    // ✅ FIXED: Properly URL-encode the API key
-    // Some special characters in API keys can break WebSocket connections if not encoded
-    const wsUrl = `${baseUrl}?key=${encodeURIComponent(this.apiKey)}`;
-
-    logger.info('GeminiLiveProvider: creating session', {
-      model,
-      voice: config.voice,
-      apiVersion,
-      endpoint: baseUrl,  // ✅ Log the endpoint for debugging
-    });
-
-    if (!this.apiKey) {
-      throw new ProviderError('gemini-live', 'GEMINI_API_KEY environment variable is missing.');
+    // priority key/balance waterfall resolution:
+    const userId = config.userId;
+    if (!userId) {
+      throw new CallError(callId, 'userId required for value gateway check', 'INVALID_CONFIG');
     }
+
+    const prismaInstance = (await import('../../config/database')).prisma;
+    const userProfile = await prismaInstance.user.findUnique({ where: { id: userId } });
+    if (!userProfile) {
+      throw new CallError(callId, 'Authenticated user profile not found', 'INVALID_CONFIG');
+    }
+
+    let selectedApiKey: string;
+    let accountsAgainstPlatformBalance = false;
+
+    if (userProfile.geminiApiKey && userProfile.geminiApiKey.trim() !== '') {
+      // Use User's Custom Key (BYOK Mode - Cost Free to Platform)
+      selectedApiKey = userProfile.geminiApiKey.trim();
+      logger.info('Monetization Gateway: BYOK Mode enabled', { userId, callId });
+    } else if (userProfile.callingBalanceMinutes > 0) {
+      // Use Platform Central Master Key (Subtracts User Free Balance Trial minutes)
+      selectedApiKey = this.apiKey;
+      accountsAgainstPlatformBalance = true;
+      logger.info('Monetization Gateway: Platform Balance Mode enabled', { userId, callId, remainingMinutes: userProfile.callingBalanceMinutes });
+    } else {
+      // Block Session Execution completely due to empty balances
+      logger.warn('Monetization Gateway: Access blocked. Insufficient balances or missing keys.', { userId, callId });
+      throw new Error("INSUFFICIENT_FUNDS_OR_MISSING_KEY");
+    }
+
+    const model = 'gemini-2.5-flash-native-audio-latest';
+    const apiVersion = 'v1alpha';
+    const baseUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.${apiVersion}.GenerativeService.BidiGenerateContent`;
+    const wsUrl = `${baseUrl}?key=${encodeURIComponent(selectedApiKey)}`;
 
     const sessionId = `gemini-sess-${Date.now()}`;
     const ws = new WebSocket(wsUrl);
@@ -196,6 +208,42 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       model: `models/${model}`,
     };
     this.ws = ws;
+
+    // Repeating balance countdown interval loop:
+    let balanceInterval: NodeJS.Timeout | undefined;
+    if (accountsAgainstPlatformBalance) {
+      balanceInterval = setInterval(async () => {
+        try {
+          if (ws.readyState !== WebSocket.OPEN) {
+            if (balanceInterval) clearInterval(balanceInterval);
+            return;
+          }
+
+          const updatedUser = await prismaInstance.user.update({
+            where: { id: userId },
+            data: {
+              callingBalanceMinutes: {
+                decrement: 1.0
+              }
+            }
+          });
+
+          logger.info('Monetization Gateway: Deducted 1.0 minute from user balance', {
+            userId,
+            remainingMinutes: updatedUser.callingBalanceMinutes
+          });
+
+          if (updatedUser.callingBalanceMinutes <= 0) {
+            logger.warn('Monetization Gateway: Balance depleted. Terminating connection cleanly.', { userId, callId });
+            if (balanceInterval) clearInterval(balanceInterval);
+            ws.close(1011, "INSUFFICIENT_BALANCE");
+            callbacks.onError?.(sessionId, new Error("INSUFFICIENT_BALANCE"));
+          }
+        } catch (tickerErr) {
+          logger.error('Monetization Gateway: Failed to decrement calling credits', { error: String(tickerErr) });
+        }
+      }, 60000);
+    }
 
     // Create setupComplete waiter
     let setupResolve: () => void;
@@ -339,6 +387,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
             ws,
             callbacks,
             createdAt: Date.now(),
+            ...(balanceInterval && { balanceInterval }),
           });
 
           const handler = this.setupCompletePromises.get(sessionId);
@@ -380,6 +429,13 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         code,
         reason: reason.toString(),
       });
+      const activeSess = this.activeSessions.get(sessionId);
+      if (activeSess?.balanceInterval) {
+        clearInterval(activeSess.balanceInterval);
+      }
+      if (balanceInterval) {
+        clearInterval(balanceInterval);
+      }
       this.activeSessions.delete(sessionId);
 
       const handler = this.setupCompletePromises.get(sessionId);
@@ -500,6 +556,10 @@ export class GeminiLiveProvider implements IRealtimeProvider {
   async closeSession(sessionId: string): Promise<void> {
     const session = this.activeSessions.get(sessionId);
     if (!session) return;
+
+    if (session.balanceInterval) {
+      clearInterval(session.balanceInterval);
+    }
 
     try {
       if (session.ws.readyState === WebSocket.OPEN) {

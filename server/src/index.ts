@@ -40,6 +40,7 @@ import { SandboxStreamHandler } from './websockets/SandboxStreamHandler';
 import { requireAuth } from './middleware/auth';
 import kbRoutes from './routes/knowledgeBase';
 import analyticsRoutes from './routes/analytics';
+import userRoutes from './routes/user';
 
 // ─── Express App ─────────────────────────────────
 
@@ -145,6 +146,7 @@ app.use('/api/v2/agents', requireAuth, agentRoutes);
 app.use('/api/v2/numbers', requireAuth, numbersRoutes);
 app.use('/api/v2/knowledge-base', requireAuth, kbRoutes);
 app.use('/api/v2/analytics', requireAuth, analyticsRoutes);
+app.use('/api/v2/user', requireAuth, userRoutes);
 app.use('/api/v2/webhooks', webhookRoutes);
 
 // ─── 404 Handler ─────────────────────────────────

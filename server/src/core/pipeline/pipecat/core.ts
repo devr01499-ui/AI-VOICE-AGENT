@@ -13,7 +13,8 @@ export class Pipeline {
   constructor(
     services: any[],
     private readonly callId: string,
-    private readonly onFunctionCallCallback?: (toolCallId: string, name: string, args: string) => Promise<string>
+    private readonly onFunctionCallCallback?: (toolCallId: string, name: string, args: string) => Promise<string>,
+    private readonly userId?: string
   ) {
     this.service = services[0];
     this.provider = new GeminiLiveProvider();
@@ -55,6 +56,7 @@ export class Pipeline {
       voice: this.service.config.voiceConfig.prebuiltVoiceConfig.voiceName,
       instructions: this.service.config.systemInstruction,
       tools: this.service.config.tools,
+      userId: this.userId,
     };
 
     const callbacks = {

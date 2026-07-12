@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "./lib/supabaseClient";
 import AuthGateway from "./components/auth/AuthGateway";
 import { Session } from "@supabase/supabase-js";
+import BillingGateway from "./components/settings/BillingGateway";
 import { AnalyticsOverview } from "./components/analytics/AnalyticsOverview";
 import {
   fetchAgents, fetchCalls, fetchProfile, createAgent, updateAgent,
@@ -2711,20 +2712,7 @@ function DashSettings() {
         </div>
       )}
       {stab==="billing"&&(
-        <div className="space-y-4">
-          <div className="bg-white border border-border rounded-xl p-5">
-            <div className="flex items-start justify-between mb-4"><div><p className="text-sm font-semibold mb-1" style={{fontFamily:"'Figtree',sans-serif"}}>Growth plan</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>$399/month · Renews July 31, 2025</p></div><DBadge v="success">Active</DBadge></div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs"><span className="text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Voice minutes</span><span style={{fontFamily:"'DM Mono',monospace"}}>7,820 / 12,000</span></div><DProg v={7820} max={12000}/>
-              <div className="flex justify-between text-xs"><span className="text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Active agents</span><span style={{fontFamily:"'DM Mono',monospace"}}>4 / 10</span></div><DProg v={4} max={10}/>
-            </div>
-          </div>
-          <div className="bg-white border border-border rounded-xl p-5 space-y-3">
-            <p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>Payment method</p>
-            <div className="flex items-center gap-3 p-3 border border-border rounded-xl"><div className="w-10 h-7 bg-muted rounded-md flex items-center justify-center text-xs font-bold" style={{fontFamily:"'DM Mono',monospace"}}>VISA</div><p className="text-sm" style={{fontFamily:"'Figtree',sans-serif"}}>•••• •••• •••• 4242</p><p className="text-xs text-muted-foreground ml-auto" style={{fontFamily:"'Figtree',sans-serif"}}>Exp 09/27</p></div>
-            <DBtn variant="secondary"><Edit3 className="w-4 h-4"/> Update payment method</DBtn>
-          </div>
-        </div>
+        <BillingGateway />
       )}
       {stab==="team"&&(
         <div className="space-y-3">

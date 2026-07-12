@@ -61,6 +61,8 @@ export interface ApiProfile {
   email: string;
   fullName: string | null;
   billingBalance: number | null;
+  geminiApiKey?: string | null;
+  callingBalanceMinutes?: number | null;
 }
 
 export interface ApiResponse<T> {
@@ -298,4 +300,11 @@ export async function deleteKBDocument(id: string): Promise<void> {
 
 export async function fetchAnalyticsSummary(): Promise<any> {
   return apiFetch<any>('/api/v2/analytics/summary');
+}
+
+export async function updateBillingConfig(geminiApiKey: string | null): Promise<any> {
+  return apiFetch<any>('/api/v2/user/billing-config', {
+    method: 'POST',
+    body: JSON.stringify({ geminiApiKey }),
+  });
 }
