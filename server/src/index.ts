@@ -38,6 +38,7 @@ import { getUserIdFromRequest, verifySupabaseToken } from './utils/auth';
 import webhookRoutes from './routes/webhooks';
 import { SandboxStreamHandler } from './websockets/SandboxStreamHandler';
 import { requireAuth } from './middleware/auth';
+import { WebhookController } from './controllers/WebhookController';
 import kbRoutes from './routes/knowledgeBase';
 import analyticsRoutes from './routes/analytics';
 import userRoutes from './routes/user';
@@ -148,6 +149,7 @@ app.use('/api/v2/knowledge-base', requireAuth, kbRoutes);
 app.use('/api/v2/analytics', requireAuth, analyticsRoutes);
 app.use('/api/v2/user', requireAuth, userRoutes);
 app.use('/api/v2/webhooks', webhookRoutes);
+app.post('/api/v2/telephony/webhook', WebhookController.handleTelephonyWebhook);
 
 // ─── 404 Handler ─────────────────────────────────
 
