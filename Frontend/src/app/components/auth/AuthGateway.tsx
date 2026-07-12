@@ -7,6 +7,9 @@ export default function AuthGateway() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [accountType, setAccountType] = useState('Individual');
+  const [contactNumber, setContactNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -22,9 +25,19 @@ export default function AuthGateway() {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) throw signInError;
       } else {
-        const { error: signUpError } = await supabase.auth.signUp({ email, password });
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: fullName,
+              account_type: accountType,
+              contact_number: contactNumber,
+            }
+          }
+        });
         if (signUpError) throw signUpError;
-        setMessage('Registration successful! Please check your verification inbox.');
+        setMessage('A security verification link has been sent to your email address. Please confirm your link to activate your workspace.');
       }
     } catch (err: any) {
       setError(err.message || 'Authentication failed. Please verify credentials.');
@@ -101,12 +114,58 @@ export default function AuthGateway() {
           )}
 
           {message && (
-            <div className="bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-xl p-3.5 text-xs font-medium">
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-xl p-3.5 text-xs font-semibold leading-relaxed">
               {message}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {mode === 'signup' && (
+              <>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700" style={{ fontFamily: "'Figtree', sans-serif" }}>
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. John Doe"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-950 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:border-slate-950 transition-all font-medium"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700" style={{ fontFamily: "'Figtree', sans-serif" }}>
+                    Account Type
+                  </label>
+                  <select
+                    value={accountType}
+                    onChange={(e) => setAccountType(e.target.value)}
+                    className="w-full px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-950 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:border-slate-950 transition-all font-medium"
+                  >
+                    <option value="Individual">Individual</option>
+                    <option value="Company">Company</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700" style={{ fontFamily: "'Figtree', sans-serif" }}>
+                    Contact Number
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="e.g. +1234567890"
+                    value={contactNumber}
+                    onChange={(e) => setContactNumber(e.target.value)}
+                    className="w-full px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-950 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:border-slate-950 transition-all font-medium"
+                  />
+                </div>
+              </>
+            )}
+
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-700" style={{ fontFamily: "'Figtree', sans-serif" }}>
                 Email Address

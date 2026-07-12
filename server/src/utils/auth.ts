@@ -6,7 +6,7 @@ export const SEEDED_USER_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 /**
  * Verifies the Supabase access token (JWT) signature securely via Supabase Auth API proxy calls.
  */
-export async function verifySupabaseToken(token: string): Promise<{ email: string; sub: string } | null> {
+export async function verifySupabaseToken(token: string): Promise<{ email: string; sub: string; email_verified?: boolean; user_metadata?: any } | null> {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://elbgdgahyoyfbtuwsktx.supabase.co';
     const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -33,6 +33,8 @@ export async function verifySupabaseToken(token: string): Promise<{ email: strin
       return {
         email: userData.email || '',
         sub: userData.id,
+        email_verified: !!userData.email_confirmed_at,
+        user_metadata: userData.user_metadata || {},
       };
     }
     return null;

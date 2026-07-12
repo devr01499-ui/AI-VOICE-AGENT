@@ -12,6 +12,7 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     const authHeader = req.headers.authorization;
     let userId: string | null = null;
     let email = '';
+    let userMetadata: any = {};
 
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7).trim();
@@ -24,10 +25,19 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
 
       userId = verified.sub;
       email = verified.email;
+      userMetadata = verified.user_metadata || {};
 
       // 3. THE EXPLICIT IDENTITY BIND
       if (email === 'devr01499@gmail.com') {
         userId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+      } else {
+        // Block unverified multi-tenant access
+        if (!verified.email_verified && !verified.user_metadata?.email_confirmed_at) {
+          res.status(403).json({ 
+            error: "Access Denied: Please verify your email address via the sent security link to activate this workspace environment." 
+          });
+          return;
+        }
       }
     } else {
       // Fallback to x-user-id for legacy/development compatibility
@@ -44,14 +54,25 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
       return;
     }
 
+    // Extract metadata attributes directly
+    const fullName = userMetadata.full_name || (email ? email.split('@')[0] : 'Supabase User');
+    const accountType = userMetadata.account_type || 'free';
+    const contactNumber = userMetadata.contact_number || null;
+
     // Auto-upsert locally in local Postgres/SQLite schemas to prevent relation constraints failures
     await prisma.user.upsert({
       where: { id: userId },
-      update: {},
+      update: {
+        fullName: fullName,
+        accountType: accountType,
+        contactNumber: contactNumber,
+      },
       create: {
         id: userId,
         email: email || `user-${userId}@supabase.io`,
-        fullName: email ? email.split('@')[0] : 'Supabase User',
+        fullName: fullName,
+        accountType: accountType,
+        contactNumber: contactNumber,
         passwordHash: 'seeded-supabase-auth-placeholder',
         billingBalance: 1000.0,
       }

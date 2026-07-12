@@ -21,6 +21,7 @@ model User {
   fullName       String   @map("full_name")
   accountType    String   @default("free") @map("account_type") // free | developer | professional | enterprise
   billingBalance Float    @default(100.0) @map("billing_balance")
+  contactNumber  String?  @map("contact_number")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
