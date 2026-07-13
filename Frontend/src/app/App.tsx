@@ -109,7 +109,7 @@ function Nav({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <button
           onClick={() => setPage("home")}
-          className="flex items-center h-14 group"
+          className="flex items-center h-16 group"
         >
           <img src="/logo.png" alt="Clarity Voice Logo" className="h-full w-auto object-contain" />
         </button>
