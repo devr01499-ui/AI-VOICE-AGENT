@@ -109,7 +109,7 @@ function Nav({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <button
           onClick={() => setPage("home")}
-          className="flex items-center h-8 group"
+          className="flex items-center h-10 group"
         >
           <img src="/logo.png" alt="Clarity Voice Logo" className="h-full w-auto object-contain" />
         </button>
@@ -570,7 +570,7 @@ function HomePage({ setPage }: { setPage: (p: Page) => void }) {
       <footer className="border-t border-border py-12 px-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start gap-8">
           <div>
-            <div className="flex items-center gap-2 mb-3 h-6">
+            <div className="flex items-center gap-2 mb-3 h-8">
               <img src="/logo.png" alt="Clarity Voice Logo" className="h-full w-auto object-contain" />
             </div>
             <p className="text-xs text-muted-foreground max-w-xs" style={{ fontFamily: "'Figtree', sans-serif" }}>
