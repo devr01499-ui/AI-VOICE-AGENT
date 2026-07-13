@@ -77,6 +77,49 @@ export class GeminiLiveProvider implements IRealtimeProvider {
   };
   public ws!: WebSocket;
 
+  private balanceIntervalId: NodeJS.Timeout | null = null;
+  private callStartTime: number | null = null;
+  private currentUserId: string | null = null;
+  private accountsAgainstPlatformBalance: boolean = false;
+
+  private clearBalanceTicker() {
+    if (this.balanceIntervalId) {
+      clearInterval(this.balanceIntervalId);
+      this.balanceIntervalId = null;
+    }
+  }
+
+  private async processBalanceDeduction(): Promise<void> {
+    if (this.callStartTime && this.accountsAgainstPlatformBalance && this.currentUserId) {
+      const elapsedSeconds = (Date.now() - this.callStartTime) / 1000;
+      const elapsedMinutes = elapsedSeconds / 60;
+      const decrementVal = parseFloat(elapsedMinutes.toFixed(4));
+      
+      const userId = this.currentUserId;
+      this.callStartTime = null; // Prevent double deduction
+      this.accountsAgainstPlatformBalance = false;
+      this.currentUserId = null;
+
+      try {
+        const prismaInstance = (await import('../../config/database')).prisma;
+        await prismaInstance.user.update({
+          where: { id: userId },
+          data: {
+            callingBalanceMinutes: {
+              decrement: decrementVal
+            }
+          }
+        });
+        logger.info('Monetization Gateway: Deducted minutes from platform balance upon call termination', {
+          userId,
+          elapsedMinutes: decrementVal
+        });
+      } catch (err) {
+        logger.error('Monetization Gateway: Failed to decrement calling credits on session closure', { error: String(err) });
+      }
+    }
+  }
+
   private readonly activeSessions = new Map<string, ActiveSession>();
   private readonly apiKey: string;
 
@@ -208,39 +251,51 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       model: `models/${model}`,
     };
     this.ws = ws;
+    this.currentUserId = userId;
+    this.callStartTime = Date.now();
+    this.accountsAgainstPlatformBalance = accountsAgainstPlatformBalance;
+
+    ws.on('close', () => this.clearBalanceTicker());
+    ws.on('error', () => this.clearBalanceTicker());
+    ws.on('unexpected-response', () => this.clearBalanceTicker());
 
     // Repeating balance countdown interval loop:
-    let balanceInterval: NodeJS.Timeout | undefined;
     if (accountsAgainstPlatformBalance) {
-      balanceInterval = setInterval(async () => {
+      this.balanceIntervalId = setInterval(async () => {
         try {
           if (ws.readyState !== WebSocket.OPEN) {
-            if (balanceInterval) clearInterval(balanceInterval);
+            this.clearBalanceTicker();
             return;
           }
 
-          const updatedUser = await prismaInstance.user.update({
-            where: { id: userId },
-            data: {
-              callingBalanceMinutes: {
-                decrement: 1.0
-              }
-            }
+          if (!this.callStartTime) return;
+          const elapsedSeconds = (Date.now() - this.callStartTime) / 1000;
+          const elapsedMinutes = elapsedSeconds / 60;
+
+          const currentUser = await prismaInstance.user.findUnique({
+            where: { id: userId }
           });
 
-          logger.info('Monetization Gateway: Deducted 1.0 minute from user balance', {
+          if (!currentUser) {
+            this.clearBalanceTicker();
+            ws.close(1011, "USER_NOT_FOUND");
+            return;
+          }
+
+          logger.info('Monetization Gateway: Balance check ticker', {
             userId,
-            remainingMinutes: updatedUser.callingBalanceMinutes
+            elapsedMinutes: elapsedMinutes.toFixed(4),
+            startingBalance: currentUser.callingBalanceMinutes
           });
 
-          if (updatedUser.callingBalanceMinutes <= 0) {
+          if (elapsedMinutes >= currentUser.callingBalanceMinutes) {
             logger.warn('Monetization Gateway: Balance depleted. Terminating connection cleanly.', { userId, callId });
-            if (balanceInterval) clearInterval(balanceInterval);
+            this.clearBalanceTicker();
             ws.close(1011, "INSUFFICIENT_BALANCE");
             callbacks.onError?.(sessionId, new Error("INSUFFICIENT_BALANCE"));
           }
         } catch (tickerErr) {
-          logger.error('Monetization Gateway: Failed to decrement calling credits', { error: String(tickerErr) });
+          logger.error('Monetization Gateway: Failed to check calling credits', { error: String(tickerErr) });
         }
       }, 60000);
     }
@@ -282,15 +337,15 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       if (config.callId) {
         try {
           const prismaInstance = (await import('../../config/database')).prisma;
-          // Find the call log to resolve agentId
-          const callLog = await prismaInstance.call.findUnique({
-            where: { id: config.callId },
+          // Find the call log to resolve agentId, filtering by userId to prevent cross-tenant parameter poisoning
+          const callLog = await prismaInstance.call.findFirst({
+            where: { id: config.callId, userId },
             select: { agentId: true }
           });
 
           if (callLog?.agentId) {
             const kbDocs = await prismaInstance.knowledgeBase.findMany({
-              where: { agentId: callLog.agentId }
+              where: { agentId: callLog.agentId, userId }
             });
 
             if (kbDocs.length > 0) {
@@ -317,8 +372,8 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       if (config.agentId) {
         try {
           const prismaInstance = (await import('../../config/database')).prisma;
-          const dbAgent = await prismaInstance.agent.findUnique({
-            where: { id: config.agentId },
+          const dbAgent = await prismaInstance.agent.findFirst({
+            where: { id: config.agentId, userId },
             select: { systemVoice: true, temperature: true }
           });
           if (dbAgent) {
@@ -406,11 +461,12 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         // Handshake complete once setupComplete is received
         if (event.setupComplete) {
           logger.info('GeminiLiveProvider [HANDSHAKE]: setupComplete received from Google.', { sessionId, event: JSON.stringify(event) });
+          this.callStartTime = Date.now();
           this.activeSessions.set(sessionId, {
             ws,
             callbacks,
             createdAt: Date.now(),
-            ...(balanceInterval && { balanceInterval }),
+            ...(this.balanceIntervalId && { balanceInterval: this.balanceIntervalId }),
           });
 
           const handler = this.setupCompletePromises.get(sessionId);
@@ -436,6 +492,10 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         sessionId,
         error: err.message,
       });
+      this.clearBalanceTicker();
+      this.processBalanceDeduction().catch((deductErr) => {
+        logger.error('GeminiLiveProvider: error during balance deduction on socket error', { error: String(deductErr) });
+      });
       callbacks.onError?.(sessionId, err);
 
       const handler = this.setupCompletePromises.get(sessionId);
@@ -452,12 +512,11 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         code,
         reason: reason.toString(),
       });
+      this.clearBalanceTicker();
+      await this.processBalanceDeduction();
       const activeSess = this.activeSessions.get(sessionId);
       if (activeSess?.balanceInterval) {
         clearInterval(activeSess.balanceInterval);
-      }
-      if (balanceInterval) {
-        clearInterval(balanceInterval);
       }
       this.activeSessions.delete(sessionId);
 
@@ -583,6 +642,9 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     if (session.balanceInterval) {
       clearInterval(session.balanceInterval);
     }
+
+    this.clearBalanceTicker();
+    await this.processBalanceDeduction();
 
     try {
       if (session.ws.readyState === WebSocket.OPEN) {

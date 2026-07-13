@@ -109,14 +109,9 @@ function Nav({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <button
           onClick={() => setPage("home")}
-          className="flex items-center gap-2 group"
+          className="flex items-center h-8 group"
         >
-          <div className="w-7 h-7 bg-foreground rounded-lg flex items-center justify-center">
-            <Volume2 className="w-4 h-4 text-white" strokeWidth={1.5} />
-          </div>
-          <span style={{ fontFamily: "'Instrument Serif', serif" }} className="text-lg font-normal tracking-tight">
-            AI Voice <span className="italic">Clarity</span>
-          </span>
+          <img src="/logo.png" alt="Clarity Voice Logo" className="h-full w-auto object-contain" />
         </button>
 
         <div className="hidden md:flex items-center gap-8">
@@ -223,7 +218,7 @@ function HomePage({ setPage }: { setPage: (p: Page) => void }) {
               className="text-lg text-muted-foreground leading-relaxed mb-8 max-w-md"
               style={{ fontFamily: "'Figtree', sans-serif", fontWeight: 400 }}
             >
-              AI Voice Clarity deploys intelligent voice agents that handle calls with empathy, precision, and clarity — at any scale, in any industry, around the clock.
+              Clarity Voice deploys intelligent voice agents that handle calls with empathy, precision, and clarity — at any scale, in any industry, around the clock.
             </p>
 
             <div className="flex flex-wrap items-center gap-4">
@@ -383,7 +378,7 @@ function HomePage({ setPage }: { setPage: (p: Page) => void }) {
       <section className="py-24 px-6 max-w-7xl mx-auto">
         <div className="mb-16">
           <p className="text-xs font-medium text-muted-foreground tracking-widest uppercase mb-3" style={{ fontFamily: "'DM Mono', monospace" }}>
-            Why AI Voice Clarity
+            Why Clarity Voice
           </p>
           <h2
             className="text-4xl lg:text-5xl font-normal leading-tight max-w-xl"
@@ -506,7 +501,7 @@ function HomePage({ setPage }: { setPage: (p: Page) => void }) {
               role: "VP Operations, Aetna",
             },
             {
-              quote: "Our appointment show rate went from 62% to 89% after deploying AI Voice Clarity for reminder calls. That's revenue we were literally leaving on the table.",
+              quote: "Our appointment show rate went from 62% to 89% after deploying Clarity Voice for reminder calls. That's revenue we were literally leaving on the table.",
               name: "Dr. Michael Torres",
               role: "CMO, Lakeside Medical Group",
             },
@@ -575,13 +570,8 @@ function HomePage({ setPage }: { setPage: (p: Page) => void }) {
       <footer className="border-t border-border py-12 px-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start gap-8">
           <div>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-6 h-6 bg-foreground rounded-md flex items-center justify-center">
-                <Volume2 className="w-3.5 h-3.5 text-white" strokeWidth={1.5} />
-              </div>
-              <span style={{ fontFamily: "'Instrument Serif', serif" }} className="font-normal">
-                AI Voice <span className="italic">Clarity</span>
-              </span>
+            <div className="flex items-center gap-2 mb-3 h-6">
+              <img src="/logo.png" alt="Clarity Voice Logo" className="h-full w-auto object-contain" />
             </div>
             <p className="text-xs text-muted-foreground max-w-xs" style={{ fontFamily: "'Figtree', sans-serif" }}>
               Intelligent voice agents for every industry. HIPAA · SOC 2 · GDPR · PCI-DSS certified.
@@ -608,7 +598,7 @@ function HomePage({ setPage }: { setPage: (p: Page) => void }) {
         </div>
         <div className="max-w-7xl mx-auto mt-8 pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-2">
           <p className="text-xs text-muted-foreground" style={{ fontFamily: "'DM Mono', monospace" }}>
-            © 2025 AI VOICE CLARITY INC. — ALL RIGHTS RESERVED
+            © 2025 CLARITY VOICE INC. — ALL RIGHTS RESERVED
           </p>
           <p className="text-xs text-muted-foreground" style={{ fontFamily: "'DM Mono', monospace" }}>
             SOC 2 TYPE II · HIPAA · GDPR COMPLIANT
@@ -629,7 +619,7 @@ function IndustriesPage({ setPage }: { setPage: (p: Page) => void }) {
       name: "Healthcare",
       tagline: "Patient-first voice AI, built for compliance.",
       description:
-        "From appointment scheduling and medication reminders to post-discharge follow-ups and prior authorization calls — AI Voice Clarity handles the full patient communication cycle while remaining HIPAA-compliant on every call.",
+        "From appointment scheduling and medication reminders to post-discharge follow-ups and prior authorization calls — Clarity Voice handles the full patient communication cycle while remaining HIPAA-compliant on every call.",
       useCases: ["Appointment reminders", "Prescription refill requests", "Insurance verification", "Discharge follow-up", "Chronic care check-ins"],
       stat: "89%",
       statLabel: "reduction in no-shows",
@@ -641,7 +631,7 @@ function IndustriesPage({ setPage }: { setPage: (p: Page) => void }) {
       description:
         "Handle fraud alerts, loan inquiries, account servicing, and collections with voice agents that are PCI-DSS compliant, always consistent, and never rude — even on the toughest calls.",
       useCases: ["Fraud alert outreach", "Loan application follow-up", "Collections & payment plans", "KYC verification", "Card activation"],
-      stat: "3.4×",
+      stat: "3.4\u00d7",
       statLabel: "collection rate improvement",
     },
     {
@@ -649,7 +639,7 @@ function IndustriesPage({ setPage }: { setPage: (p: Page) => void }) {
       name: "Retail & E-Commerce",
       tagline: "Turn support calls into loyalty moments.",
       description:
-        "Order status, returns, product availability, loyalty points — your customers want fast answers, not hold music. AI Voice Clarity resolves 94% of retail inquiries on the first call without human escalation.",
+        "Order status, returns, product availability, loyalty points — your customers want fast answers, not hold music. Clarity Voice resolves 94% of retail inquiries on the first call without human escalation.",
       useCases: ["Order tracking & updates", "Return & refund processing", "Loyalty program support", "Product recommendations", "Abandoned cart recovery"],
       stat: "94%",
       statLabel: "first-call resolution",
@@ -669,7 +659,7 @@ function IndustriesPage({ setPage }: { setPage: (p: Page) => void }) {
       name: "Logistics & Supply Chain",
       tagline: "Proactive updates before customers ask.",
       description:
-        "Delivery ETAs, exceptions, driver dispatch, and freight status — AI Voice Clarity eliminates the inbound call spike that hits every time a shipment is delayed.",
+        "Delivery ETAs, exceptions, driver dispatch, and freight status — Clarity Voice eliminates the inbound call spike that hits every time a shipment is delayed.",
       useCases: ["Delivery notifications", "Exception management", "Driver coordination", "Freight status updates", "Returns scheduling"],
       stat: "62%",
       statLabel: "reduction in WISMO calls",
@@ -689,9 +679,9 @@ function IndustriesPage({ setPage }: { setPage: (p: Page) => void }) {
       name: "Real Estate",
       tagline: "Qualify leads before your agents call.",
       description:
-        "AI Voice Clarity pre-qualifies inbound leads, schedules showings, follows up on listings, and nurtures long-cycle buyers — so your agents spend time closing, not chasing.",
+        "Clarity Voice pre-qualifies inbound leads, schedules showings, follows up on listings, and nurtures long-cycle buyers — so your agents spend time closing, not chasing.",
       useCases: ["Lead qualification", "Showing scheduling", "Listing follow-up", "Mortgage inquiry routing", "Open house confirmation"],
-      stat: "5×",
+      stat: "5\u00d7",
       statLabel: "more showings scheduled",
     },
     {
@@ -699,7 +689,7 @@ function IndustriesPage({ setPage }: { setPage: (p: Page) => void }) {
       name: "Insurance",
       tagline: "Claims, renewals, and outreach — handled.",
       description:
-        "From first notice of loss to renewal campaigns, AI Voice Clarity operates as a tireless extension of your contact center — with perfect recall of every policy detail.",
+        "From first notice of loss to renewal campaigns, Clarity Voice operates as a tireless extension of your contact center — with perfect recall of every policy detail.",
       useCases: ["FNOL intake", "Policy renewal outreach", "Claims status updates", "Coverage explanations", "Cross-sell campaigns"],
       stat: "78%",
       statLabel: "of renewals handled end-to-end",
@@ -723,7 +713,7 @@ function IndustriesPage({ setPage }: { setPage: (p: Page) => void }) {
               <span className="italic">the phone.</span>
             </h1>
             <p className="text-muted-foreground max-w-sm" style={{ fontFamily: "'Figtree', sans-serif" }}>
-              AI Voice Clarity is purpose-built for eight verticals, with industry-specific language models, compliance profiles, and integrations pre-configured.
+              Clarity Voice is purpose-built for eight verticals, with industry-specific language models, compliance profiles, and integrations pre-configured.
             </p>
           </div>
         </motion.div>
@@ -831,7 +821,7 @@ function IndustriesPage({ setPage }: { setPage: (p: Page) => void }) {
             Don&apos;t see your industry?
           </h2>
           <p className="text-white/70 mb-8 max-w-md mx-auto" style={{ fontFamily: "'Figtree', sans-serif" }}>
-            AI Voice Clarity is fully customizable. If your business runs on phone calls, we can build an agent for it.
+            Clarity Voice is fully customizable. If your business runs on phone calls, we can build an agent for it.
           </p>
           <button
             className="bg-white text-foreground font-medium px-6 py-3 rounded-full hover:bg-white/90 transition-all"
@@ -1026,12 +1016,12 @@ function PricingPage({ setPage }: { setPage: (p: Page) => void }) {
             a: "A voice minute is one minute of active call time between your AI agent and a caller. Hold time and silence are not billed. Unused minutes do not roll over between billing periods.",
           },
           {
-            q: "Can I try AI Voice Clarity before committing?",
+            q: "Can I try Clarity Voice before committing?",
             a: "Yes — every plan includes a 14-day free trial with 500 minutes included. No credit card is required to start. You can cancel or downgrade at any time, no questions asked.",
           },
           {
             q: "How does the Healthcare / HIPAA compliance work?",
-            a: "AI Voice Clarity signs a Business Associate Agreement (BAA) with all Enterprise customers by default, and optionally for Growth plan customers in healthcare. All calls are encrypted in transit and at rest. PHI is never used for model training.",
+            a: "Clarity Voice signs a Business Associate Agreement (BAA) with all Enterprise customers by default, and optionally for Growth plan customers in healthcare. All calls are encrypted in transit and at rest. PHI is never used for model training.",
           },
           {
             q: "Can I bring my own phone numbers?",
@@ -2344,7 +2334,7 @@ function DashNumbers() {
   const [showBuy, setShowBuy] = useState(false);
   const [showSip, setShowSip] = useState(false);
   const [showPass, setShowPass] = useState(false);
-  const [sipForm, setSipForm] = useState({uri:"sip:pbx.acmecorp.com",user:"aivoiceclarity",pass:"",codec:"PCMU,PCMA,G722",transport:"TLS",dtmf:"RFC 2833",register:true});
+  const [sipForm, setSipForm] = useState({uri:"sip:pbx.acmecorp.com",user:"clarityvoice",pass:"",codec:"PCMU,PCMA,G722",transport:"TLS",dtmf:"RFC 2833",register:true});
   const buyResults = [
     {number:"+1 (212) 555-0182",region:"New York, NY",type:"local",mo:2.00},
     {number:"+1 (310) 555-0847",region:"Los Angeles, CA",type:"local",mo:2.00},
@@ -2391,7 +2381,7 @@ function DashNumbers() {
 
       <DModal open={showSip} onClose={()=>setShowSip(false)} title="SIP trunk configuration" width="max-w-xl">
         <div className="space-y-4">
-          <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3"><Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5"/><p className="text-xs text-blue-700" style={{fontFamily:"'Figtree',sans-serif"}}>Connects AI Voice Clarity directly to your on-premise PBX or UCaaS (Cisco, Avaya, Asterisk, FreePBX, 3CX).</p></div>
+          <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3"><Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5"/><p className="text-xs text-blue-700" style={{fontFamily:"'Figtree',sans-serif"}}>Connects Clarity Voice directly to your on-premise PBX or UCaaS (Cisco, Avaya, Asterisk, FreePBX, 3CX).</p></div>
           <DField label="SIP URI"><DInput value={sipForm.uri} onChange={e=>setSipForm(f=>({...f,uri:e.target.value}))}/></DField>
           <div className="grid grid-cols-2 gap-3">
             <DField label="Username"><DInput value={sipForm.user} onChange={e=>setSipForm(f=>({...f,user:e.target.value}))}/></DField>
@@ -2673,11 +2663,11 @@ function DashSettings() {
         <div className="space-y-4">
           <div className="bg-white border border-border rounded-xl p-5 space-y-5">
             <p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>API keys</p>
-            {[{label:"Production key",key:"avc_prod_sk_2x9mNpQrTvWx...3K8L",env:"production"},{label:"Test key",key:"avc_test_sk_8nBpQsRuVxZa...7M2N",env:"test"}].map(k=>(
+            {[{label:"Production key",key:"cv_prod_sk_2x9mNpQrTvWx...3K8L",env:"production"},{label:"Test key",key:"cv_test_sk_8nBpQsRuVxZa...7M2N",env:"test"}].map(k=>(
               <div key={k.label} className="space-y-2">
                 <div className="flex items-center justify-between"><span className="text-xs font-medium text-muted-foreground uppercase" style={{fontFamily:"'DM Mono',monospace"}}>{k.label}</span><DBadge v={k.env==="production"?"success":"info"}>{k.env}</DBadge></div>
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-muted/40 border border-border rounded-lg px-3 py-2 text-xs overflow-hidden" style={{fontFamily:"'DM Mono',monospace"}}>{apiVis?k.key:"avc_"+k.env.slice(0,4)+"_sk_••••••••••••••••••••••••••••"}</div>
+                  <div className="flex-1 bg-muted/40 border border-border rounded-lg px-3 py-2 text-xs overflow-hidden" style={{fontFamily:"'DM Mono',monospace"}}>{apiVis?k.key:"cv_"+k.env.slice(0,4)+"_sk_••••••••••••••••••••••••••••"}</div>
                   <button onClick={()=>setApiVis(!apiVis)} className="p-2 border border-border rounded-lg hover:bg-muted">{apiVis?<EyeOff className="w-4 h-4 text-muted-foreground"/>:<Eye className="w-4 h-4 text-muted-foreground"/>}</button>
                   <button className="p-2 border border-border rounded-lg hover:bg-muted"><Copy className="w-4 h-4 text-muted-foreground"/></button>
                 </div>
@@ -2687,7 +2677,7 @@ function DashSettings() {
           </div>
           <div className="bg-white border border-border rounded-xl p-5 space-y-3">
             <p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>Quick start</p>
-            <div className="bg-muted/40 border border-border rounded-xl p-4 overflow-x-auto"><pre className="text-xs" style={{fontFamily:"'DM Mono',monospace"}}>{`curl -X POST https://api.aivoiceclarity.com/v1/calls \\\n  -H "Authorization: Bearer avc_prod_sk_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{"agent_id":"a2","to":"+13125550198","from":"+18005550842"}'`}</pre></div>
+            <div className="bg-muted/40 border border-border rounded-xl p-4 overflow-x-auto"><pre className="text-xs" style={{fontFamily:"'DM Mono',monospace"}}>{`curl -X POST https://api.clarityvoice.com/v1/calls \\\n  -H "Authorization: Bearer cv_prod_sk_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{"agent_id":"a2","to":"+13125550198","from":"+18005550842"}'`}</pre></div>
           </div>
         </div>
       )}

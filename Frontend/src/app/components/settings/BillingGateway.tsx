@@ -149,7 +149,7 @@ export default function BillingGateway() {
                   Option B: Platform Balance
                 </p>
                 <p className="text-xs text-muted-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
-                  Uses Clarity shared keys. Subtracts balance minutes.
+                  Uses Clarity Voice shared keys. Subtracts balance minutes.
                 </p>
               </div>
             </div>
