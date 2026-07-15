@@ -25,7 +25,7 @@ import { errorHandler } from './utils/errorHandler';
 import { requestIdMiddleware } from './middleware/requestId';
 import { initializeProviders } from './config/providers';
 import { ProviderManager } from './providers/ProviderManager';
-import { prisma } from './config/database';
+import { prisma } from './lib/prisma';
 import { callOrchestrator } from './core/orchestrator/CallOrchestrator';
 import { AudioStreamHandler } from './websockets/AudioStreamHandler';
 import { eventBus, PROVIDER_EVENTS } from './core/provider-sdk/provider.events';

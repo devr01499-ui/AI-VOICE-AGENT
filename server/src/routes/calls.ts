@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { CallController } from '../controllers/CallController';
 import { validateBody, validateParams } from '../middleware/validation';
 import { getUserIdFromRequest } from '../utils/auth';
-import { prisma } from '../config/database';
+import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 
 const router = Router();

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { prisma } from '../config/database';
+import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import crypto from 'crypto';
 

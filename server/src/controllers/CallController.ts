@@ -11,7 +11,7 @@ import { logger } from '../utils/logger';
 import { CallService } from '../services/CallService';
 import { callOrchestrator } from '../core/orchestrator/CallOrchestrator';
 import { env } from '../config/env';
-import { prisma } from '../config/database';
+import { prisma } from '../lib/prisma';
 
 /**
  * Handles all call-related HTTP endpoints.
@@ -56,7 +56,7 @@ export class CallController {
       const effectiveUserId = userId ?? 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 
       // Seed/upsert MVP User dynamically if they do not exist to prevent foreign key errors
-      const prisma = (await import('../config/database')).prisma;
+      const prisma = (await import('../lib/prisma')).prisma;
       await prisma.user.upsert({
         where: { id: effectiveUserId },
         update: {},

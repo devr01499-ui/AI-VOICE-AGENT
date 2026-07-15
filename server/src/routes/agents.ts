@@ -10,7 +10,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { Agent } from '@prisma/client';
 import { AgentRepository } from '../repositories/AgentRepository';
 import { validateParams, validateQuery } from '../middleware/validation';
-import { prisma } from '../config/database';
+import { prisma } from '../lib/prisma';
 import { getUserIdFromRequest } from '../utils/auth';
 import { logger } from '../utils/logger';
 

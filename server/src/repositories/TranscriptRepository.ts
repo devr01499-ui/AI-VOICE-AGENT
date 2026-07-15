@@ -2,7 +2,7 @@
 // Voice Runtime Engine — Transcript Repository
 // ─────────────────────────────────────────────
 
-import { prisma } from '../config/database';
+import { prisma } from '../lib/prisma';
 import { DatabaseError } from '../types/errors';
 import { logger } from '../utils/logger';
 

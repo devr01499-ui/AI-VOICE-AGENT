@@ -2,7 +2,7 @@
 // Voice Runtime Engine — Agent Repository
 // ─────────────────────────────────────────────
 
-import { prisma } from '../config/database';
+import { prisma } from '../lib/prisma';
 import { DatabaseError, NotFoundError } from '../types/errors';
 import { logger } from '../utils/logger';
 

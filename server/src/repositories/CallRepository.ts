@@ -2,7 +2,7 @@
 // Voice Runtime Engine — Call Repository
 // ─────────────────────────────────────────────
 
-import { prisma } from '../config/database';
+import { prisma } from '../lib/prisma';
 import { DatabaseError, NotFoundError } from '../types/errors';
 import { logger } from '../utils/logger';
 import type { CallStatus } from '../types';

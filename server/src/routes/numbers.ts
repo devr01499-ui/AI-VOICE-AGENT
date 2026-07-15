@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getUserIdFromRequest } from '../utils/auth';
-import { prisma } from '../config/database';
+import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 
 const router = Router();

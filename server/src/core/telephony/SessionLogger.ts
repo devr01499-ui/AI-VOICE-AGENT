@@ -1,4 +1,4 @@
-import { prisma } from '../../config/database';
+import { prisma } from '../../lib/prisma';
 import { CallRepository } from '../../repositories/CallRepository';
 import { metricsCollector } from '../provider-sdk/provider.metrics';
 import { logger } from '../../utils/logger';

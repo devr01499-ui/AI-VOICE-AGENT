@@ -101,7 +101,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       this.currentUserId = null;
 
       try {
-        const prismaInstance = (await import('../../config/database')).prisma;
+        const prismaInstance = (await import('../../lib/prisma')).prisma;
         await prismaInstance.user.update({
           where: { id: userId },
           data: {
@@ -211,7 +211,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       throw new CallError(callId, 'userId required for value gateway check', 'INVALID_CONFIG');
     }
 
-    const prismaInstance = (await import('../../config/database')).prisma;
+    const prismaInstance = (await import('../../lib/prisma')).prisma;
     const userProfile = await prismaInstance.user.findUnique({ where: { id: userId } });
     if (!userProfile) {
       throw new CallError(callId, 'Authenticated user profile not found', 'INVALID_CONFIG');
@@ -336,7 +336,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       // Fetch the active KnowledgeBase text assets linked to the agentId
       if (config.callId) {
         try {
-          const prismaInstance = (await import('../../config/database')).prisma;
+          const prismaInstance = (await import('../../lib/prisma')).prisma;
           // Find the call log to resolve agentId, filtering by userId to prevent cross-tenant parameter poisoning
           const callLog = await prismaInstance.call.findFirst({
             where: { id: config.callId, userId },
@@ -371,7 +371,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
       if (config.agentId) {
         try {
-          const prismaInstance = (await import('../../config/database')).prisma;
+          const prismaInstance = (await import('../../lib/prisma')).prisma;
           const dbAgent = await prismaInstance.agent.findFirst({
             where: { id: config.agentId, userId },
             select: { systemVoice: true, temperature: true }

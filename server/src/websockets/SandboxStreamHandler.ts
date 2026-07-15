@@ -1,7 +1,7 @@
 import { IncomingMessage } from 'http';
 import WebSocket, { WebSocketServer } from 'ws';
 import { logger } from '../utils/logger';
-import { prisma } from '../config/database';
+import { prisma } from '../lib/prisma';
 import { GeminiLiveProvider } from '../providers/gemini/GeminiLiveProvider';
 import { verifySupabaseToken } from '../utils/auth';
 

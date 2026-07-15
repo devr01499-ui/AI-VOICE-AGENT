@@ -80,7 +80,7 @@ export class Pipeline {
         });
 
         // 2. Commit to database dynamically
-        import('../../../config/database').then(({ prisma }) => {
+        import('../../../lib/prisma').then(({ prisma }) => {
           prisma.transcriptSegment.count({
             where: { callId: this.callId }
           }).then(seqCount => {

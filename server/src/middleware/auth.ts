@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { getUserIdFromRequest, verifySupabaseToken } from '../utils/auth';
-import { prisma } from '../config/database';
+import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 
 export interface AuthenticatedRequest extends Request {
