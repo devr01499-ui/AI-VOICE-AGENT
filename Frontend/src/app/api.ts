@@ -13,6 +13,7 @@ import { supabase } from "./lib/supabaseClient";
 
 export const API_BASE: string =
   (import.meta as any).env?.VITE_API_BASE_URL ??
+  (import.meta as any).env?.VITE_API_URL ??
   "https://ai-voice-agent-backend-mv32.onrender.com";
 
 /** Seeded fallback user ID for dev-mode auth bypass */

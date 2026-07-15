@@ -49,16 +49,27 @@ const app = express();
 
 // ── Security ──────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false }));
+const allowedOrigins = [
+  'http://localhost:5173', // Standalone Vite Frontend
+  'http://localhost:3000', // Next.js App Workspace
+  'http://localhost:3001',
+  'https://ai-voice-agent-frontend.vercel.app',
+  'https://ai-voice-agent-kohl-alpha.vercel.app',
+  process.env.FRONTEND_PRODUCTION_URL
+].filter(Boolean) as string[];
+
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'https://ai-voice-agent-frontend.vercel.app',
-    'https://ai-voice-agent-kohl-alpha.vercel.app'
-  ],
+  origin: (origin, callback) => {
+    // Allow server-to-server or curl requests (origin is undefined)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Blocked by security boundary (CORS)'));
+    }
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id', 'x-request-id']
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id', 'x-user-id']
 }));
 
 // ── Body Parsing ──────────────────────────────────
