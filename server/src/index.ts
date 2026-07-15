@@ -50,26 +50,28 @@ const app = express();
 // ── Security ──────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false }));
 const allowedOrigins = [
-  'http://localhost:5173', // Standalone Vite Frontend
-  'http://localhost:3000', // Next.js App Workspace
-  'http://localhost:3001',
-  'https://ai-voice-agent-frontend.vercel.app',
-  'https://ai-voice-agent-kohl-alpha.vercel.app',
-  process.env.FRONTEND_PRODUCTION_URL
-].filter(Boolean) as string[];
+  'https://www.insightclaritiysolution.com',  // Main Production Custom Domain
+  'http://localhost:5173',                   // Local Vite Workspace Developer Port
+  'http://localhost:3000'                    // Local Next.js Workspace Developer Port
+];
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow server-to-server or curl requests (origin is undefined)
+    // Permit server-to-server or programmatic curl requests seamlessly
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Blocked by security boundary (CORS)'));
+      callback(new Error('Blocked by Clarity Voice Security Gate (CORS)'));
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id', 'x-user-id']
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'x-request-id', 
+    'x-user-id'
+  ]
 }));
 
 // ── Body Parsing ──────────────────────────────────
