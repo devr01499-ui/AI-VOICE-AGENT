@@ -111,13 +111,23 @@ async function apiFetch<T>(
   const sessionResult = await supabase.auth.getSession();
   const token = sessionResult.data?.session?.access_token;
 
+  if (!token) {
+    await supabase.auth.signOut().catch(() => {});
+    throw new Error("UNAUTHORIZED_ACCESS");
+  }
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...(token ? { "Authorization": `Bearer ${token}` } : { "x-user-id": DEV_USER_ID }),
+    "Authorization": `Bearer ${token}`,
     ...(options.headers as Record<string, string> | undefined),
   };
 
   const res = await fetch(url, { ...options, headers });
+
+  if (res.status === 401 || res.status === 403) {
+    await supabase.auth.signOut().catch(() => {});
+    throw new Error("UNAUTHORIZED_ACCESS");
+  }
 
   // ── Non-JSON fallback shield ──────────────────────────────────────────────
   // If a Vercel routing rule or proxy returns HTML (e.g. 404 page),
