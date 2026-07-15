@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { supabase } from './supabase';
 
 export const getBackendUrl = (): string => {
   return (
@@ -24,9 +25,19 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(
-  (config) => {
-    // Automatically attach tokens or active workspace credentials if needed
-    config.headers['Authorization'] = 'Bearer a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+  async (config) => {
+    try {
+      const sessionResult = await supabase.auth.getSession();
+      const token = sessionResult.data?.session?.access_token;
+      if (token) {
+        config.headers['Authorization'] = `Bearer ${token}`;
+      } else {
+        config.headers['Authorization'] = 'Bearer a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+      }
+    } catch (e) {
+      config.headers['Authorization'] = 'Bearer a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+    }
+    
     config.headers['x-user-id'] = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
     config.headers['x-request-id'] = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `req-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
     return config;

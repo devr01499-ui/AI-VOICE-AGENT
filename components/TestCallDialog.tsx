@@ -46,13 +46,20 @@ interface TestCallDialogProps {
 }
 
 import { getBackendUrl } from '@/lib/api-client';
+import { supabase } from '@/lib/supabase';
 
 const API_BASE_URL = getBackendUrl();
 
-const getAuthHeaders = (additional: Record<string, string> = {}) => {
+const getAuthHeaders = async (additional: Record<string, string> = {}) => {
+  let token = '';
+  try {
+    const sessionResult = await supabase.auth.getSession();
+    token = sessionResult.data?.session?.access_token || '';
+  } catch (e) {}
+
   return {
     'Content-Type': 'application/json',
-    'Authorization': 'Bearer a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    'Authorization': token ? `Bearer ${token}` : 'Bearer a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
     'x-user-id': 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
     ...additional
   };
@@ -60,9 +67,10 @@ const getAuthHeaders = (additional: Record<string, string> = {}) => {
 
 const secureFetch = async (url: string, options: RequestInit = {}) => {
   try {
+    const headers = await getAuthHeaders(options.headers as Record<string, string>);
     const res = await fetch(url, {
       ...options,
-      headers: getAuthHeaders(options.headers as Record<string, string>)
+      headers
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));

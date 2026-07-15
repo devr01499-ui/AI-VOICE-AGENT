@@ -1426,7 +1426,8 @@ function DashAgents() {
 
   async function fetchWorkspaceNumbers() {
     try {
-      const token = session?.access_token;
+      const sessionResult = await supabase.auth.getSession();
+      const token = sessionResult.data?.session?.access_token;
       const res = await fetch("https://ai-voice-agent-backend-mv32.onrender.com/api/v2/numbers", {
         headers: {
           ...(token ? { "Authorization": `Bearer ${token}` } : { "x-user-id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" }),
@@ -1570,6 +1571,38 @@ function DashAgents() {
     }
   }
 
+  async function handleLaunchLiveCall() {
+    if (!selected || !destinationPhone) return;
+    setTestCallStatus('calling');
+    try {
+      const sessionResult = await supabase.auth.getSession();
+      const token = sessionResult.data?.session?.access_token;
+      const res = await fetch("https://ai-voice-agent-backend-mv32.onrender.com/api/v2/calls", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : { "x-user-id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" }),
+        },
+        body: JSON.stringify({
+          phoneNumber: destinationPhone,
+          agentId: selected.id,
+          userId: token ? undefined : "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+          fromPhoneNumber: selectedNumber || undefined,
+        }),
+      });
+      if (res.status === 200 || res.status === 201) {
+        setTestCallStatus('done');
+      } else {
+        setTestCallStatus('error');
+      }
+    } catch {
+      setTestCallStatus('error');
+    } finally {
+      setTimeout(() => setTestCallStatus('idle'), 3000);
+      setShowPicker(false);
+    }
+  }
+
   function stopSandbox() {
     if (micStreamRef.current) {
       micStreamRef.current.getTracks().forEach(t => t.stop());
@@ -1603,36 +1636,7 @@ function DashAgents() {
     fetchWorkspaceNumbers();
   }
 
-  function handleLaunchLiveCall() {
-    if (!selected || !destinationPhone) return;
-    setTestCallStatus('calling');
-    const token = session?.access_token;
-    fetch("https://ai-voice-agent-backend-mv32.onrender.com/api/v2/calls", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { "Authorization": `Bearer ${token}` } : { "x-user-id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" }),
-      },
-      body: JSON.stringify({
-        phoneNumber: destinationPhone,
-        agentId: selected.id,
-        userId: token ? undefined : "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
-        fromPhoneNumber: selectedNumber || undefined,
-      }),
-    })
-    .then(async (res) => {
-      if (res.status === 200 || res.status === 201) {
-        setTestCallStatus('done');
-      } else {
-        setTestCallStatus('error');
-      }
-    })
-    .catch(() => setTestCallStatus('error'))
-    .finally(() => {
-      setTimeout(() => setTestCallStatus('idle'), 3000);
-      setShowPicker(false);
-    });
-  }
+
 
   function handleSaveAgent() {
     if (!selected) return;
@@ -1647,7 +1651,7 @@ function DashAgents() {
     }).then(() => { setSaveStatus('done'); loadAgents(); }).catch(() => setSaveStatus('error')).finally(() => setTimeout(() => setSaveStatus('idle'), 2000));
   }
 
-  function handleDelete(agentId: string) {
+  async function handleDelete(agentId: string) {
     if (window.confirm("Are you sure you want to delete this agent? It will be deleted forever.")) {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(agentId);
       if (!isUuid) {
@@ -1655,23 +1659,24 @@ function DashAgents() {
         return;
       }
 
-      fetch(`https://ai-voice-agent-backend-mv32.onrender.com/api/v2/agents/${agentId}`, {
-        method: "DELETE",
-        headers: {
-          "x-user-id": DEV_USER_ID,
-        }
-      })
-      .then(async (res) => {
+      try {
+        const sessionResult = await supabase.auth.getSession();
+        const token = sessionResult.data?.session?.access_token;
+        const res = await fetch(`https://ai-voice-agent-backend-mv32.onrender.com/api/v2/agents/${agentId}`, {
+          method: "DELETE",
+          headers: {
+            ...(token ? { "Authorization": `Bearer ${token}` } : { "x-user-id": DEV_USER_ID }),
+          }
+        });
         if (res.status === 200 || res.status === 204) {
           setAgents(prev => prev.filter(x => x.id !== agentId));
         } else {
           const body = await res.json().catch(() => ({}));
           alert(`Failed to delete agent: ${body.error || res.statusText}`);
         }
-      })
-      .catch((err) => {
+      } catch (err: any) {
         alert(`Failed to delete agent: ${err.message}`);
-      });
+      }
     }
   }
 

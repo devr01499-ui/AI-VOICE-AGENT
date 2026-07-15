@@ -115,7 +115,12 @@ export default function HomePage() {
     if (!callId) return;
     try {
       const apiBase = getRuntimeUrl();
-      await fetch(`${apiBase}/api/v2/calls/${callId}/terminate`, { method: 'POST' });
+      await fetch(`${apiBase}/api/v2/calls/${callId}/terminate`, {
+        method: 'POST',
+        headers: {
+          'x-user-id': 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+        },
+      });
     } finally {
       setCallStatus('completed');
       setActiveCallId(null);
@@ -134,7 +139,10 @@ export default function HomePage() {
       const apiBase = getRuntimeUrl();
       const res = await fetch(`${apiBase}/api/v2/calls/sip-trunks`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+        },
         body: JSON.stringify({
           name: sipName,
           sipUri,
