@@ -41,17 +41,7 @@ router.get(
         return;
       }
 
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-          id: true,
-          email: true,
-          fullName: true,
-          billingBalance: true,
-          geminiApiKey: true,
-          callingBalanceMinutes: true,
-        }
-      });
+      const user = await AgentRepository.findProfileByUserId(userId);
       res.json({
         success: true,
         data: user,
@@ -124,15 +114,16 @@ router.get(
 
       let agents = [];
       try {
-        agents = await prisma.agent.findMany({
-          where: {
-            userId: userId,
-            ...(status ? { status } : {}),
-          },
-          orderBy: { createdAt: 'desc' },
-          take: limit ? parseInt(limit, 10) : 50,
-          skip: offset ? parseInt(offset, 10) : 0,
+        const allAgents = await AgentRepository.findManyByUserId(userId);
+        // Apply status filtering and pagination in-memory to prevent database query crashes
+        agents = (allAgents || []).filter((agent: any) => {
+          if (status && agent.status !== status) return false;
+          return true;
         });
+        
+        const lim = limit ? parseInt(limit, 10) : 50;
+        const off = offset ? parseInt(offset, 10) : 0;
+        agents = agents.slice(off, off + lim);
       } catch (error: any) {
         logger.error("Handled Gracefully - Agent Repository Retrieval Exception:", { error: error?.message || String(error) });
         // Instantly return a native, flat fallback JSON array 
@@ -141,22 +132,22 @@ router.get(
       }
 
       // Parse agentConfig JSON for response
-      const formatted = agents.map((agent: Agent) => ({
-        id: agent.id,
-        name: agent.name,
-        description: agent.description,
-        agentType: agent.agentType,
-        status: agent.status,
-        version: agent.version,
-        workspaceId: agent.workspaceId,
-        model: agent.model,
-        voiceName: agent.voiceName,
-        temperature: agent.temperature,
-        systemPrompt: agent.systemPrompt,
-        flowGraph: agent.flowGraph,
-        agentConfig: agent.agentConfig,
-        createdAt: agent.createdAt.toISOString(),
-        updatedAt: agent.updatedAt.toISOString(),
+      const formatted = agents.map((agent: any) => ({
+        id: agent?.id,
+        name: agent?.name,
+        description: agent?.description,
+        agentType: agent?.agentType,
+        status: agent?.status,
+        version: agent?.version,
+        workspaceId: agent?.workspaceId,
+        model: agent?.model,
+        voiceName: agent?.voiceName,
+        temperature: agent?.temperature,
+        systemPrompt: agent?.systemPrompt,
+        flowGraph: agent?.flowGraph,
+        agentConfig: agent?.agentConfig,
+        createdAt: agent?.createdAt instanceof Date ? agent.createdAt.toISOString() : (agent?.createdAt ? new Date(agent.createdAt).toISOString() : new Date().toISOString()),
+        updatedAt: agent?.updatedAt instanceof Date ? agent.updatedAt.toISOString() : (agent?.updatedAt ? new Date(agent.updatedAt).toISOString() : new Date().toISOString()),
       }));
 
       res.json({

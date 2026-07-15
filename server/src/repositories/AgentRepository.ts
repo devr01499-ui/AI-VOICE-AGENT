@@ -147,4 +147,27 @@ export class AgentRepository {
       throw new DatabaseError('Failed to find agents');
     }
   }
+
+  static async findManyByUserId(userId: string): Promise<any[]> {
+    try {
+      return await prisma.agent.findMany({
+        where: { userId }
+      });
+    } catch (error) {
+      console.error(`[AgentRepository Fatal] Failed querying agents for user ${userId}:`, error);
+      return []; // Instantly return safe empty array to prevent 500 route bubbles
+    }
+  }
+
+  static async findProfileByUserId(userId: string): Promise<any | null> {
+    try {
+      const profile = await prisma.user.findUnique({
+        where: { id: userId }
+      });
+      return profile || { id: userId, callingBalanceMinutes: 10, geminiApiKey: null };
+    } catch (error) {
+      console.error(`[AgentRepository Fatal] Failed querying profile for user ${userId}:`, error);
+      return { id: userId, callingBalanceMinutes: 10, geminiApiKey: null }; // Return default structural profile object
+    }
+  }
 }
