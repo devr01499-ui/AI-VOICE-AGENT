@@ -32,13 +32,12 @@ api.interceptors.request.use(
       if (token) {
         config.headers['Authorization'] = `Bearer ${token}`;
       } else {
-        config.headers['Authorization'] = 'Bearer a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+        return Promise.reject(new Error("MISSING_ACTIVE_SESSION_TOKEN"));
       }
     } catch (e) {
-      config.headers['Authorization'] = 'Bearer a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+      return Promise.reject(new Error("MISSING_ACTIVE_SESSION_TOKEN"));
     }
     
-    config.headers['x-user-id'] = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
     config.headers['x-request-id'] = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `req-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
     return config;
   },

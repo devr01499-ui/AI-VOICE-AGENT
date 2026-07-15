@@ -51,16 +51,16 @@ import { supabase } from '@/lib/supabase';
 const API_BASE_URL = getBackendUrl();
 
 const getAuthHeaders = async (additional: Record<string, string> = {}) => {
-  let token = '';
-  try {
-    const sessionResult = await supabase.auth.getSession();
-    token = sessionResult.data?.session?.access_token || '';
-  } catch (e) {}
+  const sessionResult = await supabase.auth.getSession();
+  const token = sessionResult.data?.session?.access_token;
+
+  if (!token) {
+    throw new Error("UNAUTHORIZED_CLIENT_ACCESS");
+  }
 
   return {
     'Content-Type': 'application/json',
-    'Authorization': token ? `Bearer ${token}` : 'Bearer a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-    'x-user-id': 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    'Authorization': `Bearer ${token}`,
     ...additional
   };
 };
