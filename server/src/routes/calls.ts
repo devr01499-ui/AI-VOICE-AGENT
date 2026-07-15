@@ -64,10 +64,8 @@ router.get(
         });
       } catch (error: any) {
         logger.error("Handled Gracefully - Call Repository Retrieval Exception:", { error: error?.message || String(error) });
-        res.status(200).json({
-          success: true,
-          data: [],
-        });
+        // Instantly return a native, flat fallback JSON array
+        res.status(200).json([]);
         return;
       }
 

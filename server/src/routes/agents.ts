@@ -135,11 +135,8 @@ router.get(
         });
       } catch (error: any) {
         logger.error("Handled Gracefully - Agent Repository Retrieval Exception:", { error: error?.message || String(error) });
-        res.status(200).json({
-          success: true,
-          data: [],
-          count: 0,
-        });
+        // Instantly return a native, flat fallback JSON array 
+        res.status(200).json([]);
         return;
       }
 
