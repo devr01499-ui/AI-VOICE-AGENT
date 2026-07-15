@@ -63,7 +63,7 @@ router.get(
           skip: offset ? parseInt(offset, 10) : 0,
         });
       } catch (error: any) {
-        logger.error("Graceful Catch - Call Fetch Error:", { error: error?.message || String(error) });
+        logger.error("Handled Gracefully - Call Repository Retrieval Exception:", { error: error?.message || String(error) });
         res.status(200).json({
           success: true,
           data: [],
