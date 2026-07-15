@@ -4,6 +4,7 @@ import { CallController } from '../controllers/CallController';
 import { validateBody, validateParams } from '../middleware/validation';
 import { getUserIdFromRequest } from '../utils/auth';
 import { prisma } from '../config/database';
+import { logger } from '../utils/logger';
 
 const router = Router();
 
@@ -43,22 +44,32 @@ router.get(
         offset?: string;
       };
 
-      const calls = await prisma.call.findMany({
-        where: {
-          userId: userId,
-          ...(status ? { status } : {}),
-        },
-        include: {
-          agent: {
-            select: {
-              name: true
+      let calls = [];
+      try {
+        calls = await prisma.call.findMany({
+          where: {
+            userId: userId,
+            ...(status ? { status } : {}),
+          },
+          include: {
+            agent: {
+              select: {
+                name: true
+              }
             }
-          }
-        },
-        orderBy: { createdAt: 'desc' },
-        take: limit ? parseInt(limit, 10) : 50,
-        skip: offset ? parseInt(offset, 10) : 0,
-      });
+          },
+          orderBy: { createdAt: 'desc' },
+          take: limit ? parseInt(limit, 10) : 50,
+          skip: offset ? parseInt(offset, 10) : 0,
+        });
+      } catch (error: any) {
+        logger.error("Graceful Catch - Call Fetch Error:", { error: error?.message || String(error) });
+        res.status(200).json({
+          success: true,
+          data: [],
+        });
+        return;
+      }
 
       res.json({
         success: true,

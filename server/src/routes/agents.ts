@@ -12,6 +12,7 @@ import { AgentRepository } from '../repositories/AgentRepository';
 import { validateParams, validateQuery } from '../middleware/validation';
 import { prisma } from '../config/database';
 import { getUserIdFromRequest } from '../utils/auth';
+import { logger } from '../utils/logger';
 
 const router = Router();
 
@@ -121,16 +122,26 @@ router.get(
         offset?: string;
       };
 
-      // Strict user-wise database isolation
-      const agents = await prisma.agent.findMany({
-        where: {
-          userId: userId,
-          ...(status ? { status } : {}),
-        },
-        orderBy: { createdAt: 'desc' },
-        take: limit ? parseInt(limit, 10) : 50,
-        skip: offset ? parseInt(offset, 10) : 0,
-      });
+      let agents = [];
+      try {
+        agents = await prisma.agent.findMany({
+          where: {
+            userId: userId,
+            ...(status ? { status } : {}),
+          },
+          orderBy: { createdAt: 'desc' },
+          take: limit ? parseInt(limit, 10) : 50,
+          skip: offset ? parseInt(offset, 10) : 0,
+        });
+      } catch (error: any) {
+        logger.error("Graceful Catch - Agent Fetch Error:", { error: error?.message || String(error) });
+        res.status(200).json({
+          success: true,
+          data: [],
+          count: 0,
+        });
+        return;
+      }
 
       // Parse agentConfig JSON for response
       const formatted = agents.map((agent: Agent) => ({

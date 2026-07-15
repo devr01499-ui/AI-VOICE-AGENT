@@ -5,6 +5,7 @@ import { logger } from '../utils/logger';
 
 export interface AuthenticatedRequest extends Request {
   userId?: string;
+  user?: any;
 }
 
 export async function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
@@ -60,7 +61,7 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     const contactNumber = userMetadata.contact_number || null;
 
     // Auto-upsert locally in local Postgres/SQLite schemas to prevent relation constraints failures
-    await prisma.user.upsert({
+    const userProfile = await prisma.user.upsert({
       where: { id: userId },
       update: {
         fullName: fullName,
@@ -75,10 +76,12 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
         contactNumber: contactNumber,
         passwordHash: 'seeded-supabase-auth-placeholder',
         billingBalance: 1000.0,
+        callingBalanceMinutes: 10.0,
       }
     });
 
     req.userId = userId;
+    req.user = userProfile;
     req.body.userId = userId; // Keep body.userId aligned for controllers
     next();
   } catch (err: any) {
