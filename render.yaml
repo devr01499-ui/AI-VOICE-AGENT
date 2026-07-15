@@ -13,7 +13,15 @@ services:
         value: production
       - key: DATABASE_URL
         sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
       - key: GEMINI_API_KEY
+        sync: false
+      - key: PUBLIC_URL
         sync: false
       - key: VOBIZ_AUTH_ID
         sync: false
@@ -22,6 +30,4 @@ services:
       - key: VOBIZ_FROM_NUMBER
         sync: false
       - key: VOBIZ_API_URL
-        sync: false
-      - key: PUBLIC_URL
         sync: false

@@ -40,25 +40,14 @@ const envSchema = z.object({
     .default('http://localhost:3000'),
 
   // ── Vobiz Telephony ────────────────────────
-  VOBIZ_AUTH_ID: z
-    .string({ required_error: 'VOBIZ_AUTH_ID is required' })
-    .trim()
-    .min(1, 'VOBIZ_AUTH_ID must not be empty'),
+  // Optional: server boots without telephony configured; features degrade gracefully.
+  VOBIZ_AUTH_ID: z.string().trim().default(''),
 
-  VOBIZ_AUTH_TOKEN: z
-    .string({ required_error: 'VOBIZ_AUTH_TOKEN is required' })
-    .trim()
-    .min(1, 'VOBIZ_AUTH_TOKEN must not be empty'),
+  VOBIZ_AUTH_TOKEN: z.string().trim().default(''),
 
-  VOBIZ_FROM_NUMBER: z
-    .string({ required_error: 'VOBIZ_FROM_NUMBER is required' })
-    .trim()
-    .min(1, 'VOBIZ_FROM_NUMBER must not be empty'),
+  VOBIZ_FROM_NUMBER: z.string().trim().default(''),
 
-  VOBIZ_API_URL: z
-    .string({ required_error: 'VOBIZ_API_URL is required' })
-    .trim()
-    .url('VOBIZ_API_URL must be a valid URL'),
+  VOBIZ_API_URL: z.string().trim().default(''),
 
   // ── OpenAI ──────────────────────────────────
   OPENAI_API_KEY: z.string().trim().optional(),
@@ -86,10 +75,8 @@ const envSchema = z.object({
     .default('v1alpha'),
 
   // ── Networking / Tunnels ────────────────────
-  PUBLIC_URL: z
-    .string({ required_error: 'PUBLIC_URL is required' })
-    .trim()
-    .min(1, 'PUBLIC_URL must not be empty'),
+  // Optional at boot — required at runtime only for telephony webhook callbacks
+  PUBLIC_URL: z.string().trim().default(''),
 
   NGROK_AUTH_TOKEN: z.string().trim().default(''),
 });
