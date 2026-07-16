@@ -49,6 +49,12 @@ export async function verifySupabaseToken(token: string): Promise<{ email: strin
  * to isolate multi-tenant operations.
  */
 export function getUserIdFromRequest(req: Request): string | null {
+  // If request has authenticated userId already parsed by requireAuth middleware, return it
+  const reqUserId = (req as any).userId || ((req as any).user && (req as any).user.id);
+  if (reqUserId) {
+    return reqUserId;
+  }
+
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.substring(7).trim();
