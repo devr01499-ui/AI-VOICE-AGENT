@@ -4,35 +4,40 @@
 // ─────────────────────────────────────────────────────────
 
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import pg from 'pg';
 import { logger } from '../utils/logger';
-
-// ── Environment validation guard ────────────────────────
-// Assert DATABASE_URL is present BEFORE calling the PrismaClient
-// constructor so a missing env var produces a clear diagnostic
-// instead of an opaque PrismaClientConstructorValidationError.
-const dbUrl = process.env.DATABASE_URL;
-
-if (!dbUrl || dbUrl.trim() === '') {
-  console.error('================================================================================');
-  console.error('[PRISMA CRITICAL SYSTEM BLOCK]: DATABASE_URL is missing or empty on Render!');
-  console.error('Check your Render Service Dashboard -> Environment Settings immediately.');
-  console.error('================================================================================');
-}
 
 // Allow Supabase pooler TLS certificates through in all envs.
 // Supabase connection pooler uses self-signed intermediate CAs.
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
 
-export const prisma: PrismaClient =
-  globalForPrisma.prisma ??
-  new PrismaClient({
+const getPrismaInstance = (): PrismaClient => {
+  const connectionString = process.env.DATABASE_URL;
+
+  if (!connectionString || connectionString.trim() === '') {
+    console.error('================================================================================');
+    console.error('[PRISMA CRITICAL SYSTEM BLOCK]: DATABASE_URL is missing or empty on Render!');
+    console.error('Check your Render Service Dashboard -> Environment Settings immediately.');
+    console.error('================================================================================');
+    throw new Error('DATABASE_URL environment variable is missing or empty.');
+  }
+
+  const pool = new pg.Pool({ connectionString });
+  const adapter = new PrismaPg(pool);
+
+  return new PrismaClient({
+    adapter,
     log:
       process.env.NODE_ENV === 'development'
         ? ['query', 'error', 'warn']
         : ['error', 'warn'],
   });
+};
+
+export const prisma = globalForPrisma.prisma ?? getPrismaInstance();
 
 // Preserve singleton reference across hot-reloads in development
 if (process.env.NODE_ENV !== 'production') {
@@ -55,7 +60,6 @@ prisma.$connect()
     logger.error('Prisma boot connection failed — check DATABASE_URL on Render', {
       message: err.message,
     });
-    // Do NOT process.exit — allow graceful degradation via route fallbacks.
   });
 
 // ── Clean shutdown ──────────────────────────────────────
