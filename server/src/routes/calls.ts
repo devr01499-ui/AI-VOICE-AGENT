@@ -38,11 +38,15 @@ router.get(
         return;
       }
 
-      const { status, limit, offset } = req.query as {
+      const { status } = req.query as {
         status?: string;
-        limit?: string;
-        offset?: string;
       };
+
+      const limitParam = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
+      const safeLimit = isNaN(limitParam) ? 50 : limitParam;
+
+      const offsetParam = req.query.offset ? parseInt(req.query.offset as string, 10) : 0;
+      const safeOffset = isNaN(offsetParam) ? 0 : offsetParam;
 
       let calls = [];
       try {
@@ -59,8 +63,8 @@ router.get(
             }
           },
           orderBy: { createdAt: 'desc' },
-          take: limit ? parseInt(limit, 10) : 50,
-          skip: offset ? parseInt(offset, 10) : 0,
+          take: safeLimit,
+          skip: safeOffset,
         });
         res.status(200).json({
           success: true,
@@ -68,7 +72,7 @@ router.get(
         });
         return;
       } catch (error: any) {
-        logger.error("Handled Gracefully - Call Repository Retrieval Exception:", { error: error?.message || String(error) });
+        logger.error("Handled Gracefully - Call Ingestion Runtime Exception:", { error: error?.message || String(error) });
         // Unified fallback matching success contract
         res.status(200).json({
           success: true,
