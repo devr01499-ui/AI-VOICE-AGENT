@@ -58,8 +58,13 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow serverless tasks or matching white-listed origins cleanly
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    // Allow serverless tasks, white-listed origins, Vercel deployments, or custom domain variations
+    if (
+      !origin || 
+      allowedOrigins.indexOf(origin) !== -1 || 
+      origin.endsWith('.vercel.app') || 
+      origin.includes('insightclaritiysolution.com')
+    ) {
       callback(null, true);
     } else {
       callback(new Error('Cross-Origin Request Blocked by CTO CORS Security Policy'));
@@ -67,7 +72,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-request-id', 'x-user-id']
 }));
 
 // ── Body Parsing ──────────────────────────────────
