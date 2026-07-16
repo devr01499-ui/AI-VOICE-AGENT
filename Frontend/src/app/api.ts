@@ -8,32 +8,12 @@
  * to prevent HTML 404 pages from throwing parse errors.
  */
 
-// ─── Constants ────────────────────────────────────────────────────────────────
 import { supabase } from "./lib/supabaseClient";
 
-const PRODUCTION_BACKEND_URL = 'https://ai-voice-agent-backend-mv32.onrender.com';
+// Absolute clean string value - no trailing parameters, brackets, or parentheses
+const BASE_TARGET_URL = 'https://ai-voice-agent-backend-mv32.onrender.com';
 
-let BACKEND_URL = 
-  (import.meta as any).env?.VITE_API_URL || 
-  (import.meta as any).env?.VITE_BACKEND_URL || 
-  process.env?.NEXT_PUBLIC_API_URL || 
-  PRODUCTION_BACKEND_URL;
-
-// Immunize against literal markdown hyperlink syntax copy-pasted into environment variables
-if (BACKEND_URL.includes('[') && BACKEND_URL.includes(']')) {
-  const match = BACKEND_URL.match(/\(([^)]+)\)/);
-  if (match && match[1]) {
-    BACKEND_URL = match[1];
-  } else {
-    BACKEND_URL = BACKEND_URL.replace(/\[.*?\]/g, '').replace(/[()]/g, '').trim();
-  }
-}
-
-const baseURL = BACKEND_URL.endsWith('/') ? BACKEND_URL.slice(0, -1) : BACKEND_URL;
-
-console.log(`[API Client Master Injection]: Lock established on target domain -> ${baseURL}`);
-
-export const API_BASE = baseURL;
+export const API_BASE = BASE_TARGET_URL;
 
 /** Seeded fallback user ID for dev-mode auth bypass */
 export const DEV_USER_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
