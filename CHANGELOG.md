@@ -1,6 +1,13 @@
 # CHANGELOG
 
-## [Unreleased] - 2026-07-01
+## [Unreleased] - 2026-07-16
+### Fixed
+- Resolved `PrismaClientConstructorValidationError` boot crash on Render by removing the Prisma 7-incompatible `engineType = "library"` field from both `server/prisma/schema.prisma` and `prisma/schema.prisma`. Prisma v7 removed the native Rust query engine; this field caused error P1012 at schema validation.
+- Confirmed connection URL is correctly routed via `datasource.url` in `server/prisma.config.ts` (Prisma 7 forbids `url` in schema files per error code P1012).
+- Hardened `server/src/lib/prisma.ts` singleton: added explicit `$connect()` call at boot for immediate connection failure surfacing, development-mode query logging for Supabase diagnostics, and `SIGTERM`/`SIGINT` disconnect handlers for clean connection pool teardown on Render.
+- Added `earlyAccess: true` flag verified present in `server/prisma.config.ts` (required by Prisma 7 `defineConfig` API in the server workspace).
+
+
 ### Added
 - Added ConversationState class in CallOrchestrator.ts to track AI-user conversational phase transitions.
 - Modified processAudioStream in CallOrchestrator.ts to filter outbound user audio based on the current ConversationState.
