@@ -121,7 +121,7 @@ async function apiFetch<T>(
   const sessionResult = await supabase.auth.getSession();
   const token = sessionResult.data?.session?.access_token;
 
-  if (!token) {
+  if (!token || token === 'undefined' || token === 'null' || token.startsWith('{')) {
     await supabase.auth.signOut().catch(() => {});
     throw new Error("UNAUTHORIZED_ACCESS");
   }
@@ -330,3 +330,11 @@ export async function updateBillingConfig(geminiApiKey: string | null): Promise<
     body: JSON.stringify({ geminiApiKey }),
   });
 }
+
+// Harmonized Axios-like apiClient contract for cross-platform compliance
+export const apiClient = {
+  get: async <T>(path: string, options?: RequestInit): Promise<T> => apiFetch<T>(path, { ...options, method: 'GET' }),
+  post: async <T>(path: string, data?: any, options?: RequestInit): Promise<T> => apiFetch<T>(path, { ...options, method: 'POST', body: JSON.stringify(data) }),
+  put: async <T>(path: string, data?: any, options?: RequestInit): Promise<T> => apiFetch<T>(path, { ...options, method: 'PUT', body: JSON.stringify(data) }),
+  delete: async <T>(path: string, options?: RequestInit): Promise<T> => apiFetch<T>(path, { ...options, method: 'DELETE' }),
+};

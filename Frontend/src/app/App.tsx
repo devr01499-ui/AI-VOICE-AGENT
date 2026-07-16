@@ -1428,9 +1428,10 @@ function DashAgents() {
     try {
       const sessionResult = await supabase.auth.getSession();
       const token = sessionResult.data?.session?.access_token;
+      const isTokenValid = token && token !== 'undefined' && token !== 'null' && !token.startsWith('{');
       const res = await fetch(`${API_BASE}/api/v2/numbers`, {
         headers: {
-          ...(token ? { "Authorization": `Bearer ${token}` } : { "x-user-id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" }),
+          ...(isTokenValid ? { "Authorization": `Bearer ${token}` } : { "x-user-id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" }),
         }
       });
       const data = await res.json();
@@ -1583,11 +1584,12 @@ function DashAgents() {
     try {
       const sessionResult = await supabase.auth.getSession();
       const token = sessionResult.data?.session?.access_token;
+      const isTokenValid = token && token !== 'undefined' && token !== 'null' && !token.startsWith('{');
       const res = await fetch(`${API_BASE}/api/v2/calls`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { "Authorization": `Bearer ${token}` } : { "x-user-id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" }),
+          ...(isTokenValid ? { "Authorization": `Bearer ${token}` } : { "x-user-id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" }),
         },
         body: JSON.stringify({
           phoneNumber: destinationPhone,
@@ -1668,10 +1670,11 @@ function DashAgents() {
       try {
         const sessionResult = await supabase.auth.getSession();
         const token = sessionResult.data?.session?.access_token;
+        const isTokenValid = token && token !== 'undefined' && token !== 'null' && !token.startsWith('{');
         const res = await fetch(`${API_BASE}/api/v2/agents/${agentId}`, {
           method: "DELETE",
           headers: {
-            ...(token ? { "Authorization": `Bearer ${token}` } : { "x-user-id": DEV_USER_ID }),
+            ...(isTokenValid ? { "Authorization": `Bearer ${token}` } : { "x-user-id": DEV_USER_ID }),
           }
         });
         if (res.status === 200 || res.status === 204) {

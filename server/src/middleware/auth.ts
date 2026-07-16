@@ -16,8 +16,19 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     let email = '';
     let userMetadata: any = {};
 
-    if (authHeader && authHeader.startsWith('Bearer ')) {
+    if (authHeader) {
+      if (!authHeader.startsWith('Bearer ')) {
+        res.status(401).json({ success: false, error: 'Missing or malformed authorization header context' });
+        return;
+      }
+
       const token = authHeader.substring(7).trim();
+
+      // Defensive Validation Boundary: Instantly catch undefined or clear non-JWT footprints
+      if (!token || token === 'undefined' || token === 'null' || token.startsWith('{')) {
+        res.status(401).json({ success: false, error: 'Invalid authentication token structure' });
+        return;
+      }
       
       // Verify signature via official Supabase client SDK getUser call
       const { data: { user }, error } = await supabaseClient.auth.getUser(token);
