@@ -15,9 +15,9 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
 
 const getPrismaInstance = (): PrismaClient => {
-  const connectionString = process.env.DATABASE_URL;
+  const rawConnectionString = process.env.DATABASE_URL;
 
-  if (!connectionString || connectionString.trim() === '') {
+  if (!rawConnectionString || rawConnectionString.trim() === '') {
     console.error('================================================================================');
     console.error('[PRISMA CRITICAL SYSTEM BLOCK]: DATABASE_URL is missing or empty on Render!');
     console.error('Check your Render Service Dashboard -> Environment Settings immediately.');
@@ -25,7 +25,18 @@ const getPrismaInstance = (): PrismaClient => {
     throw new Error('DATABASE_URL environment variable is missing or empty.');
   }
 
-  const pool = new pg.Pool({ connectionString });
+  // Supabase self-signed certificates require sslmode=no-verify and rejectUnauthorized: false
+  // to prevent "self-signed certificate in certificate chain" connection exceptions.
+  const connectionString = rawConnectionString.includes('sslmode=require')
+    ? rawConnectionString.replace('sslmode=require', 'sslmode=no-verify')
+    : rawConnectionString;
+
+  const pool = new pg.Pool({
+    connectionString,
+    ssl: {
+      rejectUnauthorized: false,
+    },
+  });
   const adapter = new PrismaPg(pool);
 
   return new PrismaClient({
