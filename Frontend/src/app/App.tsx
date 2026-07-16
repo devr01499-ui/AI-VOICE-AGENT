@@ -9,7 +9,7 @@ import {
   fetchAgents, fetchCalls, fetchProfile, createAgent, updateAgent,
   initiateCall, getCallTranscript, getLiveTranscriptWsUrl,
   fetchKBList, uploadKBDocument, scrapeKBUrl, deleteKBDocument,
-  DEV_USER_ID, DEFAULT_AGENT_ID,
+  DEV_USER_ID, DEFAULT_AGENT_ID, API_BASE,
   type ApiAgent, type ApiCall, type ApiProfile,
 } from "./api";
 import { motion, AnimatePresence } from "motion/react";
@@ -1428,7 +1428,7 @@ function DashAgents() {
     try {
       const sessionResult = await supabase.auth.getSession();
       const token = sessionResult.data?.session?.access_token;
-      const res = await fetch("https://ai-voice-agent-backend-mv32.onrender.com/api/v2/numbers", {
+      const res = await fetch(`${API_BASE}/api/v2/numbers`, {
         headers: {
           ...(token ? { "Authorization": `Bearer ${token}` } : { "x-user-id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" }),
         }
@@ -1469,14 +1469,20 @@ function DashAgents() {
       playbackContextRef.current = playbackContext;
       nextPlaybackTimeRef.current = 0;
 
-      const isHttps = window.location.protocol === 'https:';
-      const wsProtocol = isHttps ? 'wss:' : 'ws:';
-      const host = window.location.host === 'localhost:5173' || window.location.host === 'localhost:3000'
-        ? 'localhost:3001'
-        : 'ai-voice-agent-backend-mv32.onrender.com';
+      const WS_TARGET = 
+        (import.meta as any).env?.VITE_WS_URL || 
+        process.env?.NEXT_PUBLIC_WS_URL || 
+        (window.location.host === 'localhost:5173' || window.location.host === 'localhost:3000'
+          ? 'ws://localhost:3001'
+          : 'wss://ai-voice-agent-backend-mv32.onrender.com');
+
+      const baseWsUrl = WS_TARGET.startsWith('http') 
+        ? WS_TARGET.replace('http', 'ws') 
+        : WS_TARGET;
+
       const token = session?.access_token;
       const tokenParam = token ? `&token=${token}` : '';
-      const wsUrl = `${wsProtocol}//${host}/api/v2/sandbox/test-stream?agentId=${selected.id}${tokenParam}`;
+      const wsUrl = `${baseWsUrl.replace(/\/$/, '')}/api/v2/sandbox/test-stream?agentId=${selected.id}${tokenParam}`;
       
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
@@ -1577,7 +1583,7 @@ function DashAgents() {
     try {
       const sessionResult = await supabase.auth.getSession();
       const token = sessionResult.data?.session?.access_token;
-      const res = await fetch("https://ai-voice-agent-backend-mv32.onrender.com/api/v2/calls", {
+      const res = await fetch(`${API_BASE}/api/v2/calls`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1662,7 +1668,7 @@ function DashAgents() {
       try {
         const sessionResult = await supabase.auth.getSession();
         const token = sessionResult.data?.session?.access_token;
-        const res = await fetch(`https://ai-voice-agent-backend-mv32.onrender.com/api/v2/agents/${agentId}`, {
+        const res = await fetch(`${API_BASE}/api/v2/agents/${agentId}`, {
           method: "DELETE",
           headers: {
             ...(token ? { "Authorization": `Bearer ${token}` } : { "x-user-id": DEV_USER_ID }),
