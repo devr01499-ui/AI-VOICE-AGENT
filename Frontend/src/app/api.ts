@@ -127,9 +127,30 @@ async function apiFetch<T>(
 ): Promise<T> {
   const url = `${API_BASE}${path}`;
 
-  // Asynchronously retrieve active Supabase session
-  const sessionResult = await supabase.auth.getSession();
-  const token = sessionResult.data?.session?.access_token;
+  let token: string | null = null;
+  try {
+    // Dynamically look up active project-specific session key from localStorage
+    const storageKey = Object.keys(localStorage).find(key => key.startsWith('sb-') && key.endsWith('-auth-token'));
+    if (storageKey) {
+      const sessionData = localStorage.getItem(storageKey);
+      if (sessionData) {
+        const parsed = JSON.parse(sessionData);
+        token = parsed?.access_token || null;
+      }
+    }
+    // Legacy fallback lookup
+    if (!token) {
+      token = localStorage.getItem('sb-access-token');
+    }
+  } catch (error) {
+    console.error("[apiFetch Token Extraction Fault]:", error);
+  }
+
+  // Asymmetric fallback: retrieve active Supabase session asynchronously if needed
+  if (!token) {
+    const sessionResult = await supabase.auth.getSession().catch(() => null);
+    token = sessionResult?.data?.session?.access_token || null;
+  }
 
   if (!token || token === 'undefined' || token === 'null' || token.startsWith('{')) {
     await supabase.auth.signOut().catch(() => {});
