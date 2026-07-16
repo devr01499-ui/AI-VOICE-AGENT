@@ -124,37 +124,42 @@ router.get(
         const lim = limit ? parseInt(limit, 10) : 50;
         const off = offset ? parseInt(offset, 10) : 0;
         agents = agents.slice(off, off + lim);
+
+        // Parse agentConfig JSON for response
+        const formatted = agents.map((agent: any) => ({
+          id: agent?.id,
+          name: agent?.name,
+          description: agent?.description,
+          agentType: agent?.agentType,
+          status: agent?.status,
+          version: agent?.version,
+          workspaceId: agent?.workspaceId,
+          model: agent?.model,
+          voiceName: agent?.voiceName,
+          temperature: agent?.temperature,
+          systemPrompt: agent?.systemPrompt,
+          flowGraph: agent?.flowGraph,
+          agentConfig: agent?.agentConfig,
+          createdAt: agent?.createdAt instanceof Date ? agent.createdAt.toISOString() : (agent?.createdAt ? new Date(agent.createdAt).toISOString() : new Date().toISOString()),
+          updatedAt: agent?.updatedAt instanceof Date ? agent.updatedAt.toISOString() : (agent?.updatedAt ? new Date(agent.updatedAt).toISOString() : new Date().toISOString()),
+        }));
+
+        res.status(200).json({
+          success: true,
+          data: formatted,
+          count: formatted.length,
+        });
+        return;
       } catch (error: any) {
         logger.error("Handled Gracefully - Agent Repository Retrieval Exception:", { error: error?.message || String(error) });
-        // Instantly return a native, flat fallback JSON array 
-        res.status(200).json([]);
+        // Unified fallback matching success contract
+        res.status(200).json({
+          success: true,
+          data: [],
+          count: 0,
+        });
         return;
       }
-
-      // Parse agentConfig JSON for response
-      const formatted = agents.map((agent: any) => ({
-        id: agent?.id,
-        name: agent?.name,
-        description: agent?.description,
-        agentType: agent?.agentType,
-        status: agent?.status,
-        version: agent?.version,
-        workspaceId: agent?.workspaceId,
-        model: agent?.model,
-        voiceName: agent?.voiceName,
-        temperature: agent?.temperature,
-        systemPrompt: agent?.systemPrompt,
-        flowGraph: agent?.flowGraph,
-        agentConfig: agent?.agentConfig,
-        createdAt: agent?.createdAt instanceof Date ? agent.createdAt.toISOString() : (agent?.createdAt ? new Date(agent.createdAt).toISOString() : new Date().toISOString()),
-        updatedAt: agent?.updatedAt instanceof Date ? agent.updatedAt.toISOString() : (agent?.updatedAt ? new Date(agent.updatedAt).toISOString() : new Date().toISOString()),
-      }));
-
-      res.json({
-        success: true,
-        data: formatted,
-        count: formatted.length,
-      });
     } catch (err) {
       next(err);
     }

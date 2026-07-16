@@ -62,17 +62,20 @@ router.get(
           take: limit ? parseInt(limit, 10) : 50,
           skip: offset ? parseInt(offset, 10) : 0,
         });
+        res.status(200).json({
+          success: true,
+          data: calls || [],
+        });
+        return;
       } catch (error: any) {
         logger.error("Handled Gracefully - Call Repository Retrieval Exception:", { error: error?.message || String(error) });
-        // Instantly return a native, flat fallback JSON array
-        res.status(200).json([]);
+        // Unified fallback matching success contract
+        res.status(200).json({
+          success: true,
+          data: [],
+        });
         return;
       }
-
-      res.json({
-        success: true,
-        data: calls,
-      });
     } catch (err) {
       next(err);
     }
