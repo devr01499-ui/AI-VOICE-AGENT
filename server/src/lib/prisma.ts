@@ -6,8 +6,21 @@
 import { PrismaClient } from '@prisma/client';
 import { logger } from '../utils/logger';
 
-// Allow Supabase's pooler TLS certificates through in all envs.
-// Supabase connection pooler (port 6543) uses self-signed intermediate CAs.
+// ── Environment validation guard ────────────────────────
+// Assert DATABASE_URL is present BEFORE calling the PrismaClient
+// constructor so a missing env var produces a clear diagnostic
+// instead of an opaque PrismaClientConstructorValidationError.
+const dbUrl = process.env.DATABASE_URL;
+
+if (!dbUrl || dbUrl.trim() === '') {
+  console.error('================================================================================');
+  console.error('[PRISMA CRITICAL SYSTEM BLOCK]: DATABASE_URL is missing or empty on Render!');
+  console.error('Check your Render Service Dashboard -> Environment Settings immediately.');
+  console.error('================================================================================');
+}
+
+// Allow Supabase pooler TLS certificates through in all envs.
+// Supabase connection pooler uses self-signed intermediate CAs.
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
@@ -26,19 +39,28 @@ if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;
 }
 
-// ── Boot-time connection check ──────────────────────────
-// Explicitly connect so failures surface immediately at server startup
-// instead of being deferred silently to the first query (which would
-// produce a misleading HTTP 500 rather than a clear boot error).
-prisma.$connect().catch((err: Error) => {
-  logger.error('Prisma boot connection failed — check DATABASE_URL', {
-    message: err.message,
+// ── Boot-time connection handshake ──────────────────────
+// Explicitly connect at startup so credential failures surface
+// immediately in Render logs rather than on the first route hit.
+prisma.$connect()
+  .then(() => {
+    console.log('================================================================================');
+    console.log('[Prisma Singleton Instance]: Connection established successfully to cloud PostgreSQL.');
+    console.log('================================================================================');
+  })
+  .catch((err: Error) => {
+    console.error('================================================================================');
+    console.error('[Prisma Singleton Fatal Connection Failure]:', err.message || err);
+    console.error('================================================================================');
+    logger.error('Prisma boot connection failed — check DATABASE_URL on Render', {
+      message: err.message,
+    });
+    // Do NOT process.exit — allow graceful degradation via route fallbacks.
   });
-  // Do NOT process.exit here; allow graceful degradation via route fallbacks.
-});
 
 // ── Clean shutdown ──────────────────────────────────────
-// Disconnect the pool on Render's SIGTERM / SIGINT to prevent connection leaks.
-const disconnect = () => { prisma.$disconnect().catch(() => {}); };
+// Disconnect the pool on Render's SIGTERM / SIGINT to prevent
+// connection leaks when the container is recycled or redeployed.
+const disconnect = (): void => { prisma.$disconnect().catch(() => {}); };
 process.once('SIGTERM', disconnect);
 process.once('SIGINT', disconnect);
