@@ -1470,12 +1470,22 @@ function DashAgents() {
       playbackContextRef.current = playbackContext;
       nextPlaybackTimeRef.current = 0;
 
-      const WS_TARGET = 
+      let WS_TARGET = 
         (import.meta as any).env?.VITE_WS_URL || 
         process.env?.NEXT_PUBLIC_WS_URL || 
         (window.location.host === 'localhost:5173' || window.location.host === 'localhost:3000'
           ? 'ws://localhost:3001'
           : 'wss://ai-voice-agent-backend-mv32.onrender.com');
+
+      // Immunize against literal markdown hyperlink syntax copy-pasted into environment variables
+      if (WS_TARGET.includes('[') && WS_TARGET.includes(']')) {
+        const match = WS_TARGET.match(/\(([^)]+)\)/);
+        if (match && match[1]) {
+          WS_TARGET = match[1];
+        } else {
+          WS_TARGET = WS_TARGET.replace(/\[.*?\]/g, '').replace(/[()]/g, '').trim();
+        }
+      }
 
       const baseWsUrl = WS_TARGET.startsWith('http') 
         ? WS_TARGET.replace('http', 'ws') 
