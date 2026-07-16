@@ -343,8 +343,20 @@ export async function updateBillingConfig(geminiApiKey: string | null): Promise<
 
 // Harmonized Axios-like apiClient contract for cross-platform compliance
 export const apiClient = {
-  get: async <T>(path: string, options?: RequestInit): Promise<T> => apiFetch<T>(path, { ...options, method: 'GET' }),
-  post: async <T>(path: string, data?: any, options?: RequestInit): Promise<T> => apiFetch<T>(path, { ...options, method: 'POST', body: JSON.stringify(data) }),
-  put: async <T>(path: string, data?: any, options?: RequestInit): Promise<T> => apiFetch<T>(path, { ...options, method: 'PUT', body: JSON.stringify(data) }),
-  delete: async <T>(path: string, options?: RequestInit): Promise<T> => apiFetch<T>(path, { ...options, method: 'DELETE' }),
+  get: async (path: string, options?: RequestInit) => {
+    const result = await apiFetch<any>(path, { ...options, method: 'GET' });
+    return { data: { success: true, data: result } };
+  },
+  post: async (path: string, data?: any, options?: RequestInit) => {
+    const result = await apiFetch<any>(path, { ...options, method: 'POST', body: JSON.stringify(data) });
+    return { data: { success: true, data: result } };
+  },
+  put: async (path: string, data?: any, options?: RequestInit) => {
+    const result = await apiFetch<any>(path, { ...options, method: 'PUT', body: JSON.stringify(data) });
+    return { data: { success: true, data: result } };
+  },
+  delete: async (path: string, options?: RequestInit) => {
+    const result = await apiFetch<any>(path, { ...options, method: 'DELETE' });
+    return { data: { success: true, data: result } };
+  }
 };

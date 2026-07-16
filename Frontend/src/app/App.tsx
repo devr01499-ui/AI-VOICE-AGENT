@@ -9,7 +9,7 @@ import {
   fetchAgents, fetchCalls, fetchProfile, createAgent, updateAgent,
   initiateCall, getCallTranscript, getLiveTranscriptWsUrl,
   fetchKBList, uploadKBDocument, scrapeKBUrl, deleteKBDocument,
-  DEV_USER_ID, DEFAULT_AGENT_ID, API_BASE,
+  DEV_USER_ID, DEFAULT_AGENT_ID, API_BASE, apiClient,
   type ApiAgent, type ApiCall, type ApiProfile,
 } from "./api";
 import { motion, AnimatePresence } from "motion/react";
@@ -1426,19 +1426,11 @@ function DashAgents() {
 
   async function fetchWorkspaceNumbers() {
     try {
-      const sessionResult = await supabase.auth.getSession();
-      const token = sessionResult.data?.session?.access_token;
-      const isTokenValid = token && token !== 'undefined' && token !== 'null' && !token.startsWith('{');
-      const res = await fetch(`${API_BASE}/api/v2/numbers`, {
-        headers: {
-          ...(isTokenValid ? { "Authorization": `Bearer ${token}` } : { "x-user-id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" }),
-        }
-      });
-      const data = await res.json();
-      if (data.success && Array.isArray(data.data)) {
-        setNumbersList(data.data);
-        if (data.data.length > 0) {
-          setSelectedNumber(data.data[0].phoneNumber);
+      const response = await apiClient.get('/api/v2/numbers');
+      if (response.data?.success && Array.isArray(response.data.data)) {
+        setNumbersList(response.data.data);
+        if (response.data.data.length > 0) {
+          setSelectedNumber(response.data.data[0].phoneNumber);
         }
       } else {
         setNumbersList([]);
@@ -1592,23 +1584,13 @@ function DashAgents() {
     if (!selected || !destinationPhone) return;
     setTestCallStatus('calling');
     try {
-      const sessionResult = await supabase.auth.getSession();
-      const token = sessionResult.data?.session?.access_token;
-      const isTokenValid = token && token !== 'undefined' && token !== 'null' && !token.startsWith('{');
-      const res = await fetch(`${API_BASE}/api/v2/calls`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(isTokenValid ? { "Authorization": `Bearer ${token}` } : { "x-user-id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" }),
-        },
-        body: JSON.stringify({
-          phoneNumber: destinationPhone,
-          agentId: selected.id,
-          userId: token ? undefined : "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
-          fromPhoneNumber: selectedNumber || undefined,
-        }),
+      const response = await apiClient.post('/api/v2/calls', {
+        phoneNumber: destinationPhone,
+        agentId: selected.id,
+        userId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+        fromPhoneNumber: selectedNumber || undefined,
       });
-      if (res.status === 200 || res.status === 201) {
+      if (response.data?.success) {
         setTestCallStatus('done');
       } else {
         setTestCallStatus('error');
@@ -1678,20 +1660,11 @@ function DashAgents() {
       }
 
       try {
-        const sessionResult = await supabase.auth.getSession();
-        const token = sessionResult.data?.session?.access_token;
-        const isTokenValid = token && token !== 'undefined' && token !== 'null' && !token.startsWith('{');
-        const res = await fetch(`${API_BASE}/api/v2/agents/${agentId}`, {
-          method: "DELETE",
-          headers: {
-            ...(isTokenValid ? { "Authorization": `Bearer ${token}` } : { "x-user-id": DEV_USER_ID }),
-          }
-        });
-        if (res.status === 200 || res.status === 204) {
+        const response = await apiClient.delete(`/api/v2/agents/${agentId}`);
+        if (response.data?.success) {
           setAgents(prev => prev.filter(x => x.id !== agentId));
         } else {
-          const body = await res.json().catch(() => ({}));
-          alert(`Failed to delete agent: ${body.error || res.statusText}`);
+          alert(`Failed to delete agent`);
         }
       } catch (err: any) {
         alert(`Failed to delete agent: ${err.message}`);
