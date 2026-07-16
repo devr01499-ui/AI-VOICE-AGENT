@@ -11,15 +11,19 @@
 // ─── Constants ────────────────────────────────────────────────────────────────
 import { supabase } from "./lib/supabaseClient";
 
+const PRODUCTION_BACKEND_URL = 'https://ai-voice-agent-backend-mv32.onrender.com';
+
 const BACKEND_URL = 
   (import.meta as any).env?.VITE_API_URL || 
   (import.meta as any).env?.VITE_BACKEND_URL || 
-  (import.meta as any).env?.VITE_API_BASE_URL ||
   process.env?.NEXT_PUBLIC_API_URL || 
-  process.env?.NEXT_PUBLIC_BACKEND_URL || 
-  'https://ai-voice-agent-backend-mv32.onrender.com';
+  PRODUCTION_BACKEND_URL; // Guarantee resolution
 
-export const API_BASE = BACKEND_URL.endsWith('/') ? BACKEND_URL.slice(0, -1) : BACKEND_URL;
+const baseURL = BACKEND_URL.endsWith('/') ? BACKEND_URL.slice(0, -1) : BACKEND_URL;
+
+console.log(`[API Client Master Injection]: Lock established on target domain -> ${baseURL}`);
+
+export const API_BASE = baseURL;
 
 /** Seeded fallback user ID for dev-mode auth bypass */
 export const DEV_USER_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";

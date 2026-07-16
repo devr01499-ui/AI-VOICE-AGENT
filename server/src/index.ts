@@ -50,28 +50,24 @@ const app = express();
 // ── Security ──────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false }));
 const allowedOrigins = [
-  'https://www.insightclaritiysolution.com',  // Main Production Custom Domain
-  'http://localhost:5173',                   // Local Vite Workspace Developer Port
-  'http://localhost:3000'                    // Local Next.js Workspace Developer Port
+  'https://www.insightclaritiysolution.com',
+  'https://insightclaritiysolution.com',
+  'http://localhost:5173',
+  'http://localhost:3000'
 ];
 
 app.use(cors({
-  origin: (origin, callback) => {
-    // Permit server-to-server or programmatic curl requests seamlessly
-    if (!origin || allowedOrigins.includes(origin)) {
+  origin: function (origin, callback) {
+    // Allow serverless tasks or matching white-listed origins cleanly
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      callback(new Error('Blocked by Clarity Voice Security Gate (CORS)'));
+      callback(new Error('Cross-Origin Request Blocked by CTO CORS Security Policy'));
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'x-request-id', 
-    'x-user-id'
-  ]
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
 // ── Body Parsing ──────────────────────────────────
