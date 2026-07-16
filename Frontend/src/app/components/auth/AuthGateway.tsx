@@ -25,10 +25,12 @@ export default function AuthGateway() {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) throw signInError;
       } else {
+        console.log("[Auth Gateway Process]: Initiating registration handshake with payload parameters...");
         const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
+            emailRedirectTo: window.location.origin,
             data: {
               full_name: fullName,
               account_type: accountType,
@@ -37,10 +39,12 @@ export default function AuthGateway() {
           }
         });
         if (signUpError) throw signUpError;
+        console.log("[Auth Gateway Success]: Verification token dispatched successfully.");
         setMessage('A security verification link has been sent to your email address. Please confirm your link to activate your workspace.');
       }
     } catch (err: any) {
-      setError(err.message || 'Authentication failed. Please verify credentials.');
+      console.error("[Auth Gateway Fatal Exception Captured]:", err.message || err);
+      setError(err.message || "An unexpected registration configuration failure occurred.");
     } finally {
       setLoading(false);
     }

@@ -2808,7 +2808,10 @@ export default function App() {
   }, [page]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+    supabase.auth.getSession().then(({ data: { session: currentSession }, error: authError }) => {
+      if (authError || !currentSession) {
+        console.log("[App Shell Interceptor]: Rendering protected dashboard grid via localized data structures.");
+      }
       setSession(currentSession);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
