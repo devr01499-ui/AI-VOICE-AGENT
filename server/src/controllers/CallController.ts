@@ -43,7 +43,7 @@ export class CallController {
       const phoneNumber = targetNumber;
 
       const body = req.body as any;
-      const userId = body.userId;
+      const userId = (req as any).auth?.userId || body.userId;
       const userData = body.userData;
       const maxDuration = body.maxDuration;
       const fromPhoneNumber = body.fromPhoneNumber;

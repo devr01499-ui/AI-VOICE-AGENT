@@ -133,11 +133,20 @@ app.get('/health', async (_req, res) => {
       providers,
       runtime,
     });
-  } catch (err) {
+  } catch (err: any) {
+    const refCode = `HEALTH-500-${Date.now()}`;
+    logger.error(`Health status check failed [${refCode}]`, {
+      error: err instanceof Error ? err.message : String(err),
+      stack: err.stack,
+      refCode,
+    });
+    const displayError = env.NODE_ENV === 'development'
+      ? (err instanceof Error ? err.message : 'Unknown error')
+      : `Internal Server Error (Reference: ${refCode})`;
     res.status(500).json({
       status: 'error',
       timestamp: new Date().toISOString(),
-      error: err instanceof Error ? err.message : 'Unknown error',
+      error: displayError,
     });
   }
 });
@@ -153,7 +162,9 @@ app.post('/api/calls/outbound', (req, res, next) => {
     res.status(401).json({ success: false, error: 'Unauthorized' });
     return;
   }
-  req.body.userId = userId;
+  if (req && typeof req === 'object') {
+    (req as any).auth = { userId };
+  }
   next();
 }, CallController.initiateCall);
 app.post('/api/v2/calls/outbound', requireAuth, CallController.initiateCall);

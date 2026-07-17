@@ -5,6 +5,7 @@ import { validateBody, validateParams } from '../middleware/validation';
 import { getUserIdFromRequest } from '../utils/auth';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
+import { env } from '../config/env';
 
 const router = Router();
 
@@ -96,8 +97,10 @@ router.post(
       res.status(401).json({ success: false, error: 'Unauthorized' });
       return;
     }
-    // Force set the authenticated userId in body to prevent body spoofing
-    req.body.userId = userId;
+    // Force set the authenticated userId in auth namespace to prevent body spoofing
+    if (req && typeof req === 'object') {
+      (req as any).auth = { userId };
+    }
     next();
   },
   CallController.initiateCall
@@ -157,18 +160,33 @@ router.get(
       await provider.closeSession(result.sessionId);
       res.json({ success: true, apiVersion, model: modelName, sessionId: result.sessionId, geo });
     } catch (err: any) {
+      const refCode = `CALLS-DEBUG-500-${Date.now()}`;
       const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
       const openaiKey = process.env.OPENAI_API_KEY || '';
-      res.status(500).json({
-        success: false,
+
+      logger.error(`Calls debug/gemini Exception [${refCode}]`, {
         error: err.message || String(err),
-        geminiKeyPrefix: geminiKey ? geminiKey.substring(0, 6) : 'missing',
-        geminiKeyLength: geminiKey ? geminiKey.length : 0,
-        openaiKeyPrefix: openaiKey ? openaiKey.substring(0, 6) : 'missing',
-        openaiKeyLength: openaiKey ? openaiKey.length : 0,
-        geo,
         stack: err.stack,
+        refCode,
       });
+
+      if (env.NODE_ENV === 'production') {
+        res.status(500).json({
+          success: false,
+          error: `An unexpected error occurred during debug execution (Reference: ${refCode})`,
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: err.message || String(err),
+          geminiKeyPrefix: geminiKey ? geminiKey.substring(0, 6) : 'missing',
+          geminiKeyLength: geminiKey ? geminiKey.length : 0,
+          openaiKeyPrefix: openaiKey ? openaiKey.substring(0, 6) : 'missing',
+          openaiKeyLength: openaiKey ? openaiKey.length : 0,
+          geo,
+          stack: err.stack,
+        });
+      }
     }
   }
 );

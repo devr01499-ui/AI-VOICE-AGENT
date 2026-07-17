@@ -5,6 +5,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { AppError, ValidationError } from '../types/errors';
 import { logger } from './logger';
+import { env } from '../config/env';
 
 /**
  * Standardised error-response envelope returned to every client.
@@ -100,18 +101,24 @@ export function errorHandler(
   }
 
   // ── Unexpected / unknown errors (500) ────────
-  logger.error('Unhandled error', {
+  const refCode = `ERR-500-${Date.now()}`;
+  logger.error(`Unhandled error [${refCode}]`, {
     requestId,
     name: err.name,
     message: err.message,
     stack: err.stack,
+    refCode,
   });
+
+  const displayMessage = env.NODE_ENV === 'development'
+    ? `An unexpected error occurred: ${err.message}`
+    : `An unexpected error occurred (Reference: ${refCode})`;
 
   const body: ErrorResponseBody = {
     success: false,
     error: {
       code: 'INTERNAL_ERROR',
-      message: 'An unexpected error occurred',
+      message: displayMessage,
       requestId,
     },
   };

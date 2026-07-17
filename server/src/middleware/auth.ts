@@ -3,10 +3,14 @@ import { getUserIdFromRequest } from '../utils/auth';
 import { supabaseClient } from '../utils/supabase';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
+import { env } from '../config/env';
 
 export interface AuthenticatedRequest extends Request {
   userId?: string;
   user?: any;
+  auth?: {
+    userId: string;
+  };
 }
 
 export async function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
@@ -100,12 +104,20 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
 
     req.userId = userId;
     req.user = userProfile;
-    if (req.body) {
-      req.body.userId = userId; // Keep body.userId aligned for controllers
+    if (req && typeof req === 'object') {
+      req.auth = { userId };
     }
     next();
   } catch (err: any) {
-    logger.error(`requireAuth Middleware Authentication Exception [Phase: ${activePhase}]`, { error: err.message });
-    res.status(500).json({ success: false, error: `Internal Server Authentication Exception: Failed during ${activePhase} (${err.message || 'unknown error'})` });
+    const refCode = `AUTH-TRACE-${Date.now()}`;
+    logger.error(`requireAuth Middleware Authentication Exception [${refCode}] [Phase: ${activePhase}]`, {
+      error: err.message,
+      stack: err.stack,
+      refCode,
+    });
+    const displayError = env.NODE_ENV === 'development'
+      ? `Internal Server Authentication Exception: Failed during ${activePhase} (${err.message || 'unknown error'})`
+      : `Internal Server Authentication Exception (Reference: ${refCode})`;
+    res.status(500).json({ success: false, error: displayError });
   }
 }
