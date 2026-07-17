@@ -100,7 +100,9 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
 
     req.userId = userId;
     req.user = userProfile;
-    req.body.userId = userId; // Keep body.userId aligned for controllers
+    if (req.body) {
+      req.body.userId = userId; // Keep body.userId aligned for controllers
+    }
     next();
   } catch (err: any) {
     logger.error(`requireAuth Middleware Authentication Exception [Phase: ${activePhase}]`, { error: err.message });
