@@ -10,6 +10,7 @@ export interface AuthenticatedRequest extends Request {
 }
 
 export async function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  let activePhase = 'token_verification';
   try {
     const authHeader = req.headers.authorization;
     let userId: string | null = null;
@@ -30,6 +31,7 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
         return;
       }
       
+      activePhase = 'supabase_getUser';
       // Verify signature via official Supabase client SDK getUser call
       const { data: { user }, error } = await supabaseClient.auth.getUser(token);
 
@@ -55,6 +57,7 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
         }
       }
     } else {
+      activePhase = 'legacy_auth_fallback';
       // Fallback to x-user-id for legacy/development compatibility
       userId = getUserIdFromRequest(req);
       if (userId === 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11') {
@@ -74,6 +77,7 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     const accountType = userMetadata.account_type || 'free';
     const contactNumber = userMetadata.contact_number || null;
 
+    activePhase = 'database_upsert';
     // Auto-upsert locally in PostgreSQL schemas to prevent relation constraints failures
     const userProfile = await prisma.user.upsert({
       where: { id: userId },
@@ -99,7 +103,7 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     req.body.userId = userId; // Keep body.userId aligned for controllers
     next();
   } catch (err: any) {
-    logger.error('requireAuth Middleware Authentication Exception', { error: err.message });
-    res.status(500).json({ success: false, error: 'Internal Server Authentication Exception' });
+    logger.error(`requireAuth Middleware Authentication Exception [Phase: ${activePhase}]`, { error: err.message });
+    res.status(500).json({ success: false, error: `Internal Server Authentication Exception: Failed during ${activePhase} (${err.message || 'unknown error'})` });
   }
 }

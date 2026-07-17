@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-07-17
+### Fixed
+- Unmasked generic authentication 500 exceptions in `requireAuth` middleware by tracking processing phases (`token_verification`, `supabase_getUser`, `legacy_auth_fallback`, `database_upsert`). The middleware now logs and returns explicit phase failure messages to simplify client-side/console-side troubleshooting.
+
 ## [Unreleased] - 2026-07-16
 ### Fixed
 - Resolved `PrismaClientConstructorValidationError` boot crash on Render by removing the Prisma 7-incompatible `engineType = "library"` field from both `server/prisma/schema.prisma` and `prisma/schema.prisma`. Prisma v7 removed the native Rust query engine; this field caused error P1012 at schema validation.
