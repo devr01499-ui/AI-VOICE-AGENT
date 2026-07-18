@@ -1396,6 +1396,8 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
   const [sandboxOpen, setSandboxOpen] = useState(false);
   const [sandboxActive, setSandboxActive] = useState(false);
   const [sandboxTranscript, setSandboxTranscript] = useState<{ speaker: 'agent' | 'user'; text: string }[]>([]);
+  const [sandboxStatus, setSandboxStatus] = useState<'idle' | 'connecting' | 'connected' | 'disconnected'>('idle');
+  const [sandboxError, setSandboxError] = useState<string | null>(null);
   const [sandboxLatency, setSandboxLatency] = useState<number | null>(null);
 
   const micStreamRef = useRef<MediaStream | null>(null);
@@ -1445,7 +1447,9 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
 
   async function startSandbox() {
     if (!selected) return;
-    setSandboxTranscript([{ speaker: 'agent', text: 'Initializing browser sandbox audio pipeline...' }]);
+    setSandboxTranscript([]);
+    setSandboxStatus('connecting');
+    setSandboxError(null);
     setSandboxOpen(true);
     setSandboxActive(true);
     setSandboxLatency(null);
@@ -1494,7 +1498,8 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
       wsRef.current = ws;
 
       ws.onopen = () => {
-        setSandboxTranscript(prev => [...prev, { speaker: 'agent', text: 'Connected to Gemini Live. Speak into your microphone.' }]);
+        setSandboxStatus('connected');
+        setSandboxError(null);
         
         const source = audioContext.createMediaStreamSource(stream);
         const processor = audioContext.createScriptProcessor(2048, 1, 1);
@@ -1558,9 +1563,8 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
             });
           } else if (msg.event === 'interrupted') {
             nextPlaybackTimeRef.current = 0;
-            setSandboxTranscript(prev => [...prev, { speaker: 'agent', text: '*Interrupted*' }]);
           } else if (msg.event === 'error') {
-            setSandboxTranscript(prev => [...prev, { speaker: 'agent', text: `[Error]: ${msg.message}` }]);
+            setSandboxError(msg.message);
           }
         } catch (e: any) {
           console.error('Failed to parse sandbox event message', e);
@@ -1568,17 +1572,19 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
       };
 
       ws.onerror = (e) => {
-        setSandboxTranscript(prev => [...prev, { speaker: 'agent', text: 'WebSocket error occurred during sandbox session.' }]);
+        setSandboxError('WebSocket error occurred during sandbox session.');
+        setSandboxStatus('disconnected');
         setSandboxActive(false);
       };
 
       ws.onclose = () => {
-        setSandboxTranscript(prev => [...prev, { speaker: 'agent', text: 'Sandbox connection closed.' }]);
+        setSandboxStatus('disconnected');
         setSandboxActive(false);
       };
 
     } catch (err: any) {
-      setSandboxTranscript(prev => [...prev, { speaker: 'agent', text: `Initialization failed: ${err.message}` }]);
+      setSandboxError(`Initialization failed: ${err.message}`);
+      setSandboxStatus('disconnected');
       setSandboxActive(false);
     }
   }
@@ -1631,6 +1637,8 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
     }
     setSandboxActive(false);
     setSandboxOpen(false);
+    setSandboxStatus('idle');
+    setSandboxError(null);
     setSandboxLatency(null);
   }
 
@@ -1891,9 +1899,9 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
                 <div>
                   <p className="text-xs font-semibold text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Desktop Testing Sandbox</p>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className={`w-1.5 h-1.5 rounded-full ${sandboxActive ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground'}`}/>
+                    <span className={`w-1.5 h-1.5 rounded-full ${sandboxStatus === 'connected' ? 'bg-emerald-500 animate-pulse' : sandboxStatus === 'connecting' ? 'bg-amber-500 animate-pulse' : 'bg-muted-foreground'}`}/>
                     <span className="text-[10px] text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>
-                      {sandboxActive ? 'Connected' : 'Offline'}
+                      {sandboxStatus === 'connected' ? 'Connected' : sandboxStatus === 'connecting' ? 'Connecting...' : sandboxStatus === 'disconnected' ? 'Disconnected' : 'Offline'}
                     </span>
                   </div>
                 </div>
@@ -1913,6 +1921,16 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
 
             {/* Transcript scroll pane */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/5">
+              {sandboxError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2 text-xs text-red-600 font-medium animate-in fade-in slide-in-from-top-2 duration-200" style={{fontFamily:"'Figtree',sans-serif"}}>
+                  <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-red-500" />
+                  <div className="flex-1">
+                    <p className="font-semibold mb-0.5">Sandbox Error</p>
+                    <p className="opacity-90">{sandboxError}</p>
+                  </div>
+                </div>
+              )}
+
               {sandboxTranscript.map((msg, i) => (
                 <div
                   key={i}
@@ -2863,7 +2881,7 @@ function DashboardPage({ session }: { session: Session }) {
   const titles: Record<DashSection,string> = {overview:"Overview",agents:"Agents",batch:"Batch Calls",calls:"Call Logs",numbers:"Phone Numbers",knowledge:"Knowledge Base",voices:"Voice Library",analytics:"Analytics",settings:"Settings"};
 
   return (
-    <div className="flex h-screen bg-muted/20 pt-16 overflow-hidden">
+    <div className="flex h-screen bg-muted/20 overflow-hidden">
       <div className={`${sidebarOpen?"w-52":"w-12"} flex-shrink-0 bg-white border-r border-border flex flex-col transition-all duration-200 overflow-hidden`}>
         <div className="h-11 border-b border-border flex items-center px-2 justify-between">
           {sidebarOpen&&<span className="text-xs font-medium text-muted-foreground ml-1" style={{fontFamily:"'DM Mono',monospace"}}>DASHBOARD</span>}
@@ -2962,7 +2980,7 @@ export default function App() {
         * { font-family: 'Figtree', sans-serif; }
       `}</style>
 
-      <Nav page={page} setPage={setPage} />
+      {!(page === "dashboard" && session) && <Nav page={page} setPage={setPage} />}
 
       <AnimatePresence mode="wait">
         <motion.div

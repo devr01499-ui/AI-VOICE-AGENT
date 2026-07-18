@@ -33,6 +33,7 @@ interface GeminiServerEvent {
     modelTurn?: {
       parts?: Array<{
         text?: string;
+        thought?: boolean;
         inlineData?: {
           mimeType: string;
           data: string;
@@ -422,6 +423,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
           systemInstruction: {
             parts: [{ text: systemInstructionString }]
           },
+          inputAudioTranscription: {},
           realtimeInputConfig: {
             automaticActivityDetection: {
               disabled: false,
@@ -690,7 +692,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
           callbacks.onAudioDelta?.(sessionId, part.inlineData.data);
         }
         // Text transcript chunk
-        if (part.text) {
+        if (part.text && !part.thought) {
           callbacks.onTranscriptDelta?.(sessionId, part.text, false);
         }
       }
