@@ -3,10 +3,10 @@ import { prisma } from '../src/config/database';
 async function seed() {
   console.log('Seeding Supabase dev identity mapping in Prisma...');
   await prisma.user.upsert({
-    where: { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' },
+    where: { id: '1e69187e-82d5-4166-929f-4bbba90e5304' },
     update: {},
     create: {
-      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      id: '1e69187e-82d5-4166-929f-4bbba90e5304',
       email: 'devr01499@gmail.com',
       fullName: 'devr01499',
       passwordHash: 'seeded-supabase-auth-placeholder',

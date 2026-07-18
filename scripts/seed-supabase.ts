@@ -47,7 +47,7 @@ async function main() {
   console.log('Seeding Supabase Database...');
 
   // Create user
-  const userId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+  const userId = '1e69187e-82d5-4166-929f-4bbba90e5304';
   const user = await prisma.user.upsert({
     where: { email: 'dev@bolna.ai' },
     update: {},

@@ -16,10 +16,10 @@ const BASE_TARGET_URL = 'https://ai-voice-agent-backend-mv32.onrender.com';
 export const API_BASE = BASE_TARGET_URL;
 
 /** Seeded fallback user ID for dev-mode auth bypass */
-export const DEV_USER_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
+export const DEV_USER_ID = "1e69187e-82d5-4166-929f-4bbba90e5304";
 
 /** Default agent ID for outbound calls */
-export const DEFAULT_AGENT_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
+export const DEFAULT_AGENT_ID = "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380d22";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

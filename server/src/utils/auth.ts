@@ -1,8 +1,6 @@
 import { Request } from 'express';
 import { logger } from './logger';
 
-export const SEEDED_USER_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
-
 /**
  * Verifies the Supabase access token (JWT) signature securely via Supabase Auth API proxy calls.
  */
@@ -78,7 +76,7 @@ export function getUserIdFromRequest(req: Request): string | null {
         return null;
       }
       // In local bypassed mode we map session cookie values directly
-      return SEEDED_USER_ID;
+      return null;
     }
   }
 

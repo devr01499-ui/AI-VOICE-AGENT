@@ -266,7 +266,11 @@ router.post(
   async (req, res, next) => {
     try {
       const { name, sipUri, username, password, outboundProxy } = req.body;
-      const userId = getUserIdFromRequest(req) || 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+      const userId = getUserIdFromRequest(req);
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'Unauthorized' });
+        return;
+      }
       
       const trunk = await prisma.sipTrunk.create({
         data: {

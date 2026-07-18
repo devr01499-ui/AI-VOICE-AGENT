@@ -61,10 +61,7 @@ export class SandboxStreamHandler {
         throw new Error('Invalid or expired authentication token');
       }
 
-      let userId = verified.sub;
-      if (verified.email === ADMIN_EMAIL) {
-        userId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
-      }
+      const userId = verified.sub;
 
       // 2. Fetch the exact agent rules
       const agent = await prisma.agent.findUnique({

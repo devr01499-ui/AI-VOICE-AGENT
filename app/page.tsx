@@ -67,7 +67,7 @@ export default function HomePage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+          'x-user-id': '1e69187e-82d5-4166-929f-4bbba90e5304',
           'x-request-id':
             typeof crypto !== 'undefined' && crypto.randomUUID
               ? crypto.randomUUID()
@@ -75,8 +75,8 @@ export default function HomePage() {
         },
         body: JSON.stringify({
           phoneNumber: phoneNumber.trim(),
-          agentId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-          userId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+          agentId: 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380d22',
+          userId: '1e69187e-82d5-4166-929f-4bbba90e5304',
         }),
       });
 
@@ -118,7 +118,7 @@ export default function HomePage() {
       await fetch(`${apiBase}/api/v2/calls/${callId}/terminate`, {
         method: 'POST',
         headers: {
-          'x-user-id': 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+          'x-user-id': '1e69187e-82d5-4166-929f-4bbba90e5304',
         },
       });
     } finally {
@@ -141,7 +141,7 @@ export default function HomePage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+          'x-user-id': '1e69187e-82d5-4166-929f-4bbba90e5304',
         },
         body: JSON.stringify({
           name: sipName,
@@ -226,7 +226,7 @@ export default function HomePage() {
       try {
         const apiBase = getRuntimeUrl();
         const res = await fetch(`${apiBase}/api/v2/calls/${callId}`, {
-          headers: { 'x-user-id': 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' },
+          headers: { 'x-user-id': '1e69187e-82d5-4166-929f-4bbba90e5304' },
         });
         const data = await res.json();
         if (data && data.success && data.data) {
@@ -328,7 +328,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="text-[10px] text-[#64748B] mt-6 text-center border-t border-[#1E293B] pt-4 font-mono">
-            Agent ID: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11
+            Agent ID: d0eebc99-9c0b-4ef8-bb6d-6bb9bd380d22
           </div>
         </div>
 

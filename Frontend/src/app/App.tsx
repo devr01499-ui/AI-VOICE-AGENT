@@ -1643,7 +1643,7 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
       const response = await apiClient.post('/api/v2/calls', {
         phoneNumber: destinationPhone,
         agentId: selected.id,
-        userId: profile?.id || "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+        userId: profile?.id || "1e69187e-82d5-4166-929f-4bbba90e5304",
         fromPhoneNumber: selectedNumber || undefined,
       });
       if (response.data?.success) {

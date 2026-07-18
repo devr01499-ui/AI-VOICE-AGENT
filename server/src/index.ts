@@ -183,7 +183,7 @@ app.use((_req, res) => {
 app.use(errorHandler);
 
 async function seedTestEnvironment() {
-  const TEST_UUID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
+  const TEST_UUID = "1e69187e-82d5-4166-929f-4bbba90e5304";
   
   console.log("CTO Audit: Running core system data rehydration checks...");
   
@@ -261,10 +261,10 @@ async function bootstrap(): Promise<void> {
     if (env.NODE_ENV !== 'production') {
       // Seed default workspace user to prevent multi-tenant lookups failing
       await prisma.user.upsert({
-        where: { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' },
+        where: { id: '1e69187e-82d5-4166-929f-4bbba90e5304' },
         update: {},
         create: {
-          id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+          id: '1e69187e-82d5-4166-929f-4bbba90e5304',
           email: 'devr01499@gmail.com',
           fullName: 'Rohit Kumar Sha',
           passwordHash: 'seeded-dev-hash-12345',
@@ -280,7 +280,7 @@ async function bootstrap(): Promise<void> {
         create: {
           id: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
           phoneNumber: '+12345678901',
-          userId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+          userId: '1e69187e-82d5-4166-929f-4bbba90e5304',
           countryCode: 'US',
           type: 'local',
           telephonyProvider: 'vobiz',

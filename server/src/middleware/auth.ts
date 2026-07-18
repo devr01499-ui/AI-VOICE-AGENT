@@ -4,6 +4,7 @@ import { supabaseClient } from '../utils/supabase';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
+import { ADMIN_EMAIL } from '../config/constants';
 
 export interface AuthenticatedRequest extends Request {
   userId?: string;
@@ -48,10 +49,9 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
       email = user.email || '';
       userMetadata = user.user_metadata || {};
 
+
       // 3. THE EXPLICIT IDENTITY BIND
-      if (email === 'devr01499@gmail.com') {
-        userId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
-      } else {
+      if (email !== ADMIN_EMAIL) {
         // Block unverified multi-tenant access
         if (!user.email_confirmed_at && !userMetadata?.email_confirmed_at) {
           res.status(403).json({ 
@@ -64,9 +64,7 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
       activePhase = 'legacy_auth_fallback';
       // Fallback to x-user-id for legacy/development compatibility
       userId = getUserIdFromRequest(req);
-      if (userId === 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11') {
-        email = 'devr01499@gmail.com';
-      } else if (userId) {
+      if (userId) {
         email = `user-${userId}@supabase.io`;
       }
     }

@@ -199,7 +199,7 @@ export default function TestCallDialog({ isOpen, onClose, onCallSimulated, fromP
         body: JSON.stringify({
           phoneNumber,
           agentId: selectedAgentId,
-          userId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', // seeded dev user
+          userId: '1e69187e-82d5-4166-929f-4bbba90e5304', // seeded dev user
           userData: { source: 'dashboard-test-call' },
           fromPhoneNumber,
         }),
