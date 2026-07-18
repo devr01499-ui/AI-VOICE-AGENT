@@ -1395,11 +1395,13 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
   const [destinationPhone, setDestinationPhone] = useState('');
   const [sandboxOpen, setSandboxOpen] = useState(false);
   const [sandboxActive, setSandboxActive] = useState(false);
-  const [sandboxTranscript, setSandboxTranscript] = useState<{ speaker: 'agent' | 'user'; text: string }[]>([]);
+  const [sandboxTranscript, setSandboxTranscript] = useState<{ speaker: 'agent' | 'user'; text: string; finalized?: boolean }[]>([]);
   const [sandboxStatus, setSandboxStatus] = useState<'idle' | 'connecting' | 'connected' | 'disconnected'>('idle');
   const [sandboxError, setSandboxError] = useState<string | null>(null);
   const [sandboxLatency, setSandboxLatency] = useState<number | null>(null);
 
+  const lastTestedAgentIdRef = useRef<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const playbackContextRef = useRef<AudioContext | null>(null);
@@ -1429,6 +1431,12 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
     };
   }, []);
 
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  }, [sandboxTranscript]);
+
   async function fetchWorkspaceNumbers() {
     try {
       const response = await apiClient.get('/api/v2/numbers');
@@ -1447,7 +1455,10 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
 
   async function startSandbox() {
     if (!selected) return;
-    setSandboxTranscript([]);
+    if (lastTestedAgentIdRef.current !== selected.id) {
+      setSandboxTranscript([]);
+      lastTestedAgentIdRef.current = selected.id;
+    }
     setSandboxStatus('connecting');
     setSandboxError(null);
     setSandboxOpen(true);
@@ -1546,7 +1557,7 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
             const startTime = Math.max(currentTime, nextPlaybackTimeRef.current);
             sourceNode.start(startTime);
             nextPlaybackTimeRef.current = startTime + audioBuffer.duration;
-          } else if (msg.event === 'transcript' && msg.text) {
+          } else if (msg.event === 'transcript' && (typeof msg.text === 'string' || msg.isFinal)) {
             if (lastEmitTimeRef.current > 0) {
               const delta = Date.now() - lastEmitTimeRef.current;
               setSandboxLatency(delta);
@@ -1555,11 +1566,12 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
             setSandboxTranscript(prev => {
               const last = prev[prev.length - 1];
               const speaker = msg.isUser ? 'user' : 'agent';
-              if (last && last.speaker === speaker) {
-                return [...prev.slice(0, -1), { speaker, text: last.text + msg.text }];
-              } else {
-                return [...prev, { speaker, text: msg.text }];
+              if (last && last.speaker === speaker && !last.finalized) {
+                return [...prev.slice(0, -1), { speaker, text: last.text + (msg.text || ''), finalized: msg.isFinal }];
+              } else if (msg.text) {
+                return [...prev, { speaker, text: msg.text, finalized: msg.isFinal }];
               }
+              return prev;
             });
           } else if (msg.event === 'interrupted') {
             nextPlaybackTimeRef.current = 0;
@@ -1948,6 +1960,7 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
                   </div>
                 </div>
               ))}
+              <div ref={scrollRef} />
             </div>
 
             {/* Live telemetry VAD visualizer & controls footer */}

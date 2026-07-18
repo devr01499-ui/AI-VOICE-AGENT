@@ -45,6 +45,9 @@ interface GeminiServerEvent {
     inputTranscription?: {
       text: string;
     };
+    outputTranscription?: {
+      text: string;
+    };
   };
   toolCall?: {
     functionCalls?: Array<{
@@ -424,6 +427,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
             parts: [{ text: systemInstructionString }]
           },
           inputAudioTranscription: {},
+          outputAudioTranscription: {},
           realtimeInputConfig: {
             automaticActivityDetection: {
               disabled: false,
@@ -707,8 +711,18 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       callbacks.onTranscriptDelta?.(sessionId, event.serverContent.inputTranscription.text, true, true);
     }
 
+    // 1c. Agent output transcription
+    if (event.serverContent?.outputTranscription?.text) {
+      logger.info('GeminiLiveProvider: received agent transcription', {
+        sessionId,
+        text: event.serverContent.outputTranscription.text,
+      });
+      callbacks.onTranscriptDelta?.(sessionId, event.serverContent.outputTranscription.text, false, false);
+    }
+
     // 2. Turn Complete
     if (event.serverContent?.turnComplete) {
+      callbacks.onTranscriptDelta?.(sessionId, '', true, false);
       callbacks.onResponseDone?.(sessionId);
     }
 
