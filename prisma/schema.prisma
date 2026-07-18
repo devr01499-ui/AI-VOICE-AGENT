@@ -37,7 +37,6 @@ model User {
   subAccounts          SubAccount[]
   webhooks             Webhook[]
   providerCredentials  ProviderCredential[]
-  userAnalytics        UserAnalytics?
   callSessions         CallSession[]
 
   @@map("users")
@@ -475,20 +474,6 @@ model RuntimeMetric {
   @@map("runtime_metrics")
 }
 
-model UserAnalytics {
-  id                    String   @id @default(uuid())
-  userId                String   @unique @map("user_id")
-  totalCallsCreated     Int      @default(0) @map("total_calls_created")
-  totalMinutesConsumed  Float    @default(0.0) @map("total_minutes_consumed")
-  aggregatedGeminiCost  Float    @default(0.0) @map("aggregated_gemini_cost")
-  aggregatedVobizCost   Float    @default(0.0) @map("aggregated_vobiz_cost")
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("user_analytics")
-}
 
 model CallSession {
   id             String    @id @default(uuid())

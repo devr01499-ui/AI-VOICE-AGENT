@@ -54,34 +54,13 @@ export class SessionLogger {
       });
 
       if (call?.userId) {
-        await prisma.$transaction([
-          // Deduct net cost from billing balance
-          prisma.user.update({
-            where: { id: call.userId },
-            data: {
-              billingBalance: {
-                decrement: totalCost
-              }
-            }
-          }),
-          // Increment user analytics record
-          prisma.userAnalytics.upsert({
-            where: { userId: call.userId },
-            create: {
-              userId: call.userId,
-              totalCallsCreated: 1,
-              totalMinutesConsumed: durationMinutes,
-              aggregatedGeminiCost: geminiInputCost + geminiOutputCost,
-              aggregatedVobizCost: vobizCost,
-            },
-            update: {
-              totalCallsCreated: { increment: 1 },
-              totalMinutesConsumed: { increment: durationMinutes },
-              aggregatedGeminiCost: { increment: geminiInputCost + geminiOutputCost },
-              aggregatedVobizCost: { increment: vobizCost },
-            }
-          })
-        ]);
+        // Deduct net cost from billing balance
+        await prisma.user.update({
+          where: { id: call.userId },
+          data: {
+            billingBalance: { decrement: totalCost }
+          }
+        });
         logger.info('SessionLogger: recorded user-wise session end results & balance deduction', { 
           callId, 
           userId: call.userId,
