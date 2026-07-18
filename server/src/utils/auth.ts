@@ -73,6 +73,10 @@ export function getUserIdFromRequest(req: Request): string | null {
   if (cookies) {
     const sessionTokenMatch = cookies.match(/next-auth\.session-token=([^;]+)/);
     if (sessionTokenMatch && sessionTokenMatch[1]) {
+      if (process.env.NODE_ENV === 'production') {
+        logger.warn('getUserIdFromRequest: next-auth cookie bypassed fallback blocked in production');
+        return null;
+      }
       // In local bypassed mode we map session cookie values directly
       return SEEDED_USER_ID;
     }

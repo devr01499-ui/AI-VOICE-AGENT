@@ -156,17 +156,7 @@ import { CallController } from './controllers/CallController';
 // ─── API Routes ──────────────────────────────────
 
 app.use('/api/v2/calls', requireAuth, callRoutes);
-app.post('/api/calls/outbound', (req, res, next) => {
-  const userId = getUserIdFromRequest(req);
-  if (!userId) {
-    res.status(401).json({ success: false, error: 'Unauthorized' });
-    return;
-  }
-  if (req && typeof req === 'object') {
-    (req as any).auth = { userId };
-  }
-  next();
-}, CallController.initiateCall);
+app.post('/api/calls/outbound', requireAuth, CallController.initiateCall);
 app.post('/api/v2/calls/outbound', requireAuth, CallController.initiateCall);
 app.use('/api/v2/agents', requireAuth, agentRoutes);
 app.use('/api/v2/numbers', requireAuth, numbersRoutes);
@@ -268,37 +258,39 @@ async function bootstrap(): Promise<void> {
     await prisma.$connect();
     logger.info('Bolna Server: database connected');
     
-    // Seed default workspace user to prevent multi-tenant lookups failing
-    await prisma.user.upsert({
-      where: { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' },
-      update: {},
-      create: {
-        id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-        email: 'devr01499@gmail.com',
-        fullName: 'Rohit Kumar Sha',
-        passwordHash: 'seeded-dev-hash-12345',
-        billingBalance: 1000.0, // Seed 1000 credits
-      }
-    });
-    logger.info('Bolna Server: Seeded dev workspace user devr01499@gmail.com ✓');
+    if (env.NODE_ENV !== 'production') {
+      // Seed default workspace user to prevent multi-tenant lookups failing
+      await prisma.user.upsert({
+        where: { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' },
+        update: {},
+        create: {
+          id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+          email: 'devr01499@gmail.com',
+          fullName: 'Rohit Kumar Sha',
+          passwordHash: 'seeded-dev-hash-12345',
+          billingBalance: 1000.0, // Seed 1000 credits
+        }
+      });
+      logger.info('Bolna Server: Seeded dev workspace user devr01499@gmail.com ✓');
 
-    // Seed default workspace phone number if missing
-    await prisma.phoneNumber.upsert({
-      where: { phoneNumber: '+12345678901' },
-      update: {},
-      create: {
-        id: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
-        phoneNumber: '+12345678901',
-        userId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-        countryCode: 'US',
-        type: 'local',
-        telephonyProvider: 'vobiz',
-        capabilities: '["voice"]',
-        status: 'active',
-        monthlyCost: 1.0,
-      }
-    });
-    logger.info('Bolna Server: Seeded dev workspace phone number +12345678901 ✓');
+      // Seed default workspace phone number if missing
+      await prisma.phoneNumber.upsert({
+        where: { phoneNumber: '+12345678901' },
+        update: {},
+        create: {
+          id: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+          phoneNumber: '+12345678901',
+          userId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+          countryCode: 'US',
+          type: 'local',
+          telephonyProvider: 'vobiz',
+          capabilities: '["voice"]',
+          status: 'active',
+          monthlyCost: 1.0,
+        }
+      });
+      logger.info('Bolna Server: Seeded dev workspace phone number +12345678901 ✓');
+    }
   } catch (err) {
     logger.error('Bolna Server: database connection failed', {
       error: err instanceof Error ? err.message : String(err),
@@ -444,7 +436,9 @@ async function bootstrap(): Promise<void> {
     });
 
     // Call this method within the server listen block
-    seedTestEnvironment().catch(err => console.error("Database seed failure:", err));
+    if (env.NODE_ENV !== 'production') {
+      seedTestEnvironment().catch(err => console.error("Database seed failure:", err));
+    }
 
     logger.info('Bolna Server: ready ✓');
   });

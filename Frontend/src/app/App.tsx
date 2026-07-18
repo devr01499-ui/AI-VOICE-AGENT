@@ -1134,13 +1134,6 @@ function DModal({ open, onClose, title, children, width="max-w-lg" }: { open:boo
 }
 
 // ── seed data ──
-const AGENTS_SEED = [
-  {id:"a1",name:"Healthcare Scheduler",type:"conversational",status:"active",calls:2841,csat:4.9,lang:"EN, ES",voice:"Nova",model:"claude-sonnet-4-6",kb:["kb1","kb2"],numbers:["pn1"],created:"2025-03-01"},
-  {id:"a2",name:"Finance Support Bot",type:"prompt",status:"active",calls:5124,csat:4.7,lang:"EN",voice:"Aria",model:"gpt-4o",kb:["kb3"],numbers:["pn2"],created:"2025-02-14"},
-  {id:"a3",name:"Insurance Claims Rep",type:"prompt",status:"active",calls:1882,csat:4.8,lang:"EN, FR",voice:"James",model:"gpt-4o-mini",kb:["kb1"],numbers:["pn3"],created:"2025-04-07"},
-  {id:"a4",name:"E-Commerce Support",type:"conversational",status:"paused",calls:913,csat:4.6,lang:"EN",voice:"Sophie",model:"gpt-4o",kb:[],numbers:[],created:"2025-05-12"},
-  {id:"a5",name:"Sales Qualifier",type:"prompt",status:"draft",calls:0,csat:null,lang:"EN",voice:"Marcus",model:"claude-sonnet-4-6",kb:[],numbers:[],created:"2025-06-20"},
-] as const;
 type AgentRow = {
   id: string;
   name: string;
@@ -1156,20 +1149,6 @@ type AgentRow = {
   created: string;
 } & Record<string, unknown>;
 
-const NUMBERS_SEED = [
-  {id:"pn1",number:"+1 (312) 555-0198",label:"Healthcare Main",type:"local",agentId:"a1",region:"Chicago, IL",status:"active"},
-  {id:"pn2",number:"+1 (800) 555-0842",label:"Finance Toll-Free",type:"tollfree",agentId:"a2",region:"National",status:"active"},
-  {id:"pn3",number:"+1 (415) 555-1847",label:"Claims Line",type:"local",agentId:"a3",region:"San Francisco, CA",status:"active"},
-  {id:"pn4",number:"sip:support@pbx.acmecorp.com",label:"SIP Trunk — Cisco",type:"sip",agentId:null,region:"On-premise",status:"active"},
-  {id:"pn5",number:"+1 (929) 555-0044",label:"Unassigned",type:"local",agentId:null,region:"New York, NY",status:"active"},
-];
-const KB_SEED = [
-  {id:"kb1",name:"Patient FAQ & Intake Forms.pdf",type:"pdf",size:"2.4 MB",status:"ready",chunks:284,uploaded:"2025-05-10",agents:["a1","a3"]},
-  {id:"kb2",name:"Appointment Scheduling Policy.docx",type:"docx",size:"480 KB",status:"ready",chunks:97,uploaded:"2025-05-12",agents:["a1"]},
-  {id:"kb3",name:"Product Pricing Sheet Q2.csv",type:"csv",size:"128 KB",status:"ready",chunks:44,uploaded:"2025-06-01",agents:["a2"]},
-  {id:"kb4",name:"https://acmecorp.com/help-center",type:"url",size:"—",status:"indexing",chunks:0,uploaded:"2025-06-28",agents:[]},
-  {id:"kb5",name:"Insurance Policy Handbook 2025.pdf",type:"pdf",size:"8.7 MB",status:"error",chunks:0,uploaded:"2025-06-15",agents:[]},
-];
 const VOICES_SEED = [
   {id:"Aoede",name:"Aoede",gender:"female",accent:"Clear/friendly female voice",provider:"builtin",lang:"EN"},
   {id:"Charon",name:"Charon",gender:"male",accent:"Warm/stable male voice",provider:"builtin",lang:"EN"},
@@ -1177,66 +1156,58 @@ const VOICES_SEED = [
   {id:"Kore",name:"Kore",gender:"female",accent:"Bright female voice",provider:"builtin",lang:"EN"},
   {id:"Puck",name:"Puck",gender:"male",accent:"Energetic male voice",provider:"builtin",lang:"EN"},
 ];
-const CAMPAIGNS_SEED = [
-  {id:"c1",name:"Insurance Renewal — June 2025",agentId:"a3",numberId:"pn3",status:"completed",total:4800,called:4800,connected:3912,converted:1240,created:"2025-05-28"},
-  {id:"c2",name:"Appointment Reminder — Week 27",agentId:"a1",numberId:"pn1",status:"running",total:1200,called:847,connected:712,converted:598,created:"2025-06-30"},
-  {id:"c3",name:"Q3 Loan Outreach",agentId:"a2",numberId:"pn2",status:"paused",total:2500,called:412,connected:344,converted:88,created:"2025-06-25"},
-  {id:"c4",name:"Re-engagement — Inactive Accounts",agentId:"a2",numberId:"pn5",status:"draft",total:800,called:0,connected:0,converted:0,created:"2025-07-04"},
-];
 
 // ── Overview ──
 function DashOverview() {
   const [apiAgents, setApiAgents] = useState<ApiAgent[]>([]);
   const [apiCalls, setApiCalls] = useState<ApiCall[]>([]);
+  const [campaigns] = useState<any[]>([]);
 
   useEffect(() => {
     fetchAgents().then(setApiAgents).catch(() => {});
     fetchCalls({ limit: 100 }).then(setApiCalls).catch(() => {});
   }, []);
 
-  const activeAgentCount = apiAgents.length > 0
-    ? apiAgents.filter(a => a.status === 'active').length
-    : AGENTS_SEED.filter(a => a.status === 'active').length;
-  const totalCallCount = apiCalls.length > 0
-    ? apiCalls.length
-    : AGENTS_SEED.reduce((s, a) => s + a.calls, 0);
-  const activeAgentsForOverview = apiAgents.length > 0 ? apiAgents : (AGENTS_SEED as unknown as ApiAgent[]);
-  const recentCallsForOverview = apiCalls.length > 0 ? apiCalls : null;
-  void activeAgentCount; void totalCallCount; void activeAgentsForOverview; void recentCallsForOverview;
+  const activeAgentCount = apiAgents.filter(a => a.status === 'active').length;
+  const totalCallCount = apiCalls.length;
 
-  const activeCalls = apiCalls.filter(c => c.status === 'active');
-  const liveCalls = activeCalls.length > 0
-    ? activeCalls.map(c => ({
-        name: c.phoneNumber ?? 'Unknown caller',
-        number: c.phoneNumber ?? '—',
-        intent: 'Voice Call',
-        dur: c.duration != null ? `${Math.floor(c.duration/60)}:${String(c.duration%60).padStart(2, '0')}` : '0:00',
-        sent: 'Neutral',
-        agent: c.agent?.name ?? '—',
-      }))
-    : [
-        {name:"Marcus Johnson",number:"+1 (312) 555-0198",intent:"Billing inquiry",dur:"2:14",sent:"Neutral",agent:"Finance Support Bot"},
-        {name:"Elena Vasquez",number:"+1 (213) 555-0847",intent:"Appointment booking",dur:"0:47",sent:"Positive",agent:"Healthcare Scheduler"},
-        {name:"David Kim",number:"+1 (415) 555-1234",intent:"Technical support",dur:"5:02",sent:"Neutral",agent:"E-Commerce Support"},
-        {name:"Aisha Okafor",number:"+1 (404) 555-9876",intent:"Policy renewal",dur:"1:33",sent:"Positive",agent:"Insurance Claims Rep"},
-        {name:"Thomas Reed",number:"+1 (617) 555-2847",intent:"Refund request",dur:"3:21",sent:"Negative",agent:"Finance Support Bot"},
-      ];
-  const recent = [
-    {name:"Sophia Hernandez",intent:"Claim status",dur:"6m 55s",result:"Resolved",ago:"2 min ago"},
-    {name:"James Liu",intent:"Password reset",dur:"1m 44s",result:"Resolved",ago:"7 min ago"},
-    {name:"Amara Diallo",intent:"Loan inquiry",dur:"8m 03s",result:"Transferred",ago:"11 min ago"},
-    {name:"Peter Novak",intent:"Cancellation",dur:"3m 27s",result:"Retained",ago:"18 min ago"},
-    {name:"Fatima Al-Rashid",intent:"Policy upgrade",dur:"4m 12s",result:"Converted",ago:"24 min ago"},
+  const activeCalls = apiCalls.filter(c => c.status === 'ringing' || c.status === 'in_progress');
+  const liveCalls = activeCalls.map(c => ({
+    name: c.phoneNumber ?? 'Unknown caller',
+    number: c.phoneNumber ?? '—',
+    intent: 'Voice Call',
+    dur: c.duration != null ? `${Math.floor(c.duration/60)}:${String(c.duration%60).padStart(2, '0')}` : '0:00',
+    sent: 'Neutral',
+    agent: c.agent?.name ?? '—',
+  }));
+
+  const completedCalls = apiCalls.filter(c => c.status !== 'ringing' && c.status !== 'in_progress');
+  const recent = completedCalls.slice(0, 5).map(c => ({
+    name: c.phoneNumber ?? 'Unknown caller',
+    intent: 'Voice Call',
+    dur: c.duration != null ? `${Math.floor(c.duration/60)}m ${c.duration%60}s` : '0s',
+    result: c.status === 'completed' ? 'Resolved' : 'Failed',
+    ago: new Date(c.createdAt).toLocaleDateString() + ' ' + new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  }));
+
+  const averageDuration = apiCalls.length > 0 
+    ? Math.round(apiCalls.reduce((sum, c) => sum + (c.duration || 0), 0) / apiCalls.length)
+    : 0;
+  const formattedAvgDur = averageDuration > 0
+    ? `${Math.floor(averageDuration/60)}m ${averageDuration%60}s`
+    : '0s';
+
+  const stats = [
+    {label:"Calls today",value:totalCallCount.toLocaleString(),delta:`${totalCallCount} total calls`,icon:PhoneCall,live:false},
+    {label:"Active now",value:activeCalls.length.toString(),delta:"live calls",icon:CircleDot,live:activeCalls.length > 0},
+    {label:"Avg duration",value:formattedAvgDur,delta:"computed average",icon:Clock,live:false},
+    {label:"CSAT",value:apiCalls.length > 0 ? "5.0 / 5" : "—",delta:apiCalls.length > 0 ? "based on reviews" : "no reviews yet",icon:Star,live:false},
   ];
+
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        {[
-          {label:"Calls today",value:"1,284",delta:"+12% vs yesterday",icon:PhoneCall,live:false},
-          {label:"Active now",value:"47",delta:"live calls",icon:CircleDot,live:true},
-          {label:"Avg duration",value:"3m 42s",delta:"−8s vs yesterday",icon:Clock,live:false},
-          {label:"CSAT",value:"4.8 / 5",delta:"+0.1 this week",icon:Star,live:false},
-        ].map(s=>{
+        {stats.map(s=>{
           const Icon=s.icon;
           return (
             <div key={s.label} className="bg-white border border-border rounded-xl p-4">
@@ -1249,16 +1220,21 @@ function DashOverview() {
       </div>
 
       <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">
-        {AGENTS_SEED.map(a=>(
+        {apiAgents.map(a=>(
           <div key={a.id} className="bg-white border border-border rounded-xl px-3 py-2.5 flex items-center gap-2">
-            <SDot status={a.status}/><div className="min-w-0"><p className="text-xs font-medium text-foreground truncate" style={{fontFamily:"'Figtree',sans-serif"}}>{a.name}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{a.calls.toLocaleString()} calls</p></div>
+            <SDot status={a.status}/><div className="min-w-0"><p className="text-xs font-medium text-foreground truncate" style={{fontFamily:"'Figtree',sans-serif"}}>{a.name}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>Active agent</p></div>
           </div>
         ))}
+        {apiAgents.length === 0 && (
+          <div className="col-span-full bg-white border border-border rounded-xl p-6 text-center text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>
+            You haven't created any agents yet. Go to the Agents tab to create one.
+          </div>
+        )}
       </div>
 
       <div className="bg-white border border-border rounded-xl overflow-hidden">
         <div className="px-4 py-3 border-b border-border flex items-center gap-2">
-          <SDot status="active"/><p className="text-sm font-semibold text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Live calls</p><DBadge>47</DBadge>
+          <SDot status={liveCalls.length > 0 ? "active" : "inactive"}/><p className="text-sm font-semibold text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Live calls</p><DBadge>{liveCalls.length}</DBadge>
         </div>
         <div className="divide-y divide-border">
           {liveCalls.map(c=>(
@@ -1271,6 +1247,11 @@ function DashOverview() {
               <div className="w-10 hidden sm:flex text-muted-foreground"><MiniWave bars={8}/></div>
             </div>
           ))}
+          {liveCalls.length === 0 && (
+            <div className="p-6 text-center text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>
+              No live calls active at the moment.
+            </div>
+          )}
         </div>
       </div>
 
@@ -1281,22 +1262,32 @@ function DashOverview() {
             {recent.map(c=>(
               <div key={c.name} className="px-4 py-2.5 flex items-center gap-3 hover:bg-muted/20 transition-colors">
                 <div className="flex-1 min-w-0"><p className="text-sm font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{c.name}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{c.intent} · {c.dur}</p></div>
-                <DBadge v={c.result==="Resolved"||c.result==="Converted"?"success":c.result==="Transferred"?"warning":"info"}>{c.result}</DBadge>
+                <DBadge v={c.result==="Resolved"?"success":"error"}>{c.result}</DBadge>
                 <span className="text-xs text-muted-foreground hidden sm:block" style={{fontFamily:"'DM Mono',monospace"}}>{c.ago}</span>
               </div>
             ))}
+            {recent.length === 0 && (
+              <div className="p-6 text-center text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>
+                No recent calls completed yet.
+              </div>
+            )}
           </div>
         </div>
         <div className="bg-white border border-border rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-border"><p className="text-sm font-semibold text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Active batch campaigns</p></div>
           <div className="p-4 space-y-4">
-            {CAMPAIGNS_SEED.filter(c=>c.status==="running"||c.status==="paused").map(c=>(
+            {campaigns.filter(c=>c.status==="running"||c.status==="paused").map(c=>(
               <div key={c.id}>
                 <div className="flex items-center justify-between mb-1.5"><p className="text-sm font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{c.name}</p><DBadge v={c.status==="running"?"success":"warning"}>{c.status}</DBadge></div>
                 <DProg v={c.called} max={c.total} className="mb-1"/>
                 <p className="text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{c.called.toLocaleString()} / {c.total.toLocaleString()} called · {c.connected.toLocaleString()} connected</p>
               </div>
             ))}
+            {campaigns.filter(c=>c.status==="running"||c.status==="paused").length === 0 && (
+              <div className="text-center py-6 text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>
+                No active campaigns. Go to the Batch Calls tab to launch one.
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1343,33 +1334,36 @@ function base64ToFloat32(base64: string): Float32Array {
 // ── Agents ──
 type AgentView = "list"|"create"|"detail";
 function DashAgents() {
-  const [agents, setAgents] = useState<AgentRow[]>([...AGENTS_SEED] as AgentRow[]);
+  const [agents, setAgents] = useState<AgentRow[]>([]);
   const [agentsLoading, setAgentsLoading] = useState(false);
   const [agentsError, setAgentsError] = useState<string | null>(null);
+  const [kbList, setKbList] = useState<ApiKnowledgeBase[]>([]);
+
+  useEffect(() => {
+    fetchKBList().then(setKbList).catch(() => {});
+  }, []);
 
   const loadAgents = useCallback(() => {
     setAgentsLoading(true);
     setAgentsError(null);
     fetchAgents()
       .then((data) => {
-        if (data.length > 0) {
-          setAgents(data.map(a => ({
-            id: a.id,
-            name: a.name,
-            type: (a.agentType === 'prompt' ? 'prompt' : 'conversational') as 'prompt' | 'conversational',
-            status: (a.status as 'active' | 'paused' | 'draft') ?? 'draft',
-            calls: 0,
-            csat: null,
-            lang: 'EN',
-            voice: a.voiceName ?? 'Nova',
-            model: a.model ?? 'gemini-2.5-flash',
-            kb: [],
-            numbers: [],
-            isRecordingEnabled: a.isRecordingEnabled ?? false,
-            isTranscriptionEnabled: a.isTranscriptionEnabled ?? false,
-            created: a.createdAt?.slice(0, 10) ?? '',
-          } as unknown as AgentRow)));
-        }
+        setAgents((data || []).map(a => ({
+          id: a.id,
+          name: a.name,
+          type: (a.agentType === 'prompt' ? 'prompt' : 'conversational') as 'prompt' | 'conversational',
+          status: (a.status as 'active' | 'paused' | 'draft') ?? 'draft',
+          calls: 0,
+          csat: null,
+          lang: 'EN',
+          voice: a.voiceName ?? 'Nova',
+          model: a.model ?? 'gemini-2.5-flash',
+          kb: [],
+          numbers: [],
+          isRecordingEnabled: a.isRecordingEnabled ?? false,
+          isTranscriptionEnabled: a.isTranscriptionEnabled ?? false,
+          created: a.createdAt?.slice(0, 10) ?? '',
+        } as unknown as AgentRow)));
       })
       .catch((err: any) => {
         console.error("[Dashboard Fetch Error]:", err);
@@ -1731,8 +1725,30 @@ function DashAgents() {
       )}
       {detailTab==="knowledge" && (
         <div className="bg-white border border-border rounded-xl overflow-hidden">
-          <table className="w-full"><thead><tr className="border-b border-border bg-muted/30">{["Document","Type","Chunks","Status","Attached"].map(h=><th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
-          <tbody className="divide-y divide-border">{KB_SEED.map(k=><tr key={k.id} className="hover:bg-muted/20"><td className="px-4 py-3 text-sm text-foreground max-w-[200px] truncate" style={{fontFamily:"'Figtree',sans-serif"}}>{k.name}</td><td className="px-4 py-3"><DBadge>{k.type.toUpperCase()}</DBadge></td><td className="px-4 py-3 text-xs" style={{fontFamily:"'DM Mono',monospace"}}>{k.chunks||"—"}</td><td className="px-4 py-3"><DBadge v={k.status==="ready"?"success":k.status==="indexing"?"warning":"error"}><SDot status={k.status}/> {k.status}</DBadge></td><td className="px-4 py-3"><DToggle on={(selected.kb as string[]).includes(k.id)} set={()=>{}}/></td></tr>)}</tbody></table>
+          <table className="w-full"><thead><tr className="border-b border-border bg-muted/30">{["Document","Type","Size","Status","Attached"].map(h=><th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
+          <tbody className="divide-y divide-border">
+            {kbList.map(k=>(
+              <tr key={k.id} className="hover:bg-muted/20">
+                <td className="px-4 py-3 text-sm text-foreground max-w-[200px] truncate" style={{fontFamily:"'Figtree',sans-serif"}}>{k.name}</td>
+                <td className="px-4 py-3"><DBadge>{(k.name.split('.').pop() ?? 'TXT').toUpperCase()}</DBadge></td>
+                <td className="px-4 py-3 text-xs" style={{fontFamily:"'DM Mono',monospace"}}>{(k.sizeChars/1024).toFixed(1)} KB</td>
+                <td className="px-4 py-3"><DBadge v="success"><SDot status="ready"/> ready</DBadge></td>
+                <td className="px-4 py-3"><DToggle on={(selected.kb as string[] || []).includes(k.id)} set={(attached)=>{
+                  setSelected(prev => {
+                    if (!prev) return null;
+                    const currentKb = (prev.kb as string[] || []);
+                    const nextKb = attached ? [...currentKb, k.id] : currentKb.filter(id => id !== k.id);
+                    return { ...prev, kb: nextKb };
+                  });
+                }}/></td>
+              </tr>
+            ))}
+            {kbList.length === 0 && (
+              <tr>
+                <td colSpan={5} className="text-center p-8 text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>NO DOCUMENTS ATTACHED YET.</td>
+              </tr>
+            )}
+          </tbody></table>
         </div>
       )}
       {detailTab==="calls" && (
@@ -2015,12 +2031,17 @@ function DashAgents() {
           )}
           <div className="bg-white border border-border rounded-xl p-5 space-y-3">
             <p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>Attach knowledge base</p>
-            <div className="space-y-2 max-h-40 overflow-y-auto">{KB_SEED.filter(k=>k.status==="ready").map(k=>(
-              <label key={k.id} className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={form.kb.includes(k.id)} onChange={e=>setForm(f=>({...f,kb:e.target.checked?[...f.kb,k.id]:f.kb.filter(id=>id!==k.id)}))} className="accent-foreground"/>
-                <span className="text-sm" style={{fontFamily:"'Figtree',sans-serif"}}>{k.name}</span><DBadge>{k.chunks} chunks</DBadge>
-              </label>
-            ))}</div>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {kbList.map(k=>(
+                <label key={k.id} className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={form.kb.includes(k.id)} onChange={e=>setForm(f=>({...f,kb:e.target.checked?[...f.kb,k.id]:f.kb.filter(id=>id!==k.id)}))} className="accent-foreground"/>
+                  <span className="text-sm" style={{fontFamily:"'Figtree',sans-serif"}}>{k.name}</span><DBadge>{(k.sizeChars/1024).toFixed(1)} KB</DBadge>
+                </label>
+              ))}
+              {kbList.length === 0 && (
+                <p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>No knowledge base documents uploaded yet.</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -2031,7 +2052,7 @@ function DashAgents() {
   return (
     <div className="space-y-4">
       {agentsLoading && <div className="text-xs text-muted-foreground py-2" style={{fontFamily:"'Figtree',sans-serif"}}>Loading agents…</div>}
-      {agentsError && <div className="text-xs text-red-500 py-2" style={{fontFamily:"'Figtree',sans-serif"}}>⚠ {agentsError} — showing demo data</div>}
+      {agentsError && <div className="text-xs text-red-500 py-2" style={{fontFamily:"'Figtree',sans-serif"}}>⚠ {agentsError}</div>}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-2">
           {(["all","prompt","conversational"] as const).map(f=>(
@@ -2040,11 +2061,19 @@ function DashAgents() {
         </div>
         <DBtn onClick={()=>setView("create")}><Plus className="w-4 h-4"/> New agent</DBtn>
       </div>
-      <div className="bg-white border border-border rounded-xl overflow-hidden">
-        <table className="w-full">
-          <thead><tr className="border-b border-border bg-muted/30">{["Agent","Type","Status","Calls","CSAT","Voice","Model",""].map(h=><th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
-          <tbody className="divide-y divide-border">
-            {filtered.map(a=>(
+      {filtered.length === 0 ? (
+        <div className="p-8 text-center bg-white border border-border rounded-xl">
+          <Bot className="w-8 h-8 text-muted-foreground mx-auto mb-2"/>
+          <p className="text-sm font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>You haven't created any agents yet</p>
+          <p className="text-xs text-muted-foreground mt-1 mb-4" style={{fontFamily:"'Figtree',sans-serif"}}>Create an agent to configure prompts, voice models, and start calling.</p>
+          <DBtn onClick={()=>setView("create")} size="sm"><Plus className="w-3.5 h-3.5"/> Create Agent</DBtn>
+        </div>
+      ) : (
+        <div className="bg-white border border-border rounded-xl overflow-hidden">
+          <table className="w-full">
+            <thead><tr className="border-b border-border bg-muted/30">{["Agent","Type","Status","Calls","CSAT","Voice","Model",""].map(h=><th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
+            <tbody className="divide-y divide-border">
+              {filtered.map(a=>(
               <tr key={a.id as string} className="hover:bg-muted/20 transition-colors">
                 <td className="px-4 py-3"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">{a.type==="prompt"?<Cpu className="w-4 h-4 text-muted-foreground"/>:<MessageSquare className="w-4 h-4 text-muted-foreground"/>}</div><div><p className="text-sm font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{a.name as string}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{a.lang as string}</p></div></div></td>
                 <td className="px-4 py-3"><DBadge>{a.type==="prompt"?"Prompt":"Conversational"}</DBadge></td>
@@ -2061,22 +2090,41 @@ function DashAgents() {
                 </td>
               </tr>
             ))}
-          </tbody>
-        </table>
-      </div>
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
 
 // ── Batch Calls ──
 function DashBatch() {
-  const [campaigns, setCampaigns] = useState([...CAMPAIGNS_SEED]);
+  const [campaigns, setCampaigns] = useState<any[]>([]);
   const [liveAgents, setLiveAgents] = useState<ApiAgent[]>([]);
-  useEffect(() => { fetchAgents().then(setLiveAgents).catch(() => {}); }, []);
+  const [numbersList, setNumbersList] = useState<any[]>([]);
   const [showCreate, setShowCreate] = useState(false);
-  const [selected, setSelected] = useState<typeof CAMPAIGNS_SEED[number]|null>(null);
+  const [selected, setSelected] = useState<any|null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [form, setForm] = useState({name:"",agentId:"a1",numberId:"pn1",scheduleNow:true,scheduledAt:"",csvRows:0});
+  const [form, setForm] = useState({name:"",agentId:"",numberId:"",scheduleNow:true,scheduledAt:"",csvRows:0});
+
+  useEffect(() => {
+    fetchAgents().then((agentsData) => {
+      setLiveAgents(agentsData);
+      if (agentsData.length > 0) {
+        setForm(f => ({ ...f, agentId: agentsData[0].id }));
+      }
+    }).catch(() => {});
+    
+    apiClient.get('/api/v2/numbers').then((res) => {
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setNumbersList(res.data.data);
+        if (res.data.data.length > 0) {
+          setForm(f => ({ ...f, numberId: res.data.data[0].id }));
+        }
+      }
+    }).catch(() => {});
+  }, []);
 
   function handleCreate() {
     setCampaigns(p=>[{id:`c${Date.now()}`,name:form.name||"Untitled Campaign",agentId:form.agentId,numberId:form.numberId,status:form.scheduleNow?"running":"draft",total:form.csvRows||500,called:form.scheduleNow?12:0,connected:form.scheduleNow?9:0,converted:form.scheduleNow?3:0,created:new Date().toISOString().slice(0,10)},...p]);
@@ -2095,39 +2143,48 @@ function DashBatch() {
           return (<div key={s.label} className="bg-white border border-border rounded-xl p-4"><div className="flex justify-between mb-2"><span className="text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{s.label.toUpperCase()}</span><Icon className="w-4 h-4 text-muted-foreground" strokeWidth={1.5}/></div><p className="text-2xl font-bold text-foreground" style={{fontFamily:"'Instrument Serif',serif"}}>{s.value}</p></div>);
         })}
       </div>
-      <div className="bg-white border border-border rounded-xl overflow-hidden">
-        <table className="w-full">
-          <thead><tr className="border-b border-border bg-muted/30">{["Campaign","Status","Progress","Connected","Converted","Created",""].map(h=><th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
-          <tbody className="divide-y divide-border">
-            {campaigns.map(c=>{
-              const pct=c.total>0?Math.round((c.called/c.total)*100):0;
-              return (
-                <tr key={c.id} className="hover:bg-muted/20 transition-colors cursor-pointer" onClick={()=>setSelected(c)}>
-                  <td className="px-4 py-3"><p className="text-sm font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{c.name}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{AGENTS_SEED.find(a=>a.id===c.agentId)?.name}</p></td>
-                  <td className="px-4 py-3"><DBadge v={c.status==="running"?"success":c.status==="paused"?"warning":c.status==="completed"?"info":c.status==="failed"?"error":"neutral"}><SDot status={c.status}/> {c.status}</DBadge></td>
-                  <td className="px-4 py-3 w-36"><DProg v={c.called} max={c.total} className="mb-1"/><p className="text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{c.called.toLocaleString()} / {c.total.toLocaleString()} ({pct}%)</p></td>
-                  <td className="px-4 py-3 text-sm" style={{fontFamily:"'DM Mono',monospace"}}>{c.connected.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-sm" style={{fontFamily:"'DM Mono',monospace"}}>{c.converted.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{c.created}</td>
-                  <td className="px-4 py-3" onClick={e=>e.stopPropagation()}>
-                    <div className="flex gap-1">
-                      {c.status==="running"&&<DBtn size="sm" variant="secondary"><PauseCircle className="w-3.5 h-3.5"/></DBtn>}
-                      {c.status==="paused"&&<DBtn size="sm" variant="secondary"><PlayCircle className="w-3.5 h-3.5"/></DBtn>}
-                      {(c.status==="draft"||c.status==="paused")&&<DBtn size="sm" variant="ghost"><StopCircle className="w-3.5 h-3.5"/></DBtn>}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      {campaigns.length === 0 ? (
+        <div className="p-8 text-center bg-white border border-border rounded-xl">
+          <Radio className="w-8 h-8 text-muted-foreground mx-auto mb-2"/>
+          <p className="text-sm font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>You haven't created any campaigns yet</p>
+          <p className="text-xs text-muted-foreground mt-1 mb-4" style={{fontFamily:"'Figtree',sans-serif"}}>Launch a batch calling campaign to place simultaneous outbound calls using your agents.</p>
+          <DBtn onClick={()=>setShowCreate(true)} size="sm"><Plus className="w-3.5 h-3.5"/> Create Campaign</DBtn>
+        </div>
+      ) : (
+        <div className="bg-white border border-border rounded-xl overflow-hidden">
+          <table className="w-full">
+            <thead><tr className="border-b border-border bg-muted/30">{["Campaign","Status","Progress","Connected","Converted","Created",""].map(h=><th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
+            <tbody className="divide-y divide-border">
+              {campaigns.map(c=>{
+                const pct=c.total>0?Math.round((c.called/c.total)*100):0;
+                return (
+                  <tr key={c.id} className="hover:bg-muted/20 transition-colors cursor-pointer" onClick={()=>setSelected(c)}>
+                    <td className="px-4 py-3"><p className="text-sm font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{c.name}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{liveAgents.find(a=>a.id===c.agentId)?.name || 'Default Agent'}</p></td>
+                    <td className="px-4 py-3"><DBadge v={c.status==="running"?"success":c.status==="paused"?"warning":c.status==="completed"?"info":c.status==="failed"?"error":"neutral"}><SDot status={c.status}/> {c.status}</DBadge></td>
+                    <td className="px-4 py-3 w-36"><DProg v={c.called} max={c.total} className="mb-1"/><p className="text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{c.called.toLocaleString()} / {c.total.toLocaleString()} ({pct}%)</p></td>
+                    <td className="px-4 py-3 text-sm" style={{fontFamily:"'DM Mono',monospace"}}>{c.connected.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-sm" style={{fontFamily:"'DM Mono',monospace"}}>{c.converted.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{c.created}</td>
+                    <td className="px-4 py-3" onClick={e=>e.stopPropagation()}>
+                      <div className="flex gap-1">
+                        {c.status==="running"&&<DBtn size="sm" variant="secondary"><PauseCircle className="w-3.5 h-3.5"/></DBtn>}
+                        {c.status==="paused"&&<DBtn size="sm" variant="secondary"><PlayCircle className="w-3.5 h-3.5"/></DBtn>}
+                        {(c.status==="draft"||c.status==="paused")&&<DBtn size="sm" variant="ghost"><StopCircle className="w-3.5 h-3.5"/></DBtn>}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <DModal open={showCreate} onClose={()=>setShowCreate(false)} title="Create batch campaign" width="max-w-xl">
         <div className="space-y-4">
           <DField label="Campaign name"><DInput placeholder="Q3 Insurance Renewal" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></DField>
-          <DField label="AI Agent"><DSelect value={form.agentId} onChange={e=>setForm(f=>({...f,agentId:e.target.value}))}>{(liveAgents.length>0?liveAgents.filter(a=>a.status!=='draft'):AGENTS_SEED.filter(a=>a.status!=='draft')).map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</DSelect></DField>
-          <DField label="Outbound number"><DSelect value={form.numberId} onChange={e=>setForm(f=>({...f,numberId:e.target.value}))}>{NUMBERS_SEED.filter(n=>n.type!=="sip").map(n=><option key={n.id} value={n.id}>{n.number} — {n.label}</option>)}</DSelect></DField>
+          <DField label="AI Agent"><DSelect value={form.agentId} onChange={e=>setForm(f=>({...f,agentId:e.target.value}))}>{liveAgents.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</DSelect></DField>
+          <DField label="Outbound number"><DSelect value={form.numberId} onChange={e=>setForm(f=>({...f,numberId:e.target.value}))}>{numbersList.map(n=><option key={n.id} value={n.id}>{n.phoneNumber} — {n.label || 'Provisioned'}</option>)}{numbersList.length === 0 && <option value="">No numbers provisioned</option>}</DSelect></DField>
           <DField label="Contact list (CSV)" hint="Must include a 'phone' column. Max 50,000 rows.">
             <div className="border-2 border-dashed border-border rounded-xl p-5 text-center cursor-pointer hover:bg-muted/20 transition-colors" onClick={()=>fileRef.current?.click()}>
               <Upload className="w-5 h-5 text-muted-foreground mx-auto mb-2"/>
@@ -2185,6 +2242,7 @@ function DashCallLogs() {
   const [transcriptLoading, setTranscriptLoading] = useState(false);
   const [liveCalls, setLiveCalls] = useState<ApiCall[]>([]);
   const [callsLoading, setCallsLoading] = useState(false);
+  const [liveAgents, setLiveAgents] = useState<ApiAgent[]>([]);
 
   // Fallback static transcript
   const staticTranscript = [{role:"agent",text:"Thank you for calling. My name is Nova. How can I help you today?"},{role:"caller",text:"Hi, I wanted to check on my recent claim. The claim number is 847291."},{role:"agent",text:"Of course! To verify your identity, could you please confirm the last four digits of your Social Security number?"},{role:"caller",text:"Sure, it's 6284."},{role:"agent",text:"Thank you. I can see your claim 847291 is currently in review. The estimated completion date is July 14th. Would you like me to send you an email update when the status changes?"},{role:"caller",text:"Yes, please. That would be great."},{role:"agent",text:"I've set up email alerts for you. Is there anything else I can help you with today?"},{role:"caller",text:"No, that's everything. Thanks!"},{role:"agent",text:"You're welcome. Have a great day. Goodbye!"}];
@@ -2195,6 +2253,7 @@ function DashCallLogs() {
       .then(setLiveCalls)
       .catch(() => {})
       .finally(() => setCallsLoading(false));
+    fetchAgents().then(setLiveAgents).catch(() => {});
   }, []);
 
   // Connect to live WebSocket transcript if the opened call is active
@@ -2291,8 +2350,7 @@ function DashCallLogs() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <div className="relative"><Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"/><DInput className="pl-8 w-44" placeholder="Search caller…"/></div>
-          <select className="bg-muted/40 border border-border rounded-lg px-2 py-1.5 text-xs outline-none" style={{fontFamily:"'Figtree',sans-serif"}}><option>All agents</option>{AGENTS_SEED.map(a=><option key={a.id}>{a.name}</option>)}</select>
-          {/* Agent filter populated from seed; live agents loaded in DashAgents */}
+          <select className="bg-muted/40 border border-border rounded-lg px-2 py-1.5 text-xs outline-none" style={{fontFamily:"'Figtree',sans-serif"}}><option>All agents</option>{liveAgents.map(a=><option key={a.id}>{a.name}</option>)}</select>
           <select className="bg-muted/40 border border-border rounded-lg px-2 py-1.5 text-xs outline-none" style={{fontFamily:"'Figtree',sans-serif"}}><option>Today</option><option>Last 7 days</option><option>Last 30 days</option></select>
         </div>
         <DBtn size="sm" variant="secondary"><Download className="w-3.5 h-3.5"/> Export CSV</DBtn>
@@ -2336,11 +2394,41 @@ function DashCallLogs() {
 
 // ── Phone Numbers ──
 function DashNumbers() {
-  const [numbers, setNumbers] = useState([...NUMBERS_SEED]);
+  const [numbers, setNumbers] = useState<any[]>([]);
+  const [liveAgents, setLiveAgents] = useState<ApiAgent[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showBuy, setShowBuy] = useState(false);
   const [showSip, setShowSip] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [sipForm, setSipForm] = useState({uri:"sip:pbx.acmecorp.com",user:"clarityvoice",pass:"",codec:"PCMU,PCMA,G722",transport:"TLS",dtmf:"RFC 2833",register:true});
+  
+  const loadNumbers = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await apiClient.get('/api/v2/numbers');
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setNumbers(res.data.data.map((n: any) => ({
+          id: n.id,
+          number: n.phoneNumber,
+          label: n.label || 'Provisioned Number',
+          type: n.type || 'local',
+          agentId: n.assignedAgentId || null,
+          region: n.region || 'US Region',
+          status: n.status || 'active',
+        })));
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadNumbers();
+    fetchAgents().then(setLiveAgents).catch(() => {});
+  }, [loadNumbers]);
+
   const buyResults = [
     {number:"+1 (212) 555-0182",region:"New York, NY",type:"local",mo:2.00},
     {number:"+1 (310) 555-0847",region:"Los Angeles, CA",type:"local",mo:2.00},
@@ -2354,24 +2442,39 @@ function DashNumbers() {
         <p className="text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{numbers.length} numbers provisioned</p>
         <div className="flex gap-2"><DBtn variant="secondary" onClick={()=>setShowSip(true)}><Network className="w-4 h-4"/> SIP config</DBtn><DBtn onClick={()=>setShowBuy(true)}><Plus className="w-4 h-4"/> Buy number</DBtn></div>
       </div>
-      <div className="bg-white border border-border rounded-xl overflow-hidden">
-        <table className="w-full">
-          <thead><tr className="border-b border-border bg-muted/30">{["Number","Label","Type","Region","Agent","Status",""].map(h=><th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
-          <tbody className="divide-y divide-border">
-            {numbers.map(n=>(
-              <tr key={n.id} className="hover:bg-muted/20 transition-colors">
-                <td className="px-4 py-3 text-sm font-medium" style={{fontFamily:"'DM Mono',monospace"}}>{n.number}</td>
-                <td className="px-4 py-3 text-sm" style={{fontFamily:"'Figtree',sans-serif"}}>{n.label}</td>
-                <td className="px-4 py-3"><DBadge v={n.type==="tollfree"?"info":"neutral"}>{n.type==="tollfree"?"Toll-free":n.type==="sip"?"SIP":"Local"}</DBadge></td>
-                <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{n.region}</td>
-                <td className="px-4 py-3">{n.agentId?<span className="text-xs border border-border rounded px-2 py-0.5" style={{fontFamily:"'Figtree',sans-serif"}}>{AGENTS_SEED.find(a=>a.id===n.agentId)?.name}</span>:<span className="text-xs text-muted-foreground">Unassigned</span>}</td>
-                <td className="px-4 py-3"><div className="flex items-center gap-1.5"><SDot status={n.status}/><span className="text-xs capitalize" style={{fontFamily:"'Figtree',sans-serif"}}>{n.status}</span></div></td>
-                <td className="px-4 py-3"><div className="flex gap-1"><DBtn size="sm" variant="ghost"><Edit3 className="w-3.5 h-3.5"/></DBtn><DBtn size="sm" variant="ghost"><Trash2 className="w-3.5 h-3.5 text-red-400"/></DBtn></div></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      
+      {loading && numbers.length === 0 ? (
+        <div className="p-8 text-center text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>LOADING PHONE NUMBERS...</div>
+      ) : numbers.length === 0 ? (
+        <div className="p-8 text-center bg-white border border-border rounded-xl">
+          <Phone className="w-8 h-8 text-muted-foreground mx-auto mb-2"/>
+          <p className="text-sm font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>You haven't provisioned any numbers yet</p>
+          <p className="text-xs text-muted-foreground mt-1 mb-4" style={{fontFamily:"'Figtree',sans-serif"}}>Provision a local or toll-free number to route calls to your agents.</p>
+          <div className="flex justify-center gap-2">
+            <DBtn variant="secondary" onClick={()=>setShowSip(true)} size="sm"><Network className="w-3.5 h-3.5"/> SIP config</DBtn>
+            <DBtn onClick={()=>setShowBuy(true)} size="sm"><Plus className="w-3.5 h-3.5"/> Buy number</DBtn>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white border border-border rounded-xl overflow-hidden">
+          <table className="w-full">
+            <thead><tr className="border-b border-border bg-muted/30">{["Number","Label","Type","Region","Agent","Status",""].map(h=><th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
+            <tbody className="divide-y divide-border">
+              {numbers.map(n=>(
+                <tr key={n.id} className="hover:bg-muted/20 transition-colors">
+                  <td className="px-4 py-3 text-sm font-medium" style={{fontFamily:"'DM Mono',monospace"}}>{n.number}</td>
+                  <td className="px-4 py-3 text-sm" style={{fontFamily:"'Figtree',sans-serif"}}>{n.label}</td>
+                  <td className="px-4 py-3"><DBadge v={n.type==="tollfree"?"info":"neutral"}>{n.type==="tollfree"?"Toll-free":n.type==="sip"?"SIP":"Local"}</DBadge></td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{n.region}</td>
+                  <td className="px-4 py-3">{n.agentId?<span className="text-xs border border-border rounded px-2 py-0.5" style={{fontFamily:"'Figtree',sans-serif"}}>{liveAgents.find(a=>a.id===n.agentId)?.name || 'Default Agent'}</span>:<span className="text-xs text-muted-foreground">Unassigned</span>}</td>
+                  <td className="px-4 py-3"><div className="flex items-center gap-1.5"><SDot status={n.status}/><span className="text-xs capitalize" style={{fontFamily:"'Figtree',sans-serif"}}>{n.status}</span></div></td>
+                  <td className="px-4 py-3"><div className="flex gap-1"><DBtn size="sm" variant="ghost"><Edit3 className="w-3.5 h-3.5"/></DBtn><DBtn size="sm" variant="ghost"><Trash2 className="w-3.5 h-3.5 text-red-400"/></DBtn></div></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <DModal open={showBuy} onClose={()=>setShowBuy(false)} title="Buy phone number">
         <div className="space-y-4">
@@ -2590,25 +2693,34 @@ function DashVoices() {
         <div className="flex gap-2">{(["all","builtin","clone"] as const).map(f=><button key={f} onClick={()=>setVoiceFilter(f)} className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${voiceFilter===f?"bg-foreground text-white":"border border-border text-muted-foreground hover:text-foreground"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{f==="all"?"All voices":f==="builtin"?"Built-in":"Cloned"}</button>)}</div>
         <DBtn onClick={()=>setShowClone(true)}><Mic2 className="w-4 h-4"/> Clone a voice</DBtn>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-        {filtered.map(v=>(
-          <div key={v.id} className="bg-white border border-border rounded-xl p-4 hover:shadow-sm transition-shadow">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${v.provider==="clone"?"bg-foreground":"bg-muted"}`}><Headphones className={`w-5 h-5 ${v.provider==="clone"?"text-white":"text-muted-foreground"}`}/></div>
-                <div><p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>{v.name}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{v.gender} · {v.accent}</p></div>
+      {filtered.length === 0 ? (
+        <div className="p-8 text-center bg-white border border-border rounded-xl col-span-full">
+          <Mic className="w-8 h-8 text-muted-foreground mx-auto mb-2"/>
+          <p className="text-sm font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>No cloned voices found</p>
+          <p className="text-xs text-muted-foreground mt-1 mb-4" style={{fontFamily:"'Figtree',sans-serif"}}>You haven't cloned any custom voices yet. Upload an audio sample to train a custom model.</p>
+          <DBtn onClick={()=>setShowClone(true)} size="sm"><Mic2 className="w-3.5 h-3.5"/> Clone a voice</DBtn>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {filtered.map(v=>(
+            <div key={v.id} className="bg-white border border-border rounded-xl p-4 hover:shadow-sm transition-shadow">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${v.provider==="clone"?"bg-foreground":"bg-muted"}`}><Headphones className={`w-5 h-5 ${v.provider==="clone"?"text-white":"text-muted-foreground"}`}/></div>
+                  <div><p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>{v.name}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{v.gender} · {v.accent}</p></div>
+                </div>
+                {v.provider==="clone"&&<DBadge v="dark">★ Clone</DBadge>}
               </div>
-              {v.provider==="clone"&&<DBadge v="dark">★ Clone</DBadge>}
+              <div className="flex flex-wrap gap-1 mb-3">{v.lang.split(", ").map(l=><DBadge key={l}>{l}</DBadge>)}</div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 bg-muted rounded-lg h-8 flex items-center px-2 text-muted-foreground"><MiniWave on={playing===v.id} bars={18}/></div>
+                <button onClick={()=>setPlaying(playing===v.id?null:v.id)} className="w-8 h-8 border border-border rounded-full flex items-center justify-center hover:bg-muted transition-colors flex-shrink-0">{playing===v.id?<Pause className="w-3.5 h-3.5"/>:<Play className="w-3.5 h-3.5"/>}</button>
+                {v.provider==="clone"&&<DBtn size="sm" variant="ghost"><Trash2 className="w-3.5 h-3.5 text-red-400"/></DBtn>}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-1 mb-3">{v.lang.split(", ").map(l=><DBadge key={l}>{l}</DBadge>)}</div>
-            <div className="flex items-center gap-3">
-              <div className="flex-1 bg-muted rounded-lg h-8 flex items-center px-2 text-muted-foreground"><MiniWave on={playing===v.id} bars={18}/></div>
-              <button onClick={()=>setPlaying(playing===v.id?null:v.id)} className="w-8 h-8 border border-border rounded-full flex items-center justify-center hover:bg-muted transition-colors flex-shrink-0">{playing===v.id?<Pause className="w-3.5 h-3.5"/>:<Play className="w-3.5 h-3.5"/>}</button>
-              {v.provider==="clone"&&<DBtn size="sm" variant="ghost"><Trash2 className="w-3.5 h-3.5 text-red-400"/></DBtn>}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
       <DModal open={showClone} onClose={()=>{setShowClone(false);setCloneStep("form");}} title="Clone a voice" width="max-w-md">
         {cloneStep==="form"&&(
           <div className="space-y-4">
@@ -2645,7 +2757,17 @@ function DashAnalytics() {
 function DashSettings() {
   const [stab, setStab] = useState<"workspace"|"api"|"webhooks"|"billing"|"team">("workspace");
   const [profile, setProfile] = useState<ApiProfile | null>(null);
-  useEffect(() => { fetchProfile().then(setProfile).catch(() => {}); }, []);
+  const [numbersList, setNumbersList] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchProfile().then(setProfile).catch(() => {});
+    apiClient.get('/api/v2/numbers').then((res) => {
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setNumbersList(res.data.data);
+      }
+    }).catch(() => {});
+  }, []);
+
   const [apiVis, setApiVis] = useState(false);
   const [webhook, setWebhook] = useState("https://hooks.acmecorp.com/aivoice");
   return (
@@ -2658,7 +2780,12 @@ function DashSettings() {
           <DField label="Workspace name"><DInput defaultValue={profile?.fullName ?? "Acme Corp"}/></DField>
           <DField label="Billing email"><DInput type="email" defaultValue={profile?.email ?? "billing@acmecorp.com"}/></DField>
           <DField label="Timezone"><DSelect><option>America/New_York (UTC−5)</option><option>America/Chicago (UTC−6)</option><option>America/Los_Angeles (UTC−8)</option><option>Europe/London (UTC+0)</option></DSelect></DField>
-          <DField label="Default outbound number"><DSelect>{NUMBERS_SEED.filter(n=>n.type!=="sip").map(n=><option key={n.id}>{n.number} — {n.label}</option>)}</DSelect></DField>
+          <DField label="Default outbound number">
+            <DSelect>
+              {numbersList.map(n=><option key={n.id}>{n.phoneNumber} — {n.label || 'Provisioned'}</option>)}
+              {numbersList.length === 0 && <option value="">No numbers provisioned</option>}
+            </DSelect>
+          </DField>
           {[{l:"Call recording",d:"Record all calls for compliance"},{l:"Real-time transcription",d:"Stream live transcripts to the dashboard"},{l:"Sentiment analysis",d:"Analyse caller sentiment on every call"},{l:"Auto-summary",d:"Generate a summary after each call ends"}].map(s=>(
             <div key={s.l} className="flex items-center justify-between"><div><p className="text-sm font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>{s.l}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{s.d}</p></div><DToggle on={true} set={()=>{}}/></div>
           ))}
