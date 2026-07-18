@@ -12,6 +12,7 @@ import { CallService } from '../services/CallService';
 import { callOrchestrator } from '../core/orchestrator/CallOrchestrator';
 import { env } from '../config/env';
 import { prisma } from '../lib/prisma';
+import { ADMIN_EMAIL } from '../config/constants';
 
 /**
  * Handles all call-related HTTP endpoints.
@@ -62,7 +63,7 @@ export class CallController {
         update: {},
         create: {
           id: effectiveUserId,
-          email: effectiveUserId === 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' ? "devr01499@gmail.com" : `user-${effectiveUserId}@supabase.io`,
+          email: effectiveUserId === 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' ? ADMIN_EMAIL : `user-${effectiveUserId}@supabase.io`,
           fullName: effectiveUserId === 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' ? "devr01499" : "Supabase User",
           passwordHash: "$2b$10$UnSeededPasswordHashPlaceholder",
         }

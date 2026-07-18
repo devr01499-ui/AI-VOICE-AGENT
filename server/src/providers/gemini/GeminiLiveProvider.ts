@@ -17,6 +17,7 @@ import { logger } from '../../utils/logger';
 import { ProviderError } from '../../types/errors';
 import { CallError } from '../../utils/CallError';
 import { env } from '../../config/env';
+import { ADMIN_EMAIL } from '../../config/constants';
 import type {
   IRealtimeProvider,
   HealthCheckResult,
@@ -110,18 +111,30 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
       try {
         const prismaInstance = (await import('../../lib/prisma')).prisma;
-        await prismaInstance.user.update({
-          where: { id: userId },
-          data: {
-            callingBalanceMinutes: {
-              decrement: decrementVal
+        const userRecord = await prismaInstance.user.findUnique({ where: { id: userId }, select: { email: true } });
+        const isAdmin = userRecord?.email === ADMIN_EMAIL;
+
+        if (isAdmin) {
+          // Admin: only track total consumption, never decrement callingBalanceMinutes
+          await prismaInstance.user.update({
+            where: { id: userId },
+            data: { totalMinutesConsumed: { increment: decrementVal } }
+          });
+          logger.info('Monetization Gateway: Tracked admin usage (no balance deduction)', { userId, elapsedMinutes: decrementVal });
+        } else {
+          // Regular users: decrement calling balance and track total consumption
+          await prismaInstance.user.update({
+            where: { id: userId },
+            data: {
+              callingBalanceMinutes: { decrement: decrementVal },
+              totalMinutesConsumed: { increment: decrementVal },
             }
-          }
-        });
-        logger.info('Monetization Gateway: Deducted minutes from platform balance upon call termination', {
-          userId,
-          elapsedMinutes: decrementVal
-        });
+          });
+          logger.info('Monetization Gateway: Deducted minutes from platform balance upon call termination', {
+            userId,
+            elapsedMinutes: decrementVal
+          });
+        }
       } catch (err) {
         logger.error('Monetization Gateway: Failed to decrement calling credits on session closure', { error: String(err) });
       }
@@ -232,6 +245,11 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       // Use User's Custom Key (BYOK Mode - Cost Free to Platform)
       selectedApiKey = userProfile.geminiApiKey.trim();
       logger.info('Monetization Gateway: BYOK Mode enabled', { userId, callId });
+    } else if (userProfile.email === ADMIN_EMAIL) {
+      // Admin account: always use platform master key, never block, track usage only
+      selectedApiKey = this.apiKey;
+      accountsAgainstPlatformBalance = true;
+      logger.info('Monetization Gateway: Admin bypass active — using platform key without balance check', { userId, callId });
     } else if (userProfile.callingBalanceMinutes > 0) {
       // Use Platform Central Master Key (Subtracts User Free Balance Trial minutes)
       selectedApiKey = this.apiKey;

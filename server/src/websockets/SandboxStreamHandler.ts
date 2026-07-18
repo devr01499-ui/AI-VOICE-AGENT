@@ -4,6 +4,7 @@ import { logger } from '../utils/logger';
 import { prisma } from '../lib/prisma';
 import { GeminiLiveProvider } from '../providers/gemini/GeminiLiveProvider';
 import { verifySupabaseToken } from '../utils/auth';
+import { ADMIN_EMAIL } from '../config/constants';
 
 interface ActiveSandboxSession {
   ws: WebSocket;
@@ -61,7 +62,7 @@ export class SandboxStreamHandler {
       }
 
       let userId = verified.sub;
-      if (verified.email === 'devr01499@gmail.com') {
+      if (verified.email === ADMIN_EMAIL) {
         userId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
       }
 

@@ -24,6 +24,7 @@ model User {
   contactNumber         String?  @map("contact_number")
   geminiApiKey          String?  @map("gemini_api_key")
   callingBalanceMinutes Float    @default(10.0) @map("calling_balance_minutes")
+  totalMinutesConsumed  Float    @default(0.0) @map("total_minutes_consumed")
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
 

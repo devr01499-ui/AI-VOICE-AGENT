@@ -13,6 +13,7 @@ import { validateParams, validateQuery } from '../middleware/validation';
 import { prisma } from '../lib/prisma';
 import { getUserIdFromRequest } from '../utils/auth';
 import { logger } from '../utils/logger';
+import { ADMIN_EMAIL } from '../config/constants';
 
 const router = Router();
 
@@ -45,7 +46,10 @@ router.get(
       const user = await AgentRepository.findProfileByUserId(userId);
       res.status(200).json({
         success: true,
-        data: user,
+        data: user ? {
+          ...user,
+          isAdmin: user.email === ADMIN_EMAIL,
+        } : null,
       });
       return;
     } catch (error: any) {

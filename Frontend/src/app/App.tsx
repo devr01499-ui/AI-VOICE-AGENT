@@ -2824,13 +2824,11 @@ function DashAnalytics() {
 }
 
 // ── Settings ──
-function DashSettings() {
+function DashSettings({ profile }: { profile: ApiProfile | null }) {
   const [stab, setStab] = useState<"workspace"|"api"|"webhooks"|"billing"|"team">("workspace");
-  const [profile, setProfile] = useState<ApiProfile | null>(null);
   const [numbersList, setNumbersList] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchProfile().then(setProfile).catch(() => {});
     apiClient.get('/api/v2/numbers').then((res) => {
       if (res.data?.success && Array.isArray(res.data.data)) {
         setNumbersList(res.data.data);
@@ -2860,6 +2858,20 @@ function DashSettings() {
             <div key={s.l} className="flex items-center justify-between"><div><p className="text-sm font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>{s.l}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{s.d}</p></div><DToggle on={true} set={()=>{}}/></div>
           ))}
           <DBtn><Check className="w-4 h-4"/> Save settings</DBtn>
+          {(profile as any)?.isAdmin && (
+            <div className="mt-4 pt-4 border-t border-border">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2" style={{fontFamily:"'DM Mono',monospace"}}>Admin — Credits Consumed</p>
+              <div className="bg-muted/40 rounded-xl p-4 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-foreground/10 flex items-center justify-center flex-shrink-0">
+                  <span className="text-base">📊</span>
+                </div>
+                <div>
+                  <p className="text-xl font-bold" style={{fontFamily:"'Figtree',sans-serif"}}>{((profile as any)?.totalMinutesConsumed ?? 0).toFixed(2)} <span className="text-sm font-normal text-muted-foreground">min</span></p>
+                  <p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Total platform minutes consumed across all sandbox sessions</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
       {stab==="api"&&(
@@ -2987,7 +2999,7 @@ function DashboardPage({ session }: { session: Session }) {
               {section==="knowledge"&&<DashKnowledge apiAgents={apiAgents}/>}
               {section==="voices"&&<DashVoices/>}
               {section==="analytics"&&<DashAnalytics/>}
-              {section==="settings"&&<DashSettings/>}
+              {section==="settings"&&<DashSettings profile={profile} />}
             </motion.div>
           </AnimatePresence>
         </div>
