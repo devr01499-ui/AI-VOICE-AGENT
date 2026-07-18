@@ -23,3 +23,8 @@ You are strictly bound to this zero-regression architectural contract. Before re
   1. Root folder: `npm run typecheck && npm run build`
   2. Server folder: `npm run typecheck && npm run build`
 - If a compilation error or warning is encountered, you must roll back the change immediately and refactor until the pipeline achieves absolute stability with 0 errors.
+
+## 5. Dependency Management & Build Environment Rules
+- **Build-Required Packages**: Any package required for TypeScript compilation (including all type declaration packages `@types/*`) must be placed in `dependencies` (never `devDependencies`) within `server/package.json`. This is because Render build containers use production-only installations (`NODE_ENV=production`) which bypass devDependencies, and a missing type package will crash `tsc` compilation.
+- **Local Sandbox Testing**: Before committing or deploying package configuration updates, run `npm ci --omit=dev && npx tsc --noEmit` locally in the `server` directory to simulate exactly how Render behaves under production constraints.
+

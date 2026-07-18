@@ -20,7 +20,9 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.18",
     "@types/express": "^5.0.0",
+    "@types/jsdom": "^28.0.3",
     "@types/node": "^22.0.0",
+    "@types/pdf-parse": "^1.1.5",
     "@types/pg": "^8.20.0",
     "@types/uuid": "^10.0.0",
     "@types/ws": "^8.5.14",
@@ -39,8 +41,6 @@
     "zod": "^3.25.0"
   },
   "devDependencies": {
-    "@types/jsdom": "^28.0.3",
-    "@types/pdf-parse": "^1.1.5",
     "tsx": "^4.19.0"
   },
   "optionalDependencies": {
