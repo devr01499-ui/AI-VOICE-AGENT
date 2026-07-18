@@ -61,6 +61,10 @@ interface GeminiServerEvent {
     code?: number;
     status?: string;
   };
+  goAway?: {
+    timeLeftMs?: number;
+    resumptionHandle?: string;
+  };
 }
 
 interface ActiveSession {
@@ -370,6 +374,9 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         }
       }
 
+      // Ensure the model locks to English for transcription and conversation
+      systemInstructionString = `${systemInstructionString}\n\n[LANGUAGE SECURITY GATES]\nAlways listen, transcribe, and respond strictly in English using the Latin script only. Never transcribe user input or respond in Hindi, Devanagari script, or any other language/script under any circumstances.`;
+
       let systemVoiceVal = 'Puck';
       let temperatureVal = 0.7;
 
@@ -535,6 +542,11 @@ export class GeminiLiveProvider implements IRealtimeProvider {
           : `WebSocket closed before setup complete (code=${code}, reason=${reason.toString()})`;
         handler.reject(new CallError(callId, errMsg, 'NETWORK_ERROR'));
         this.setupCompletePromises.delete(sessionId);
+      } else {
+        callbacks.onError?.(
+          sessionId,
+          new Error(`Upstream connection closed by Gemini. Code: ${code}. Reason: ${reason.toString() || 'No reason provided'}`)
+        );
       }
     });
 
@@ -748,6 +760,20 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         code: event.error.code,
       });
       callbacks.onError?.(sessionId, new Error(event.error.message));
+    }
+
+    // 6. Server GoAway Event (Session expiration warning)
+    if (event.goAway) {
+      const timeLeftSeconds = event.goAway.timeLeftMs ? Math.round(event.goAway.timeLeftMs / 1000) : 10;
+      logger.warn('GeminiLiveProvider: Received GoAway notice from Google', {
+        sessionId,
+        timeLeftMs: event.goAway.timeLeftMs,
+        resumptionHandle: event.goAway.resumptionHandle,
+      });
+      callbacks.onError?.(
+        sessionId,
+        new Error(`Session is ending in ${timeLeftSeconds} seconds due to upstream resource constraints.`)
+      );
     }
   }
 }
