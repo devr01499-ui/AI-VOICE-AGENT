@@ -1402,6 +1402,7 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
 
   const lastTestedAgentIdRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const playbackContextRef = useRef<AudioContext | null>(null);
@@ -1428,6 +1429,9 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
       if (wsRef.current) {
         wsRef.current.close();
       }
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
     };
   }, []);
 
@@ -1436,6 +1440,17 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
       scrollRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
   }, [sandboxTranscript]);
+
+  const finalizeLastMessage = useCallback(() => {
+    setSandboxTranscript(prev => {
+      if (prev.length === 0) return prev;
+      const last = prev[prev.length - 1];
+      if (last && !last.finalized) {
+        return [...prev.slice(0, -1), { ...last, finalized: true }];
+      }
+      return prev;
+    });
+  }, []);
 
   async function fetchWorkspaceNumbers() {
     try {
@@ -1563,9 +1578,23 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
               setSandboxLatency(delta);
             }
 
+            const speaker = msg.isUser ? 'user' : 'agent';
+
+            if (debounceTimerRef.current) {
+              clearTimeout(debounceTimerRef.current);
+              debounceTimerRef.current = null;
+            }
+
             setSandboxTranscript(prev => {
               const last = prev[prev.length - 1];
-              const speaker = msg.isUser ? 'user' : 'agent';
+              if (last && last.speaker !== speaker && !last.finalized) {
+                const finalizedLast = { ...last, finalized: true };
+                if (msg.text) {
+                  return [...prev.slice(0, -1), finalizedLast, { speaker, text: msg.text, finalized: msg.isFinal }];
+                } else {
+                  return [...prev.slice(0, -1), finalizedLast];
+                }
+              }
               if (last && last.speaker === speaker && !last.finalized) {
                 return [...prev.slice(0, -1), { speaker, text: last.text + (msg.text || ''), finalized: msg.isFinal }];
               } else if (msg.text) {
@@ -1573,6 +1602,12 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
               }
               return prev;
             });
+
+            if (!msg.isFinal) {
+              debounceTimerRef.current = setTimeout(() => {
+                finalizeLastMessage();
+              }, 1500);
+            }
           } else if (msg.event === 'interrupted') {
             nextPlaybackTimeRef.current = 0;
           } else if (msg.event === 'error') {
@@ -1646,6 +1681,10 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
         wsRef.current.close();
       }
       wsRef.current = null;
+    }
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
     }
     setSandboxActive(false);
     setSandboxOpen(false);

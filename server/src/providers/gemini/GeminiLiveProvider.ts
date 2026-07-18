@@ -708,7 +708,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         sessionId,
         text: event.serverContent.inputTranscription.text,
       });
-      callbacks.onTranscriptDelta?.(sessionId, event.serverContent.inputTranscription.text, true, true);
+      callbacks.onTranscriptDelta?.(sessionId, event.serverContent.inputTranscription.text, false, true);
     }
 
     // 1c. Agent output transcription
