@@ -2,13 +2,29 @@ import { Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthenticatedRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
+import { v4 as uuidv4 } from 'uuid';
+import { JSDOM } from 'jsdom';
+import { extractTextFromPdf } from '../utils/pdfParser';
+import { getEmbedding } from '../utils/embedding';
+
+function chunkText(text: string, chunkSize = 1000, overlap = 150): string[] {
+  const chunks: string[] = [];
+  let index = 0;
+  while (index < text.length) {
+    const chunk = text.slice(index, index + chunkSize);
+    chunks.push(chunk);
+    index += chunkSize - overlap;
+    if (chunkSize <= overlap) break;
+  }
+  return chunks;
+}
 
 export class KnowledgeBaseController {
   
   /**
    * POST /api/v2/knowledge-base/upload
    * 
-   * Uploads base64-encoded document, decodes it, and stores it in KnowledgeBase table.
+   * Uploads base64-encoded document, parses PDF or text, chunks/embeds, and stores in KnowledgeBase.
    */
   static async upload(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -33,18 +49,52 @@ export class KnowledgeBaseController {
         return;
       }
 
-      // Decode and restrict storage size to prevent database bloat (limit to 500KB)
-      const rawText = Buffer.from(fileBase64, 'base64').toString('utf8');
-      const contentText = rawText.slice(0, 500000); // Truncate at 500K chars
+      const buffer = Buffer.from(fileBase64, 'base64');
+      let contentText = '';
+
+      if (name.toLowerCase().endsWith('.pdf')) {
+        contentText = await extractTextFromPdf(buffer);
+      } else {
+        contentText = buffer.toString('utf8');
+      }
+
+      if (!contentText.trim()) {
+        res.status(400).json({ success: false, error: 'Document does not contain any readable text.' });
+        return;
+      }
+
+      const truncatedContent = contentText.slice(0, 500000); // Truncate at 500K chars
 
       const kb = await prisma.knowledgeBase.create({
         data: {
           name,
-          contentText,
+          contentText: truncatedContent,
           agentId,
           userId,
         }
       });
+
+      // Split text into chunks, generate embeddings, and insert into pgvector table
+      const chunks = chunkText(truncatedContent);
+      logger.info('KBController: Chunking uploaded document', {
+        docName: name,
+        chunksCount: chunks.length
+      });
+
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        const embedding = await getEmbedding(chunk);
+        const chunkId = uuidv4();
+        
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO "kb_chunks" ("id", "kb_id", "content", "embedding", "metadata", "created_at") VALUES ($1, $2, $3, cast($4 as vector), $5, NOW())`,
+          chunkId,
+          kb.id,
+          chunk,
+          `[${embedding.join(',')}]`,
+          JSON.stringify({ source: name, index: i })
+        );
+      }
 
       res.status(201).json({
         success: true,
@@ -54,18 +104,19 @@ export class KnowledgeBaseController {
           agentId: kb.agentId,
           createdAt: kb.createdAt,
           sizeChars: kb.contentText.length,
+          chunksCount: chunks.length,
         }
       });
-    } catch (err) {
+    } catch (err: any) {
       logger.error('KBController: failed to upload document', { error: String(err) });
-      next(err);
+      res.status(400).json({ success: false, error: err.message || 'Failed to process document upload' });
     }
   }
 
   /**
    * POST /api/v2/knowledge-base/scrape
    * 
-   * Fetches URL, strips HTML tags down to clean text strings, and stores in KnowledgeBase.
+   * Fetches URL, strips headers/footers/menus, chunks/embeds, and stores in KnowledgeBase.
    */
   static async scrape(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -92,11 +143,27 @@ export class KnowledgeBaseController {
 
       logger.info('KBController: scraping URL target', { url, agentId });
 
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'ClarityVoiceBot/1.0',
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+      
+      let response;
+      try {
+        response = await fetch(url, {
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'ClarityVoiceBot/1.0',
+          }
+        });
+      } catch (fetchErr: any) {
+        if (fetchErr.name === 'AbortError') {
+          res.status(504).json({ success: false, error: 'Scraping target request timed out after 15 seconds' });
+        } else {
+          res.status(502).json({ success: false, error: `Failed to fetch target URL: ${fetchErr.message}` });
         }
-      });
+        return;
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         res.status(502).json({ success: false, error: `Failed to scrape target: HTTP ${response.status}` });
@@ -105,24 +172,58 @@ export class KnowledgeBaseController {
 
       const html = await response.text();
       
-      // Simple HTML Tag Stripper
-      const cleanText = html
-        .replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, '') // remove script contents
-        .replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, '')   // remove style contents
-        .replace(/<[^>]*>/g, ' ')                           // strip html tags
-        .replace(/\s+/g, ' ')                               // normalize whitespace
-        .trim();
+      // Boilerplate-free DOM extraction using JSDOM
+      const dom = new JSDOM(html);
+      const doc = dom.window.document;
+      
+      const selectorsToRemove = [
+        'nav', 'footer', 'header', 'script', 'style', 'noscript', 'iframe', 
+        'aside', '.nav', '.footer', '.header', '.sidebar', '.menu', '.ads', 
+        '#nav', '#footer', '#sidebar'
+      ];
+      selectorsToRemove.forEach(sel => {
+        doc.querySelectorAll(sel).forEach(el => el.remove());
+      });
+      
+      const cleanText = doc.body.textContent?.replace(/\s+/g, ' ').trim() || '';
+      
+      if (!cleanText.trim()) {
+        res.status(400).json({ success: false, error: 'Website does not contain any readable text.' });
+        return;
+      }
 
-      const contentText = cleanText.slice(0, 500000); // Truncate at 500K chars to prevent bloat
+      const truncatedContent = cleanText.slice(0, 500000); // Truncate at 500K chars
 
       const kb = await prisma.knowledgeBase.create({
         data: {
           name: url,
-          contentText,
+          contentText: truncatedContent,
           agentId,
           userId,
         }
       });
+
+      // Split text into chunks, generate embeddings, and insert into pgvector table
+      const chunks = chunkText(truncatedContent);
+      logger.info('KBController: Chunking scraped website', {
+        url,
+        chunksCount: chunks.length
+      });
+
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        const embedding = await getEmbedding(chunk);
+        const chunkId = uuidv4();
+        
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO "kb_chunks" ("id", "kb_id", "content", "embedding", "metadata", "created_at") VALUES ($1, $2, $3, cast($4 as vector), $5, NOW())`,
+          chunkId,
+          kb.id,
+          chunk,
+          `[${embedding.join(',')}]`,
+          JSON.stringify({ source: url, index: i })
+        );
+      }
 
       res.status(201).json({
         success: true,
@@ -132,11 +233,12 @@ export class KnowledgeBaseController {
           agentId: kb.agentId,
           createdAt: kb.createdAt,
           sizeChars: kb.contentText.length,
+          chunksCount: chunks.length,
         }
       });
-    } catch (err) {
+    } catch (err: any) {
       logger.error('KBController: failed to scrape URL', { error: String(err) });
-      next(err);
+      res.status(400).json({ success: false, error: err.message || 'Failed to scrape target URL' });
     }
   }
 

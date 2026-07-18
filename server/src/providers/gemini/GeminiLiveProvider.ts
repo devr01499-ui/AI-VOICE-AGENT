@@ -73,6 +73,8 @@ interface ActiveSession {
   callbacks: RealtimeEventCallbacks;
   createdAt: number;
   balanceInterval?: NodeJS.Timeout;
+  agentId?: string;
+  userId?: string;
 }
 
 export class GeminiLiveProvider implements IRealtimeProvider {
@@ -206,6 +208,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     callbacks: RealtimeEventCallbacks
   ): Promise<RealtimeSessionResult> {
     const callId = config.callId || '';
+    let resolvedAgentId: string | undefined = config.agentId;
     if (!config.callId) {
       throw new Error('callId required in config');
     }
@@ -350,46 +353,64 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     ws.on('open', async () => {
       logger.info('GeminiLiveProvider: WebSocket successfully opened. Transmission of strict snake_case setup payload initiated.');
 
+      resolvedAgentId = config.agentId;
+      if (config.callId) {
+        try {
+          const prismaInstance = (await import('../../lib/prisma')).prisma;
+          const callLog = await prismaInstance.call.findFirst({
+            where: { id: config.callId, userId },
+            select: { agentId: true }
+          });
+          if (callLog?.agentId) {
+            resolvedAgentId = callLog.agentId;
+          }
+        } catch (err) {
+          logger.error('GeminiLiveProvider: Failed to resolve callLog', { error: String(err) });
+        }
+      }
+
+      let hasKbDocs = false;
+      if (resolvedAgentId) {
+        try {
+          const prismaInstance = (await import('../../lib/prisma')).prisma;
+          const count = await prismaInstance.knowledgeBase.count({
+            where: { agentId: resolvedAgentId, userId }
+          });
+          hasKbDocs = count > 0;
+        } catch (err) {
+          logger.error('GeminiLiveProvider: Failed to count kbDocs', { error: String(err) });
+        }
+      }
+
       // Map tools cleanly to Gemini wire function_declarations format
       const functionDeclarations = config.tools?.map((t) => ({
         name: t.name,
         description: t.description,
         parameters: t.parameters, // JSON Schema parameters can remain camelCase/nested as standard
-      }));
+      })) || [];
+
+      if (hasKbDocs) {
+        functionDeclarations.push({
+          name: 'search_knowledge_base',
+          description: 'Searches the knowledge base for information about a given query to answer user questions.',
+          parameters: {
+            type: 'OBJECT',
+            properties: {
+              query: {
+                type: 'STRING',
+                description: 'Search query to look up in the knowledge base.'
+              }
+            },
+            required: ['query']
+          }
+        });
+      }
 
       let systemInstructionString = this.currentAgent?.systemPrompt || this.currentAgent?.instruction || "Default assistant prompt";
 
-      // Fetch the active KnowledgeBase text assets linked to the agentId
-      if (config.callId) {
-        try {
-          const prismaInstance = (await import('../../lib/prisma')).prisma;
-          // Find the call log to resolve agentId, filtering by userId to prevent cross-tenant parameter poisoning
-          const callLog = await prismaInstance.call.findFirst({
-            where: { id: config.callId, userId },
-            select: { agentId: true }
-          });
-
-          if (callLog?.agentId) {
-            const kbDocs = await prismaInstance.knowledgeBase.findMany({
-              where: { agentId: callLog.agentId, userId }
-            });
-
-            if (kbDocs.length > 0) {
-              const kbText = kbDocs.map(d => `[DOCUMENT: ${d.name}]\n${d.contentText}`).join('\n\n');
-              systemInstructionString = `${systemInstructionString}\n\n[KNOWLEDGE BASE CONTEXT]\n${kbText}`;
-              logger.info('GeminiLiveProvider: Successfully injected knowledge base context into systemInstruction prompt', { 
-                callId: config.callId,
-                docsCount: kbDocs.length,
-                totalChars: kbText.length
-              });
-            }
-          }
-        } catch (kbErr) {
-          logger.error('GeminiLiveProvider: Failed to load knowledge base context for session setup', { 
-            callId: config.callId,
-            error: String(kbErr) 
-          });
-        }
+      if (hasKbDocs) {
+        systemInstructionString = `${systemInstructionString}\n\n[KNOWLEDGE BASE GATES]\nYou have access to a knowledge base search tool 'search_knowledge_base'. If the user asks questions about facts, documents, websites, or details that you do not know, you MUST call this tool with a relevant search query to find the answer. Do not guess.`;
+        logger.info('GeminiLiveProvider: Exposing search_knowledge_base tool to agent', { agentId: resolvedAgentId });
       }
 
       // Ensure the model locks to English for transcription and conversation
@@ -497,6 +518,8 @@ export class GeminiLiveProvider implements IRealtimeProvider {
             ws,
             callbacks,
             createdAt: Date.now(),
+            agentId: resolvedAgentId || undefined,
+            userId,
             ...(this.balanceIntervalId && { balanceInterval: this.balanceIntervalId }),
           });
 
@@ -699,6 +722,67 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
   // ─── Private Event Handling ──────────────────────────
 
+  private async handleVectorSearch(sessionId: string, callId: string, args: Record<string, unknown>): Promise<void> {
+    const session = this.activeSessions.get(sessionId);
+    if (!session) return;
+    
+    const query = args.query as string;
+    if (!query) {
+      this.sendFunctionResult(sessionId, callId, JSON.stringify({ results: [] }));
+      return;
+    }
+
+    const agentId = session.agentId;
+    const userId = session.userId;
+    if (!agentId || !userId) {
+      logger.warn('GeminiLiveProvider: RAG search request failed due to missing session context keys', { sessionId });
+      this.sendFunctionResult(sessionId, callId, JSON.stringify({ results: [] }));
+      return;
+    }
+
+    logger.info('GeminiLiveProvider: Performing pgvector search', { sessionId, query, agentId });
+
+    try {
+      const { getEmbedding } = await import('../../utils/embedding');
+      const queryVector = await getEmbedding(query);
+
+      const prismaInstance = (await import('../../lib/prisma')).prisma;
+
+      const kbDocs = await prismaInstance.knowledgeBase.findMany({
+        where: { agentId, userId },
+        select: { id: true }
+      });
+
+      if (kbDocs.length === 0) {
+        this.sendFunctionResult(sessionId, callId, JSON.stringify({ results: [] }));
+        return;
+      }
+
+      const kbIds = kbDocs.map(d => d.id);
+      
+      const results: any[] = await prismaInstance.$queryRawUnsafe(
+        `SELECT id, content, (embedding <=> cast($1 as vector)) as distance FROM "kb_chunks" WHERE "kb_id" IN (${kbIds.map(id => `'${id}'`).join(',')}) ORDER BY distance ASC LIMIT 3`,
+        `[${queryVector.join(',')}]`
+      );
+
+      const formattedResults = results.map(r => ({
+        content: r.content,
+        score: 1 - r.distance
+      }));
+
+      logger.info('GeminiLiveProvider: pgvector search success', {
+        sessionId,
+        resultsCount: formattedResults.length,
+        topScore: formattedResults[0]?.score
+      });
+
+      this.sendFunctionResult(sessionId, callId, JSON.stringify({ results: formattedResults }));
+    } catch (err) {
+      logger.error('GeminiLiveProvider: Failed pgvector search', { sessionId, error: String(err) });
+      throw err;
+    }
+  }
+
   private handleServerEvent(
     sessionId: string,
     event: GeminiServerEvent
@@ -756,17 +840,23 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       callbacks.onResponseDone?.(sessionId);
     }
 
-
-
     // 4. Function call requested
     if (event.toolCall?.functionCalls) {
       for (const call of event.toolCall.functionCalls) {
-        callbacks.onFunctionCall?.(
-          sessionId,
-          call.id,
-          call.name,
-          JSON.stringify(call.args)
-        );
+        if (call.name === 'search_knowledge_base') {
+          this.handleVectorSearch(sessionId, call.id, call.args)
+            .catch(err => {
+              logger.error('GeminiLiveProvider: Failed search_knowledge_base execution', { sessionId, error: String(err) });
+              this.sendFunctionResult(sessionId, call.id, JSON.stringify({ error: 'Failed to search knowledge base' }));
+            });
+        } else {
+          callbacks.onFunctionCall?.(
+            sessionId,
+            call.id,
+            call.name,
+            JSON.stringify(call.args)
+          );
+        }
       }
     }
 
