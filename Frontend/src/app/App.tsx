@@ -1333,7 +1333,7 @@ function base64ToFloat32(base64: string): Float32Array {
 
 // ── Agents ──
 type AgentView = "list"|"create"|"detail";
-function DashAgents() {
+function DashAgents({ session, profile }: { session: Session | null; profile: ApiProfile | null }) {
   const [agents, setAgents] = useState<AgentRow[]>([]);
   const [agentsLoading, setAgentsLoading] = useState(false);
   const [agentsError, setAgentsError] = useState<string | null>(null);
@@ -1590,7 +1590,7 @@ function DashAgents() {
       const response = await apiClient.post('/api/v2/calls', {
         phoneNumber: destinationPhone,
         agentId: selected.id,
-        userId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+        userId: profile?.id || "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
         fromPhoneNumber: selectedNumber || undefined,
       });
       if (response.data?.success) {
@@ -2910,7 +2910,7 @@ function DashboardPage({ session }: { session: Session }) {
           <AnimatePresence mode="wait">
             <motion.div key={section} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0}} transition={{duration:0.18}}>
               {section==="overview"&&<DashOverview/>}
-              {section==="agents"&&<DashAgents/>}
+              {section==="agents"&&<DashAgents session={session} profile={profile} />}
               {section==="batch"&&<DashBatch/>}
               {section==="calls"&&<DashCallLogs/>}
               {section==="numbers"&&<DashNumbers/>}
