@@ -93,7 +93,7 @@ model Agent {
   inboundConfigs InboundConfig[]
   voiceSessions  VoiceSession[]
   callSessions   CallSession[]
-  knowledgeBases KnowledgeBase[]
+  kbLinks        AgentKnowledgeBase[]
 
   // Knowledge base relationships stored as JSON array of IDs in agentConfig
   // for simplicity — a proper join table can be added later.
@@ -211,17 +211,30 @@ model KnowledgeBase {
   id          String   @id @default(uuid())
   name        String
   contentText String   @map("content_text")
-  agentId     String   @map("agent_id")
   userId      String   @map("user_id")
   createdAt   DateTime @default(now()) @map("created_at")
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
   kbChunks KnowledgeBaseChunk[]
+  agentLinks AgentKnowledgeBase[]
 
   @@index([userId])
-  @@index([agentId])
   @@map("knowledge_bases")
+}
+
+model AgentKnowledgeBase {
+  id        String   @id @default(uuid())
+  agentId   String   @map("agent_id")
+  kbId      String   @map("kb_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  agent Agent         @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  kb    KnowledgeBase @relation(fields: [kbId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, kbId])
+  @@index([agentId])
+  @@index([kbId])
+  @@map("agent_knowledge_bases")
 }
 
 model KnowledgeBaseChunk {

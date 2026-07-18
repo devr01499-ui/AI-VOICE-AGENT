@@ -35,18 +35,20 @@ export class KnowledgeBaseController {
       }
 
       const { name, agentId, fileBase64 } = req.body;
-      if (!name || !agentId || !fileBase64) {
-        res.status(400).json({ success: false, error: 'name, agentId, and fileBase64 are required' });
+      if (!name || !fileBase64) {
+        res.status(400).json({ success: false, error: 'name and fileBase64 are required' });
         return;
       }
 
-      // Check agent exists and belongs to user
-      const agent = await prisma.agent.findFirst({
-        where: { id: agentId, userId }
-      });
-      if (!agent) {
-        res.status(404).json({ success: false, error: 'Agent not found in your workspace' });
-        return;
+      // Check agent exists and belongs to user if agentId is provided
+      if (agentId) {
+        const agent = await prisma.agent.findFirst({
+          where: { id: agentId, userId }
+        });
+        if (!agent) {
+          res.status(404).json({ success: false, error: 'Agent not found in your workspace' });
+          return;
+        }
       }
 
       const buffer = Buffer.from(fileBase64, 'base64');
@@ -69,10 +71,19 @@ export class KnowledgeBaseController {
         data: {
           name,
           contentText: truncatedContent,
-          agentId,
           userId,
         }
       });
+
+      // Assign to agent if agentId is provided
+      if (agentId) {
+        await prisma.agentKnowledgeBase.create({
+          data: {
+            agentId,
+            kbId: kb.id,
+          }
+        });
+      }
 
       // Split text into chunks, generate embeddings, and insert into pgvector table
       const chunks = chunkText(truncatedContent);
@@ -101,7 +112,8 @@ export class KnowledgeBaseController {
         data: {
           id: kb.id,
           name: kb.name,
-          agentId: kb.agentId,
+          agentId: agentId || '',
+          agentIds: agentId ? [agentId] : [],
           createdAt: kb.createdAt,
           sizeChars: kb.contentText.length,
           chunksCount: chunks.length,
@@ -127,18 +139,20 @@ export class KnowledgeBaseController {
       }
 
       const { url, agentId } = req.body;
-      if (!url || !agentId) {
-        res.status(400).json({ success: false, error: 'url and agentId are required' });
+      if (!url) {
+        res.status(400).json({ success: false, error: 'url is required' });
         return;
       }
 
-      // Check agent exists and belongs to user
-      const agent = await prisma.agent.findFirst({
-        where: { id: agentId, userId }
-      });
-      if (!agent) {
-        res.status(404).json({ success: false, error: 'Agent not found in your workspace' });
-        return;
+      // Check agent exists and belongs to user if agentId is provided
+      if (agentId) {
+        const agent = await prisma.agent.findFirst({
+          where: { id: agentId, userId }
+        });
+        if (!agent) {
+          res.status(404).json({ success: false, error: 'Agent not found in your workspace' });
+          return;
+        }
       }
 
       logger.info('KBController: scraping URL target', { url, agentId });
@@ -198,10 +212,19 @@ export class KnowledgeBaseController {
         data: {
           name: url,
           contentText: truncatedContent,
-          agentId,
           userId,
         }
       });
+
+      // Assign to agent if agentId is provided
+      if (agentId) {
+        await prisma.agentKnowledgeBase.create({
+          data: {
+            agentId,
+            kbId: kb.id,
+          }
+        });
+      }
 
       // Split text into chunks, generate embeddings, and insert into pgvector table
       const chunks = chunkText(truncatedContent);
@@ -230,7 +253,8 @@ export class KnowledgeBaseController {
         data: {
           id: kb.id,
           name: kb.name,
-          agentId: kb.agentId,
+          agentId: agentId || '',
+          agentIds: agentId ? [agentId] : [],
           createdAt: kb.createdAt,
           sizeChars: kb.contentText.length,
           chunksCount: chunks.length,
@@ -260,19 +284,27 @@ export class KnowledgeBaseController {
         select: {
           id: true,
           name: true,
-          agentId: true,
           createdAt: true,
           contentText: true,
+          agentLinks: {
+            select: {
+              agentId: true
+            }
+          }
         }
       });
 
-      const formatted = list.map(item => ({
-        id: item.id,
-        name: item.name,
-        agentId: item.agentId,
-        createdAt: item.createdAt,
-        sizeChars: item.contentText.length,
-      }));
+      const formatted = list.map(item => {
+        const agentIds = item.agentLinks.map(link => link.agentId);
+        return {
+          id: item.id,
+          name: item.name,
+          agentId: agentIds[0] || '', // legacy single fallback
+          agentIds,
+          createdAt: item.createdAt,
+          sizeChars: item.contentText.length,
+        };
+      });
 
       res.json({
         success: true,
@@ -312,6 +344,160 @@ export class KnowledgeBaseController {
       res.json({ success: true });
     } catch (err) {
       logger.error('KBController: failed to delete document', { error: String(err) });
+      next(err);
+    }
+  }
+
+  /**
+   * POST /api/v2/knowledge-base/:id/assign
+   * 
+   * Assigns a document to an agent.
+   */
+  static async assignToAgent(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.userId;
+      const kbId = req.params.id as string;
+      const { agentId } = req.body;
+
+      if (!userId || !kbId || !agentId) {
+        res.status(400).json({ success: false, error: 'Unauthorized or missing required parameters' });
+        return;
+      }
+
+      // Verify document belongs to user
+      const kb = await prisma.knowledgeBase.findFirst({
+        where: { id: kbId, userId }
+      });
+      if (!kb) {
+        res.status(404).json({ success: false, error: 'Document not found' });
+        return;
+      }
+
+      // Verify agent belongs to user
+      const agent = await prisma.agent.findFirst({
+        where: { id: agentId, userId }
+      });
+      if (!agent) {
+        res.status(404).json({ success: false, error: 'Agent not found' });
+        return;
+      }
+
+      // Create relation link using upsert to avoid duplicate key violations
+      await prisma.agentKnowledgeBase.upsert({
+        where: {
+          agentId_kbId: {
+            agentId,
+            kbId
+          }
+        },
+        create: {
+          agentId,
+          kbId
+        },
+        update: {} // No-op if link already exists
+      });
+
+      res.json({ success: true });
+    } catch (err) {
+      logger.error('KBController: failed to assign to agent', { error: String(err) });
+      next(err);
+    }
+  }
+
+  /**
+   * POST /api/v2/knowledge-base/:id/unassign
+   * 
+   * Removes assignment from a specific agent.
+   */
+  static async unassignFromAgent(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.userId;
+      const kbId = req.params.id as string;
+      const { agentId } = req.body;
+
+      if (!userId || !kbId || !agentId) {
+        res.status(400).json({ success: false, error: 'Unauthorized or missing required parameters' });
+        return;
+      }
+
+      // Verify document belongs to user
+      const kb = await prisma.knowledgeBase.findFirst({
+        where: { id: kbId, userId }
+      });
+      if (!kb) {
+        res.status(404).json({ success: false, error: 'Document not found' });
+        return;
+      }
+
+      // Delete join-table link row
+      await prisma.agentKnowledgeBase.deleteMany({
+        where: {
+          kbId,
+          agentId
+        }
+      });
+
+      res.json({ success: true });
+    } catch (err) {
+      logger.error('KBController: failed to unassign from agent', { error: String(err) });
+      next(err);
+    }
+  }
+
+  /**
+   * POST /api/v2/knowledge-base/:id/update-agents
+   * 
+   * Replaces the set of assigned agents for a document.
+   */
+  static async updateAgentAssignments(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.userId;
+      const kbId = req.params.id as string;
+      const { agentIds } = req.body;
+
+      if (!userId || !kbId || !Array.isArray(agentIds)) {
+        res.status(400).json({ success: false, error: 'Unauthorized or missing agentIds array' });
+        return;
+      }
+
+      // Verify document belongs to user
+      const kb = await prisma.knowledgeBase.findFirst({
+        where: { id: kbId, userId }
+      });
+      if (!kb) {
+        res.status(404).json({ success: false, error: 'Document not found' });
+        return;
+      }
+
+      // Verify all specified agents belong to user
+      const validAgents = await prisma.agent.findMany({
+        where: {
+          id: { in: agentIds },
+          userId
+        },
+        select: { id: true }
+      });
+
+      if (validAgents.length !== agentIds.length) {
+        res.status(400).json({ success: false, error: 'One or more agent IDs are invalid or unauthorized' });
+        return;
+      }
+
+      // Atomically rebuild links in a transaction
+      await prisma.$transaction(async (tx) => {
+        await tx.agentKnowledgeBase.deleteMany({
+          where: { kbId }
+        });
+        for (const agentId of agentIds) {
+          await tx.agentKnowledgeBase.create({
+            data: { agentId, kbId }
+          });
+        }
+      });
+
+      res.json({ success: true });
+    } catch (err) {
+      logger.error('KBController: failed to update agent assignments', { error: String(err) });
       next(err);
     }
   }

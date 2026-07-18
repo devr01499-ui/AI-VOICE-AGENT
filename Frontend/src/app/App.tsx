@@ -1348,22 +1348,47 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
     setAgentsError(null);
     fetchAgents()
       .then((data) => {
-        setAgents((data || []).map(a => ({
-          id: a.id,
-          name: a.name,
-          type: (a.agentType === 'prompt' ? 'prompt' : 'conversational') as 'prompt' | 'conversational',
-          status: (a.status as 'active' | 'paused' | 'draft') ?? 'draft',
-          calls: 0,
-          csat: null,
-          lang: 'EN',
-          voice: a.voiceName ?? 'Nova',
-          model: a.model ?? 'gemini-2.5-flash',
-          kb: [],
-          numbers: [],
-          isRecordingEnabled: a.isRecordingEnabled ?? false,
-          isTranscriptionEnabled: a.isTranscriptionEnabled ?? false,
-          created: a.createdAt?.slice(0, 10) ?? '',
-        } as unknown as AgentRow)));
+        fetchKBList().then((kbListResult) => {
+          setKbList(kbListResult);
+          setAgents((data || []).map(a => {
+            const assignedKbIds = (kbListResult || [])
+              .filter(k => k.agentIds && k.agentIds.includes(a.id))
+              .map(k => k.id);
+            return {
+              id: a.id,
+              name: a.name,
+              type: (a.agentType === 'prompt' ? 'prompt' : 'conversational') as 'prompt' | 'conversational',
+              status: (a.status as 'active' | 'paused' | 'draft') ?? 'draft',
+              calls: 0,
+              csat: null,
+              lang: 'EN',
+              voice: a.voiceName ?? 'Nova',
+              model: a.model ?? 'gemini-2.5-flash',
+              kb: assignedKbIds,
+              numbers: [],
+              isRecordingEnabled: a.isRecordingEnabled ?? false,
+              isTranscriptionEnabled: a.isTranscriptionEnabled ?? false,
+              created: a.createdAt?.slice(0, 10) ?? '',
+            } as unknown as AgentRow;
+          }));
+        }).catch(() => {
+          setAgents((data || []).map(a => ({
+            id: a.id,
+            name: a.name,
+            type: (a.agentType === 'prompt' ? 'prompt' : 'conversational') as 'prompt' | 'conversational',
+            status: (a.status as 'active' | 'paused' | 'draft') ?? 'draft',
+            calls: 0,
+            csat: null,
+            lang: 'EN',
+            voice: a.voiceName ?? 'Nova',
+            model: a.model ?? 'gemini-2.5-flash',
+            kb: [],
+            numbers: [],
+            isRecordingEnabled: a.isRecordingEnabled ?? false,
+            isTranscriptionEnabled: a.isTranscriptionEnabled ?? false,
+            created: a.createdAt?.slice(0, 10) ?? '',
+          } as unknown as AgentRow)));
+        });
       })
       .catch((err: any) => {
         console.error("[Dashboard Fetch Error]:", err);
@@ -1792,13 +1817,24 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
                 <td className="px-4 py-3"><DBadge>{(k.name.split('.').pop() ?? 'TXT').toUpperCase()}</DBadge></td>
                 <td className="px-4 py-3 text-xs" style={{fontFamily:"'DM Mono',monospace"}}>{(k.sizeChars/1024).toFixed(1)} KB</td>
                 <td className="px-4 py-3"><DBadge v="success"><SDot status="ready"/> ready</DBadge></td>
-                <td className="px-4 py-3"><DToggle on={(selected.kb as string[] || []).includes(k.id)} set={(attached)=>{
-                  setSelected(prev => {
-                    if (!prev) return null;
-                    const currentKb = (prev.kb as string[] || []);
-                    const nextKb = attached ? [...currentKb, k.id] : currentKb.filter(id => id !== k.id);
-                    return { ...prev, kb: nextKb };
-                  });
+                <td className="px-4 py-3"><DToggle on={(selected.kb as string[] || []).includes(k.id)} set={async (attached)=>{
+                  try {
+                    if (attached) {
+                      await apiClient.post(`/api/v2/knowledge-base/${k.id}/assign`, { agentId: selected.id });
+                    } else {
+                      await apiClient.post(`/api/v2/knowledge-base/${k.id}/unassign`, { agentId: selected.id });
+                    }
+                    setSelected(prev => {
+                      if (!prev) return null;
+                      const currentKb = (prev.kb as string[] || []);
+                      const nextKb = attached ? [...currentKb, k.id] : currentKb.filter(id => id !== k.id);
+                      return { ...prev, kb: nextKb };
+                    });
+                    const refreshedList = await fetchKBList();
+                    setKbList(refreshedList);
+                  } catch (err) {
+                    console.error("Failed to toggle agent knowledge base link", err);
+                  }
                 }}/></td>
               </tr>
             ))}
@@ -2592,6 +2628,7 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
   const [addTab, setAddTab] = useState<"file"|"url">("file");
   const [url, setUrl] = useState("");
   const [selectedAgentId, setSelectedAgentId] = useState("");
+  const [openDropdownDocId, setOpenDropdownDocId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const loadDocs = async () => {
@@ -2608,19 +2645,18 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
 
   useEffect(() => {
     loadDocs();
+    const handleOutsideClick = () => {
+      setOpenDropdownDocId(null);
+    };
+    window.addEventListener("click", handleOutsideClick);
+    return () => window.removeEventListener("click", handleOutsideClick);
   }, []);
 
-  useEffect(() => {
-    if (apiAgents && apiAgents.length > 0 && !selectedAgentId) {
-      setSelectedAgentId(apiAgents[0].id);
-    }
-  }, [apiAgents]);
-
   async function addUrl() {
-    if (!url || !selectedAgentId) return;
+    if (!url) return;
     try {
       setLoading(true);
-      await scrapeKBUrl(url, selectedAgentId);
+      await scrapeKBUrl(url, selectedAgentId || undefined as any);
       setShowAdd(false);
       setUrl("");
       await loadDocs();
@@ -2633,7 +2669,7 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
 
   function addFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file || !selectedAgentId) return;
+    if (!file) return;
     
     const reader = new FileReader();
     reader.onload = async (event) => {
@@ -2642,7 +2678,7 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
       
       try {
         setLoading(true);
-        await uploadKBDocument(file.name, selectedAgentId, base64Data);
+        await uploadKBDocument(file.name, selectedAgentId || undefined as any, base64Data);
         setShowAdd(false);
         await loadDocs();
       } catch (err) {
@@ -2683,15 +2719,82 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
           <div className="p-8 text-center text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>LOADING DATASETS...</div>
         ) : (
           <table className="w-full">
-            <thead><tr className="border-b border-border bg-muted/30">{["Document / URL","Linked Agent","Size","Uploaded",""].map(h=><th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
+            <thead><tr className="border-b border-border bg-muted/30">{["Document / URL","Linked Agents","Size","Uploaded",""].map(h=><th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
             <tbody className="divide-y divide-border">
               {docs.map(d=>(
                 <tr key={d.id} className="hover:bg-muted/20 transition-colors">
                   <td className="px-4 py-3 max-w-[240px]"><div className="flex items-center gap-2"><FileText className="w-4 h-4 text-muted-foreground flex-shrink-0"/><p className="text-sm text-foreground truncate font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>{d.name}</p></div></td>
-                  <td className="px-4 py-3"><span className="text-xs bg-muted rounded px-1.5 py-0.5 font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>{apiAgents.find(a=>a.id===d.agentId)?.name || "Default Agent"}</span></td>
+                  <td className="px-4 py-3 relative">
+                    <div className="flex items-center gap-1 flex-wrap max-w-[300px]">
+                      {d.agentIds && d.agentIds.map(aId => {
+                        const agName = apiAgents.find(a => a.id === aId)?.name || aId;
+                        return (
+                          <span key={aId} className="text-[10px] bg-muted border border-border text-muted-foreground rounded px-1.5 py-0.5 font-medium flex items-center gap-1">
+                            {agName}
+                            <button onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                await apiClient.post(`/api/v2/knowledge-base/${d.id}/unassign`, { agentId: aId });
+                                await loadDocs();
+                              } catch (err) {
+                                console.error(err);
+                              }
+                            }} className="hover:text-red-500 text-xs font-bold">×</button>
+                          </span>
+                        );
+                      })}
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenDropdownDocId(openDropdownDocId === d.id ? null : d.id);
+                        }}
+                        className="text-[10px] text-foreground hover:bg-muted border border-border rounded px-1.5 py-0.5 font-medium flex items-center gap-0.5"
+                      >
+                        <Plus className="w-2.5 h-2.5"/> Link Agent
+                      </button>
+                    </div>
+                    {openDropdownDocId === d.id && (
+                      <div className="absolute left-4 top-10 bg-white border border-border rounded-xl p-3 shadow-xl z-50 min-w-[200px] space-y-2 text-left" onClick={e => e.stopPropagation()}>
+                        <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-2" style={{fontFamily:"'DM Mono',monospace"}}>Select Agents</p>
+                        <div className="max-h-40 overflow-y-auto space-y-1.5">
+                          {apiAgents.map(a => {
+                            const isAssigned = (d.agentIds || []).includes(a.id);
+                            return (
+                              <label key={a.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded transition-colors text-xs font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>
+                                <input 
+                                  type="checkbox" 
+                                  checked={isAssigned} 
+                                  onChange={async (e) => {
+                                    try {
+                                      if (e.target.checked) {
+                                        await apiClient.post(`/api/v2/knowledge-base/${d.id}/assign`, { agentId: a.id });
+                                      } else {
+                                        await apiClient.post(`/api/v2/knowledge-base/${d.id}/unassign`, { agentId: a.id });
+                                      }
+                                      await loadDocs();
+                                    } catch (err) {
+                                      console.error(err);
+                                    }
+                                  }}
+                                  className="accent-foreground"
+                                />
+                                {a.name}
+                              </label>
+                            );
+                          })}
+                          {apiAgents.length === 0 && (
+                            <p className="text-[10px] text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>No agents created yet.</p>
+                          )}
+                        </div>
+                        <div className="border-t border-border pt-1 text-right">
+                          <button onClick={() => setOpenDropdownDocId(null)} className="text-[10px] text-muted-foreground hover:text-foreground font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>Close</button>
+                        </div>
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{(d.sizeChars / 1024).toFixed(1)} KB</td>
                   <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{new Date(d.createdAt).toLocaleDateString()}</td>
-                  <td className="px-4 py-3 text-right"><DBtn size="sm" variant="ghost" onClick={() => handleDelete(d.id)}><Trash2 className="w-3.5 h-3.5 text-red-400"/></DBtn></td>
+                  <td className="px-4 py-3 text-right"><DBadge size="sm" variant="ghost" className="cursor-pointer" onClick={() => handleDelete(d.id)}><Trash2 className="w-3.5 h-3.5 text-red-400"/></DBadge></td>
                 </tr>
               ))}
               {docs.length === 0 && (
@@ -2708,13 +2811,13 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
           <div className="flex gap-2 border-b border-border pb-3">{(["file","url"] as const).map(t=><button key={t} onClick={()=>setAddTab(t)} className={`text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${addTab===t?"bg-foreground text-white":"text-muted-foreground hover:text-foreground"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{t==="file"?"Upload file":"Crawl URL"}</button>)}</div>
           
           <div className="mb-2">
-            <label className="text-xs font-semibold text-muted-foreground block mb-1.5" style={{fontFamily:"'DM Mono',monospace"}}>LINK TO AI AGENT</label>
+            <label className="text-xs font-semibold text-muted-foreground block mb-1.5" style={{fontFamily:"'DM Mono',monospace"}}>LINK TO AI AGENT (OPTIONAL)</label>
             <select 
               value={selectedAgentId} 
               onChange={e => setSelectedAgentId(e.target.value)}
               className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-white focus:outline-none"
             >
-              <option value="">Select an Agent...</option>
+              <option value="">None (Library only)</option>
               {apiAgents.map(a => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
@@ -2731,7 +2834,7 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
           ):(
             <div className="space-y-3">
               <DField label="URL to crawl" hint="Crawl target page source and extract raw text context."><DInput placeholder="https://example.com/help-center" value={url} onChange={e=>setUrl(e.target.value)}/></DField>
-              <DBtn onClick={addUrl} disabled={!url || !selectedAgentId}><Link className="w-4 h-4"/> Start crawl</DBtn>
+              <DBtn onClick={addUrl} disabled={!url}><Link className="w-4 h-4"/> Start crawl</DBtn>
             </div>
           )}
         </div>

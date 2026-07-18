@@ -374,7 +374,14 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         try {
           const prismaInstance = (await import('../../lib/prisma')).prisma;
           const count = await prismaInstance.knowledgeBase.count({
-            where: { agentId: resolvedAgentId, userId }
+            where: {
+              userId,
+              agentLinks: {
+                some: {
+                  agentId: resolvedAgentId
+                }
+              }
+            }
           });
           hasKbDocs = count > 0;
         } catch (err) {
@@ -749,7 +756,14 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       const prismaInstance = (await import('../../lib/prisma')).prisma;
 
       const kbDocs = await prismaInstance.knowledgeBase.findMany({
-        where: { agentId, userId },
+        where: {
+          userId,
+          agentLinks: {
+            some: {
+              agentId
+            }
+          }
+        },
         select: { id: true }
       });
 

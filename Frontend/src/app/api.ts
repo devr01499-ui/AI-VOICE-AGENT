@@ -302,7 +302,8 @@ export function getLiveTranscriptWsUrl(callId: string): string {
 export interface ApiKnowledgeBase {
   id: string;
   name: string;
-  agentId: string;
+  agentId?: string;
+  agentIds?: string[];
   createdAt: string;
   sizeChars: number;
 }
@@ -314,14 +315,21 @@ export async function fetchKBList(): Promise<ApiKnowledgeBase[]> {
 export async function uploadKBDocument(name: string, agentId: string, fileBase64: string): Promise<ApiKnowledgeBase> {
   return apiFetch<ApiKnowledgeBase>('/api/v2/knowledge-base/upload', {
     method: 'POST',
-    body: JSON.stringify({ name, agentId, fileBase64 }),
+    body: JSON.stringify({ name, agentId: agentId || undefined, fileBase64 }),
   });
 }
 
 export async function scrapeKBUrl(url: string, agentId: string): Promise<ApiKnowledgeBase> {
   return apiFetch<ApiKnowledgeBase>('/api/v2/knowledge-base/scrape', {
     method: 'POST',
-    body: JSON.stringify({ url, agentId }),
+    body: JSON.stringify({ url, agentId: agentId || undefined }),
+  });
+}
+
+export async function updateKBAgents(id: string, agentIds: string[]): Promise<void> {
+  return apiFetch<void>(`/api/v2/knowledge-base/${id}/update-agents`, {
+    method: 'POST',
+    body: JSON.stringify({ agentIds }),
   });
 }
 
