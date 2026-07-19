@@ -4,6 +4,9 @@
 ### Fixed
 - Resolved visual clipping bug for the multi-agent assignment dropdown panel inside the overflow-hidden documents table. Rewrote the select agents menu to use Radix-based `Popover` portals so the dropdown renders outside the clipping ancestor container.
 - Removed legacy global window 'click' event listener (`handleOutsideClick`) that conflicted with the new Popover component's automatic focus-handling and immediately closed the dropdown after opening.
+- Resolved non-persisting agent configurations by adding body destructuring, database updates, and response mapping for the `languageMode` parameter in POST `/api/v2/agents` and PUT `/api/v2/agents/:agentId` endpoints in [server/src/routes/agents.ts](file:///c:/Users/Rohit%20Kumar%20Sha/OneDrive/Desktop/bOLNA/server/src/routes/agents.ts).
+- Consolidated duplicate `languageMode` dropdown select elements into a single source of truth component, `<AgentConfigPanel>`, and embedded it directly inside `DashVoices` for agent voice & language profile configuration.
+- Extended the prebuilt voice library list to 30 voices (names and characteristics matching Google's Gemini-TTS specs) and added a real, static audio preview playback player playing from `/previews/*.wav` files.
 - Replaced fake voice list simulation with actual Gemini voices list (Puck, Kore, Charon, Fenrir, Aoede) and their documented style descriptors on the Voice Library page.
 - Disabled fake voice cloning flow, labeling the training features as "Coming soon".
 - Resolved disconnected settings by adding real-time agent assignment controls directly inside the Voice Library page and synchronizing actions via the same systemVoice database field.

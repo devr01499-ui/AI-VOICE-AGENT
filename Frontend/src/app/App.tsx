@@ -1151,11 +1151,36 @@ type AgentRow = {
 } & Record<string, unknown>;
 
 const VOICES_SEED = [
-  {id:"Aoede",name:"Aoede",gender:"female",accent:"Breezy, natural, and conversational",provider:"builtin",lang:"EN, HI"},
-  {id:"Charon",name:"Charon",gender:"male",accent:"Calm, informative, and professional",provider:"builtin",lang:"EN, HI"},
-  {id:"Fenrir",name:"Fenrir",gender:"male",accent:"Excitable, dynamic, and passionate",provider:"builtin",lang:"EN, HI"},
-  {id:"Kore",name:"Kore",gender:"female",accent:"Firm, confident, and warm",provider:"builtin",lang:"EN, HI"},
-  {id:"Puck",name:"Puck",gender:"male",accent:"Upbeat, lively, and energetic",provider:"builtin",lang:"EN, HI"},
+  {id:"Aoede",name:"Aoede",gender:"Female",accent:"Breezy, natural, conversational",provider:"builtin",lang:"EN, HI"},
+  {id:"Charon",name:"Charon",gender:"Male",accent:"Calm, informative, professional",provider:"builtin",lang:"EN, HI"},
+  {id:"Fenrir",name:"Fenrir",gender:"Male",accent:"Excitable, dynamic, passionate",provider:"builtin",lang:"EN, HI"},
+  {id:"Kore",name:"Kore",gender:"Female",accent:"Firm, confident, warm",provider:"builtin",lang:"EN, HI"},
+  {id:"Leda",name:"Leda",gender:"Female",accent:"Youthful, energetic, friendly",provider:"builtin",lang:"EN, HI"},
+  {id:"Orus",name:"Orus",gender:"Male",accent:"Calm, firm, authoritative",provider:"builtin",lang:"EN, HI"},
+  {id:"Puck",name:"Puck",gender:"Male",accent:"Upbeat, lively, energetic",provider:"builtin",lang:"EN, HI"},
+  {id:"Zephyr",name:"Zephyr",gender:"Female",accent:"Bright, clear, melodic",provider:"builtin",lang:"EN, HI"},
+  {id:"Callirhoe",name:"Callirhoe",gender:"Female",accent:"Melodic, soft, clear",provider:"builtin",lang:"EN, HI"},
+  {id:"Autonoe",name:"Autonoe",gender:"Female",accent:"Warm, expressive, natural",provider:"builtin",lang:"EN, HI"},
+  {id:"Enceladus",name:"Enceladus",gender:"Male",accent:"Deep, resonant, professional",provider:"builtin",lang:"EN, HI"},
+  {id:"Iapetus",name:"Iapetus",gender:"Male",accent:"Warm, engaging, mature",provider:"builtin",lang:"EN, HI"},
+  {id:"Umbriel",name:"Umbriel",gender:"Male",accent:"Calm, smooth, low-pitched",provider:"builtin",lang:"EN, HI"},
+  {id:"Algieba",name:"Algieba",gender:"Female",accent:"Smooth, polished, professional",provider:"builtin",lang:"EN, HI"},
+  {id:"Despina",name:"Despina",gender:"Female",accent:"Clear, energetic, bright",provider:"builtin",lang:"EN, HI"},
+  {id:"Erinome",name:"Erinome",gender:"Female",accent:"Gentle, friendly, conversational",provider:"builtin",lang:"EN, HI"},
+  {id:"Algenib",name:"Algenib",gender:"Male",accent:"Strong, confident, clear",provider:"builtin",lang:"EN, HI"},
+  {id:"Rasalgethi",name:"Rasalgethi",gender:"Male",accent:"Deep, calm, informative",provider:"builtin",lang:"EN, HI"},
+  {id:"Laomedeia",name:"Laomedeia",gender:"Female",accent:"Melodious, bright, friendly",provider:"builtin",lang:"EN, HI"},
+  {id:"Achernar",name:"Achernar",gender:"Male",accent:"Crisp, articulate, professional",provider:"builtin",lang:"EN, HI"},
+  {id:"Alnilam",name:"Alnilam",gender:"Male",accent:"Smooth, conversational, warm",provider:"builtin",lang:"EN, HI"},
+  {id:"Schedar",name:"Schedar",gender:"Female",accent:"Warm, authoritative, polished",provider:"builtin",lang:"EN, HI"},
+  {id:"Gacrux",name:"Gacrux",gender:"Male",accent:"Resonant, smooth, friendly",provider:"builtin",lang:"EN, HI"},
+  {id:"Pulcherrima",name:"Pulcherrima",gender:"Female",accent:"Clear, expressive, bright",provider:"builtin",lang:"EN, HI"},
+  {id:"Achird",name:"Achird",gender:"Male",accent:"Bright, friendly, conversational",provider:"builtin",lang:"EN, HI"},
+  {id:"Adara",name:"Adara",gender:"Female",accent:"Clear, soft, melodic",provider:"builtin",lang:"EN, HI"},
+  {id:"Castor",name:"Castor",gender:"Male",accent:"Dynamic, friendly, active",provider:"builtin",lang:"EN, HI"},
+  {id:"Deneb",name:"Deneb",gender:"Female",accent:"Crisp, precise, clear",provider:"builtin",lang:"EN, HI"},
+  {id:"Eltanin",name:"Eltanin",gender:"Male",accent:"Smooth, calm, comforting",provider:"builtin",lang:"EN, HI"},
+  {id:"Mizar",name:"Mizar",gender:"Male",accent:"Warm, rich, professional",provider:"builtin",lang:"EN, HI"}
 ];
 
 // ── Overview ──
@@ -2918,9 +2943,44 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
   const [voices, setVoices] = useState([...VOICES_SEED]);
   const [voiceFilter, setVoiceFilter] = useState<"all"|"builtin"|"clone">("all");
   const [selectedConfigAgentId, setSelectedConfigAgentId] = useState("");
+  const [configSaveStatus, setConfigSaveStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [audioObj, setAudioObj] = useState<HTMLAudioElement | null>(null);
 
   const selectedConfigAgent = apiAgents.find(a => a.id === selectedConfigAgentId);
   const filtered = voiceFilter==="all" ? voices : voices.filter(v=>v.provider===voiceFilter);
+
+  const playPreview = (voiceId: string) => {
+    if (playingId === voiceId) {
+      if (audioObj) {
+        audioObj.pause();
+      }
+      setPlayingId(null);
+      return;
+    }
+
+    if (audioObj) {
+      audioObj.pause();
+    }
+
+    const newAudio = new Audio(`/previews/${voiceId.toLowerCase()}.wav`);
+    newAudio.play().catch(err => {
+      console.error("Failed to play audio preview:", err);
+    });
+    newAudio.onended = () => {
+      setPlayingId(null);
+    };
+    setAudioObj(newAudio);
+    setPlayingId(voiceId);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (audioObj) {
+        audioObj.pause();
+      }
+    };
+  }, [audioObj]);
 
   return (
     <div className="space-y-4">
@@ -2930,7 +2990,7 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider" style={{fontFamily:"'DM Mono',monospace"}}>Quick Agent Voice &amp; Language Settings</p>
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Select Agent:</span>
+              <span className="text-xs font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Select Agent to Configure:</span>
               <select
                 className="text-xs bg-muted border border-border rounded px-2.5 py-1.5 focus:outline-none font-medium"
                 value={selectedConfigAgentId}
@@ -2943,57 +3003,29 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
                 ))}
               </select>
             </div>
-            {selectedConfigAgent && (
-              <>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Voice:</span>
-                  <select
-                    className="text-xs bg-muted border border-border rounded px-2.5 py-1.5 focus:outline-none font-medium"
-                    value={selectedConfigAgent.systemVoice || 'Puck'}
-                    onChange={async (e) => {
-                      const newVoice = e.target.value;
-                      try {
-                        await apiClient.put(`/api/v2/agents/${selectedConfigAgent.id}`, { systemVoice: newVoice, voice: newVoice });
-                        if (setApiAgents) {
-                          setApiAgents(prev => prev.map(a => a.id === selectedConfigAgent.id ? { ...a, systemVoice: newVoice, voiceName: newVoice } : a));
-                        }
-                      } catch (err) {
-                        alert("Failed to update voice: " + (err instanceof Error ? err.message : String(err)));
-                      }
-                    }}
-                    style={{fontFamily:"'Figtree',sans-serif"}}
-                  >
-                    {VOICES_SEED.map(v => (
-                      <option key={v.id} value={v.id}>{v.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Language Mode:</span>
-                  <select
-                    className="text-xs bg-muted border border-border rounded px-2.5 py-1.5 focus:outline-none font-medium"
-                    value={selectedConfigAgent.languageMode || 'auto'}
-                    onChange={async (e) => {
-                      const newMode = e.target.value;
-                      try {
-                        await apiClient.put(`/api/v2/agents/${selectedConfigAgent.id}`, { languageMode: newMode });
-                        if (setApiAgents) {
-                          setApiAgents(prev => prev.map(a => a.id === selectedConfigAgent.id ? { ...a, languageMode: newMode } : a));
-                        }
-                      } catch (err) {
-                        alert("Failed to update language mode: " + (err instanceof Error ? err.message : String(err)));
-                      }
-                    }}
-                    style={{fontFamily:"'Figtree',sans-serif"}}
-                  >
-                    <option value="auto">Auto-detect (multilingual)</option>
-                    <option value="en">English only</option>
-                    <option value="hi">Hindi only</option>
-                  </select>
-                </div>
-              </>
-            )}
           </div>
+
+          {selectedConfigAgent && (
+            <div className="border-t border-border pt-4 mt-2">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider" style={{fontFamily:"'DM Mono',monospace"}}>Agent Voice &amp; Language Profile Settings</span>
+                {configSaveStatus !== 'idle' && (
+                  <span className={`text-[10px] px-2 py-0.5 rounded font-medium ${configSaveStatus === 'saving' ? 'bg-amber-50 text-amber-700' : configSaveStatus === 'done' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`} style={{fontFamily:"'Figtree',sans-serif"}}>
+                    {configSaveStatus === 'saving' ? 'Auto-saving...' : configSaveStatus === 'done' ? 'Saved' : 'Error'}
+                  </span>
+                )}
+              </div>
+              <AgentConfigPanel
+                agent={selectedConfigAgent}
+                onUpdate={(fields) => {
+                  if (setApiAgents) {
+                    setApiAgents(prev => prev.map(a => a.id === selectedConfigAgent.id ? { ...a, ...fields } : a));
+                  }
+                }}
+                onSaveStatus={setConfigSaveStatus}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -3022,6 +3054,18 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1 mb-3">{v.lang.split(", ").map(l=><DBadge key={l}>{l}</DBadge>)}</div>
+                  
+                  <div className="flex items-center gap-3 mt-3 mb-4">
+                    <div className="flex-1 bg-muted rounded-lg h-8 flex items-center px-2 text-muted-foreground">
+                      <MiniWave on={playingId === v.id} bars={18}/>
+                    </div>
+                    <button
+                      onClick={() => playPreview(v.id)}
+                      className="w-8 h-8 border border-border rounded-full flex items-center justify-center hover:bg-muted transition-colors flex-shrink-0"
+                    >
+                      {playingId === v.id ? <Pause className="w-3.5 h-3.5"/> : <Play className="w-3.5 h-3.5"/>}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-2 mt-3 pt-3 border-t border-border">

@@ -244,7 +244,7 @@ router.post(
         return;
       }
 
-      const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, systemVoice, temperature, systemPrompt, flowGraph } = req.body;
+      const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, systemVoice, temperature, systemPrompt, flowGraph, languageMode } = req.body;
 
       const newAgent = await prisma.agent.create({
         data: {
@@ -262,6 +262,7 @@ router.post(
           temperature: temperature !== undefined ? Number(temperature) : 0.7,
           systemPrompt: systemPrompt || null,
           flowGraph: flowGraph || null,
+          languageMode: languageMode || 'auto',
         },
       });
 
@@ -288,7 +289,7 @@ router.put(
       }
 
       const agentId = req.params.agentId as string;
-      const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, systemVoice, temperature, systemPrompt, flowGraph } = req.body;
+      const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, systemVoice, temperature, systemPrompt, flowGraph, languageMode } = req.body;
 
       // Verify ownership before updating
       const exists = await prisma.agent.findFirst({
@@ -321,6 +322,7 @@ router.put(
           ...(temperature !== undefined && { temperature: temperature !== null ? Number(temperature) : 0.7 }),
           ...(systemPrompt !== undefined && { systemPrompt }),
           ...(flowGraph !== undefined && { flowGraph }),
+          ...(languageMode !== undefined && { languageMode }),
         },
       });
 
@@ -346,6 +348,7 @@ router.put(
           model: updatedAgent.model,
           voiceName: updatedAgent.voiceName,
           systemVoice: updatedAgent.systemVoice,
+          languageMode: updatedAgent.languageMode,
           temperature: updatedAgent.temperature,
           systemPrompt: updatedAgent.systemPrompt,
           flowGraph: updatedAgent.flowGraph,
