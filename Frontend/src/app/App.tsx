@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { supabase } from "./lib/supabaseClient";
 import AuthGateway from "./components/auth/AuthGateway";
 import { Session } from "@supabase/supabase-js";
@@ -2962,6 +2962,74 @@ function VoiceAvatar({ voiceId, gender }: { voiceId: string; gender: string }) {
   );
 }
 
+// ── Curated Naming Map per Nation + Language combination (Phase 3) ──
+interface CuratedVoiceMapping {
+  geminiVoiceId: string;
+  displayName: string;
+}
+
+const NATION_LANG_MAP: Record<string, Record<string, CuratedVoiceMapping[]>> = {
+  US: {
+    English: [
+      { geminiVoiceId: 'Aoede', displayName: 'Aoede' },
+      { geminiVoiceId: 'Charon', displayName: 'Charon' },
+      { geminiVoiceId: 'Fenrir', displayName: 'Fenrir' },
+      { geminiVoiceId: 'Kore', displayName: 'Kore' },
+      { geminiVoiceId: 'Leda', displayName: 'Leda' },
+      { geminiVoiceId: 'Orus', displayName: 'Orus' },
+      { geminiVoiceId: 'Puck', displayName: 'Puck' },
+      { geminiVoiceId: 'Zephyr', displayName: 'Zephyr' },
+    ],
+  },
+  India: {
+    English: [
+      { geminiVoiceId: 'Leda', displayName: 'Deepa' },
+      { geminiVoiceId: 'Charon', displayName: 'Amit' },
+      { geminiVoiceId: 'Aoede', displayName: 'Aditi' },
+      { geminiVoiceId: 'Puck', displayName: 'Rohan' },
+    ],
+    Hindi: [
+      { geminiVoiceId: 'Kore', displayName: 'Priya' },
+      { geminiVoiceId: 'Puck', displayName: 'Arjun' },
+      { geminiVoiceId: 'Aoede', displayName: 'Kavita' },
+      { geminiVoiceId: 'Charon', displayName: 'Vijay' },
+    ],
+    Bengali: [
+      { geminiVoiceId: 'Kore', displayName: 'Tanu' },
+      { geminiVoiceId: 'Puck', displayName: 'Bimal' },
+      { geminiVoiceId: 'Aoede', displayName: 'Payel' },
+    ],
+    Kannada: [
+      { geminiVoiceId: 'Kore', displayName: 'Lakshmi' },
+      { geminiVoiceId: 'Puck', displayName: 'Karthik' },
+    ],
+    Malayalam: [
+      { geminiVoiceId: 'Kore', displayName: 'Anjali' },
+      { geminiVoiceId: 'Puck', displayName: 'Hari' },
+    ],
+    Gujarati: [
+      { geminiVoiceId: 'Kore', displayName: 'Dhara' },
+      { geminiVoiceId: 'Puck', displayName: 'Parth' },
+    ],
+  },
+  China: {
+    Mandarin: [
+      { geminiVoiceId: 'Kore', displayName: 'Mei' },
+      { geminiVoiceId: 'Puck', displayName: 'Wei' },
+      { geminiVoiceId: 'Aoede', displayName: 'Ling' },
+      { geminiVoiceId: 'Charon', displayName: 'Chen' },
+    ],
+  },
+  UAE: {
+    Arabic: [
+      { geminiVoiceId: 'Kore', displayName: 'Fatima' },
+      { geminiVoiceId: 'Puck', displayName: 'Youssef' },
+      { geminiVoiceId: 'Aoede', displayName: 'Layla' },
+      { geminiVoiceId: 'Charon', displayName: 'Tariq' },
+    ],
+  },
+};
+
 // ── Voice Library ──
 // ── Voice Library ──
 function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; setApiAgents?: React.Dispatch<React.SetStateAction<ApiAgent[]>> }) {
@@ -2972,8 +3040,33 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [audioObj, setAudioObj] = useState<HTMLAudioElement | null>(null);
 
+  // Phase 2 Filters
+  const [selectedNation, setSelectedNation] = useState<string>("all");
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("all");
+
   const selectedConfigAgent = apiAgents.find(a => a.id === selectedConfigAgentId);
-  const filtered = voiceFilter==="all" ? voices : voices.filter(v=>v.provider===voiceFilter);
+
+  // Compute filtered list based on tabs, Nation, and Language
+  const filtered = useMemo(() => {
+    let list = voiceFilter === "all" ? voices : voices.filter(v => v.provider === voiceFilter);
+
+    if (selectedNation !== "all" || selectedLanguage !== "all") {
+      const allowedIds = new Set<string>();
+      
+      for (const nation of Object.keys(NATION_LANG_MAP)) {
+        if (selectedNation !== "all" && nation !== selectedNation) continue;
+        for (const lang of Object.keys(NATION_LANG_MAP[nation])) {
+          if (selectedLanguage !== "all" && lang !== selectedLanguage) continue;
+          
+          NATION_LANG_MAP[nation][lang].forEach(item => {
+            allowedIds.add(item.geminiVoiceId);
+          });
+        }
+      }
+      list = list.filter(v => allowedIds.has(v.id));
+    }
+    return list;
+  }, [voices, voiceFilter, selectedNation, selectedLanguage]);
 
   const playPreview = (voiceId: string) => {
     if (playingId === voiceId) {
@@ -3063,6 +3156,54 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-2">{(["all","builtin","clone"] as const).map(f=><button key={f} onClick={()=>setVoiceFilter(f)} className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${voiceFilter===f?"bg-foreground text-white":"border border-border text-muted-foreground hover:text-foreground"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{f==="all"?"All voices":f==="builtin"?"Built-in":"Cloned"}</button>)}</div>
         <DBtn disabled title="Voice cloning coming soon"><Mic2 className="w-4 h-4"/> Clone a voice (Coming soon)</DBtn>
+      </div>
+
+      {/* Nation and Language UI Filters */}
+      <div className="flex flex-wrap items-center gap-4 bg-white border border-border rounded-xl p-4 shadow-sm">
+        {/* Nation Selection */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider" style={{fontFamily:"'DM Mono',monospace"}}>Nation:</span>
+          <select
+            value={selectedNation}
+            onChange={(e) => setSelectedNation(e.target.value)}
+            className="text-xs bg-muted border border-border rounded px-2.5 py-1.5 focus:outline-none font-medium animate-fade-in"
+            style={{fontFamily:"'Figtree',sans-serif"}}
+            id="nation-filter-select"
+          >
+            <option value="all">All Nations</option>
+            <option value="US">US</option>
+            <option value="India">India</option>
+            <option value="China">China</option>
+            <option value="UAE">UAE</option>
+          </select>
+        </div>
+
+        {/* Language Selection */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider" style={{fontFamily:"'DM Mono',monospace"}}>Language:</span>
+          <select
+            value={selectedLanguage}
+            onChange={(e) => setSelectedLanguage(e.target.value)}
+            className="text-xs bg-muted border border-border rounded px-2.5 py-1.5 focus:outline-none font-medium animate-fade-in"
+            style={{fontFamily:"'Figtree',sans-serif"}}
+            id="language-filter-select"
+          >
+            <option value="all">All Languages</option>
+            <option value="English">English</option>
+            <option value="Hindi">Hindi</option>
+            <option value="Bengali">Bengali</option>
+            <option value="Kannada">Kannada</option>
+            <option value="Malayalam">Malayalam</option>
+            <option value="Gujarati">Gujarati</option>
+            <option value="Mandarin">Mandarin</option>
+            <option value="Arabic">Arabic</option>
+          </select>
+        </div>
+
+        {/* Honest accent disclaimer */}
+        <p className="text-[10px] text-muted-foreground italic ml-auto" style={{fontFamily:"'Figtree',sans-serif"}}>
+          * Note: Nation filters suggest curated local names. Underlying models do not simulate regional accents.
+        </p>
       </div>
 
       {filtered.length === 0 ? (
