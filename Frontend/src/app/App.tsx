@@ -3222,7 +3222,20 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
                       <VoiceAvatar voiceId={v.id} gender={v.gender} />
-                      <div><p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>{v.name}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{v.accent}</p></div>
+                      <div>
+                        <p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>
+                          {(() => {
+                            if (selectedNation !== "all" && selectedLanguage !== "all") {
+                              const mapping = NATION_LANG_MAP[selectedNation]?.[selectedLanguage]?.find(
+                                m => m.geminiVoiceId.toLowerCase() === v.id.toLowerCase()
+                              );
+                              if (mapping) return `${mapping.displayName} (${v.name})`;
+                            }
+                            return v.name;
+                          })()}
+                        </p>
+                        <p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{v.accent}</p>
+                      </div>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1 mb-3">{v.lang.split(", ").map(l=><DBadge key={l}>{l}</DBadge>)}</div>
