@@ -2938,34 +2938,27 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
 }
 
 // ── Voice Gender Avatar ──
-// Clean geometric SVG icons — no real photos, no identifiable humans.
-// Male: indigo square-ish figure. Female: rose rounded figure.
-function VoiceAvatar({ gender }: { gender: string }) {
+// Clean AI-generated realistic portraits (no real person/likeness, zero legal risk).
+// Matches Male and Female voices to distinct headshots from public/avatars.
+function VoiceAvatar({ voiceId, gender }: { voiceId: string; gender: string }) {
   const isMale = gender === 'Male';
+  let hash = 0;
+  for (let i = 0; i < voiceId.length; i++) {
+    hash = voiceId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const avatarIndex = (Math.abs(hash) % 3) + 1; // 1, 2, or 3
+  const src = `/avatars/${isMale ? 'male' : 'female'}_${avatarIndex}.png`;
   return (
-    <div
-      className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-      style={{ background: isMale ? '#e0e7ff' : '#ffe4e6' }}
-      title={isMale ? 'Male voice' : 'Female voice'}
-    >
-      {isMale ? (
-        // Male: angular geometric figure (square head, trapezoidal shoulders)
-        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-          {/* Head */}
-          <rect x="7" y="2" width="8" height="7" rx="2" fill="#4f46e5"/>
-          {/* Body */}
-          <path d="M4 17 C4 13 7 12 11 12 C15 12 18 13 18 17 L18 20 L4 20 Z" fill="#4f46e5"/>
-        </svg>
-      ) : (
-        // Female: softer rounded figure (circular head, flared skirt silhouette)
-        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-          {/* Head */}
-          <circle cx="11" cy="6" r="4" fill="#e11d48"/>
-          {/* Body: gentle triangle/skirt shape */}
-          <path d="M7 11 L11 10 L15 11 L17 20 L5 20 Z" fill="#e11d48"/>
-        </svg>
-      )}
-    </div>
+    <img
+      src={src}
+      alt={`${gender} avatar for ${voiceId}`}
+      className="w-10 h-10 rounded-full flex-shrink-0 object-cover border border-border shadow-sm bg-muted"
+      title={`${gender} voice: ${voiceId}`}
+      onError={(e) => {
+        // Fallback in case path fails
+        (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/bottts/svg?seed=${voiceId}`;
+      }}
+    />
   );
 }
 
@@ -3087,7 +3080,7 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
                 <div>
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <VoiceAvatar gender={v.gender} />
+                      <VoiceAvatar voiceId={v.id} gender={v.gender} />
                       <div><p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>{v.name}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{v.accent}</p></div>
                     </div>
                   </div>

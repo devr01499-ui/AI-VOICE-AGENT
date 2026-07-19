@@ -511,6 +511,17 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         }
       };
 
+      // ── LANGUAGE MODE RUNTIME PROOF LOG ──────────────────────────────────
+      // This log emits the EXACT system instruction text sent to Gemini.
+      // Search server logs for "[LANG-MODE-PROOF]" to verify language directive.
+      logger.info('[LANG-MODE-PROOF] GeminiLiveProvider: Full system instruction being sent to Gemini', {
+        agentId: config.agentId,
+        languageModeDb: languageModeVal,
+        systemVoice: systemVoiceVal,
+        systemInstructionLength: systemInstructionString.length,
+        systemInstructionFull: systemInstructionString,
+      });
+
       logger.info('GeminiLiveProvider: Transmitting completed handshake frame to Google wire socket', {
         targetModel: setupMessage.setup.model,
         selectedVoice: geminiVoice
