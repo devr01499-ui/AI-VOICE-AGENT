@@ -3,6 +3,7 @@
 ## [Unreleased] - 2026-07-19
 ### Fixed
 - Resolved visual clipping bug for the multi-agent assignment dropdown panel inside the overflow-hidden documents table. Rewrote the select agents menu to use Radix-based `Popover` portals so the dropdown renders outside the clipping ancestor container.
+- Removed legacy global window 'click' event listener (`handleOutsideClick`) that conflicted with the new Popover component's automatic focus-handling and immediately closed the dropdown after opening.
 
 ## [Unreleased] - 2026-07-17
 ### Fixed

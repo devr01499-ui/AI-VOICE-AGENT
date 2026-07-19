@@ -2646,11 +2646,6 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
 
   useEffect(() => {
     loadDocs();
-    const handleOutsideClick = () => {
-      setOpenDropdownDocId(null);
-    };
-    window.addEventListener("click", handleOutsideClick);
-    return () => window.removeEventListener("click", handleOutsideClick);
   }, []);
 
   async function addUrl() {
