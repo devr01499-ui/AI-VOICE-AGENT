@@ -4,6 +4,9 @@
 ### Fixed
 - Resolved visual clipping bug for the multi-agent assignment dropdown panel inside the overflow-hidden documents table. Rewrote the select agents menu to use Radix-based `Popover` portals so the dropdown renders outside the clipping ancestor container.
 - Removed legacy global window 'click' event listener (`handleOutsideClick`) that conflicted with the new Popover component's automatic focus-handling and immediately closed the dropdown after opening.
+- Replaced fake voice list simulation with actual Gemini voices list (Puck, Kore, Charon, Fenrir, Aoede) and their documented style descriptors on the Voice Library page.
+- Disabled fake voice cloning flow, labeling the training features as "Coming soon".
+- Resolved disconnected settings by adding real-time agent assignment controls directly inside the Voice Library page and synchronizing actions via the same systemVoice database field.
 - Resolved authentication bypass on phone numbers list route (`GET /api/v2/numbers`) by adding the `requireAuth` middleware and replacing legacy raw `getUserIdFromRequest` calls.
 - Resolved payload over-fetching in phone numbers list endpoint. Added a Prisma query `select` block returning only the required fields to display provisioned phone numbers list.
 - Resolved out-of-sync agent lists across different views/tabs when creating or deleting an agent inside `DashAgents` by optimistically updating the parent `apiAgents` state.
@@ -12,6 +15,9 @@
 - Restricted query scope of `/api/v2/agents` and `/api/v2/knowledge-base` list endpoints. They now select only the fields needed by their respective list views and exclude heavy fields (like `systemPrompt`, `flowGraph`, `agentConfig`, and `contentText`). Added on-demand fetching via single item endpoints when navigating to configuration or detail screens.
 - Added a `sizeChars` integer column to the `KnowledgeBase` model stored during creation, instead of dynamically loading the entire content text just to count its length.
 - Added database index `@@index([userId])` to the `PhoneNumber` model in both schemas via a proper Prisma migration, resolving unindexed query scans in high-concurrency environments.
+- Added `languageMode` column to the `Agent` model in both schemas via a proper Prisma migration, supporting auto-detect, English, and Hindi languages.
+- Implemented system instruction injection of language security rules at Gemini Live session startup in `GeminiLiveProvider.ts` to enforce English-only or Hindi-only responses.
+- Wired a "Language Mode" select dropdown into both the Voice Library quick-settings bar and individual Agent Configuration panels.
 
 ## [Unreleased] - 2026-07-17
 ### Fixed

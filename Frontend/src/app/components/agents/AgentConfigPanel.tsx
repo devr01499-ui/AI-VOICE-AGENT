@@ -12,6 +12,7 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
   const [prompt, setPrompt] = useState(agent.systemPrompt || "");
   const [voice, setVoice] = useState(agent.systemVoice || agent.voice || "Puck");
   const [temp, setTemp] = useState(agent.temperature ?? 0.7);
+  const [languageMode, setLanguageMode] = useState(agent.languageMode || "auto");
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -20,6 +21,7 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
     setPrompt(agent.systemPrompt || "");
     setVoice(agent.systemVoice || agent.voice || "Puck");
     setTemp(agent.temperature ?? 0.7);
+    setLanguageMode(agent.languageMode || "auto");
   }, [agent.id]);
 
   const triggerDebouncedSave = (updatedFields: Record<string, any>) => {
@@ -36,6 +38,7 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
         systemPrompt: updatedFields.systemPrompt !== undefined ? updatedFields.systemPrompt : prompt,
         systemVoice: updatedFields.systemVoice !== undefined ? updatedFields.systemVoice : voice,
         temperature: updatedFields.temperature !== undefined ? Number(updatedFields.temperature) : Number(temp),
+        languageMode: updatedFields.languageMode !== undefined ? updatedFields.languageMode : languageMode,
       };
 
       updateAgent(agent.id, payload)
@@ -116,11 +119,33 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
               className="w-full px-3 py-2 border border-border rounded-lg text-xs bg-white focus:outline-none"
               style={{ fontFamily: "'Figtree', sans-serif" }}
             >
-              <option value="Puck">Puck (Energetic Male)</option>
-              <option value="Aoede">Aoede (Clear Female)</option>
-              <option value="Charon">Charon (Stable Male)</option>
-              <option value="Fenrir">Fenrir (Deep Male)</option>
-              <option value="Kore">Kore (Bright Female)</option>
+              <option value="Puck">Puck (Upbeat, lively, energetic)</option>
+              <option value="Aoede">Aoede (Breezy, natural, conversational)</option>
+              <option value="Charon">Charon (Calm, informative, professional)</option>
+              <option value="Fenrir">Fenrir (Excitable, dynamic, passionate)</option>
+              <option value="Kore">Kore (Firm, confident, warm)</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Language Mode dropdown selector */}
+        <div className="space-y-2">
+          <label className="text-[10px] font-semibold text-muted-foreground block" style={{ fontFamily: "'DM Mono', monospace" }}>
+            CONVERSATIONAL LANGUAGE MODE
+          </label>
+          <div className="relative">
+            <select
+              value={languageMode}
+              onChange={(e) => {
+                setLanguageMode(e.target.value);
+                triggerDebouncedSave({ languageMode: e.target.value });
+              }}
+              className="w-full px-3 py-2 border border-border rounded-lg text-xs bg-white focus:outline-none"
+              style={{ fontFamily: "'Figtree', sans-serif" }}
+            >
+              <option value="auto">Auto-detect (multilingual)</option>
+              <option value="en">English only</option>
+              <option value="hi">Hindi only</option>
             </select>
           </div>
         </div>

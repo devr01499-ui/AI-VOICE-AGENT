@@ -420,28 +420,40 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         logger.info('GeminiLiveProvider: Exposing search_knowledge_base tool to agent', { agentId: resolvedAgentId });
       }
 
-      // Ensure the model locks to English for transcription and conversation
-      systemInstructionString = `${systemInstructionString}\n\n[LANGUAGE SECURITY GATES]\nAlways listen, transcribe, and respond strictly in English using the Latin script only. Never transcribe user input or respond in Hindi, Devanagari script, or any other language/script under any circumstances.`;
-
       let systemVoiceVal = 'Puck';
       let temperatureVal = 0.7;
+      let languageModeVal = 'auto';
 
       if (config.agentId) {
         try {
           const prismaInstance = (await import('../../lib/prisma')).prisma;
           const dbAgent = await prismaInstance.agent.findFirst({
             where: { id: config.agentId, userId },
-            select: { systemVoice: true, temperature: true }
+            select: { systemVoice: true, temperature: true, languageMode: true }
           });
           if (dbAgent) {
             systemVoiceVal = dbAgent.systemVoice || 'Puck';
             temperatureVal = dbAgent.temperature ?? 0.7;
+            languageModeVal = dbAgent.languageMode || 'auto';
           }
         } catch (dbErr) {
           logger.error('GeminiLiveProvider: Failed to fetch agent parameters from database', { 
             agentId: config.agentId, 
             error: String(dbErr) 
           });
+        }
+      }
+
+      // Supported target languages for system-instruction injection
+      const languageInstructionMap: Record<string, string> = {
+        en: "English",
+        hi: "Hindi",
+      };
+
+      if (languageModeVal && languageModeVal !== 'auto') {
+        const targetLang = languageInstructionMap[languageModeVal];
+        if (targetLang) {
+          systemInstructionString = `${systemInstructionString}\n\n[LANGUAGE SECURITY GATES]\nYou must listen, transcribe, and respond strictly in ${targetLang} only. Never transcribe user input or respond in any other language under any circumstances.`;
         }
       }
 

@@ -1151,11 +1151,11 @@ type AgentRow = {
 } & Record<string, unknown>;
 
 const VOICES_SEED = [
-  {id:"Aoede",name:"Aoede",gender:"female",accent:"Clear/friendly female voice",provider:"builtin",lang:"EN"},
-  {id:"Charon",name:"Charon",gender:"male",accent:"Warm/stable male voice",provider:"builtin",lang:"EN"},
-  {id:"Fenrir",name:"Fenrir",gender:"male",accent:"Smooth/deep male voice",provider:"builtin",lang:"EN"},
-  {id:"Kore",name:"Kore",gender:"female",accent:"Bright female voice",provider:"builtin",lang:"EN"},
-  {id:"Puck",name:"Puck",gender:"male",accent:"Energetic male voice",provider:"builtin",lang:"EN"},
+  {id:"Aoede",name:"Aoede",gender:"female",accent:"Breezy, natural, and conversational",provider:"builtin",lang:"EN, HI"},
+  {id:"Charon",name:"Charon",gender:"male",accent:"Calm, informative, and professional",provider:"builtin",lang:"EN, HI"},
+  {id:"Fenrir",name:"Fenrir",gender:"male",accent:"Excitable, dynamic, and passionate",provider:"builtin",lang:"EN, HI"},
+  {id:"Kore",name:"Kore",gender:"female",accent:"Firm, confident, and warm",provider:"builtin",lang:"EN, HI"},
+  {id:"Puck",name:"Puck",gender:"male",accent:"Upbeat, lively, and energetic",provider:"builtin",lang:"EN, HI"},
 ];
 
 // ── Overview ──
@@ -2913,79 +2913,163 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
 }
 
 // ── Voice Library ──
-function DashVoices() {
+// ── Voice Library ──
+function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; setApiAgents?: React.Dispatch<React.SetStateAction<ApiAgent[]>> }) {
   const [voices, setVoices] = useState([...VOICES_SEED]);
-  const [playing, setPlaying] = useState<string|null>(null);
-  const [showClone, setShowClone] = useState(false);
-  const [cloneStep, setCloneStep] = useState<"form"|"processing"|"done">("form");
-  const [cloneForm, setCloneForm] = useState({name:"",gender:"female",accent:"American",lang:"EN"});
   const [voiceFilter, setVoiceFilter] = useState<"all"|"builtin"|"clone">("all");
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [selectedConfigAgentId, setSelectedConfigAgentId] = useState("");
 
-  function submitClone() {
-    setCloneStep("processing");
-    setTimeout(()=>{setCloneStep("done"); setTimeout(()=>{setVoices(p=>[...p,{id:`vc${Date.now()}`,name:cloneForm.name||"Custom Clone",gender:cloneForm.gender,accent:cloneForm.accent,provider:"clone",lang:cloneForm.lang}]);setShowClone(false);setCloneStep("form");setCloneForm({name:"",gender:"female",accent:"American",lang:"EN"});},1500);},3000);
-  }
-
+  const selectedConfigAgent = apiAgents.find(a => a.id === selectedConfigAgentId);
   const filtered = voiceFilter==="all" ? voices : voices.filter(v=>v.provider===voiceFilter);
 
   return (
     <div className="space-y-4">
+      {/* Quick Agent Configuration settings */}
+      {apiAgents.length > 0 && (
+        <div className="bg-white border border-border rounded-xl p-5 space-y-4 shadow-sm">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider" style={{fontFamily:"'DM Mono',monospace"}}>Quick Agent Voice &amp; Language Settings</p>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Select Agent:</span>
+              <select
+                className="text-xs bg-muted border border-border rounded px-2.5 py-1.5 focus:outline-none font-medium"
+                value={selectedConfigAgentId}
+                onChange={e => setSelectedConfigAgentId(e.target.value)}
+                style={{fontFamily:"'Figtree',sans-serif"}}
+              >
+                <option value="">-- Choose Agent --</option>
+                {apiAgents.map(a => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            </div>
+            {selectedConfigAgent && (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Voice:</span>
+                  <select
+                    className="text-xs bg-muted border border-border rounded px-2.5 py-1.5 focus:outline-none font-medium"
+                    value={selectedConfigAgent.systemVoice || 'Puck'}
+                    onChange={async (e) => {
+                      const newVoice = e.target.value;
+                      try {
+                        await apiClient.put(`/api/v2/agents/${selectedConfigAgent.id}`, { systemVoice: newVoice, voice: newVoice });
+                        if (setApiAgents) {
+                          setApiAgents(prev => prev.map(a => a.id === selectedConfigAgent.id ? { ...a, systemVoice: newVoice, voiceName: newVoice } : a));
+                        }
+                      } catch (err) {
+                        alert("Failed to update voice: " + (err instanceof Error ? err.message : String(err)));
+                      }
+                    }}
+                    style={{fontFamily:"'Figtree',sans-serif"}}
+                  >
+                    {VOICES_SEED.map(v => (
+                      <option key={v.id} value={v.id}>{v.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Language Mode:</span>
+                  <select
+                    className="text-xs bg-muted border border-border rounded px-2.5 py-1.5 focus:outline-none font-medium"
+                    value={selectedConfigAgent.languageMode || 'auto'}
+                    onChange={async (e) => {
+                      const newMode = e.target.value;
+                      try {
+                        await apiClient.put(`/api/v2/agents/${selectedConfigAgent.id}`, { languageMode: newMode });
+                        if (setApiAgents) {
+                          setApiAgents(prev => prev.map(a => a.id === selectedConfigAgent.id ? { ...a, languageMode: newMode } : a));
+                        }
+                      } catch (err) {
+                        alert("Failed to update language mode: " + (err instanceof Error ? err.message : String(err)));
+                      }
+                    }}
+                    style={{fontFamily:"'Figtree',sans-serif"}}
+                  >
+                    <option value="auto">Auto-detect (multilingual)</option>
+                    <option value="en">English only</option>
+                    <option value="hi">Hindi only</option>
+                  </select>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-2">{(["all","builtin","clone"] as const).map(f=><button key={f} onClick={()=>setVoiceFilter(f)} className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${voiceFilter===f?"bg-foreground text-white":"border border-border text-muted-foreground hover:text-foreground"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{f==="all"?"All voices":f==="builtin"?"Built-in":"Cloned"}</button>)}</div>
-        <DBtn onClick={()=>setShowClone(true)}><Mic2 className="w-4 h-4"/> Clone a voice</DBtn>
+        <DBtn disabled title="Voice cloning coming soon"><Mic2 className="w-4 h-4"/> Clone a voice (Coming soon)</DBtn>
       </div>
+
       {filtered.length === 0 ? (
         <div className="p-8 text-center bg-white border border-border rounded-xl col-span-full">
           <Mic className="w-8 h-8 text-muted-foreground mx-auto mb-2"/>
           <p className="text-sm font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>No cloned voices found</p>
-          <p className="text-xs text-muted-foreground mt-1 mb-4" style={{fontFamily:"'Figtree',sans-serif"}}>You haven't cloned any custom voices yet. Upload an audio sample to train a custom model.</p>
-          <DBtn onClick={()=>setShowClone(true)} size="sm"><Mic2 className="w-3.5 h-3.5"/> Clone a voice</DBtn>
+          <p className="text-xs text-muted-foreground mt-1 mb-4" style={{fontFamily:"'Figtree',sans-serif"}}>Cloned custom voices feature is coming soon.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {filtered.map(v=>(
-            <div key={v.id} className="bg-white border border-border rounded-xl p-4 hover:shadow-sm transition-shadow">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${v.provider==="clone"?"bg-foreground":"bg-muted"}`}><Headphones className={`w-5 h-5 ${v.provider==="clone"?"text-white":"text-muted-foreground"}`}/></div>
-                  <div><p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>{v.name}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{v.gender} · {v.accent}</p></div>
+          {filtered.map(v=>{
+            const assignedAgents = apiAgents.filter(a => (a.systemVoice || 'Puck') === v.id);
+            return (
+              <div key={v.id} className="bg-white border border-border rounded-xl p-4 hover:shadow-sm transition-shadow flex flex-col justify-between">
+                <div>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center bg-muted"><Headphones className="w-5 h-5 text-muted-foreground"/></div>
+                      <div><p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>{v.name}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{v.accent}</p></div>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1 mb-3">{v.lang.split(", ").map(l=><DBadge key={l}>{l}</DBadge>)}</div>
                 </div>
-                {v.provider==="clone"&&<DBadge v="dark">★ Clone</DBadge>}
+
+                <div className="space-y-2 mt-3 pt-3 border-t border-border">
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground font-semibold uppercase tracking-wider" style={{fontFamily:"'DM Mono',monospace"}}>
+                    <span>Assigned Agents</span>
+                    <span>{assignedAgents.length}</span>
+                  </div>
+                  {assignedAgents.length > 0 ? (
+                    <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto">
+                      {assignedAgents.map(a => (
+                        <span key={a.id} className="text-[10px] bg-muted border border-border text-foreground rounded px-1.5 py-0.5 font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>{a.name}</span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-muted-foreground italic" style={{fontFamily:"'Figtree',sans-serif"}}>No agents assigned</p>
+                  )}
+                  {setApiAgents && apiAgents.length > 0 && (
+                    <div className="flex items-center gap-2 pt-1.5">
+                      <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider flex-shrink-0" style={{fontFamily:"'DM Mono',monospace"}}>Assign:</span>
+                      <select
+                        className="text-xs bg-muted border border-border rounded px-1.5 py-0.5 focus:outline-none w-full font-medium"
+                        value=""
+                        onChange={async (e) => {
+                          const agentId = e.target.value;
+                          if (!agentId) return;
+                          try {
+                            await apiClient.put(`/api/v2/agents/${agentId}`, { systemVoice: v.id, voice: v.id });
+                            setApiAgents(prev => prev.map(a => a.id === agentId ? { ...a, systemVoice: v.id, voiceName: v.id } : a));
+                          } catch (err) {
+                            console.error(err);
+                            alert("Failed to assign voice: " + (err instanceof Error ? err.message : String(err)));
+                          }
+                        }}
+                        style={{fontFamily:"'Figtree',sans-serif"}}
+                      >
+                        <option value="">-- Choose Agent --</option>
+                        {apiAgents.map(a => (
+                          <option key={a.id} value={a.id}>{a.name} (currently: {a.systemVoice || 'Puck'})</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="flex flex-wrap gap-1 mb-3">{v.lang.split(", ").map(l=><DBadge key={l}>{l}</DBadge>)}</div>
-              <div className="flex items-center gap-3">
-                <div className="flex-1 bg-muted rounded-lg h-8 flex items-center px-2 text-muted-foreground"><MiniWave on={playing===v.id} bars={18}/></div>
-                <button onClick={()=>setPlaying(playing===v.id?null:v.id)} className="w-8 h-8 border border-border rounded-full flex items-center justify-center hover:bg-muted transition-colors flex-shrink-0">{playing===v.id?<Pause className="w-3.5 h-3.5"/>:<Play className="w-3.5 h-3.5"/>}</button>
-                {v.provider==="clone"&&<DBtn size="sm" variant="ghost"><Trash2 className="w-3.5 h-3.5 text-red-400"/></DBtn>}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
-      <DModal open={showClone} onClose={()=>{setShowClone(false);setCloneStep("form");}} title="Clone a voice" width="max-w-md">
-        {cloneStep==="form"&&(
-          <div className="space-y-4">
-            <div className="flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-xl p-3"><AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5"/><p className="text-xs text-amber-700" style={{fontFamily:"'Figtree',sans-serif"}}>You must have explicit written consent from the voice owner before cloning.</p></div>
-            <DField label="Voice name"><DInput placeholder="e.g. Sarah Mitchell" value={cloneForm.name} onChange={e=>setCloneForm(f=>({...f,name:e.target.value}))}/></DField>
-            <div className="grid grid-cols-2 gap-3">
-              <DField label="Gender"><DSelect value={cloneForm.gender} onChange={e=>setCloneForm(f=>({...f,gender:e.target.value}))}><option value="female">Female</option><option value="male">Male</option><option value="neutral">Neutral</option></DSelect></DField>
-              <DField label="Language"><DSelect value={cloneForm.lang} onChange={e=>setCloneForm(f=>({...f,lang:e.target.value}))}><option>EN</option><option>ES</option><option>FR</option><option>DE</option><option>ZH</option><option>HI</option></DSelect></DField>
-            </div>
-            <DField label="Training audio" hint="1–10 min of clean speech. WAV or MP3, min 16kHz, no background noise.">
-              <div className="border-2 border-dashed border-border rounded-xl p-6 text-center cursor-pointer hover:bg-muted/20 transition-colors" onClick={()=>fileRef.current?.click()}>
-                <Mic2 className="w-6 h-6 text-muted-foreground mx-auto mb-2"/>
-                <p className="text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Click to upload audio sample</p>
-                <p className="text-xs text-muted-foreground mt-1" style={{fontFamily:"'Figtree',sans-serif"}}>WAV, MP3 — max 100 MB</p>
-                <input ref={fileRef} type="file" accept=".wav,.mp3" className="hidden" onChange={()=>{}}/>
-              </div>
-            </DField>
-            <div className="flex gap-3"><DBtn onClick={submitClone}><Wand2 className="w-4 h-4"/> Clone voice</DBtn><DBtn variant="secondary" onClick={()=>setShowClone(false)}>Cancel</DBtn></div>
-          </div>
-        )}
-        {cloneStep==="processing"&&<div className="py-12 text-center space-y-4"><div className="w-12 h-12 border-2 border-foreground border-t-transparent rounded-full animate-spin mx-auto"/><p className="font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>Training voice model…</p><p className="text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Takes 1–3 minutes. You can close this window.</p></div>}
-        {cloneStep==="done"&&<div className="py-12 text-center space-y-4"><div className="w-12 h-12 bg-emerald-50 border border-emerald-100 rounded-full flex items-center justify-center mx-auto"><CheckCircle2 className="w-6 h-6 text-emerald-500"/></div><p className="font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>Voice cloned successfully!</p></div>}
-      </DModal>
     </div>
   );
 }
@@ -3169,7 +3253,7 @@ function DashboardPage({ session }: { session: Session }) {
               {section==="calls"&&<DashCallLogs/>}
               {section==="numbers"&&<DashNumbers/>}
               {section==="knowledge"&&<DashKnowledge apiAgents={apiAgents}/>}
-              {section==="voices"&&<DashVoices/>}
+              {section==="voices"&&<DashVoices apiAgents={apiAgents} setApiAgents={setApiAgents}/>}
               {section==="analytics"&&<DashAnalytics/>}
               {section==="settings"&&<DashSettings profile={profile} />}
             </motion.div>

@@ -162,6 +162,8 @@ export class AgentRepository {
           workspaceId: true,
           model: true,
           voiceName: true,
+          systemVoice: true,
+          languageMode: true,
           temperature: true,
           createdAt: true,
           updatedAt: true,
