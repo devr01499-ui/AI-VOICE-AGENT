@@ -145,9 +145,6 @@ router.get(
           model: agent?.model,
           voiceName: agent?.voiceName,
           temperature: agent?.temperature,
-          systemPrompt: agent?.systemPrompt,
-          flowGraph: agent?.flowGraph,
-          agentConfig: agent?.agentConfig,
           createdAt: agent?.createdAt instanceof Date ? agent.createdAt.toISOString() : (agent?.createdAt ? new Date(agent.createdAt).toISOString() : new Date().toISOString()),
           updatedAt: agent?.updatedAt instanceof Date ? agent.updatedAt.toISOString() : (agent?.updatedAt ? new Date(agent.updatedAt).toISOString() : new Date().toISOString()),
         }));

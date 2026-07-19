@@ -151,7 +151,21 @@ export class AgentRepository {
   static async findManyByUserId(userId: string): Promise<any[]> {
     try {
       return await prisma.agent.findMany({
-        where: { userId }
+        where: { userId },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          agentType: true,
+          status: true,
+          version: true,
+          workspaceId: true,
+          model: true,
+          voiceName: true,
+          temperature: true,
+          createdAt: true,
+          updatedAt: true,
+        }
       });
     } catch (error) {
       console.error(`[AgentRepository Fatal] Failed querying agents for user ${userId}:`, error);

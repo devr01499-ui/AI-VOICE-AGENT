@@ -6,7 +6,7 @@ import BillingGateway from "./components/settings/BillingGateway";
 import AgentConfigPanel from "./components/agents/AgentConfigPanel";
 import { AnalyticsOverview } from "./components/analytics/AnalyticsOverview";
 import {
-  fetchAgents, fetchCalls, fetchProfile, createAgent, updateAgent,
+  fetchAgents, fetchAgent, fetchCalls, fetchProfile, createAgent, updateAgent,
   initiateCall, getCallTranscript, getLiveTranscriptWsUrl,
   fetchKBList, uploadKBDocument, scrapeKBUrl, deleteKBDocument,
   DEV_USER_ID, DEFAULT_AGENT_ID, API_BASE, apiClient,
@@ -1763,6 +1763,7 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
   function handleCreate() {
     const localAgent: AgentRow = {id:`a${Date.now()}`,name:form.name||"Untitled Agent",type:createType,status:"draft",calls:0,csat:null,lang:form.lang,voice:VOICES_SEED.find(v=>v.id===form.voice)?.name??"Nova",model:form.model,kb:form.kb,numbers:[],created:new Date().toISOString().slice(0,10)};
     // Optimistically update UI, then persist to API
+    const previousAgents = [...agents];
     setAgents(p=>[...p, localAgent]);
     setView("list");
     createAgent({
@@ -1772,7 +1773,13 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
       model: form.model,
       temperature: parseFloat(form.temperature),
       systemPrompt: form.systemPrompt || undefined,
-    }).then(() => loadAgents()).catch(() => {/* keep optimistic update on fail */});
+    }).then((created) => {
+      // Replace temp local ID with real server ID
+      setAgents(p => p.map(a => a.id === localAgent.id ? { ...a, id: created.id, created: created.createdAt?.slice(0, 10) ?? '' } : a));
+    }).catch((err) => {
+      setAgents(previousAgents);
+      alert("Failed to create agent: " + (err instanceof Error ? err.message : String(err)));
+    });
   }
 
   const filtered = filter==="all" ? agents : agents.filter(a=>a.type===filter);
@@ -2191,7 +2198,21 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
                 <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{a.model as string}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
-                    <DBtn size="sm" variant="ghost" onClick={()=>{setSelected(a);setView("detail");setDetailTab("config");}}><Edit3 className="w-3.5 h-3.5"/> Configure</DBtn>
+                    <DBtn size="sm" variant="ghost" onClick={async ()=>{
+                      try {
+                        const fullAgent = await fetchAgent(a.id as string);
+                        setSelected({
+                          ...a,
+                          systemPrompt: fullAgent.systemPrompt,
+                          systemVoice: fullAgent.systemVoice || fullAgent.voiceName,
+                          temperature: fullAgent.temperature,
+                        } as any);
+                        setView("detail");
+                        setDetailTab("config");
+                      } catch (err) {
+                        console.error("Failed to load agent details", err);
+                      }
+                    }}><Edit3 className="w-3.5 h-3.5"/> Configure</DBtn>
                     <DBtn size="sm" variant="danger" onClick={()=>handleDelete(a.id as string)}><Trash2 className="w-3.5 h-3.5"/> Delete</DBtn>
                   </div>
                 </td>
@@ -2652,12 +2673,13 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
     if (!url) return;
     try {
       setLoading(true);
-      await scrapeKBUrl(url, selectedAgentId || undefined as any);
+      const newDoc = await scrapeKBUrl(url, selectedAgentId || undefined as any);
+      setDocs(prev => [...prev, newDoc]);
       setShowAdd(false);
       setUrl("");
-      await loadDocs();
     } catch (err) {
       console.error("Failed to crawl URL", err);
+      alert("Failed to crawl URL: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setLoading(false);
     }
@@ -2674,11 +2696,12 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
       
       try {
         setLoading(true);
-        await uploadKBDocument(file.name, selectedAgentId || undefined as any, base64Data);
+        const newDoc = await uploadKBDocument(file.name, selectedAgentId || undefined as any, base64Data);
+        setDocs(prev => [...prev, newDoc]);
         setShowAdd(false);
-        await loadDocs();
       } catch (err) {
         console.error("Failed to upload document", err);
+        alert("Failed to upload document: " + (err instanceof Error ? err.message : String(err)));
       } finally {
         setLoading(false);
       }
@@ -2688,14 +2711,14 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
 
   async function handleDelete(id: string) {
     if (!confirm("Are you sure you want to delete this document?")) return;
+    const previousDocs = [...docs];
     try {
-      setLoading(true);
+      setDocs(prev => prev.filter(d => d.id !== id));
       await deleteKBDocument(id);
-      await loadDocs();
     } catch (err) {
       console.error("Failed to delete document", err);
-    } finally {
-      setLoading(false);
+      setDocs(previousDocs);
+      alert("Failed to delete document: " + (err instanceof Error ? err.message : String(err)));
     }
   }
 
@@ -2729,11 +2752,19 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
                             {agName}
                             <button onClick={async (e) => {
                               e.stopPropagation();
+                              const previousDocs = [...docs];
                               try {
+                                setDocs(prev => prev.map(doc => {
+                                  if (doc.id === d.id) {
+                                    return { ...doc, agentIds: (doc.agentIds || []).filter(id => id !== aId) };
+                                  }
+                                  return doc;
+                                }));
                                 await apiClient.post(`/api/v2/knowledge-base/${d.id}/unassign`, { agentId: aId });
-                                await loadDocs();
                               } catch (err) {
                                 console.error(err);
+                                setDocs(previousDocs);
+                                alert("Failed to unassign agent: " + (err instanceof Error ? err.message : String(err)));
                               }
                             }} className="hover:text-red-500 text-xs font-bold">×</button>
                           </span>
@@ -2763,15 +2794,26 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
                                     type="checkbox" 
                                     checked={isAssigned} 
                                     onChange={async (e) => {
+                                      const previousDocs = [...docs];
                                       try {
+                                        setDocs(prev => prev.map(doc => {
+                                          if (doc.id === d.id) {
+                                            const nextAgentIds = e.target.checked
+                                              ? [...(doc.agentIds || []), a.id]
+                                              : (doc.agentIds || []).filter(id => id !== a.id);
+                                            return { ...doc, agentIds: nextAgentIds };
+                                          }
+                                          return doc;
+                                        }));
                                         if (e.target.checked) {
                                           await apiClient.post(`/api/v2/knowledge-base/${d.id}/assign`, { agentId: a.id });
                                         } else {
                                           await apiClient.post(`/api/v2/knowledge-base/${d.id}/unassign`, { agentId: a.id });
                                         }
-                                        await loadDocs();
                                       } catch (err) {
                                         console.error(err);
+                                        setDocs(previousDocs);
+                                        alert("Failed to toggle agent link: " + (err instanceof Error ? err.message : String(err)));
                                       }
                                     }}
                                     className="accent-foreground"

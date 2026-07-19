@@ -211,6 +211,7 @@ model KnowledgeBase {
   id          String   @id @default(uuid())
   name        String
   contentText String   @map("content_text")
+  sizeChars   Int      @default(0) @map("size_chars")
   userId      String   @map("user_id")
   createdAt   DateTime @default(now()) @map("created_at")
 

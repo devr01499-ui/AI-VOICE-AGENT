@@ -71,6 +71,7 @@ export class KnowledgeBaseController {
         data: {
           name,
           contentText: truncatedContent,
+          sizeChars: truncatedContent.length,
           userId,
         }
       });
@@ -212,6 +213,7 @@ export class KnowledgeBaseController {
         data: {
           name: url,
           contentText: truncatedContent,
+          sizeChars: truncatedContent.length,
           userId,
         }
       });
@@ -285,7 +287,7 @@ export class KnowledgeBaseController {
           id: true,
           name: true,
           createdAt: true,
-          contentText: true,
+          sizeChars: true,
           agentLinks: {
             select: {
               agentId: true
@@ -302,7 +304,7 @@ export class KnowledgeBaseController {
           agentId: agentIds[0] || '', // legacy single fallback
           agentIds,
           createdAt: item.createdAt,
-          sizeChars: item.contentText.length,
+          sizeChars: item.sizeChars,
         };
       });
 
