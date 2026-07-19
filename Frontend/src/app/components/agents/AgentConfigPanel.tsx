@@ -119,11 +119,37 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
               className="w-full px-3 py-2 border border-border rounded-lg text-xs bg-white focus:outline-none"
               style={{ fontFamily: "'Figtree', sans-serif" }}
             >
-              <option value="Puck">Puck (Upbeat, lively, energetic)</option>
-              <option value="Aoede">Aoede (Breezy, natural, conversational)</option>
-              <option value="Charon">Charon (Calm, informative, professional)</option>
-              <option value="Fenrir">Fenrir (Excitable, dynamic, passionate)</option>
-              <option value="Kore">Kore (Firm, confident, warm)</option>
+              {/* All 30 Gemini built-in voices — single select, one voice per agent */}
+              <option value="Puck">Puck — Upbeat, lively, energetic</option>
+              <option value="Aoede">Aoede — Breezy, natural, conversational</option>
+              <option value="Charon">Charon — Calm, informative, professional</option>
+              <option value="Fenrir">Fenrir — Excitable, dynamic, passionate</option>
+              <option value="Kore">Kore — Firm, confident, warm</option>
+              <option value="Leda">Leda — Youthful, energetic, friendly</option>
+              <option value="Orus">Orus — Calm, firm, authoritative</option>
+              <option value="Zephyr">Zephyr — Bright, clear, melodic</option>
+              <option value="Callirhoe">Callirhoe — Melodic, soft, clear</option>
+              <option value="Autonoe">Autonoe — Warm, expressive, natural</option>
+              <option value="Enceladus">Enceladus — Deep, resonant, professional</option>
+              <option value="Iapetus">Iapetus — Warm, engaging, mature</option>
+              <option value="Umbriel">Umbriel — Calm, smooth, low-pitched</option>
+              <option value="Algieba">Algieba — Smooth, polished, professional</option>
+              <option value="Despina">Despina — Clear, energetic, bright</option>
+              <option value="Erinome">Erinome — Gentle, friendly, conversational</option>
+              <option value="Algenib">Algenib — Strong, confident, clear</option>
+              <option value="Rasalgethi">Rasalgethi — Deep, calm, informative</option>
+              <option value="Laomedeia">Laomedeia — Melodious, bright, friendly</option>
+              <option value="Achernar">Achernar — Crisp, articulate, professional</option>
+              <option value="Alnilam">Alnilam — Smooth, conversational, warm</option>
+              <option value="Schedar">Schedar — Warm, authoritative, polished</option>
+              <option value="Gacrux">Gacrux — Resonant, smooth, friendly</option>
+              <option value="Pulcherrima">Pulcherrima — Clear, expressive, bright</option>
+              <option value="Achird">Achird — Bright, friendly, conversational</option>
+              <option value="Adara">Adara — Clear, soft, melodic</option>
+              <option value="Castor">Castor — Dynamic, friendly, active</option>
+              <option value="Deneb">Deneb — Crisp, precise, clear</option>
+              <option value="Eltanin">Eltanin — Smooth, calm, comforting</option>
+              <option value="Mizar">Mizar — Warm, rich, professional</option>
             </select>
           </div>
         </div>

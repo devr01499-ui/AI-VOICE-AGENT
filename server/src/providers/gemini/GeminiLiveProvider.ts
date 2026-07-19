@@ -224,10 +224,10 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     if (config.temperature !== undefined && (config.temperature < 0 || config.temperature > 2)) {
       throw new CallError(callId, 'Invalid temperature', 'INVALID_CONFIG');
     }
-    const validVoices = ['alloy', 'echo', 'fable', 'onyx', 'shimmer', 'puck', 'charon', 'fenrir', 'kore', 'aoede'];
-    if (config.voice && !validVoices.includes(config.voice.toLowerCase())) {
-      throw new CallError(callId, `Invalid voice: ${config.voice}`, 'INVALID_CONFIG');
-    }
+    // NOTE: Voice name validation is intentionally delegated to the Gemini API.
+    // The full voice library has 30+ voices and grows over time; a static client-side
+    // whitelist would silently block valid new voices. The API returns a clear error
+    // for genuinely invalid voice names.
 
     // priority key/balance waterfall resolution:
     const userId = config.userId;
@@ -459,18 +459,20 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
       const agentVoiceMapping = systemVoiceVal || this.currentAgent?.voice || "Puck";
 
-      // Map voices: alloy/shimmer/etc. to Gemini voices (Aoede, Puck, Charon, Fenrir, Kore)
+      // Map voices: OpenAI legacy aliases → Gemini equivalents; all 30 Gemini library voices
+      // map to themselves (correct PascalCase). Fallback passes the value through as-is.
       const voiceNameMap: Record<string, string> = {
-        alloy: 'Aoede',
-        echo: 'Fenrir',
-        fable: 'Fenrir',
-        onyx: 'Kore',
-        shimmer: 'Aoede',
-        puck: 'Puck',
-        charon: 'Charon',
-        fenrir: 'Fenrir',
-        kore: 'Kore',
-        aoede: 'Aoede',
+        // Legacy OpenAI voice aliases
+        alloy: 'Aoede', echo: 'Fenrir', fable: 'Fenrir', onyx: 'Kore', shimmer: 'Aoede',
+        // All 30 canonical Gemini voice names (lowercase → PascalCase)
+        puck: 'Puck', charon: 'Charon', fenrir: 'Fenrir', kore: 'Kore', aoede: 'Aoede',
+        leda: 'Leda', orus: 'Orus', zephyr: 'Zephyr', callirhoe: 'Callirhoe',
+        autonoe: 'Autonoe', enceladus: 'Enceladus', iapetus: 'Iapetus', umbriel: 'Umbriel',
+        algieba: 'Algieba', despina: 'Despina', erinome: 'Erinome', algenib: 'Algenib',
+        rasalgethi: 'Rasalgethi', laomedeia: 'Laomedeia', achernar: 'Achernar',
+        alnilam: 'Alnilam', schedar: 'Schedar', gacrux: 'Gacrux', pulcherrima: 'Pulcherrima',
+        achird: 'Achird', adara: 'Adara', castor: 'Castor', deneb: 'Deneb',
+        eltanin: 'Eltanin', mizar: 'Mizar',
       };
       const geminiVoice = voiceNameMap[agentVoiceMapping.toLowerCase()] || agentVoiceMapping;
 

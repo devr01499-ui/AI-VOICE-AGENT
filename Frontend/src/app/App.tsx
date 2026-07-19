@@ -2937,6 +2937,38 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
   );
 }
 
+// ── Voice Gender Avatar ──
+// Clean geometric SVG icons — no real photos, no identifiable humans.
+// Male: indigo square-ish figure. Female: rose rounded figure.
+function VoiceAvatar({ gender }: { gender: string }) {
+  const isMale = gender === 'Male';
+  return (
+    <div
+      className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+      style={{ background: isMale ? '#e0e7ff' : '#ffe4e6' }}
+      title={isMale ? 'Male voice' : 'Female voice'}
+    >
+      {isMale ? (
+        // Male: angular geometric figure (square head, trapezoidal shoulders)
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+          {/* Head */}
+          <rect x="7" y="2" width="8" height="7" rx="2" fill="#4f46e5"/>
+          {/* Body */}
+          <path d="M4 17 C4 13 7 12 11 12 C15 12 18 13 18 17 L18 20 L4 20 Z" fill="#4f46e5"/>
+        </svg>
+      ) : (
+        // Female: softer rounded figure (circular head, flared skirt silhouette)
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+          {/* Head */}
+          <circle cx="11" cy="6" r="4" fill="#e11d48"/>
+          {/* Body: gentle triangle/skirt shape */}
+          <path d="M7 11 L11 10 L15 11 L17 20 L5 20 Z" fill="#e11d48"/>
+        </svg>
+      )}
+    </div>
+  );
+}
+
 // ── Voice Library ──
 // ── Voice Library ──
 function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; setApiAgents?: React.Dispatch<React.SetStateAction<ApiAgent[]>> }) {
@@ -3055,7 +3087,7 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
                 <div>
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center bg-muted"><Headphones className="w-5 h-5 text-muted-foreground"/></div>
+                      <VoiceAvatar gender={v.gender} />
                       <div><p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>{v.name}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{v.accent}</p></div>
                     </div>
                   </div>
