@@ -4,10 +4,14 @@
 ### Fixed
 - Resolved visual clipping bug for the multi-agent assignment dropdown panel inside the overflow-hidden documents table. Rewrote the select agents menu to use Radix-based `Popover` portals so the dropdown renders outside the clipping ancestor container.
 - Removed legacy global window 'click' event listener (`handleOutsideClick`) that conflicted with the new Popover component's automatic focus-handling and immediately closed the dropdown after opening.
+- Resolved authentication bypass on phone numbers list route (`GET /api/v2/numbers`) by adding the `requireAuth` middleware and replacing legacy raw `getUserIdFromRequest` calls.
+- Resolved payload over-fetching in phone numbers list endpoint. Added a Prisma query `select` block returning only the required fields to display provisioned phone numbers list.
+- Resolved out-of-sync agent lists across different views/tabs when creating or deleting an agent inside `DashAgents` by optimistically updating the parent `apiAgents` state.
 ### Changed
 - Optimistically updated the document lists and agent configuration list in the UI for creation, deletion, scraping, uploads, and link assignments. This eliminates unnecessary full list refetches (e.g., `loadDocs()`, `loadAgents()`) upon mutation, with full reversion and user notification on backend failure.
 - Restricted query scope of `/api/v2/agents` and `/api/v2/knowledge-base` list endpoints. They now select only the fields needed by their respective list views and exclude heavy fields (like `systemPrompt`, `flowGraph`, `agentConfig`, and `contentText`). Added on-demand fetching via single item endpoints when navigating to configuration or detail screens.
 - Added a `sizeChars` integer column to the `KnowledgeBase` model stored during creation, instead of dynamically loading the entire content text just to count its length.
+- Added database index `@@index([userId])` to the `PhoneNumber` model in both schemas via a proper Prisma migration, resolving unindexed query scans in high-concurrency environments.
 
 ## [Unreleased] - 2026-07-17
 ### Fixed

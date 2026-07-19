@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getUserIdFromRequest } from '../utils/auth';
+import { requireAuth } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 
@@ -10,9 +10,9 @@ const router = Router();
  * 
  * Returns all active phone numbers provisioned to the current authenticated user's workspace.
  */
-router.get('/', async (req, res, next) => {
+router.get('/', requireAuth, async (req, res, next) => {
   try {
-    const userId = getUserIdFromRequest(req);
+    const userId = (req as any).userId;
     if (!userId) {
       res.status(401).json({ success: false, error: 'Unauthorized' });
       return;
@@ -22,12 +22,12 @@ router.get('/', async (req, res, next) => {
 
     const numbers = await prisma.phoneNumber.findMany({
       where: { userId: userId },
-      include: {
-        agent: {
-          select: {
-            name: true
-          }
-        }
+      select: {
+        id: true,
+        phoneNumber: true,
+        assignedAgentId: true,
+        type: true,
+        status: true,
       }
     });
 

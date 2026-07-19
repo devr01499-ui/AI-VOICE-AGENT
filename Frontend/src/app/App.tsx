@@ -1334,7 +1334,7 @@ function base64ToFloat32(base64: string): Float32Array {
 
 // ── Agents ──
 type AgentView = "list"|"create"|"detail";
-function DashAgents({ session, profile }: { session: Session | null; profile: ApiProfile | null }) {
+function DashAgents({ session, profile, setApiAgents }: { session: Session | null; profile: ApiProfile | null; setApiAgents?: React.Dispatch<React.SetStateAction<ApiAgent[]>> }) {
   const [agents, setAgents] = useState<AgentRow[]>([]);
   const [agentsLoading, setAgentsLoading] = useState(false);
   const [agentsError, setAgentsError] = useState<string | null>(null);
@@ -1744,6 +1744,9 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(agentId);
       if (!isUuid) {
         setAgents(prev => prev.filter(x => x.id !== agentId));
+        if (setApiAgents) {
+          setApiAgents(p => p.filter(a => a.id !== agentId));
+        }
         return;
       }
 
@@ -1751,6 +1754,9 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
         const response = await apiClient.delete(`/api/v2/agents/${agentId}`);
         if (response.data?.success) {
           setAgents(prev => prev.filter(x => x.id !== agentId));
+          if (setApiAgents) {
+            setApiAgents(p => p.filter(a => a.id !== agentId));
+          }
         } else {
           alert(`Failed to delete agent`);
         }
@@ -1765,6 +1771,22 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
     // Optimistically update UI, then persist to API
     const previousAgents = [...agents];
     setAgents(p=>[...p, localAgent]);
+
+    const localApiAgent: ApiAgent = {
+      id: localAgent.id,
+      name: localAgent.name,
+      agentType: createType,
+      status: 'draft',
+      version: 1,
+      model: form.model,
+      voiceName: VOICES_SEED.find(v=>v.id===form.voice)?.name??"Nova",
+      temperature: parseFloat(form.temperature),
+      createdAt: new Date().toISOString(),
+    };
+    if (setApiAgents) {
+      setApiAgents(p => [...p, localApiAgent]);
+    }
+
     setView("list");
     createAgent({
       name: form.name || 'Untitled Agent',
@@ -1776,8 +1798,14 @@ function DashAgents({ session, profile }: { session: Session | null; profile: Ap
     }).then((created) => {
       // Replace temp local ID with real server ID
       setAgents(p => p.map(a => a.id === localAgent.id ? { ...a, id: created.id, created: created.createdAt?.slice(0, 10) ?? '' } : a));
+      if (setApiAgents) {
+        setApiAgents(p => p.map(a => a.id === localAgent.id ? created : a));
+      }
     }).catch((err) => {
       setAgents(previousAgents);
+      if (setApiAgents) {
+        setApiAgents(p => p.filter(a => a.id !== localAgent.id));
+      }
       alert("Failed to create agent: " + (err instanceof Error ? err.message : String(err)));
     });
   }
@@ -3136,7 +3164,7 @@ function DashboardPage({ session }: { session: Session }) {
           <AnimatePresence mode="wait">
             <motion.div key={section} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0}} transition={{duration:0.18}}>
               {section==="overview"&&<DashOverview/>}
-              {section==="agents"&&<DashAgents session={session} profile={profile} />}
+              {section==="agents"&&<DashAgents session={session} profile={profile} setApiAgents={setApiAgents} />}
               {section==="batch"&&<DashBatch/>}
               {section==="calls"&&<DashCallLogs/>}
               {section==="numbers"&&<DashNumbers/>}
