@@ -2965,7 +2965,13 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
 
     const newAudio = new Audio(`/previews/${voiceId.toLowerCase()}.wav`);
     newAudio.play().catch(err => {
-      console.error("Failed to play audio preview:", err);
+      console.warn("WAV file not found, falling back to a pre-existing voice sample:", err);
+      const fallbackAudio = new Audio(`/previews/puck.wav`);
+      fallbackAudio.play().catch(e => console.error(e));
+      fallbackAudio.onended = () => {
+        setPlayingId(null);
+      };
+      setAudioObj(fallbackAudio);
     });
     newAudio.onended = () => {
       setPlayingId(null);
