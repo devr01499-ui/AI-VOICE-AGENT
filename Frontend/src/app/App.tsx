@@ -25,6 +25,7 @@ import {
   CheckCircle2, AlertCircle, Info, Star, Headphones, Wand2,
   ChevronLeft, ChevronDown, Users, Key, Sliders,
 } from "lucide-react";
+import { Popover, PopoverTrigger, PopoverContent } from "./components/ui/popover";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Page = "home" | "industries" | "pricing" | "dashboard";
@@ -2743,54 +2744,57 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
                           </span>
                         );
                       })}
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenDropdownDocId(openDropdownDocId === d.id ? null : d.id);
-                        }}
-                        className="text-[10px] text-foreground hover:bg-muted border border-border rounded px-1.5 py-0.5 font-medium flex items-center gap-0.5"
-                      >
-                        <Plus className="w-2.5 h-2.5"/> Link Agent
-                      </button>
-                    </div>
-                    {openDropdownDocId === d.id && (
-                      <div className="absolute left-4 top-10 bg-white border border-border rounded-xl p-3 shadow-xl z-50 min-w-[200px] space-y-2 text-left" onClick={e => e.stopPropagation()}>
-                        <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-2" style={{fontFamily:"'DM Mono',monospace"}}>Select Agents</p>
-                        <div className="max-h-40 overflow-y-auto space-y-1.5">
-                          {apiAgents.map(a => {
-                            const isAssigned = (d.agentIds || []).includes(a.id);
-                            return (
-                              <label key={a.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded transition-colors text-xs font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>
-                                <input 
-                                  type="checkbox" 
-                                  checked={isAssigned} 
-                                  onChange={async (e) => {
-                                    try {
-                                      if (e.target.checked) {
-                                        await apiClient.post(`/api/v2/knowledge-base/${d.id}/assign`, { agentId: a.id });
-                                      } else {
-                                        await apiClient.post(`/api/v2/knowledge-base/${d.id}/unassign`, { agentId: a.id });
+                      <Popover open={openDropdownDocId === d.id} onOpenChange={(open) => setOpenDropdownDocId(open ? d.id : null)}>
+                        <PopoverTrigger asChild>
+                          <button 
+                            className="text-[10px] text-foreground hover:bg-muted border border-border rounded px-1.5 py-0.5 font-medium flex items-center gap-0.5"
+                          >
+                            <Plus className="w-2.5 h-2.5"/> Link Agent
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent 
+                          align="start" 
+                          sideOffset={6} 
+                          className="bg-white border border-border rounded-xl p-3 shadow-xl z-50 min-w-[200px] w-auto space-y-2 text-left" 
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-2" style={{fontFamily:"'DM Mono',monospace"}}>Select Agents</p>
+                          <div className="max-h-40 overflow-y-auto space-y-1.5">
+                            {apiAgents.map(a => {
+                              const isAssigned = (d.agentIds || []).includes(a.id);
+                              return (
+                                <label key={a.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded transition-colors text-xs font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>
+                                  <input 
+                                    type="checkbox" 
+                                    checked={isAssigned} 
+                                    onChange={async (e) => {
+                                      try {
+                                        if (e.target.checked) {
+                                          await apiClient.post(`/api/v2/knowledge-base/${d.id}/assign`, { agentId: a.id });
+                                        } else {
+                                          await apiClient.post(`/api/v2/knowledge-base/${d.id}/unassign`, { agentId: a.id });
+                                        }
+                                        await loadDocs();
+                                      } catch (err) {
+                                        console.error(err);
                                       }
-                                      await loadDocs();
-                                    } catch (err) {
-                                      console.error(err);
-                                    }
-                                  }}
-                                  className="accent-foreground"
-                                />
-                                {a.name}
-                              </label>
-                            );
-                          })}
-                          {apiAgents.length === 0 && (
-                            <p className="text-[10px] text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>No agents created yet.</p>
-                          )}
-                        </div>
-                        <div className="border-t border-border pt-1 text-right">
-                          <button onClick={() => setOpenDropdownDocId(null)} className="text-[10px] text-muted-foreground hover:text-foreground font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>Close</button>
-                        </div>
-                      </div>
-                    )}
+                                    }}
+                                    className="accent-foreground"
+                                  />
+                                  {a.name}
+                                </label>
+                              );
+                            })}
+                            {apiAgents.length === 0 && (
+                              <p className="text-[10px] text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>No agents created yet.</p>
+                            )}
+                          </div>
+                          <div className="border-t border-border pt-1 text-right">
+                            <button onClick={() => setOpenDropdownDocId(null)} className="text-[10px] text-muted-foreground hover:text-foreground font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>Close</button>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{(d.sizeChars / 1024).toFixed(1)} KB</td>
                   <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{new Date(d.createdAt).toLocaleDateString()}</td>

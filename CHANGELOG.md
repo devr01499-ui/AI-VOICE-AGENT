@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-07-19
+### Fixed
+- Resolved visual clipping bug for the multi-agent assignment dropdown panel inside the overflow-hidden documents table. Rewrote the select agents menu to use Radix-based `Popover` portals so the dropdown renders outside the clipping ancestor container.
+
 ## [Unreleased] - 2026-07-17
 ### Fixed
 - Unmasked generic authentication 500 exceptions in `requireAuth` middleware by tracking processing phases (`token_verification`, `supabase_getUser`, `legacy_auth_fallback`, `database_upsert`). The middleware now logs and returns explicit phase failure messages to simplify client-side/console-side troubleshooting.
