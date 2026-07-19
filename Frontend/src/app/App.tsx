@@ -3277,8 +3277,34 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
                           const agentId = e.target.value;
                           if (!agentId) return;
                           try {
-                            await apiClient.put(`/api/v2/agents/${agentId}`, { systemVoice: v.id, voice: v.id });
-                            setApiAgents(prev => prev.map(a => a.id === agentId ? { ...a, systemVoice: v.id, voiceName: v.id } : a));
+                            const languageCodeMap: Record<string, string> = {
+                              English: 'en',
+                              Hindi: 'hi',
+                              Bengali: 'bn',
+                              Kannada: 'kn',
+                              Malayalam: 'ml',
+                              Gujarati: 'gu',
+                              Mandarin: 'zh',
+                              Arabic: 'ar',
+                            };
+                            
+                            const payload: Record<string, any> = { systemVoice: v.id, voice: v.id };
+                            let resolvedLangCode: string | undefined = undefined;
+                            
+                            if (selectedLanguage !== "all") {
+                              resolvedLangCode = languageCodeMap[selectedLanguage];
+                              if (resolvedLangCode) {
+                                payload.languageMode = resolvedLangCode;
+                              }
+                            }
+                            
+                            await apiClient.put(`/api/v2/agents/${agentId}`, payload);
+                            setApiAgents(prev => prev.map(a => a.id === agentId ? {
+                              ...a,
+                              systemVoice: v.id,
+                              voiceName: v.id,
+                              ...(resolvedLangCode && { languageMode: resolvedLangCode })
+                            } : a));
                           } catch (err) {
                             console.error(err);
                             alert("Failed to assign voice: " + (err instanceof Error ? err.message : String(err)));
