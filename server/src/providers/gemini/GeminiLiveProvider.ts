@@ -448,6 +448,12 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       const languageInstructionMap: Record<string, string> = {
         en: "English",
         hi: "Hindi",
+        bn: "Bengali",
+        kn: "Kannada",
+        ml: "Malayalam",
+        gu: "Gujarati",
+        zh: "Mandarin Chinese",
+        ar: "Arabic",
       };
 
       if (languageModeVal && languageModeVal !== 'auto') {

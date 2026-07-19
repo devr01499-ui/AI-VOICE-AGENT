@@ -172,6 +172,12 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
               <option value="auto">Auto-detect (multilingual)</option>
               <option value="en">English only</option>
               <option value="hi">Hindi only</option>
+              <option value="bn">Bengali only</option>
+              <option value="kn">Kannada only</option>
+              <option value="ml">Malayalam only</option>
+              <option value="gu">Gujarati only</option>
+              <option value="zh">Mandarin Chinese only</option>
+              <option value="ar">Arabic only</option>
             </select>
           </div>
         </div>
