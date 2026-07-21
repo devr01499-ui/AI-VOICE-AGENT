@@ -28,7 +28,7 @@ import {
 import { Popover, PopoverTrigger, PopoverContent } from "./components/ui/popover";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Page = "home" | "industries" | "pricing" | "dashboard";
+type Page = "home" | "industries" | "pricing" | "how-it-works" | "blog-rto" | "compare" | "dashboard";
 
 // ─── Sound Wave Component ─────────────────────────────────────────────────────
 function SoundWave({ active = true, bars = 32, className = "" }: { active?: boolean; bars?: number; className?: string }) {
@@ -96,6 +96,7 @@ function Nav({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
 
   const links: { label: string; id: Page }[] = [
     { label: "Home", id: "home" },
+    { label: "How It Works", id: "how-it-works" },
     { label: "Industries", id: "industries" },
     { label: "Pricing", id: "pricing" },
     { label: "Dashboard", id: "dashboard" },
@@ -580,18 +581,46 @@ function HomePage({ setPage }: { setPage: (p: Page) => void }) {
           </div>
           <div className="grid grid-cols-3 gap-12">
             {[
-              { heading: "Product", links: ["Features", "Industries", "Pricing", "API Docs"] },
-              { heading: "Company", links: ["About", "Blog", "Careers", "Press"] },
-              { heading: "Legal", links: ["Privacy", "Terms", "Security", "HIPAA"] },
+              {
+                heading: "Product",
+                links: [
+                  { label: "Features", action: () => setPage("home") },
+                  { label: "How It Works", action: () => setPage("how-it-works") },
+                  { label: "Industries", action: () => setPage("industries") },
+                  { label: "Pricing", action: () => setPage("pricing") },
+                  { label: "Compare", action: () => setPage("compare") },
+                ]
+              },
+              {
+                heading: "Company",
+                links: [
+                  { label: "About", action: () => {} },
+                  { label: "Blog (RTO)", action: () => setPage("blog-rto") },
+                  { label: "Careers", action: () => {} },
+                ]
+              },
+              {
+                heading: "Legal",
+                links: [
+                  { label: "Privacy", action: () => {} },
+                  { label: "Terms", action: () => {} },
+                  { label: "Security", action: () => {} },
+                ]
+              },
             ].map((col) => (
               <div key={col.heading}>
                 <p className="text-xs font-semibold mb-3" style={{ fontFamily: "'DM Mono', monospace" }}>
                   {col.heading.toUpperCase()}
                 </p>
                 {col.links.map((l) => (
-                  <p key={l} className="text-sm text-muted-foreground hover:text-foreground cursor-pointer mb-2 transition-colors" style={{ fontFamily: "'Figtree', sans-serif" }}>
-                    {l}
-                  </p>
+                  <button
+                    key={l.label}
+                    onClick={l.action}
+                    className="block text-left text-sm text-muted-foreground hover:text-foreground cursor-pointer mb-2 transition-colors border-none bg-transparent p-0"
+                    style={{ fontFamily: "'Figtree', sans-serif" }}
+                  >
+                    {l.label}
+                  </button>
                 ))}
               </div>
             ))}
@@ -842,56 +871,54 @@ function PricingPage({ setPage }: { setPage: (p: Page) => void }) {
 
   const plans = [
     {
-      name: "Starter",
-      price: annual ? 99 : 129,
-      desc: "For teams exploring AI voice for the first time.",
-      minutes: "2,000",
+      name: "Pay-As-You-Go",
+      price: 3.99,
+      desc: "Pay only for what you use. Zero commitment.",
+      minutes: "No limit",
       features: [
-        "2,000 voice minutes/month",
-        "1 active AI agent",
-        "English only",
-        "Basic call analytics",
-        "Standard voice (3 options)",
-        "Email support",
-        "REST API access",
+        "₹3.99 per minute voice runtime",
+        "Unlimited active AI agents",
+        "All supported languages (English, Hindi, and more)",
+        "Call analytics & logs",
+        "Shopify & Woo integrations",
+        "Standard webhook support",
       ],
-      cta: "Start free trial",
+      cta: "Sign up now",
     },
     {
-      name: "Growth",
-      price: annual ? 399 : 499,
-      desc: "For scaling teams with real call volume.",
-      minutes: "12,000",
+      name: "Starter Bundle",
+      price: annual ? 1499 : 1799,
+      desc: "For early stage D2C brands starting with COD verification.",
+      minutes: "500",
       features: [
-        "12,000 voice minutes/month",
+        "500 voice minutes included/month",
+        "Extra minutes at ₹3.75/min",
+        "1 active AI agent profile",
+        "English & Hindi support",
+        "Basic Shopify COD automation flow",
+        "Standard voice preview options",
+        "Email support",
+      ],
+      cta: "Start free trial",
+      highlight: false,
+    },
+    {
+      name: "Growth Bundle",
+      price: annual ? 5499 : 6999,
+      desc: "For high-volume e-commerce brands reducing RTO.",
+      minutes: "2,000",
+      features: [
+        "2,000 voice minutes included/month",
+        "Extra minutes at ₹3.50/min",
         "Up to 10 active AI agents",
-        "8 languages",
-        "Advanced analytics & transcripts",
-        "Premium voice cloning",
-        "CRM integrations (HubSpot, Salesforce)",
+        "All 8 local and global languages",
+        "Shopify, WooCommerce, and custom webhooks",
+        "Advanced call analytics & analytics dashboard",
+        "CRM & Google sheets integrations",
         "Priority chat support",
-        "Webhooks & Zapier",
       ],
       cta: "Start free trial",
       highlight: true,
-    },
-    {
-      name: "Enterprise",
-      price: null,
-      desc: "For organizations with complex compliance needs.",
-      minutes: "Unlimited",
-      features: [
-        "Unlimited voice minutes",
-        "Unlimited agents",
-        "29 languages",
-        "Custom voice cloning",
-        "Dedicated infrastructure",
-        "HIPAA / SOC 2 / PCI-DSS BAA",
-        "Custom integrations & SLA",
-        "24/7 dedicated support",
-        "On-premise deployment option",
-      ],
-      cta: "Talk to sales",
     },
   ];
 
@@ -957,9 +984,9 @@ function PricingPage({ setPage }: { setPage: (p: Page) => void }) {
                     className="text-5xl font-bold"
                     style={{ fontFamily: "'Instrument Serif', serif" }}
                   >
-                    ${plan.price}
+                    {plan.name === "Pay-As-You-Go" ? `₹${plan.price}` : `₹${plan.price.toLocaleString()}`}
                     <span className={`text-lg font-normal ${plan.highlight ? "text-white/60" : "text-muted-foreground"}`}>
-                      /mo
+                      {plan.name === "Pay-As-You-Go" ? "/min" : "/mo"}
                     </span>
                   </p>
                 ) : (
@@ -979,7 +1006,7 @@ function PricingPage({ setPage }: { setPage: (p: Page) => void }) {
               </p>
 
               <button
-                onClick={() => plan.price !== null ? setPage("dashboard") : undefined}
+                onClick={() => setPage("dashboard")}
                 className={`w-full py-2.5 rounded-full text-sm font-medium mb-8 transition-all ${
                   plan.highlight
                     ? "bg-white text-foreground hover:bg-white/90"
@@ -1013,20 +1040,24 @@ function PricingPage({ setPage }: { setPage: (p: Page) => void }) {
         </h2>
         {[
           {
-            q: "What counts as a voice minute?",
-            a: "A voice minute is one minute of active call time between your AI agent and a caller. Hold time and silence are not billed. Unused minutes do not roll over between billing periods.",
+            q: "How does Clarity Voice reduce COD RTO?",
+            a: "Clarity Voice places an automated confirmation call to every cash-on-delivery customer before their order is dispatched, verifying the order details and delivery address. This catches wrong numbers, changed minds, and unclear addresses before a courier is sent, which directly reduces return-to-origin (RTO) and failed delivery costs.",
           },
           {
-            q: "Can I try Clarity Voice before committing?",
-            a: "Yes — every plan includes a 14-day free trial with 500 minutes included. No credit card is required to start. You can cancel or downgrade at any time, no questions asked.",
+            q: "Do I need to hire a calling team to confirm COD orders?",
+            a: "No. Clarity Voice replaces or scales alongside a manual calling team with AI voice agents that call every order automatically, at any volume, without additional hiring.",
           },
           {
-            q: "How does the Healthcare / HIPAA compliance work?",
-            a: "Clarity Voice signs a Business Associate Agreement (BAA) with all Enterprise customers by default, and optionally for Growth plan customers in healthcare. All calls are encrypted in transit and at rest. PHI is never used for model training.",
+            q: "What languages does Clarity Voice support for COD confirmation calls?",
+            a: "Clarity Voice supports English and Hindi today, with additional Indian languages including Bengali, Kannada, Malayalam, and Gujarati, plus Mandarin and Arabic for international sellers.",
           },
           {
-            q: "Can I bring my own phone numbers?",
-            a: "Yes. You can port existing numbers, provision new ones through our dashboard, or connect via SIP trunk. We support Twilio, Bandwidth, Vonage, and direct PSTN routing.",
+            q: "How much does Clarity Voice cost?",
+            a: "Clarity Voice costs ₹3.99 per minute pay-as-you-go, or from ₹1,799 per month on a plan with bundled minutes included at a lower effective rate.",
+          },
+          {
+            q: "How is Clarity Voice different from Bolna, Retell, or Vapi?",
+            a: "Clarity Voice is built specifically around COD order confirmation and RTO reduction, with the workflow ready out of the box — general voice AI platforms require building that flow yourself, and typically charge separately for speech-to-text, the language model, and text-to-speech rather than one transparent per-minute price.",
           },
         ].map((faq, i) => (
           <FAQItem key={i} q={faq.q} a={faq.a} />
@@ -3579,13 +3610,422 @@ function DashboardPage({ session }: { session: Session }) {
   );
 }
 
+// ─── How It Works Page ────────────────────────────────────────────────────────
+function HowItWorksPage({ setPage }: { setPage: (p: Page) => void }) {
+  return (
+    <div className="bg-white min-h-screen">
+      <section className="pt-32 pb-16 px-6 max-w-5xl mx-auto text-center">
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
+          <p className="text-xs font-medium text-muted-foreground tracking-widest uppercase mb-4" style={{ fontFamily: "'DM Mono', monospace" }}>
+            How It Works
+          </p>
+          <h1
+            className="text-5xl font-normal leading-tight mb-4"
+            style={{ fontFamily: "'Instrument Serif', serif" }}
+          >
+            How Clarity Voice <span className="italic">Confirms COD Orders Automatically</span>
+          </h1>
+          <p className="text-muted-foreground max-w-2xl mx-auto mb-12" style={{ fontFamily: "'Figtree', sans-serif" }}>
+            Clarity Voice connects directly to your Shopify store, automatically calls COD customers before shipping, confirms details, and updates your dashboard instantly.
+          </p>
+        </motion.div>
+      </section>
+
+      {/* Step by Step workflow */}
+      <section className="px-6 max-w-5xl mx-auto pb-24">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="bg-white border border-border rounded-xl p-6 shadow-sm">
+            <div className="w-8 h-8 bg-foreground text-white rounded-full flex items-center justify-center font-bold mb-4" style={{ fontFamily: "'Figtree', sans-serif" }}>1</div>
+            <h3 className="text-lg font-semibold mb-2" style={{ fontFamily: "'Figtree', sans-serif" }}>Order Placed</h3>
+            <p className="text-sm text-muted-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
+              A customer places a Cash on Delivery (COD) order on your Shopify or WooCommerce store.
+            </p>
+          </div>
+          <div className="bg-white border border-border rounded-xl p-6 shadow-sm">
+            <div className="w-8 h-8 bg-foreground text-white rounded-full flex items-center justify-center font-bold mb-4" style={{ fontFamily: "'Figtree', sans-serif" }}>2</div>
+            <h3 className="text-lg font-semibold mb-2" style={{ fontFamily: "'Figtree', sans-serif" }}>Automated AI Call</h3>
+            <p className="text-sm text-muted-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
+              Our voice agent calls the customer using natural, localized speech (English, Hindi, etc.) to confirm their order and address.
+            </p>
+          </div>
+          <div className="bg-white border border-border rounded-xl p-6 shadow-sm">
+            <div className="w-8 h-8 bg-foreground text-white rounded-full flex items-center justify-center font-bold mb-4" style={{ fontFamily: "'Figtree', sans-serif" }}>3</div>
+            <h3 className="text-lg font-semibold mb-2" style={{ fontFamily: "'Figtree', sans-serif" }}>Store Status Updated</h3>
+            <p className="text-sm text-muted-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
+              Confirmed orders are marked for shipping; fake numbers or cancellations are automatically flagged to prevent return shipping costs (RTO).
+            </p>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// ─── Blog: RTO Pillar Page ───────────────────────────────────────────────────
+function BlogRtoPage({ setPage }: { setPage: (p: Page) => void }) {
+  return (
+    <div className="bg-white min-h-screen">
+      <section className="pt-32 pb-16 px-6 max-w-4xl mx-auto">
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
+          <p className="text-xs font-medium text-muted-foreground tracking-widest uppercase mb-4" style={{ fontFamily: "'DM Mono', monospace" }}>
+            E-Commerce Blog
+          </p>
+          <h1
+            className="text-4xl lg:text-5xl font-normal leading-tight mb-6"
+            style={{ fontFamily: "'Instrument Serif', serif" }}
+          >
+            How to Reduce COD RTO for D2C Brands in India
+          </h1>
+          <div className="text-sm text-muted-foreground mb-8" style={{ fontFamily: "'Figtree', sans-serif" }}>
+            Published on July 21, 2026 · 6 min read
+          </div>
+
+          <div className="prose max-w-none text-foreground space-y-6" style={{ fontFamily: "'Figtree', sans-serif" }}>
+            {/* Direct Answer Opening */}
+            <p className="text-lg font-medium leading-relaxed border-l-2 border-foreground pl-4 italic">
+              Indian D2C brands can reduce cash-on-delivery (COD) return-to-origin (RTO) rates by up to 60% by implementing automated AI voice verification calls to confirm customer intent and delivery address prior to shipping. This prevents reverse logistics and courier shipping fees on invalid, incomplete, or unwanted orders.
+            </p>
+
+            <h2 className="text-2xl font-bold mt-12 mb-4" style={{ fontFamily: "'Instrument Serif', serif" }}>
+              How much does RTO cost an Indian D2C brand?
+            </h2>
+            <p className="text-muted-foreground leading-relaxed">
+              Return to Origin (RTO) represents one of the largest drains on e-commerce profit margins in India, accounting for up to 30% of all cash-on-delivery orders. Each returned package incurs double shipping charges (outbound and reverse logistics), warehousing fees, inventory blockages, and potential product damage. On average, each RTO incident costs a D2C merchant between ₹100 and ₹250, severely limiting profitability.
+            </p>
+
+            <h2 className="text-2xl font-bold mt-8 mb-4" style={{ fontFamily: "'Instrument Serif', serif" }}>
+              Why do cash-on-delivery orders have high return rates?
+            </h2>
+            <p className="text-muted-foreground leading-relaxed">
+              COD orders suffer from high return rates due to buyer impulse cancellation, incorrect contact details, fake numbers, and delivery address errors. Without upfront financial commitment, customers face no friction in refusing packages at delivery.
+            </p>
+
+            <h2 className="text-2xl font-bold mt-8 mb-4" style={{ fontFamily: "'Instrument Serif', serif" }}>
+              How to automate COD order confirmation?
+            </h2>
+            <p className="text-muted-foreground leading-relaxed">
+              Automation is achieved by syncing your store platform with an automated voice agent like Clarity Voice. As soon as a cash-on-delivery order is registered, a voice bot places a natural call in the customer’s preferred language (Hindi, English, or regional languages) to verify shipping coordinates and confirm buying intent.
+            </p>
+          </div>
+        </motion.div>
+      </section>
+    </div>
+  );
+}
+
+// ─── Compare Page ─────────────────────────────────────────────────────────────
+function ComparePage({ setPage }: { setPage: (p: Page) => void }) {
+  return (
+    <div className="bg-white min-h-screen">
+      <section className="pt-32 pb-16 px-6 max-w-5xl mx-auto text-center">
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
+          <p className="text-xs font-medium text-muted-foreground tracking-widest uppercase mb-4" style={{ fontFamily: "'DM Mono', monospace" }}>
+            Platform Comparison
+          </p>
+          <h1
+            className="text-5xl font-normal leading-tight mb-4"
+            style={{ fontFamily: "'Instrument Serif', serif" }}
+          >
+            Clarity Voice vs Bolna vs Retell vs Vapi
+          </h1>
+          <p className="text-muted-foreground max-w-2xl mx-auto mb-12" style={{ fontFamily: "'Figtree', sans-serif" }}>
+            Compare Clarity Voice against generic voice AI platforms for automated Indian COD order confirmations and RTO reduction.
+          </p>
+        </motion.div>
+      </section>
+
+      {/* Comparison table */}
+      <section className="px-6 max-w-5xl mx-auto pb-24">
+        <div className="overflow-x-auto border border-border rounded-xl shadow-sm">
+          <table className="w-full border-collapse text-left bg-white" style={{ fontFamily: "'Figtree', sans-serif" }}>
+            <thead>
+              <tr className="border-b border-border bg-muted/40">
+                <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Feature</th>
+                <th className="p-4 text-xs font-bold uppercase tracking-wider text-foreground">Clarity Voice</th>
+                <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Bolna / Retell / Vapi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border text-sm">
+              <tr>
+                <td className="p-4 font-semibold">COD &amp; RTO Focus</td>
+                <td className="p-4 text-emerald-600 font-medium">Out-of-the-box (100% optimized)</td>
+                <td className="p-4 text-muted-foreground">None (Requires custom workflow build)</td>
+              </tr>
+              <tr>
+                <td className="p-4 font-semibold">Pricing Model</td>
+                <td className="p-4 text-foreground font-medium">Flat ₹3.99/min (All-inclusive)</td>
+                <td className="p-4 text-muted-foreground">Stacked fees (STT + LLM + TTS + Platform)</td>
+              </tr>
+              <tr>
+                <td className="p-4 font-semibold">Language Support</td>
+                <td className="p-4 text-foreground font-medium">English, Hindi, regional Indian languages (Bengali, Kannada, Malayalam, Gujarati) and Mandarin, Arabic</td>
+                <td className="p-4 text-muted-foreground">Varies (Standard global models)</td>
+              </tr>
+              <tr>
+                <td className="p-4 font-semibold">Setup Overhead</td>
+                <td className="p-4 text-emerald-600 font-medium">Zero-code integrations</td>
+                <td className="p-4 text-muted-foreground">Developer setup required</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [page, setPage] = useState<Page>("home");
+  const [page, setPage] = useState<Page>(() => {
+    if (typeof window !== "undefined") {
+      const path = window.location.pathname;
+      if (path === "/pricing") return "pricing";
+      if (path === "/how-it-works") return "how-it-works";
+      if (path === "/industries") return "industries";
+      if (path.startsWith("/blog/how-to-reduce-cod-rto")) return "blog-rto";
+      if (path.startsWith("/compare")) return "compare";
+      if (path === "/dashboard") return "dashboard";
+    }
+    return "home";
+  });
   const [session, setSession] = useState<Session | null>(null);
+
+  // Synchronize state from popstate events
+  useEffect(() => {
+    const handleUrlChange = () => {
+      const path = window.location.pathname;
+      if (path === "/pricing") {
+        setPage("pricing");
+      } else if (path === "/how-it-works") {
+        setPage("how-it-works");
+      } else if (path === "/industries") {
+        setPage("industries");
+      } else if (path.startsWith("/blog/how-to-reduce-cod-rto")) {
+        setPage("blog-rto");
+      } else if (path.startsWith("/compare")) {
+        setPage("compare");
+      } else if (path === "/dashboard") {
+        setPage("dashboard");
+      } else {
+        setPage("home");
+      }
+    };
+
+    window.addEventListener("popstate", handleUrlChange);
+    return () => window.removeEventListener("popstate", handleUrlChange);
+  }, []);
+
+  const handleNavigate = (p: Page) => {
+    setPage(p);
+    const pathMap: Record<Page, string> = {
+      home: "/",
+      industries: "/industries",
+      pricing: "/pricing",
+      "how-it-works": "/how-it-works",
+      "blog-rto": "/blog/how-to-reduce-cod-rto",
+      compare: "/compare/bolna-retell-vapi",
+      dashboard: "/dashboard",
+    };
+    const targetPath = pathMap[p] || "/";
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState(null, "", targetPath);
+    }
+  };
 
   useEffect(() => {
     window.scrollTo({ top: 0 });
+  }, [page]);
+
+  useEffect(() => {
+    const titleMap: Record<Page, string> = {
+      home: "Clarity Voice — AI Calls That Confirm Every COD Order Before It Ships",
+      industries: "Clarity Voice — AI Calling Solutions for Every Industry",
+      pricing: "Clarity Voice Pricing — ₹3.99/min, No Hidden Fees",
+      "how-it-works": "How Clarity Voice Confirms COD Orders Automatically",
+      "blog-rto": "How to Reduce COD RTO for D2C Brands in India",
+      compare: "Clarity Voice vs Bolna vs Retell vs Vapi",
+      dashboard: "Dashboard — Clarity Voice",
+    };
+
+    const descMap: Record<Page, string> = {
+      home: "Clarity Voice calls every COD customer before dispatch to confirm the order, cutting RTO — without hiring a calling team.",
+      industries: "Tailored voice AI agent solutions for e-commerce, healthcare, finance, logistics and more.",
+      pricing: "Transparent, per-minute AI voice agent pricing. No stacked STT, LLM, or TTS fees like other platforms.",
+      "how-it-works": "See exactly how Clarity Voice calls, confirms, and logs every cash-on-delivery order before it ships.",
+      "blog-rto": "A practical guide to cutting cash-on-delivery returns and reverse logistics costs using automated AI confirmation calls.",
+      compare: "Compare Clarity Voice against Bolna, Retell AI, and Vapi for automated Indian COD order confirmations.",
+      dashboard: "Manage your AI voice agents and view call analytics.",
+    };
+
+    const pathMap: Record<Page, string> = {
+      home: "",
+      industries: "industries",
+      pricing: "pricing",
+      "how-it-works": "how-it-works",
+      "blog-rto": "blog/how-to-reduce-cod-rto",
+      compare: "compare/bolna-retell-vapi",
+      dashboard: "dashboard",
+    };
+
+    document.title = titleMap[page] || "Clarity Voice";
+
+    // Update meta description
+    let metaDesc = document.querySelector("meta[name='description']");
+    if (!metaDesc) {
+      metaDesc = document.createElement("meta");
+      metaDesc.setAttribute("name", "description");
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.setAttribute("content", descMap[page] || "");
+
+    // Update canonical link
+    let canonical = document.querySelector("link[rel='canonical']");
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.setAttribute("rel", "canonical");
+      document.head.appendChild(canonical);
+    }
+    const path = pathMap[page] ?? "";
+    canonical.setAttribute("href", `https://www.insightclaritiysolution.com/${path}`);
+
+    // Update Robots tag
+    let robots = document.querySelector("meta[name='robots']");
+    if (!robots) {
+      robots = document.createElement("meta");
+      robots.setAttribute("name", "robots");
+      document.head.appendChild(robots);
+    }
+    robots.setAttribute("content", "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1");
+
+    // Inject JSON-LD Schema
+    document.querySelectorAll("script[data-schema]").forEach(el => el.remove());
+
+    if (page === "home") {
+      // FAQ Page Schema
+      const faqScript = document.createElement("script");
+      faqScript.type = "application/ld+json";
+      faqScript.setAttribute("data-schema", "faq");
+      faqScript.text = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "How does Clarity Voice reduce COD RTO?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Clarity Voice places an automated confirmation call to every cash-on-delivery customer before their order is dispatched, verifying the order details and delivery address. This catches wrong numbers, changed minds, and unclear addresses before a courier is sent, which directly reduces return-to-origin (RTO) and failed delivery costs."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Do I need to hire a calling team to confirm COD orders?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Clarity Voice replaces or scales alongside a manual calling team with AI voice agents that call every order automatically, at any volume, without additional hiring."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What languages does Clarity Voice support for COD confirmation calls?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Clarity Voice supports English and Hindi today, with additional Indian languages including Bengali, Kannada, Malayalam, and Gujarati, plus Mandarin and Arabic for international sellers."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How much does Clarity Voice cost?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Clarity Voice costs ₹3.99 per minute pay-as-you-go, or from ₹1,799 per month on a plan with bundled minutes included at a lower effective rate."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How is Clarity Voice different from Bolna, Retell, or Vapi?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Clarity Voice is built specifically around COD order confirmation and RTO reduction, with the workflow ready out of the box — general voice AI platforms require building that flow yourself, and typically charge separately for speech-to-text, the language model, and text-to-speech rather than one transparent per-minute price."
+            }
+          }
+        ]
+      });
+      document.head.appendChild(faqScript);
+
+      // SoftwareApplication Schema
+      const appScript = document.createElement("script");
+      appScript.type = "application/ld+json";
+      appScript.setAttribute("data-schema", "app");
+      appScript.text = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Clarity Voice",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "url": "https://www.insightclaritiysolution.com",
+        "description": "Clarity Voice is an AI voice calling platform that confirms cash-on-delivery (COD) orders before dispatch, reducing RTO and failed deliveries for Indian D2C and e-commerce sellers.",
+        "offers": {
+          "@type": "Offer",
+          "priceCurrency": "INR",
+          "price": "3.99",
+          "unitText": "per minute"
+        }
+      });
+      document.head.appendChild(appScript);
+    } else if (page === "pricing") {
+      // FAQ Page Schema
+      const faqScript = document.createElement("script");
+      faqScript.type = "application/ld+json";
+      faqScript.setAttribute("data-schema", "faq");
+      faqScript.text = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "How does Clarity Voice reduce COD RTO?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Clarity Voice places an automated confirmation call to every cash-on-delivery customer before their order is dispatched, verifying the order details and delivery address. This catches wrong numbers, changed minds, and unclear addresses before a courier is sent, which directly reduces return-to-origin (RTO) and failed delivery costs."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Do I need to hire a calling team to confirm COD orders?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Clarity Voice replaces or scales alongside a manual calling team with AI voice agents that call every order automatically, at any volume, without additional hiring."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What languages does Clarity Voice support for COD confirmation calls?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Clarity Voice supports English and Hindi today, with additional Indian languages including Bengali, Kannada, Malayalam, and Gujarati, plus Mandarin and Arabic for international sellers."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How much does Clarity Voice cost?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Clarity Voice costs ₹3.99 per minute pay-as-you-go, or from ₹1,799 per month on a plan with bundled minutes included at a lower effective rate."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How is Clarity Voice different from Bolna, Retell, or Vapi?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Clarity Voice is built specifically around COD order confirmation and RTO reduction, with the workflow ready out of the box — general voice AI platforms require building that flow yourself, and typically charge separately for speech-to-text, the language model, and text-to-speech rather than one transparent per-minute price."
+            }
+          }
+        ]
+      });
+      document.head.appendChild(faqScript);
+    }
   }, [page]);
 
   useEffect(() => {
@@ -3615,7 +4055,7 @@ export default function App() {
         * { font-family: 'Figtree', sans-serif; }
       `}</style>
 
-      {!(page === "dashboard" && session) && <Nav page={page} setPage={setPage} />}
+      {!(page === "dashboard" && session) && <Nav page={page} setPage={handleNavigate} />}
 
       <AnimatePresence mode="wait">
         <motion.div
@@ -3625,9 +4065,12 @@ export default function App() {
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
         >
-          {page === "home" && <HomePage setPage={setPage} />}
-          {page === "industries" && <IndustriesPage setPage={setPage} />}
-          {page === "pricing" && <PricingPage setPage={setPage} />}
+          {page === "home" && <HomePage setPage={handleNavigate} />}
+          {page === "industries" && <IndustriesPage setPage={handleNavigate} />}
+          {page === "pricing" && <PricingPage setPage={handleNavigate} />}
+          {page === "how-it-works" && <HowItWorksPage setPage={handleNavigate} />}
+          {page === "blog-rto" && <BlogRtoPage setPage={handleNavigate} />}
+          {page === "compare" && <ComparePage setPage={handleNavigate} />}
           {page === "dashboard" && (
             session ? <DashboardPage session={session} /> : <AuthGateway />
           )}

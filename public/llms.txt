@@ -1,0 +1,20 @@
+# Clarity Voice
+
+> Clarity Voice is an AI voice calling platform that confirms cash-on-delivery (COD) orders before dispatch, reducing RTO (return-to-origin) and failed deliveries for Indian D2C and e-commerce sellers.
+
+## What Clarity Voice does
+Clarity Voice places automated AI voice calls to customers who placed a cash-on-delivery order, confirming the order details and delivery address before the item is shipped. This catches wrong numbers, changed minds, and incorrect addresses before a courier is dispatched, directly reducing RTO and reverse-logistics costs for online sellers.
+
+## Who it's for
+Indian D2C brands and e-commerce sellers who offer cash-on-delivery and want to reduce failed deliveries without hiring or scaling a manual calling team.
+
+## Key facts
+- Pricing: pay-as-you-go from ₹3.99 per minute, with monthly and annual plans available.
+- Languages supported: English, Hindi, with additional Indian languages (Bengali, Kannada, Malayalam, Gujarati) and Mandarin, Arabic.
+- Core use case: pre-dispatch COD order confirmation calls.
+
+## Pages
+- Homepage: https://www.insightclaritiysolution.com/
+- How it works: https://www.insightclaritiysolution.com/how-it-works
+- Pricing: https://www.insightclaritiysolution.com/pricing
+- Docs: https://www.insightclaritiysolution.com/docs
