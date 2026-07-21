@@ -6,6 +6,20 @@ import { GeminiLiveProvider } from '../providers/gemini/GeminiLiveProvider';
 import { verifySupabaseToken } from '../utils/auth';
 import { ADMIN_EMAIL } from '../config/constants';
 
+function getGreetingTextForLanguage(languageMode: string | null | undefined): string {
+  const map: Record<string, string> = {
+    en: 'Please greet me, confirm my name, and begin the screening interview.',
+    hi: 'कृपया मेरा अभिवादन करें, मेरे नाम की पुष्टि करें और साक्षात्कार शुरू करें।',
+    bn: 'অনুগ্রহ করে আমাকে অভিবাদন জানান, আমার নাম নিশ্চিত করুন এবং ইন্টারভিউ শুরু করুন।',
+    kn: 'ದಯವಿಟ್ಟು ನನ್ನನ್ನು ಅಭಿನಂದಿಸಿ, ನನ್ನ ಹೆಸರನ್ನು ಖಚಿತಪಡಿಸಿ ಮತ್ತು ಸಂದರ್ಶನವನ್ನು ಪ್ರಾರಂಭಿಸಿ।',
+    ml: 'ദയവായി എന്നെ അഭിവാദ്യം ചെയ്യുക, എന്റെ പേര് സ്ഥിരീകരിക്കുക, കൂടാതെ അഭിമുഖം ആരംഭിക്കുക।',
+    gu: 'કૃપા કરીને મારું અભિવાદન કરો, મારા નામની પુષ્ટિ કરો અને ઇન્ટરવ્યુ શરૂ કરો।',
+    zh: '请向我打招呼，确认我的姓名，并开始面试。',
+    ar: 'يرجى الترحيب بي، وتأكيد اسمي، وبدء المقابلة.',
+  };
+  return (languageMode && map[languageMode]) || map.en;
+}
+
 interface ActiveSandboxSession {
   ws: WebSocket;
   agentId: string;
@@ -118,7 +132,7 @@ export class SandboxStreamHandler {
       logger.info('SandboxStreamHandler: Session handshake confirmed. Sending greeting.', { connectionId });
       
       // Trigger dynamic greeting turn
-      const greetingText = 'Please greet me, confirm my name, and begin the screening interview.';
+      const greetingText = getGreetingTextForLanguage(agent.languageMode);
       this.provider.triggerGreeting(result.sessionId, greetingText);
 
     } catch (err: any) {

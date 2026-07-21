@@ -3032,6 +3032,55 @@ const NATION_LANG_MAP: Record<string, Record<string, CuratedVoiceMapping[]>> = {
 
 // ── Voice Library ──
 // ── Voice Library ──
+const getCuratedDisplayName = (voiceId: string, nation: string, language: string) => {
+  if (nation !== "all") {
+    if (language !== "all") {
+      const mapping = NATION_LANG_MAP[nation]?.[language]?.find(
+        m => m.geminiVoiceId.toLowerCase() === voiceId.toLowerCase()
+      );
+      if (mapping) return mapping.displayName;
+    } else {
+      for (const lang of Object.keys(NATION_LANG_MAP[nation] || {})) {
+        const mapping = NATION_LANG_MAP[nation][lang].find(
+          m => m.geminiVoiceId.toLowerCase() === voiceId.toLowerCase()
+        );
+        if (mapping) return mapping.displayName;
+      }
+    }
+  } else if (language !== "all") {
+    for (const nat of Object.keys(NATION_LANG_MAP)) {
+      const mapping = NATION_LANG_MAP[nat]?.[language]?.find(
+        m => m.geminiVoiceId.toLowerCase() === voiceId.toLowerCase()
+      );
+      if (mapping) return mapping.displayName;
+    }
+  }
+  return null;
+};
+
+const getPreviewUrl = (voiceId: string, nation: string, language: string) => {
+  const languageCodeMap: Record<string, string> = {
+    English: 'en',
+    Hindi: 'hi',
+    Bengali: 'bn',
+    Kannada: 'kn',
+    Malayalam: 'ml',
+    Gujarati: 'gu',
+    Mandarin: 'zh',
+    Arabic: 'ar',
+  };
+  let langCode = 'en';
+  if (language !== "all") {
+    langCode = languageCodeMap[language] || 'en';
+  } else if (nation !== "all") {
+    const languages = Object.keys(NATION_LANG_MAP[nation] || {});
+    if (languages.length > 0) {
+      langCode = languageCodeMap[languages[0]] || 'en';
+    }
+  }
+  return `/previews/${voiceId.toLowerCase()}_${langCode}.wav`;
+};
+
 function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; setApiAgents?: React.Dispatch<React.SetStateAction<ApiAgent[]>> }) {
   const [voices, setVoices] = useState([...VOICES_SEED]);
   const [voiceFilter, setVoiceFilter] = useState<"all"|"builtin"|"clone">("all");
@@ -3081,11 +3130,21 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
       audioObj.pause();
     }
 
-    const newAudio = new Audio(`/previews/${voiceId.toLowerCase()}.wav`);
+    const previewUrl = getPreviewUrl(voiceId, selectedNation, selectedLanguage);
+    const newAudio = new Audio(previewUrl);
     newAudio.play().catch(err => {
-      console.warn("WAV file not found, falling back to a pre-existing voice sample:", err);
-      const fallbackAudio = new Audio(`/previews/puck.wav`);
-      fallbackAudio.play().catch(e => console.error(e));
+      console.warn(`WAV file not found at ${previewUrl}, falling back to English preview:`, err);
+      const fallbackUrl = `/previews/${voiceId.toLowerCase()}_en.wav`;
+      const fallbackAudio = new Audio(fallbackUrl);
+      fallbackAudio.play().catch(e => {
+        console.error("English fallback failed, playing puck_en.wav", e);
+        const finalFallback = new Audio(`/previews/puck_en.wav`);
+        finalFallback.play().catch(err2 => console.error(err2));
+        finalFallback.onended = () => {
+          setPlayingId(null);
+        };
+        setAudioObj(finalFallback);
+      });
       fallbackAudio.onended = () => {
         setPlayingId(null);
       };
@@ -3225,13 +3284,8 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
                       <div>
                         <p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>
                           {(() => {
-                            if (selectedNation !== "all" && selectedLanguage !== "all") {
-                              const mapping = NATION_LANG_MAP[selectedNation]?.[selectedLanguage]?.find(
-                                m => m.geminiVoiceId.toLowerCase() === v.id.toLowerCase()
-                              );
-                              if (mapping) return `${mapping.displayName} (${v.name})`;
-                            }
-                            return v.name;
+                            const curatedName = getCuratedDisplayName(v.id, selectedNation, selectedLanguage);
+                            return curatedName ? `${curatedName} (${v.id})` : v.name;
                           })()}
                         </p>
                         <p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{v.accent}</p>
@@ -3293,9 +3347,15 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
                             
                             if (selectedLanguage !== "all") {
                               resolvedLangCode = languageCodeMap[selectedLanguage];
-                              if (resolvedLangCode) {
-                                payload.languageMode = resolvedLangCode;
+                            } else if (selectedNation !== "all") {
+                              const languages = Object.keys(NATION_LANG_MAP[selectedNation] || {});
+                              if (languages.length > 0) {
+                                resolvedLangCode = languageCodeMap[languages[0]];
                               }
+                            }
+                            
+                            if (resolvedLangCode) {
+                              payload.languageMode = resolvedLangCode;
                             }
                             
                             await apiClient.put(`/api/v2/agents/${agentId}`, payload);

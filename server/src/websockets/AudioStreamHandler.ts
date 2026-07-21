@@ -14,6 +14,20 @@ import type { VobizStreamEvent } from '../types';
 
 // ─── Active Connection Tracking ───────────────────────
 
+function getGreetingTextForLanguage(languageMode: string | null | undefined): string {
+  const map: Record<string, string> = {
+    en: 'Please greet me, confirm my name, and begin the screening interview.',
+    hi: 'कृपया मेरा अभिवादन करें, मेरे नाम की पुष्टि करें और साक्षात्कार शुरू करें।',
+    bn: 'অনুগ্রহ করে আমাকে অভিবাদন জানান, আমার নাম নিশ্চিত করুন এবং ইন্টারভিউ শুরু করুন।',
+    kn: 'ದಯವಿಟ್ಟು ನನ್ನನ್ನು ಅಭಿನಂದಿಸಿ, ನನ್ನ ಹೆಸರನ್ನು ಖಚಿತಪಡಿಸಿ ಮತ್ತು ಸಂದರ್ಶನವನ್ನು ಪ್ರಾರಂಭಿಸಿ।',
+    ml: 'ദയവായി എന്നെ അഭിവാദ്യം ചെയ്യുക, എന്റെ പേര് സ്ഥിരീകരിക്കുക, കൂടാതെ അഭിമുഖം ആരംഭിക്കുക।',
+    gu: 'કૃપા કરીને મારું અભિવાદન કરો, મારા નામની પુષ્ટિ કરો અને ઇન્ટરવ્યુ શરૂ કરો।',
+    zh: '请向我打招呼，确认我的姓名，并开始面试。',
+    ar: 'يرجى الترحيب بي، وتأكيد اسمي، وبدء المقابلة.',
+  };
+  return (languageMode && map[languageMode]) || map.en;
+}
+
 interface ActiveConnection {
   ws: WebSocket;
   callId: string;
@@ -177,8 +191,13 @@ export class AudioStreamHandler {
 
     import('../repositories/CallRepository').then(({ CallRepository }) => {
       CallRepository.findById(callId)
-        .then((call) => {
-          return orchestrator.startVoiceSession(
+        .then(async (call) => {
+          const prismaInstance = (await import('../lib/prisma')).prisma;
+          const agent = await prismaInstance.agent.findUnique({
+            where: { id: call.agentId },
+            select: { languageMode: true }
+          });
+          const sessionId = await orchestrator.startVoiceSession(
             callId,
             call.agentId,
             call.recipientPhoneNumber,
@@ -186,8 +205,9 @@ export class AudioStreamHandler {
               this.sendAudioToVobiz(callId, audioBase64);
             }
           );
+          return { sessionId, agent };
         })
-        .then((sessionId) => {
+        .then(({ sessionId, agent }) => {
           logger.info('AudioStreamHandler: CallOrchestrator session started', { callId, sessionId });
 
           const currentConn = this.connections.get(callId);
@@ -219,7 +239,7 @@ export class AudioStreamHandler {
           // Trigger initial greeting — immediately once session is up (no delay needed since setup already took time)
           try {
             logger.info('AudioStreamHandler: triggering greeting', { callId, sessionId });
-            const greetingText = 'Please greet me, confirm my name, and begin the screening interview.';
+            const greetingText = getGreetingTextForLanguage(agent?.languageMode);
             callOrchestrator.triggerGreeting(callId, sessionId, greetingText);
             logger.info('AudioStreamHandler: greeting triggered', { callId, sessionId });
           } catch (err) {
