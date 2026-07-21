@@ -98,86 +98,122 @@ function Nav({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
     { label: "Home", id: "home" },
     { label: "How It Works", id: "how-it-works" },
     { label: "Industries", id: "industries" },
+    { label: "HD Voices", id: "voices" },
     { label: "Pricing", id: "pricing" },
-    { label: "Dashboard", id: "dashboard" },
+    { label: "Compare", id: "compare" },
   ];
 
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled ? "bg-white/95 backdrop-blur-md border-b border-border" : "bg-transparent"
+        scrolled ? "bg-[#11131B]/80 backdrop-blur-xl border-b border-slate-800/80 shadow-lg shadow-black/20" : "bg-transparent border-b border-transparent"
       }`}
     >
       <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+        {/* Brand logo & name */}
         <button
           onClick={() => setPage("home")}
-          className="flex items-center h-20 group"
+          className="flex items-center gap-3 h-20 group"
         >
-          <img src="/logo.png" alt="Clarity Voice Logo" className="h-full w-auto object-contain" />
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-400 via-teal-300 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 group-hover:scale-105 transition-transform">
+            <Mic className="w-4.5 h-4.5 text-[#090A0F]" strokeWidth={2.5} />
+          </div>
+          <span className="font-sora text-xl font-extrabold tracking-tight text-white group-hover:text-cyan-400 transition-colors">
+            Clarity<span className="text-cyan-400 group-hover:text-white transition-colors">Voice</span>
+          </span>
         </button>
 
-        <div className="hidden md:flex items-center gap-8">
+        {/* Live System Pill */}
+        <div className="hidden lg:flex items-center gap-2 bg-[#181C28]/90 border border-slate-800 rounded-full px-3 py-1 text-xs">
+          <span className="w-2 h-2 rounded-full bg-[#00FF87] animate-pulse shadow-[0_0_8px_#00FF87]" />
+          <span className="text-slate-400 font-mono tracking-tight">
+            API Uptime: <span className="text-white">99.99%</span> · Latency: <span className="text-[#00FF87]">&lt;180ms</span>
+          </span>
+        </div>
+
+        {/* Navigation Links */}
+        <div className="hidden md:flex items-center gap-6">
           {links.map((l) => (
             <button
               key={l.id}
               onClick={() => setPage(l.id)}
-              className={`text-sm font-medium transition-colors ${
-                page === l.id ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+              className={`text-sm font-medium transition-all relative py-1.5 ${
+                page === l.id ? "text-cyan-400 font-semibold" : "text-slate-400 hover:text-white"
               }`}
-              style={{ fontFamily: "'Figtree', sans-serif" }}
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
             >
               {l.label}
+              {page === l.id && (
+                <motion.div
+                  layoutId="activeNav"
+                  className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full"
+                />
+              )}
             </button>
           ))}
         </div>
 
-        <div className="hidden md:flex items-center gap-3">
+        {/* Action Buttons */}
+        <div className="hidden md:flex items-center gap-4">
           <button
-            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            style={{ fontFamily: "'Figtree', sans-serif" }}
+            onClick={() => setPage("dashboard")}
+            className="text-sm font-medium text-slate-300 hover:text-white transition-colors"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           >
-            Sign in
+            Sign In
           </button>
           <button
             onClick={() => setPage("dashboard")}
-            className="bg-foreground text-white text-sm font-medium px-4 py-2 rounded-full hover:bg-foreground/90 transition-all"
-            style={{ fontFamily: "'Figtree', sans-serif" }}
+            className="relative group overflow-hidden bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-[#090A0F] font-semibold text-sm px-5 py-2.5 rounded-full shadow-lg shadow-cyan-500/10 hover:shadow-cyan-500/25 transition-all duration-300 active:scale-95"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           >
-            Start free
+            Start Free Test Call
           </button>
         </div>
 
-        <button className="md:hidden p-1" onClick={() => setMenuOpen(!menuOpen)}>
+        {/* Mobile menu trigger */}
+        <button className="md:hidden p-2 text-slate-400 hover:text-white transition-colors" onClick={() => setMenuOpen(!menuOpen)}>
           {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
       </div>
 
+      {/* Mobile nav dropdown */}
       <AnimatePresence>
         {menuOpen && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-white border-b border-border overflow-hidden"
+            className="md:hidden bg-[#11131B] border-b border-slate-800 overflow-hidden"
           >
-            <div className="px-6 py-4 flex flex-col gap-4">
+            <div className="px-6 py-5 flex flex-col gap-4">
               {links.map((l) => (
                 <button
                   key={l.id}
                   onClick={() => { setPage(l.id); setMenuOpen(false); }}
-                  className={`text-left text-sm font-medium ${page === l.id ? "text-foreground" : "text-muted-foreground"}`}
-                  style={{ fontFamily: "'Figtree', sans-serif" }}
+                  className={`text-left text-sm font-medium py-1 ${page === l.id ? "text-cyan-400" : "text-slate-400 hover:text-white"}`}
+                  style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
                 >
                   {l.label}
                 </button>
               ))}
-              <button
-                onClick={() => { setPage("dashboard"); setMenuOpen(false); }}
-                className="bg-foreground text-white text-sm font-medium px-4 py-2 rounded-full w-fit"
-                style={{ fontFamily: "'Figtree', sans-serif" }}
-              >
-                Start free
-              </button>
+              <div className="w-full h-px bg-slate-800 my-1" />
+              <div className="flex items-center justify-between gap-4">
+                <button
+                  onClick={() => { setPage("dashboard"); setMenuOpen(false); }}
+                  className="text-sm font-medium text-slate-400 hover:text-white"
+                  style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => { setPage("dashboard"); setMenuOpen(false); }}
+                  className="bg-gradient-to-r from-cyan-500 to-blue-600 text-[#090A0F] text-sm font-semibold px-5 py-2 rounded-full"
+                  style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                >
+                  Start Free
+                </button>
+              </div>
             </div>
           </motion.div>
         )}
@@ -186,189 +222,348 @@ function Nav({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
   );
 }
 
+// ─── Footer ──────────────────────────────────────────────────────────────────
+function Footer({ setPage }: { setPage: (p: Page) => void }) {
+  return (
+    <footer className="border-t border-slate-850 bg-[#07080c] py-16 px-6 relative z-10">
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start gap-12">
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 h-8">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 to-blue-600 flex items-center justify-center">
+              <Mic className="w-4 h-4 text-[#090A0F]" strokeWidth={2.5} />
+            </div>
+            <span className="font-sora text-lg font-extrabold tracking-tight text-white">
+              Clarity<span className="text-cyan-400">Voice</span>
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 max-w-xs leading-relaxed" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+            Intelligent pre-dispatch COD order confirmation &amp; RTO reduction platform. HIPAA · SOC 2 · GDPR · PCI-DSS compliant.
+          </p>
+          <div className="flex items-center gap-2 bg-[#11131B]/95 border border-slate-800 rounded-full px-3 py-1 text-[10px] w-fit">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#00FF87] animate-pulse" />
+            <span className="text-slate-400 font-mono">All systems operational</span>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-12">
+          {[
+            {
+              heading: "Product",
+              links: [
+                { label: "Features", action: () => setPage("home") },
+                { label: "How It Works", action: () => setPage("how-it-works") },
+                { label: "HD Voices", action: () => setPage("voices") },
+                { label: "Pricing", action: () => setPage("pricing") },
+                { label: "Compare Platforms", action: () => setPage("compare") },
+              ]
+            },
+            {
+              heading: "Resources",
+              links: [
+                { label: "RTO Blog", action: () => setPage("blog-rto") },
+                { label: "API Reference", action: () => {} },
+                { label: "Support Desk", action: () => {} },
+              ]
+            },
+            {
+              heading: "Legal",
+              links: [
+                { label: "Privacy Policy", action: () => {} },
+                { label: "Terms of Use", action: () => {} },
+                { label: "Security standards", action: () => {} },
+              ]
+            },
+          ].map((col) => (
+            <div key={col.heading}>
+              <p className="text-xs font-semibold mb-4 text-slate-300 font-mono tracking-wider uppercase">
+                {col.heading}
+              </p>
+              <div className="flex flex-col gap-2.5">
+                {col.links.map((l) => (
+                  <button
+                    key={l.label}
+                    onClick={l.action}
+                    className="block text-left text-sm text-slate-400 hover:text-white cursor-pointer transition-colors border-none bg-transparent p-0 w-fit"
+                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                  >
+                    {l.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="max-w-7xl mx-auto mt-12 pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500">
+        <p>&copy; 2026 Clarity Voice. All rights reserved.</p>
+        <p className="font-mono">Pay-As-You-Go from ₹3.99/min</p>
+      </div>
+    </footer>
+  );
+}
+
+// ─── Transcript Map ──────────────────────────────────────────────────────────
+const TRANSCRIPT_MAP: Record<string, { agent: string; user: string }> = {
+  en: { agent: "Hello, how are you, glad to see you here. I hope I will be useful for you.", user: "Yes, I am doing great! Thanks for calling." },
+  hi: { agent: "नमस्ते, आप कैसे हैं? आपसे यहाँ मिलकर बहुत खुशी हुई। मुझे आशा है कि मैं आपके लिए उपयोगी रहूँगा।", user: "हाँ, मैं ठीक हूँ। ऑर्डर कन्फर्म कर दीजिए।" },
+  bn: { agent: "হ্যালো, আপনি কেমন আছেন? এখানে আপনাকে দেখে খুব ভালো লাগলো। আশা করি আমি আপনার কাজে আসব।", user: "হ্যাঁ, আমি ভালো আছি। অর্ডার পাঠিয়ে দিন।" },
+  kn: { agent: "ನಮಸ್ಕಾರ, ಹೇಗಿದ್ದೀರಾ? ನಿಮ್ಮನ್ನು ಇಲ್ಲಿ ನೋಡಿ ಸಂತೋಷವಾಯಿತು. ನಾನು ನಿಮಗೆ ಉಪಯುಕ್ತವಾಗಬಲ್ಲೆ ಎಂದು ಭಾವಿಸುತ್ತೇನೆ.", user: "ಹೌದು, ನಾನು ಚೆನ್ನಾಗಿದ್ದೇನೆ. ಧನ್ಯವಾದಗಳು।" },
+  ml: { agent: "ഹലോ, സുഖമാണോ? നിങ്ങളെ ഇവിടെ കണ്ടതിൽ സന്തോഷം. ഞാൻ നിങ്ങൾക്ക് ഉപകാരപ്പെടുമെന്ന് പ്രതീക്ഷിക്കുന്നു.", user: "അതെ, സുഖമാണ്. ഓർഡർ സ്ഥിരീകരിക്കുക." },
+  gu: { agent: "નમસ્તે, તમે કેમ છો? તમને અહીં મળીને આનંદ થયો. મને આશા છે કે હું તમારા માટે ઉપયોગી થઈશ.", user: "હા, હું મજામાં છું. ઓર્ડર મોકલી આપો." },
+  zh: { agent: "您好，您怎么样？很高兴在这里见到您。希望我能对您有所帮助。", user: "您好，我很好。请确认我的订单。" },
+  ar: { agent: "مرحباً، كيف حالك؟ يسعدني رؤيتك هنا. أتمنى أن أكون مفيداً لك.", user: "أهلاً بك، أنا بخير. يرجى تأكيد الطلب." }
+};
+
+// ─── Pulsing Audio Sphere Component ──────────────────────────────────────────
+function AudioSphere({ active }: { active: boolean }) {
+  return (
+    <div className="relative w-48 h-48 mx-auto flex items-center justify-center">
+      {/* Outer pulsing rings */}
+      <motion.div
+        animate={active ? { scale: [1, 1.3, 1], opacity: [0.05, 0.25, 0.05] } : { scale: 1, opacity: 0.03 }}
+        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute inset-0 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 blur-lg"
+      />
+      <motion.div
+        animate={active ? { scale: [1, 1.15, 1], opacity: [0.1, 0.4, 0.1] } : { scale: 1, opacity: 0.05 }}
+        transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
+        className="absolute inset-4 rounded-full bg-gradient-to-tr from-violet-500 to-indigo-600 blur-md"
+      />
+      {/* Center solid core */}
+      <div className="absolute inset-12 rounded-full bg-[#11131B] border border-slate-800 flex items-center justify-center shadow-2xl shadow-cyan-500/10">
+        <Mic className={`w-8 h-8 ${active ? "text-cyan-400 animate-pulse" : "text-slate-500"} transition-colors`} />
+      </div>
+    </div>
+  );
+}
+
 // ─── Home Page ────────────────────────────────────────────────────────────────
 function HomePage({ setPage }: { setPage: (p: Page) => void }) {
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [voice, setVoice] = useState("puck");
+  const [lang, setLang] = useState("hi");
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const voicesList = [
+    { id: "puck", name: "Wei (Puck)", desc: "Upbeat & Conversational" },
+    { id: "charon", name: "Charon", desc: "Authoritative & Formal" },
+    { id: "kore", name: "Mei (Kore)", desc: "Professional Female" },
+    { id: "fenrir", name: "Fenrir", desc: "Warm & Reassuring" },
+    { id: "zephyr", name: "Zephyr", desc: "Neutral & Crisp" },
+  ];
+
+  const langsList = [
+    { id: "hi", name: "Hindi" },
+    { id: "en", name: "English" },
+    { id: "bn", name: "Bengali" },
+    { id: "kn", name: "Kannada" },
+    { id: "ml", name: "Malayalam" },
+    { id: "gu", name: "Gujarati" },
+    { id: "zh", name: "Mandarin" },
+    { id: "ar", name: "Arabic" },
+  ];
+
+  const getAudioUrl = (vId: string, lId: string) => {
+    const validMatrixMap: Record<string, string[]> = {
+      puck: ["en", "hi", "bn", "kn", "ml", "gu", "zh", "ar"],
+      kore: ["en", "hi", "bn", "kn", "ml", "gu", "zh", "ar"],
+      aoede: ["en", "hi", "bn", "zh", "ar"],
+      charon: ["en", "hi", "zh", "ar"],
+      fenrir: ["en"],
+      leda: ["en"],
+      orus: ["en"],
+      zephyr: ["en"]
+    };
+
+    const hasSpec = validMatrixMap[vId]?.includes(lId);
+    const resolvedVoice = hasSpec ? vId : "puck";
+    const resolvedLang = hasSpec ? lId : "en";
+    return `/previews/${resolvedVoice}_${resolvedLang}.wav`;
+  };
+
+  const handlePlayToggle = () => {
+    if (isPlaying) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+      setIsPlaying(false);
+    } else {
+      const url = getAudioUrl(voice, lang);
+      if (audioRef.current) {
+        audioRef.current.src = url;
+        audioRef.current.play().then(() => {
+          setIsPlaying(true);
+        }).catch(err => {
+          console.error("Audio play failed:", err);
+        });
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (isPlaying && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      setIsPlaying(false);
+    }
+  }, [voice, lang]);
+
+  const transcript = TRANSCRIPT_MAP[lang] || TRANSCRIPT_MAP.en;
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="min-h-screen relative z-10">
+      <audio 
+        ref={audioRef} 
+        onEnded={() => setIsPlaying(false)}
+        className="hidden" 
+      />
+
       {/* Hero */}
-      <section className="pt-32 pb-24 px-6 max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+      <section className="pt-28 pb-20 px-6 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+          
           <motion.div
-            initial={{ opacity: 0, y: 40 }}
+            className="lg:col-span-7 space-y-6 text-left"
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.8 }}
           >
-            <div className="inline-flex items-center gap-2 border border-border rounded-full px-3 py-1 mb-8">
-              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-              <span className="text-xs font-medium text-muted-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
-                Trusted by 2,400+ enterprises worldwide
+            <div className="inline-flex items-center gap-2 border border-slate-800 rounded-full px-3.5 py-1.5 bg-[#11131B]/50 backdrop-blur-xl">
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+              </span>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-300">
+                Powered by Gemini 2.5 Flash Native Audio
               </span>
             </div>
 
-            <h1
-              className="text-5xl lg:text-6xl xl:text-7xl font-normal leading-[1.08] tracking-tight mb-6 text-foreground"
-              style={{ fontFamily: "'Instrument Serif', serif" }}
-            >
-              Voice AI that sounds{" "}
-              <span className="italic">genuinely</span>
-              <br />human.
+            <h1 className="font-sora text-5xl lg:text-6xl xl:text-[70px] font-extrabold leading-[1.05] tracking-tight text-white">
+              AI Voice Calls That <span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-teal-300 to-blue-500">Confirm Every COD Order</span> Before It Ships.
             </h1>
 
-            <p
-              className="text-lg text-muted-foreground leading-relaxed mb-8 max-w-md"
-              style={{ fontFamily: "'Figtree', sans-serif", fontWeight: 400 }}
-            >
-              Clarity Voice deploys intelligent voice agents that handle calls with empathy, precision, and clarity — at any scale, in any industry, around the clock.
+            <p className="text-base text-slate-400 leading-relaxed max-w-xl font-plus-jakarta">
+              Stop burning margins on Return-To-Origin (RTO). Clarity Voice autonomously calls every cash-on-delivery customer in 70+ dialects, confirms delivery landmarks, and cancels fake orders before courier dispatch.
             </p>
 
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4 pt-2">
               <button
                 onClick={() => setPage("dashboard")}
-                className="bg-foreground text-white font-medium px-6 py-3 rounded-full hover:bg-foreground/90 transition-all flex items-center gap-2 group"
-                style={{ fontFamily: "'Figtree', sans-serif" }}
+                className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-[#090A0F] font-bold px-8 py-3.5 rounded-full hover:scale-[1.02] shadow-lg shadow-cyan-500/10 active:scale-95 transition-all flex items-center gap-2 group font-plus-jakarta"
               >
-                Deploy your first agent
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                Deploy first agent
+                <ArrowRight className="w-4.5 h-4.5 group-hover:translate-x-1 transition-transform" />
               </button>
               <button
-                className="border border-border font-medium px-6 py-3 rounded-full hover:bg-muted transition-all flex items-center gap-2"
-                style={{ fontFamily: "'Figtree', sans-serif" }}
+                onClick={() => setPage("how-it-works")}
+                className="border border-slate-800 bg-[#11131B]/50 hover:bg-[#181C28]/80 hover:border-slate-700 text-white font-medium px-8 py-3.5 rounded-full transition-all flex items-center gap-2"
               >
-                <Play className="w-4 h-4" />
-                Hear a live demo
+                See how it works
               </button>
             </div>
           </motion.div>
 
-          {/* Hero visual — live call card */}
+          {/* Interactive Live Voice Tester Widget */}
           <motion.div
-            initial={{ opacity: 0, x: 40 }}
+            className="lg:col-span-5 relative z-10"
+            initial={{ opacity: 0, x: 30 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-            className="relative"
+            transition={{ duration: 0.8, delay: 0.15 }}
           >
-            <div className="relative bg-white border border-border rounded-2xl p-6 shadow-sm">
-              {/* Call card header */}
-              <div className="flex items-start justify-between mb-6">
+            <div className="backdrop-blur-xl bg-[#11131B]/60 border border-slate-800 rounded-3xl p-6 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-850 pb-4 mb-6">
+                <span className="font-mono text-xs text-slate-400 tracking-wider">LIVE TEST AREA</span>
+                <span className="flex items-center gap-1.5 bg-emerald-500/10 text-[#00FF87] border border-emerald-500/20 px-2 py-0.5 rounded text-[10px] font-mono font-medium">
+                  🟢 READY
+                </span>
+              </div>
+
+              {/* Selector panels */}
+              <div className="grid grid-cols-2 gap-3 mb-6">
                 <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                    <span className="text-xs font-medium text-emerald-600" style={{ fontFamily: "'DM Mono', monospace" }}>
-                      LIVE CALL — 04:32
-                    </span>
-                  </div>
-                  <p className="font-semibold text-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
-                    Sarah Mitchell
-                  </p>
-                  <p className="text-xs text-muted-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
-                    +1 (555) 847-2291 · Insurance inquiry
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setIsPlaying(!isPlaying)}
-                    className="w-8 h-8 border border-border rounded-full flex items-center justify-center hover:bg-muted transition-colors"
+                  <label className="block text-[10px] font-mono text-slate-400 mb-1.5 uppercase">Voice Persona</label>
+                  <select 
+                    value={voice} 
+                    onChange={(e) => setVoice(e.target.value)}
+                    className="w-full bg-[#181C28] border border-slate-800 text-sm text-white px-3 py-2 rounded-xl focus:outline-none focus:border-cyan-500/30 font-plus-jakarta"
                   >
-                    {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                  </button>
-                  <button className="w-8 h-8 bg-red-50 border border-red-100 rounded-full flex items-center justify-center hover:bg-red-100 transition-colors">
-                    <PhoneOff className="w-3.5 h-3.5 text-red-500" />
-                  </button>
+                    {voicesList.map(v => (
+                      <option key={v.id} value={v.id}>{v.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-mono text-slate-400 mb-1.5 uppercase">Language Mode</label>
+                  <select 
+                    value={lang} 
+                    onChange={(e) => setLang(e.target.value)}
+                    className="w-full bg-[#181C28] border border-slate-800 text-sm text-white px-3 py-2 rounded-xl focus:outline-none focus:border-cyan-500/30 font-plus-jakarta"
+                  >
+                    {langsList.map(l => (
+                      <option key={l.id} value={l.id}>{l.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
-              {/* Waveform */}
-              <div className="bg-muted rounded-xl p-4 mb-4">
-                <SoundWave active={isPlaying} bars={48} className="w-full justify-center" />
+              {/* Pulsing Visualizer Core */}
+              <div className="my-6">
+                <AudioSphere active={isPlaying} />
               </div>
 
-              {/* Transcript */}
-              <div className="space-y-3">
-                <div className="flex gap-3">
-                  <div className="w-6 h-6 bg-foreground rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Bot className="w-3 h-3 text-white" />
-                  </div>
-                  <div className="bg-muted rounded-xl rounded-tl-none px-3 py-2 flex-1">
-                    <p className="text-xs text-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
-                      "Hi Sarah! I can see your policy renewal is coming up on August 15th. Would you like me to walk you through your updated coverage options?"
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-3 justify-end">
-                  <div className="bg-foreground rounded-xl rounded-tr-none px-3 py-2 max-w-[75%]">
-                    <p className="text-xs text-white" style={{ fontFamily: "'Figtree', sans-serif" }}>
-                      "Yes please, I was just thinking about that."
-                    </p>
-                  </div>
-                  <div className="w-6 h-6 bg-muted rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-xs font-bold text-muted-foreground">S</span>
-                  </div>
-                </div>
+              <div className="text-center mb-6">
+                <button
+                  onClick={handlePlayToggle}
+                  className={`px-8 py-2.5 rounded-full text-xs font-semibold tracking-wider uppercase transition-all duration-300 active:scale-95 ${
+                    isPlaying 
+                      ? "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20" 
+                      : "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20"
+                  }`}
+                >
+                  {isPlaying ? "Stop Demonstration" : "Hear Selected Agent"}
+                </button>
               </div>
 
-              {/* Intent badge */}
-              <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground" style={{ fontFamily: "'DM Mono', monospace" }}>
-                    INTENT
-                  </span>
-                  <span className="bg-foreground text-white text-xs px-2 py-0.5 rounded-full" style={{ fontFamily: "'Figtree', sans-serif" }}>
-                    Policy renewal
-                  </span>
+              {/* Live transcript simulation block */}
+              <div className="bg-[#181C28]/60 border border-slate-850 rounded-2xl p-4 space-y-3 max-h-36 overflow-y-auto">
+                <div className="flex gap-2.5">
+                  <div className="w-5 h-5 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 shadow-md shadow-cyan-500/10">
+                    <Bot className="w-3 h-3 text-[#090A0F]" />
+                  </div>
+                  <div className="bg-[#11131B]/80 border border-slate-800/80 rounded-2xl rounded-tl-none px-3.5 py-2.5 flex-1">
+                    <p className="text-xs text-white leading-relaxed font-plus-jakarta">{isPlaying ? transcript.agent : "Select a voice and click test to see speech transcript output."}</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-xs text-muted-foreground" style={{ fontFamily: "'DM Mono', monospace" }}>
-                    SENTIMENT
-                  </span>
-                  <span className="text-xs font-medium text-emerald-600" style={{ fontFamily: "'Figtree', sans-serif" }}>Positive</span>
-                </div>
+                {isPlaying && (
+                  <div className="flex gap-2.5 justify-end">
+                    <div className="bg-gradient-to-tr from-cyan-950 to-slate-900 border border-cyan-800/20 rounded-2xl rounded-tr-none px-3.5 py-2.5 max-w-[80%]">
+                      <p className="text-xs text-cyan-300 leading-relaxed font-plus-jakarta">{transcript.user}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-
-            {/* Floating stat cards */}
-            <motion.div
-              animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute -left-8 top-1/4 bg-white border border-border rounded-xl px-4 py-3 shadow-sm hidden lg:block"
-            >
-              <p className="text-xs text-muted-foreground mb-0.5" style={{ fontFamily: "'DM Mono', monospace" }}>AVG CSAT</p>
-              <p className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>4.8<span className="text-sm text-muted-foreground">/5</span></p>
-            </motion.div>
-
-            <motion.div
-              animate={{ y: [0, 6, 0] }}
-              transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-              className="absolute -right-4 bottom-1/4 bg-white border border-border rounded-xl px-4 py-3 shadow-sm hidden lg:block"
-            >
-              <p className="text-xs text-muted-foreground mb-0.5" style={{ fontFamily: "'DM Mono', monospace" }}>CALLS TODAY</p>
-              <p className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>12,847</p>
-            </motion.div>
           </motion.div>
         </div>
       </section>
 
-      {/* Stats bar */}
-      <section className="border-y border-border py-12 px-6">
-        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-0 md:divide-x divide-border">
+      {/* Metrics Bar */}
+      <section className="border-y border-slate-850 bg-[#0b0c13] py-10 px-6 relative z-10">
+        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 md:divide-x divide-slate-800">
           {[
-            { value: 98, suffix: "%", label: "Call completion rate", sub: "Industry avg. 71%" },
-            { value: 2400, suffix: "+", label: "Enterprise customers", sub: "Across 38 countries" },
-            { value: 50, suffix: "M+", label: "Calls handled monthly", sub: "At any scale" },
-            { value: 99, suffix: ".9%", label: "Platform uptime SLA", sub: "With 24/7 support" },
+            { value: "< 180ms", label: "Synthesized Latency", sub: "Human-grade duplex flow" },
+            { value: "70+", label: "Fluency Languages", sub: "Local dialects supported" },
+            { value: "40%", label: "Average RTO Saved", sub: "Verified before dispatch" },
+            { value: "₹3.99/min", label: "Predictable Pricing", sub: "Zero surcharge/api stacking" },
           ].map((s) => (
-            <div key={s.label} className="md:px-8 first:pl-0 last:pr-0">
-              <p
-                className="text-4xl font-bold text-foreground mb-1"
-                style={{ fontFamily: "'Instrument Serif', serif" }}
-              >
-                <Counter target={s.value} suffix={s.suffix} />
+            <div key={s.label} className="md:px-8 text-center first:pl-0 last:pr-0">
+              <p className="font-sora text-3xl font-extrabold text-white mb-1 tracking-tight">
+                {s.value}
               </p>
-              <p className="text-sm font-medium text-foreground mb-0.5" style={{ fontFamily: "'Figtree', sans-serif" }}>
+              <p className="text-xs font-semibold text-slate-300 mb-0.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
                 {s.label}
               </p>
-              <p className="text-xs text-muted-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
+              <p className="text-[10px] text-slate-500 font-plus-jakarta">
                 {s.sub}
               </p>
             </div>
@@ -376,155 +571,77 @@ function HomePage({ setPage }: { setPage: (p: Page) => void }) {
         </div>
       </section>
 
-      {/* Features — asymmetric grid */}
-      <section className="py-24 px-6 max-w-7xl mx-auto">
-        <div className="mb-16">
-          <p className="text-xs font-medium text-muted-foreground tracking-widest uppercase mb-3" style={{ fontFamily: "'DM Mono', monospace" }}>
-            Why Clarity Voice
-          </p>
-          <h2
-            className="text-4xl lg:text-5xl font-normal leading-tight max-w-xl"
-            style={{ fontFamily: "'Instrument Serif', serif" }}
-          >
-            Built for the real-world complexity of{" "}
-            <span className="italic">enterprise voice.</span>
+      {/* Bento Grid Features */}
+      <section className="py-24 px-6 max-w-7xl mx-auto relative z-10">
+        <div className="mb-16 text-center">
+          <span className="text-[10px] font-mono tracking-widest text-cyan-400 uppercase bg-cyan-950/20 border border-cyan-800/30 px-3 py-1 rounded-full">PRODUCT CAPABILITIES</span>
+          <h2 className="font-sora text-4xl lg:text-5xl font-extrabold text-white mt-4 tracking-tight">
+            Built for e-commerce <span className="italic font-normal">scale.</span>
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Large card */}
-          <div className="md:col-span-2 border border-border rounded-2xl p-8 hover:shadow-md transition-shadow">
-            <div className="w-10 h-10 border border-border rounded-xl flex items-center justify-center mb-6">
-              <Mic className="w-5 h-5" strokeWidth={1.5} />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-[#11131B]/70 border border-slate-850 rounded-3xl p-8 hover:border-cyan-500/20 hover:bg-[#181C28]/60 transition-all duration-300 shadow-xl group">
+            <div className="w-12 h-12 bg-[#181C28]/90 border border-slate-800 rounded-2xl flex items-center justify-center mb-6 group-hover:border-cyan-500/20 transition-all">
+              <Zap className="w-5 h-5 text-cyan-400" />
             </div>
-            <h3
-              className="text-2xl font-normal mb-3"
-              style={{ fontFamily: "'Instrument Serif', serif" }}
-            >
-              Ultra-low latency voice synthesis
-            </h3>
-            <p className="text-muted-foreground leading-relaxed mb-6" style={{ fontFamily: "'Figtree', sans-serif" }}>
-              Our proprietary voice pipeline delivers sub-200ms response latency — the threshold below which humans perceive a conversation as natural. Callers never feel the pause. They feel heard.
-            </p>
-            <div className="bg-muted rounded-xl p-4">
-              <SoundWave active={true} bars={64} />
-            </div>
-          </div>
-
-          <div className="border border-border rounded-2xl p-8 hover:shadow-md transition-shadow">
-            <div className="w-10 h-10 border border-border rounded-xl flex items-center justify-center mb-6">
-              <Globe className="w-5 h-5" strokeWidth={1.5} />
-            </div>
-            <h3
-              className="text-2xl font-normal mb-3"
-              style={{ fontFamily: "'Instrument Serif', serif" }}
-            >
-              29 languages, native fluency
-            </h3>
-            <p className="text-muted-foreground leading-relaxed" style={{ fontFamily: "'Figtree', sans-serif" }}>
-              From US English to Mandarin, Brazilian Portuguese to Hindi — your agents speak with native-level idiom and cultural context, not translated scripts.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-2">
-              {["EN", "ES", "FR", "DE", "ZH", "HI", "PT", "JA"].map((lang) => (
-                <span key={lang} className="text-xs border border-border rounded px-2 py-1" style={{ fontFamily: "'DM Mono', monospace" }}>
-                  {lang}
-                </span>
-              ))}
-              <span className="text-xs border border-border rounded px-2 py-1 text-muted-foreground" style={{ fontFamily: "'DM Mono', monospace" }}>+21</span>
-            </div>
-          </div>
-
-          <div className="border border-border rounded-2xl p-8 hover:shadow-md transition-shadow">
-            <div className="w-10 h-10 border border-border rounded-xl flex items-center justify-center mb-6">
-              <Shield className="w-5 h-5" strokeWidth={1.5} />
-            </div>
-            <h3
-              className="text-2xl font-normal mb-3"
-              style={{ fontFamily: "'Instrument Serif', serif" }}
-            >
-              Enterprise-grade compliance
-            </h3>
-            <p className="text-muted-foreground leading-relaxed" style={{ fontFamily: "'Figtree', sans-serif" }}>
-              HIPAA, SOC 2 Type II, GDPR, PCI-DSS. Every call is encrypted end-to-end. Audit logs. Role-based access. Your legal team will sleep well.
+            <h3 className="font-sora text-slate-50 text-xl font-bold mb-3 tracking-tight">Shopify &amp; Custom Webhooks</h3>
+            <p className="text-sm text-slate-400 leading-relaxed font-plus-jakarta">
+              Trigger automated confirmation calls instantly upon checkout. Cancel fake numbers or impulsively ordered double purchases automatically.
             </p>
           </div>
 
-          <div className="md:col-span-2 border border-border rounded-2xl p-8 hover:shadow-md transition-shadow">
-            <div className="w-10 h-10 border border-border rounded-xl flex items-center justify-center mb-6">
-              <Zap className="w-5 h-5" strokeWidth={1.5} />
+          <div className="bg-[#11131B]/70 border border-slate-850 rounded-3xl p-8 hover:border-cyan-500/20 hover:bg-[#181C28]/60 transition-all duration-300 shadow-xl group">
+            <div className="w-12 h-12 bg-[#181C28]/90 border border-slate-800 rounded-2xl flex items-center justify-center mb-6 group-hover:border-cyan-500/20 transition-all">
+              <Mic className="w-5 h-5 text-violet-400" />
             </div>
-            <h3
-              className="text-2xl font-normal mb-3"
-              style={{ fontFamily: "'Instrument Serif', serif" }}
-            >
-              Connect to every system your team already uses
-            </h3>
-            <p className="text-muted-foreground leading-relaxed mb-6" style={{ fontFamily: "'Figtree', sans-serif" }}>
-              Native integrations with Salesforce, HubSpot, Epic, Zendesk, ServiceNow, Twilio, and 200+ more. Agents read and write to your CRM in real time — no post-call data entry.
+            <h3 className="font-sora text-slate-50 text-xl font-bold mb-3 tracking-tight">Full Duplex Interruption</h3>
+            <p className="text-sm text-slate-400 leading-relaxed font-plus-jakarta">
+              Let your customers talk naturally. Our agents support active barge-in and stop speaking instantly if the user interrupts mid-sentence.
             </p>
-            <div className="flex flex-wrap gap-3">
-              {["Salesforce", "HubSpot", "Epic EHR", "Zendesk", "ServiceNow", "Twilio", "Stripe", "SAP"].map((tool) => (
-                <span
-                  key={tool}
-                  className="text-xs font-medium border border-border rounded-full px-3 py-1.5"
-                  style={{ fontFamily: "'Figtree', sans-serif" }}
-                >
-                  {tool}
-                </span>
-              ))}
-            </div>
           </div>
-        </div>
-      </section>
 
-      {/* Social proof */}
-      <section className="py-20 px-6 bg-muted/30">
-        <div className="max-w-7xl mx-auto">
-          <p className="text-center text-xs font-medium text-muted-foreground tracking-widest uppercase mb-12" style={{ fontFamily: "'DM Mono', monospace" }}>
-            Trusted by teams at
-          </p>
-          <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16 opacity-50">
-            {["Aetna", "JPMorgan", "Marriott", "CVS Health", "United Airlines", "Bank of America", "Stanford Health"].map((co) => (
-              <span key={co} className="text-lg font-semibold text-foreground" style={{ fontFamily: "'Instrument Serif', serif" }}>
-                {co}
-              </span>
-            ))}
+          <div className="bg-[#11131B]/70 border border-slate-850 rounded-3xl p-8 hover:border-cyan-500/20 hover:bg-[#181C28]/60 transition-all duration-300 shadow-xl group">
+            <div className="w-12 h-12 bg-[#181C28]/90 border border-slate-800 rounded-2xl flex items-center justify-center mb-6 group-hover:border-cyan-500/20 transition-all">
+              <BookOpen className="w-5 h-5 text-emerald-400" />
+            </div>
+            <h3 className="font-sora text-slate-50 text-xl font-bold mb-3 tracking-tight">Custom RAG Catalog</h3>
+            <p className="text-sm text-slate-400 leading-relaxed font-plus-jakarta">
+              Teach your agents details about product features, custom offers, and return guidelines directly from your database files.
+            </p>
           </div>
         </div>
       </section>
 
       {/* Testimonials */}
-      <section className="py-24 px-6 max-w-7xl mx-auto">
+      <section className="py-24 px-6 max-w-7xl mx-auto relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
             {
-              quote: "We replaced an entire 40-person inbound team over 6 months without a single customer complaint. The voice is indistinguishable from a skilled agent.",
-              name: "Priya Chandrasekaran",
-              role: "VP Operations, Aetna",
+              quote: "Clarity Voice reduced our cash-on-delivery return rate from 28% to 11% in under two months. The payback was literally immediate.",
+              name: "Vikram Mehta",
+              role: "Head of Logistics, D2C Apparel",
             },
             {
-              quote: "Our appointment show rate went from 62% to 89% after deploying Clarity Voice for reminder calls. That's revenue we were literally leaving on the table.",
-              name: "Dr. Michael Torres",
-              role: "CMO, Lakeside Medical Group",
+              quote: "Our customer service calling team is no longer chasing wrong numbers or address fixes. The AI agent automates 100% of standard confirmations.",
+              name: "Ananya Roy",
+              role: "Founder, Organics India",
             },
             {
-              quote: "The dashboard gives my team real visibility into every conversation. We caught a compliance issue in week one that would have been a major liability.",
-              name: "Rachel Okonkwo",
-              role: "Head of CX, Fidelity Direct",
+              quote: "Excellent voice clarity and latency. The Shopify webhook sync handles everything. Absolute game-changer for our logistics team.",
+              name: "Rajesh Nair",
+              role: "VP Operations, Gadgets Hub",
             },
           ].map((t) => (
-            <div key={t.name} className="border border-border rounded-2xl p-8">
-              <p
-                className="text-lg font-normal leading-relaxed text-foreground mb-6"
-                style={{ fontFamily: "'Instrument Serif', serif" }}
-              >
+            <div key={t.name} className="border border-slate-850 bg-[#11131B]/40 rounded-3xl p-8">
+              <p className="font-sora text-lg text-white mb-6 leading-relaxed">
                 "{t.quote}"
               </p>
               <div>
-                <p className="text-sm font-semibold text-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
+                <p className="text-sm font-semibold text-white font-plus-jakarta">
                   {t.name}
                 </p>
-                <p className="text-xs text-muted-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
+                <p className="text-xs text-slate-500 font-plus-jakarta">
                   {t.role}
                 </p>
               </div>
@@ -532,109 +649,6 @@ function HomePage({ setPage }: { setPage: (p: Page) => void }) {
           ))}
         </div>
       </section>
-
-      {/* CTA */}
-      <section className="py-24 px-6 max-w-7xl mx-auto">
-        <div className="bg-foreground rounded-3xl p-12 md:p-16 text-center text-white relative overflow-hidden">
-          <div className="absolute inset-0 flex items-end justify-center opacity-10">
-            <SoundWave active={true} bars={96} className="w-full" />
-          </div>
-          <div className="relative z-10">
-            <h2
-              className="text-4xl md:text-5xl font-normal leading-tight mb-4"
-              style={{ fontFamily: "'Instrument Serif', serif" }}
-            >
-              Ready to hear the <span className="italic">difference?</span>
-            </h2>
-            <p className="text-white/70 text-lg mb-8 max-w-md mx-auto" style={{ fontFamily: "'Figtree', sans-serif" }}>
-              Get your first AI voice agent live in under 15 minutes. No sales calls. No credit card.
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-4">
-              <button
-                onClick={() => setPage("dashboard")}
-                className="bg-white text-foreground font-medium px-6 py-3 rounded-full hover:bg-white/90 transition-all flex items-center gap-2"
-                style={{ fontFamily: "'Figtree', sans-serif" }}
-              >
-                Start for free <ArrowRight className="w-4 h-4" />
-              </button>
-              <button
-                className="border border-white/30 text-white font-medium px-6 py-3 rounded-full hover:bg-white/10 transition-all"
-                style={{ fontFamily: "'Figtree', sans-serif" }}
-              >
-                Schedule a demo
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-border py-12 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start gap-8">
-          <div>
-            <div className="flex items-center gap-2 mb-3 h-8">
-              <img src="/logo.png" alt="Clarity Voice Logo" className="h-full w-auto object-contain" />
-            </div>
-            <p className="text-xs text-muted-foreground max-w-xs" style={{ fontFamily: "'Figtree', sans-serif" }}>
-              Intelligent voice agents for every industry. HIPAA · SOC 2 · GDPR · PCI-DSS certified.
-            </p>
-          </div>
-          <div className="grid grid-cols-3 gap-12">
-            {[
-              {
-                heading: "Product",
-                links: [
-                  { label: "Features", action: () => setPage("home") },
-                  { label: "How It Works", action: () => setPage("how-it-works") },
-                  { label: "Industries", action: () => setPage("industries") },
-                  { label: "Pricing", action: () => setPage("pricing") },
-                  { label: "Compare", action: () => setPage("compare") },
-                ]
-              },
-              {
-                heading: "Company",
-                links: [
-                  { label: "About", action: () => {} },
-                  { label: "Blog (RTO)", action: () => setPage("blog-rto") },
-                  { label: "Careers", action: () => {} },
-                ]
-              },
-              {
-                heading: "Legal",
-                links: [
-                  { label: "Privacy", action: () => {} },
-                  { label: "Terms", action: () => {} },
-                  { label: "Security", action: () => {} },
-                ]
-              },
-            ].map((col) => (
-              <div key={col.heading}>
-                <p className="text-xs font-semibold mb-3" style={{ fontFamily: "'DM Mono', monospace" }}>
-                  {col.heading.toUpperCase()}
-                </p>
-                {col.links.map((l) => (
-                  <button
-                    key={l.label}
-                    onClick={l.action}
-                    className="block text-left text-sm text-muted-foreground hover:text-foreground cursor-pointer mb-2 transition-colors border-none bg-transparent p-0"
-                    style={{ fontFamily: "'Figtree', sans-serif" }}
-                  >
-                    {l.label}
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="max-w-7xl mx-auto mt-8 pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-2">
-          <p className="text-xs text-muted-foreground" style={{ fontFamily: "'DM Mono', monospace" }}>
-            © 2025 CLARITY VOICE INC. — ALL RIGHTS RESERVED
-          </p>
-          <p className="text-xs text-muted-foreground" style={{ fontFamily: "'DM Mono', monospace" }}>
-            SOC 2 TYPE II · HIPAA · GDPR COMPLIANT
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }
@@ -3612,48 +3626,189 @@ function DashboardPage({ session }: { session: Session }) {
 
 // ─── How It Works Page ────────────────────────────────────────────────────────
 function HowItWorksPage({ setPage }: { setPage: (p: Page) => void }) {
+  const [orderVolume, setOrderVolume] = useState(5000); // monthly orders
+  const [aov, setAov] = useState(1500); // average order value in INR
+  const [codShare, setCodShare] = useState(70); // % COD orders
+  const [rtoRate, setRtoRate] = useState(30); // % RTO rate on COD
+
+  const codOrders = (orderVolume * codShare) / 100;
+  const rtoOrders = (codOrders * rtoRate) / 100;
+  // Shipping cost lost: average ₹150 per RTO order
+  const shippingLoss = rtoOrders * 150;
+  // Blockage/depreciation/damage: 15% of AOV per RTO order
+  const productLoss = rtoOrders * aov * 0.15;
+  const totalMonthlyLoss = shippingLoss + productLoss;
+  // 40% reduction by Clarity Voice
+  const monthlySaved = totalMonthlyLoss * 0.4;
+  const annualSaved = Math.round(monthlySaved * 12);
+
   return (
-    <div className="bg-white min-h-screen">
-      <section className="pt-32 pb-16 px-6 max-w-5xl mx-auto text-center">
+    <div className="min-h-screen relative z-10 py-12 text-slate-400">
+      <section className="pt-20 pb-16 px-6 max-w-5xl mx-auto text-center">
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
-          <p className="text-xs font-medium text-muted-foreground tracking-widest uppercase mb-4" style={{ fontFamily: "'DM Mono', monospace" }}>
+          <p className="text-xs font-semibold text-cyan-400 tracking-widest uppercase mb-4 font-mono">
             How It Works
           </p>
           <h1
-            className="text-5xl font-normal leading-tight mb-4"
-            style={{ fontFamily: "'Instrument Serif', serif" }}
+            className="font-sora text-5xl lg:text-6xl font-extrabold leading-tight text-white mb-6 tracking-tight"
           >
-            How Clarity Voice <span className="italic">Confirms COD Orders Automatically</span>
+            How Clarity Voice <span className="italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Confirms COD Orders Automatically</span>
           </h1>
-          <p className="text-muted-foreground max-w-2xl mx-auto mb-12" style={{ fontFamily: "'Figtree', sans-serif" }}>
-            Clarity Voice connects directly to your Shopify store, automatically calls COD customers before shipping, confirms details, and updates your dashboard instantly.
+          <p className="text-base text-slate-400 max-w-2xl mx-auto leading-relaxed font-plus-jakarta">
+            Direct integration with Shopify, Shiprocket, and custom ERPs allows us to trigger confirmation calls instantly at checkout, verifying address coordinates and intent in real time.
           </p>
         </motion.div>
       </section>
 
-      {/* Step by Step workflow */}
+      {/* Step sequence */}
+      <section className="px-6 max-w-5xl mx-auto pb-20">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 relative">
+          {[
+            {
+              step: "01",
+              title: "Order Placed",
+              desc: "A customer registers a Cash on Delivery (COD) order on Shopify or WooCommerce."
+            },
+            {
+              step: "02",
+              title: "Instant Trigger",
+              desc: "Clarity Voice receives checkout webhooks and schedules an automated voice agent call in 60s."
+            },
+            {
+              step: "03",
+              title: "AI Voice Call",
+              desc: "The agent calls the buyer in their local dialect (Hindi, Bengali, etc.) to verify order intent."
+            },
+            {
+              step: "04",
+              title: "ERP/CRM Sync",
+              desc: "Invalid numbers or cancellations are flagged instantly, blocking logistics dispatch."
+            }
+          ].map((item, idx) => (
+            <div key={item.step} className="bg-[#11131B]/70 border border-slate-850 rounded-2xl p-6 relative group">
+              <span className="absolute top-4 right-4 text-4xl font-extrabold text-slate-800 font-mono group-hover:text-cyan-500/20 transition-colors">
+                {item.step}
+              </span>
+              <h3 className="font-sora text-lg font-bold text-white mb-2 mt-4">{item.title}</h3>
+              <p className="text-xs text-slate-400 leading-relaxed font-plus-jakarta">{item.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ROI Savings Calculator Widget */}
       <section className="px-6 max-w-5xl mx-auto pb-24">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="bg-white border border-border rounded-xl p-6 shadow-sm">
-            <div className="w-8 h-8 bg-foreground text-white rounded-full flex items-center justify-center font-bold mb-4" style={{ fontFamily: "'Figtree', sans-serif" }}>1</div>
-            <h3 className="text-lg font-semibold mb-2" style={{ fontFamily: "'Figtree', sans-serif" }}>Order Placed</h3>
-            <p className="text-sm text-muted-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
-              A customer places a Cash on Delivery (COD) order on your Shopify or WooCommerce store.
-            </p>
+        <div className="bg-[#11131B]/60 border border-slate-800 rounded-3xl p-8 md:p-12 shadow-2xl">
+          <div className="mb-10 text-center md:text-left">
+            <span className="text-[10px] font-mono tracking-widest text-cyan-400 uppercase bg-cyan-950/20 border border-cyan-800/30 px-3 py-1 rounded-full">FINANCIAL CALCULATOR</span>
+            <h2 className="font-sora text-3xl font-extrabold text-white mt-4 tracking-tight">
+              Estimate your RTO Savings
+            </h2>
+            <p className="text-sm text-slate-500 mt-1 font-plus-jakarta">Adjust sliders below to see your potential returns on preventing failed shipping deliveries.</p>
           </div>
-          <div className="bg-white border border-border rounded-xl p-6 shadow-sm">
-            <div className="w-8 h-8 bg-foreground text-white rounded-full flex items-center justify-center font-bold mb-4" style={{ fontFamily: "'Figtree', sans-serif" }}>2</div>
-            <h3 className="text-lg font-semibold mb-2" style={{ fontFamily: "'Figtree', sans-serif" }}>Automated AI Call</h3>
-            <p className="text-sm text-muted-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
-              Our voice agent calls the customer using natural, localized speech (English, Hindi, etc.) to confirm their order and address.
-            </p>
-          </div>
-          <div className="bg-white border border-border rounded-xl p-6 shadow-sm">
-            <div className="w-8 h-8 bg-foreground text-white rounded-full flex items-center justify-center font-bold mb-4" style={{ fontFamily: "'Figtree', sans-serif" }}>3</div>
-            <h3 className="text-lg font-semibold mb-2" style={{ fontFamily: "'Figtree', sans-serif" }}>Store Status Updated</h3>
-            <p className="text-sm text-muted-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
-              Confirmed orders are marked for shipping; fake numbers or cancellations are automatically flagged to prevent return shipping costs (RTO).
-            </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-10 items-center">
+            {/* Sliders */}
+            <div className="md:col-span-7 space-y-6">
+              <div>
+                <div className="flex justify-between text-xs font-semibold text-slate-300 mb-2 font-plus-jakarta">
+                  <span>Monthly Order Volume</span>
+                  <span className="font-mono text-cyan-400">{orderVolume.toLocaleString()} orders</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="500" 
+                  max="50000" 
+                  step="500"
+                  value={orderVolume} 
+                  onChange={(e) => setOrderVolume(Number(e.target.value))}
+                  className="w-full accent-cyan-400"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between text-xs font-semibold text-slate-300 mb-2 font-plus-jakarta">
+                  <span>Average Order Value (AOV)</span>
+                  <span className="font-mono text-cyan-400">₹{aov.toLocaleString()}</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="300" 
+                  max="5000" 
+                  step="100"
+                  value={aov} 
+                  onChange={(e) => setAov(Number(e.target.value))}
+                  className="w-full accent-cyan-400"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between text-xs font-semibold text-slate-300 mb-2 font-plus-jakarta">
+                  <span>Cash on Delivery (COD) Share</span>
+                  <span className="font-mono text-cyan-400">{codShare}%</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="10" 
+                  max="90" 
+                  step="5"
+                  value={codShare} 
+                  onChange={(e) => setCodShare(Number(e.target.value))}
+                  className="w-full accent-cyan-400"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between text-xs font-semibold text-slate-300 mb-2 font-plus-jakarta">
+                  <span>Existing RTO Rate (on COD)</span>
+                  <span className="font-mono text-cyan-400">{rtoRate}%</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="5" 
+                  max="50" 
+                  step="1"
+                  value={rtoRate} 
+                  onChange={(e) => setRtoRate(Number(e.target.value))}
+                  className="w-full accent-cyan-400"
+                />
+              </div>
+            </div>
+
+            {/* Calculations Result card */}
+            <div className="md:col-span-5 bg-gradient-to-tr from-cyan-950/20 to-slate-900 border border-cyan-500/20 rounded-2xl p-6 text-center space-y-6">
+              <div>
+                <p className="text-[10px] text-slate-400 uppercase tracking-widest font-mono">Estimated Annual Savings</p>
+                <p className="font-sora text-4xl lg:text-5xl font-extrabold text-white mt-2 tracking-tight">
+                  ₹{annualSaved.toLocaleString()}
+                </p>
+                <p className="text-xs text-[#00FF87] font-medium mt-1 font-mono">Based on 40% reduction in returns</p>
+              </div>
+
+              <div className="w-full h-px bg-slate-800/80" />
+
+              <div className="space-y-2 text-xs text-left text-slate-400 font-plus-jakarta">
+                <div className="flex justify-between">
+                  <span>Monthly COD orders:</span>
+                  <span className="text-white font-mono">{Math.round(codOrders).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Current monthly RTOs:</span>
+                  <span className="text-white font-mono">{Math.round(rtoOrders).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Estimated monthly savings:</span>
+                  <span className="text-[#00FF87] font-mono">₹{Math.round(monthlySaved).toLocaleString()}</span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setPage("dashboard")}
+                className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-[#090A0F] font-bold text-xs py-3 rounded-full hover:shadow-lg transition-all"
+              >
+                Claim your RTO reduction
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -3713,61 +3868,317 @@ function BlogRtoPage({ setPage }: { setPage: (p: Page) => void }) {
   );
 }
 
-// ─── Compare Page ─────────────────────────────────────────────────────────────
-function ComparePage({ setPage }: { setPage: (p: Page) => void }) {
+// ─── Voices Page ─────────────────────────────────────────────────────────────
+function VoicesPage({ setPage }: { setPage: (p: Page) => void }) {
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedLang, setSelectedLang] = useState("hi");
+  const [playingVoice, setPlayingVoice] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const categories = ["All", "Upbeat & Conversational", "Warm & Reassuring", "Professional Female", "Authoritative & Formal"];
+
+  const voices = [
+    { id: "puck", name: "Wei (Puck)", category: "Upbeat & Conversational", description: "Bright, energetic voice optimized for fast-paced confirmation calls." },
+    { id: "kore", name: "Mei (Kore)", category: "Professional Female", description: "Polite, clear, and reassuring female voice with excellent articulation." },
+    { id: "charon", name: "Charon", category: "Authoritative & Formal", description: "Deeper male tone, ideal for formal business and logistics coordination." },
+    { id: "fenrir", name: "Fenrir", category: "Warm & Reassuring", description: "Friendly and comforting voice tone that establishes fast trust." },
+    { id: "zephyr", name: "Zephyr", category: "Warm & Reassuring", description: "Neutral, crisp tone with perfectly transparent clarity." },
+    { id: "aoede", name: "Aoede", category: "Professional Female", description: "Clear, engaging female persona specialized in transactional call flows." }
+  ];
+
+  const langs = [
+    { id: "hi", name: "Hindi" },
+    { id: "en", name: "English" },
+    { id: "bn", name: "Bengali" },
+    { id: "kn", name: "Kannada" },
+    { id: "ml", name: "Malayalam" },
+    { id: "gu", name: "Gujarati" },
+    { id: "zh", name: "Mandarin" },
+    { id: "ar", name: "Arabic" },
+  ];
+
+  const getAudioUrl = (vId: string, lId: string) => {
+    const validMatrixMap: Record<string, string[]> = {
+      puck: ["en", "hi", "bn", "kn", "ml", "gu", "zh", "ar"],
+      kore: ["en", "hi", "bn", "kn", "ml", "gu", "zh", "ar"],
+      aoede: ["en", "hi", "bn", "zh", "ar"],
+      charon: ["en", "hi", "zh", "ar"],
+      fenrir: ["en"],
+      leda: ["en"],
+      orus: ["en"],
+      zephyr: ["en"]
+    };
+
+    const hasSpec = validMatrixMap[vId]?.includes(lId);
+    const resolvedVoice = hasSpec ? vId : "puck";
+    const resolvedLang = hasSpec ? lId : "en";
+    return `/previews/${resolvedVoice}_${resolvedLang}.wav`;
+  };
+
+  const handlePlayVoice = (vId: string) => {
+    if (playingVoice === vId) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+      setPlayingVoice(null);
+    } else {
+      const url = getAudioUrl(vId, selectedLang);
+      if (audioRef.current) {
+        audioRef.current.src = url;
+        audioRef.current.play().then(() => {
+          setPlayingVoice(vId);
+        }).catch(err => {
+          console.error("Audio playback error:", err);
+        });
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (playingVoice && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      setPlayingVoice(null);
+    }
+  }, [selectedLang]);
+
+  const filteredVoices = selectedCategory === "All" 
+    ? voices 
+    : voices.filter(v => v.category === selectedCategory);
+
+  const codeSnippet = `// POST request configuration for Clarity Voice API
+const payload = {
+  agentId: "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380d22",
+  phoneNumber: "+919876543210",
+  languageMode: "${selectedLang}",
+  voiceId: "${playingVoice || 'kore'}"
+};
+
+const response = await fetch("https://api.insightclaritiysolution.com/v2/calls", {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify(payload)
+});`;
+
   return (
-    <div className="bg-white min-h-screen">
-      <section className="pt-32 pb-16 px-6 max-w-5xl mx-auto text-center">
+    <div className="min-h-screen relative z-10 py-12 text-slate-400">
+      <audio 
+        ref={audioRef} 
+        onEnded={() => setPlayingVoice(null)}
+        className="hidden" 
+      />
+
+      <section className="pt-20 pb-12 px-6 max-w-5xl mx-auto text-center">
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
-          <p className="text-xs font-medium text-muted-foreground tracking-widest uppercase mb-4" style={{ fontFamily: "'DM Mono', monospace" }}>
-            Platform Comparison
+          <p className="text-xs font-semibold text-cyan-400 tracking-widest uppercase mb-4 font-mono">
+            Voice Gallery
           </p>
           <h1
-            className="text-5xl font-normal leading-tight mb-4"
-            style={{ fontFamily: "'Instrument Serif', serif" }}
+            className="font-sora text-5xl lg:text-6xl font-extrabold leading-tight text-white mb-6 tracking-tight"
           >
-            Clarity Voice vs Bolna vs Retell vs Vapi
+            HD Voice <span className="italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Personas Catalog</span>
           </h1>
-          <p className="text-muted-foreground max-w-2xl mx-auto mb-12" style={{ fontFamily: "'Figtree', sans-serif" }}>
-            Compare Clarity Voice against generic voice AI platforms for automated Indian COD order confirmations and RTO reduction.
+          <p className="text-base text-slate-400 max-w-2xl mx-auto leading-relaxed font-plus-jakarta">
+            Listen to native Gemini-synthesized high fidelity personas across multiple regional and global languages.
           </p>
         </motion.div>
       </section>
 
-      {/* Comparison table */}
+      {/* Interactive Category Filter tabs */}
+      <section className="px-6 max-w-5xl mx-auto pb-10">
+        <div className="flex flex-wrap justify-center gap-3">
+          {categories.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-5 py-2 rounded-full text-xs font-medium border transition-all ${
+                selectedCategory === cat 
+                  ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/30" 
+                  : "bg-[#11131B]/60 border-slate-800 text-slate-400 hover:text-white"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Language filter for audio preview */}
+      <section className="px-6 max-w-5xl mx-auto pb-12 border-b border-slate-850">
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <span className="text-xs text-slate-500 uppercase tracking-widest font-mono">Select Language:</span>
+          {langs.map(l => (
+            <button
+              key={l.id}
+              onClick={() => setSelectedLang(l.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-mono border transition-all ${
+                selectedLang === l.id 
+                  ? "bg-slate-800 text-white border-slate-700" 
+                  : "bg-transparent border-transparent text-slate-400 hover:text-white"
+              }`}
+            >
+              {l.name}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Filtered Voice Cards Grid */}
+      <section className="px-6 max-w-5xl mx-auto py-16">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {filteredVoices.map(v => (
+            <div key={v.id} className="bg-[#11131B]/70 border border-slate-850 rounded-2xl p-6 flex flex-col justify-between">
+              <div>
+                <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider bg-cyan-950/20 px-2 py-0.5 rounded border border-cyan-800/20">{v.category}</span>
+                <h3 className="font-sora text-lg font-bold text-white mt-4 mb-2">{v.name}</h3>
+                <p className="text-xs text-slate-400 leading-relaxed font-plus-jakarta">{v.description}</p>
+              </div>
+
+              <div className="mt-6 flex items-center justify-between">
+                <button
+                  onClick={() => handlePlayVoice(v.id)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold tracking-wider uppercase transition-all ${
+                    playingVoice === v.id 
+                      ? "bg-red-500/10 text-red-400 border border-red-500/20" 
+                      : "bg-[#181C28] border border-slate-800 text-slate-300 hover:text-white"
+                  }`}
+                >
+                  {playingVoice === v.id ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                  {playingVoice === v.id ? "Pause" : "Preview"}
+                </button>
+
+                {playingVoice === v.id && (
+                  <div className="w-16">
+                    <SoundWave active={true} bars={12} className="justify-end" />
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Developer API sandbox code snippets */}
       <section className="px-6 max-w-5xl mx-auto pb-24">
-        <div className="overflow-x-auto border border-border rounded-xl shadow-sm">
-          <table className="w-full border-collapse text-left bg-white" style={{ fontFamily: "'Figtree', sans-serif" }}>
+        <div className="bg-[#11131B]/60 border border-slate-800 rounded-3xl p-8 shadow-2xl">
+          <h2 className="font-sora text-2xl font-extrabold text-white mb-4">API Integration Sandbox</h2>
+          <p className="text-xs text-slate-400 leading-relaxed mb-6 font-plus-jakarta">
+            Change selections above to dynamically generate the payload configuration for calling this voice persona.
+          </p>
+          <div className="bg-[#0c0d14] rounded-2xl p-6 border border-slate-850 font-mono text-xs text-slate-300 overflow-x-auto relative">
+            <pre className="whitespace-pre">{codeSnippet}</pre>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// ─── Compare Page ─────────────────────────────────────────────────────────────
+function ComparePage({ setPage }: { setPage: (p: Page) => void }) {
+  const comparisonData = [
+    {
+      feature: "Flat Per-Minute Rate",
+      clarity: "₹3.99/min (Flat pay-as-you-go)",
+      vapi: "~₹26.50/min (Stacked fees)",
+      retell: "~₹31.00/min (Stacked fees)",
+      bolna: "~₹15.00/min (Inconsistent charges)"
+    },
+    {
+      feature: "Shopify & Woo Integrations",
+      clarity: "✅ Native (1-click plugin setup)",
+      vapi: "❌ Developer custom code required",
+      retell: "❌ Developer custom code required",
+      bolna: "❌ Custom webhook integration only"
+    },
+    {
+      feature: "Regional Indian Dialects",
+      clarity: "✅ Mapped & optimized (Hi, Bn, Kn, Ml, Gu)",
+      vapi: "⚠️ Global model support (high latency)",
+      retell: "⚠️ Global model support (high latency)",
+      bolna: "⚠️ Restricted regional capability"
+    },
+    {
+      feature: "RTO Address Landmarks",
+      clarity: "✅ Auto-parses pincodes & landmarks",
+      vapi: "❌ Build custom prompt maps manually",
+      retell: "❌ Build custom prompt maps manually",
+      bolna: "❌ Build custom prompt maps manually"
+    },
+    {
+      feature: "Duplex Barge-In Latency",
+      clarity: "✅ < 180ms response speed",
+      vapi: "⚠️ ~240ms to 320ms latency",
+      retell: "⚠️ ~200ms to 280ms latency",
+      bolna: "⚠️ ~350ms latency"
+    },
+    {
+      feature: "Compliance Standards",
+      clarity: "✅ HIPAA, SOC 2, GDPR, PCI-DSS",
+      vapi: "✅ HIPAA, SOC 2, GDPR, PCI-DSS",
+      retell: "✅ HIPAA, SOC 2, GDPR, PCI-DSS",
+      bolna: "⚠️ Varies by custom server deployment"
+    }
+  ];
+
+  return (
+    <div className="min-h-screen relative z-10 py-12 text-slate-400">
+      <section className="pt-20 pb-16 px-6 max-w-5xl mx-auto text-center">
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
+          <p className="text-xs font-semibold text-cyan-400 tracking-widest uppercase mb-4 font-mono">
+            Platform Comparison
+          </p>
+          <h1
+            className="font-sora text-5xl lg:text-6xl font-extrabold leading-tight text-white mb-6 tracking-tight"
+          >
+            Clarity Voice <span className="italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">vs Competitor Platforms</span>
+          </h1>
+          <p className="text-base text-slate-400 max-w-2xl mx-auto leading-relaxed font-plus-jakarta">
+            Why pay stacked API fees and hire engineers to build custom RTO flows? Clarity Voice provides a flat, all-inclusive rate with direct Shopify integrations out of the box.
+          </p>
+        </motion.div>
+      </section>
+
+      {/* Comparison table matrix */}
+      <section className="px-6 max-w-5xl mx-auto pb-24">
+        <div className="overflow-x-auto border border-slate-800 rounded-2xl bg-[#11131B]/60 shadow-2xl backdrop-blur-xl">
+          <table className="w-full border-collapse text-left text-sm" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
             <thead>
-              <tr className="border-b border-border bg-muted/40">
-                <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Feature</th>
-                <th className="p-4 text-xs font-bold uppercase tracking-wider text-foreground">Clarity Voice</th>
-                <th className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Bolna / Retell / Vapi</th>
+              <tr className="border-b border-slate-800 bg-[#181C28]/85 text-slate-300 font-mono text-xs uppercase tracking-wider">
+                <th className="p-5 font-bold">Capability / Spec</th>
+                <th className="p-5 font-bold text-cyan-400">Clarity Voice</th>
+                <th className="p-5 font-semibold text-slate-400">Vapi</th>
+                <th className="p-5 font-semibold text-slate-400">Retell AI</th>
+                <th className="p-5 font-semibold text-slate-400">Bolna</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border text-sm">
-              <tr>
-                <td className="p-4 font-semibold">COD &amp; RTO Focus</td>
-                <td className="p-4 text-emerald-600 font-medium">Out-of-the-box (100% optimized)</td>
-                <td className="p-4 text-muted-foreground">None (Requires custom workflow build)</td>
-              </tr>
-              <tr>
-                <td className="p-4 font-semibold">Pricing Model</td>
-                <td className="p-4 text-foreground font-medium">Flat ₹3.99/min (All-inclusive)</td>
-                <td className="p-4 text-muted-foreground">Stacked fees (STT + LLM + TTS + Platform)</td>
-              </tr>
-              <tr>
-                <td className="p-4 font-semibold">Language Support</td>
-                <td className="p-4 text-foreground font-medium">English, Hindi, regional Indian languages (Bengali, Kannada, Malayalam, Gujarati) and Mandarin, Arabic</td>
-                <td className="p-4 text-muted-foreground">Varies (Standard global models)</td>
-              </tr>
-              <tr>
-                <td className="p-4 font-semibold">Setup Overhead</td>
-                <td className="p-4 text-emerald-600 font-medium">Zero-code integrations</td>
-                <td className="p-4 text-muted-foreground">Developer setup required</td>
-              </tr>
+            <tbody className="divide-y divide-slate-850 text-slate-300 font-plus-jakarta">
+              {comparisonData.map((row, idx) => (
+                <tr key={idx} className="hover:bg-[#181C28]/30 transition-colors">
+                  <td className="p-5 font-semibold text-white">{row.feature}</td>
+                  <td className="p-5 text-cyan-300 bg-cyan-950/10 font-semibold">{row.clarity}</td>
+                  <td className="p-5 text-slate-400">{row.vapi}</td>
+                  <td className="p-5 text-slate-400">{row.retell}</td>
+                  <td className="p-5 text-slate-400">{row.bolna}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Stacked fees breakdown alert card */}
+        <div className="mt-10 bg-amber-500/5 border border-amber-500/10 rounded-2xl p-6 flex items-start gap-4">
+          <AlertCircle className="w-6 h-6 text-amber-500 flex-shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <h4 className="font-sora text-sm font-bold text-amber-300">Understanding "Stacked API Pricing"</h4>
+            <p className="text-xs text-slate-400 leading-relaxed font-plus-jakarta">
+              Standard voice agents (Vapi, Retell, Bolna) charge a platform orchestration fee (usually $0.15/min) and require you to connect your own API keys. You pay separately for Speech-to-Text (Deepgram), LLM reasoning (OpenAI), and Text-to-Speech (ElevenLabs). This often inflates costs above ₹25.00/min. Clarity Voice provides a flat, all-inclusive rate of ₹3.99/min out of the box.
+            </p>
+          </div>
         </div>
       </section>
     </div>
@@ -4041,8 +4452,16 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  if (page === "dashboard" && session) {
+    return <DashboardPage session={session} />;
+  }
+
   return (
-    <>
+    <div className="bg-[#090A0F] text-[#94A3B8] min-h-screen relative overflow-hidden font-plus-jakarta selection:bg-cyan-500/30 selection:text-cyan-200">
+      {/* Ambient background glows */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-cyan-500/5 blur-[140px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-violet-600/5 blur-[140px] pointer-events-none" />
+      
       <style>{`
         @keyframes wave {
           0% { transform: scaleY(0.4); }
@@ -4050,12 +4469,14 @@ export default function App() {
         }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 999px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.22); }
-        * { font-family: 'Figtree', sans-serif; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 999px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+        * { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .font-sora { font-family: 'Sora', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
       `}</style>
 
-      {!(page === "dashboard" && session) && <Nav page={page} setPage={handleNavigate} />}
+      <Nav page={page} setPage={handleNavigate} />
 
       <AnimatePresence mode="wait">
         <motion.div
@@ -4064,18 +4485,20 @@ export default function App() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+          className="pt-20"
         >
           {page === "home" && <HomePage setPage={handleNavigate} />}
           {page === "industries" && <IndustriesPage setPage={handleNavigate} />}
           {page === "pricing" && <PricingPage setPage={handleNavigate} />}
           {page === "how-it-works" && <HowItWorksPage setPage={handleNavigate} />}
           {page === "blog-rto" && <BlogRtoPage setPage={handleNavigate} />}
+          {page === "voices" && <VoicesPage setPage={handleNavigate} />}
           {page === "compare" && <ComparePage setPage={handleNavigate} />}
-          {page === "dashboard" && (
-            session ? <DashboardPage session={session} /> : <AuthGateway />
-          )}
+          {page === "dashboard" && <AuthGateway />}
         </motion.div>
       </AnimatePresence>
-    </>
+
+      <Footer setPage={handleNavigate} />
+    </div>
   );
 }
