@@ -1,110 +1,70 @@
 import { useState, useEffect, useRef } from "react";
-import { Mic, ArrowRight, Bot, Check } from "lucide-react";
+import { Mic, ArrowRight, Bot, Check, Phone, Zap, Globe, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
-type Page = 
-  | "home" 
-  | "solutions" 
-  | "how-it-works" 
-  | "voices" 
-  | "pricing" 
-  | "compare" 
-  | "blog" 
-  | "blog-rto" 
-  | "blog-healthcare" 
-  | "blog-fintech" 
-  | "docs" 
-  | "dashboard" 
+type Page =
+  | "home"
+  | "solutions"
+  | "how-it-works"
+  | "voices"
+  | "pricing"
+  | "compare"
+  | "blog"
+  | "blog-rto"
+  | "blog-healthcare"
+  | "blog-fintech"
+  | "docs"
+  | "dashboard"
   | "industries";
 
 interface HeroProps {
   setPage: (p: Page) => void;
 }
 
-// ─── Transcript Map ──────────────────────────────────────────────────────────
 const TRANSCRIPT_MAP: Record<string, { agent: string; user: string }> = {
-  en: { agent: "Hello, how are you, glad to see you here. I hope I will be useful for you.", user: "Yes, I am doing great! Thanks for calling." },
-  hi: { agent: "नमस्ते, आप कैसे हैं? आपसे यहाँ मिलकर बहुत खुशी हुई। मुझे आशा है कि मैं आपके लिए उपयोगी रहूँगा।", user: "हाँ, मैं ठीक हूँ। ऑर्डर कन्फर्म कर दीजिए।" },
-  bn: { agent: "হ্যালো, আপনি কেমন আছেন? এখানে আপনাকে দেখে খুব ভালো লাগলো। আশা করি আমি আপনার কাজে আসব।", user: "হ্যাঁ, আমি ভালো আছি। অর্ডার পাঠিয়ে দিন।" },
-  kn: { agent: "ನಮಸ್ಕಾರ, ಹೇಗಿದ್ದೀರಾ? ನಿಮ್ಮನ್ನು ಇಲ್ಲಿ ನೋಡಿ ಸಂತೋಷವಾಯಿತು. ನಾನು ನಿಮಗೆ ಉಪಯುಕ್ತವಾಗಬಲ್ಲೆ ಎಂದು ಭಾವಿಸುತ್ತೇನೆ.", user: "ಹೌದು, ನಾನು ಚೆನ್ನಾಗಿದ್ದೇನೆ. ಧನ್ಯವಾದಗಳು।" },
-  ml: { agent: "ഹലോ, സുഖമാണോ? നിങ്ങളെ ഇവിടെ കണ്ടതിൽ സന്തോഷം. ഞാൻ നിങ്ങൾക്ക് ഉപകാരപ്പെടുമെന്ന് പ്രതീക്ഷിക്കുന്നു.", user: "അതെ, സുഖമാണ്. ഓർഡർ സ്ഥിരീകരിക്കുക." },
-  gu: { agent: "નમસ્તે, તમે કેમ છો? તમને અહીં મળીને આનંદ થયો. મને આશા છે કે હું તમારા માટે ઉપયોગી થઈશ.", user: "હા, હું મજામાં છું. ઓર્ડર મોકલી આપો." },
-  zh: { agent: "您好，您怎么样？很高兴在这里见到您。希望我能对您有所帮助。", user: "您好，我很好。请确认我的订单。" },
-  ar: { agent: "مرحباً، كيف حالك؟ يسعدني رؤيتك هنا. أتمنى أن أكون مفيداً لك.", user: "أهلاً بك، أنا بخير. يرجى تأكيد الطلب." }
+  en: { agent: "Hello! I'm calling about your recent order. Can I confirm the delivery address for you?", user: "Yes, that's correct. Please go ahead." },
+  hi: { agent: "नमस्ते! मैं आपके हालिया ऑर्डर के बारे में कॉल कर रहा हूँ। क्या मैं डिलीवरी पता कन्फर्म कर सकता हूँ?", user: "हाँ, सही है। कृपया आगे बढ़ें।" },
+  bn: { agent: "হ্যালো! আমি আপনার সাম্প্রতিক অর্ডার সম্পর্কে কল করছি। আমি কি ডেলিভারি ঠিকানা নিশ্চিত করতে পারি?", user: "হ্যাঁ, ঠিক আছে।" },
+  kn: { agent: "ನಮಸ್ಕಾರ! ನಿಮ್ಮ ಇತ್ತೀಚಿನ ಆರ್ಡರ್ ಬಗ್ಗೆ ಕರೆ ಮಾಡುತ್ತಿದ್ದೇನೆ. ವಿತರಣಾ ವಿಳಾಸ ದೃಢಪಡಿಸಲಿ?", user: "ಹೌದು, ಮುಂದುವರಿಯಿರಿ।" },
+  ml: { agent: "ഹലോ! നിങ്ങളുടെ ഓർഡർ സ്ഥിരീകരിക്കാൻ വിളിക്കുകയാണ്. വിലാസം ശരിയാണോ?", user: "അതെ, ശരിയാണ്।" },
+  gu: { agent: "નમસ્તે! તમારા ઓર્ડર વિશે કૉલ કરી રહ્યો છું. ડિલિવરી સરનામું નક્કી કરી શકું?", user: "હા, બરાબર છે।" },
+  zh: { agent: "您好！我致电确认您的最近订单。请问您的送货地址是否正确？", user: "是的，没问题。请继续。" },
+  ar: { agent: "مرحباً! أتصل بشأن طلبك الأخير. هل يمكنني تأكيد عنوان التسليم؟", user: "نعم، صحيح. تفضل." },
 };
 
-// ─── Custom Animated Waveform to Checkmark (Simulating Lottie) ──────────────
-function AnimatedWaveformCheck() {
-  const [phase, setPhase] = useState<'wave' | 'check'>('wave');
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setPhase(p => p === 'wave' ? 'check' : 'wave');
-    }, 3000);
-    return () => clearInterval(timer);
-  }, []);
-
+function PulsingRing({ delay = 0, size = "full" }: { delay?: number; size?: string }) {
   return (
-    <div className="w-24 h-24 mx-auto relative flex items-center justify-center">
-      <AnimatePresence mode="wait">
-        {phase === 'wave' ? (
-          <motion.div
-            key="wave"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            className="flex items-center gap-1.5 h-12"
-          >
-            {[1, 2, 3, 4, 5].map((i) => (
-              <motion.div
-                key={i}
-                className="w-1.5 bg-mint-primary rounded-pill"
-                animate={{
-                  height: ["20%", "100%", "20%"],
-                }}
-                transition={{
-                  duration: 1,
-                  repeat: Infinity,
-                  delay: i * 0.1,
-                  ease: "easeInOut"
-                }}
-              />
-            ))}
-          </motion.div>
-        ) : (
-          <motion.div
-            key="check"
-            initial={{ opacity: 0, scale: 0.5, rotate: -45 }}
-            animate={{ opacity: 1, scale: 1, rotate: 0 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            className="w-12 h-12 bg-mint-primary rounded-full flex items-center justify-center text-forest-deep shadow-level-2"
-          >
-            <Check className="w-6 h-6 stroke-[3]" />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+    <motion.div
+      className={`absolute inset-${size} rounded-full border border-[#059669]/20`}
+      animate={{ scale: [1, 1.4, 1.8], opacity: [0.5, 0.2, 0] }}
+      transition={{ duration: 3, repeat: Infinity, delay, ease: "easeOut" }}
+    />
   );
 }
 
-// ─── Pulsing Audio Sphere Component ──────────────────────────────────────────
 function AudioSphere({ active }: { active: boolean }) {
   return (
-    <div className="relative w-40 h-40 mx-auto flex items-center justify-center">
-      {/* Outer pulsing rings */}
+    <div className="relative w-32 h-32 mx-auto flex items-center justify-center">
+      {active && (
+        <>
+          <PulsingRing delay={0} />
+          <PulsingRing delay={1} />
+          <PulsingRing delay={2} />
+        </>
+      )}
       <motion.div
-        animate={active ? { scale: [1, 1.3, 1], opacity: [0.3, 0.6, 0.3] } : { scale: 1, opacity: 0.1 }}
-        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute inset-0 rounded-full bg-mint-primary blur-xl"
+        animate={active ? { scale: [1, 1.08, 1] } : { scale: 1 }}
+        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute inset-4 rounded-full"
+        style={{
+          background: active
+            ? "radial-gradient(circle at 35% 35%, #10B981, #059669)"
+            : "radial-gradient(circle at 35% 35%, #D1FAE5, #A7F3D0)",
+          boxShadow: active ? "0 0 32px 8px rgba(5,150,105,0.25)" : "none",
+        }}
       />
-      <motion.div
-        animate={active ? { scale: [1, 1.15, 1], opacity: [0.5, 0.8, 0.5] } : { scale: 1, opacity: 0.2 }}
-        transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
-        className="absolute inset-4 rounded-full bg-amber-cta blur-md"
-      />
-      {/* Center solid core */}
-      <div className="absolute inset-10 rounded-full bg-surface-white flex items-center justify-center shadow-level-2 z-10">
-        <Mic className={`w-7 h-7 ${active ? "text-amber-cta animate-pulse" : "text-ink-muted"} transition-colors`} />
+      <div className="relative z-10 w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-lg">
+        <Mic className={`w-6 h-6 ${active ? "text-[#059669]" : "text-slate-400"} transition-colors`} />
       </div>
     </div>
   );
@@ -112,20 +72,28 @@ function AudioSphere({ active }: { active: boolean }) {
 
 export default function Hero({ setPage }: HeroProps) {
   const [voice, setVoice] = useState("puck");
-  const [lang, setLang] = useState("hi");
+  const [lang, setLang] = useState("en");
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [activeWord, setActiveWord] = useState(0);
+
+  const rotatingWords = ["Speak", "Listen", "Execute", "Convert", "Scale"];
+
+  useEffect(() => {
+    const t = setInterval(() => setActiveWord(w => (w + 1) % rotatingWords.length), 2000);
+    return () => clearInterval(t);
+  }, []);
 
   const voicesList = [
-    { id: "puck", name: "Wei (Puck)", desc: "Upbeat & Conversational" },
-    { id: "charon", name: "Charon", desc: "Authoritative & Formal" },
-    { id: "kore", name: "Mei (Kore)", desc: "Professional Female" },
-    { id: "fenrir", name: "Fenrir", desc: "Warm & Reassuring" },
+    { id: "puck", name: "Puck – Upbeat & Conversational" },
+    { id: "charon", name: "Charon – Authoritative & Formal" },
+    { id: "kore", name: "Kore – Professional Female" },
+    { id: "fenrir", name: "Fenrir – Warm & Reassuring" },
   ];
 
   const langsList = [
-    { id: "hi", name: "Hindi" },
     { id: "en", name: "English" },
+    { id: "hi", name: "Hindi" },
     { id: "bn", name: "Bengali" },
     { id: "kn", name: "Kannada" },
     { id: "ml", name: "Malayalam" },
@@ -135,36 +103,26 @@ export default function Hero({ setPage }: HeroProps) {
   ];
 
   const getAudioUrl = (vId: string, lId: string) => {
-    const validMatrixMap: Record<string, string[]> = {
+    const validMap: Record<string, string[]> = {
       puck: ["en", "hi", "bn", "kn", "ml", "gu", "zh", "ar"],
       kore: ["en", "hi", "bn", "kn", "ml", "gu", "zh", "ar"],
       charon: ["en", "hi", "zh", "ar"],
-      fenrir: ["en"]
+      fenrir: ["en"],
     };
-
-    const baseLang = lId.split('-')[0];
-    const hasSpec = validMatrixMap[vId]?.includes(baseLang);
-    const resolvedVoice = hasSpec ? vId : "puck";
-    const resolvedLang = hasSpec ? baseLang : "en";
-    return `/previews/${resolvedVoice}_${resolvedLang}.wav`;
+    const base = lId.split("-")[0];
+    const ok = validMap[vId]?.includes(base);
+    return `/previews/${ok ? vId : "puck"}_${ok ? base : "en"}.wav`;
   };
 
   const handlePlayToggle = () => {
     if (isPlaying) {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-      }
+      audioRef.current?.pause();
+      if (audioRef.current) audioRef.current.currentTime = 0;
       setIsPlaying(false);
     } else {
-      const url = getAudioUrl(voice, lang);
       if (audioRef.current) {
-        audioRef.current.src = url;
-        audioRef.current.play().then(() => {
-          setIsPlaying(true);
-        }).catch(err => {
-          console.error("Audio play failed:", err);
-        });
+        audioRef.current.src = getAudioUrl(voice, lang);
+        audioRef.current.play().then(() => setIsPlaying(true)).catch(console.error);
       }
     }
   };
@@ -179,157 +137,327 @@ export default function Hero({ setPage }: HeroProps) {
 
   const transcript = TRANSCRIPT_MAP[lang] || TRANSCRIPT_MAP.en;
 
+  const statCards = [
+    { value: "<180ms", label: "Response latency", icon: Zap, color: "#059669" },
+    { value: "70+", label: "Languages & dialects", icon: Globe, color: "#EA580C" },
+    { value: "10M+", label: "Monthly API calls", icon: Phone, color: "#059669" },
+    { value: "SOC 2", label: "Type II Certified", icon: Shield, color: "#EA580C" },
+  ];
+
   return (
-    <section className="pt-28 pb-32 px-6 max-w-[1400px] mx-auto relative overflow-hidden min-h-[90vh] flex items-center">
-      <audio 
-        ref={audioRef} 
-        onEnded={() => setIsPlaying(false)}
-        className="hidden" 
+    <section className="relative overflow-hidden min-h-screen flex items-center" style={{ background: "#FAF8F5" }}>
+      <audio ref={audioRef} onEnded={() => setIsPlaying(false)} className="hidden" />
+
+      {/* ── Deep Forest Green Right Panel (the editorial "block") ─────────────── */}
+      <motion.div
+        className="absolute right-0 top-0 bottom-0 w-[48%] hidden lg:block"
+        initial={{ x: 120, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
+        style={{
+          background: "linear-gradient(145deg, #1B4332 0%, #0D2B20 55%, #1B4332 100%)",
+          borderRadius: "48px 0 0 48px",
+        }}
+      >
+        {/* Inner texture dots */}
+        <div
+          className="absolute inset-0 opacity-10"
+          style={{
+            backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)",
+            backgroundSize: "28px 28px",
+            borderRadius: "inherit",
+          }}
+        />
+        {/* Subtle radial glow */}
+        <div
+          className="absolute top-1/4 left-1/4 w-80 h-80 rounded-full opacity-20"
+          style={{ background: "radial-gradient(circle, #34D399, transparent)" }}
+        />
+      </motion.div>
+
+      {/* ── Decorative mint blob top-left ─────────────────────────────────────── */}
+      <motion.div
+        className="absolute -top-24 -left-24 w-64 h-64 rounded-full hidden lg:block"
+        initial={{ opacity: 0, scale: 0.6 }}
+        animate={{ opacity: 0.12, scale: 1 }}
+        transition={{ duration: 1.5, delay: 0.3 }}
+        style={{ background: "radial-gradient(circle, #059669, transparent)" }}
       />
 
-      {/* Decorative Parallax Background Panels (Asymmetric Collage) */}
-      <motion.div 
-        className="absolute top-0 right-0 w-2/3 h-full panel-texture rounded-l-[48px] -z-10 hidden lg:block"
-        initial={{ opacity: 0, x: 100 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 1.2, ease: "easeOut" }}
-      />
-      <motion.div 
-        className="absolute -top-20 -right-10 w-96 h-96 bg-mint-soft rounded-[64px] rotate-12 -z-20 hidden lg:block"
-        initial={{ opacity: 0, rotate: 0 }}
-        animate={{ opacity: 1, rotate: 12 }}
-        transition={{ duration: 1.5, ease: "easeOut", delay: 0.2 }}
-      />
+      {/* ── Main Content Grid ──────────────────────────────────────────────────── */}
+      <div className="relative z-10 w-full max-w-[1400px] mx-auto px-6 pt-36 pb-24 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center w-full">
-        
-        {/* Left Copy Content */}
+        {/* ── LEFT: Hero Copy ──────────────────────────────────────────────────── */}
         <motion.div
-          className="lg:col-span-7 space-y-8 text-left items-start max-w-2xl mx-0 z-10"
-          initial={{ opacity: 0, y: 30 }}
+          className="lg:col-span-6 space-y-8"
+          initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
+          transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
         >
-          <h1 className="text-display text-ink text-left leading-[1.18]">
-            Human-Like AI Voice Agents That Speak, Listen, & Execute Enterprise Workflows in Real Time.
-          </h1>
+          {/* Eyebrow pill */}
+          <div className="inline-flex items-center gap-2 bg-white border border-[#EADEC9] rounded-full px-4 py-2 shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-[#059669] animate-pulse" />
+            <span className="text-xs font-bold text-[#059669] uppercase tracking-widest font-mono">
+              Enterprise AI Voice Platform
+            </span>
+          </div>
 
-          <p className="text-body text-ink-muted text-left leading-[1.75]">
-            Stop burning capital on manual call centers and missed leads. Clarity Voice deploys autonomous, multi-lingual AI voice agents across 70+ languages and regional dialects. From validating Cash-on-Delivery orders to scheduling medical intake and recovering overdue EMI payments—our voice agents converse naturally with under 180ms latency.
+          {/* Headline */}
+          <div className="space-y-2">
+            <h1
+              className="text-[56px] md:text-[68px] lg:text-[72px] leading-[1.04] font-extrabold tracking-tight text-[#0F172A]"
+              style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}
+            >
+              AI Agents That{" "}
+              <br />
+              <span className="relative inline-block">
+                <AnimatePresence mode="wait">
+                  <motion.span
+                    key={activeWord}
+                    initial={{ y: 24, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: -24, opacity: 0 }}
+                    transition={{ duration: 0.38 }}
+                    className="inline-block text-transparent bg-clip-text"
+                    style={{ backgroundImage: "linear-gradient(135deg, #059669 0%, #34D399 50%, #EA580C 100%)" }}
+                  >
+                    {rotatingWords[activeWord]}
+                  </motion.span>
+                </AnimatePresence>
+              </span>
+              <br />
+              & Convert
+            </h1>
+          </div>
+
+          {/* Body */}
+          <p
+            className="text-lg text-slate-500 leading-relaxed max-w-lg"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
+            Deploy human-like, multilingual voice agents across 70+ languages. Confirm COD orders, qualify leads, schedule appointments — at sub-180ms latency with no call center overhead.
           </p>
 
-          <div className="flex flex-wrap items-center gap-4 pt-4">
+          {/* CTA Row */}
+          <div className="flex flex-wrap items-center gap-4">
             <button
               onClick={() => setPage("dashboard")}
-              className="btn-primary px-8 py-4 text-lg"
+              className="group inline-flex items-center gap-2 font-bold text-base text-white px-8 py-4 rounded-full shadow-lg transition-all hover:scale-105 active:scale-95"
+              style={{
+                background: "linear-gradient(135deg, #059669 0%, #10B981 100%)",
+                boxShadow: "0 8px 24px rgba(5,150,105,0.3)",
+              }}
             >
-              Build Your First Voice Agent (Free)
-              <ArrowRight className="w-5 h-5 ml-2" />
+              Build Your First Agent — Free
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
             <button
               onClick={() => setPage("voices")}
-              className="btn-cta bg-surface-white text-ink border border-border-soft hover:bg-cream-bg"
+              className="inline-flex items-center gap-2 font-semibold text-base text-[#0F172A] bg-white border border-[#EADEC9] px-8 py-4 rounded-full shadow-sm hover:shadow-md hover:border-[#059669]/30 transition-all"
             >
-              Explore 26+ HD Voice Personas
+              <Mic className="w-4 h-4 text-[#059669]" />
+              Hear 26+ HD Voices
             </button>
           </div>
-          
-          <div className="pt-8 mt-8 border-t border-border-soft flex flex-wrap items-center gap-x-8 gap-y-4">
-            {["< 180ms Response Latency", "70+ Languages & Regional Dialects", "10M+ Monthly API Call Capacity", "Flat-Rate ROI Economics"].map((badge, i) => (
+
+          {/* Trust badges row */}
+          <div className="flex flex-wrap gap-x-8 gap-y-3 pt-2 border-t border-[#EADEC9]">
+            {["No credit card required", "14-day free trial", "Cancel any time"].map((t, i) => (
               <div key={i} className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-mint-primary" />
-                <span className="text-xs font-bold text-ink-muted uppercase tracking-wider font-mono">{badge}</span>
+                <Check className="w-4 h-4 text-[#059669]" />
+                <span className="text-sm font-semibold text-slate-500">{t}</span>
               </div>
             ))}
           </div>
         </motion.div>
 
-        {/* Right Collage / Interactive Widget */}
+        {/* ── RIGHT: Interactive Voice Tester (on green panel) ─────────────────── */}
         <motion.div
-          className="lg:col-span-5 relative z-10 lg:pl-10"
-          initial={{ opacity: 0, x: 30 }}
+          className="lg:col-span-6 relative flex justify-center lg:justify-end"
+          initial={{ opacity: 0, x: 50 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
+          transition={{ duration: 0.9, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
         >
-          {/* Asymmetric Offset Panel wrapping the tester */}
-          <div className="relative">
-            {/* Background offset card for 3D depth */}
-            <div className="absolute inset-0 bg-mint-primary/20 rounded-md transform translate-x-6 translate-y-6 -z-10" />
-            
-            <div className="bg-surface-white border border-border-soft rounded-md p-8 shadow-level-3 relative z-10 glassmorphism">
-              <div className="flex items-center justify-between border-b border-border-soft pb-4 mb-6">
-                <span className="font-mono text-caption font-bold text-ink-muted tracking-wider">LIVE TEST AREA</span>
-                <AnimatedWaveformCheck />
-              </div>
-
-              {/* Selector panels */}
-              <div className="grid grid-cols-2 gap-4 mb-8">
-                <div>
-                  <label className="block text-caption font-bold text-ink-muted mb-2 uppercase">Voice Persona</label>
-                  <select 
-                    value={voice} 
-                    onChange={(e) => setVoice(e.target.value)}
-                    className="w-full bg-cream-bg border border-border-soft text-sm font-semibold text-ink px-4 py-3 rounded-sm focus:outline-none focus:ring-2 focus:ring-mint-primary"
-                  >
-                    {voicesList.map(v => (
-                      <option key={v.id} value={v.id}>{v.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-caption font-bold text-ink-muted mb-2 uppercase">Language Mode</label>
-                  <select 
-                    value={lang} 
-                    onChange={(e) => setLang(e.target.value)}
-                    className="w-full bg-cream-bg border border-border-soft text-sm font-semibold text-ink px-4 py-3 rounded-sm focus:outline-none focus:ring-2 focus:ring-mint-primary"
-                  >
-                    {langsList.map(l => (
-                      <option key={l.id} value={l.id}>{l.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Pulsing Visualizer Core */}
-              <div className="my-8">
-                <AudioSphere active={isPlaying} />
-              </div>
-
-              <div className="text-center mb-8">
-                <button
-                  onClick={handlePlayToggle}
-                  className="btn-primary w-full shadow-level-2"
+          {/* Floating stat cards — scattered */}
+          {statCards.map((s, i) => {
+            const Icon = s.icon;
+            const positions = [
+              "absolute -top-10 -left-10 lg:-left-16",
+              "absolute -top-10 right-6 lg:right-2",
+              "absolute -bottom-8 -left-6 lg:-left-14",
+              "absolute -bottom-8 right-0 lg:right-4",
+            ];
+            return (
+              <motion.div
+                key={i}
+                className={`${positions[i]} hidden lg:flex items-center gap-3 bg-white rounded-2xl px-4 py-3 shadow-xl border border-[#EADEC9] z-20`}
+                initial={{ opacity: 0, scale: 0.7 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.6, delay: 0.5 + i * 0.12 }}
+              >
+                <div
+                  className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: s.color === "#059669" ? "#D1FAE5" : "#FEF3C7" }}
                 >
-                  {isPlaying ? "Stop Demonstration" : "Hear Selected Agent"}
-                </button>
-              </div>
-
-              {/* Live transcript simulation block */}
-              <div className="bg-cream-bg border border-border-soft rounded-sm p-5 space-y-4 max-h-40 overflow-y-auto">
-                <div className="flex gap-3">
-                  <div className="w-6 h-6 bg-forest-deep rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 shadow-level-1">
-                    <Bot className="w-3.5 h-3.5 text-mint-primary" />
-                  </div>
-                  <div className="bg-surface-white border border-border-soft rounded-sm rounded-tl-none px-4 py-3 flex-1 shadow-level-1">
-                    <p className="text-small text-ink font-medium">
-                      {isPlaying ? transcript.agent : "Select a voice and click test to see speech transcript output."}
-                    </p>
-                  </div>
+                  <Icon className="w-4 h-4" style={{ color: s.color }} />
                 </div>
-                {isPlaying && (
-                  <div className="flex gap-3 justify-end">
-                    <div className="bg-mint-soft border border-mint-primary/20 rounded-sm rounded-tr-none px-4 py-3 max-w-[85%] shadow-level-1">
-                      <p className="text-small text-forest-deep font-semibold">
-                        {transcript.user}
-                      </p>
-                    </div>
+                <div>
+                  <p className="text-sm font-extrabold text-[#0F172A] leading-none">{s.value}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{s.label}</p>
+                </div>
+              </motion.div>
+            );
+          })}
+
+          {/* Main white card — the voice tester */}
+          <div
+            className="relative w-full max-w-md rounded-[32px] p-8 z-10"
+            style={{
+              background: "rgba(255,255,255,0.96)",
+              backdropFilter: "blur(20px)",
+              border: "1px solid rgba(255,255,255,0.7)",
+              boxShadow: "0 32px 64px rgba(11,41,26,0.22), 0 8px 20px rgba(11,41,26,0.10)",
+            }}
+          >
+            {/* Card header */}
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <p
+                  className="text-xs font-bold uppercase tracking-widest text-[#059669]"
+                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                >
+                  Live Voice Demo
+                </p>
+                <p className="text-sm font-semibold text-[#0F172A] mt-0.5">Try any agent & language</p>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#EF4444]" />
+                <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B]" />
+                <span className="w-2.5 h-2.5 rounded-full bg-[#10B981]" />
+              </div>
+            </div>
+
+            {/* Selectors */}
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
+                  Voice
+                </label>
+                <select
+                  value={voice}
+                  onChange={e => setVoice(e.target.value)}
+                  className="w-full bg-[#FAF8F5] border border-[#EADEC9] text-sm font-semibold text-[#0F172A] px-3 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#059669]/40 cursor-pointer"
+                >
+                  {voicesList.map(v => (
+                    <option key={v.id} value={v.id}>{v.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
+                  Language
+                </label>
+                <select
+                  value={lang}
+                  onChange={e => setLang(e.target.value)}
+                  className="w-full bg-[#FAF8F5] border border-[#EADEC9] text-sm font-semibold text-[#0F172A] px-3 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#059669]/40 cursor-pointer"
+                >
+                  {langsList.map(l => (
+                    <option key={l.id} value={l.id}>{l.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Audio Sphere */}
+            <div className="my-6">
+              <AudioSphere active={isPlaying} />
+            </div>
+
+            {/* Play button */}
+            <button
+              onClick={handlePlayToggle}
+              className="w-full font-bold text-sm py-3.5 rounded-2xl transition-all hover:scale-[1.02] active:scale-95 mb-5"
+              style={{
+                background: isPlaying
+                  ? "linear-gradient(135deg, #EF4444, #DC2626)"
+                  : "linear-gradient(135deg, #059669 0%, #10B981 100%)",
+                color: "#fff",
+                boxShadow: isPlaying ? "0 6px 20px rgba(239,68,68,0.3)" : "0 6px 20px rgba(5,150,105,0.3)",
+              }}
+            >
+              {isPlaying ? "⬛ Stop Demo" : "▶ Play Voice Sample"}
+            </button>
+
+            {/* Transcript bubble */}
+            <div className="rounded-2xl overflow-hidden border border-[#EADEC9]">
+              <div className="bg-[#FAF8F5] px-4 py-2 border-b border-[#EADEC9]">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+                  Live Transcript
+                </p>
+              </div>
+              <div className="bg-white p-4 space-y-3">
+                <div className="flex gap-2.5 items-start">
+                  <div className="w-6 h-6 rounded-full bg-[#1B4332] flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Bot className="w-3 h-3 text-[#34D399]" />
                   </div>
-                )}
+                  <p className="text-sm text-[#0F172A] leading-relaxed">
+                    {isPlaying ? transcript.agent : "Select a voice and click play to hear the agent speak…"}
+                  </p>
+                </div>
+                <AnimatePresence>
+                  {isPlaying && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="flex gap-2.5 items-start justify-end"
+                    >
+                      <div
+                        className="text-sm text-[#0F172A] leading-relaxed text-right max-w-[85%] px-4 py-2 rounded-2xl rounded-tr-sm"
+                        style={{ background: "#D1FAE5" }}
+                      >
+                        {transcript.user}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           </div>
         </motion.div>
       </div>
+
+      {/* ── Bottom floating stats bar ─────────────────────────────────────────── */}
+      <motion.div
+        className="absolute bottom-0 left-0 right-0 lg:hidden"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7, delay: 0.6 }}
+      >
+        <div className="flex overflow-x-auto gap-4 px-6 pb-6 scrollbar-hide">
+          {statCards.map((s, i) => {
+            const Icon = s.icon;
+            return (
+              <div
+                key={i}
+                className="flex items-center gap-3 bg-white rounded-2xl px-4 py-3 shadow-md border border-[#EADEC9] flex-shrink-0"
+              >
+                <div
+                  className="w-8 h-8 rounded-xl flex items-center justify-center"
+                  style={{ background: s.color === "#059669" ? "#D1FAE5" : "#FEF3C7" }}
+                >
+                  <Icon className="w-4 h-4" style={{ color: s.color }} />
+                </div>
+                <div>
+                  <p className="text-sm font-extrabold text-[#0F172A]">{s.value}</p>
+                  <p className="text-xs text-slate-400">{s.label}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </motion.div>
     </section>
   );
 }

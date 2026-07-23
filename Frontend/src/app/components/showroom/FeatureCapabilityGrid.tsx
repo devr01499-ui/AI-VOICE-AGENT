@@ -103,31 +103,46 @@ export const FEATURE_CARDS = [
 
 export default function FeatureCapabilityGrid() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {FEATURE_CARDS.map((card, idx) => {
         const IconComponent = card.icon;
+        const isGreen = idx % 2 === 0;
+        const accent = isGreen ? "#059669" : "#EA580C";
+        const bg = isGreen ? "#D1FAE5" : "#FEF3C7";
         return (
           <motion.div
             key={card.id}
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: idx * 0.05 }}
-            className="bg-surface-white border border border-[#EADEC9] rounded-2xl p-8 shadow-level-2 hover:shadow-level-4 hover:border-mint-primary/40 transition-all flex flex-col justify-between group"
+            transition={{ duration: 0.45, delay: idx * 0.04 }}
+            whileHover={{ y: -4 }}
+            className="group relative bg-white border border-[#EADEC9] rounded-3xl p-7 flex flex-col justify-between overflow-hidden transition-all"
+            style={{ boxShadow: "0 4px 16px rgba(0,0,0,0.04)" }}
           >
-            <div>
-              <div className="flex items-center justify-between mb-6">
-                <div className="w-12 h-12 rounded-xl bg-amber-cta/10 flex items-center justify-center text-amber-cta group-hover:bg-amber-cta group-hover:text-white transition-colors">
-                  <IconComponent className="w-6 h-6" />
+            <div
+              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-3xl"
+              style={{ background: `linear-gradient(135deg, ${isGreen ? "rgba(209,250,229,0.35)" : "rgba(254,243,199,0.45)"} 0%, transparent 60%)` }}
+            />
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-5">
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all group-hover:scale-110" style={{ background: bg }}>
+                  <IconComponent className="w-6 h-6" style={{ color: accent }} />
                 </div>
-                <span className="text-[10px] font-mono font-bold text-amber-cta uppercase tracking-widest bg-amber-cta/10 border border-amber-cta/20 px-3 py-1 rounded-full">
+                <span
+                  className="text-[9px] font-extrabold uppercase tracking-[0.15em] px-3 py-1 rounded-full font-mono"
+                  style={{ background: bg, color: accent, border: `1px solid ${accent}30` }}
+                >
                   {card.badge}
                 </span>
               </div>
-              <h3 className="font-sora text-xl font-bold text-ink mb-3 group-hover:text-amber-cta transition-colors">
+              <h3
+                className="text-lg font-extrabold text-[#0F172A] mb-2.5 group-hover:text-[#059669] transition-colors"
+                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+              >
                 {card.title}
               </h3>
-              <p className="text-small text-ink-muted leading-relaxed font-plus-jakarta">
+              <p className="text-sm text-slate-500 leading-relaxed">
                 {card.description}
               </p>
             </div>

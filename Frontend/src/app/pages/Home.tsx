@@ -2,7 +2,10 @@ import { motion } from "motion/react";
 import Hero from "../components/hero/Hero";
 import IndustryShowroomGrid from "../components/showroom/IndustryShowroomGrid";
 import FeatureCapabilityGrid from "../components/showroom/FeatureCapabilityGrid";
-import { ArrowRight, ShieldCheck, Zap, Bot, CheckCircle2, Lock, Cpu, Globe2, PhoneCall } from "lucide-react";
+import {
+  ArrowRight, ShieldCheck, Zap, Bot, CheckCircle2, Lock, Cpu, Globe2,
+  PhoneCall, TrendingUp, Star, Clock, Users, Headphones
+} from "lucide-react";
 
 type Page = any;
 
@@ -10,337 +13,507 @@ interface HomeProps {
   setPage: (p: Page) => void;
 }
 
-export default function Home({ setPage }: HomeProps) {
-  const faqSchema = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "mainEntity": [
-      {
-        "@type": "Question",
-        "name": "What are enterprise AI voice agents and how do they work?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Enterprise AI voice agents are autonomous, conversational software programs that place and receive phone calls in natural human language. Using real-time speech recognition (ASR), large language models (LLM), and neural text-to-speech (TTS), Clarity Voice agents converse with callers under 180ms latency."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "How does Clarity Voice handle interruptions during a call?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Clarity Voice utilizes full-duplex audio processing. If a caller speaks or interrupts mid-sentence, the AI voice agent instantly pauses audio playback, listens to the user's input, and dynamically adjusts its response without breaking conversation flow."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "Is Clarity Voice compliant with HIPAA, SOC 2, and PCI-DSS?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Yes. Clarity Voice provides Data Redaction at Edge, automatically scrubbing PII, PHI, and payment credentials before storing call logs or transcripts. We maintain SOC 2 Type II compliance and offer HIPAA Business Associate Agreements (BAA)."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "What is the pricing model for Clarity Voice AI calling agents?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Clarity Voice offers transparent bundled plans: Startup Plan at ₹1,799/month (500 minutes included), Growth Plan at ₹4,999/month (1,500 minutes included), and a pay-as-you-go rate of ₹3.99/minute with no hidden fees for STT, LLM, or TTS."
-        }
-      }
-    ]
-  };
-
+// ── Shared divider ──────────────────────────────────────────────────────────
+function SectionLabel({ text, color = "green" }: { text: string; color?: "green" | "orange" }) {
   return (
-    <div className="space-y-32 pb-32 overflow-hidden bg-cream-bg">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
-      />
+    <span
+      className={`inline-flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.18em] px-4 py-1.5 rounded-full font-mono ${color === "green"
+        ? "bg-[#D1FAE5] text-[#059669] border border-[#059669]/20"
+        : "bg-[#FEF3C7] text-[#EA580C] border border-[#EA580C]/20"
+        }`}
+    >
+      {text}
+    </span>
+  );
+}
 
+// ── Metrics panel ────────────────────────────────────────────────────────────
+function MetricCard({ value, label, sub }: { value: string; label: string; sub?: string }) {
+  return (
+    <div className="flex flex-col items-center text-center p-6">
+      <span
+        className="text-5xl font-extrabold text-transparent bg-clip-text mb-1"
+        style={{ backgroundImage: "linear-gradient(135deg, #059669, #34D399)" }}
+      >
+        {value}
+      </span>
+      <span className="text-sm font-bold text-[#0F172A]">{label}</span>
+      {sub && <span className="text-xs text-slate-400 mt-0.5">{sub}</span>}
+    </div>
+  );
+}
+
+// ── How It Works steps ──────────────────────────────────────────────────────
+function StepCard({ n, title, body }: { n: string; title: string; body: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.5 }}
+      className="flex gap-6 items-start"
+    >
+      <div
+        className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 text-white font-extrabold text-lg shadow-md"
+        style={{ background: "linear-gradient(135deg, #059669, #10B981)" }}
+      >
+        {n}
+      </div>
+      <div>
+        <h3 className="font-extrabold text-[#0F172A] text-lg mb-1">{title}</h3>
+        <p className="text-slate-500 text-sm leading-relaxed">{body}</p>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── FAQ ──────────────────────────────────────────────────────────────────────
+const FAQS = [
+  {
+    q: "What are enterprise AI voice agents and how do they work?",
+    a: "Enterprise AI voice agents are autonomous, conversational software programs that place and receive phone calls in natural human language. Using real-time speech recognition (ASR), large language models (LLM), and neural text-to-speech (TTS), Clarity Voice agents converse with callers under 180ms latency.",
+  },
+  {
+    q: "How does Clarity Voice handle interruptions during a call?",
+    a: "Clarity Voice utilizes full-duplex audio processing. If a caller speaks mid-sentence, the AI agent instantly pauses audio, listens, and dynamically adjusts its response without breaking conversation flow.",
+  },
+  {
+    q: "Is Clarity Voice compliant with HIPAA, SOC 2, and PCI-DSS?",
+    a: "Yes. Clarity Voice implements edge-based PII/PHI data redaction, scrubbing payment info and health details before storing call logs. We maintain SOC 2 Type II compliance and offer HIPAA Business Associate Agreements.",
+  },
+  {
+    q: "What is the pricing model for Clarity Voice AI calling agents?",
+    a: "Clarity Voice offers transparent bundled plans: Startup Plan at ₹1,799/month (500 minutes), Growth Plan at ₹4,999/month (1,500 minutes), and a pay-as-you-go rate of ₹3.99/minute with no hidden fees.",
+  },
+];
+
+export default function Home({ setPage }: HomeProps) {
+  return (
+    <div className="overflow-hidden" style={{ background: "#FAF8F5" }}>
+
+      {/* ── HERO ──────────────────────────────────────────────────────────────── */}
       <Hero setPage={setPage} />
 
-      {/* SECTION 1: The Evolution of Enterprise Telephony */}
-      <section className="px-6 max-w-7xl mx-auto relative z-10">
-        <div className="bg-surface-white border border border-[#EADEC9] rounded-3xl p-10 md:p-16 shadow-level-2">
-          <div className="max-w-4xl mx-auto space-y-8">
-            <span className="text-caption font-bold text-mint-primary uppercase tracking-widest bg-mint-soft px-4 py-1.5 rounded-full font-mono">
-              ENTERPRISE TELEPHONY REVOLUTION
-            </span>
-            <h2 className="font-sora text-3xl md:text-5xl font-extrabold text-ink leading-tight">
-              The Evolution of Enterprise Telephony & Conversational Voice AI
-            </h2>
-            <div className="prose prose-lg text-ink-muted font-plus-jakarta text-body leading-relaxed space-y-6">
-              <p>
-                For decades, enterprise contact centers have been trapped between two costly extremes: hiring massive teams of human call center representatives or deploying rigid, frustrating Interactive Voice Response (IVR) phone trees. Traditional IVR menus force customers to navigate repetitive push-button prompts ("Press 1 for Sales, Press 2 for Support"), leading to high call abandonments, poor customer satisfaction scores, and negative brand perception.
-              </p>
-              <p>
-                Simultaneously, manual call handling costs modern businesses millions annually in wages, onboarding overhead, turnover, and queue management. When peak call surges occur during product launches, open enrollment periods, or seasonal sales events, legacy call centers inevitably fail, resulting in missed sales leads, delayed customer service, and lost revenue.
-              </p>
-              <p>
-                <strong>Clarity Voice represents the next evolution of voice automation.</strong> Powered by low-latency conversational AI voice technology, our voice calling agents handle thousands of simultaneous inbound and outbound calls with human-like empathy, precise intent comprehension, and zero queue delays. Whether confirming e-commerce Cash-on-Delivery (COD) orders to prevent Return-to-Origin (RTO) losses, qualifying high-intent real estate leads, scheduling patient appointments for medical clinics, or conducting ethical debt recovery outreach—Clarity Voice transforms phone calls from a cost center into a high-converting digital engine.
-              </p>
-            </div>
+      {/* ── SECTION 1: Metrics Band ──────────────────────────────────────────── */}
+      <section className="py-16 px-6">
+        <motion.div
+          className="max-w-5xl mx-auto rounded-3xl overflow-hidden"
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          style={{
+            background: "linear-gradient(135deg, #1B4332 0%, #0D2B20 100%)",
+            boxShadow: "0 24px 48px rgba(11,41,26,0.20)",
+          }}
+        >
+          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-white/10">
+            {[
+              { value: "10M+", label: "Calls Handled", sub: "Monthly capacity" },
+              { value: "<180ms", label: "Response Time", sub: "Native audio pipeline" },
+              { value: "70+", label: "Languages", sub: "Global & regional" },
+              { value: "99.9%", label: "Uptime SLA", sub: "Enterprise grade" },
+            ].map((m, i) => (
+              <div key={i} className="flex flex-col items-center text-center p-8">
+                <span className="text-4xl lg:text-5xl font-extrabold text-white leading-none mb-1">{m.value}</span>
+                <span className="text-sm font-bold text-[#34D399] mt-1">{m.label}</span>
+                <span className="text-xs text-white/40 mt-0.5">{m.sub}</span>
+              </div>
+            ))}
           </div>
+        </motion.div>
+      </section>
+
+      {/* ── SECTION 2: About / Architecture ─────────────────────────────────── */}
+      <section className="py-24 px-6 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+          {/* Left: Text */}
+          <motion.div
+            className="space-y-6"
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+          >
+            <SectionLabel text="Native Multimodal Pipeline" />
+            <h2
+              className="text-4xl lg:text-5xl font-extrabold text-[#0F172A] leading-tight"
+              style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}
+            >
+              Built Different — Not Just Another Stacked API
+            </h2>
+            <p className="text-slate-500 leading-relaxed text-base">
+              Most voice AI vendors chain third-party STT → LLM → TTS, introducing 800ms–1.5s pauses. Clarity Voice runs a vertically integrated, direct WebRTC audio pipeline — achieving sub-180ms conversational response at enterprise scale.
+            </p>
+            <div className="space-y-4 pt-2">
+              {[
+                { icon: Zap, title: "Sub-180ms End-to-End Latency", desc: "Direct audio streaming bypasses REST overhead entirely" },
+                { icon: Globe2, title: "70+ Regional Dialects", desc: "Native speech models — no lossy intermediate text translation" },
+                { icon: ShieldCheck, title: "Edge-Level PII Redaction", desc: "PHI, PCI, and personal data scrubbed before any log storage" },
+              ].map(({ icon: Icon, title, desc }, i) => (
+                <motion.div
+                  key={i}
+                  className="flex gap-4 items-start bg-white border border-[#EADEC9] rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-[#059669]/30 transition-all"
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                >
+                  <div className="w-10 h-10 rounded-xl bg-[#D1FAE5] flex items-center justify-center flex-shrink-0">
+                    <Icon className="w-5 h-5 text-[#059669]" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-[#0F172A] text-sm">{title}</h4>
+                    <p className="text-xs text-slate-500 mt-0.5">{desc}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Right: Latency visual */}
+          <motion.div
+            className="rounded-3xl p-8 space-y-6"
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            style={{
+              background: "linear-gradient(145deg, #1B4332 0%, #0D2B20 100%)",
+              boxShadow: "0 20px 48px rgba(11,41,26,0.18)",
+            }}
+          >
+            <p className="text-xs font-bold uppercase tracking-widest text-[#34D399] font-mono">Architecture Benchmark</p>
+            <h3 className="text-2xl font-extrabold text-white">Latency Comparison</h3>
+            {[
+              { label: "Clarity Native Multimodal", val: "180ms", pct: 18, color: "#10B981" },
+              { label: "Vapi / Retell (Stacked API)", val: "850ms", pct: 75, color: "#F59E0B" },
+              { label: "Legacy Human Call Centers", val: "45 min queue", pct: 100, color: "#EF4444" },
+            ].map((row, i) => (
+              <div key={i} className="space-y-2">
+                <div className="flex justify-between text-sm font-semibold">
+                  <span className="text-white/80">{row.label}</span>
+                  <span style={{ color: row.color }}>{row.val}</span>
+                </div>
+                <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden">
+                  <motion.div
+                    className="h-full rounded-full"
+                    style={{ background: row.color }}
+                    initial={{ width: 0 }}
+                    whileInView={{ width: `${row.pct}%` }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.9, delay: i * 0.15 }}
+                  />
+                </div>
+              </div>
+            ))}
+            <div className="pt-4 border-t border-white/10">
+              <p className="text-xs text-white/50 font-mono">* Measured end-to-end from user audio stop to first AI audio byte</p>
+            </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* SECTION 2: Core Architecture — Native Multimodal Audio */}
-      <section className="px-6 max-w-7xl mx-auto relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <motion.div 
-            initial={{ opacity: 0, y: 30 }}
+      {/* ── SECTION 3: How It Works ──────────────────────────────────────────── */}
+      <section className="py-24 px-6" style={{ background: "#F0FDF4" }}>
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+          <motion.div
+            className="space-y-4"
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="space-y-6"
           >
-            <span className="text-caption font-bold text-amber-cta uppercase tracking-widest bg-amber-cta/10 px-4 py-1.5 rounded-full font-mono">
-              SUB-180MS ZERO-LAG PIPELINE
-            </span>
-            <h2 className="font-sora text-3xl md:text-4xl font-extrabold text-ink leading-tight">
-              Native Multimodal Audio vs. Stacked API Pipelines
+            <SectionLabel text="Deploy in Minutes" color="green" />
+            <h2
+              className="text-4xl lg:text-5xl font-extrabold text-[#0F172A] leading-tight"
+              style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}
+            >
+              From Zero to Enterprise<br />Voice Agent in 4 Steps
             </h2>
-            <p className="text-body text-ink-muted leading-relaxed font-plus-jakarta">
-              Most voice AI software vendors assemble piecemeal architectures: chaining third-party Speech-to-Text (ASR) providers to external LLM endpoints and routing output back through independent Text-to-Speech (TTS) vendors. Each hop adds latency, introducing 800ms to 1.5-second pauses that destroy human conversational flow.
+            <p className="text-slate-500 text-base leading-relaxed max-w-lg">
+              No engineering team required. Configure your first AI calling agent from the dashboard, connect your phone number, and go live — in under 10 minutes.
             </p>
-            <div className="space-y-4">
-              <div className="bg-surface-white border border border-[#EADEC9] p-6 rounded-2xl flex items-start gap-4">
-                <Cpu className="w-6 h-6 text-mint-primary mt-1 flex-shrink-0" />
-                <div>
-                  <h4 className="font-sora font-bold text-ink text-lg">Vertically Integrated Orchestration</h4>
-                  <p className="text-small text-ink-muted mt-1">Direct WebRTC audio streaming bypasses unnecessary HTTP REST overhead to achieve sub-180ms response times.</p>
-                </div>
-              </div>
-              <div className="bg-surface-white border border border-[#EADEC9] p-6 rounded-2xl flex items-start gap-4">
-                <Globe2 className="w-6 h-6 text-amber-cta mt-1 flex-shrink-0" />
-                <div>
-                  <h4 className="font-sora font-bold text-ink text-lg">70+ Regional Dialects & Native Accents</h4>
-                  <p className="text-small text-ink-muted mt-1">Native speech models comprehend regional Indian and global accents without relying on lossy intermediate text translation APIs.</p>
-                </div>
-              </div>
-            </div>
+            <button
+              onClick={() => setPage("how-it-works")}
+              className="inline-flex items-center gap-2 font-bold text-white text-sm px-6 py-3 rounded-full transition-all hover:scale-105"
+              style={{ background: "linear-gradient(135deg, #059669, #10B981)", boxShadow: "0 6px 20px rgba(5,150,105,0.25)" }}
+            >
+              View Full Platform Guide <ArrowRight className="w-4 h-4" />
+            </button>
           </motion.div>
 
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            className="bg-surface-white border border border-[#EADEC9] rounded-3xl p-10 shadow-level-3 space-y-6"
+          <div className="space-y-6">
+            {[
+              { n: "1", title: "Configure Your Agent", body: "Define your agent's name, voice persona, language, and conversational workflow using our guided dashboard — no coding needed." },
+              { n: "2", title: "Upload Your Knowledge Base", body: "Paste your FAQ doc, connect your CRM or Shopify store, or upload PDF scripts. The agent learns your business instantly." },
+              { n: "3", title: "Connect a Phone Number", body: "Get a dedicated calling number or bring your own (SIP). Inbound and outbound routing configured in one click." },
+              { n: "4", title: "Go Live & Monitor", body: "Launch campaigns, monitor live calls, read transcripts, and view analytics from the real-time dashboard. Iterate and improve continuously." },
+            ].map((s, i) => (
+              <StepCard key={i} {...s} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── SECTION 4: Inbound + Outbound split ──────────────────────────────── */}
+      <section className="py-24 px-6 max-w-7xl mx-auto">
+        <div className="text-center max-w-3xl mx-auto mb-14 space-y-4">
+          <SectionLabel text="Inbound & Outbound Voice Automation" />
+          <h2
+            className="text-4xl lg:text-5xl font-extrabold text-[#0F172A]"
+            style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}
           >
-            <h3 className="font-sora text-2xl font-bold text-ink">Architecture Benchmarks</h3>
-            <div className="space-y-6 font-mono text-xs">
-              <div>
-                <div className="flex justify-between font-bold mb-2">
-                  <span>Clarity Native Multimodal</span>
-                  <span className="text-mint-primary">180ms Latency</span>
+            Two Directions. One Unified Platform.
+          </h2>
+          <p className="text-slate-500 leading-relaxed">
+            Whether you're receiving customer calls or proactively reaching out, Clarity Voice handles both workflows natively.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Inbound card */}
+          <motion.div
+            className="relative overflow-hidden rounded-3xl p-10 space-y-6"
+            initial={{ opacity: 0, x: -24 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            style={{
+              background: "linear-gradient(145deg, #1B4332 0%, #14532D 100%)",
+              boxShadow: "0 20px 40px rgba(11,41,26,0.18)",
+            }}
+          >
+            <div className="absolute top-0 right-0 w-48 h-48 opacity-10"
+              style={{ background: "radial-gradient(circle, #34D399, transparent)" }} />
+            <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center">
+              <PhoneCall className="w-7 h-7 text-[#34D399]" />
+            </div>
+            <h3 className="text-2xl font-extrabold text-white">Inbound AI Receptionist</h3>
+            <p className="text-white/70 leading-relaxed text-sm">
+              Answer every call on the first ring. Handle FAQs, book appointments, qualify leads, and escalate edge cases to human agents — 24/7 with zero queue.
+            </p>
+            <ul className="space-y-2.5">
+              {["Zero-wait first-ring answering", "CRM & calendar booking integration", "Warm human escalation with summary", "Intent classification & routing"].map((f, i) => (
+                <li key={i} className="flex items-center gap-2.5 text-sm font-medium text-white/80">
+                  <CheckCircle2 className="w-4 h-4 text-[#34D399] flex-shrink-0" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+
+          {/* Outbound card */}
+          <motion.div
+            className="relative overflow-hidden rounded-3xl p-10 space-y-6 bg-white border border-[#EADEC9]"
+            initial={{ opacity: 0, x: 24 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            style={{ boxShadow: "0 12px 40px rgba(0,0,0,0.06)" }}
+          >
+            <div
+              className="absolute top-0 right-0 w-48 h-48 opacity-8 rounded-full"
+              style={{ background: "radial-gradient(circle, #FDE68A, transparent)" }}
+            />
+            <div className="w-14 h-14 rounded-2xl bg-[#FEF3C7] flex items-center justify-center">
+              <TrendingUp className="w-7 h-7 text-[#EA580C]" />
+            </div>
+            <h3 className="text-2xl font-extrabold text-[#0F172A]">Outbound Campaign Engine</h3>
+            <p className="text-slate-500 leading-relaxed text-sm">
+              Contact thousands of leads within seconds. Verify COD orders, recover abandoned carts, collect EMI payments, and reactivate cold databases with personalized voice calls.
+            </p>
+            <ul className="space-y-2.5">
+              {["3-second speed-to-lead response", "Smart retry for busy lines", "Dynamic disposition & sentiment score", "Batch campaign scheduling"].map((f, i) => (
+                <li key={i} className="flex items-center gap-2.5 text-sm font-medium text-[#334155]">
+                  <CheckCircle2 className="w-4 h-4 text-[#EA580C] flex-shrink-0" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+            {/* Outbound metrics mini-card */}
+            <div className="grid grid-cols-3 gap-3 pt-4 border-t border-[#EADEC9]">
+              {[
+                { v: "94.2%", l: "Contact rate" },
+                { v: "1m 45s", l: "Avg qualify time" },
+                { v: "₹6.98", l: "Per qualified lead" },
+              ].map((m, i) => (
+                <div key={i} className="text-center">
+                  <p className="text-lg font-extrabold text-[#059669]">{m.v}</p>
+                  <p className="text-[10px] text-slate-400">{m.l}</p>
                 </div>
-                <div className="w-full h-3 bg-mint-soft rounded-full overflow-hidden">
-                  <div className="w-1/5 h-full bg-mint-primary rounded-full" />
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between font-bold mb-2">
-                  <span>Stacked API Competitors (Vapi, Retell)</span>
-                  <span className="text-amber-cta">850ms Latency</span>
-                </div>
-                <div className="w-full h-3 bg-cream-bg border border-border-soft rounded-full overflow-hidden">
-                  <div className="w-3/4 h-full bg-amber-cta rounded-full" />
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between font-bold mb-2">
-                  <span>Legacy Human Call Centers</span>
-                  <span className="text-red-500">45-Minute Queue Time</span>
-                </div>
-                <div className="w-full h-3 bg-cream-bg border border-border-soft rounded-full overflow-hidden">
-                  <div className="w-full h-full bg-red-500 rounded-full" />
-                </div>
-              </div>
+              ))}
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* SECTION 3: Inbound Call Automation & AI Receptionists */}
-      <section className="px-6 max-w-7xl mx-auto relative z-10">
-        <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-          <span className="text-caption font-bold text-mint-primary uppercase tracking-widest bg-mint-soft px-4 py-1.5 rounded-full font-mono">
-            INBOUND VOICE AUTOMATION
-          </span>
-          <h2 className="font-sora text-3xl md:text-5xl font-extrabold text-ink">
-            AI Receptionist & Inbound Contact Center Workflows
+      {/* ── SECTION 5: Industry Showroom ─────────────────────────────────────── */}
+      <section className="py-24 px-6 max-w-7xl mx-auto">
+        <div className="text-center max-w-3xl mx-auto mb-14 space-y-4">
+          <SectionLabel text="Industry Showroom" color="orange" />
+          <h2
+            className="text-4xl lg:text-5xl font-extrabold text-[#0F172A]"
+            style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}
+          >
+            Tailored Voice AI for Every Enterprise Sector
           </h2>
-          <p className="text-body text-ink-muted">
-            Turn inbound phone calls into instant customer resolutions, booked calendar appointments, and qualified sales leads 24 hours a day, 7 days a week.
+          <p className="text-slate-500 leading-relaxed">
+            Explore 12 specialized industry verticals with pre-configured workflows, compliance profiles, and custom voice personas.
           </p>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="bg-surface-white border border-[#EADEC9] p-8 rounded-2xl space-y-4">
-            <Bot className="w-10 h-10 text-mint-primary" />
-            <h3 className="font-sora text-xl font-bold text-ink">Zero-Wait Receptionist</h3>
-            <p className="text-small text-ink-muted leading-relaxed">
-              Instantly answer every incoming customer call on the first ring. Deflect routine questions regarding opening hours, service catalogs, or tracking info without human delay.
-            </p>
-          </div>
-          <div className="bg-surface-white border border-[#EADEC9] p-8 rounded-2xl space-y-4">
-            <PhoneCall className="w-10 h-10 text-amber-cta" />
-            <h3 className="font-sora text-xl font-bold text-ink">Calendar & CRM Booking</h3>
-            <p className="text-small text-ink-muted leading-relaxed">
-              Connect directly with Google Calendar, Outlook, Salesforce, or HubSpot to schedule appointments, property viewings, or sales demos while live on the call.
-            </p>
-          </div>
-          <div className="bg-surface-white border border-[#EADEC9] p-8 rounded-2xl space-y-4">
-            <ShieldCheck className="w-10 h-10 text-mint-primary" />
-            <h3 className="font-sora text-xl font-bold text-ink">Warm Human Escalation</h3>
-            <p className="text-small text-ink-muted leading-relaxed">
-              When complex edge cases arise, the AI voice agent executes a warm transfer to human operators, transferring live audio and conversation summaries in real time.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* SECTION 4: Outbound Sales & Lead Qualification */}
-      <section className="px-6 max-w-7xl mx-auto relative z-10">
-        <div className="bg-surface-white border border-[#EADEC9] rounded-3xl p-10 md:p-16 shadow-level-2">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div className="space-y-6">
-              <span className="text-caption font-bold text-amber-cta uppercase tracking-widest bg-amber-cta/10 px-4 py-1.5 rounded-full font-mono">
-                OUTBOUND OUTREACH CAMPAIGNS
-              </span>
-              <h2 className="font-sora text-3xl md:text-4xl font-extrabold text-ink">
-                Outbound Sales, Lead Qualification & Reactivation
-              </h2>
-              <p className="text-body text-ink-muted leading-relaxed">
-                Contact thousands of leads within seconds of form submission. Our automated phone calling agents verify buyer intent, qualify budgets, send follow-up SMS links, and reactivate cold customer databases with personalized, natural-sounding voice calls.
-              </p>
-              <div className="space-y-3 font-semibold text-small text-ink">
-                <div className="flex items-center gap-3"><CheckCircle2 className="w-5 h-5 text-mint-primary" /> <span>3-Second Speed-to-Lead Response Times</span></div>
-                <div className="flex items-center gap-3"><CheckCircle2 className="w-5 h-5 text-mint-primary" /> <span>Smart Batch Retry Schedules for Busy Lines</span></div>
-                <div className="flex items-center gap-3"><CheckCircle2 className="w-5 h-5 text-mint-primary" /> <span>Dynamic Call Disposition & Sentiment Scoring</span></div>
-              </div>
-            </div>
-            <div className="bg-cream-bg border border-[#EADEC9] rounded-2xl p-8 space-y-4">
-              <h4 className="font-sora font-bold text-ink text-lg">Outbound Performance Metrics</h4>
-              <div className="space-y-4 text-xs font-mono">
-                <div className="bg-surface-white p-4 rounded-xl border border-border-soft flex justify-between items-center">
-                  <span>Lead Contact Rate</span>
-                  <span className="font-bold text-mint-primary text-base">94.2%</span>
-                </div>
-                <div className="bg-surface-white p-4 rounded-xl border border-border-soft flex justify-between items-center">
-                  <span>Average Qualification Time</span>
-                  <span className="font-bold text-amber-cta text-base">1m 45s</span>
-                </div>
-                <div className="bg-surface-white p-4 rounded-xl border border-border-soft flex justify-between items-center">
-                  <span>Cost per Qualified Lead</span>
-                  <span className="font-bold text-mint-primary text-base">₹6.98</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* SECTION 5: Multi-Industry Showroom Cards (12 Verticals Grid) */}
-      <section className="px-6 max-w-7xl mx-auto relative z-10">
-        <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-          <span className="text-caption font-bold text-mint-primary uppercase tracking-widest bg-mint-soft px-4 py-1.5 rounded-full font-mono">
-            INDUSTRY SHOWROOM
-          </span>
-          <h2 className="font-sora text-3xl md:text-5xl font-extrabold text-ink">
-            Tailored AI Voice Solutions for Every Enterprise Sector
-          </h2>
-          <p className="text-body text-ink-muted">
-            Explore 12 specialized industry verticals optimized with verified workflows, compliance controls, and custom voice personas.
-          </p>
-        </div>
-
         <IndustryShowroomGrid />
       </section>
 
-      {/* SECTION 6: Feature Capability Grid (12 Feature Cards) */}
-      <section className="px-6 max-w-7xl mx-auto relative z-10">
-        <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-          <span className="text-caption font-bold text-amber-cta uppercase tracking-widest bg-amber-cta/10 px-4 py-1.5 rounded-full font-mono">
-            PLATFORM CAPABILITIES
-          </span>
-          <h2 className="font-sora text-3xl md:text-5xl font-extrabold text-ink">
-            12 Enterprise Voice AI Modules Built for Scale
+      {/* ── SECTION 6: Feature Capabilities ─────────────────────────────────── */}
+      <section className="py-24 px-6 max-w-7xl mx-auto">
+        <div className="text-center max-w-3xl mx-auto mb-14 space-y-4">
+          <SectionLabel text="Platform Capabilities" />
+          <h2
+            className="text-4xl lg:text-5xl font-extrabold text-[#0F172A]"
+            style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}
+          >
+            12 Enterprise Voice AI Modules
           </h2>
-          <p className="text-body text-ink-muted">
-            From low latency audio streaming to RAG knowledge bases and warm handoffs, inspect the complete voice AI technology stack.
+          <p className="text-slate-500 leading-relaxed">
+            From low-latency audio streaming to RAG knowledge bases and warm handoffs — inspect the full stack.
           </p>
         </div>
-
         <FeatureCapabilityGrid />
       </section>
 
-      {/* SECTION 7: Enterprise Compliance & Data Privacy */}
-      <section className="px-6 max-w-7xl mx-auto relative z-10">
-        <div className="bg-surface-white border border-[#EADEC9] rounded-3xl p-10 md:p-16 shadow-level-2">
-          <div className="max-w-4xl mx-auto space-y-8 text-center">
-            <Lock className="w-16 h-16 text-mint-primary mx-auto" />
-            <h2 className="font-sora text-3xl md:text-5xl font-extrabold text-ink">
-              Enterprise Compliance, HIPAA, SOC 2 & Data Privacy
-            </h2>
-            <p className="text-body text-ink-muted leading-relaxed font-plus-jakarta max-w-3xl mx-auto">
-              Security is not an afterthought. Clarity Voice implements edge-based PII/PHI data redaction, ensuring payment info, health details, and personal identity credentials are automatically scrubbed before call logs or transcripts reach persistent databases.
-            </p>
-            <div className="flex flex-wrap justify-center gap-4 pt-4">
-              <span className="bg-mint-soft border border-mint-primary/30 text-mint-primary font-mono text-xs font-bold px-4 py-2 rounded-full">
-                🔒 SOC 2 TYPE II AUDITED
-              </span>
-              <span className="bg-mint-soft border border-mint-primary/30 text-mint-primary font-mono text-xs font-bold px-4 py-2 rounded-full">
-                🏥 HIPAA BAA AVAILABLE
-              </span>
-              <span className="bg-mint-soft border border-mint-primary/30 text-mint-primary font-mono text-xs font-bold px-4 py-2 rounded-full">
-                🛡️ ISO 27001 CERTIFIED
-              </span>
-              <span className="bg-mint-soft border border-mint-primary/30 text-mint-primary font-mono text-xs font-bold px-4 py-2 rounded-full">
-                ⚖️ DPDP ACT & GDPR COMPLIANT
-              </span>
+      {/* ── SECTION 7: Compliance & Trust ───────────────────────────────────── */}
+      <section className="py-24 px-6">
+        <div className="max-w-5xl mx-auto">
+          <motion.div
+            className="relative overflow-hidden rounded-3xl p-12 lg:p-16 text-center space-y-8"
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            style={{
+              background: "linear-gradient(145deg, #1B4332 0%, #0D2B20 100%)",
+              boxShadow: "0 32px 64px rgba(11,41,26,0.22)",
+            }}
+          >
+            {/* dot pattern */}
+            <div
+              className="absolute inset-0 opacity-10"
+              style={{
+                backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)",
+                backgroundSize: "24px 24px",
+                borderRadius: "inherit",
+              }}
+            />
+            <div className="relative z-10 space-y-6">
+              <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center mx-auto">
+                <Lock className="w-8 h-8 text-[#34D399]" />
+              </div>
+              <h2
+                className="text-3xl lg:text-5xl font-extrabold text-white leading-tight"
+                style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}
+              >
+                Enterprise-Grade Security & Compliance
+              </h2>
+              <p className="text-white/60 max-w-2xl mx-auto text-base leading-relaxed">
+                Clarity Voice implements edge-based PII/PHI data redaction, scrubbing payment info and health credentials before any log storage. We are SOC 2 Type II audited and offer HIPAA BAA on enterprise plans.
+              </p>
+              <div className="flex flex-wrap justify-center gap-3">
+                {["🔒 SOC 2 TYPE II", "🏥 HIPAA BAA READY", "🛡️ ISO 27001", "⚖️ GDPR & DPDP ACT", "💳 PCI-DSS COMPLIANT"].map((badge, i) => (
+                  <span
+                    key={i}
+                    className="text-xs font-bold font-mono px-4 py-2 rounded-full"
+                    style={{ background: "rgba(255,255,255,0.1)", color: "#A7F3D0", border: "1px solid rgba(167,243,208,0.2)" }}
+                  >
+                    {badge}
+                  </span>
+                ))}
+              </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* SECTION 8: Frequently Asked Questions (AEO/GEO) */}
-      <section className="px-6 max-w-5xl mx-auto relative z-10 space-y-12">
-        <div className="text-center space-y-4">
-          <h2 className="font-sora text-3xl md:text-5xl font-extrabold text-ink">
+      {/* ── SECTION 8: FAQ ───────────────────────────────────────────────────── */}
+      <section className="py-24 px-6 max-w-4xl mx-auto">
+        <div className="text-center mb-12 space-y-4">
+          <SectionLabel text="FAQ" />
+          <h2
+            className="text-4xl font-extrabold text-[#0F172A]"
+            style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}
+          >
             Frequently Asked Questions
           </h2>
-          <p className="text-body text-ink-muted">Everything you need to know about deploying enterprise AI voice calling agents.</p>
+          <p className="text-slate-500">Everything you need to know about deploying enterprise AI voice agents.</p>
         </div>
-
-        <div className="space-y-6">
-          {faqSchema.mainEntity.map((item, i) => (
-            <div key={i} className="bg-surface-white border border-[#EADEC9] p-8 rounded-2xl space-y-3">
-              <h3 className="font-sora text-xl font-bold text-ink">{item.name}</h3>
-              <p className="text-small text-ink-muted leading-relaxed font-plus-jakarta">{item.acceptedAnswer.text}</p>
-            </div>
+        <div className="space-y-4">
+          {FAQS.map((faq, i) => (
+            <motion.div
+              key={i}
+              className="bg-white border border-[#EADEC9] rounded-2xl p-7 space-y-3 hover:border-[#059669]/30 hover:shadow-md transition-all"
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.07 }}
+            >
+              <h3 className="font-extrabold text-[#0F172A] text-base">{faq.q}</h3>
+              <p className="text-sm text-slate-500 leading-relaxed">{faq.a}</p>
+            </motion.div>
           ))}
         </div>
       </section>
 
-      {/* Closing CTA */}
-      <section className="px-6 max-w-4xl mx-auto text-center py-10 space-y-8">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-        >
-          <h2 className="font-sora text-3xl md:text-5xl font-extrabold text-ink mb-6">
-            Transform Your Phone Call Operations Today
-          </h2>
-          <p className="text-body text-ink-muted mb-10">
-            Deploy human-like conversational voice AI agents in under 10 minutes. No setup fees, no minimum contract.
-          </p>
-          <button onClick={() => setPage("dashboard")} className="btn-cta bg-amber-cta text-surface-white hover:bg-[#d4742e]">
-            Build Your First Voice Agent (Free)
-            <ArrowRight className="w-5 h-5 ml-2 inline" />
-          </button>
-        </motion.div>
+      {/* ── SECTION 9: CTA ───────────────────────────────────────────────────── */}
+      <section className="py-24 px-6">
+        <div className="max-w-4xl mx-auto">
+          <motion.div
+            className="relative overflow-hidden rounded-[40px] p-12 lg:p-20 text-center"
+            initial={{ opacity: 0, scale: 0.97 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            style={{
+              background: "#FAF8F5",
+              border: "1px solid #EADEC9",
+              boxShadow: "0 16px 48px rgba(0,0,0,0.05)",
+            }}
+          >
+            {/* decorative blobs */}
+            <div className="absolute top-0 left-0 w-64 h-64 rounded-full opacity-30 -translate-x-1/2 -translate-y-1/2"
+              style={{ background: "radial-gradient(circle, #D1FAE5, transparent)" }} />
+            <div className="absolute bottom-0 right-0 w-64 h-64 rounded-full opacity-20 translate-x-1/2 translate-y-1/2"
+              style={{ background: "radial-gradient(circle, #FDE68A, transparent)" }} />
+
+            <div className="relative z-10 space-y-6">
+              <h2
+                className="text-4xl lg:text-6xl font-extrabold text-[#0F172A] leading-tight"
+                style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}
+              >
+                Start Transforming Your<br />
+                <span className="text-transparent bg-clip-text" style={{ backgroundImage: "linear-gradient(135deg, #059669, #34D399)" }}>
+                  Phone Calls Today
+                </span>
+              </h2>
+              <p className="text-slate-500 text-lg max-w-xl mx-auto">
+                Deploy human-like AI voice agents in under 10 minutes. No setup fees. No minimum contract. Cancel any time.
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-4">
+                <button
+                  onClick={() => setPage("dashboard")}
+                  className="inline-flex items-center gap-2 font-bold text-lg text-white px-10 py-4 rounded-full transition-all hover:scale-105 active:scale-95"
+                  style={{
+                    background: "linear-gradient(135deg, #059669 0%, #10B981 100%)",
+                    boxShadow: "0 8px 24px rgba(5,150,105,0.3)",
+                  }}
+                >
+                  Build Your First Voice Agent (Free)
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setPage("pricing")}
+                  className="inline-flex items-center gap-2 font-semibold text-base text-[#0F172A] bg-white border border-[#EADEC9] px-8 py-4 rounded-full hover:shadow-md transition-all"
+                >
+                  View Pricing Plans
+                </button>
+              </div>
+              <p className="text-xs text-slate-400">Trusted by 500+ enterprises across 12 industries</p>
+            </div>
+          </motion.div>
+        </div>
       </section>
+
     </div>
   );
 }
