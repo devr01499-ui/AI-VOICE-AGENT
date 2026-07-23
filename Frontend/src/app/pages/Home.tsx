@@ -907,6 +907,148 @@ export default function Home({ setPage }: HomeProps) {
         </div>
       </section>
 
+      {/* ── SEO GLOSSARY & SOLUTION DIRECTORY ── */}
+      <section className="py-20 px-6 max-w-7xl mx-auto border-t border-[#EADEC9]">
+        <div className="space-y-8">
+          <div>
+            <SectionLabel text="SEO Directory & Solutions Glossary" color="green" />
+            <h2 className="text-2xl font-bold text-[#0F172A] mt-2" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+              Enterprise Voice AI Index
+            </h2>
+            <p className="text-xs text-slate-400 mt-1">
+              Explore our comprehensive index of voice automation platform modules, developer voice AI platform capabilities, and compliance-ready call flows.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-xs text-slate-500">
+            {/* Column 1 */}
+            <div className="space-y-4">
+              <h4 className="font-bold text-[#0F172A] uppercase tracking-wider font-mono">Core Platforms</h4>
+              <ul className="space-y-2">
+                <li>• <strong>AI voice calling agents</strong> and robust <strong>AI voice agents</strong></li>
+                <li>• High-performance <strong>AI calling agents</strong> & <strong>voice AI agents</strong></li>
+                <li>• Scalable <strong>AI phone agents</strong> with <strong>conversational AI voice</strong></li>
+                <li>• Fully <strong>automated phone calling</strong> & <strong>AI call automation</strong></li>
+                <li>• Professional <strong>voice automation platform</strong></li>
+                <li>• Smart <strong>AI receptionist</strong> & <strong>AI phone assistant</strong></li>
+                <li>• Integrated <strong>AI outbound calling</strong> & <strong>AI inbound calling</strong></li>
+                <li>• Secure <strong>AI contact center automation</strong></li>
+                <li>• Custom <strong>AI customer calling system</strong></li>
+                <li>• Robust <strong>AI telephony automation</strong></li>
+                <li>• Natural <strong>voice bot for calls</strong></li>
+                <li>• High-fidelity <strong>AI voice bot</strong></li>
+                <li>• Dedicated <strong>AI call center agent</strong></li>
+                <li>• Intelligent <strong>AI call handling</strong></li>
+              </ul>
+            </div>
+
+            {/* Column 2 */}
+            <div className="space-y-4">
+              <h4 className="font-bold text-[#0F172A] uppercase tracking-wider font-mono">High-Intent Targets</h4>
+              <ul className="space-y-2">
+                <li>• The <strong>best AI voice agents</strong> & <strong>best AI calling agents</strong></li>
+                <li>• Leading <strong>AI voice agent platform</strong></li>
+                <li>• Custom <strong>AI voice agent software</strong></li>
+                <li>• Enterprise-grade <strong>enterprise AI voice agent</strong></li>
+                <li>• Flexible <strong>developer voice AI platform</strong></li>
+                <li>• Easy-to-use <strong>no-code voice AI agent</strong></li>
+                <li>• Reliable <strong>AI voice agent for business</strong></li>
+                <li>• Powerful <strong>AI voice calling software</strong></li>
+                <li>• Complete <strong>AI voice automation software</strong></li>
+                <li>• Versatile <strong>AI calling platform</strong></li>
+                <li>• Complete <strong>outbound voice AI platform</strong></li>
+                <li>• Complete <strong>inbound voice AI platform</strong></li>
+                <li>• Developer <strong>AI voice agent API</strong></li>
+                <li>• Multi-platform <strong>voice AI SDK</strong></li>
+                <li>• Deployable <strong>white-label AI voice agent</strong></li>
+                <li>• Custom <strong>custom AI calling agent</strong></li>
+                <li>• Immersive <strong>real-time voice AI</strong></li>
+                <li>• Ultra-low <strong>low-latency voice AI</strong></li>
+                <li>• Fully <strong>scalable voice calling platform</strong></li>
+              </ul>
+            </div>
+
+            {/* Column 3 */}
+            <div className="space-y-4">
+              <h4 className="font-bold text-[#0F172A] uppercase tracking-wider font-mono">Compliance & Trust</h4>
+              <ul className="space-y-2">
+                <li>• Strict <strong>AI voice agent compliance</strong></li>
+                <li>• Secure <strong>call compliance automation</strong></li>
+                <li>• Safe <strong>secure voice AI</strong></li>
+                <li>• Secure <strong>regulated call automation</strong></li>
+                <li>• Compliant <strong>PCI compliant voice AI</strong></li>
+                <li>• Compliant <strong>HIPAA compliant voice AI</strong></li>
+                <li>• Compliant <strong>SOC 2 voice AI</strong></li>
+                <li>• Audited <strong>GDPR voice AI</strong></li>
+                <li>• Audited <strong>ISO 27001 voice AI</strong></li>
+                <li>• Certified <strong>data privacy voice automation</strong></li>
+                <li>• Compliant <strong>consent-based calling</strong></li>
+                <li>• Clean <strong>audit logs</strong> & <strong>redaction</strong></li>
+                <li>• Safe <strong>PII protection</strong></li>
+                <li>• Clear <strong>escalation logic</strong></li>
+                <li>• Seamless <strong>human handoff</strong></li>
+                <li>• Safe <strong>verified call scripts</strong></li>
+                <li>• Compliant <strong>compliance-ready call flows</strong></li>
+              </ul>
+            </div>
+
+            {/* Column 4 */}
+            <div className="space-y-4">
+              <h4 className="font-bold text-[#0F172A] uppercase tracking-wider font-mono">Technical Architecture</h4>
+              <ul className="space-y-2">
+                <li>• Telephony <strong>voice AI API</strong> & <strong>telephony API</strong></li>
+                <li>• Built-in <strong>speech-to-text</strong> (<strong>ASR</strong>)</li>
+                <li>• Built-in <strong>text-to-speech</strong> (<strong>TTS</strong>)</li>
+                <li>• High-performance <strong>LLM voice agent</strong></li>
+                <li>• Modern <strong>real-time LLM calling</strong></li>
+                <li>• Precise <strong>AI call orchestration</strong></li>
+                <li>• Dynamic <strong>agent workflow engine</strong></li>
+                <li>• Custom <strong>prompt-based call flows</strong></li>
+                <li>• Built-in <strong>function calling</strong> & <strong>tool calling</strong></li>
+                <li>• Secure <strong>RAG for voice agents</strong></li>
+                <li>• Smart <strong>knowledge base calling</strong></li>
+                <li>• Direct <strong>CRM sync</strong> & <strong>webhook automation</strong></li>
+                <li>• Modern <strong>SIP trunking</strong> & <strong>Twilio integration</strong></li>
+                <li>• Secure <strong>contact center integration</strong></li>
+                <li>• Unified <strong>omnichannel voice stack</strong></li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Guide topics strip */}
+          <div className="pt-6 border-t border-[#EADEC9]/60">
+            <h4 className="font-bold text-[#0F172A] uppercase tracking-wider font-mono text-xs mb-3">SEO Resource Guides & Insights</h4>
+            <div className="flex flex-wrap gap-2 text-[10px] text-slate-400">
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">How AI voice agents work</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">What are AI voice calling agents?</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">Best AI voice calling agents in 2026</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">AI voice agents for outbound sales</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">AI voice agents for inbound support</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">AI voice agents for appointment booking</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">AI voice agents for collections</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">AI voice agents for lead qualification</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">AI voice agents for healthcare</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">AI voice agents for banking and finance</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">AI voice agents for real estate teams</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">AI voice agents for ecommerce brands</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">AI voice agents vs IVR systems</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">AI voice agents vs human call agents</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">AI voice agent compliance guide</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">How to reduce call handling costs with voice AI</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">How to set up an AI phone agent</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">How to integrate AI voice agents with CRM</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">How to build a no-code voice agent</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">Latency benchmarks for AI voice agents</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">Multilingual AI voice agent use cases</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">White-label AI voice agent business model</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">AI voice agent pricing explained</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">Best platforms for voice automation</span>
+              <span className="bg-white border border-[#EADEC9] rounded px-2.5 py-1">How AI calling improves conversions</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── FINAL CTA ── */}
       <FinalCTA setPage={setPage} />
     </div>
