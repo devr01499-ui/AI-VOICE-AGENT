@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Mic, ArrowRight, Bot } from "lucide-react";
-import { motion } from "motion/react";
+import { Mic, ArrowRight, Bot, Check } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 
 type Page = 
   | "home" 
@@ -33,24 +33,78 @@ const TRANSCRIPT_MAP: Record<string, { agent: string; user: string }> = {
   ar: { agent: "مرحباً، كيف حالك؟ يسعدني رؤيتك هنا. أتمنى أن أكون مفيداً لك.", user: "أهلاً بك، أنا بخير. يرجى تأكيد الطلب." }
 };
 
+// ─── Custom Animated Waveform to Checkmark (Simulating Lottie) ──────────────
+function AnimatedWaveformCheck() {
+  const [phase, setPhase] = useState<'wave' | 'check'>('wave');
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setPhase(p => p === 'wave' ? 'check' : 'wave');
+    }, 3000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="w-24 h-24 mx-auto relative flex items-center justify-center">
+      <AnimatePresence mode="wait">
+        {phase === 'wave' ? (
+          <motion.div
+            key="wave"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="flex items-center gap-1.5 h-12"
+          >
+            {[1, 2, 3, 4, 5].map((i) => (
+              <motion.div
+                key={i}
+                className="w-1.5 bg-mint-primary rounded-pill"
+                animate={{
+                  height: ["20%", "100%", "20%"],
+                }}
+                transition={{
+                  duration: 1,
+                  repeat: Infinity,
+                  delay: i * 0.1,
+                  ease: "easeInOut"
+                }}
+              />
+            ))}
+          </motion.div>
+        ) : (
+          <motion.div
+            key="check"
+            initial={{ opacity: 0, scale: 0.5, rotate: -45 }}
+            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="w-12 h-12 bg-mint-primary rounded-full flex items-center justify-center text-forest-deep shadow-level-2"
+          >
+            <Check className="w-6 h-6 stroke-[3]" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ─── Pulsing Audio Sphere Component ──────────────────────────────────────────
 function AudioSphere({ active }: { active: boolean }) {
   return (
     <div className="relative w-40 h-40 mx-auto flex items-center justify-center">
       {/* Outer pulsing rings */}
       <motion.div
-        animate={active ? { scale: [1, 1.3, 1], opacity: [0.06, 0.22, 0.06] } : { scale: 1, opacity: 0.03 }}
+        animate={active ? { scale: [1, 1.3, 1], opacity: [0.3, 0.6, 0.3] } : { scale: 1, opacity: 0.1 }}
         transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute inset-0 rounded-full bg-gradient-to-tr from-[#059669] to-[#10B981] blur-lg"
+        className="absolute inset-0 rounded-full bg-mint-primary blur-xl"
       />
       <motion.div
-        animate={active ? { scale: [1, 1.15, 1], opacity: [0.1, 0.35, 0.1] } : { scale: 1, opacity: 0.05 }}
+        animate={active ? { scale: [1, 1.15, 1], opacity: [0.5, 0.8, 0.5] } : { scale: 1, opacity: 0.2 }}
         transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
-        className="absolute inset-4 rounded-full bg-gradient-to-tr from-[#D97706] to-[#EA580C] blur-md"
+        className="absolute inset-4 rounded-full bg-amber-cta blur-md"
       />
       {/* Center solid core */}
-      <div className="absolute inset-10 rounded-full bg-white border border-[#EADEC9] flex items-center justify-center shadow-md">
-        <Mic className={`w-7 h-7 ${active ? "text-[#059669] animate-pulse" : "text-slate-400"} transition-colors`} />
+      <div className="absolute inset-10 rounded-full bg-surface-white flex items-center justify-center shadow-level-2 z-10">
+        <Mic className={`w-7 h-7 ${active ? "text-amber-cta animate-pulse" : "text-ink-muted"} transition-colors`} />
       </div>
     </div>
   );
@@ -125,138 +179,153 @@ export default function Hero({ setPage }: HeroProps) {
   const transcript = TRANSCRIPT_MAP[lang] || TRANSCRIPT_MAP.en;
 
   return (
-    <section className="pt-28 pb-20 px-6 max-w-7xl mx-auto relative">
+    <section className="pt-28 pb-32 px-6 max-w-[1400px] mx-auto relative overflow-hidden min-h-[90vh] flex items-center">
       <audio 
         ref={audioRef} 
         onEnded={() => setIsPlaying(false)}
         className="hidden" 
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+      {/* Decorative Parallax Background Panels (Asymmetric Collage) */}
+      <motion.div 
+        className="absolute top-0 right-0 w-2/3 h-full panel-texture rounded-l-[48px] -z-10 hidden lg:block"
+        initial={{ opacity: 0, x: 100 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 1.2, ease: "easeOut" }}
+      />
+      <motion.div 
+        className="absolute -top-20 -right-10 w-96 h-96 bg-mint-soft rounded-[64px] rotate-12 -z-20 hidden lg:block"
+        initial={{ opacity: 0, rotate: 0 }}
+        animate={{ opacity: 1, rotate: 12 }}
+        transition={{ duration: 1.5, ease: "easeOut", delay: 0.2 }}
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center w-full">
         
+        {/* Left Copy Content */}
         <motion.div
-          className="lg:col-span-7 space-y-6 text-left"
+          className="lg:col-span-6 space-y-8 text-left z-10"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          <div className="inline-flex items-center gap-2 border border-[#EADEC9] rounded-full px-3.5 py-1.5 bg-white shadow-sm">
-            <span className="flex h-2 w-2 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#059669]"></span>
+          <div className="inline-flex items-center gap-2 border border-border-soft rounded-pill px-4 py-2 bg-surface-white/80 backdrop-blur-sm shadow-level-1">
+            <span className="flex h-2.5 w-2.5 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-cta opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-cta"></span>
             </span>
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
-              Powered by Native Multimodal Audio (Gemini 2.5 &amp; Chirp 3)
+            <span className="text-caption font-bold uppercase tracking-wider text-ink-muted">
+              Built for businesses where a phone call still decides something real
             </span>
           </div>
 
-          <h1 className="font-sora text-5xl lg:text-6xl xl:text-[68px] font-extrabold leading-[1.08] tracking-tight text-slate-900">
-            AI Voice Agents That <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#059669] via-emerald-600 to-[#10B981]">Speak, Listen, and Think</span> Like Your Sharpest Employee.
+          <h1 className="text-display text-ink">
+            Every important conversation, answered — <span className="text-forest-deep italic">automatically</span>, in your customer's own voice.
           </h1>
 
-          <p className="text-base text-slate-600 leading-relaxed max-w-xl font-plus-jakarta font-semibold">
-            Stop losing deals to slow follow-ups and unhandled phone calls. Clarity Voice deploys human-sounding AI voice agents across 70+ languages and regional dialects.
+          <p className="text-body text-ink-muted max-w-xl">
+            Clarity Voice is an AI voice calling platform that confirms orders, verifies details, and resolves customer conversations before small problems become expensive ones — without hiring or scaling a calling team.
           </p>
 
-          <div className="flex flex-wrap items-center gap-4 pt-2">
+          <div className="flex flex-wrap items-center gap-4 pt-4">
             <button
               onClick={() => setPage("dashboard")}
-              className="bg-gradient-to-r from-[#059669] to-[#10B981] hover:from-[#10B981] hover:to-[#059669] text-white font-bold px-8 py-3.5 rounded-full hover:scale-[1.02] shadow-md shadow-emerald-500/10 active:scale-95 transition-all flex items-center gap-2 group font-plus-jakarta"
+              className="btn-primary px-8 py-4 text-lg"
             >
-              Build Your First Voice Agent in 2 Mins
-              <ArrowRight className="w-4.5 h-4.5 group-hover:translate-x-1 transition-transform" />
+              Start free trial
+              <ArrowRight className="w-5 h-5 ml-2" />
             </button>
             <button
               onClick={() => setPage("voices")}
-              className="border border-[#EADEC9] bg-white hover:bg-slate-50 text-slate-700 font-bold px-8 py-3.5 rounded-full transition-all flex items-center gap-2 shadow-sm"
+              className="btn-cta bg-surface-white text-ink border border-border-soft hover:bg-cream-bg"
             >
-              Listen to Live Audio Demos
+              See it in action
             </button>
           </div>
         </motion.div>
 
-        {/* Interactive Live Voice Tester Widget */}
+        {/* Right Collage / Interactive Widget */}
         <motion.div
-          className="lg:col-span-5 relative z-10"
+          className="lg:col-span-6 relative z-10 lg:pl-10"
           initial={{ opacity: 0, x: 30 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.8, delay: 0.15 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
         >
-          <div className="bg-white border border-[#EADEC9] rounded-3xl p-6 shadow-md relative">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
-              <span className="font-mono text-xs font-bold text-slate-400 tracking-wider">LIVE TEST AREA</span>
-              <span className="flex items-center gap-1.5 bg-emerald-50 text-[#059669] border border-emerald-200 px-2 py-0.5 rounded text-[10px] font-mono font-bold">
-                🟢 READY
-              </span>
-            </div>
-
-            {/* Selector panels */}
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              <div>
-                <label className="block text-[10px] font-mono font-bold text-slate-500 mb-1.5 uppercase">Voice Persona</label>
-                <select 
-                  value={voice} 
-                  onChange={(e) => setVoice(e.target.value)}
-                  className="w-full bg-slate-50 border border-[#EADEC9] text-xs font-bold text-slate-800 px-3 py-2 rounded-xl focus:outline-none focus:border-[#059669]"
-                >
-                  {voicesList.map(v => (
-                    <option key={v.id} value={v.id}>{v.name}</option>
-                  ))}
-                </select>
+          {/* Asymmetric Offset Panel wrapping the tester */}
+          <div className="relative">
+            {/* Background offset card for 3D depth */}
+            <div className="absolute inset-0 bg-mint-primary/20 rounded-md transform translate-x-6 translate-y-6 -z-10" />
+            
+            <div className="bg-surface-white border border-border-soft rounded-md p-8 shadow-level-3 relative z-10 glassmorphism">
+              <div className="flex items-center justify-between border-b border-border-soft pb-4 mb-6">
+                <span className="font-mono text-caption font-bold text-ink-muted tracking-wider">LIVE TEST AREA</span>
+                <AnimatedWaveformCheck />
               </div>
-              <div>
-                <label className="block text-[10px] font-mono font-bold text-slate-500 mb-1.5 uppercase">Language Mode</label>
-                <select 
-                  value={lang} 
-                  onChange={(e) => setLang(e.target.value)}
-                  className="w-full bg-slate-50 border border-[#EADEC9] text-xs font-bold text-slate-800 px-3 py-2 rounded-xl focus:outline-none focus:border-[#059669]"
-                >
-                  {langsList.map(l => (
-                    <option key={l.id} value={l.id}>{l.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
 
-            {/* Pulsing Visualizer Core */}
-            <div className="my-6">
-              <AudioSphere active={isPlaying} />
-            </div>
-
-            <div className="text-center mb-6">
-              <button
-                onClick={handlePlayToggle}
-                className={`px-8 py-2.5 rounded-full text-xs font-bold tracking-wider uppercase transition-all duration-300 active:scale-95 ${
-                  isPlaying 
-                    ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100" 
-                    : "bg-emerald-50 text-[#059669] border border-emerald-200 hover:bg-emerald-100/50"
-                }`}
-              >
-                {isPlaying ? "Stop Demonstration" : "Hear Selected Agent"}
-              </button>
-            </div>
-
-            {/* Live transcript simulation block */}
-            <div className="bg-slate-50 border border-[#EADEC9]/60 rounded-2xl p-4 space-y-3 max-h-36 overflow-y-auto">
-              <div className="flex gap-2.5">
-                <div className="w-5 h-5 bg-gradient-to-tr from-[#059669] to-[#10B981] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
-                  <Bot className="w-3 h-3 text-white" />
+              {/* Selector panels */}
+              <div className="grid grid-cols-2 gap-4 mb-8">
+                <div>
+                  <label className="block text-caption font-bold text-ink-muted mb-2 uppercase">Voice Persona</label>
+                  <select 
+                    value={voice} 
+                    onChange={(e) => setVoice(e.target.value)}
+                    className="w-full bg-cream-bg border border-border-soft text-sm font-semibold text-ink px-4 py-3 rounded-sm focus:outline-none focus:ring-2 focus:ring-mint-primary"
+                  >
+                    {voicesList.map(v => (
+                      <option key={v.id} value={v.id}>{v.name}</option>
+                    ))}
+                  </select>
                 </div>
-                <div className="bg-white border border-[#EADEC9]/60 rounded-2xl rounded-tl-none px-3.5 py-2.5 flex-1">
-                  <p className="text-xs text-slate-700 leading-relaxed font-plus-jakarta font-semibold">
-                    {isPlaying ? transcript.agent : "Select a voice and click test to see speech transcript output."}
-                  </p>
+                <div>
+                  <label className="block text-caption font-bold text-ink-muted mb-2 uppercase">Language Mode</label>
+                  <select 
+                    value={lang} 
+                    onChange={(e) => setLang(e.target.value)}
+                    className="w-full bg-cream-bg border border-border-soft text-sm font-semibold text-ink px-4 py-3 rounded-sm focus:outline-none focus:ring-2 focus:ring-mint-primary"
+                  >
+                    {langsList.map(l => (
+                      <option key={l.id} value={l.id}>{l.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
-              {isPlaying && (
-                <div className="flex gap-2.5 justify-end">
-                  <div className="bg-gradient-to-tr from-emerald-50 to-white border border-[#EADEC9]/60 rounded-2xl rounded-tr-none px-3.5 py-2.5 max-w-[80%]">
-                    <p className="text-xs text-[#059669] leading-relaxed font-plus-jakarta font-bold">
-                      {transcript.user}
+
+              {/* Pulsing Visualizer Core */}
+              <div className="my-8">
+                <AudioSphere active={isPlaying} />
+              </div>
+
+              <div className="text-center mb-8">
+                <button
+                  onClick={handlePlayToggle}
+                  className="btn-primary w-full shadow-level-2"
+                >
+                  {isPlaying ? "Stop Demonstration" : "Hear Selected Agent"}
+                </button>
+              </div>
+
+              {/* Live transcript simulation block */}
+              <div className="bg-cream-bg border border-border-soft rounded-sm p-5 space-y-4 max-h-40 overflow-y-auto">
+                <div className="flex gap-3">
+                  <div className="w-6 h-6 bg-forest-deep rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 shadow-level-1">
+                    <Bot className="w-3.5 h-3.5 text-mint-primary" />
+                  </div>
+                  <div className="bg-surface-white border border-border-soft rounded-sm rounded-tl-none px-4 py-3 flex-1 shadow-level-1">
+                    <p className="text-small text-ink font-medium">
+                      {isPlaying ? transcript.agent : "Select a voice and click test to see speech transcript output."}
                     </p>
                   </div>
                 </div>
-              )}
+                {isPlaying && (
+                  <div className="flex gap-3 justify-end">
+                    <div className="bg-mint-soft border border-mint-primary/20 rounded-sm rounded-tr-none px-4 py-3 max-w-[85%] shadow-level-1">
+                      <p className="text-small text-forest-deep font-semibold">
+                        {transcript.user}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </motion.div>

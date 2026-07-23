@@ -1,5 +1,6 @@
-import { motion } from "motion/react";
-import { Network, Volume2, ShieldAlert, Cpu } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { useState, useEffect } from "react";
+import { Network, Volume2, ShieldAlert, Cpu, PhoneCall, Check, FileText } from "lucide-react";
 
 type Page = 
   | "home" 
@@ -9,129 +10,159 @@ type Page =
   | "pricing" 
   | "compare" 
   | "blog" 
-  | "blog-rto" 
-  | "blog-healthcare" 
-  | "blog-fintech" 
   | "docs" 
-  | "dashboard" 
-  | "industries";
+  | "dashboard";
 
 interface HowItWorksProps {
   setPage: (p: Page) => void;
 }
 
+// ─── Custom Lottie Animation Sequence (Simulating the 4-step call connection)
+function AnimatedCallSequence() {
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setStep(s => (s + 1) % 3);
+    }, 2500);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="w-48 h-48 mx-auto relative flex items-center justify-center bg-surface-white rounded-full shadow-level-3">
+      <AnimatePresence mode="wait">
+        {step === 0 && (
+          <motion.div
+            key="connect"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="flex flex-col items-center text-forest-deep"
+          >
+            <PhoneCall className="w-12 h-12 mb-2 text-amber-cta animate-pulse" />
+            <span className="text-small font-bold">Connecting...</span>
+          </motion.div>
+        )}
+        {step === 1 && (
+          <motion.div
+            key="wave"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="flex items-center gap-2 h-12"
+          >
+            {[1, 2, 3, 4, 5].map((i) => (
+              <motion.div
+                key={i}
+                className="w-2 bg-mint-primary rounded-pill"
+                animate={{ height: ["20%", "100%", "20%"] }}
+                transition={{ duration: 1, repeat: Infinity, delay: i * 0.1, ease: "easeInOut" }}
+              />
+            ))}
+          </motion.div>
+        )}
+        {step === 2 && (
+          <motion.div
+            key="document"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="flex flex-col items-center text-forest-deep"
+          >
+            <div className="relative">
+              <FileText className="w-12 h-12 text-mint-primary" />
+              <motion.div
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.3 }}
+                className="absolute -bottom-2 -right-2 bg-amber-cta text-surface-white rounded-full p-1"
+              >
+                <Check className="w-4 h-4 stroke-[3]" />
+              </motion.div>
+            </div>
+            <span className="text-small font-bold mt-2">Logged</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function HowItWorks({ setPage }: HowItWorksProps) {
   const steps = [
     {
-      icon: Network,
-      title: "1. Connect Phone Channels & Webhooks",
-      desc: "Provision new virtual mobile numbers instantly or link your existing Twilio, Vapi, or local SIP trunks. Set up webhooks in your CRM or ERP to trigger outbound calls automatically based on user actions."
+      num: "01",
+      title: "Connect",
+      desc: "Link your store or system, and every relevant conversation queues automatically, no manual work required."
     },
     {
-      icon: Volume2,
-      title: "2. Select or Clone Your Voice Persona",
-      desc: "Choose from 26+ ultra-realistic HD voice personas powered by Chirp 3 architecture, or upload a clean 5-second audio sample to create a custom, branded voice clone."
+      num: "02",
+      title: "Call placed",
+      desc: "Clarity places a real, natural call at the right moment, in the right language, sounding like your business."
     },
     {
-      icon: ShieldAlert,
-      title: "3. Upload Knowledge & Set Guardrails",
-      desc: "Upload PDFs, policy documents, FAQ lists, or product catalogs. Define strict brand guardrails, conversation boundaries, and fallback escalation rules so the agent knows when to hand off calls."
+      num: "03",
+      title: "Outcome logged",
+      desc: "The result and a full transcript land in your dashboard instantly, the moment the call ends."
     },
     {
-      icon: Cpu,
-      title: "4. Launch Full-Duplex Calls at Scale",
-      desc: "Go live with a single click. Your AI agent handles hundreds or thousands of simultaneous incoming and outgoing calls with zero queue times and real-time reporting."
+      num: "04",
+      title: "Act with confidence",
+      desc: "Move forward only on what's actually confirmed, not on hope."
     }
   ];
 
-  const webhookCode = `{
-  "event": "order.created",
-  "orderId": "cod_984729104",
-  "currency": "INR",
-  "totalAmount": 1500,
-  "customer": {
-    "name": "Rajesh Mehta",
-    "phone": "+919876543210",
-    "city": "Mumbai"
-  }
-}`;
-
   return (
-    <div className="space-y-20 pb-20 pt-10 text-slate-600">
-      <section className="px-6 max-w-5xl mx-auto text-center">
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
-          <p className="text-xs font-semibold text-cyan-600 tracking-widest uppercase mb-4 font-mono">
-            Orchestration Process
-          </p>
-          <h1 className="font-sora text-5xl lg:text-6xl font-extrabold leading-tight text-[#0F172A] tracking-tight">
-            From Zero to Live Voice AI Agents in 4 Simple Steps
-          </h1>
-          <p className="text-base text-slate-500 max-w-2xl mx-auto mt-6 leading-relaxed font-plus-jakarta font-semibold">
-            Integrations occur directly at API levels with zero hardware friction or server overhead.
-          </p>
-        </motion.div>
+    <div className="space-y-20 pb-20 pt-32 bg-cream-bg min-h-screen">
+      <section className="px-6 max-w-5xl mx-auto text-center space-y-6">
+        <motion.h1 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-display text-ink"
+        >
+          How it works
+        </motion.h1>
+        <motion.p 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="text-body text-ink-muted max-w-3xl mx-auto"
+        >
+          A fully automated workflow replacing manual calling queues.
+        </motion.p>
+      </section>
+
+      {/* Visual Animation Section */}
+      <section className="px-6 max-w-7xl mx-auto relative z-10 py-10">
+        <AnimatedCallSequence />
       </section>
 
       {/* Step panels sequence */}
       <section className="px-6 max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {steps.map((st, idx) => {
-            const Icon = st.icon;
-            return (
-              <div key={idx} className="bg-white border border-[#EADEC9] rounded-2xl p-6 relative flex flex-col justify-between text-left shadow-sm">
-                <div>
-                  <div className="w-10 h-10 bg-emerald-50 text-[#059669] rounded-xl flex items-center justify-center mb-4">
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <h3 className="font-sora text-base font-bold text-slate-900 mb-2">{st.title}</h3>
-                  <p className="text-xs text-slate-500 leading-relaxed font-plus-jakarta font-semibold">{st.desc}</p>
-                </div>
+          {steps.map((step, idx) => (
+            <motion.div 
+              key={step.num}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: idx * 0.15 }}
+              className="card-soft relative group hover:border-mint-primary/50 transition-colors bg-surface-white"
+            >
+              <div className="text-[64px] font-display font-bold text-mint-soft absolute -top-4 -right-2 -z-10 group-hover:text-mint-primary/20 transition-colors">
+                {step.num}
               </div>
-            );
-          })}
+              <h3 className="text-h3 text-ink mb-3">{step.title}</h3>
+              <p className="text-body text-ink-muted">{step.desc}</p>
+            </motion.div>
+          ))}
         </div>
       </section>
 
-      {/* Code vs Speech Sandbox layout */}
-      <section className="px-6 max-w-5xl mx-auto">
-        <div className="bg-white border border-[#EADEC9] rounded-3xl p-8 shadow-sm">
-          <h3 className="font-sora text-2xl font-extrabold text-slate-900 mb-6 text-center">
-            Dynamic Webhook &amp; Dialogue Flow
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
-            {/* Left: JSON */}
-            <div className="bg-slate-900 rounded-2xl p-5 text-left text-xs font-mono text-[#10B981] overflow-x-auto border border-slate-800">
-              <p className="text-[10px] text-slate-400 font-bold mb-3 uppercase tracking-wider">Incoming Webhook Payload</p>
-              <pre className="whitespace-pre">{webhookCode}</pre>
-            </div>
-            {/* Right: dialogue */}
-            <div className="bg-slate-50 rounded-2xl p-5 border border-[#EADEC9]/65 flex flex-col justify-between text-left">
-              <div>
-                <p className="text-[10px] text-slate-400 font-bold mb-4 uppercase tracking-wider">Natural Voice Transcription</p>
-                <div className="space-y-3">
-                  <div className="flex gap-2">
-                    <span className="text-xs font-bold text-[#059669]">AI Agent:</span>
-                    <p className="text-xs text-slate-700 font-semibold leading-relaxed">
-                      "नमस्ते राजेश जी, मैं क्लैरिटी वॉइस से बात कर रही हूँ। आपने १५०० रुपये का ऑर्डर प्लेस किया है, क्या आप इसे कन्फर्म करना चाहते हैं?"
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="text-xs font-bold text-slate-600">Customer:</span>
-                    <p className="text-xs text-slate-700 font-semibold leading-relaxed">
-                      "हाँ जी, बिल्कुल। ऑर्डर भेज दीजिए।"
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <button 
-                onClick={() => setPage("dashboard")}
-                className="mt-6 w-full bg-gradient-to-r from-[#059669] to-[#10B981] text-white font-bold text-xs py-3 rounded-full hover:shadow-lg transition-all text-center"
-              >
-                Go Live With This Workflow
-              </button>
-            </div>
-          </div>
-        </div>
+      <section className="px-6 max-w-4xl mx-auto text-center py-10">
+        <button onClick={() => setPage("dashboard")} className="btn-primary text-lg px-10 py-4">
+          View Interactive Dashboard
+        </button>
       </section>
     </div>
   );

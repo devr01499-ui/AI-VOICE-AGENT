@@ -93,53 +93,25 @@ function Counter({ target, suffix = "" }: { target: number; suffix?: string }) {
             start += step;
             if (start >= target) {
               setCount(target);
-              clearInt     <BookOpen className="w-5 h-5 text-emerald-400" />
-            </div>
-            <h3 className="font-sora text-slate-50 text-xl font-bold mb-3 tracking-tight">Custom RAG Catalog</h3>
-            <p className="text-sm text-slate-400 leading-relaxed font-plus-jakarta">
-              Teach your agents details about product features, custom offers, and return guidelines directly from your database files.
-            </p>
-          </div>
-        </div>
-      </section>
+              clearInterval(timer);
+            } else {
+              setCount(Math.floor(start));
+            }
+          }, 16);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [target]);
 
-      {/* Testimonials */}
-      <section className="py-24 px-6 max-w-7xl mx-auto relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[
-            {
-              quote: "Clarity Voice reduced our cash-on-delivery return rate from 28% to 11% in under two months. The payback was literally immediate.",
-              name: "Vikram Mehta",
-              role: "Head of Logistics, D2C Apparel",
-            },
-            {
-              quote: "Our customer service calling team is no longer chasing wrong numbers or address fixes. The AI agent automates 100% of standard confirmations.",
-              name: "Ananya Roy",
-              role: "Founder, Organics India",
-            },
-            {
-              quote: "Excellent voice clarity and latency. The Shopify webhook sync handles everything. Absolute game-changer for our logistics team.",
-              name: "Rajesh Nair",
-              role: "VP Operations, Gadgets Hub",
-            },
-          ].map((t) => (
-            <div key={t.name} className="border border-slate-850 bg-[#11131B]/40 rounded-3xl p-8">
-              <p className="font-sora text-lg text-white mb-6 leading-relaxed">
-                "{t.quote}"
-              </p>
-              <div>
-                <p className="text-sm font-semibold text-white font-plus-jakarta">
-                  {t.name}
-                </p>
-                <p className="text-xs text-slate-500 font-plus-jakarta">
-                  {t.role}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-    </div>
+  return (
+    <span ref={ref}>
+      {count}
+      {suffix}
+    </span>
   );
 }
 
@@ -631,25 +603,25 @@ function DToggle({ on, set }: { on:boolean; set:(v:boolean)=>void }) {
   return <button onClick={()=>set(!on)} className={`w-9 h-5 rounded-full relative transition-colors flex-shrink-0 ${on?"bg-foreground":"bg-muted"}`}><div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${on?"left-4":"left-0.5"}`}/></button>;
 }
 function DInput({ className="", ...p }: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={`w-full bg-muted/40 border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-foreground/15 focus:border-foreground/30 transition-all ${className}`} style={{fontFamily:"'Figtree',sans-serif"}} {...p}/>;
+  return <input className={`w-full bg-surface-white border border-border-soft rounded-pill px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-mint-primary placeholder:text-ink-muted shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] transition-all ${className}`} style={{fontFamily:"'Plus Jakarta Sans',sans-serif"}} {...p}/>;
 }
 function DSelect({ className="", children, ...p }: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className={`w-full bg-muted/40 border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-foreground/15 transition-all ${className}`} style={{fontFamily:"'Figtree',sans-serif"}} {...p}>{children}</select>;
+  return <select className={`w-full bg-surface-white border border-border-soft rounded-pill px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-mint-primary shadow-sm transition-all ${className}`} style={{fontFamily:"'Plus Jakarta Sans',sans-serif"}} {...p}>{children}</select>;
 }
 function DTextarea({ className="", ...p }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea className={`w-full bg-muted/40 border border-border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-foreground/15 transition-all resize-none ${className}`} style={{fontFamily:"'Figtree',sans-serif"}} {...p}/>;
+  return <textarea className={`w-full bg-surface-white border border-border-soft rounded-3xl px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-mint-primary shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] transition-all resize-none ${className}`} style={{fontFamily:"'Plus Jakarta Sans',sans-serif"}} {...p}/>;
 }
 function DBtn({ children, variant="primary", size="md", onClick, disabled, className="" }: { children:React.ReactNode; variant?:"primary"|"secondary"|"ghost"|"danger"; size?:"sm"|"md"; onClick?:()=>void; disabled?:boolean; className?:string }) {
-  const s = size==="sm" ? "text-xs px-3 py-1.5" : "text-sm px-4 py-2";
-  const v = { primary:"bg-foreground text-white hover:bg-foreground/90", secondary:"border border-border text-foreground hover:bg-muted", ghost:"text-muted-foreground hover:text-foreground hover:bg-muted", danger:"bg-red-50 text-red-600 border border-red-100 hover:bg-red-100" }[variant];
-  return <button onClick={onClick} disabled={disabled} className={`inline-flex items-center gap-1.5 font-medium rounded-lg transition-all disabled:opacity-50 ${s} ${v} ${className}`} style={{fontFamily:"'Figtree',sans-serif"}}>{children}</button>;
+  const s = size==="sm" ? "text-xs px-4 py-2" : "text-sm px-6 py-3";
+  const v = { primary:"bg-mint-primary text-forest-deep shadow-level-1 hover:bg-[#8fdcbb] hover:-translate-y-0.5 hover:shadow-level-2", secondary:"border border-border-soft text-ink hover:bg-cream-bg shadow-sm", ghost:"text-ink-muted hover:text-ink hover:bg-cream-bg", danger:"bg-error text-surface-white hover:bg-red-400" }[variant];
+  return <button onClick={onClick} disabled={disabled} className={`inline-flex items-center justify-center gap-2 font-semibold rounded-pill transition-all active:translate-y-0 disabled:opacity-50 disabled:shadow-none ${s} ${v} ${className}`} style={{fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{children}</button>;
 }
 function DField({ label, children, hint }: { label:string; children:React.ReactNode; hint?:string }) {
   return (
-    <div className="space-y-1.5">
-      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block" style={{fontFamily:"'DM Mono',monospace"}}>{label}</label>
+    <div className="space-y-2">
+      <label className="text-xs font-bold text-ink-muted uppercase tracking-wider block" style={{fontFamily:"'IBM Plex Mono',monospace"}}>{label}</label>
       {children}
-      {hint && <p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{hint}</p>}
+      {hint && <p className="text-xs text-ink-muted font-semibold" style={{fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{hint}</p>}
     </div>
   );
 }
@@ -657,13 +629,13 @@ function DModal({ open, onClose, title, children, width="max-w-lg" }: { open:boo
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose}/>
-      <motion.div initial={{opacity:0,scale:0.96,y:10}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:0.96}} transition={{duration:0.18}} className={`relative bg-white rounded-2xl border border-border shadow-xl w-full ${width} max-h-[90vh] overflow-y-auto`}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-white z-10">
-          <p className="font-semibold text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{title}</p>
-          <button onClick={onClose} className="p-1 hover:bg-muted rounded-md transition-colors"><X className="w-4 h-4 text-muted-foreground"/></button>
+      <div className="absolute inset-0 bg-forest-deep/40 backdrop-blur-sm" onClick={onClose}/>
+      <motion.div initial={{opacity:0,scale:0.96,y:10}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:0.96}} transition={{duration:0.18}} className={`relative bg-surface-white rounded-[32px] border border-border-soft shadow-level-4 w-full ${width} max-h-[90vh] overflow-y-auto`}>
+        <div className="flex items-center justify-between px-8 py-6 border-b border-border-soft sticky top-0 bg-surface-white z-10 rounded-t-[32px]">
+          <p className="font-semibold text-ink text-lg" style={{fontFamily:"'Clash Display',sans-serif"}}>{title}</p>
+          <button onClick={onClose} className="p-2 hover:bg-cream-bg rounded-full transition-colors"><X className="w-5 h-5 text-ink-muted"/></button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="p-8">{children}</div>
       </motion.div>
     </div>
   );
@@ -3977,13 +3949,14 @@ export default function App() {
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           className="pt-20"
         >
-          {page === "home" && <HomePage setPage={handleNavigate} />}
-          {page === "industries" && <IndustriesPage setPage={handleNavigate} />}
-          {page === "pricing" && <PricingPage setPage={handleNavigate} />}
-          {page === "how-it-works" && <HowItWorksPage setPage={handleNavigate} />}
-          {page === "blog-rto" && <BlogRtoPage setPage={handleNavigate} />}
-          {page === "voices" && <VoicesPage setPage={handleNavigate} />}
-          {page === "compare" && <ComparePage setPage={handleNavigate} />}
+          {page === "home" && <Home setPage={handleNavigate} />}
+          {page === "solutions" && <Solutions setPage={handleNavigate} />}
+          {page === "pricing" && <Pricing setPage={handleNavigate} />}
+          {page === "how-it-works" && <HowItWorks setPage={handleNavigate} />}
+          {page === "blog-rto" && <BlogRTO />}
+          {page === "voices" && <Voices setPage={handleNavigate} />}
+          {page === "compare" && <Compare setPage={handleNavigate} />}
+          {page === "docs" && <Docs />}
           {page === "dashboard" && <AuthGateway />}
         </motion.div>
       </AnimatePresence>

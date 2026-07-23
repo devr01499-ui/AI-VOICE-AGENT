@@ -2,7 +2,7 @@ import { motion } from "motion/react";
 import Hero from "../components/hero/Hero";
 import SolutionsTab from "../components/solutions/SolutionsTab";
 import RoiCalculator from "../components/calculator/RoiCalculator";
-import { Zap, Mic, BookOpen, Network, Check } from "lucide-react";
+import { Zap, Mic, BookOpen, Check, ArrowRight, Shield, Clock, TrendingUp } from "lucide-react";
 
 type Page = 
   | "home" 
@@ -25,130 +25,164 @@ interface HomeProps {
 
 export default function Home({ setPage }: HomeProps) {
   return (
-    <div className="space-y-20 pb-20">
+    <div className="space-y-32 pb-32 overflow-hidden bg-cream-bg">
       <Hero setPage={setPage} />
 
-      {/* Metrics Trust Bar */}
-      <section className="border-y border-[#EADEC9]/65 bg-[#FFFDF9] py-10 px-6 relative z-10">
-        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 md:divide-x divide-[#EADEC9]/70">
-          {[
-            { value: "< 180ms", label: "Duplex Latency", sub: "Instant responses" },
-            { value: "70+", label: "Vocal Dialects", sub: "Regional accents" },
-            { value: "10M+", label: "Monthly API Calls", sub: "Scale with confidence" },
-            { value: "₹3.99/min", label: "Flat-Rate Cost", sub: "No hidden API stacks" },
-          ].map((s) => (
-            <div key={s.label} className="md:px-8 text-center first:pl-0 last:pr-0">
-              <p className="font-sora text-3xl font-extrabold text-slate-900 mb-1 tracking-tight">
-                {s.value}
-              </p>
-              <p className="text-xs font-bold text-slate-700 mb-0.5 font-plus-jakarta">
-                {s.label}
-              </p>
-              <p className="text-[10px] text-slate-500 font-semibold font-plus-jakarta">
-                {s.sub}
-              </p>
+      {/* Section: What Clarity Voice actually does */}
+      <section className="px-6 max-w-7xl mx-auto relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+          <motion.div 
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.8 }}
+            className="space-y-6"
+          >
+            <h2 className="text-h1 text-ink">
+              What Clarity Voice <span className="text-forest-deep italic">actually</span> does
+            </h2>
+            <p className="text-body text-ink-muted">
+              Most businesses either skip the phone call that would have caught a problem, or they hire people to make that call by hand — and hope it scales. Clarity Voice does that calling for you: automatically, at any volume, in the language your customer actually speaks.
+            </p>
+            <p className="text-body text-ink-muted">
+              For online sellers, that means calling every cash-on-delivery customer before their order ships, to confirm the order and the address is right — catching a wrong number, a changed mind, or an outdated address before a courier is ever sent. 
+            </p>
+            <p className="text-body text-ink-muted font-medium text-ink">
+              For any business with appointments, verifications, or time-sensitive conversations, the same underlying idea applies: a real, natural conversation happens automatically, at the exact moment it needs to, without a queue and without a hire.
+            </p>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, x: 50 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.8 }}
+            className="relative"
+          >
+            {/* Collage panels */}
+            <div className="absolute inset-0 bg-mint-soft rounded-[32px] rotate-6 transform translate-x-4 translate-y-4 -z-10" />
+            <div className="card-soft border-none rounded-[32px] p-10 space-y-8 bg-surface-white/90 backdrop-blur-xl">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-forest-deep flex items-center justify-center text-mint-primary">
+                  <Shield className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="text-h3 text-ink">Fewer costly mistakes</h4>
+                  <p className="text-small text-ink-muted">A two-minute confirmation call catches problems early.</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-amber-cta flex items-center justify-center text-surface-white">
+                  <TrendingUp className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="text-h3 text-ink">No hiring, no burnout</h4>
+                  <p className="text-small text-ink-muted">Capacity scales with volume, not headcount.</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-mint-primary flex items-center justify-center text-forest-deep">
+                  <Clock className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="text-h3 text-ink">Complete visibility</h4>
+                  <p className="text-small text-ink-muted">Instant transcripts land in your dashboard.</p>
+                </div>
+              </div>
             </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Section: How it works */}
+      <section className="px-6 max-w-7xl mx-auto py-20 relative">
+        <motion.div 
+          initial={{ opacity: 0, y: 50 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center max-w-3xl mx-auto space-y-4 mb-16"
+        >
+          <h2 className="text-h1 text-ink">How it works</h2>
+          <p className="text-body text-ink-muted">A fully automated workflow replacing manual calling queues.</p>
+        </motion.div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[
+            { num: "01", title: "Connect", desc: "Link your store or system, and every relevant conversation queues automatically, no manual work required." },
+            { num: "02", title: "Call placed", desc: "Clarity places a real, natural call at the right moment, in the right language, sounding like your business." },
+            { num: "03", title: "Outcome logged", desc: "The result and a full transcript land in your dashboard instantly, the moment the call ends." },
+            { num: "04", title: "Act with confidence", desc: "Move forward only on what's actually confirmed, not on hope." }
+          ].map((step, idx) => (
+            <motion.div 
+              key={step.num}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: idx * 0.15 }}
+              className="card-soft relative group hover:border-mint-primary/50 transition-colors"
+            >
+              <div className="text-[64px] font-display font-bold text-mint-soft absolute -top-4 -right-2 -z-10 group-hover:text-mint-primary/20 transition-colors">
+                {step.num}
+              </div>
+              <h3 className="text-h3 text-ink mb-3">{step.title}</h3>
+              <p className="text-body text-ink-muted">{step.desc}</p>
+            </motion.div>
           ))}
         </div>
       </section>
 
-      {/* Solutions Showcase */}
-      <section className="px-6 max-w-7xl mx-auto text-center space-y-12">
-        <div className="max-w-xl mx-auto text-center space-y-3">
-          <span className="text-[10px] font-mono tracking-widest text-[#059669] uppercase bg-[#059669]/10 border border-[#059669]/20 px-3 py-1 rounded-full font-bold">
-            Multi-Industry Showcase
-          </span>
-          <h2 className="font-sora text-4xl font-extrabold text-slate-900 mt-4 tracking-tight">
-            Specialized Voice Workflows Built for Your Industry's Exact Nuances
+      {/* Section: Why Clarity */}
+      <section className="px-6 max-w-7xl mx-auto">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          className="panel-texture p-12 md:p-20 flex flex-col md:flex-row items-center gap-12"
+        >
+          <div className="flex-1 space-y-6">
+            <h2 className="text-h1 text-surface-white">
+              Why Clarity, not a general-purpose AI platform
+            </h2>
+            <p className="text-body text-mint-soft">
+              General voice AI infrastructure treats your specific workflow as one use case among dozens — you build the flow yourself, and you pay separately for speech-to-text, the language model, and the voice output. 
+            </p>
+            <p className="text-body text-mint-soft">
+              Clarity Voice is built around getting you to a working, reliable voice agent quickly, with transparent, unified pricing, and a genuine focus on the conversations that actually matter to your business — not a generic platform that happens to also do what you need.
+            </p>
+          </div>
+          <div className="flex-shrink-0 w-full md:w-auto">
+            <div className="card-soft bg-surface-white/10 backdrop-blur-md border-surface-white/20 p-8">
+              <h3 className="text-h3 text-surface-white mb-2">Transparent Pricing</h3>
+              <p className="text-display text-mint-primary mb-1">₹3.99<span className="text-h3 text-mint-soft">/min</span></p>
+              <p className="text-small text-mint-soft mb-6">No stacked fees. One clear price.</p>
+              <button onClick={() => setPage("pricing")} className="btn-primary w-full bg-surface-white text-forest-deep hover:bg-cream-bg">
+                View Plans
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </section>
+
+      {/* Closing CTA */}
+      <section className="px-6 max-w-4xl mx-auto text-center py-20 space-y-8">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+        >
+          <h2 className="text-h1 text-ink mb-6">
+            Stop finding out about a problem after it's already cost you something.
           </h2>
-        </div>
-        <SolutionsTab />
-      </section>
-
-      {/* Technical Capabilities Bento Grid */}
-      <section className="py-12 px-6 max-w-7xl mx-auto relative z-10">
-        <div className="mb-16 text-center max-w-xl mx-auto space-y-3">
-          <span className="text-[10px] font-mono tracking-widest text-[#059669] uppercase bg-[#059669]/10 border border-[#059669]/20 px-3 py-1 rounded-full font-bold">
-            Product Capabilities
-          </span>
-          <h2 className="font-sora text-4xl font-extrabold text-slate-900 mt-4 tracking-tight">
-            Built for Enterprise Scale and Bulletproof Reliability
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white border border-[#EADEC9] rounded-3xl p-8 hover:border-[#059669]/20 hover:shadow-md transition-all duration-300 group text-left">
-            <div className="w-12 h-12 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-center mb-6 group-hover:border-emerald-300 transition-all">
-              <Zap className="w-5 h-5 text-[#059669]" />
-            </div>
-            <h3 className="font-sora text-slate-900 text-xl font-bold mb-3 tracking-tight">
-              Sub-Second Native Latency
-            </h3>
-            <p className="text-sm text-slate-600 leading-relaxed font-plus-jakarta font-semibold">
-              No awkward silences. Traditional platforms stitch together separate APIs, adding 2–3s of lag. Clarity Voice processes audio natively end-to-end under 180ms.
-            </p>
-          </div>
-
-          <div className="bg-white border border-[#EADEC9] rounded-3xl p-8 hover:border-[#059669]/20 hover:shadow-md transition-all duration-300 group text-left">
-            <div className="w-12 h-12 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-center mb-6 group-hover:border-emerald-300 transition-all">
-              <Mic className="w-5 h-5 text-amber-600" />
-            </div>
-            <h3 className="font-sora text-slate-900 text-xl font-bold mb-3 tracking-tight">
-              Full-Duplex Interruption
-            </h3>
-            <p className="text-sm text-slate-600 leading-relaxed font-plus-jakarta font-semibold">
-              Natural conversations aren't one-sided. If a customer interrupts the AI mid-sentence, the agent pauses instantly, listens, and adapts its response.
-            </p>
-          </div>
-
-          <div className="bg-white border border-[#EADEC9] rounded-3xl p-8 hover:border-[#059669]/20 hover:shadow-md transition-all duration-300 group text-left">
-            <div className="w-12 h-12 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-center mb-6 group-hover:border-emerald-300 transition-all">
-              <BookOpen className="w-5 h-5 text-emerald-600" />
-            </div>
-            <h3 className="font-sora text-slate-900 text-xl font-bold mb-3 tracking-tight">
-              RAG Knowledge Bases
-            </h3>
-            <p className="text-sm text-slate-600 leading-relaxed font-plus-jakarta font-semibold">
-              Feed your agent PDFs, Notion pages, or website URLs. It speaks strictly from your company's official documentation—never making up facts or straying off-script.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* ROI Savings Section */}
-      <section className="px-6 max-w-7xl mx-auto space-y-10">
-        <RoiCalculator />
-      </section>
-
-      {/* SEO/AEO FAQ */}
-      <section className="px-6 max-w-4xl mx-auto py-12 text-left">
-        <h2 className="font-sora text-3xl font-extrabold text-slate-900 mb-8 tracking-tight text-center">
-          Frequently Asked Questions
-        </h2>
-        <div className="space-y-6">
-          {[
-            {
-              q: "How does Clarity Voice reduce COD RTO?",
-              a: "Clarity Voice places an automated confirmation call to every cash-on-delivery customer before their order is dispatched, verifying the order details and delivery address. This catches wrong numbers, changed minds, and unclear addresses before a courier is sent, which directly reduces return-to-origin (RTO) and failed delivery costs."
-            },
-            {
-              q: "Do I need to hire a calling team to confirm COD orders?",
-              a: "No. Clarity Voice replaces or scales alongside a manual calling team with AI voice agents that call every order automatically, at any volume, without additional hiring."
-            },
-            {
-              q: "What languages does Clarity Voice support for COD confirmation calls?",
-              a: "Clarity Voice supports English and Hindi today, with additional Indian languages including Bengali, Kannada, Malayalam, and Gujarati, plus Mandarin and Arabic for international sellers."
-            }
-          ].map((faq, idx) => (
-            <div key={idx} className="bg-white border border-[#EADEC9]/60 rounded-2xl p-6 shadow-sm">
-              <h4 className="font-sora font-bold text-slate-900 mb-2 flex items-center gap-2">
-                <Check className="w-4.5 h-4.5 text-[#059669] flex-shrink-0" />
-                {faq.q}
-              </h4>
-              <p className="text-sm text-slate-600 leading-relaxed font-plus-jakarta font-semibold pl-6">{faq.a}</p>
-            </div>
-          ))}
-        </div>
+          <p className="text-body text-ink-muted mb-10">
+            Start automatically resolving the conversations that matter — free to try, no calling team required.
+          </p>
+          <button onClick={() => setPage("dashboard")} className="btn-cta bg-amber-cta text-surface-white hover:bg-[#d4742e]">
+            Start Free Trial Today
+            <ArrowRight className="w-5 h-5 ml-2 inline" />
+          </button>
+        </motion.div>
       </section>
     </div>
   );
