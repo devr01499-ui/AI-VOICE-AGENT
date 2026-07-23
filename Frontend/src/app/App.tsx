@@ -43,6 +43,7 @@ import Docs from "./pages/Docs";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Security from "./pages/Security";
+import VoiceAIIndex from "./pages/VoiceAIIndex";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Page = 
@@ -61,7 +62,8 @@ type Page =
   | "terms"
   | "security"
   | "dashboard" 
-  | "industries";
+  | "industries"
+  | "voice-ai-index";
 
 // ─── Sound Wave Component ─────────────────────────────────────────────────────
 function SoundWave({ active = true, bars = 32, className = "" }: { active?: boolean; bars?: number; className?: string }) {
@@ -3967,6 +3969,7 @@ export default function App() {
           {page === "terms" && <Terms />}
           {page === "security" && <Security />}
           {page === "dashboard" && <AuthGateway />}
+          {page === "voice-ai-index" && <VoiceAIIndex setPage={handleNavigate} />}
         </motion.div>
       </AnimatePresence>
 

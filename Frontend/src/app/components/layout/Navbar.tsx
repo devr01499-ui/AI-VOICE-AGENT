@@ -5,7 +5,7 @@ import { motion, AnimatePresence, useScroll, useMotionValueEvent } from "motion/
 type Page =
   | "home" | "solutions" | "how-it-works" | "voices" | "pricing"
   | "compare" | "blog" | "blog-rto" | "blog-healthcare" | "blog-fintech"
-  | "docs" | "privacy" | "terms" | "security" | "dashboard" | "industries";
+  | "docs" | "privacy" | "terms" | "security" | "dashboard" | "industries" | "voice-ai-index";
 
 interface NavbarProps {
   page: Page;
