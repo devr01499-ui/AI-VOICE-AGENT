@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   BookOpen, Search, ChevronRight, Zap, Shield, Cpu, Phone,
-  Bookmark, ArrowLeft, Clock, BarChart3, AlertCircle, Copy, Check
+  Bookmark, ArrowLeft, ArrowRight, Clock, BarChart3, AlertCircle, Copy, Check
 } from "lucide-react";
 
 type Page = any;
