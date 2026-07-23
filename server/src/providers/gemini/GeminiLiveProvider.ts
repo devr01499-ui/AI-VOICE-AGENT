@@ -235,11 +235,27 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       throw new CallError(callId, 'userId required for value gateway check', 'INVALID_CONFIG');
     }
 
+    const tStartDb = Date.now();
+    logger.info('[LATENCY_TEST] setup: starting combined db lookup', { timestamp: tStartDb });
     const prismaInstance = (await import('../../lib/prisma')).prisma;
-    const userProfile = await prismaInstance.user.findUnique({ where: { id: userId } });
-    if (!userProfile) {
-      throw new CallError(callId, 'Authenticated user profile not found', 'INVALID_CONFIG');
+    
+    const callData = await prismaInstance.call.findUnique({
+      where: { id: callId },
+      include: {
+        user: true,
+        agent: {
+          include: {
+            kbLinks: { take: 1 }
+          }
+        }
+      }
+    });
+
+    if (!callData || !callData.user || callData.userId !== userId) {
+      throw new CallError(callId, 'Authenticated user profile not found or mismatch', 'INVALID_CONFIG');
     }
+    const userProfile = callData.user;
+    logger.info('[LATENCY_TEST] setup: finished combined db lookup', { timestamp: Date.now(), durationMs: Date.now() - tStartDb });
 
     let selectedApiKey: string;
     let accountsAgainstPlatformBalance = false;
@@ -353,40 +369,11 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     ws.on('open', async () => {
       logger.info('GeminiLiveProvider: WebSocket successfully opened. Transmission of strict snake_case setup payload initiated.');
 
-      resolvedAgentId = config.agentId;
-      if (config.callId) {
-        try {
-          const prismaInstance = (await import('../../lib/prisma')).prisma;
-          const callLog = await prismaInstance.call.findFirst({
-            where: { id: config.callId, userId },
-            select: { agentId: true }
-          });
-          if (callLog?.agentId) {
-            resolvedAgentId = callLog.agentId;
-          }
-        } catch (err) {
-          logger.error('GeminiLiveProvider: Failed to resolve callLog', { error: String(err) });
-        }
-      }
+      resolvedAgentId = callData.agentId || config.agentId;
 
       let hasKbDocs = false;
-      if (resolvedAgentId) {
-        try {
-          const prismaInstance = (await import('../../lib/prisma')).prisma;
-          const count = await prismaInstance.knowledgeBase.count({
-            where: {
-              userId,
-              agentLinks: {
-                some: {
-                  agentId: resolvedAgentId
-                }
-              }
-            }
-          });
-          hasKbDocs = count > 0;
-        } catch (err) {
-          logger.error('GeminiLiveProvider: Failed to count kbDocs', { error: String(err) });
-        }
+      if (callData.agent && callData.agent.kbLinks && callData.agent.kbLinks.length > 0) {
+        hasKbDocs = true;
       }
 
       // Map tools cleanly to Gemini wire function_declarations format
@@ -424,24 +411,10 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       let temperatureVal = 0.7;
       let languageModeVal = 'auto';
 
-      if (config.agentId) {
-        try {
-          const prismaInstance = (await import('../../lib/prisma')).prisma;
-          const dbAgent = await prismaInstance.agent.findFirst({
-            where: { id: config.agentId, userId },
-            select: { systemVoice: true, temperature: true, languageMode: true }
-          });
-          if (dbAgent) {
-            systemVoiceVal = dbAgent.systemVoice || 'Puck';
-            temperatureVal = dbAgent.temperature ?? 0.7;
-            languageModeVal = dbAgent.languageMode || 'auto';
-          }
-        } catch (dbErr) {
-          logger.error('GeminiLiveProvider: Failed to fetch agent parameters from database', { 
-            agentId: config.agentId, 
-            error: String(dbErr) 
-          });
-        }
+      if (callData.agent) {
+        systemVoiceVal = callData.agent.systemVoice || 'Puck';
+        temperatureVal = callData.agent.temperature ?? 0.7;
+        languageModeVal = callData.agent.languageMode || 'auto';
       }
 
       // Supported target languages for system-instruction injection
@@ -652,8 +625,9 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     const session = this.activeSessions.get(sessionId);
     if (!session || session.ws.readyState !== WebSocket.OPEN) return;
 
-    logger.info('GeminiLiveProvider: sending audio to Gemini', {
+    logger.info('[LATENCY_TEST] Caller audio received', {
       sessionId,
+      timestamp: Date.now(),
       bytes: audioBase64.length,
     });
 
@@ -778,7 +752,8 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       return;
     }
 
-    logger.info('GeminiLiveProvider: Performing pgvector search', { sessionId, query, agentId });
+    const tStartKb = Date.now();
+    logger.info('[LATENCY_TEST] Knowledge base tool invoked', { sessionId, query, agentId, timestamp: tStartKb });
 
     try {
       const { getEmbedding } = await import('../../utils/embedding');
@@ -786,28 +761,14 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
       const prismaInstance = (await import('../../lib/prisma')).prisma;
 
-      const kbDocs = await prismaInstance.knowledgeBase.findMany({
-        where: {
-          userId,
-          agentLinks: {
-            some: {
-              agentId
-            }
-          }
-        },
-        select: { id: true }
-      });
-
-      if (kbDocs.length === 0) {
-        this.sendFunctionResult(sessionId, callId, JSON.stringify({ results: [] }));
-        return;
-      }
-
-      const kbIds = kbDocs.map(d => d.id);
-      
       const results: any[] = await prismaInstance.$queryRawUnsafe(
-        `SELECT id, content, (embedding <=> cast($1 as vector)) as distance FROM "kb_chunks" WHERE "kb_id" IN (${kbIds.map(id => `'${id}'`).join(',')}) ORDER BY distance ASC LIMIT 3`,
-        `[${queryVector.join(',')}]`
+        `SELECT c.id, c.content, (c.embedding <=> cast($1 as vector)) as distance 
+         FROM "kb_chunks" c 
+         JOIN "agent_knowledge_bases" akb ON c."kb_id" = akb."kb_id" 
+         WHERE akb."agent_id" = $2 
+         ORDER BY distance ASC LIMIT 3`,
+        `[${queryVector.join(',')}]`,
+        agentId
       );
 
       const formattedResults = results.map(r => ({
@@ -821,6 +782,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         topScore: formattedResults[0]?.score
       });
 
+      logger.info('[LATENCY_TEST] Knowledge base tool result returning', { sessionId, timestamp: Date.now(), durationMs: Date.now() - tStartKb });
       this.sendFunctionResult(sessionId, callId, JSON.stringify({ results: formattedResults }));
     } catch (err) {
       logger.error('GeminiLiveProvider: Failed pgvector search', { sessionId, error: String(err) });
@@ -848,8 +810,9 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       for (const part of event.serverContent.modelTurn.parts) {
         // Audio output chunk
         if (part.inlineData && part.inlineData.data) {
-          logger.info('GeminiLiveProvider: received audio from Gemini', {
+          logger.info('[LATENCY_TEST] First audio chunk sent back from Gemini', {
             sessionId,
+            timestamp: Date.now(),
             bytes: part.inlineData.data.length,
           });
           callbacks.onAudioDelta?.(sessionId, part.inlineData.data);
