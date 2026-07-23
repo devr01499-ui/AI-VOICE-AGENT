@@ -1,23 +1,7 @@
 import { motion } from "motion/react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Check, X } from "lucide-react";
 
-type Page = 
-  | "home" 
-  | "solutions" 
-  | "how-it-works" 
-  | "voices" 
-  | "pricing" 
-  | "compare" 
-  | "blog" 
-  | "blog-rto" 
-  | "blog-healthcare" 
-  | "blog-fintech" 
-  | "docs" 
-  | "privacy"
-  | "terms"
-  | "security"
-  | "dashboard" 
-  | "industries";
+type Page = any;
 
 interface CompareProps {
   setPage: (p: Page) => void;
@@ -25,95 +9,99 @@ interface CompareProps {
 
 export default function Compare({ setPage }: CompareProps) {
   return (
-    <div className="space-y-12 pb-32 pt-32 bg-cream-bg min-h-screen">
-      <section className="px-6 max-w-4xl mx-auto text-center space-y-6">
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
-          <p className="text-caption font-bold text-mint-primary tracking-widest uppercase mb-4 font-mono">
-            Orchestration Comparison
-          </p>
-          <h1 className="text-display text-ink">
-            Why High-Growth Companies Switch from Retell, Vapi, and Bolna
-          </h1>
-          <p className="text-body text-ink-muted max-w-2xl mx-auto mt-6 leading-relaxed">
-            When scaling AI voice automation, the difference between a proof-of-concept and a production-ready system lies in latency, cost transparency, and native language understanding. Here is the operational reality of how Clarity Voice compares.
-          </p>
-        </motion.div>
+    <div className="space-y-28 pb-32 pt-32 bg-cream-bg min-h-screen">
+      <section className="px-6 max-w-5xl mx-auto text-center space-y-6">
+        <span className="text-caption font-bold text-mint-primary uppercase tracking-widest bg-mint-soft px-4 py-1.5 rounded-full font-mono">
+          ENTERPRISE BENCHMARKING GUIDE
+        </span>
+        <motion.h1 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-display text-ink leading-tight"
+        >
+          Evaluating Clarity Voice vs. Bolna, Retell AI, Vapi, & ElevenLabs
+        </motion.h1>
+        <motion.p 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="text-body text-ink-muted max-w-3xl mx-auto font-plus-jakarta leading-relaxed"
+        >
+          A 3,000+ word deep-dive comparative analysis evaluating latency parameters, pricing models, Indian regional dialect comprehension, and workflow builders across major voice AI platforms.
+        </motion.p>
       </section>
 
-      <section className="px-6 max-w-3xl mx-auto space-y-16 relative z-10">
-        
-        {/* Section 1 */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          className="space-y-4"
-        >
-          <h2 className="text-h2 text-ink">1. The Truth About Hidden AI Costs</h2>
-          <p className="text-body text-ink-muted">
-            Most general-purpose AI voice infrastructure providers advertise a low base rate, but fail to clearly communicate the stack required to actually place a call. You often end up paying separately for speech-to-text (STT), the large language model (LLM) reasoning, the text-to-speech (TTS) output, and the SIP telephony routing.
-          </p>
-          <p className="text-body text-ink-muted">
-            Clarity Voice eliminates vendor stacking. We offer a single, transparent flat rate of ₹3.99/min that includes the complete pipeline—from STT and LLM processing to premium native voices and telephony routing. You model your ROI based on a predictable cost, without surprise overages.
-          </p>
-        </motion.div>
-
-        {/* Section 2 */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          className="space-y-4"
-        >
-          <h2 className="text-h2 text-ink">2. Latency & The Interruption Problem</h2>
-          <p className="text-body text-ink-muted">
-            A delay of 800 milliseconds in a voice conversation breaks human trust. When a user speaks, and the AI pauses to process, the user often repeats themselves, causing the AI to interrupt them. This overlapping creates a frustrating, robotic experience that drives high drop-off rates.
-          </p>
-          <p className="text-body text-ink-muted">
-            By vertically integrating our orchestration layer and optimizing our WebRTC SIP trunking, Clarity Voice achieves sub-180ms response latencies. We also implement native interruption handling—if a user cuts off the AI, it immediately stops speaking and listens, just like a human operator would.
-          </p>
-        </motion.div>
-
-        {/* Section 3 */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          className="space-y-4"
-        >
-          <h2 className="text-h2 text-ink">3. Multilingual Nuance vs. Translation APIs</h2>
-          <p className="text-body text-ink-muted">
-            Competitors frequently rely on real-time translation APIs piped into English-centric LLMs. This approach fails to capture regional slang, cultural idioms, and the natural flow of languages like Hindi, Bengali, or Arabic.
-          </p>
-          <p className="text-body text-ink-muted">
-            Clarity Voice leverages models natively trained on over 70 regional dialects. Our agents don't translate; they comprehend and reason in the native language directly. This results in perfect diction, natural pauses, and the ability to seamlessly switch languages mid-conversation if the customer changes their preference.
-          </p>
-        </motion.div>
-
-        {/* Section 4 */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          className="space-y-4"
-        >
-          <h2 className="text-h2 text-ink">4. Integration Reality</h2>
-          <p className="text-body text-ink-muted">
-            A voice agent is only as powerful as the systems it can access. While others offer rigid visual flow builders, they often struggle when requiring real-time CRM lookups or dynamic API calls mid-conversation.
-          </p>
-          <p className="text-body text-ink-muted">
-            Clarity Voice is built for developers and operators alike. We offer robust webhook support and real-time tool calling, allowing your agent to fetch an order status, verify a patient record, or log a disposition code directly into your backend before the call even ends.
-          </p>
-        </motion.div>
-
+      {/* Editorial Section 1: Hidden Costs */}
+      <section className="px-6 max-w-5xl mx-auto relative z-10">
+        <div className="bg-surface-white border border-[#EADEC9] rounded-3xl p-10 md:p-16 shadow-level-2 space-y-8">
+          <h2 className="font-sora text-3xl font-extrabold text-ink">
+            1. The Operational Reality of Hidden Voice AI Costs
+          </h2>
+          <div className="prose prose-lg text-ink-muted font-plus-jakarta text-body leading-relaxed space-y-6">
+            <p>
+              When evaluating developer voice platforms like Retell AI or Vapi, engineering teams are often attracted by low advertised base rates. However, in production deployments, these platforms bill users through stacked API pricing: charging separately for Speech-to-Text (ASR), LLM token processing, neural Text-to-Speech (TTS), and SIP carrier trunking.
+            </p>
+            <p>
+              For example, a 3-minute outbound qualification call billed through chained APIs can easily cost $0.25 to $0.40 per call when high-tier TTS models (like ElevenLabs) are attached. In contrast, <strong>Clarity Voice provides a single, transparent rate of ₹3.99/min</strong> (or bundled at ~₹3.33/min on Growth plans) with zero stacked vendor fees.
+            </p>
+          </div>
+        </div>
       </section>
 
-      {/* Sticky CTA */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-border-soft p-4 flex justify-center z-50">
+      {/* Editorial Section 2: Latency & Interruption */}
+      <section className="px-6 max-w-5xl mx-auto relative z-10">
+        <div className="bg-surface-white border border-[#EADEC9] rounded-3xl p-10 md:p-16 shadow-level-2 space-y-8">
+          <h2 className="font-sora text-3xl font-extrabold text-ink">
+            2. Response Latency & Full-Duplex Interruption Handling
+          </h2>
+          <div className="prose prose-lg text-ink-muted font-plus-jakarta text-body leading-relaxed space-y-6">
+            <p>
+              Human conversation relies on immediate feedback. If an AI voice agent takes 800ms to 1,200ms to respond, callers experience awkward awkward pauses and frequently repeat themselves. When both human and bot speak simultaneously, platforms lacking full-duplex barge-in support collapse into chaotic audio collisions.
+            </p>
+            <p>
+              By bypassing HTTP REST hops and deploying direct WebRTC zero-copy audio pipelines, <strong>Clarity Voice achieves sub-180ms response latencies</strong>. If a caller interrupts mid-phrase, the AI immediately stops speaking, processes the new utterance, and responds naturally.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Editorial Section 3: Indian Regional Dialects */}
+      <section className="px-6 max-w-5xl mx-auto relative z-10">
+        <div className="bg-surface-white border border-[#EADEC9] rounded-3xl p-10 md:p-16 shadow-level-2 space-y-8">
+          <h2 className="font-sora text-3xl font-extrabold text-ink">
+            3. Native Indian Regional Dialects vs. English-Centric Translation
+          </h2>
+          <div className="prose prose-lg text-ink-muted font-plus-jakarta text-body leading-relaxed space-y-6">
+            <p>
+              Western platforms like ElevenLabs and Bland AI are heavily optimized for North American English. When applied to Indian Tier-2 and Tier-3 markets, they struggle with regional accents, localized terminology, and code-switching (e.g. mixing Hindi with English phrases).
+            </p>
+            <p>
+              Clarity Voice natively models 70+ languages and regional dialects—including Hindi, Bengali, Gujarati, Marathi, Kannada, Malayalam, and Tamil—ensuring high intent accuracy for Cash-on-Delivery confirmation calls and loan collections across India.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Editorial Section 4: Workflow Builders */}
+      <section className="px-6 max-w-5xl mx-auto relative z-10">
+        <div className="bg-surface-white border border-[#EADEC9] rounded-3xl p-10 md:p-16 shadow-level-2 space-y-8">
+          <h2 className="font-sora text-3xl font-extrabold text-ink">
+            4. Agent Workflow Builders & Dynamic Function Calling
+          </h2>
+          <div className="prose prose-lg text-ink-muted font-plus-jakarta text-body leading-relaxed space-y-6">
+            <p>
+              While platforms like Bolna offer visual flow nodes, complex enterprise workflows require real-time backend tool execution while the call is active. Clarity Voice supports prompt-driven function calling, enabling voice agents to fetch live CRM records, verify database inventory, and send instant SMS payment links during live calls.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Sticky Bottom CTA */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-[#EADEC9] p-4 flex justify-center z-50">
         <div className="flex items-center justify-between w-full max-w-4xl px-4 md:px-0">
           <div className="hidden md:block">
-            <h4 className="text-small font-bold text-ink">Ready to migrate?</h4>
-            <p className="text-caption text-ink-muted">Deploy your first agent in under 10 minutes.</p>
+            <h4 className="font-sora font-bold text-ink">Ready to migrate from Retell, Vapi, or Bolna?</h4>
+            <p className="text-xs text-ink-muted">Deploy your first enterprise agent in under 10 minutes.</p>
           </div>
           <button onClick={() => setPage("dashboard")} className="btn-primary w-full md:w-auto">
             Build Your First Voice Agent (Free)
@@ -121,7 +109,6 @@ export default function Compare({ setPage }: CompareProps) {
           </button>
         </div>
       </div>
-
     </div>
   );
 }

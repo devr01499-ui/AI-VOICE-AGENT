@@ -1,23 +1,21 @@
 # Clarity Voice
 
-> Clarity Voice is a High-Conversion Universal AI Voice SaaS platform.
+> Clarity Voice is an enterprise AI voice platform that automates customer support, sales qualification, appointment scheduling, and order verification across 70+ languages.
 
-## What Clarity Voice does
-Clarity Voice places and receives automated AI voice calls with sub-180ms latency. We provide a complete pipeline—from STT and LLM processing to premium native voices and telephony routing. We feature native interruption handling and real-time tool calling (CRM lookups, dynamic API calls mid-conversation).
-
-## Who it's for
-Enterprise and high-growth companies across E-Commerce, Healthcare, Real Estate, and Fintech needing to scale voice operations (lead qualification, patient intake, debt recovery, and COD confirmation) without compromising on latency or language support.
-
-## Key facts
-- Pricing: Startup plan at ₹3.99 per minute. Growth and Enterprise plans for custom volume and dedicated IPs.
-- Languages supported: Over 70 regional dialects modeled natively (including English, Hindi, Bengali, Kannada, Malayalam, Gujarati, Mandarin, Arabic).
-- Security: Data Redaction at Edge, SOC 2 Type II compliant, HIPAA BAA availability.
+## Key Facts
+- Pricing: Startup Plan (₹1,799/mo with 500 mins), Growth Plan (₹4,999/mo with 1,500 mins), Pay-As-You-Go (₹3.99/min).
+- Contact: support@claritiy.com | WhatsApp: +91 9707337259
+- Latency: Sub-180ms native multimodal audio.
+- Languages: 70+ dialects including English, Hindi, Marathi, Bengali, Tamil, Telugu, Gujarati, Spanish, Arabic.
 
 ## Pages
 - Homepage: https://www.insightclaritiysolution.com/
+- Features: https://www.insightclaritiysolution.com/how-it-works
 - Solutions: https://www.insightclaritiysolution.com/solutions
-- Voices: https://www.insightclaritiysolution.com/voices
-- Compare: https://www.insightclaritiysolution.com/compare
+- HD Voices: https://www.insightclaritiysolution.com/voices
 - Pricing: https://www.insightclaritiysolution.com/pricing
+- Compare: https://www.insightclaritiysolution.com/compare
 - Blog: https://www.insightclaritiysolution.com/blog
-- Docs: https://www.insightclaritiysolution.com/docs
+- Privacy: https://www.insightclaritiysolution.com/privacy
+- Terms: https://www.insightclaritiysolution.com/terms
+- Security: https://www.insightclaritiysolution.com/security

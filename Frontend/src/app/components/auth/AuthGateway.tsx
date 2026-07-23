@@ -68,18 +68,20 @@ export default function AuthGateway() {
       <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-mint-primary/10 rounded-full blur-[100px] animate-pulse" />
       <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-amber-cta/10 rounded-full blur-[100px] animate-pulse delay-1000" />
       
-      {/* Floating Soundwave Orb Graphic */}
-      <motion.div 
-        animate={{ y: [0, -20, 0], scale: [1, 1.05, 1] }} 
-        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute left-[15%] top-1/2 -translate-y-1/2 hidden lg:flex gap-1 items-center justify-center w-64 h-64 bg-white/40 border border-white/60 rounded-full shadow-[0_0_40px_rgba(5,150,105,0.1)] backdrop-blur-xl"
-      >
-        <div className="w-1.5 h-12 bg-mint-primary rounded-full animate-[wave_1s_ease-in-out_infinite]" />
-        <div className="w-1.5 h-20 bg-amber-cta rounded-full animate-[wave_1.2s_ease-in-out_infinite_0.1s]" />
-        <div className="w-1.5 h-16 bg-forest-deep rounded-full animate-[wave_1.1s_ease-in-out_infinite_0.2s]" />
-        <div className="w-1.5 h-24 bg-mint-primary rounded-full animate-[wave_1.3s_ease-in-out_infinite_0.3s]" />
-        <div className="w-1.5 h-14 bg-amber-cta rounded-full animate-[wave_1.2s_ease-in-out_infinite_0.4s]" />
-      </motion.div>
+      {/* Centered Transparent AI Voice Node Visualizer */}
+      <div className="opacity-20 pointer-events-none absolute inset-0 flex items-center justify-center">
+        <motion.div 
+          animate={{ scale: [1, 1.1, 1], rotate: [0, 180, 360] }} 
+          transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+          className="w-[600px] h-[600px] rounded-full border border-mint-primary/40 border-dashed flex items-center justify-center"
+        >
+          <div className="w-[450px] h-[450px] rounded-full border border-amber-cta/40 border-dashed flex items-center justify-center">
+            <div className="w-[300px] h-[300px] rounded-full border border-mint-primary/40 flex items-center justify-center">
+              <div className="w-20 h-20 bg-mint-primary/30 rounded-full blur-md animate-ping" />
+            </div>
+          </div>
+        </motion.div>
+      </div>
 
       <motion.div 
         initial={{ opacity: 0, y: 20 }}

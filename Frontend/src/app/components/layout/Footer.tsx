@@ -28,9 +28,7 @@ export default function Footer({ setPage }: FooterProps) {
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start gap-12">
         <div className="space-y-4">
           <div className="flex items-center gap-3 h-8">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#059669] to-[#EA580C] flex items-center justify-center shadow-sm">
-              <Mic className="w-4 h-4 text-white" strokeWidth={2.5} />
-            </div>
+            <img src="/logo.png" alt="Clarity Voice Logo" className="h-8 w-auto object-contain" />
             <span className="font-sora text-lg font-extrabold tracking-tight text-[#0F172A]">
               Clarity<span className="text-[#059669]">Voice</span>
             </span>

@@ -205,26 +205,16 @@ export default function Hero({ setPage }: HeroProps) {
         
         {/* Left Copy Content */}
         <motion.div
-          className="lg:col-span-7 space-y-8 text-left z-10"
+          className="lg:col-span-7 space-y-8 text-left items-start max-w-2xl mx-0 z-10"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          <div className="inline-flex items-center gap-2 border border-border-soft rounded-pill px-4 py-2 bg-surface-white/80 backdrop-blur-sm shadow-level-1">
-            <span className="flex h-2.5 w-2.5 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-cta opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-cta"></span>
-            </span>
-            <span className="text-caption font-bold uppercase tracking-wider text-ink-muted">
-              ✨ Powered by Gemini 2.5 Flash Native Multimodal Audio & Chirp 3
-            </span>
-          </div>
-
-          <h1 className="text-display text-ink text-left">
+          <h1 className="text-display text-ink text-left leading-[1.18]">
             Human-Like AI Voice Agents That Speak, Listen, & Execute Enterprise Workflows in Real Time.
           </h1>
 
-          <p className="text-body text-ink-muted max-w-xl text-left">
+          <p className="text-body text-ink-muted text-left leading-[1.75]">
             Stop burning capital on manual call centers and missed leads. Clarity Voice deploys autonomous, multi-lingual AI voice agents across 70+ languages and regional dialects. From validating Cash-on-Delivery orders to scheduling medical intake and recovering overdue EMI payments—our voice agents converse naturally with under 180ms latency.
           </p>
 

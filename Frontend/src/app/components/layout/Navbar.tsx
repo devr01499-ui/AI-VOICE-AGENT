@@ -46,34 +46,32 @@ export default function Navbar({ page, setPage }: NavbarProps) {
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-305 ${
-        scrolled 
-          ? "bg-white/85 border-b border-emerald-900/10" 
-          : "bg-transparent border-b border-transparent"
-      }`}
-      style={scrolled ? {
+      className="fixed top-4 left-4 right-4 z-50 transition-all duration-300 rounded-2xl bg-white/85 border border-[#EADEC9]/80 px-10 py-5"
+      style={{
         boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(5, 150, 105, 0.04), inset 0 1px 1px 0 rgba(255, 255, 255, 0.8), 0 1px 0 0 rgba(234, 222, 201, 0.6)",
         transform: "perspective(1000px) rotateX(1deg) translateY(0px)",
         backdropFilter: "blur(16px)",
         WebkitBackdropFilter: "blur(16px)"
-      } : {}}
+      }}
     >
-      <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
         {/* Brand logo & name */}
         <button
           onClick={() => setPage("home")}
-          className="flex items-center gap-3 h-20 group"
+          className="flex items-center gap-3 group"
         >
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#059669] to-[#EA580C] flex items-center justify-center shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
-            <Mic className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
-          </div>
+          <img 
+            src="/logo.png" 
+            alt="Clarity Voice Logo" 
+            className="h-10 w-auto object-contain group-hover:scale-105 transition-transform" 
+          />
           <span className="font-sora text-xl font-extrabold tracking-tight text-[#0F172A] group-hover:text-[#059669] transition-colors">
             Clarity<span className="text-[#059669] group-hover:text-[#0F172A] transition-colors">Voice</span>
           </span>
         </button>
 
         {/* Navigation Links */}
-        <div className="hidden md:flex items-center gap-6">
+        <div className="hidden lg:flex items-center gap-8">
           {links.map((l) => (
             <button
               key={l.id}
@@ -81,7 +79,7 @@ export default function Navbar({ page, setPage }: NavbarProps) {
               className={`text-sm font-semibold transition-all relative py-1.5 ${
                 page === l.id || (l.id === "blog" && (page === "blog-rto" || page === "blog-healthcare" || page === "blog-fintech"))
                   ? "text-[#059669] font-bold" 
-                  : "text-slate-600 hover:text-[#059669]"
+                  : "text-slate-700 hover:text-[#059669]"
               }`}
             >
               {l.label}
@@ -96,7 +94,7 @@ export default function Navbar({ page, setPage }: NavbarProps) {
         </div>
 
         {/* Action Buttons */}
-        <div className="hidden md:flex items-center gap-4">
+        <div className="hidden md:flex items-center gap-6">
           <button
             onClick={() => setPage("dashboard")}
             className="text-sm font-semibold text-slate-700 hover:text-[#059669] transition-colors"
@@ -105,7 +103,7 @@ export default function Navbar({ page, setPage }: NavbarProps) {
           </button>
           <button
             onClick={() => setPage("dashboard")}
-            className="relative group overflow-hidden bg-gradient-to-r from-[#059669] to-[#10B981] hover:from-[#10B981] hover:to-[#059669] text-white font-bold text-sm px-5 py-2.5 rounded-full shadow-md shadow-emerald-500/10 hover:shadow-emerald-500/20 transition-all duration-300 active:scale-95"
+            className="relative group overflow-hidden bg-gradient-to-r from-[#059669] to-[#10B981] hover:from-[#10B981] hover:to-[#059669] text-white font-bold text-sm px-6 py-3 rounded-full shadow-md shadow-emerald-500/10 hover:shadow-emerald-500/20 transition-all duration-300 active:scale-95"
           >
             Start Free Test Call
           </button>
