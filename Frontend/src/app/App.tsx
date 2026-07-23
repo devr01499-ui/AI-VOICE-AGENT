@@ -3938,7 +3938,7 @@ export default function App() {
         .font-mono { font-family: 'JetBrains Mono', monospace; }
       `}</style>
 
-      <Nav page={page} setPage={handleNavigate} />
+      <Navbar page={page} setPage={handleNavigate} />
 
       <AnimatePresence mode="wait">
         <motion.div
