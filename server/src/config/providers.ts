@@ -9,6 +9,7 @@
 import { logger } from '../utils/logger';
 import { ProviderManager } from '../providers/ProviderManager';
 import { VobizProvider } from '../providers/vobiz/VobizProvider';
+import { SipProvider } from '../providers/sip/SipProvider';
 import { OpenAIRealtimeProvider } from '../providers/openai/OpenAIRealtimeProvider';
 import { GeminiLiveProvider } from '../providers/gemini/GeminiLiveProvider';
 import { env } from './env';
@@ -32,6 +33,18 @@ export async function initializeProviders(): Promise<void> {
       error: err instanceof Error ? err.message : String(err),
     });
     // Non-fatal: server can start without telephony for API development
+  }
+
+  // ─── Generic SIP Telephony ─────────────────────
+  try {
+    const sipProvider = new SipProvider();
+    await sipProvider.connect();
+    manager.registerProvider(sipProvider);
+    logger.info('Providers: Generic SIP telephony initialized');
+  } catch (err) {
+    logger.error('Providers: Generic SIP initialization failed', {
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 
   // ─── Realtime AI Provider ──────────────────────

@@ -9,6 +9,9 @@
 import { logger } from '../../utils/logger';
 import { ProviderError } from '../../types/errors';
 import { env } from '../../config/env';
+import { ADMIN_EMAIL } from '../../config/constants';
+import { prisma } from '../../lib/prisma';
+import { EncryptionService } from '../../utils/EncryptionService';
 import { v4 as uuidv4 } from 'uuid';
 import type {
   ITelephonyProvider,
@@ -100,6 +103,28 @@ export class VobizProvider implements ITelephonyProvider {
 
   /** Places an outbound call via Vobiz REST API. */
   async initiateCall(params: InitiateCallParams): Promise<InitiateCallResult> {
+    if (!params.userId) {
+      throw new ProviderError('vobiz', 'Access Denied: userId is required to authorize Vobiz calls.');
+    }
+    const user = await prisma.user.findUnique({ where: { id: params.userId } });
+    if (!user || user.email !== ADMIN_EMAIL) {
+      throw new ProviderError('vobiz', `Access Denied: Vobiz calling is restricted to the admin account (${ADMIN_EMAIL}). User ${user?.email || 'unknown'} is not authorized.`);
+    }
+
+    let activeAuthId = this.authId;
+    let activeAuthToken = this.authToken;
+
+    const userTrunk = await prisma.sipTrunk.findFirst({
+      where: { userId: params.userId, sipUri: this.baseUrl }
+    });
+
+    if (userTrunk) {
+      activeAuthId = userTrunk.username || this.authId;
+      if (userTrunk.password) {
+        activeAuthToken = EncryptionService.decrypt(userTrunk.password);
+      }
+    }
+
     if (this.isMock) {
       const mockUuid = `mock-call-${uuidv4()}`;
       logger.info('VobizProvider: initiating mock call', {
@@ -147,7 +172,7 @@ export class VobizProvider implements ITelephonyProvider {
       };
     }
 
-    const url = `${this.baseUrl}/Account/${this.authId}/Call/`;
+    const url = `${this.baseUrl}/Account/${activeAuthId}/Call/`;
     const body = {
       from: params.from,
       to: params.to,
@@ -155,6 +180,13 @@ export class VobizProvider implements ITelephonyProvider {
       answer_method: 'POST',
       ...(params.ringUrl && { ring_url: params.ringUrl, ring_method: 'POST' }),
       ...(params.hangupUrl && { hangup_url: params.hangupUrl, hangup_method: 'POST' }),
+    };
+
+    const dynamicHeaders = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-Auth-ID': activeAuthId,
+      'X-Auth-Token': activeAuthToken,
     };
 
     logger.info('VobizProvider: initiating call', {
@@ -166,7 +198,7 @@ export class VobizProvider implements ITelephonyProvider {
     try {
       const response = await fetch(url, {
         method: 'POST',
-        headers: this.buildHeaders(),
+        headers: dynamicHeaders,
         body: JSON.stringify(body),
       });
 

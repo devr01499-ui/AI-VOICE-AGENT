@@ -24,6 +24,7 @@ export interface InitiateCallParams {
   answerUrl: string;
   ringUrl?: string;
   hangupUrl?: string;
+  userId?: string;
 }
 
 export interface InitiateCallResult {

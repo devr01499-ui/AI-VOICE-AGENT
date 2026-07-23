@@ -2,14 +2,16 @@ import { PipecatRunner } from '../pipeline/PipecatRunner';
 import { eventBus, PROVIDER_EVENTS } from '../provider-sdk/provider.events';
 import { CallSession, IConversationState } from './CallSession';
 import { CallStateMachine } from './CallStateMachine';
-import { VobizService } from '../telephony/VobizService';
 import { SessionLogger } from '../telephony/SessionLogger';
+import { ProviderManager } from '../../providers/ProviderManager';
 import { AgentRepository } from '../../repositories/AgentRepository';
 import { CallRepository } from '../../repositories/CallRepository';
 import { ToolExecutor } from '../../runtime/ToolExecutor';
 import { CallStatus, AgentConfig } from '../../types';
 import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
+import { prisma } from '../../lib/prisma';
+import { ADMIN_EMAIL } from '../../config/constants';
 
 class ConversationState implements IConversationState {
   phase: 'greeting_sent' | 'listening' | 'processing' | 'responding' = 'greeting_sent';
@@ -86,12 +88,18 @@ export class CallOrchestrator {
         throw new Error('env.PUBLIC_URL not configured');
       }
 
-      const result = await VobizService.placeCall({
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      const isAdmin = user?.email === ADMIN_EMAIL;
+      const providerName = isAdmin ? 'vobiz' : 'generic-sip';
+      const telephonyProvider = ProviderManager.instance.getProvider<any>(providerName);
+
+      const result = await telephonyProvider.initiateCall({
         to: phoneNumber,
         from: fromPhoneNumber,
         answerUrl: `${publicUrl}/api/v2/webhooks/vobiz/answer?callId=${call.id}`,
         ringUrl: `${publicUrl}/api/v2/webhooks/vobiz/status?callId=${call.id}`,
         hangupUrl: `${publicUrl}/api/v2/webhooks/vobiz/hangup?callId=${call.id}`,
+        userId,
       });
 
       if (result && result.requestUuid) {

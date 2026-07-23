@@ -6,6 +6,7 @@ import { getUserIdFromRequest } from '../utils/auth';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
+import { EncryptionService } from '../utils/EncryptionService';
 
 const router = Router();
 
@@ -278,7 +279,7 @@ router.post(
           name: name || 'Primary SIP Trunk',
           sipUri,
           username,
-          password,
+          password: password ? EncryptionService.encrypt(password) : undefined,
           outboundProxy,
           codecs: '["PCMU","PCMA"]',
           dtmfMode: 'rfc2833',

@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { SipSettingsModal } from './components/SipSettingsModal';
+import { Settings2 } from 'lucide-react';
 
 interface Transcript {
   id: string;
@@ -28,13 +30,7 @@ export default function HomePage() {
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  const [showSipForm, setShowSipForm] = useState<boolean>(false);
-  const [sipName, setSipName] = useState<string>('');
-  const [sipUri, setSipUri] = useState<string>('');
-  const [sipUsername, setSipUsername] = useState<string>('');
-  const [sipPassword, setSipPassword] = useState<string>('');
-  const [sipOutboundProxy, setSipOutboundProxy] = useState<string>('');
-  const [registeringSip, setRegisteringSip] = useState<boolean>(false);
+  const [isSipModalOpen, setIsSipModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -128,46 +124,25 @@ export default function HomePage() {
     }
   };
 
-  const handleConnectSipTrunk = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!sipUri) {
-      showToast('error', 'SIP URI is required');
-      return;
-    }
-    setRegisteringSip(true);
-    try {
-      const apiBase = getRuntimeUrl();
-      const res = await fetch(`${apiBase}/api/v2/calls/sip-trunks`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': '1e69187e-82d5-4166-929f-4bbba90e5304',
-        },
-        body: JSON.stringify({
-          name: sipName,
-          sipUri,
-          username: sipUsername,
-          password: sipPassword,
-          outboundProxy: sipOutboundProxy,
-        }),
-      });
-      const data = await res.json();
-      if (data && data.success) {
-        showToast('success', 'SIP Trunk registered successfully!');
-        setShowSipForm(false);
-        setSipName('');
-        setSipUri('');
-        setSipUsername('');
-        setSipPassword('');
-        setSipOutboundProxy('');
-      } else {
-        showToast('error', 'Registration failed');
-      }
-    } catch (err: unknown) {
-      console.error(err);
-      showToast('error', `Failed to register: ${err instanceof Error ? err.message : 'Error occurred'}`);
-    } finally {
-      setRegisteringSip(false);
+  const handleConnectSipTrunk = async (config: {
+    name: string;
+    sipUri: string;
+    username: string;
+    password?: string;
+    outboundProxy?: string;
+  }) => {
+    const apiBase = getRuntimeUrl();
+    const res = await fetch(`${apiBase}/api/v2/calls/sip-trunks`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': '1e69187e-82d5-4166-929f-4bbba90e5304',
+      },
+      body: JSON.stringify(config),
+    });
+    const data = await res.json();
+    if (!data || !data.success) {
+      throw new Error('Registration failed');
     }
   };
 
@@ -425,103 +400,29 @@ export default function HomePage() {
           </div>
 
           {/* SIP Trunking panel */}
-          <div className="mt-8 pt-6 border-t border-[#1E293B] text-left">
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-xs font-semibold text-[#94A3B8]">External SIP Carrier Trunk</span>
-              <button
-                onClick={() => setShowSipForm(!showSipForm)}
-                className="text-[10px] font-bold px-2 py-1 rounded bg-[#334155] hover:bg-[#475569] text-[#F8FAFC] border-none cursor-pointer transition-all"
-              >
-                {showSipForm ? 'Collapse Configuration' : 'Configure Custom Trunk'}
-              </button>
+          <div className="mt-8 pt-6 border-t border-[#1E293B] flex justify-between items-center text-left">
+            <div>
+              <span className="block text-xs font-semibold text-white mb-1">Outbound Calling Engine</span>
+              <span className="block text-[10px] text-[#94A3B8]">Default: Vobiz Carrier</span>
             </div>
-
-            {showSipForm && (
-              <form
-                onSubmit={handleConnectSipTrunk}
-                className="flex flex-col gap-4 bg-[#0F172A] border border-[#1E293B] rounded-lg p-4 box-border"
-              >
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1.5">
-                      Carrier Name
-                    </label>
-                    <input
-                      type="text"
-                      value={sipName}
-                      onChange={(e) => setSipName(e.target.value)}
-                      placeholder="e.g. Twilio / Vobiz"
-                      required
-                      className="w-full bg-[#0F172A] border border-[#334155] rounded-md p-2 text-xs text-[#F8FAFC] outline-none focus:border-[#10B981] transition-all box-border"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1.5">
-                      SIP URI (Domain / IP)
-                    </label>
-                    <input
-                      type="text"
-                      value={sipUri}
-                      onChange={(e) => setSipUri(e.target.value)}
-                      placeholder="sip.carrier.com"
-                      required
-                      className="w-full bg-[#0F172A] border border-[#334155] rounded-md p-2 text-xs text-[#F8FAFC] outline-none focus:border-[#10B981] transition-all box-border"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1.5">
-                      Username / Auth ID
-                    </label>
-                    <input
-                      type="text"
-                      value={sipUsername}
-                      onChange={(e) => setSipUsername(e.target.value)}
-                      placeholder="Username"
-                      className="w-full bg-[#0F172A] border border-[#334155] rounded-md p-2 text-xs text-[#F8FAFC] outline-none focus:border-[#10B981] transition-all box-border"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1.5">
-                      Password
-                    </label>
-                    <input
-                      type="password"
-                      value={sipPassword}
-                      onChange={(e) => setSipPassword(e.target.value)}
-                      placeholder="Password"
-                      className="w-full bg-[#0F172A] border border-[#334155] rounded-md p-2 text-xs text-[#F8FAFC] outline-none focus:border-[#10B981] transition-all box-border"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1.5">
-                    Outbound Proxy
-                  </label>
-                  <input
-                    type="text"
-                    value={sipOutboundProxy}
-                    onChange={(e) => setSipOutboundProxy(e.target.value)}
-                    placeholder="proxy.example.com"
-                    className="w-full bg-[#0F172A] border border-[#334155] rounded-md p-2 text-xs text-[#F8FAFC] outline-none focus:border-[#10B981] transition-all box-border"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={registeringSip}
-                  className="w-full py-2 bg-[#10B981] hover:bg-[#059669] text-white border-none rounded-md text-xs font-bold cursor-pointer transition-all shadow-md mt-1"
-                >
-                  {registeringSip ? 'Connecting...' : 'Register SIP Trunk'}
-                </button>
-              </form>
-            )}
+            
+            <button
+              onClick={() => setIsSipModalOpen(true)}
+              className="relative group flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 hover:border-emerald-400 transition-all overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/0 via-emerald-500/10 to-emerald-500/0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
+              <Settings2 className="w-4 h-4" />
+              Configure SIP Trunk
+            </button>
           </div>
         </div>
       </div>
+
+      <SipSettingsModal
+        isOpen={isSipModalOpen}
+        onClose={() => setIsSipModalOpen(false)}
+        onSave={handleConnectSipTrunk}
+      />
     </div>
   );
 }
