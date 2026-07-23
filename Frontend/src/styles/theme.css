@@ -2,19 +2,19 @@
 
 :root {
   /* Colors */
-  --cream-bg: #F7F3EC;
-  --surface-white: #FFFFFE;
-  --forest-deep: #14332B;
-  --forest-mid: #1E4438;
-  --mint-primary: #A9E5C9;
-  --mint-soft: #DFF3EA;
-  --amber-cta: #E2823A;
-  --border-soft: #E4E1DA;
-  --ink: #1C2420;
-  --ink-muted: #5B675F;
-  --success: #7FD8A6;
-  --warning: #F0C86B;
-  --error: #E8837A;
+  --cream-bg: #FAF8F5;
+  --surface-white: #FFFFFF;
+  --forest-deep: #0F172A; /* Slate 900 for high contrast typography */
+  --forest-mid: #334155; /* Slate 700 for softer contrast */
+  --mint-primary: #059669; /* Emerald/Jade Glow */
+  --mint-soft: #D1FAE5; /* Emerald 100 */
+  --amber-cta: #EA580C; /* Terracotta/Warm Amber */
+  --border-soft: #EADEC9; /* Soft Alabaster border */
+  --ink: #0F172A;
+  --ink-muted: #334155;
+  --success: #10B981;
+  --warning: #F59E0B;
+  --error: #EF4444;
 
   /* Tailwind Core Aliases */
   --font-size: 16px;
@@ -25,7 +25,7 @@
   --popover: var(--surface-white);
   --popover-foreground: var(--ink);
   --primary: var(--mint-primary);
-  --primary-foreground: var(--forest-deep);
+  --primary-foreground: var(--surface-white);
   --secondary: var(--forest-deep);
   --secondary-foreground: var(--surface-white);
   --muted: var(--mint-soft);
@@ -56,28 +56,6 @@
   --shadow-level-3: 0 8px 24px rgba(28, 36, 32, 0.08), 0 4px 8px rgba(28, 36, 32, 0.04);
   --shadow-level-4: 0 12px 32px rgba(28, 36, 32, 0.1), 0 6px 12px rgba(28, 36, 32, 0.05);
   --shadow-level-5: 0 24px 48px rgba(28, 36, 32, 0.12), 0 12px 24px rgba(28, 36, 32, 0.06);
-}
-
-.dark {
-  --background: var(--forest-deep);
-  --foreground: var(--cream-bg);
-  --card: var(--forest-mid);
-  --card-foreground: var(--cream-bg);
-  --popover: var(--forest-mid);
-  --popover-foreground: var(--cream-bg);
-  --primary: var(--mint-primary);
-  --primary-foreground: var(--forest-deep);
-  --secondary: var(--cream-bg);
-  --secondary-foreground: var(--forest-deep);
-  --muted: #1a2a24;
-  --muted-foreground: var(--mint-soft);
-  --accent: var(--amber-cta);
-  --accent-foreground: var(--surface-white);
-  --destructive: var(--error);
-  --destructive-foreground: var(--surface-white);
-  --border: var(--ink);
-  --input: var(--ink);
-  --ring: var(--mint-primary);
 }
 
 @theme inline {

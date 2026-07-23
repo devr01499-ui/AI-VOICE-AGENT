@@ -40,6 +40,9 @@ import BlogRTO from "./pages/BlogRTO";
 import BlogHealthcare from "./pages/BlogHealthcare";
 import BlogFintech from "./pages/BlogFintech";
 import Docs from "./pages/Docs";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
+import Security from "./pages/Security";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Page = 
@@ -54,6 +57,9 @@ type Page =
   | "blog-healthcare" 
   | "blog-fintech" 
   | "docs" 
+  | "privacy"
+  | "terms"
+  | "security"
   | "dashboard" 
   | "industries";
 
@@ -3919,10 +3925,7 @@ export default function App() {
   }
 
   return (
-    <div className="bg-[#090A0F] text-[#94A3B8] min-h-screen relative overflow-hidden font-plus-jakarta selection:bg-cyan-500/30 selection:text-cyan-200">
-      {/* Ambient background glows */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-cyan-500/5 blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-violet-600/5 blur-[140px] pointer-events-none" />
+    <div className="bg-cream-bg text-ink min-h-screen relative overflow-hidden font-plus-jakarta selection:bg-mint-primary/30 selection:text-forest-deep">
       
       <style>{`
         @keyframes wave {
@@ -3931,8 +3934,8 @@ export default function App() {
         }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 999px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(5,150,105,0.2); border-radius: 999px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(5,150,105,0.4); }
         * { font-family: 'Plus Jakarta Sans', sans-serif; }
         .font-sora { font-family: 'Sora', sans-serif; }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
@@ -3953,10 +3956,16 @@ export default function App() {
           {page === "solutions" && <Solutions setPage={handleNavigate} />}
           {page === "pricing" && <Pricing setPage={handleNavigate} />}
           {page === "how-it-works" && <HowItWorks setPage={handleNavigate} />}
+          {page === "blog" && <BlogIndex setPage={handleNavigate} />}
           {page === "blog-rto" && <BlogRTO />}
+          {page === "blog-healthcare" && <BlogHealthcare />}
+          {page === "blog-fintech" && <BlogFintech />}
           {page === "voices" && <Voices setPage={handleNavigate} />}
           {page === "compare" && <Compare setPage={handleNavigate} />}
           {page === "docs" && <Docs />}
+          {page === "privacy" && <Privacy />}
+          {page === "terms" && <Terms />}
+          {page === "security" && <Security />}
           {page === "dashboard" && <AuthGateway />}
         </motion.div>
       </AnimatePresence>

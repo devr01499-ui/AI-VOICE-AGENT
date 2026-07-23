@@ -14,6 +14,9 @@ type Page =
   | "blog-healthcare" 
   | "blog-fintech" 
   | "docs" 
+  | "privacy"
+  | "terms"
+  | "security"
   | "dashboard" 
   | "industries";
 
@@ -33,21 +36,27 @@ export default function Navbar({ page, setPage }: NavbarProps) {
   }, []);
 
   const links: { label: string; id: Page }[] = [
-    { label: "Platform", id: "home" },
-    { label: "Solutions", id: "solutions" },
-    { label: "HD Voices", id: "voices" },
-    { label: "Pricing", id: "pricing" },
-    { label: "Comparison", id: "compare" },
-    { label: "Blog", id: "blog" },
+    { label: "Platform & Features", id: "how-it-works" },
+    { label: "Industry Solutions", id: "solutions" },
+    { label: "HD Voices Gallery", id: "voices" },
+    { label: "Pricing Plans", id: "pricing" },
+    { label: "Comparison Guide", id: "compare" },
+    { label: "Insights & Blog", id: "blog" },
   ];
 
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-305 ${
         scrolled 
-          ? "bg-white/80 backdrop-blur-md border-b border-[#EADEC9]/55 shadow-[0_4px_30px_rgba(5,150,105,0.03)]" 
+          ? "bg-white/85 border-b border-emerald-900/10" 
           : "bg-transparent border-b border-transparent"
       }`}
+      style={scrolled ? {
+        boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(5, 150, 105, 0.04), inset 0 1px 1px 0 rgba(255, 255, 255, 0.8), 0 1px 0 0 rgba(234, 222, 201, 0.6)",
+        transform: "perspective(1000px) rotateX(1deg) translateY(0px)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)"
+      } : {}}
     >
       <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
         {/* Brand logo & name */}
@@ -55,21 +64,13 @@ export default function Navbar({ page, setPage }: NavbarProps) {
           onClick={() => setPage("home")}
           className="flex items-center gap-3 h-20 group"
         >
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#059669] to-[#10B981] flex items-center justify-center shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#059669] to-[#EA580C] flex items-center justify-center shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
             <Mic className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
           </div>
           <span className="font-sora text-xl font-extrabold tracking-tight text-[#0F172A] group-hover:text-[#059669] transition-colors">
             Clarity<span className="text-[#059669] group-hover:text-[#0F172A] transition-colors">Voice</span>
           </span>
         </button>
-
-        {/* Live System Pill */}
-        <div className="hidden lg:flex items-center gap-2 bg-white border border-[#EADEC9] rounded-full px-3 py-1 text-xs shadow-sm">
-          <span className="w-2 h-2 rounded-full bg-[#059669] animate-pulse shadow-[0_0_8px_#059669]" />
-          <span className="text-slate-500 font-mono tracking-tight">
-            API Uptime: <span className="text-slate-800 font-semibold">99.99%</span> · Latency: <span className="text-[#059669] font-semibold">&lt;180ms</span>
-          </span>
-        </div>
 
         {/* Navigation Links */}
         <div className="hidden md:flex items-center gap-6">

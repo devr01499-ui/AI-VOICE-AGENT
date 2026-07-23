@@ -142,9 +142,10 @@ export default function Hero({ setPage }: HeroProps) {
       fenrir: ["en"]
     };
 
-    const hasSpec = validMatrixMap[vId]?.includes(lId);
+    const baseLang = lId.split('-')[0];
+    const hasSpec = validMatrixMap[vId]?.includes(baseLang);
     const resolvedVoice = hasSpec ? vId : "puck";
-    const resolvedLang = hasSpec ? lId : "en";
+    const resolvedLang = hasSpec ? baseLang : "en";
     return `/previews/${resolvedVoice}_${resolvedLang}.wav`;
   };
 
@@ -204,7 +205,7 @@ export default function Hero({ setPage }: HeroProps) {
         
         {/* Left Copy Content */}
         <motion.div
-          className="lg:col-span-6 space-y-8 text-left z-10"
+          className="lg:col-span-7 space-y-8 text-left z-10"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
@@ -215,16 +216,16 @@ export default function Hero({ setPage }: HeroProps) {
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-cta"></span>
             </span>
             <span className="text-caption font-bold uppercase tracking-wider text-ink-muted">
-              Built for businesses where a phone call still decides something real
+              ✨ Powered by Gemini 2.5 Flash Native Multimodal Audio & Chirp 3
             </span>
           </div>
 
-          <h1 className="text-display text-ink">
-            Every important conversation, answered — <span className="text-forest-deep italic">automatically</span>, in your customer's own voice.
+          <h1 className="text-display text-ink text-left">
+            Human-Like AI Voice Agents That Speak, Listen, & Execute Enterprise Workflows in Real Time.
           </h1>
 
-          <p className="text-body text-ink-muted max-w-xl">
-            Clarity Voice is an AI voice calling platform that confirms orders, verifies details, and resolves customer conversations before small problems become expensive ones — without hiring or scaling a calling team.
+          <p className="text-body text-ink-muted max-w-xl text-left">
+            Stop burning capital on manual call centers and missed leads. Clarity Voice deploys autonomous, multi-lingual AI voice agents across 70+ languages and regional dialects. From validating Cash-on-Delivery orders to scheduling medical intake and recovering overdue EMI payments—our voice agents converse naturally with under 180ms latency.
           </p>
 
           <div className="flex flex-wrap items-center gap-4 pt-4">
@@ -232,21 +233,30 @@ export default function Hero({ setPage }: HeroProps) {
               onClick={() => setPage("dashboard")}
               className="btn-primary px-8 py-4 text-lg"
             >
-              Start free trial
+              Build Your First Voice Agent (Free)
               <ArrowRight className="w-5 h-5 ml-2" />
             </button>
             <button
               onClick={() => setPage("voices")}
               className="btn-cta bg-surface-white text-ink border border-border-soft hover:bg-cream-bg"
             >
-              See it in action
+              Explore 26+ HD Voice Personas
             </button>
+          </div>
+          
+          <div className="pt-8 mt-8 border-t border-border-soft flex flex-wrap items-center gap-x-8 gap-y-4">
+            {["< 180ms Response Latency", "70+ Languages & Regional Dialects", "10M+ Monthly API Call Capacity", "Flat-Rate ROI Economics"].map((badge, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-mint-primary" />
+                <span className="text-xs font-bold text-ink-muted uppercase tracking-wider font-mono">{badge}</span>
+              </div>
+            ))}
           </div>
         </motion.div>
 
         {/* Right Collage / Interactive Widget */}
         <motion.div
-          className="lg:col-span-6 relative z-10 lg:pl-10"
+          className="lg:col-span-5 relative z-10 lg:pl-10"
           initial={{ opacity: 0, x: 30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}

@@ -1,5 +1,6 @@
 import { motion } from "motion/react";
 import { Check, ArrowRight } from "lucide-react";
+import RoiCalculator from "../components/calculator/RoiCalculator";
 
 type Page = 
   | "home" 
@@ -74,26 +75,26 @@ export default function Pricing({ setPage }: PricingProps) {
         </motion.p>
       </section>
 
-      <section className="px-6 max-w-5xl mx-auto relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <section className="px-6 max-w-7xl mx-auto relative z-10">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           
-          {/* Free Tier */}
+          {/* Startup Tier */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
             className="card-soft relative p-10 flex flex-col"
           >
-            <h3 className="text-h2 text-ink mb-2">Free Trial</h3>
-            <p className="text-body text-ink-muted mb-8">Test the platform with no commitment.</p>
+            <h3 className="text-h2 text-ink mb-2">Startup</h3>
+            <p className="text-body text-ink-muted mb-8">Test the platform with full access.</p>
             <div className="mb-8">
-              <span className="text-display text-ink">₹0</span>
-              <span className="text-body text-ink-muted"> / forever</span>
+              <span className="text-display text-ink">₹3.99</span>
+              <span className="text-body text-ink-muted"> / minute</span>
             </div>
             <ul className="space-y-4 mb-10 flex-1">
-              {['10 free minutes included', 'Access to standard voices', 'Real-time transcripts', 'Community support'].map(f => (
+              {['Access to all premium voices', 'Multilingual support', 'Real-time transcripts', 'Community support'].map(f => (
                 <li key={f} className="flex items-center gap-3 text-body text-ink font-medium">
-                  <Check className="w-5 h-5 text-mint-primary" /> {f}
+                  <Check className="w-5 h-5 text-mint-primary flex-shrink-0" /> <span>{f}</span>
                 </li>
               ))}
             </ul>
@@ -102,7 +103,7 @@ export default function Pricing({ setPage }: PricingProps) {
             </button>
           </motion.div>
 
-          {/* Pay as you go */}
+          {/* Growth Tier */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -112,16 +113,16 @@ export default function Pricing({ setPage }: PricingProps) {
             <div className="absolute top-6 right-6 bg-amber-cta text-surface-white text-caption font-bold px-3 py-1 rounded-pill">
               MOST POPULAR
             </div>
-            <h3 className="text-h2 text-surface-white mb-2">Pay as you go</h3>
-            <p className="text-body text-mint-soft mb-8">Scale infinitely with unified pricing.</p>
+            <h3 className="text-h2 text-surface-white mb-2">Growth</h3>
+            <p className="text-body text-mint-soft mb-8">Scale infinitely with volume discounts.</p>
             <div className="mb-8">
-              <span className="text-display text-mint-primary">₹3.99</span>
-              <span className="text-body text-mint-soft"> / minute</span>
+              <span className="text-display text-mint-primary">Custom</span>
+              <span className="text-body text-mint-soft"> / volume</span>
             </div>
             <ul className="space-y-4 mb-10 flex-1">
-              {['Access to all premium voices', 'Multilingual support (Hindi, English, etc.)', 'Unlimited agents', 'Bring your own SIP trunk', 'Full API access', 'Priority email support'].map(f => (
+              {['Everything in Startup', 'Volume-based pricing discounts', 'Unlimited agents', 'Bring your own SIP trunk', 'Full API access', 'Priority email support'].map(f => (
                 <li key={f} className="flex items-center gap-3 text-body text-surface-white font-medium">
-                  <Check className="w-5 h-5 text-mint-primary" /> {f}
+                  <Check className="w-5 h-5 text-mint-primary flex-shrink-0" /> <span>{f}</span>
                 </li>
               ))}
             </ul>
@@ -131,6 +132,36 @@ export default function Pricing({ setPage }: PricingProps) {
             </button>
           </motion.div>
 
+          {/* Enterprise Tier */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="card-soft relative p-10 flex flex-col"
+          >
+            <h3 className="text-h2 text-ink mb-2">Enterprise</h3>
+            <p className="text-body text-ink-muted mb-8">For high-volume, compliant workloads.</p>
+            <div className="mb-8">
+              <span className="text-display text-ink">Custom</span>
+              <span className="text-body text-ink-muted"> contract</span>
+            </div>
+            <ul className="space-y-4 mb-10 flex-1">
+              {['Everything in Growth', 'Dedicated SIP IP addresses', 'Custom Voice Cloning', 'HIPAA/SOC2 BAA', 'Dedicated Account Manager'].map(f => (
+                <li key={f} className="flex items-center gap-3 text-body text-ink font-medium">
+                  <Check className="w-5 h-5 text-mint-primary flex-shrink-0" /> <span>{f}</span>
+                </li>
+              ))}
+            </ul>
+            <button onClick={() => window.location.href="mailto:sales@claritiy.com"} className="btn-cta bg-surface-white text-ink border border-border-soft hover:bg-cream-bg w-full">
+              Contact Sales
+            </button>
+          </motion.div>
+
+        </div>
+        
+        {/* ROI Calculator Embedded Here */}
+        <div className="mt-20">
+          <RoiCalculator />
         </div>
       </section>
     </div>

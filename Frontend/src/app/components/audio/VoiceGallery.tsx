@@ -43,9 +43,10 @@ export default function VoiceGallery({ setPage }: VoiceGalleryProps) {
       zephyr: ["en"]
     };
 
-    const hasSpec = validMatrixMap[vId]?.includes(lId);
+    const baseLang = lId.split('-')[0];
+    const hasSpec = validMatrixMap[vId]?.includes(baseLang);
     const resolvedVoice = hasSpec ? vId : "puck";
-    const resolvedLang = hasSpec ? lId : "en";
+    const resolvedLang = hasSpec ? baseLang : "en";
     return `/previews/${resolvedVoice}_${resolvedLang}.wav`;
   };
 
@@ -156,8 +157,8 @@ const response = await fetch("https://api.insightclaritiysolution.com/v2/calls",
               onClick={() => setSelectedLang(l.id)}
               className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold border transition-all ${
                 selectedLang === l.id 
-                  ? "bg-slate-800 text-white border-slate-700" 
-                  : "bg-transparent border-transparent text-slate-500 hover:text-[#059669]"
+                  ? "bg-mint-primary text-white border-mint-primary" 
+                  : "bg-transparent border-transparent text-slate-500 hover:text-mint-primary"
               }`}
             >
               {l.name}

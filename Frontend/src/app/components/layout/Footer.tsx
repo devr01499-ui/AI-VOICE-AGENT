@@ -12,6 +12,9 @@ type Page =
   | "blog-healthcare" 
   | "blog-fintech" 
   | "docs" 
+  | "privacy"
+  | "terms"
+  | "security"
   | "dashboard" 
   | "industries";
 
@@ -25,7 +28,7 @@ export default function Footer({ setPage }: FooterProps) {
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start gap-12">
         <div className="space-y-4">
           <div className="flex items-center gap-3 h-8">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#059669] to-[#10B981] flex items-center justify-center shadow-sm">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#059669] to-[#EA580C] flex items-center justify-center shadow-sm">
               <Mic className="w-4 h-4 text-white" strokeWidth={2.5} />
             </div>
             <span className="font-sora text-lg font-extrabold tracking-tight text-[#0F172A]">
@@ -41,15 +44,23 @@ export default function Footer({ setPage }: FooterProps) {
             <span className="text-[10px] font-bold text-slate-500 border border-[#EADEC9] rounded px-2 py-0.5 bg-white font-mono">GDPR AUDITED</span>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-12">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-12 w-full md:w-auto">
           {[
+            {
+              heading: "Solutions",
+              links: [
+                { label: "COD Confirmation", action: () => setPage("solutions") },
+                { label: "Healthcare Receptionist", action: () => setPage("solutions") },
+                { label: "Real Estate Qualification", action: () => setPage("solutions") },
+                { label: "Debt Recovery", action: () => setPage("solutions") },
+              ]
+            },
             {
               heading: "Platform",
               links: [
-                { label: "Features", action: () => setPage("home") },
-                { label: "Solutions", action: () => setPage("solutions") },
-                { label: "HD Voices", action: () => setPage("voices") },
-                { label: "Pricing Model", action: () => setPage("pricing") },
+                { label: "Features", action: () => setPage("how-it-works") },
+                { label: "HD Voices Gallery", action: () => setPage("voices") },
+                { label: "Pricing & ROI Calculator", action: () => setPage("pricing") },
                 { label: "Comparison", action: () => setPage("compare") },
               ]
             },
@@ -58,15 +69,17 @@ export default function Footer({ setPage }: FooterProps) {
               links: [
                 { label: "Operational Blog", action: () => setPage("blog") },
                 { label: "Developer Docs", action: () => setPage("docs") },
-                { label: "Support Center", action: () => {} },
+                { label: "support@claritiy.com", action: () => window.location.href = "mailto:support@claritiy.com" },
+                { label: "WhatsApp Support", action: () => window.open("https://wa.me/919707337259?text=Hello%20Clarity%20Voice%20Team", "_blank") },
+                { label: "LinkedIn", action: () => window.open("https://www.linkedin.com/company/clarity-voice", "_blank") },
               ]
             },
             {
               heading: "Legal",
               links: [
-                { label: "Privacy Policy", action: () => {} },
-                { label: "Terms of Use", action: () => {} },
-                { label: "Security & Standards", action: () => {} },
+                { label: "Privacy Policy", action: () => setPage("privacy") },
+                { label: "Terms of Use", action: () => setPage("terms") },
+                { label: "Security & Standards", action: () => setPage("security") },
               ]
             },
           ].map((col) => (

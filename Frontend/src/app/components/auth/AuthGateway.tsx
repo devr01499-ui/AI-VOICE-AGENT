@@ -63,16 +63,29 @@ export default function AuthGateway() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-tr from-slate-900 via-slate-800 to-indigo-950 px-4 py-8 relative overflow-hidden">
-      {/* Background ambient glowing blobs */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
+    <div className="min-h-screen w-full flex items-center justify-center bg-cream-bg px-4 py-8 relative overflow-hidden">
+      {/* Background ambient glowing soundwaves */}
+      <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-mint-primary/10 rounded-full blur-[100px] animate-pulse" />
+      <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-amber-cta/10 rounded-full blur-[100px] animate-pulse delay-1000" />
+      
+      {/* Floating Soundwave Orb Graphic */}
+      <motion.div 
+        animate={{ y: [0, -20, 0], scale: [1, 1.05, 1] }} 
+        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute left-[15%] top-1/2 -translate-y-1/2 hidden lg:flex gap-1 items-center justify-center w-64 h-64 bg-white/40 border border-white/60 rounded-full shadow-[0_0_40px_rgba(5,150,105,0.1)] backdrop-blur-xl"
+      >
+        <div className="w-1.5 h-12 bg-mint-primary rounded-full animate-[wave_1s_ease-in-out_infinite]" />
+        <div className="w-1.5 h-20 bg-amber-cta rounded-full animate-[wave_1.2s_ease-in-out_infinite_0.1s]" />
+        <div className="w-1.5 h-16 bg-forest-deep rounded-full animate-[wave_1.1s_ease-in-out_infinite_0.2s]" />
+        <div className="w-1.5 h-24 bg-mint-primary rounded-full animate-[wave_1.3s_ease-in-out_infinite_0.3s]" />
+        <div className="w-1.5 h-14 bg-amber-cta rounded-full animate-[wave_1.2s_ease-in-out_infinite_0.4s]" />
+      </motion.div>
 
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="w-full max-w-md bg-white/95 border border-white/20 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-lg flex flex-col"
+        className="w-full max-w-md bg-white/90 border border-emerald-900/10 rounded-3xl shadow-2xl overflow-hidden backdrop-blur-xl flex flex-col z-10"
       >
         <div className="p-6 sm:p-8 space-y-6">
           <div className="text-center space-y-2">
@@ -211,7 +224,7 @@ export default function AuthGateway() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 rounded-xl bg-slate-950 hover:bg-slate-900 text-white font-semibold text-sm shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-mint-primary to-[#10B981] hover:from-[#10B981] hover:to-mint-primary text-white font-bold text-sm shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ fontFamily: "'Figtree', sans-serif" }}
             >
               {loading ? 'Processing authentication...' : mode === 'signin' ? 'Sign In' : 'Create Account'}
