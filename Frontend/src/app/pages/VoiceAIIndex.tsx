@@ -1,8 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  BookOpen, Search, ChevronRight, Zap, Shield, Cpu, Phone,
-  Bookmark, ArrowLeft, ArrowRight, Clock, BarChart3, AlertCircle, Copy, Check
+  BookOpen, Search, ChevronRight, ChevronLeft, Bookmark, Clock, ArrowRight, ArrowLeft, Copy, Check
 } from "lucide-react";
 
 type Page = any;
@@ -15,8 +14,6 @@ interface VoiceAIIndexProps {
 const CATEGORIES = [
   {
     name: "Core Platforms",
-    icon: Cpu,
-    color: "#059669",
     topics: [
       { id: "ai-voice-calling-agents", title: "AI voice calling agents and robust AI voice agents" },
       { id: "high-performance-calling", title: "High-performance AI calling agents & voice AI agents" },
@@ -36,8 +33,6 @@ const CATEGORIES = [
   },
   {
     name: "High-Intent Targets",
-    icon: Zap,
-    color: "#EA580C",
     topics: [
       { id: "best-voice-agents", title: "The best AI voice agents & best AI calling agents" },
       { id: "leading-platform", title: "Leading AI voice agent platform" },
@@ -62,8 +57,6 @@ const CATEGORIES = [
   },
   {
     name: "Compliance & Trust",
-    icon: Shield,
-    color: "#059669",
     topics: [
       { id: "voice-agent-compliance", title: "Strict AI voice agent compliance" },
       { id: "call-compliance-automation", title: "Secure call compliance automation" },
@@ -86,8 +79,6 @@ const CATEGORIES = [
   },
   {
     name: "Technical Architecture",
-    icon: Cpu,
-    color: "#EA580C",
     topics: [
       { id: "telephony-voice-api", title: "Telephony voice AI API & telephony API" },
       { id: "built-in-asr", title: "Built-in speech-to-text (ASR)" },
@@ -108,8 +99,6 @@ const CATEGORIES = [
   },
   {
     name: "SEO Guides & Insights",
-    icon: BookOpen,
-    color: "#059669",
     topics: [
       { id: "how-voice-agents-work", title: "How AI voice agents work" },
       { id: "what-are-calling-agents", title: "What are AI voice calling agents?" },
@@ -140,25 +129,34 @@ const CATEGORIES = [
   }
 ];
 
-// ── Dynamic Masterpiece Content Engine (500+ Words Generator) ──────────────────
-function generateArticleContent(topicId: string, title: string, category: string) {
-  // Extract key vocabulary terms based on the title
-  const cleanTitle = title.replace(/[?&••]/g, "").trim();
+// ── Flattening with Chapter and Topic Numbers ──────────────────────────────────
+const ALL_TOPICS = CATEGORIES.flatMap((cat, cIdx) => 
+  cat.topics.map((t, tIdx) => ({
+    ...t,
+    category: cat.name,
+    chapterNumber: cIdx + 1,
+    topicNumber: tIdx + 1,
+    displayNumber: `${cIdx + 1}.${tIdx + 1}`,
+    indexNumber: cIdx * 100 + tIdx // useful for previous/next sorting
+  }))
+);
 
-  // Create highly realistic paragraphs
-  const summary = `This detailed guide covers the strategic implementation, architecture, and business metrics for "${cleanTitle}". We explore how modern enterprises leverage this specific telephony capability to optimize customer communication pipelines, ensure high-fidelity call delivery, and maintain absolute compliance.`;
+// ── Dynamic Masterpiece Content Engine (500+ Words Generator) ──────────────────
+function generateArticleContent(topicId: string, title: string, category: string, chapNum: number, topNum: number) {
+  const cleanTitle = title.replace(/[?&]/g, "").trim();
+  const summary = `This detailed guide covers the strategic implementation, architecture, and business metrics for "${cleanTitle}". We explore how modern enterprises leverage this capability to optimize customer pipelines, ensure high-fidelity delivery, and maintain compliance.`;
 
   const sections = [
     {
-      subtitle: "1. Strategic Context & Market Positioning",
+      subtitle: "Strategic Context & Market Positioning",
       paragraphs: [
         `In the rapidly evolving landscape of 2026, deploying a robust capability like "${cleanTitle}" has transitioned from a competitive advantage to an operational necessity. Legacy call center systems and traditional interactive voice response (IVR) setups have consistently failed to meet customer expectations, introducing latency, awkward pause loops, and rigid dial-tone scripts. By contrast, modern voice automation platform modules leverage state-of-the-art natural language processing (NLP) to converse fluently with users.`,
-        `When enterprises evaluate the implementation of ${title.toLowerCase()}, they are not merely installing a software package; they are deploying an autonomous conversational AI voice system. This integration allows companies to scale inbound call handling capacity and outbound sales calls infinitely, bypassing the constraints of recruiting, training, and managing manual calling agents. Under this paradigm, operational costs plummet while customer satisfaction scores (CSAT) rise.`,
-        `Furthermore, the strategic positioning of ${cleanTitle} within the broader AI customer calling system allows for precise data capture. Every interaction is transcribed with sub-second latency, structured into detailed summary fields, and fed directly back into operational workflows, ensuring a continuous loop of conversational intelligence and pipeline improvement.`
+        `When enterprises evaluate the implementation of ${cleanTitle.toLowerCase()}, they are not merely installing a software package; they are deploying an autonomous conversational AI voice system. This integration allows companies to scale inbound call handling capacity and outbound sales calls infinitely, bypassing the constraints of recruiting, training, and managing manual calling agents. Under this paradigm, operational costs plummet while customer satisfaction scores (CSAT) rise.`,
+        `Furthermore, the strategic positioning of this capability within the broader AI customer calling system allows for precise data capture. Every interaction is transcribed with sub-second latency, structured into detailed summary fields, and fed directly back into operational workflows, ensuring a continuous loop of conversational intelligence and pipeline improvement.`
       ]
     },
     {
-      subtitle: "2. Technical Implementation & Flow Architecture",
+      subtitle: "Technical Implementation & Flow Architecture",
       paragraphs: [
         `From an engineering perspective, building an elite voice infrastructure for "${cleanTitle}" requires a vertically integrated pipeline. The voice stack is split into three core layers: Automatic Speech Recognition (ASR), Large Language Model orchestration (LLM), and Text-to-Speech synthesis (TTS). Chaining distinct API providers introduces a latency overhead of 800ms to 1.5s, which ruins conversational flow. Clarity Voice solves this by running a unified WebRTC audio pipeline directly connected to our agent workflow engine.`,
         `Below is a representative JSON configuration mapping the telephony API workflow parameters for deploying a custom voice AI agent:`
@@ -179,24 +177,20 @@ function generateArticleContent(topicId: string, title: string, category: string
     },
     "edge_pii_redaction": {
       "enabled": true,
-      "scrub_rules": ["credit_card", "phone_number", "ssn", "phi"]
+      "scrub_rules": ["credit_card", "phone_number", "phi"]
     }
-  },
-  "knowledge_base": {
-    "retrieval_mode": "RAG_dense_vector",
-    "kb_id": "kb_enterprise_profile_9021"
   }
 }`
     },
     {
-      subtitle: "3. Compliance, Security & Audit Logs",
+      subtitle: "Compliance, Security & Audit Logs",
       paragraphs: [
         `Regulated industries such as healthcare clinics, financial banking, and insurance carriers require absolute adherence to strict compliance guidelines. Deploying "${cleanTitle}" necessitates a security-first posture that integrates edge-based data redaction. Before any audio transcript or call recording is saved to a persistent database, the PII protection engine scrubs credit card numbers, personal health identifiers (PHI), and contact numbers.`,
         `This workflow maintains compatibility with SOC 2 Type II, HIPAA BAA, PCI-DSS compliance, and GDPR audit logging. Additionally, the system enforces consent-based calling protocols, matching contact records against National Do Not Call (DNC) registers and logging verified user consent signatures in real time, neutralizing legal risks before the call even initializes.`
       ]
     },
     {
-      subtitle: "4. Business Impact & ROI Metrics",
+      subtitle: "Business Impact & ROI Metrics",
       paragraphs: [
         `The operational return on investment for "${cleanTitle}" is measurable across multiple business dimensions. By automating outbound lead reactivation and inbound receptionist call workflows, businesses experience a substantial decrease in average handling cost (AHT) while driving down customer wait times to zero.`,
         `Typical metrics realized by enterprises utilizing this technology include:`
@@ -210,39 +204,25 @@ function generateArticleContent(topicId: string, title: string, category: string
     }
   ];
 
-  return { title: cleanTitle, category, readTime: "4 min read", summary, sections };
+  return { title: cleanTitle, category, chapNum, topNum, summary, sections };
 }
 
 export default function VoiceAIIndex({ setPage }: VoiceAIIndexProps) {
-  const [selectedTopicId, setSelectedTopicId] = useState("ai-voice-calling-agents");
+  const [currentTopicIndex, setCurrentTopicIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [copied, setCopied] = useState(false);
+  const [direction, setDirection] = useState(1);
 
-  // Flatten topics for search and lookup
-  const allTopics = useMemo(() => {
-    return CATEGORIES.flatMap(cat =>
-      cat.topics.map(t => ({
-        ...t,
-        category: cat.name,
-        color: cat.color
-      }))
-    );
-  }, []);
-
+  const activeTopicObj = ALL_TOPICS[currentTopicIndex];
   const activeTopic = useMemo(() => {
-    const found = allTopics.find(t => t.id === selectedTopicId) || allTopics[0];
-    return generateArticleContent(found.id, found.title, found.category);
-  }, [selectedTopicId, allTopics]);
-
-  const filteredCategories = useMemo(() => {
-    if (!searchQuery) return CATEGORIES;
-    return CATEGORIES.map(cat => ({
-      ...cat,
-      topics: cat.topics.filter(t =>
-        t.title.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    })).filter(cat => cat.topics.length > 0);
-  }, [searchQuery]);
+    return generateArticleContent(
+      activeTopicObj.id, 
+      activeTopicObj.title, 
+      activeTopicObj.category, 
+      activeTopicObj.chapterNumber, 
+      activeTopicObj.topicNumber
+    );
+  }, [activeTopicObj]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -250,192 +230,251 @@ export default function VoiceAIIndex({ setPage }: VoiceAIIndexProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleNext = () => {
+    if (currentTopicIndex < ALL_TOPICS.length - 1) {
+      setDirection(1);
+      setCurrentTopicIndex(prev => prev + 1);
+      // scroll to top of reading pane
+      const pane = document.getElementById("reading-pane");
+      if (pane) pane.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const handlePrev = () => {
+    if (currentTopicIndex > 0) {
+      setDirection(-1);
+      setCurrentTopicIndex(prev => prev - 1);
+      const pane = document.getElementById("reading-pane");
+      if (pane) pane.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const goToTopic = (index: number) => {
+    setDirection(index > currentTopicIndex ? 1 : -1);
+    setCurrentTopicIndex(index);
+    const pane = document.getElementById("reading-pane");
+    if (pane) pane.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   return (
-    <div className="min-h-screen bg-[#FAF8F5] pt-12" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-      {/* Top Banner */}
-      <div className="bg-[#1B4332] text-white py-12 px-6 border-b border-white/10 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
-          <div>
-            <button
-              onClick={() => setPage("home")}
-              className="inline-flex items-center gap-2 text-xs font-bold text-[#34D399] uppercase tracking-widest mb-3 hover:text-white transition-colors"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" /> Back to Home
-            </button>
-            <h1 className="text-3xl lg:text-4xl font-extrabold tracking-tight" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-              Enterprise Voice AI Index & Book
-            </h1>
-            <p className="text-white/60 text-sm mt-1 max-w-xl">
-              A comprehensive technical guide and glossary mapping the architecture, compliance, and deployment models of conversational voice AI agents in 2026.
-            </p>
-          </div>
-          <div className="relative w-full md:w-80">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search 90 index topics..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full bg-white/10 border border-white/20 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-white/45 focus:outline-none focus:ring-2 focus:ring-[#34D399]/40 focus:border-[#34D399]/60 transition-all font-medium"
-            />
-          </div>
+    <div className="min-h-screen bg-[#1E293B] relative overflow-hidden flex flex-col font-sans">
+      {/* Dark background texture */}
+      <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/wood-pattern.png')]" />
+      
+      {/* Navbar overlay specifically for the book view */}
+      <div className="relative z-20 flex justify-between items-center px-8 py-4 bg-black/20 backdrop-blur-md border-b border-white/10">
+        <button
+          onClick={() => setPage("home")}
+          className="inline-flex items-center gap-2 text-xs font-bold text-white uppercase tracking-widest hover:text-[#34D399] transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" /> Exit Book
+        </button>
+        <div className="text-white/60 text-xs font-mono tracking-widest uppercase">
+          Clarity Voice Architecture Index (2026)
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-10 items-start">
+      {/* Book Container */}
+      <div className="relative z-10 flex-1 w-full max-w-7xl mx-auto px-4 py-8 md:py-12 flex items-center justify-center">
+        
+        {/* The Open Book */}
+        <div className="w-full h-[80vh] md:h-[85vh] bg-[#FDFBF7] rounded-sm md:rounded-lg shadow-[0_35px_60px_-15px_rgba(0,0,0,0.5),inset_0_0_80px_rgba(0,0,0,0.05)] flex flex-col md:flex-row relative overflow-hidden">
           
-          {/* ── LEFT SIDEBAR: Table of Contents ── */}
-          <div className="space-y-6 lg:sticky lg:top-24 max-h-[calc(100vh-140px)] overflow-y-auto pr-2 scrollbar-hide">
-            <div className="bg-white border border-[#EADEC9] rounded-3xl p-5 shadow-sm space-y-4">
-              <div className="flex items-center gap-2 text-[#059669]">
-                <BookOpen className="w-4 h-4" />
-                <span className="text-xs font-extrabold uppercase tracking-widest font-mono">Table of Contents</span>
+          {/* Book Spine Shadow Overlay */}
+          <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-12 -ml-6 bg-gradient-to-r from-transparent via-black/10 to-transparent pointer-events-none z-30" />
+          <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-[1px] bg-black/10 pointer-events-none z-30" />
+          
+          {/* ── LEFT PAGE: Table of Contents ── */}
+          <div className="w-full md:w-1/2 h-full border-b md:border-b-0 md:border-r border-[#EADEC9] bg-[#FDFBF7] flex flex-col relative">
+            {/* Paper Texture */}
+            <div className="absolute inset-0 opacity-30 mix-blend-multiply pointer-events-none" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/cream-paper.png')" }} />
+            
+            <div className="px-8 py-10 border-b border-[#EADEC9] relative z-10 flex items-center justify-between">
+              <h2 className="text-3xl font-bold text-[#2A2A2A]" style={{ fontFamily: "'Playfair Display', serif" }}>
+                Index
+              </h2>
+              <div className="relative w-48">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search topics..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full bg-white/50 border border-[#EADEC9] rounded-md pl-8 pr-3 py-1.5 text-xs text-[#2A2A2A] placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#059669] transition-all font-sans"
+                />
               </div>
-              <p className="text-[11px] text-slate-400">Select an index point below to read the detailed technical documentation.</p>
             </div>
 
-            <div className="space-y-4">
-              {filteredCategories.map((cat, idx) => {
-                const Icon = cat.icon;
-                return (
-                  <div key={idx} className="space-y-1.5">
-                    <div className="flex items-center gap-2 px-3 py-1">
-                      <Icon className="w-3.5 h-3.5 text-slate-400" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 font-mono">
-                        {cat.name}
-                      </span>
-                      <span className="ml-auto text-[9px] font-mono font-bold bg-[#EADEC9]/30 text-slate-500 px-2 py-0.5 rounded-full">
-                        {cat.topics.length}
-                      </span>
-                    </div>
+            <div className="flex-1 overflow-y-auto p-8 relative z-10 scrollbar-hide">
+              <div className="space-y-10">
+                {CATEGORIES.map((cat, cIdx) => {
+                  const chapterNum = cIdx + 1;
+                  const topics = cat.topics.filter(t => 
+                    t.title.toLowerCase().includes(searchQuery.toLowerCase())
+                  );
+                  if (topics.length === 0) return null;
 
-                    <div className="space-y-1">
-                      {cat.topics.map(t => {
-                        const isActive = t.id === selectedTopicId;
-                        return (
-                          <button
-                            key={t.id}
-                            onClick={() => {
-                              setSelectedTopicId(t.id);
-                              window.scrollTo({ top: 0, behavior: "smooth" });
-                            }}
-                            className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all flex items-center justify-between gap-3 ${
-                              isActive
-                                ? "bg-white border border-[#EADEC9] text-[#059669] shadow-sm font-bold"
-                                : "text-slate-600 hover:bg-[#EADEC9]/20 hover:text-[#0D1117]"
-                            }`}
-                          >
-                            <span className="truncate">{t.title}</span>
-                            <ChevronRight className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${isActive ? "translate-x-0.5 text-[#059669]" : "text-slate-400"}`} />
-                          </button>
-                        );
-                      })}
+                  return (
+                    <div key={cIdx} className="space-y-4">
+                      <div className="flex items-baseline gap-3">
+                        <span className="text-[#059669] font-bold font-sans text-xs uppercase tracking-widest">
+                          Chapter {chapterNum}
+                        </span>
+                        <h3 className="text-xl font-bold text-[#2A2A2A] border-b border-[#EADEC9] flex-1 pb-1" style={{ fontFamily: "'Playfair Display', serif" }}>
+                          {cat.name}
+                        </h3>
+                      </div>
+
+                      <div className="space-y-2.5 pl-2">
+                        {topics.map(t => {
+                          const flatIndex = ALL_TOPICS.findIndex(x => x.id === t.id);
+                          const isActive = flatIndex === currentTopicIndex;
+                          const tIndex = cat.topics.findIndex(x => x.id === t.id) + 1;
+                          
+                          return (
+                            <div 
+                              key={t.id} 
+                              onClick={() => goToTopic(flatIndex)}
+                              className={`group flex items-end justify-between cursor-pointer ${isActive ? "text-[#059669]" : "text-[#4A4A4A] hover:text-[#059669]"}`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className={`font-mono text-xs font-semibold ${isActive ? "text-[#059669]" : "text-slate-400"}`}>
+                                  {chapterNum}.{tIndex}
+                                </span>
+                                <span className={`text-sm ${isActive ? "font-bold" : "font-medium"} transition-colors`} style={{ fontFamily: isActive ? "'Playfair Display', serif" : "sans-serif" }}>
+                                  {t.title}
+                                </span>
+                              </div>
+                              {/* Dotted line leader */}
+                              <div className="flex-1 border-b-[1.5px] border-dotted border-[#EADEC9] mx-4 mb-1.5 opacity-50 group-hover:opacity-100 transition-opacity" />
+                              <span className="font-mono text-[10px] font-bold text-slate-400">P.{flatIndex + 1}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
 
-          {/* ── RIGHT PANEL: Reading Pane ── */}
-          <div className="space-y-8">
-            <AnimatePresence mode="wait">
-              <motion.article
-                key={selectedTopicId}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -16 }}
-                transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                className="bg-white border border-[#EADEC9] rounded-[32px] p-8 lg:p-12 shadow-sm space-y-8"
-              >
-                {/* Article Header info */}
-                <div className="space-y-4">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="inline-flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded-full bg-[#D1FAE5] text-[#059669] border border-[#059669]/10 font-mono">
-                      ✦ {activeTopic.category}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-200 font-mono">
-                      <Clock className="w-3 h-3" /> {activeTopic.readTime}
-                    </span>
+          {/* ── RIGHT PAGE: Reading Pane ── */}
+          <div className="w-full md:w-1/2 h-full bg-[#FDFBF7] flex flex-col relative">
+            {/* Paper Texture */}
+            <div className="absolute inset-0 opacity-30 mix-blend-multiply pointer-events-none" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/cream-paper.png')" }} />
+            
+            {/* Top Page Header */}
+            <div className="h-16 flex items-center justify-between px-10 relative z-10 border-b border-transparent">
+              <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest font-bold">
+                Chapter {activeTopic.chapNum} — {activeTopic.category}
+              </span>
+              <Bookmark className="w-4 h-4 text-[#059669] opacity-50" />
+            </div>
+
+            <div id="reading-pane" className="flex-1 overflow-y-auto px-10 pb-10 relative z-10 scrollbar-hide">
+              <AnimatePresence mode="wait">
+                <motion.article
+                  key={activeTopic.topNum + "-" + activeTopic.chapNum}
+                  initial={{ opacity: 0, x: direction * 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -direction * 20 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  className="space-y-6"
+                >
+                  <div className="space-y-4 mb-8">
+                    <h1 className="text-4xl text-[#1A1A1A] font-bold leading-tight" style={{ fontFamily: "'Playfair Display', serif" }}>
+                      <span className="block text-xl text-slate-400 font-normal mb-2" style={{ fontFamily: "'Playfair Display', serif" }}>
+                        Topic {activeTopic.chapNum}.{activeTopic.topNum}
+                      </span>
+                      {activeTopic.title}
+                    </h1>
+                    <p className="text-sm text-[#4A4A4A] italic leading-relaxed" style={{ fontFamily: "'Georgia', serif" }}>
+                      {activeTopic.summary}
+                    </p>
                   </div>
 
-                  <h2 className="text-[#0D1117] font-extrabold leading-tight text-3xl lg:text-4xl tracking-tight"
-                    style={{ fontFamily: "'Clash Display', sans-serif" }}>
-                    {activeTopic.title}
-                  </h2>
-                </div>
-
-                {/* Executive Summary Card */}
-                <div className="bg-[#FAF8F5] border border-[#EADEC9] rounded-2xl p-5 flex items-start gap-4">
-                  <AlertCircle className="w-5 h-5 text-[#059669] mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest font-mono mb-1">Executive Summary</p>
-                    <p className="text-xs text-slate-600 leading-relaxed font-medium">{activeTopic.summary}</p>
-                  </div>
-                </div>
-
-                {/* Sections loop */}
-                <div className="space-y-8 text-sm text-slate-600 leading-relaxed font-light">
                   {activeTopic.sections.map((sec, sIdx) => (
-                    <div key={sIdx} className="space-y-4">
-                      <h3 className="text-base font-extrabold text-[#0D1117]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                    <div key={sIdx} className="space-y-4 mb-8">
+                      <h3 className="text-lg font-bold text-[#2A2A2A] border-b border-[#EADEC9] pb-1" style={{ fontFamily: "'Playfair Display', serif" }}>
                         {sec.subtitle}
                       </h3>
                       {sec.paragraphs.map((p, pIdx) => (
-                        <p key={pIdx}>{p}</p>
+                        <p key={pIdx} className="text-[15px] text-[#333333] leading-[1.8] text-justify" style={{ fontFamily: "'Georgia', serif" }}>
+                          {p}
+                        </p>
                       ))}
 
-                      {/* Code Block if exists */}
                       {sec.code && (
-                        <div className="relative rounded-2xl bg-[#0B1F14] border border-white/10 p-5 mt-4 font-mono text-[11px] text-[#A7F3D0] overflow-x-auto">
+                        <div className="relative rounded-md bg-[#F4F1EA] border border-[#EADEC9] p-5 my-4 font-mono text-[11px] text-[#2A2A2A] overflow-x-auto shadow-inner">
                           <button
                             onClick={() => copyToClipboard(sec.code)}
-                            className="absolute right-4 top-4 w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center border border-white/10 transition-colors"
+                            className="absolute right-3 top-3 w-6 h-6 rounded bg-white hover:bg-slate-50 flex items-center justify-center border border-[#EADEC9] transition-colors shadow-sm"
                           >
-                            {copied ? <Check className="w-3.5 h-3.5 text-[#34D399]" /> : <Copy className="w-3.5 h-3.5 text-white/60" />}
+                            {copied ? <Check className="w-3 h-3 text-[#059669]" /> : <Copy className="w-3 h-3 text-slate-500" />}
                           </button>
                           <pre>{sec.code}</pre>
                         </div>
                       )}
 
-                      {/* Bullets if exist */}
                       {sec.bullets && (
-                        <ul className="space-y-3.5 pt-2 pl-2">
+                        <ul className="space-y-2.5 pt-2 pl-4">
                           {sec.bullets.map((b, bIdx) => (
-                            <li key={bIdx} className="flex items-start gap-3 text-xs font-medium text-slate-700">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#059669] mt-1.5 flex-shrink-0" />
-                              <span className="leading-relaxed">{b}</span>
+                            <li key={bIdx} className="flex items-start gap-3 text-[14px] text-[#333333] leading-[1.7]" style={{ fontFamily: "'Georgia', serif" }}>
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#059669] mt-2 flex-shrink-0 opacity-70" />
+                              <span>{b}</span>
                             </li>
                           ))}
                         </ul>
                       )}
                     </div>
                   ))}
-                </div>
 
-                {/* Article Footer CTA banner */}
-                <div className="pt-8 border-t border-[#EADEC9] flex flex-col md:flex-row justify-between items-center gap-6">
-                  <div>
-                    <h4 className="text-sm font-bold text-[#0D1117]">Want to implement this voice workflow?</h4>
-                    <p className="text-xs text-slate-400 mt-0.5">Deploy this specific agent model on our no-code platform in under 10 minutes.</p>
+                  {/* End of article marker */}
+                  <div className="flex justify-center py-6 opacity-30">
+                    <div className="flex gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                    </div>
                   </div>
-                  <button
-                    onClick={() => setPage("dashboard")}
-                    className="btn-primary text-xs py-2.5 px-5 whitespace-nowrap flex items-center gap-2"
-                  >
-                    Deploy This Agent Now
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                </motion.article>
+              </AnimatePresence>
+            </div>
 
-              </motion.article>
-            </AnimatePresence>
+            {/* Bottom Page Footer with Navigation */}
+            <div className="h-20 border-t border-[#EADEC9] flex flex-col justify-center px-10 relative z-10 bg-gradient-to-t from-[#FDFBF7] to-transparent">
+              <div className="flex items-center justify-between w-full">
+                <button
+                  onClick={handlePrev}
+                  disabled={currentTopicIndex === 0}
+                  className={`flex items-center gap-2 text-xs font-bold uppercase tracking-widest transition-all ${
+                    currentTopicIndex === 0 ? "text-slate-300 cursor-not-allowed" : "text-[#059669] hover:text-[#047857]"
+                  }`}
+                >
+                  <ChevronLeft className="w-4 h-4" /> Prev Page
+                </button>
+                
+                <span className="text-[10px] font-mono text-slate-400 font-bold">
+                  PAGE {currentTopicIndex + 1} OF {ALL_TOPICS.length}
+                </span>
+
+                <button
+                  onClick={handleNext}
+                  disabled={currentTopicIndex === ALL_TOPICS.length - 1}
+                  className={`flex items-center gap-2 text-xs font-bold uppercase tracking-widest transition-all ${
+                    currentTopicIndex === ALL_TOPICS.length - 1 ? "text-slate-300 cursor-not-allowed" : "text-[#059669] hover:text-[#047857]"
+                  }`}
+                >
+                  Next Page <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
           </div>
-
         </div>
       </div>
     </div>
   );
 }
+
