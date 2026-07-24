@@ -10,10 +10,21 @@
 
 import { supabase } from "./lib/supabaseClient";
 
-// Absolute clean string value - no trailing parameters, brackets, or parentheses
-const BASE_TARGET_URL = 'https://ai-voice-agent-backend-mv32.onrender.com';
+const PRODUCTION_TARGET = 'https://ai-voice-agent-backend-mv32.onrender.com';
 
-export const API_BASE = BASE_TARGET_URL;
+let envUrl = 
+  (import.meta as any).env?.VITE_API_BASE_URL || 
+  (import.meta as any).env?.VITE_API_URL || 
+  (import.meta as any).env?.VITE_BACKEND_URL || 
+  PRODUCTION_TARGET;
+
+// Strip any Markdown link syntax pollution
+if (envUrl.includes('[') && envUrl.includes(']')) {
+  const match = envUrl.match(/\(([^)]+)\)/);
+  envUrl = (match && match[1]) ? match[1] : envUrl.replace(/\[.*?\]/g, '').replace(/[()]/g, '').trim();
+}
+
+export const API_BASE = envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl;
 
 /** Seeded fallback user ID for dev-mode auth bypass */
 export const DEV_USER_ID = "1e69187e-82d5-4166-929f-4bbba90e5304";

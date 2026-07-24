@@ -239,21 +239,44 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     logger.info('[LATENCY_TEST] setup: starting combined db lookup', { timestamp: tStartDb });
     const prismaInstance = (await import('../../lib/prisma')).prisma;
     
-    const callData = await prismaInstance.call.findUnique({
-      where: { id: callId },
-      include: {
-        user: true,
-        agent: {
-          include: {
-            kbLinks: { take: 1 }
+    let callData: any = null;
+
+    if (callId.startsWith('sandbox-')) {
+      const user = await prismaInstance.user.findUnique({ where: { id: userId } });
+      const agent = resolvedAgentId ? await prismaInstance.agent.findUnique({
+        where: { id: resolvedAgentId },
+        include: { kbLinks: { take: 1 } }
+      }) : null;
+      
+      if (!user) {
+        throw new CallError(callId, 'Authenticated user profile not found or mismatch', 'INVALID_CONFIG');
+      }
+      
+      callData = {
+        id: callId,
+        userId,
+        agentId: resolvedAgentId,
+        user,
+        agent
+      };
+    } else {
+      callData = await prismaInstance.call.findUnique({
+        where: { id: callId },
+        include: {
+          user: true,
+          agent: {
+            include: {
+              kbLinks: { take: 1 }
+            }
           }
         }
-      }
-    });
+      });
 
-    if (!callData || !callData.user || callData.userId !== userId) {
-      throw new CallError(callId, 'Authenticated user profile not found or mismatch', 'INVALID_CONFIG');
+      if (!callData || !callData.user || callData.userId !== userId) {
+        throw new CallError(callId, 'Authenticated user profile not found or mismatch', 'INVALID_CONFIG');
+      }
     }
+
     const userProfile = callData.user;
     logger.info('[LATENCY_TEST] setup: finished combined db lookup', { timestamp: Date.now(), durationMs: Date.now() - tStartDb });
 
@@ -537,7 +560,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
           const handler = this.setupCompletePromises.get(sessionId);
           if (handler) {
             clearTimeout(handler.timeoutId);
-            handler.resolve();
+            handler.resolve({ sessionId });
             this.setupCompletePromises.delete(sessionId);
           }
           return;

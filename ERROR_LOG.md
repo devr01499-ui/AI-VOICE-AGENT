@@ -10,3 +10,4 @@
 
 
 
+| ERR-006 | Dashboard test endpoint /api/v2/calls/debug/gemini returns 500 error / fails to connect | debug/gemini sent an empty userId causing the value gateway check to fail (userId required for value gateway check). Also, createSession resolved with undefined because handler.resolve() was called without { sessionId }, causing a subsequent TypeError. | Passed userId explicitly in the debug endpoint config. Fixed setupComplete resolution in GeminiLiveProvider to pass { sessionId } to the promise resolver. | Always ensure that mock/diagnostic routes supply all mandatory properties expected by shared providers, and ensure Promise return types are strictly enforced at runtime. | 2026-07-24 |
