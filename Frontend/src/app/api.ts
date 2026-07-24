@@ -18,10 +18,17 @@ let envUrl =
   (import.meta as any).env?.VITE_BACKEND_URL || 
   PRODUCTION_TARGET;
 
-// Strip any Markdown link syntax pollution
-if (envUrl.includes('[') && envUrl.includes(']')) {
-  const match = envUrl.match(/\(([^)]+)\)/);
-  envUrl = (match && match[1]) ? match[1] : envUrl.replace(/\[.*?\]/g, '').replace(/[()]/g, '').trim();
+// Strip any stray markdown/bracket characters, however partial or malformed
+envUrl = envUrl.replace(/[\[\]()]/g, '').trim();
+
+// Validate the result is actually a usable URL before trusting it —
+// if it isn't, fall back to the known-good production target and warn loudly
+try {
+  new URL(envUrl);
+  if ((envUrl.match(/https?:\/\//g) || []).length > 1) throw new Error('Multiple URLs detected');
+} catch {
+  console.error('[api.ts] Invalid API base URL detected in environment configuration, falling back to production target:', envUrl);
+  envUrl = PRODUCTION_TARGET;
 }
 
 export const API_BASE = envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl;
