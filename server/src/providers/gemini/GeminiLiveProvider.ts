@@ -560,7 +560,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
           const handler = this.setupCompletePromises.get(sessionId);
           if (handler) {
             clearTimeout(handler.timeoutId);
-            handler.resolve({ sessionId });
+            handler.resolve();
             this.setupCompletePromises.delete(sessionId);
           }
           return;
