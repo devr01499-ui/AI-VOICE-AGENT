@@ -290,12 +290,31 @@ function UseCaseSection({ setPage }: { setPage: (p: Page) => void }) {
           </text>
         </svg>
 
-                 </div>
-               </div>
-             )
-           })}
-        </div>
-
+        {/* HTML Content placed perfectly in the center of each ring */}
+        {useCases.map((uc, i) => {
+          const Icon = uc.icon;
+          // Centers: TL(32%,32%), TR(68%,32%), BR(68%,68%), BL(32%,68%)
+          const posX = i === 0 || i === 3 ? "32%" : "68%";
+          const posY = i === 0 || i === 1 ? "32%" : "68%";
+          
+          return (
+            <div 
+              key={i} 
+              className="absolute flex flex-col items-center justify-center text-center w-40 md:w-56"
+              style={{ left: posX, top: posY, transform: "translate(-50%, -50%)" }}
+            >
+              <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-white flex items-center justify-center shadow-[0_5px_15px_rgba(0,0,0,0.1)] mb-3" style={{ color: colors[i] }}>
+                <Icon className="w-6 h-6 md:w-8 md:h-8" strokeWidth={2} />
+              </div>
+              <h3 className="font-extrabold text-[#2C3E50] text-sm md:text-base mb-1.5 tracking-wide leading-tight">{uc.title}</h3>
+              <div className="w-10 h-1 mb-2 rounded-full opacity-50" style={{ backgroundColor: colors[i] }}></div>
+              <p className="text-[10px] md:text-xs text-slate-600 font-medium leading-relaxed px-2 md:px-0">
+                {uc.desc}
+              </p>
+            </div>
+          )
+        })}
+        
       </div>
     </section>
   );
