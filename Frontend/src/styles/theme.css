@@ -25,7 +25,7 @@
   --ink-faint: #9CA3AF;
 
   /* ── Semantic Aliases ────────────────────────────────────────────────────── */
-  --font-size: 16px;
+  --font-size: clamp(14px, 1.2vw + 10px, 16px);
   --background: var(--cream-bg);
   --foreground: var(--ink);
   --card: var(--surface-white);

@@ -104,7 +104,7 @@ export default function Compare({ setPage }: CompareProps) {
             <p className="text-xs text-ink-muted">Deploy your first enterprise agent in under 10 minutes.</p>
           </div>
           <button onClick={() => setPage("dashboard")} className="btn-primary w-full md:w-auto">
-            Build Your First Voice Agent (Free)
+            Build Your First Voice Agent
             <ArrowRight className="w-5 h-5 ml-2" />
           </button>
         </div>

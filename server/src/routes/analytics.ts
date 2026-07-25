@@ -20,19 +20,20 @@ router.get('/summary', requireAuth, async (req: AuthenticatedRequest, res, next)
 
     logger.info('Analytics: generating call summary', { userId });
 
-    // 1. Fetch all calls for this user
-    const calls = await prisma.call.findMany({
+    // 1. Fetch aggregates instead of loading all calls into memory
+    const aggregate = await prisma.call.aggregate({
       where: { userId },
-      select: {
-        durationSeconds: true,
-        status: true,
-        createdAt: true,
-      }
+      _sum: { durationSeconds: true },
+      _count: { id: true },
     });
 
-    // 2. Compute aggregations
-    let totalSeconds = 0;
-    let completedCount = 0;
+    // 2. Compute aggregations using DB grouping
+    const statusGroups = await prisma.call.groupBy({
+      by: ['status'],
+      where: { userId },
+      _count: { id: true },
+    });
+
     const statusCounts: Record<string, number> = {
       completed: 0,
       failed: 0,
@@ -43,22 +44,30 @@ router.get('/summary', requireAuth, async (req: AuthenticatedRequest, res, next)
       no_answer: 0,
     };
 
-    calls.forEach(c => {
-      const dur = c.durationSeconds || 0;
-      totalSeconds += dur;
-      
-      const st = c.status || 'failed';
-      statusCounts[st] = (statusCounts[st] || 0) + 1;
-      
-      if (st === 'completed') {
-        completedCount++;
-      }
+    statusGroups.forEach((group) => {
+      const st = group.status || 'failed';
+      statusCounts[st] = group._count.id;
     });
 
+    const totalSeconds = aggregate._sum.durationSeconds || 0;
+    const totalCalls = aggregate._count.id || 0;
+
     const totalMinutesUsed = Number((totalSeconds / 60).toFixed(2));
-    const averageCallDuration = calls.length > 0 
-      ? Number((totalSeconds / calls.length).toFixed(1))
+    const averageCallDuration = totalCalls > 0 
+      ? Number((totalSeconds / totalCalls).toFixed(1))
       : 0;
+
+    // Fetch only the most recent 100 calls for visual charts
+    const recentCalls = await prisma.call.findMany({
+      where: { userId },
+      select: {
+        durationSeconds: true,
+        status: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
 
     res.json({
       success: true,
@@ -66,8 +75,8 @@ router.get('/summary', requireAuth, async (req: AuthenticatedRequest, res, next)
         totalMinutesUsed,
         averageCallDuration,
         statusCodeBreakdown: statusCounts,
-        totalCalls: calls.length,
-        callsList: calls.slice(0, 100), // return last 100 calls for visual charts
+        totalCalls,
+        callsList: recentCalls,
       }
     });
   } catch (err) {

@@ -121,19 +121,47 @@ router.get(
       };
 
       let agents = [];
+      let totalCount = 0;
       try {
-        const allAgents = await AgentRepository.findManyByUserId(userId);
-        // Apply status filtering and pagination in-memory to prevent database query crashes
-        agents = (allAgents || []).filter((agent: any) => {
-          if (status && agent.status !== status) return false;
-          return true;
-        });
-        
         const lim = limit ? parseInt(limit, 10) : 50;
         const off = offset ? parseInt(offset, 10) : 0;
-        agents = agents.slice(off, off + lim);
+        
+        // Fetch paginated agents from the database directly
+        agents = await prisma.agent.findMany({
+          where: {
+            userId,
+            ...(status ? { status } : {}),
+          },
+          orderBy: { createdAt: 'desc' },
+          take: lim,
+          skip: off,
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            agentType: true,
+            status: true,
+            version: true,
+            workspaceId: true,
+            model: true,
+            voiceName: true,
+            systemVoice: true,
+            languageMode: true,
+            temperature: true,
+            createdAt: true,
+            updatedAt: true,
+          }
+        });
+        
+        // Also fetch total count for pagination metadata if needed
+        totalCount = await prisma.agent.count({
+          where: {
+            userId,
+            ...(status ? { status } : {}),
+          }
+        });
 
-        // Parse agentConfig JSON for response
+        // Parse dates for response
         const formatted = agents.map((agent: any) => ({
           id: agent?.id,
           name: agent?.name,
@@ -154,7 +182,7 @@ router.get(
         res.status(200).json({
           success: true,
           data: formatted,
-          count: formatted.length,
+          count: totalCount,
         });
         return;
       } catch (error: any) {

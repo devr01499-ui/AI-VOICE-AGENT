@@ -174,7 +174,7 @@ export default function Navbar({ page, setPage }: NavbarProps) {
             </button>
             <button onClick={() => navigate("dashboard")}
               className="btn-primary text-sm py-2.5 px-5">
-              Get Started Free
+              Get Started
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -242,7 +242,7 @@ export default function Navbar({ page, setPage }: NavbarProps) {
                   Sign In
                 </button>
                 <button onClick={() => navigate("dashboard")} className="w-full btn-primary justify-center">
-                  Get Started Free <ArrowRight className="w-4 h-4" />
+                  Get Started <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             </motion.div>

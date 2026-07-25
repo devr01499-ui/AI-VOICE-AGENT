@@ -17,6 +17,8 @@ type Page =
   | "security"
   | "dashboard" 
   | "industries"
+  | "faq"
+  | "contact"
   | "voice-ai-index";
 
 interface FooterProps {
@@ -68,6 +70,8 @@ export default function Footer({ setPage }: FooterProps) {
               links: [
                 { label: "Voice AI Index (Book)", action: () => setPage("voice-ai-index") },
                 { label: "Operational Blog", action: () => setPage("blog") },
+                { label: "FAQ", action: () => setPage("faq") },
+                { label: "Contact Us", action: () => setPage("contact") },
                 { label: "Developer Docs", action: () => setPage("docs") },
                 { label: "WhatsApp Support", action: () => window.open("https://wa.me/919707337259?text=Hello%20Clarity%20Voice%20Team", "_blank") },
                 { label: "LinkedIn", action: () => window.open("https://www.linkedin.com/company/clarity-voice", "_blank") },

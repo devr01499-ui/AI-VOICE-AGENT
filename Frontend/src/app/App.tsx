@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import { supabase } from "./lib/supabaseClient";
 import AuthGateway from "./components/auth/AuthGateway";
 import { Session } from "@supabase/supabase-js";
@@ -29,21 +29,23 @@ import { Popover, PopoverTrigger, PopoverContent } from "./components/ui/popover
 import Navbar from "./components/layout/Navbar";
 import Footer from "./components/layout/Footer";
 import SchemaInjector from "./components/seo/SchemaInjector";
-import Home from "./pages/Home";
-import Solutions from "./pages/Solutions";
-import HowItWorks from "./pages/HowItWorks";
-import Voices from "./pages/Voices";
-import Pricing from "./pages/Pricing";
-import Compare from "./pages/Compare";
-import BlogIndex from "./pages/BlogIndex";
-import BlogRTO from "./pages/BlogRTO";
-import BlogHealthcare from "./pages/BlogHealthcare";
-import BlogFintech from "./pages/BlogFintech";
-import Docs from "./pages/Docs";
-import Privacy from "./pages/Privacy";
-import Terms from "./pages/Terms";
-import Security from "./pages/Security";
-import VoiceAIIndex from "./pages/VoiceAIIndex";
+const Home = lazy(() => import("./pages/Home"));
+const Solutions = lazy(() => import("./pages/Solutions"));
+const HowItWorks = lazy(() => import("./pages/HowItWorks"));
+const Voices = lazy(() => import("./pages/Voices"));
+const Pricing = lazy(() => import("./pages/Pricing"));
+const Compare = lazy(() => import("./pages/Compare"));
+const BlogIndex = lazy(() => import("./pages/BlogIndex"));
+const BlogRTO = lazy(() => import("./pages/BlogRTO"));
+const BlogHealthcare = lazy(() => import("./pages/BlogHealthcare"));
+const BlogFintech = lazy(() => import("./pages/BlogFintech"));
+const Docs = lazy(() => import("./pages/Docs"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Security = lazy(() => import("./pages/Security"));
+const VoiceAIIndex = lazy(() => import("./pages/VoiceAIIndex"));
+const FAQ = lazy(() => import("./pages/FAQ"));
+const ContactUs = lazy(() => import("./pages/ContactUs"));
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Page = 
@@ -63,6 +65,8 @@ type Page =
   | "security"
   | "dashboard" 
   | "industries"
+  | "faq"
+  | "contact"
   | "voice-ai-index";
 
 // ─── Sound Wave Component ─────────────────────────────────────────────────────
@@ -383,7 +387,7 @@ function PricingPage({ setPage }: { setPage: (p: Page) => void }) {
         "Standard voice preview options",
         "Email support",
       ],
-      cta: "Start free trial",
+      cta: "Start building",
       highlight: false,
     },
     {
@@ -401,7 +405,7 @@ function PricingPage({ setPage }: { setPage: (p: Page) => void }) {
         "CRM & Google sheets integrations",
         "Priority chat support",
       ],
-      cta: "Start free trial",
+      cta: "Start building",
       highlight: true,
     },
   ];
@@ -420,7 +424,7 @@ function PricingPage({ setPage }: { setPage: (p: Page) => void }) {
             Simple pricing. <span className="italic">No surprises.</span>
           </h1>
           <p className="text-muted-foreground max-w-md mx-auto mb-8" style={{ fontFamily: "'Figtree', sans-serif" }}>
-            Start with a free 14-day trial. No credit card required. Cancel any time.
+            Start building your voice agent today. No credit card required.
           </p>
 
           {/* Toggle */}
@@ -3687,6 +3691,10 @@ export default function App() {
         setPage("compare");
       } else if (path === "/dashboard") {
         setPage("dashboard");
+      } else if (path === "/faq") {
+        setPage("faq");
+      } else if (path === "/contact") {
+        setPage("contact");
       } else {
         setPage("home");
       }
@@ -3706,6 +3714,8 @@ export default function App() {
       "blog-rto": "/blog/how-to-reduce-cod-rto",
       compare: "/compare/bolna-retell-vapi",
       dashboard: "/dashboard",
+      faq: "/faq",
+      contact: "/contact",
     };
     const targetPath = pathMap[p] || "/";
     if (window.location.pathname !== targetPath) {
@@ -3726,6 +3736,8 @@ export default function App() {
       "blog-rto": "How to Reduce COD RTO for D2C Brands in India",
       compare: "Clarity Voice vs Bolna vs Retell vs Vapi",
       dashboard: "Dashboard — Clarity Voice",
+      faq: "FAQ — Clarity Voice",
+      contact: "Contact Us — Clarity Voice",
     };
 
     const descMap: Record<Page, string> = {
@@ -3736,6 +3748,8 @@ export default function App() {
       "blog-rto": "A practical guide to cutting cash-on-delivery returns and reverse logistics costs using automated AI confirmation calls.",
       compare: "Compare Clarity Voice against Bolna, Retell AI, and Vapi for automated Indian COD order confirmations.",
       dashboard: "Manage your AI voice agents and view call analytics.",
+      faq: "Frequently asked questions about Clarity Voice.",
+      contact: "Get in touch with the Clarity Voice team.",
     };
 
     const pathMap: Record<Page, string> = {
@@ -3746,6 +3760,8 @@ export default function App() {
       "blog-rto": "blog/how-to-reduce-cod-rto",
       compare: "compare/bolna-retell-vapi",
       dashboard: "dashboard",
+      faq: "faq",
+      contact: "contact",
     };
 
     document.title = titleMap[page] || "Clarity Voice";
@@ -3916,8 +3932,11 @@ export default function App() {
       }
       setSession(currentSession);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
       setSession(currentSession);
+      if (event === 'SIGNED_IN') {
+        handleNavigate("dashboard");
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -3954,22 +3973,26 @@ export default function App() {
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           className="pt-20"
         >
-          {page === "home" && <Home setPage={handleNavigate} />}
-          {page === "solutions" && <Solutions setPage={handleNavigate} />}
-          {page === "pricing" && <Pricing setPage={handleNavigate} />}
-          {page === "how-it-works" && <HowItWorks setPage={handleNavigate} />}
-          {page === "blog" && <BlogIndex setPage={handleNavigate} />}
-          {page === "blog-rto" && <BlogRTO />}
-          {page === "blog-healthcare" && <BlogHealthcare />}
-          {page === "blog-fintech" && <BlogFintech />}
-          {page === "voices" && <Voices setPage={handleNavigate} />}
-          {page === "compare" && <Compare setPage={handleNavigate} />}
-          {page === "docs" && <Docs />}
-          {page === "privacy" && <Privacy />}
-          {page === "terms" && <Terms />}
-          {page === "security" && <Security />}
-          {page === "dashboard" && <AuthGateway />}
-          {page === "voice-ai-index" && <VoiceAIIndex setPage={handleNavigate} />}
+          <Suspense fallback={<div className="h-screen w-full flex items-center justify-center"><div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div></div>}>
+            {page === "home" && <Home setPage={handleNavigate} />}
+            {page === "solutions" && <Solutions setPage={handleNavigate} />}
+            {page === "pricing" && <Pricing setPage={handleNavigate} />}
+            {page === "how-it-works" && <HowItWorks setPage={handleNavigate} />}
+            {page === "blog" && <BlogIndex setPage={handleNavigate} />}
+            {page === "blog-rto" && <BlogRTO />}
+            {page === "blog-healthcare" && <BlogHealthcare />}
+            {page === "blog-fintech" && <BlogFintech />}
+            {page === "voices" && <Voices setPage={handleNavigate} />}
+            {page === "compare" && <Compare setPage={handleNavigate} />}
+            {page === "docs" && <Docs />}
+            {page === "privacy" && <Privacy />}
+            {page === "terms" && <Terms />}
+            {page === "security" && <Security />}
+            {page === "faq" && <FAQ setPage={handleNavigate} />}
+            {page === "contact" && <ContactUs />}
+            {page === "dashboard" && <AuthGateway />}
+            {page === "voice-ai-index" && <VoiceAIIndex setPage={handleNavigate} />}
+          </Suspense>
         </motion.div>
       </AnimatePresence>
 

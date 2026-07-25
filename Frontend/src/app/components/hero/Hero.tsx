@@ -369,7 +369,7 @@ export default function Hero({ setPage }: HeroProps) {
             {/* CTAs */}
             <motion.div variants={itemVariants} className="flex flex-wrap gap-4 items-center">
               <button onClick={() => setPage("dashboard")} className="btn-primary text-[15px] px-7 py-3.5">
-                Build Your First AI Agent — Free
+                Build Your First AI Agent
                 <ArrowRight className="w-4 h-4" />
               </button>
               <button onClick={() => setPage("how-it-works")}

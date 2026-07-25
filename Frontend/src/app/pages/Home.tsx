@@ -404,7 +404,7 @@ function ComparisonSection({ setPage }: { setPage: (p: Page) => void }) {
               className="inline-flex items-center gap-2 text-sm font-bold text-white px-6 py-2.5 rounded-full"
               style={{ background: "linear-gradient(135deg, #059669, #10B981)", boxShadow: "0 4px 16px rgba(5,150,105,0.25)" }}
             >
-              Start Free — No Credit Card <ArrowRight className="w-4 h-4" />
+              Start Building Now <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -413,64 +413,6 @@ function ComparisonSection({ setPage }: { setPage: (p: Page) => void }) {
   );
 }
 
-// ── Social proof / Testimonial band ──────────────────────────────────────────
-function SocialProofSection() {
-  const logos = [
-    "Healthcare Clinic", "D2C Brand", "Real Estate Firm", "BPO Partner",
-    "InsurTech Co.", "Edtech Platform", "Logistics Player", "Fintech Startup",
-  ];
-  const testimonials = [
-    { text: "Clarity Voice cut our COD return rate by 38% in the first month. The Hindi agent sounds completely natural.", author: "VP Operations", company: "D2C Fashion Brand", stars: 5 },
-    { text: "We replaced our entire IVR system. The AI receptionist handles 1,200 inbound calls daily without a single human agent.", author: "CTO", company: "Healthcare Network", stars: 5 },
-    { text: "Our EMI collection rate jumped 42% after switching to AI outbound calling. ROI was clear in week two.", author: "Head of Recoveries", company: "NBFC Lender", stars: 5 },
-  ];
-
-  return (
-    <section className="py-24 px-6" style={{ background: "#FAF8F5" }}>
-      <div className="max-w-7xl mx-auto">
-        {/* Logo strip */}
-        <div className="text-center mb-12">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest font-mono mb-8">
-            Trusted by 500+ enterprise teams across 12 industries
-          </p>
-          <div className="flex flex-wrap justify-center gap-4">
-            {logos.map((l, i) => (
-              <div key={i} className="bg-white border border-[#EADEC9] rounded-full px-5 py-2 text-xs font-bold text-slate-500">
-                {l}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Testimonial cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {testimonials.map((t, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 24 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: i * 0.12 }}
-              className="bg-white border border-[#EADEC9] rounded-3xl p-7 space-y-4"
-              style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.05)" }}
-            >
-              <div className="flex gap-0.5">
-                {Array.from({ length: t.stars }).map((_, j) => (
-                  <Star key={j} className="w-4 h-4 text-[#F59E0B] fill-[#F59E0B]" />
-                ))}
-              </div>
-              <p className="text-sm text-slate-600 leading-relaxed italic">"{t.text}"</p>
-              <div className="pt-3 border-t border-[#EADEC9]">
-                <p className="text-sm font-bold text-[#0F172A]">{t.author}</p>
-                <p className="text-xs text-slate-400">{t.company}</p>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
 
 // ── Full-bleed editorial CTA ──────────────────────────────────────────────────
 function FinalCTA({ setPage }: { setPage: (p: Page) => void }) {
@@ -508,7 +450,7 @@ function FinalCTA({ setPage }: { setPage: (p: Page) => void }) {
                   className="inline-flex items-center gap-2 font-bold text-base text-[#1B4332] px-8 py-4 rounded-full transition-all hover:scale-105 active:scale-95"
                   style={{ background: "linear-gradient(135deg, #34D399 0%, #10B981 100%)", boxShadow: "0 8px 24px rgba(52,211,153,0.4)" }}
                 >
-                  Build Free Agent Now <ArrowRight className="w-5 h-5" />
+                  Build Your Agent Now <ArrowRight className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => setPage("pricing")}
@@ -548,57 +490,11 @@ function FinalCTA({ setPage }: { setPage: (p: Page) => void }) {
   );
 }
 
-// ── FAQ (rich, keyword dense) ─────────────────────────────────────────────────
-const FAQS = [
-  {
-    q: "What are AI voice calling agents and how do they work?",
-    a: "AI voice calling agents are autonomous, conversational software programs that place and receive phone calls using natural human language. Powered by real-time ASR (Automatic Speech Recognition), LLM (Large Language Model), and TTS (Text-to-Speech), Clarity Voice agents achieve sub-180ms latency — making them indistinguishable from human agents. Unlike legacy IVR systems, they understand intent, handle interruptions, and execute workflows dynamically.",
-  },
-  {
-    q: "What is the difference between AI voice agents and IVR systems?",
-    a: "Traditional IVR systems force callers through rigid press-key menus. AI voice agents like Clarity Voice converse naturally — they understand spoken language, answer complex questions, handle barge-in interruptions, route intelligently, and escalate with warm transfer. AI call automation replaces the frustrating experience of legacy phone trees.",
-  },
-  {
-    q: "Can Clarity Voice handle outbound AI calling at scale?",
-    a: "Yes. Clarity Voice's outbound voice AI platform can launch 10,000+ simultaneous outbound calls with smart retry logic for busy lines. Use cases include lead qualification, COD order verification, appointment reminders, payment collections, and reactivation campaigns — all automated without human agents.",
-  },
-  {
-    q: "Is Clarity Voice HIPAA and PCI-DSS compliant?",
-    a: "Yes. Clarity Voice implements edge-level PII/PHI data redaction before any log or transcript is stored. We are SOC 2 Type II audited, HIPAA BAA available on enterprise plans, and PCI-DSS compliant. Our compliance logging and audit trails meet GDPR, ISO 27001, and India's DPDP Act requirements.",
-  },
-  {
-    q: "What languages does Clarity Voice AI phone agents support?",
-    a: "Clarity Voice supports 70+ languages and regional dialects natively — including English, Hindi, Bengali, Kannada, Malayalam, Gujarati, Marathi, Tamil, Mandarin, Arabic, and more. Native accent support is built into the speech models, requiring no intermediate translation APIs.",
-  },
-  {
-    q: "How is Clarity Voice priced compared to Vapi, Retell AI, or Bland AI?",
-    a: "Clarity Voice offers transparent, flat-rate pricing: ₹3.99/minute pay-as-you-go or bundled plans starting at ₹1,799/month. Competitors like Vapi and Retell charge separately for STT, LLM, and TTS providers — which adds up. Our pricing includes everything in one bundled rate with no hidden costs.",
-  },
-  {
-    q: "Can I integrate Clarity Voice with my CRM, Shopify, or HubSpot?",
-    a: "Yes. Clarity Voice provides bi-directional CRM integration with Salesforce, HubSpot, Zoho, and Shopify via real-time REST webhooks. Call disposition, lead scores, appointment bookings, and transcripts sync automatically. We also support Twilio SIP trunking for enterprise telephony integration.",
-  },
-  {
-    q: "What is the setup time for deploying an AI voice agent?",
-    a: "Less than 10 minutes. Configure your agent's voice, language, and workflow through our no-code dashboard. Upload your knowledge base — FAQs, CRM data, or product docs. Connect a phone number. Launch. No engineering team required. Our white-label AI voice agent option is also available for agencies.",
-  },
-];
 
 // ── Main Home Page ──────────────────────────────────────────────────────────
 export default function Home({ setPage }: HomeProps) {
-  const faqSchema = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "mainEntity": FAQS.map(f => ({
-      "@type": "Question",
-      "name": f.q,
-      "acceptedAnswer": { "@type": "Answer", "text": f.a },
-    })),
-  };
-
   return (
     <div className="overflow-hidden" style={{ background: "#FAF8F5" }}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
       <ScrollProgress />
 
       {/* ── HERO ── */}
@@ -849,8 +745,6 @@ export default function Home({ setPage }: HomeProps) {
       {/* ── COMPARISON ── */}
       <ComparisonSection setPage={setPage} />
 
-      {/* ── SOCIAL PROOF ── */}
-      <SocialProofSection />
 
       {/* ── COMPLIANCE BADGE PANEL ── */}
       <section className="py-24 px-6">
@@ -881,29 +775,6 @@ export default function Home({ setPage }: HomeProps) {
               </div>
             </div>
           </motion.div>
-        </div>
-      </section>
-
-      {/* ── FAQ ── */}
-      <section className="py-24 px-6 max-w-4xl mx-auto">
-        <div className="text-center mb-12 space-y-4">
-          <SectionLabel text="FAQ" />
-          <h2 className="text-4xl font-extrabold text-[#0F172A]"
-            style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
-            Frequently Asked Questions About AI Voice Agents
-          </h2>
-          <p className="text-slate-500">Everything you need to know about deploying enterprise AI voice calling agents, pricing, compliance, and integrations.</p>
-        </div>
-        <div className="space-y-4">
-          {FAQS.map((faq, i) => (
-            <motion.div key={i}
-              className="bg-white border border-[#EADEC9] rounded-2xl p-7 space-y-3 hover:border-[#059669]/30 hover:shadow-md transition-all"
-              initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-              transition={{ delay: i * 0.06 }}>
-              <h3 className="font-extrabold text-[#0F172A] text-base">{faq.q}</h3>
-              <p className="text-sm text-slate-500 leading-relaxed">{faq.a}</p>
-            </motion.div>
-          ))}
         </div>
       </section>
 

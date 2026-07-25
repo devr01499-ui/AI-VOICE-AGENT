@@ -156,7 +156,7 @@ export default function BillingGateway() {
 
             <div className="bg-muted/30 border border-border rounded-xl p-4 text-center">
               <p className="text-[10px] font-semibold text-muted-foreground mb-1" style={{ fontFamily: "'DM Mono', monospace" }}>
-                FREE TRIAL BALANCE
+                ACCOUNT BALANCE
               </p>
               <p className="text-3xl font-bold tracking-tight" style={{ fontFamily: "'Instrument Serif', serif" }}>
                 {balance !== null ? `${balance.toFixed(1)} Minutes` : "0.0 Minutes"}

@@ -33,4 +33,19 @@ export default defineConfig({
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
+
+  build: {
+    // Slightly increase the warning limit
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        // Split node_modules into a separate vendor chunk to improve caching and reduce individual chunk sizes
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            return 'vendor';
+          }
+        },
+      },
+    },
+  },
 })

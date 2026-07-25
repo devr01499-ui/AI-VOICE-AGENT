@@ -42,6 +42,7 @@ import { WebhookController } from './controllers/WebhookController';
 import kbRoutes from './routes/knowledgeBase';
 import analyticsRoutes from './routes/analytics';
 import userRoutes from './routes/user';
+import contactRoutes from './routes/contact';
 
 // ─── Express App ─────────────────────────────────
 
@@ -165,6 +166,7 @@ app.use('/api/v2/analytics', requireAuth, analyticsRoutes);
 app.use('/api/v2/user', requireAuth, userRoutes);
 app.use('/api/v2/webhooks', webhookRoutes);
 app.post('/api/v2/telephony/webhook', WebhookController.handleTelephonyWebhook);
+app.use('/api/v2/contact', contactRoutes);
 
 // ─── 404 Handler ─────────────────────────────────
 

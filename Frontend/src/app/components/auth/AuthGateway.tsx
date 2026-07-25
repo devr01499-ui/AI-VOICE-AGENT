@@ -305,7 +305,7 @@ export default function AuthGateway() {
               <p className="text-xs text-slate-500 mt-1 font-medium">
                 {mode === 'signin'
                   ? 'Sign in to your AI voice agent dashboard'
-                  : 'Start building AI calling agents for free'}
+                  : 'Start building AI calling agents'}
               </p>
             </div>
 
@@ -427,7 +427,7 @@ export default function AuthGateway() {
                 >
                   {loading
                     ? '⏳ Authenticating…'
-                    : mode === 'signin' ? '🔐 Sign In to Dashboard' : '🚀 Create Free Account'}
+                    : mode === 'signin' ? '🔐 Sign In to Dashboard' : '🚀 Create Account'}
                 </button>
               </form>
 
