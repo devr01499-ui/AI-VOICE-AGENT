@@ -1,0 +1,4 @@
+* text=auto
+pnpm-lock.yaml text eol=lf
+package-lock.json text eol=lf
+*.json text eol=lf
