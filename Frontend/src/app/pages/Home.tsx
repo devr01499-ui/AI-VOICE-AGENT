@@ -228,7 +228,7 @@ function UseCaseSection({ setPage }: { setPage: (p: Page) => void }) {
     },
   ];
 
-  const colors = ["#4358A6", "#2EB6BE", "#8F599B", "#D32B87"];
+  const colors = ["#4F46E5", "#0CA5A5", "#9333EA", "#E11D48"];
 
   return (
     <section className="py-24 px-4 bg-[#F8F9FA] relative overflow-hidden">
@@ -240,37 +240,34 @@ function UseCaseSection({ setPage }: { setPage: (p: Page) => void }) {
         </h2>
       </div>
 
-      <div className="max-w-6xl mx-auto flex flex-col lg:flex-row items-center relative lg:min-h-[550px]">
+      <div className="max-w-6xl mx-auto flex flex-col lg:flex-row items-center relative lg:min-h-[650px]">
         
         {/* Left Hub - Business Infographic Circle */}
-        <div className="w-full lg:w-[35%] flex justify-center lg:justify-end mb-16 lg:mb-0 relative z-10 lg:pr-8">
-           <div className="w-56 h-56 md:w-64 md:h-64 rounded-full bg-white flex flex-col items-center justify-center relative shadow-[0_15px_40px_rgba(0,0,0,0.06)] border-[8px] border-slate-50">
+        <div className="w-full lg:w-[35%] flex justify-center mb-16 lg:mb-0 relative z-10">
+           <div className="w-56 h-56 md:w-64 md:h-64 rounded-full bg-white flex flex-col items-center justify-center relative shadow-[0_15px_40px_rgba(0,0,0,0.06)] border-[8px] border-slate-50 overflow-hidden group">
              <div className="absolute -inset-4 rounded-full border border-slate-200 pointer-events-none"></div>
              
-             {/* Left Curved Accent Line (matches the reference image outer ring) */}
+             {/* Left Curved Accent Line */}
              <svg className="absolute -inset-6 w-[calc(100%+3rem)] h-[calc(100%+3rem)] pointer-events-none" viewBox="0 0 100 100">
                 <path d="M 15 15 A 45 45 0 0 0 15 85" fill="none" stroke="#1E293B" strokeWidth="0.5" />
                 <circle cx="15" cy="15" r="1.5" fill="#1E293B" />
                 <circle cx="15" cy="85" r="1.5" fill="#1E293B" />
              </svg>
 
-             {/* Inner text */}
-             <span className="text-lg md:text-xl font-black text-slate-800 tracking-wider">BUSINESS</span>
-             <span className="text-[10px] md:text-xs font-bold text-slate-500 tracking-[0.2em] mt-1">INFOGRAPHIC</span>
-             <div className="flex gap-1.5 mt-4">
-               <span className="w-2 h-2 bg-[#4358A6]"></span>
-               <span className="w-2 h-2 bg-[#2EB6BE]"></span>
-               <span className="w-2 h-2 bg-[#8F599B]"></span>
-               <span className="w-2 h-2 bg-[#D32B87]"></span>
-               <span className="w-2 h-2 bg-[#E68A2E]"></span>
-               <span className="w-2 h-2 bg-[#E8B82B]"></span>
+             {/* Lottie Animation */}
+             <div className="w-full h-full scale-[1.2] opacity-90 group-hover:opacity-100 transition-opacity">
+               <DotLottieReact
+                 src="https://lottie.host/64d72863-7188-466d-a60d-2e6dd0f40d1e/bXw3YtZ2gZ.lottie"
+                 loop
+                 autoplay
+               />
              </div>
            </div>
         </div>
 
         {/* Tree Connection Lines (SVG) - Desktop Only */}
-        {/* They connect the left hub (y=50%) to the 4 right nodes. */}
-        <svg className="hidden lg:block absolute left-[35%] top-10 bottom-10 w-[15%] z-0 pointer-events-none" preserveAspectRatio="none" viewBox="0 0 100 100">
+        {/* They connect the left hub's exact center (17.5% screen) to the right nodes (40% screen). */}
+        <svg className="hidden lg:block absolute left-[17.5%] right-[60%] top-10 bottom-10 z-0 pointer-events-none" preserveAspectRatio="none" viewBox="0 0 100 100">
           <path d="M 0 50 C 40 50, 60 0, 100 0" fill="none" stroke="#64748B" strokeWidth="0.5" />
           <path d="M 0 50 C 40 50, 60 33.3, 100 33.3" fill="none" stroke="#64748B" strokeWidth="0.5" />
           <path d="M 0 50 C 40 50, 60 66.6, 100 66.6" fill="none" stroke="#64748B" strokeWidth="0.5" />
@@ -281,16 +278,16 @@ function UseCaseSection({ setPage }: { setPage: (p: Page) => void }) {
           <circle cx="100" cy="66.6" r="1.5" fill="#1E293B" />
           <circle cx="100" cy="100" r="1.5" fill="#1E293B" />
           
-          <circle cx="0" cy="50" r="1.5" fill="#1E293B" />
+          <circle cx="0" cy="50" r="2.5" fill="#1E293B" />
         </svg>
 
         {/* Right List - 4 Nodes */}
-        <div className="w-full lg:w-[50%] flex flex-col justify-between h-auto lg:absolute lg:right-0 lg:top-10 lg:bottom-10 z-10 gap-6 lg:gap-0 pl-4 lg:pl-0 pr-4">
+        <div className="w-full lg:w-[60%] flex flex-col justify-between h-auto lg:absolute lg:right-0 lg:top-10 lg:bottom-10 z-10 gap-6 lg:gap-0 pl-4 lg:pl-0 pr-4">
            {useCases.map((uc, i) => {
              const Icon = uc.icon;
              const color = colors[i];
              return (
-               <div key={i} className="flex items-center w-full relative group lg:h-20">
+               <div key={i} className="flex items-center w-full relative group lg:h-24">
                  {/* White Circle Icon */}
                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white flex flex-shrink-0 items-center justify-center z-10 relative group-hover:scale-105 transition-transform border-[6px] border-[#F8F9FA]"
                       style={{ boxShadow: "inset 0 -5px 10px rgba(0,0,0,0.05), 0 10px 20px rgba(0,0,0,0.08)" }}>
@@ -299,19 +296,19 @@ function UseCaseSection({ setPage }: { setPage: (p: Page) => void }) {
                  
                  {/* Colored Arrow Ribbon */}
                  <div 
-                   className="flex-1 py-4 md:py-4 pl-12 md:pl-14 pr-8 md:pr-12 -ml-10 text-white relative z-0 transition-transform group-hover:translate-x-2"
+                   className="flex-1 py-5 md:py-6 pl-12 md:pl-16 pr-8 md:pr-14 -ml-10 text-white relative z-0 transition-transform group-hover:translate-x-2"
                    style={{ 
                      backgroundColor: color,
                      clipPath: "polygon(0% 0%, 95% 0%, 100% 50%, 95% 100%, 0% 100%)",
                      boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)"
                    }}
                  >
-                   <div className="flex items-center gap-2 mb-1">
-                     <span className="text-[10px] md:text-[11px] uppercase tracking-widest font-bold opacity-90">INFOGRAPHIC</span>
-                     <span className="text-lg md:text-xl font-black">{`0${i+1}`}</span>
+                   <div className="flex items-center gap-2 mb-1.5">
+                     <span className="text-[10px] md:text-xs uppercase tracking-widest font-bold opacity-90">INFOGRAPHIC</span>
+                     <span className="text-xl md:text-2xl font-black">{`0${i+1}`}</span>
                    </div>
-                   <h3 className="font-extrabold text-sm md:text-sm mb-1 leading-tight text-white line-clamp-1">{uc.title}</h3>
-                   <p className="text-[9px] md:text-[10px] text-white/80 leading-relaxed font-medium line-clamp-2 md:line-clamp-2 pr-4">{uc.desc}</p>
+                   <h3 className="font-extrabold text-sm md:text-base mb-1.5 leading-tight text-white">{uc.title}</h3>
+                   <p className="text-xs md:text-sm text-white/90 leading-relaxed font-medium pr-4">{uc.desc}</p>
                  </div>
                </div>
              )
