@@ -765,7 +765,7 @@ function GridSteps() {
             // The left margin creates the overlap on desktop
             const marginLeft = i === 0 ? "0" : "-ml-0 xl:-ml-12";
             // Extra right padding for cards 1, 2, 3 to prevent their text from being covered by the next card's overlapping number
-            const paddingRight = i !== steps.length - 1 ? "xl:pr-20" : "";
+            const paddingRight = i !== steps.length - 1 ? "xl:pr-32" : "";
             
             return (
               <motion.div 
