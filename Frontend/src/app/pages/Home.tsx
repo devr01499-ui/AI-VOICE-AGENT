@@ -240,11 +240,11 @@ function UseCaseSection({ setPage }: { setPage: (p: Page) => void }) {
         </h2>
       </div>
 
-      <div className="max-w-6xl mx-auto flex flex-col lg:flex-row items-center relative lg:min-h-[650px]">
+      <div className="max-w-6xl mx-auto flex flex-col lg:flex-row items-center relative lg:min-h-[650px] lg:py-10">
         
         {/* Left Hub - Business Infographic Circle */}
-        <div className="w-full lg:w-[35%] flex justify-center mb-16 lg:mb-0 relative z-10">
-           <div className="w-56 h-56 md:w-64 md:h-64 rounded-full bg-white flex flex-col items-center justify-center relative shadow-[0_15px_40px_rgba(0,0,0,0.06)] border-[8px] border-slate-50 overflow-hidden group">
+        <div className="w-full lg:w-[35%] flex justify-center mb-16 lg:mb-0 relative z-20">
+           <div className="w-56 h-56 md:w-64 md:h-64 rounded-full bg-white flex flex-col items-center justify-center relative shadow-[0_15px_40px_rgba(0,0,0,0.06)] border-[8px] border-slate-50 group">
              <div className="absolute -inset-4 rounded-full border border-slate-200 pointer-events-none"></div>
              
              {/* Left Curved Accent Line */}
@@ -255,48 +255,56 @@ function UseCaseSection({ setPage }: { setPage: (p: Page) => void }) {
              </svg>
 
              {/* Lottie Animation */}
-             <div className="w-full h-full scale-[1.2] opacity-90 group-hover:opacity-100 transition-opacity">
+             <div className="absolute inset-0 p-6 flex items-center justify-center scale-110 opacity-90 group-hover:opacity-100 transition-opacity">
                <DotLottieReact
                  src="https://lottie.host/64d72863-7188-466d-a60d-2e6dd0f40d1e/bXw3YtZ2gZ.lottie"
                  loop
                  autoplay
+                 className="w-full h-full object-contain"
                />
              </div>
            </div>
         </div>
 
         {/* Tree Connection Lines (SVG) - Desktop Only */}
-        {/* They connect the left hub's exact center (17.5% screen) to the right nodes (40% screen). */}
-        <svg className="hidden lg:block absolute left-[17.5%] right-[60%] top-10 bottom-10 z-0 pointer-events-none" preserveAspectRatio="none" viewBox="0 0 100 100">
-          <path d="M 0 50 C 40 50, 60 0, 100 0" fill="none" stroke="#64748B" strokeWidth="0.5" />
-          <path d="M 0 50 C 40 50, 60 33.3, 100 33.3" fill="none" stroke="#64748B" strokeWidth="0.5" />
-          <path d="M 0 50 C 40 50, 60 66.6, 100 66.6" fill="none" stroke="#64748B" strokeWidth="0.5" />
-          <path d="M 0 50 C 40 50, 60 100, 100 100" fill="none" stroke="#64748B" strokeWidth="0.5" />
+        {/* SVG perfectly spans from hub center (17.5%) to cards left edge (40%) */}
+        <svg className="hidden lg:block absolute left-[17.5%] right-[60%] top-10 bottom-10 z-10 pointer-events-none" preserveAspectRatio="none" viewBox="0 0 100 100">
+          <path d="M 0 50 C 40 50, 60 12.5, 100 12.5" fill="none" stroke="#94A3B8" strokeWidth="0.4" />
+          <path d="M 0 50 C 40 50, 60 37.5, 100 37.5" fill="none" stroke="#94A3B8" strokeWidth="0.4" />
+          <path d="M 0 50 C 40 50, 60 62.5, 100 62.5" fill="none" stroke="#94A3B8" strokeWidth="0.4" />
+          <path d="M 0 50 C 40 50, 60 87.5, 100 87.5" fill="none" stroke="#94A3B8" strokeWidth="0.4" />
           
-          <circle cx="100" cy="0" r="1.5" fill="#1E293B" />
-          <circle cx="100" cy="33.3" r="1.5" fill="#1E293B" />
-          <circle cx="100" cy="66.6" r="1.5" fill="#1E293B" />
-          <circle cx="100" cy="100" r="1.5" fill="#1E293B" />
+          {/* Connector dots on the cards */}
+          <circle cx="100" cy="12.5" r="1.5" fill="#475569" />
+          <circle cx="100" cy="37.5" r="1.5" fill="#475569" />
+          <circle cx="100" cy="62.5" r="1.5" fill="#475569" />
+          <circle cx="100" cy="87.5" r="1.5" fill="#475569" />
           
-          <circle cx="0" cy="50" r="2.5" fill="#1E293B" />
+          {/* Connector dot on the hub center */}
+          <circle cx="0" cy="50" r="2" fill="#475569" />
         </svg>
 
         {/* Right List - 4 Nodes */}
-        <div className="w-full lg:w-[60%] flex flex-col justify-between h-auto lg:absolute lg:right-0 lg:top-10 lg:bottom-10 z-10 gap-6 lg:gap-0 pl-4 lg:pl-0 pr-4">
+        <div className="w-full lg:w-[60%] flex flex-col h-auto lg:absolute lg:right-0 lg:top-10 lg:bottom-10 z-20 pl-4 lg:pl-0 pr-4">
            {useCases.map((uc, i) => {
              const Icon = uc.icon;
              const color = colors[i];
+             const topPercent = 12.5 + i * 25;
              return (
-               <div key={i} className="flex items-center w-full relative group lg:h-24">
+               <div 
+                 key={i} 
+                 className="flex items-center w-full relative group mb-6 lg:mb-0 lg:absolute lg:-translate-y-1/2 lg:top-[var(--lg-top)]"
+                 style={{ '--lg-top': `${topPercent}%` } as React.CSSProperties}
+               >
                  {/* White Circle Icon */}
-                 <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white flex flex-shrink-0 items-center justify-center z-10 relative group-hover:scale-105 transition-transform border-[6px] border-[#F8F9FA]"
+                 <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white flex flex-shrink-0 items-center justify-center z-20 relative group-hover:scale-105 transition-transform border-[6px] border-[#F8F9FA]"
                       style={{ boxShadow: "inset 0 -5px 10px rgba(0,0,0,0.05), 0 10px 20px rgba(0,0,0,0.08)" }}>
                    <Icon className="w-6 h-6 md:w-8 md:h-8 text-slate-700" strokeWidth={1.5} />
                  </div>
                  
                  {/* Colored Arrow Ribbon */}
                  <div 
-                   className="flex-1 py-5 md:py-6 pl-12 md:pl-16 pr-8 md:pr-14 -ml-10 text-white relative z-0 transition-transform group-hover:translate-x-2"
+                   className="flex-1 py-5 md:py-6 pl-12 md:pl-16 pr-8 md:pr-14 -ml-10 text-white relative z-10 transition-transform group-hover:translate-x-2"
                    style={{ 
                      backgroundColor: color,
                      clipPath: "polygon(0% 0%, 95% 0%, 100% 50%, 95% 100%, 0% 100%)",
