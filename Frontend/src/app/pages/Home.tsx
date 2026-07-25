@@ -733,18 +733,18 @@ export default function Home({ setPage }: HomeProps) {
   );
 }
 
-// ── Grid Steps Section (2x2 L-Shape Cards) ──────────────────────────────────────
+// ── Interlocking Horizontal Steps Section ──────────────────────────────────────
 function GridSteps() {
   const steps = [
-    { n: "01", title: "Configure Your AI Agent", desc: "Name your agent, pick a voice persona, set language mode, and define the conversation goal.", icon: Bot, variant: "TL" },
-    { n: "02", title: "Upload Knowledge Base", desc: "Paste FAQs, connect Shopify/CRM, or upload PDFs. Your AI phone assistant learns your business instantly via RAG.", icon: Database, variant: "TR" },
-    { n: "04", title: "Launch & Monitor", desc: "Go live. Monitor calls in real-time, read transcripts, view AI call analytics, and iterate from the dashboard.", icon: BarChart3, variant: "BL" },
-    { n: "03", title: "Connect Phone Number", desc: "Get a dedicated PSTN number or bring your SIP trunk. Inbound and outbound routing configured in one click.", icon: Phone, variant: "BR" },
+    { n: "1", title: "Configure Your AI Agent", desc: "Name your agent, pick a voice persona, set language mode, and define the conversation goal.", icon: Bot, color: "#14532D" },
+    { n: "2", title: "Upload Knowledge Base", desc: "Paste FAQs, connect Shopify/CRM, or upload PDFs. Your AI phone assistant learns your business instantly via RAG.", icon: Database, color: "#166534" },
+    { n: "3", title: "Connect Phone Number", desc: "Get a dedicated PSTN number or bring your SIP trunk. Inbound and outbound routing configured in one click.", icon: Phone, color: "#15803D" },
+    { n: "4", title: "Launch & Monitor", desc: "Go live. Monitor calls in real-time, read transcripts, view AI call analytics, and iterate from the dashboard.", icon: BarChart3, color: "#16A34A" },
   ];
 
   return (
-    <section className="py-24 px-6 relative overflow-hidden bg-[#F1F5F9]">
-      <div className="max-w-6xl mx-auto">
+    <section className="py-28 px-4 lg:px-8 relative overflow-hidden bg-[#F1F5F9]">
+      <div className="max-w-[1400px] mx-auto">
         <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
           <SectionLabel text="Deploy in Under 10 Minutes" color="green" />
           <h2 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A] leading-tight"
@@ -756,80 +756,68 @@ function GridSteps() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-16 max-w-5xl mx-auto">
+        {/* Horizontal Interlocking Cards Container */}
+        <div className="flex flex-col xl:flex-row items-stretch justify-center pl-0 xl:pl-16 gap-y-12 xl:gap-y-0 max-w-full overflow-hidden pb-12 pt-8">
           {steps.map((step, i) => {
             const Icon = step.icon;
-            const isTL = step.variant === "TL";
-            const isTR = step.variant === "TR";
-            const isBL = step.variant === "BL";
-            const isBR = step.variant === "BR";
+            // z-index increases left to right so that right cards overlap left cards
+            const zIndex = (i + 1) * 10;
+            // The left margin creates the overlap on desktop
+            const marginLeft = i === 0 ? "0" : "-ml-0 xl:-ml-12";
             
-            // Common Green Box
-            const GreenBox = (
-              <div className={`absolute ${isTL || isTR ? 'top-0' : 'bottom-0'} ${isTL || isBL ? 'left-0' : 'right-0'} w-28 h-28 lg:w-32 lg:h-32 bg-[#8EB04A] rounded-2xl flex flex-col items-center justify-center text-white z-20 shadow-lg`}>
-                <span className="text-4xl lg:text-5xl font-extrabold tracking-tighter">{step.n}</span>
-                <span className="text-[9px] lg:text-[10px] font-bold uppercase tracking-widest mt-1 opacity-90">Step {step.n === "01" ? "One" : step.n === "02" ? "Two" : step.n === "03" ? "Three" : "Four"}</span>
-                {/* Pointer Arrow */}
-                <div className={`absolute ${isTL || isTR ? '-bottom-2' : '-top-2'} left-1/2 -translate-x-1/2 w-4 h-4 bg-[#8EB04A] rotate-45`}></div>
-              </div>
-            );
-
-            // Text Content Block
-            const TextBlock = (
-              <div className={`bg-white ${isTL ? 'rounded-b-3xl rounded-tl-3xl' : isTR ? 'rounded-b-3xl rounded-tr-3xl' : isBL ? 'rounded-t-3xl rounded-bl-3xl' : 'rounded-t-3xl rounded-br-3xl'} p-8 pt-7 relative flex-1 flex flex-col justify-center shadow-[0_4px_20px_rgba(0,0,0,0.03)]`}>
-                <div className="flex items-center gap-2 mb-3">
-                   <div className="w-5 h-5 rounded-full bg-[#8EB04A] text-white flex items-center justify-center text-xs font-bold leading-none pb-0.5">+</div>
-                   <h3 className="text-[#8EB04A] font-extrabold tracking-wide uppercase text-sm">{step.title}</h3>
-                </div>
-                <p className="text-sm text-slate-500 leading-relaxed font-medium">{step.desc}</p>
-              </div>
-            );
-
-            // Icon Block
-            const IconBlockContent = (
-              <div className="flex-1 bg-white flex items-center justify-center relative shadow-[0_4px_20px_rgba(0,0,0,0.03)] group transition-all"
-                   style={{
-                     borderTopRightRadius: isTL ? '1.5rem' : 0,
-                     borderTopLeftRadius: isTR ? '1.5rem' : 0,
-                     borderBottomRightRadius: isBL ? '1.5rem' : 0,
-                     borderBottomLeftRadius: isBR ? '1.5rem' : 0,
-                   }}>
-                <Icon className="w-12 h-12 text-[#8EB04A] group-hover:scale-110 transition-transform duration-300 opacity-90" strokeWidth={1.5} />
-              </div>
-            );
-
-            const Spacer = <div className="w-24 lg:w-28 bg-transparent shrink-0"></div>;
-
-            const IconRow = (
-              <div className="flex h-24 lg:h-28">
-                {isTL || isBL ? Spacer : IconBlockContent}
-                {isTL || isBL ? IconBlockContent : Spacer}
-              </div>
-            );
-
             return (
               <motion.div 
                 key={i}
-                initial={{ opacity: 0, scale: 0.95 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: i * 0.1 }}
-                className="relative filter drop-shadow-xl group"
+                initial={{ opacity: 0, x: 50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true, margin: "-50px" }}
+                transition={{ duration: 0.6, delay: i * 0.1 }}
+                className={`relative flex-1 rounded-3xl p-8 lg:p-10 flex flex-col justify-between min-h-[380px] shadow-2xl ${marginLeft}`}
+                style={{ 
+                  backgroundColor: step.color, 
+                  zIndex: zIndex,
+                }}
               >
-                {GreenBox}
-                
-                <div className={`flex flex-col ${isTL || isBL ? 'ml-6 lg:ml-8' : 'mr-6 lg:mr-8'} ${isTL || isTR ? 'mt-6 lg:mt-8' : 'mb-6 lg:mb-8'} min-h-[280px]`}>
-                  {isTL || isTR ? (
-                    <>
-                      {IconRow}
-                      {TextBlock}
-                    </>
-                  ) : (
-                    <>
-                      {TextBlock}
-                      {IconRow}
-                    </>
-                  )}
+                {/* Large Interlocking Number (Hidden on very small mobile, visible mostly on tablet/desktop) */}
+                <div 
+                  className="absolute hidden sm:block top-1/2 -translate-y-1/2 font-black select-none pointer-events-none transition-transform"
+                  style={{
+                    left: "-3.5rem", // Protrudes to the left to overlap the previous card
+                    fontSize: "240px",
+                    lineHeight: "0.8",
+                    color: step.color, // Exactly matches the card background to form a seamless extension
+                    textShadow: "-12px 0px 20px rgba(0,0,0,0.35)", // Creates the 3D interlocking illusion
+                    zIndex: -1 // Sits just behind the card content but above the previous card
+                  }}
+                >
+                  {step.n}
+                </div>
+
+                {/* Mobile version of the number (Since horizontal overlap doesn't work well on vertical stack) */}
+                <div className="sm:hidden absolute -top-8 left-8 text-7xl font-black text-white/20 select-none">
+                  {step.n}
+                </div>
+
+                {/* Card Content */}
+                <div className="relative z-10 flex flex-col h-full">
+                  <div className="mb-8">
+                    <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center mb-6 shadow-inner border border-white/5">
+                      <Icon className="w-7 h-7 text-white" strokeWidth={1.5} />
+                    </div>
+                    <h3 className="text-2xl font-extrabold text-white mb-4 leading-snug">
+                      {step.title}
+                    </h3>
+                    <p className="text-white/80 leading-relaxed font-medium text-sm">
+                      {step.desc}
+                    </p>
+                  </div>
+
+                  <div className="mt-auto">
+                    <div className="w-full h-[1px] bg-white/20 mb-4"></div>
+                    <p className="text-xs font-bold text-white/60 uppercase tracking-widest font-mono">
+                      Phase {step.n}
+                    </p>
+                  </div>
                 </div>
               </motion.div>
             )
