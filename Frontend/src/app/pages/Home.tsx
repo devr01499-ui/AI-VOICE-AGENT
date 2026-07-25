@@ -176,14 +176,20 @@ function BentoCapabilitySection({ setPage }: { setPage: (p: Page) => void }) {
                 </div>
 
                 {/* Right Side: Text */}
-                <div className="w-3/4 sm:w-4/5 flex flex-col justify-center py-6 pr-6 pl-12 sm:pl-20 md:pl-32 xl:pl-40">
+                <div className="absolute inset-y-0 right-0 w-[65%] flex flex-col justify-center py-4 pr-6 sm:pr-10">
+                  <span 
+                    className="text-[10px] sm:text-xs font-black uppercase tracking-widest mb-1"
+                    style={{ color: bgColor }}
+                  >
+                    Feature 0{i + 1}
+                  </span>
                   <h3 
-                    className="text-lg sm:text-xl font-black uppercase tracking-wide mb-2 leading-tight" 
-                    style={{ color: bgColor, fontFamily: "'Clash Display', sans-serif" }}
+                    className="text-base sm:text-lg md:text-xl font-extrabold text-slate-900 mb-2 leading-tight" 
+                    style={{ fontFamily: "'Clash Display', sans-serif" }}
                   >
                     {item.title}
                   </h3>
-                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium max-w-2xl">
+                  <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
                     {item.desc}
                   </p>
                 </div>
