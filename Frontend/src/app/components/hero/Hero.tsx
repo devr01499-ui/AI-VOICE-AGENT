@@ -295,11 +295,11 @@ export default function Hero({ setPage }: HeroProps) {
       />
 
       <div className="max-w-7xl mx-auto px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-6 items-center">
+        <div className="flex flex-col items-center justify-center text-center py-10 lg:py-20">
 
-          {/* ── LEFT: Text content ─────────────────────────────────────── */}
+          {/* ── Text content ─────────────────────────────────────── */}
           <motion.div
-            className="space-y-8 max-w-[600px]"
+            className="space-y-8 max-w-[800px] mx-auto flex flex-col items-center"
             variants={containerVariants}
             initial="hidden"
             animate="visible"
@@ -360,14 +360,14 @@ export default function Hero({ setPage }: HeroProps) {
             {/* Body */}
             <motion.p
               variants={itemVariants}
-              className="text-[#4B5563] leading-[1.65] max-w-[480px]"
+              className="text-[#4B5563] leading-[1.65] max-w-[550px] mx-auto"
               style={{ fontSize: 17 }}
             >
               The world's fastest AI voice calling platform — sub-180ms latency, 70+ languages, zero setup overhead. Replace your IVR, qualify leads, and handle collections automatically.
             </motion.p>
 
             {/* CTAs */}
-            <motion.div variants={itemVariants} className="flex flex-wrap gap-4 items-center">
+            <motion.div variants={itemVariants} className="flex flex-wrap gap-4 items-center justify-center">
               <button onClick={() => setPage("dashboard")} className="btn-primary text-[15px] px-7 py-3.5">
                 Build Your First AI Agent
                 <ArrowRight className="w-4 h-4" />
@@ -381,44 +381,6 @@ export default function Hero({ setPage }: HeroProps) {
               </button>
             </motion.div>
 
-            {/* Trust stats */}
-            <motion.div variants={itemVariants} className="flex flex-wrap gap-6 pt-2">
-              {[
-                { v: "10M+", l: "Calls monthly" },
-                { v: "<180ms", l: "Voice latency" },
-                { v: "500+", l: "Enterprises" },
-                { v: "70+", l: "Languages" },
-              ].map((s, i) => (
-                <div key={i} className="flex flex-col">
-                  <span className="text-[22px] font-extrabold text-[#0D1117] leading-none"
-                    style={{ fontFamily: "'Clash Display', sans-serif" }}>
-                    {s.v}
-                  </span>
-                  <span className="text-[12px] text-[#9CA3AF] mt-1 font-medium">{s.l}</span>
-                </div>
-              ))}
-            </motion.div>
-
-            {/* Compliance strip */}
-            <motion.div variants={itemVariants} className="flex items-center gap-3 flex-wrap">
-              {["SOC 2 TYPE II", "HIPAA BAA", "ISO 27001", "PCI-DSS", "GDPR"].map((b) => (
-                <span key={b}
-                  className="inline-flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.12em] text-[#9CA3AF] font-mono">
-                  <CheckCircle2 className="w-3 h-3 text-[#059669]" />
-                  {b}
-                </span>
-              ))}
-            </motion.div>
-          </motion.div>
-
-          {/* ── RIGHT: Live Call Visual ────────────────────────────────── */}
-          <motion.div
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.9, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
-            className="relative"
-          >
-            <HeroVisual />
           </motion.div>
         </div>
       </div>

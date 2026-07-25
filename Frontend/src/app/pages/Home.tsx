@@ -489,34 +489,6 @@ export default function Home({ setPage }: HomeProps) {
       {/* ── HERO ── */}
       <Hero setPage={setPage} />
 
-      {/* ── METRICS BAND ── */}
-      <section className="py-16 px-6">
-        <motion.div
-          className="max-w-5xl mx-auto rounded-3xl overflow-hidden"
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          style={{
-            background: "linear-gradient(135deg, #1B4332 0%, #0D2B20 100%)",
-            boxShadow: "0 24px 64px rgba(11,41,26,0.22)",
-          }}
-        >
-          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-white/10">
-            {[
-              { v: "10M+", l: "Calls Handled Monthly", s: "AI call automation at scale" },
-              { v: "<180ms", l: "Voice Response Latency", s: "Native multimodal pipeline" },
-              { v: "70+", l: "Languages Supported", s: "Accent-aware speech models" },
-              { v: "99.9%", l: "Uptime SLA", s: "Enterprise-grade reliability" },
-            ].map((m, i) => (
-              <div key={i} className="flex flex-col items-center text-center p-8">
-                <StatNumber value={m.v} />
-                <span className="text-sm font-bold text-[#34D399] mt-2">{m.l}</span>
-                <span className="text-xs text-white/35 mt-1 font-mono">{m.s}</span>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      </section>
 
       {/* ── HOW IT WORKS (Grid Steps) ── */}
       <GridSteps />
