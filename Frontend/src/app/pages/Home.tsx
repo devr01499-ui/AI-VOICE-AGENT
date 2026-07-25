@@ -491,6 +491,123 @@ function FinalCTA({ setPage }: { setPage: (p: Page) => void }) {
 }
 
 
+// ── Infographic Steps Section ──────────────────────────────────────────────────
+function InfographicSteps() {
+  const steps = [
+    { n: "01", title: "Configure Your AI Agent", desc: "Name your agent, pick a voice persona, set language mode, and define the conversation goal.", icon: Bot, color: "#D2988E", backColor: "#6A5E6D" },
+    { n: "02", title: "Upload Knowledge Base", desc: "Paste FAQs, connect Shopify/CRM, or upload PDFs. Your AI phone assistant learns your business instantly via RAG.", icon: Database, color: "#796B7C", backColor: "#322734" },
+    { n: "03", title: "Connect Phone Number", desc: "Get a dedicated PSTN number or bring your SIP trunk. Inbound and outbound routing configured in one click.", icon: Phone, color: "#3A2D3C", backColor: "#A43627" },
+    { n: "04", title: "Launch & Monitor", desc: "Go live. Monitor calls in real-time, read transcripts, view AI call analytics, and iterate from the dashboard.", icon: BarChart3, color: "#C54636", backColor: "transparent" },
+  ];
+
+  return (
+    <section className="py-24 px-6 relative overflow-hidden" style={{ background: "#FAF8F5" }}>
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center max-w-3xl mx-auto mb-24 space-y-4">
+          <SectionLabel text="Deploy in Under 10 Minutes" color="orange" />
+          <h2 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A] leading-tight"
+            style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
+            From Zero to Live AI Voice Agent — 4 Steps
+          </h2>
+          <p className="text-slate-500 leading-relaxed">
+            No code. No call center setup. No engineering team. Build and deploy your AI phone agent in minutes using our no-code voice AI platform.
+          </p>
+        </div>
+
+        {/* Desktop View (Ribbon Timeline) */}
+        <div className="max-w-4xl mx-auto relative pt-10 pb-10 hidden md:block">
+          {/* Start Pin */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-32 bg-white z-50 flex items-center justify-center flex-col -mt-10 rounded-b-xl" style={{ boxShadow: "0 10px 30px rgba(0,0,0,0.08)" }}>
+            <span className="transform -rotate-90 font-bold tracking-widest text-slate-400 text-xs mt-8">START</span>
+          </div>
+
+          <div className="relative pt-20 pb-20">
+            {steps.map((step, i) => {
+              const isRight = i % 2 === 0;
+              const Icon = step.icon;
+              return (
+                <div key={i} className="relative w-full flex flex-col mb-12">
+                  
+                  {/* Main Front Ribbon */}
+                  <motion.div 
+                    initial={{ opacity: 0, x: isRight ? 40 : -40 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true, margin: "-50px" }}
+                    transition={{ duration: 0.6, delay: i * 0.1 }}
+                    className={\`relative z-20 w-[75%] \${isRight ? 'self-end rounded-l-full' : 'self-start rounded-r-full'} p-8 lg:p-10 flex items-center\`}
+                    style={{ 
+                      backgroundColor: step.color, 
+                      zIndex: 40 - i * 10,
+                      boxShadow: "0 30px 60px rgba(0,0,0,0.15), 0 10px 20px rgba(0,0,0,0.1)"
+                    }}
+                  >
+                    <div className={\`flex w-full items-center gap-6 lg:gap-8 \${isRight ? 'flex-row' : 'flex-row-reverse'}\`}>
+                      <div className="text-white text-5xl lg:text-6xl font-light opacity-90">{step.n}</div>
+                      <div className={\`text-white flex-1 \${isRight ? 'text-left' : 'text-right'}\`}>
+                        <h3 className="text-xl lg:text-2xl font-bold mb-2 uppercase tracking-wide">{step.title}</h3>
+                        <p className={\`text-sm opacity-90 leading-relaxed max-w-sm \${isRight ? '' : 'ml-auto'}\`}>{step.desc}</p>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* Back Connector Ribbon */}
+                  {i < steps.length - 1 && (
+                    <div 
+                      className="absolute w-[60%] h-[140%] top-[50%] flex items-center justify-center"
+                      style={{ 
+                        backgroundColor: step.backColor,
+                        [isRight ? 'right' : 'left']: '20%',
+                        [isRight ? 'borderTopLeftRadius' : 'borderTopRightRadius']: '100px',
+                        [isRight ? 'borderBottomLeftRadius' : 'borderBottomRightRadius']: '100px',
+                        zIndex: 35 - i * 10,
+                        boxShadow: "inset 0 20px 40px rgba(0,0,0,0.3)"
+                      }}
+                    >
+                      <Icon className="w-16 h-16 text-white opacity-40 transform -translate-y-4" />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Stop Pin */}
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-32 bg-white z-50 flex items-center justify-center flex-col -mb-10 rounded-t-xl" style={{ boxShadow: "0 -10px 30px rgba(0,0,0,0.08)" }}>
+            <span className="transform -rotate-90 font-bold tracking-widest text-slate-400 text-xs mb-8">STOP</span>
+          </div>
+        </div>
+
+        {/* Mobile View (Cards) */}
+        <div className="grid grid-cols-1 gap-5 md:hidden">
+            {steps.map((s, i) => {
+              const Icon = s.icon;
+              return (
+                <motion.div 
+                  key={i} 
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  className="bg-white rounded-3xl p-7 shadow-lg border border-slate-100 relative overflow-hidden"
+                >
+                   <div className="absolute top-0 right-0 w-32 h-32 opacity-10 rounded-full blur-2xl" style={{ backgroundColor: s.color }} />
+                   <div className="flex items-center justify-between gap-4 mb-5">
+                     <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner" style={{ backgroundColor: s.color }}>
+                       <Icon className="w-7 h-7 text-white" />
+                     </div>
+                     <span className="text-4xl font-light opacity-30" style={{ color: s.color }}>{s.n}</span>
+                   </div>
+                   <h3 className="text-lg font-extrabold text-[#0F172A] mb-2">{s.title}</h3>
+                   <p className="text-sm text-slate-500 leading-relaxed">{s.desc}</p>
+                </motion.div>
+              )
+            })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+
 // ── Main Home Page ──────────────────────────────────────────────────────────
 export default function Home({ setPage }: HomeProps) {
   return (
@@ -602,55 +719,8 @@ export default function Home({ setPage }: HomeProps) {
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ── */}
-      <section className="py-24 px-6" style={{ background: "#F0FDF4" }}>
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center max-w-3xl mx-auto mb-14 space-y-4">
-            <SectionLabel text="Deploy in Under 10 Minutes" />
-            <h2 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A] leading-tight"
-              style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
-              From Zero to Live AI Voice Agent — 4 Steps
-            </h2>
-            <p className="text-slate-500 leading-relaxed">
-              No code. No call center setup. No engineering team. Build and deploy your AI phone agent in minutes using our no-code voice AI platform.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            {[
-              { n: "01", title: "Configure Your AI Agent", desc: "Name your agent, pick a voice persona, set language mode, and define the conversation goal — from the guided dashboard.", icon: Bot },
-              { n: "02", title: "Upload Knowledge Base", desc: "Paste FAQs, connect Shopify/CRM, or upload PDFs. Your AI phone assistant learns your business instantly via RAG.", icon: Database },
-              { n: "03", title: "Connect Phone Number", desc: "Get a dedicated PSTN number or bring your SIP trunk. Inbound and outbound routing configured in one click.", icon: Phone },
-              { n: "04", title: "Launch & Monitor", desc: "Go live. Monitor calls in real-time, read transcripts, view AI call analytics, and iterate from the dashboard.", icon: BarChart3 },
-            ].map((s, i) => {
-              const Icon = s.icon;
-              return (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 28 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: i * 0.1 }}
-                  className="relative bg-white border border-[#EADEC9] rounded-3xl p-7 space-y-4 overflow-hidden group hover:shadow-lg transition-all"
-                >
-                  {/* Step number watermark */}
-                  <span className="absolute -top-3 -right-2 text-[80px] font-extrabold text-[#059669]/5 leading-none select-none font-mono">
-                    {s.n}
-                  </span>
-                  <div className="w-12 h-12 rounded-2xl bg-[#D1FAE5] flex items-center justify-center">
-                    <Icon className="w-6 h-6 text-[#059669]" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-[#059669] font-mono mb-1">Step {s.n}</p>
-                    <h3 className="text-base font-extrabold text-[#0F172A] mb-2">{s.title}</h3>
-                    <p className="text-sm text-slate-500 leading-relaxed">{s.desc}</p>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+      {/* ── HOW IT WORKS (Infographic) ── */}
+      <InfographicSteps />
 
       {/* ── INBOUND + OUTBOUND SPLIT ── */}
       <section className="py-24 px-6 max-w-7xl mx-auto">
