@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "motion/react";
 import { ArrowRight, Mic, Globe, Zap, Shield, Phone, Star, CheckCircle2, Play } from "lucide-react";
-import LivingSignal from "./LivingSignal";
 
 type Page = any;
 interface HeroProps { setPage: (p: Page) => void; }
@@ -381,9 +380,6 @@ export default function Hero({ setPage }: HeroProps) {
                 Watch Platform Demo
               </button>
             </motion.div>
-
-            {/* Living Signal Animation */}
-            <LivingSignal />
 
           </motion.div>
         </div>
