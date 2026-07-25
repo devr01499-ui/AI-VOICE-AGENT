@@ -494,7 +494,7 @@ function FinalCTA({ setPage }: { setPage: (p: Page) => void }) {
 // ── Infographic Steps Section ──────────────────────────────────────────────────
 function InfographicSteps() {
   const steps = [
-    { n: "01", title: "Configure Your AI Agent", desc: "Name your agent, pick a voice persona, set language mode, and define the conversation goal.", icon: Bot, color: "#D2988E", backColor: "#6A5E6D" },
+    { n: "01", title: "Configure Your AI Agent", desc: "Name your agent, pick a voice persona, set language mode, and define the conversation goal.", icon: Bot, color: "#D9988F", backColor: "#6A5E6D" },
     { n: "02", title: "Upload Knowledge Base", desc: "Paste FAQs, connect Shopify/CRM, or upload PDFs. Your AI phone assistant learns your business instantly via RAG.", icon: Database, color: "#796B7C", backColor: "#322734" },
     { n: "03", title: "Connect Phone Number", desc: "Get a dedicated PSTN number or bring your SIP trunk. Inbound and outbound routing configured in one click.", icon: Phone, color: "#3A2D3C", backColor: "#A43627" },
     { n: "04", title: "Launch & Monitor", desc: "Go live. Monitor calls in real-time, read transcripts, view AI call analytics, and iterate from the dashboard.", icon: BarChart3, color: "#C54636", backColor: "transparent" },
@@ -503,7 +503,7 @@ function InfographicSteps() {
   return (
     <section className="py-24 px-6 relative overflow-hidden" style={{ background: "#FAF8F5" }}>
       <div className="max-w-7xl mx-auto">
-        <div className="text-center max-w-3xl mx-auto mb-24 space-y-4">
+        <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
           <SectionLabel text="Deploy in Under 10 Minutes" color="orange" />
           <h2 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A] leading-tight"
             style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
@@ -514,67 +514,62 @@ function InfographicSteps() {
           </p>
         </div>
 
-        {/* Desktop View (Ribbon Timeline) */}
-        <div className="max-w-4xl mx-auto relative pt-10 pb-10 hidden md:block">
-          {/* Start Pin */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-32 bg-white z-50 flex items-center justify-center flex-col -mt-10 rounded-b-xl" style={{ boxShadow: "0 10px 30px rgba(0,0,0,0.08)" }}>
-            <span className="transform -rotate-90 font-bold tracking-widest text-slate-400 text-xs mt-8">START</span>
-          </div>
+        {/* Desktop View (Absolute Infographic Timeline) */}
+        <div className="max-w-4xl mx-auto relative hidden md:block" style={{ height: "660px" }}>
+          
+          {steps.map((step, i) => {
+            const isRight = i % 2 === 0; // 01 is Left-anchored (stretches Right), 02 is Right-anchored (stretches Left)
+            const Icon = step.icon;
+            
+            // Layout calculations
+            const cardHeight = 160;
+            const topOffset = i * cardHeight; // F1:0, F2:160, F3:320, F4:480
+            const backTopOffset = topOffset + (cardHeight / 2); // B1:80, B2:240, B3:400
+            const zIndexFront = 20 - (i * 2); // 20, 18, 16, 14
+            const zIndexBack = zIndexFront - 1; // 19, 17, 15
+            
+            return (
+              <React.Fragment key={i}>
+                {/* Front Panel */}
+                <motion.div 
+                  initial={{ opacity: 0, x: isRight ? -30 : 30 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true, margin: "-50px" }}
+                  transition={{ duration: 0.6, delay: i * 0.1 }}
+                  className={`absolute w-[80%] flex items-center p-8 lg:p-10 ${isRight ? 'left-[10%] rounded-r-full flex-row' : 'right-[10%] rounded-l-full flex-row-reverse text-right'}`}
+                  style={{ 
+                    top: `${topOffset}px`, 
+                    height: `${cardHeight}px`,
+                    backgroundColor: step.color, 
+                    zIndex: zIndexFront,
+                    boxShadow: isRight ? "10px 15px 30px rgba(0,0,0,0.12)" : "-10px 15px 30px rgba(0,0,0,0.12)"
+                  }}
+                >
+                  <div className={`text-white text-6xl font-light opacity-90 ${isRight ? 'mr-8' : 'ml-8'}`}>{step.n}</div>
+                  <div className="text-white flex-1">
+                    <h3 className="text-xl lg:text-2xl font-extrabold mb-2 uppercase tracking-wide">{step.title}</h3>
+                    <p className={`text-sm opacity-90 leading-relaxed max-w-sm ${isRight ? '' : 'ml-auto'}`}>{step.desc}</p>
+                  </div>
+                </motion.div>
 
-          <div className="relative pt-20 pb-20">
-            {steps.map((step, i) => {
-              const isRight = i % 2 === 0;
-              const Icon = step.icon;
-              return (
-                <div key={i} className="relative w-full flex flex-col mb-12">
-                  
-                  {/* Main Front Ribbon */}
-                  <motion.div 
-                    initial={{ opacity: 0, x: isRight ? 40 : -40 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true, margin: "-50px" }}
-                    transition={{ duration: 0.6, delay: i * 0.1 }}
-                    className={`relative z-20 w-[75%] ${isRight ? 'self-end rounded-l-full' : 'self-start rounded-r-full'} p-8 lg:p-10 flex items-center`}
+                {/* Back Connector Panel */}
+                {i < steps.length - 1 && (
+                  <div 
+                    className={`absolute w-[65%] flex items-end pb-6 ${isRight ? 'left-[10%] rounded-r-full justify-center' : 'right-[10%] rounded-l-full justify-center'}`}
                     style={{ 
-                      backgroundColor: step.color, 
-                      zIndex: 40 - i * 10,
-                      boxShadow: "0 30px 60px rgba(0,0,0,0.15), 0 10px 20px rgba(0,0,0,0.1)"
+                      top: `${backTopOffset}px`, 
+                      height: `${cardHeight}px`,
+                      backgroundColor: step.backColor,
+                      zIndex: zIndexBack,
+                      boxShadow: "inset 0 15px 30px rgba(0,0,0,0.25)"
                     }}
                   >
-                    <div className={`flex w-full items-center gap-6 lg:gap-8 ${isRight ? 'flex-row' : 'flex-row-reverse'}`}>
-                      <div className="text-white text-5xl lg:text-6xl font-light opacity-90">{step.n}</div>
-                      <div className={`text-white flex-1 ${isRight ? 'text-left' : 'text-right'}`}>
-                        <h3 className="text-xl lg:text-2xl font-bold mb-2 uppercase tracking-wide">{step.title}</h3>
-                        <p className={`text-sm opacity-90 leading-relaxed max-w-sm ${isRight ? '' : 'ml-auto'}`}>{step.desc}</p>
-                      </div>
-                    </div>
-                  </motion.div>
-
-                  {/* Back Connector Ribbon */}
-                  {i < steps.length - 1 && (
-                    <div 
-                      className="absolute w-[60%] h-[140%] top-[50%] flex items-center justify-center"
-                      style={{ 
-                        backgroundColor: step.backColor,
-                        [isRight ? 'right' : 'left']: '20%',
-                        [isRight ? 'borderTopLeftRadius' : 'borderTopRightRadius']: '100px',
-                        [isRight ? 'borderBottomLeftRadius' : 'borderBottomRightRadius']: '100px',
-                        zIndex: 35 - i * 10,
-                        boxShadow: "inset 0 20px 40px rgba(0,0,0,0.3)"
-                      }}
-                    >
-                      <Icon className="w-16 h-16 text-white opacity-40 transform -translate-y-4" />
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Stop Pin */}
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-32 bg-white z-50 flex items-center justify-center flex-col -mb-10 rounded-t-xl" style={{ boxShadow: "0 -10px 30px rgba(0,0,0,0.08)" }}>
-            <span className="transform -rotate-90 font-bold tracking-widest text-slate-400 text-xs mb-8">STOP</span>
-          </div>
+                    <Icon className="w-10 h-10 text-white opacity-25" />
+                  </div>
+                )}
+              </React.Fragment>
+            )
+          })}
         </div>
 
         {/* Mobile View (Cards) */}
