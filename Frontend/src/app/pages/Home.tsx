@@ -518,74 +518,26 @@ export default function Home({ setPage }: HomeProps) {
         </motion.div>
       </section>
 
-      {/* ── ABOUT / ARCHITECTURE ── */}
-      <section className="py-24 px-6 max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-          <motion.div className="space-y-6" initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
-            <SectionLabel text="Native Multimodal AI Pipeline" />
-            <h2 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A] leading-tight"
-              style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
-              Built Different — Not Just<br />Another Stacked Voice API
-            </h2>
-            <p className="text-slate-500 text-base leading-relaxed">
-              Most AI voice calling software chains third-party STT → LLM → TTS providers, adding 800ms–1.5s of pipeline latency. Clarity Voice runs a vertically integrated audio model — direct WebRTC streaming with sub-180ms response. That's the difference between a voice bot and a real AI phone agent.
-            </p>
-            <div className="space-y-3">
-              {[
-                { icon: Zap, title: "Sub-180ms End-to-End Latency", desc: "No REST overhead — direct audio streaming", color: "#059669" },
-                { icon: Globe2, title: "70+ Regional Dialects, Zero Translation", desc: "Native speech models, no lossy intermediate API", color: "#EA580C" },
-                { icon: ShieldCheck, title: "Edge-Level PII/PHI Redaction", desc: "HIPAA, SOC 2, PCI-DSS compliance built-in", color: "#059669" },
-                { icon: Network, title: "Function Calling & Tool Calling", desc: "Real-time API execution while live on the call", color: "#EA580C" },
-              ].map(({ icon: Icon, title, desc, color }, i) => (
-                <motion.div
-                  key={i}
-                  className="flex gap-4 items-start bg-white border border-[#EADEC9] rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-[#059669]/30 transition-all"
-                  initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                >
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: color === "#059669" ? "#D1FAE5" : "#FEF3C7" }}>
-                    <Icon className="w-5 h-5" style={{ color }} />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-[#0F172A] text-sm">{title}</h4>
-                    <p className="text-xs text-slate-500 mt-0.5">{desc}</p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-
-          {/* Right: Lottie Animation Panel */}
-          <TiltCard className="rounded-3xl p-8 space-y-6 flex items-center justify-center">
-            <div className="w-full h-[450px] rounded-3xl relative overflow-hidden flex items-center justify-center shadow-2xl"
-              style={{
-                background: "linear-gradient(145deg, #1B4332 0%, #0D2B20 100%)",
-                boxShadow: "0 20px 48px rgba(11,41,26,0.20)",
-              }}>
-              <div className="absolute inset-0 opacity-20"
-                style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.4) 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
-              
-              <div className="relative z-10 w-full h-full flex items-center justify-center scale-125">
-                <DotLottieReact
-                  src="https://lottie.host/64d72863-7188-466d-a60d-2e6dd0f40d1e/bXw3YtZ2gZ.lottie"
-                  loop
-                  autoplay
-                  className="w-full h-full object-contain"
-                />
-              </div>
-
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/30 backdrop-blur-md border border-white/10 px-6 py-2.5 rounded-full z-20 shadow-lg flex items-center gap-3">
-                 <div className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></div>
-                 <span className="text-white/90 text-sm font-semibold tracking-wide font-mono">Live Sub-180ms Audio Stream</span>
-              </div>
-            </div>
-          </TiltCard>
-        </div>
-      </section>
-
       {/* ── HOW IT WORKS (Grid Steps) ── */}
       <GridSteps />
+
+      {/* ── BENTO CAPABILITIES ── */}
+      <BentoCapabilitySection setPage={setPage} />
+
+      {/* ── INDUSTRY SHOWROOM ── */}
+      <section className="py-24 px-6 max-w-7xl mx-auto">
+        <div className="text-center max-w-3xl mx-auto mb-14 space-y-4">
+          <SectionLabel text="Industry Showroom" color="orange" />
+          <h2 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A]"
+            style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
+            AI Voice Agents for Every Enterprise Vertical
+          </h2>
+          <p className="text-slate-500 leading-relaxed">
+            AI voice agents for healthcare, finance, real estate, ecommerce, logistics, insurance, BPO, SaaS, education, recruitment, telecom, and travel — 12 pre-configured verticals.
+          </p>
+        </div>
+        <IndustryShowroomGrid />
+      </section>
 
       {/* ── INBOUND + OUTBOUND SPLIT ── */}
       <section className="py-24 px-6 max-w-7xl mx-auto">
@@ -656,25 +608,73 @@ export default function Home({ setPage }: HomeProps) {
         </div>
       </section>
 
-      {/* ── BENTO CAPABILITIES ── */}
-      <BentoCapabilitySection setPage={setPage} />
-
       {/* ── USE CASES ── */}
       <UseCaseSection setPage={setPage} />
 
-      {/* ── INDUSTRY SHOWROOM ── */}
+      {/* ── ABOUT / ARCHITECTURE ── */}
       <section className="py-24 px-6 max-w-7xl mx-auto">
-        <div className="text-center max-w-3xl mx-auto mb-14 space-y-4">
-          <SectionLabel text="Industry Showroom" color="orange" />
-          <h2 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A]"
-            style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
-            AI Voice Agents for Every Enterprise Vertical
-          </h2>
-          <p className="text-slate-500 leading-relaxed">
-            AI voice agents for healthcare, finance, real estate, ecommerce, logistics, insurance, BPO, SaaS, education, recruitment, telecom, and travel — 12 pre-configured verticals.
-          </p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+          <motion.div className="space-y-6" initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
+            <SectionLabel text="Native Multimodal AI Pipeline" />
+            <h2 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A] leading-tight"
+              style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
+              Built Different — Not Just<br />Another Stacked Voice API
+            </h2>
+            <p className="text-slate-500 text-base leading-relaxed">
+              Most AI voice calling software chains third-party STT → LLM → TTS providers, adding 800ms–1.5s of pipeline latency. Clarity Voice runs a vertically integrated audio model — direct WebRTC streaming with sub-180ms response. That's the difference between a voice bot and a real AI phone agent.
+            </p>
+            <div className="space-y-3">
+              {[
+                { icon: Zap, title: "Sub-180ms End-to-End Latency", desc: "No REST overhead — direct audio streaming", color: "#059669" },
+                { icon: Globe2, title: "70+ Regional Dialects, Zero Translation", desc: "Native speech models, no lossy intermediate API", color: "#EA580C" },
+                { icon: ShieldCheck, title: "Edge-Level PII/PHI Redaction", desc: "HIPAA, SOC 2, PCI-DSS compliance built-in", color: "#059669" },
+                { icon: Network, title: "Function Calling & Tool Calling", desc: "Real-time API execution while live on the call", color: "#EA580C" },
+              ].map(({ icon: Icon, title, desc, color }, i) => (
+                <motion.div
+                  key={i}
+                  className="flex gap-4 items-start bg-white border border-[#EADEC9] rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-[#059669]/30 transition-all"
+                  initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                >
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: color === "#059669" ? "#D1FAE5" : "#FEF3C7" }}>
+                    <Icon className="w-5 h-5" style={{ color }} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-[#0F172A] text-sm">{title}</h4>
+                    <p className="text-xs text-slate-500 mt-0.5">{desc}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Right: Lottie Animation Panel */}
+          <TiltCard className="rounded-3xl p-8 space-y-6 flex items-center justify-center">
+            <div className="w-full h-[450px] rounded-3xl relative overflow-hidden flex items-center justify-center shadow-2xl"
+              style={{
+                background: "linear-gradient(145deg, #1B4332 0%, #0D2B20 100%)",
+                boxShadow: "0 20px 48px rgba(11,41,26,0.20)",
+              }}>
+              <div className="absolute inset-0 opacity-20"
+                style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.4) 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
+              
+              <div className="relative z-10 w-full h-full flex items-center justify-center scale-125">
+                <DotLottieReact
+                  src="https://lottie.host/64d72863-7188-466d-a60d-2e6dd0f40d1e/bXw3YtZ2gZ.lottie"
+                  loop
+                  autoplay
+                  className="w-full h-full object-contain"
+                />
+              </div>
+
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/30 backdrop-blur-md border border-white/10 px-6 py-2.5 rounded-full z-20 shadow-lg flex items-center gap-3">
+                 <div className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></div>
+                 <span className="text-white/90 text-sm font-semibold tracking-wide font-mono">Live Sub-180ms Audio Stream</span>
+              </div>
+            </div>
+          </TiltCard>
         </div>
-        <IndustryShowroomGrid />
       </section>
 
       {/* ── COMPARISON ── */}
