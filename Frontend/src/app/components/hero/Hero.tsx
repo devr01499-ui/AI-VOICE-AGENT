@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "motion/react";
 import { ArrowRight, Mic, Globe, Zap, Shield, Phone, Star, CheckCircle2, Play } from "lucide-react";
+import LivingSignal from "./LivingSignal";
 
 type Page = any;
 interface HeroProps { setPage: (p: Page) => void; }
@@ -363,7 +364,7 @@ export default function Hero({ setPage }: HeroProps) {
               className="text-[#4B5563] leading-[1.65] max-w-[550px] mx-auto"
               style={{ fontSize: 17 }}
             >
-              The world's fastest AI voice calling platform — sub-180ms latency, 70+ languages, zero setup overhead. Replace your IVR, qualify leads, and handle collections automatically.
+              The world's fastest AI voice calling platform — ultra-low latency, 70+ languages, zero setup overhead. Replace your IVR, qualify leads, and handle collections automatically.
             </motion.p>
 
             {/* CTAs */}
@@ -380,6 +381,9 @@ export default function Hero({ setPage }: HeroProps) {
                 Watch Platform Demo
               </button>
             </motion.div>
+
+            {/* Living Signal Animation */}
+            <LivingSignal />
 
           </motion.div>
         </div>
