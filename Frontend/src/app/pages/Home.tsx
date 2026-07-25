@@ -1,5 +1,5 @@
 import { motion, useScroll, useTransform } from "motion/react";
-import { useRef, Fragment } from "react";
+import { useRef } from "react";
 import Hero from "../components/hero/Hero";
 import IndustryShowroomGrid from "../components/showroom/IndustryShowroomGrid";
 import FeatureCapabilityGrid from "../components/showroom/FeatureCapabilityGrid";
@@ -491,118 +491,6 @@ function FinalCTA({ setPage }: { setPage: (p: Page) => void }) {
 }
 
 
-// ── Infographic Steps Section ──────────────────────────────────────────────────
-function InfographicSteps() {
-  const steps = [
-    { n: "01", title: "Configure Your AI Agent", desc: "Name your agent, pick a voice persona, set language mode, and define the conversation goal.", icon: Bot, color: "#D9988F", backColor: "#6A5E6D" },
-    { n: "02", title: "Upload Knowledge Base", desc: "Paste FAQs, connect Shopify/CRM, or upload PDFs. Your AI phone assistant learns your business instantly via RAG.", icon: Database, color: "#796B7C", backColor: "#322734" },
-    { n: "03", title: "Connect Phone Number", desc: "Get a dedicated PSTN number or bring your SIP trunk. Inbound and outbound routing configured in one click.", icon: Phone, color: "#3A2D3C", backColor: "#A43627" },
-    { n: "04", title: "Launch & Monitor", desc: "Go live. Monitor calls in real-time, read transcripts, view AI call analytics, and iterate from the dashboard.", icon: BarChart3, color: "#C54636", backColor: "transparent" },
-  ];
-
-  return (
-    <section className="py-24 px-6 relative overflow-hidden" style={{ background: "#FAF8F5" }}>
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
-          <SectionLabel text="Deploy in Under 10 Minutes" color="orange" />
-          <h2 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A] leading-tight"
-            style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
-            From Zero to Live AI Voice Agent — 4 Steps
-          </h2>
-          <p className="text-slate-500 leading-relaxed">
-            No code. No call center setup. No engineering team. Build and deploy your AI phone agent in minutes using our no-code voice AI platform.
-          </p>
-        </div>
-
-        {/* Desktop View (Absolute Infographic Timeline) */}
-        <div className="max-w-4xl mx-auto relative hidden md:block" style={{ height: "660px" }}>
-          
-          {steps.map((step, i) => {
-            const isRight = i % 2 === 0; // 01 is Left-anchored (stretches Right), 02 is Right-anchored (stretches Left)
-            const Icon = step.icon;
-            
-            // Layout calculations
-            const cardHeight = 160;
-            const topOffset = i * cardHeight; // F1:0, F2:160, F3:320, F4:480
-            const backTopOffset = topOffset + (cardHeight / 2); // B1:80, B2:240, B3:400
-            const zIndexFront = 20 - (i * 2); // 20, 18, 16, 14
-            const zIndexBack = zIndexFront - 1; // 19, 17, 15
-            
-            return (
-              <Fragment key={i}>
-                {/* Front Panel */}
-                <motion.div 
-                  initial={{ opacity: 0, x: isRight ? -30 : 30 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true, margin: "-50px" }}
-                  transition={{ duration: 0.6, delay: i * 0.1 }}
-                  className={`absolute w-[80%] flex items-center p-8 lg:p-10 ${isRight ? 'left-[10%] rounded-r-full flex-row' : 'right-[10%] rounded-l-full flex-row-reverse text-right'}`}
-                  style={{ 
-                    top: `${topOffset}px`, 
-                    height: `${cardHeight}px`,
-                    backgroundColor: step.color, 
-                    zIndex: zIndexFront,
-                    boxShadow: isRight ? "10px 15px 30px rgba(0,0,0,0.12)" : "-10px 15px 30px rgba(0,0,0,0.12)"
-                  }}
-                >
-                  <div className={`text-white text-6xl font-light opacity-90 ${isRight ? 'mr-8' : 'ml-8'}`}>{step.n}</div>
-                  <div className="text-white flex-1">
-                    <h3 className="text-xl lg:text-2xl font-extrabold mb-2 uppercase tracking-wide">{step.title}</h3>
-                    <p className={`text-sm opacity-90 leading-relaxed max-w-sm ${isRight ? '' : 'ml-auto'}`}>{step.desc}</p>
-                  </div>
-                </motion.div>
-
-                {/* Back Connector Panel */}
-                {i < steps.length - 1 && (
-                  <div 
-                    className={`absolute w-[65%] flex items-end pb-6 ${isRight ? 'left-[10%] rounded-r-full justify-center' : 'right-[10%] rounded-l-full justify-center'}`}
-                    style={{ 
-                      top: `${backTopOffset}px`, 
-                      height: `${cardHeight}px`,
-                      backgroundColor: step.backColor,
-                      zIndex: zIndexBack,
-                      boxShadow: "inset 0 15px 30px rgba(0,0,0,0.25)"
-                    }}
-                  >
-                    <Icon className="w-10 h-10 text-white opacity-25" />
-                  </div>
-                )}
-              </Fragment>
-            )
-          })}
-        </div>
-
-        {/* Mobile View (Cards) */}
-        <div className="grid grid-cols-1 gap-5 md:hidden">
-            {steps.map((s, i) => {
-              const Icon = s.icon;
-              return (
-                <motion.div 
-                  key={i} 
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  className="bg-white rounded-3xl p-7 shadow-lg border border-slate-100 relative overflow-hidden"
-                >
-                   <div className="absolute top-0 right-0 w-32 h-32 opacity-10 rounded-full blur-2xl" style={{ backgroundColor: s.color }} />
-                   <div className="flex items-center justify-between gap-4 mb-5">
-                     <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner" style={{ backgroundColor: s.color }}>
-                       <Icon className="w-7 h-7 text-white" />
-                     </div>
-                     <span className="text-4xl font-light opacity-30" style={{ color: s.color }}>{s.n}</span>
-                   </div>
-                   <h3 className="text-lg font-extrabold text-[#0F172A] mb-2">{s.title}</h3>
-                   <p className="text-sm text-slate-500 leading-relaxed">{s.desc}</p>
-                </motion.div>
-              )
-            })}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-
 // ── Main Home Page ──────────────────────────────────────────────────────────
 export default function Home({ setPage }: HomeProps) {
   return (
@@ -714,8 +602,55 @@ export default function Home({ setPage }: HomeProps) {
         </div>
       </section>
 
-      {/* ── HOW IT WORKS (Infographic) ── */}
-      <InfographicSteps />
+      {/* ── HOW IT WORKS ── */}
+      <section className="py-24 px-6" style={{ background: "#F0FDF4" }}>
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center max-w-3xl mx-auto mb-14 space-y-4">
+            <SectionLabel text="Deploy in Under 10 Minutes" />
+            <h2 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A] leading-tight"
+              style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
+              From Zero to Live AI Voice Agent — 4 Steps
+            </h2>
+            <p className="text-slate-500 leading-relaxed">
+              No code. No call center setup. No engineering team. Build and deploy your AI phone agent in minutes using our no-code voice AI platform.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            {[
+              { n: "01", title: "Configure Your AI Agent", desc: "Name your agent, pick a voice persona, set language mode, and define the conversation goal — from the guided dashboard.", icon: Bot },
+              { n: "02", title: "Upload Knowledge Base", desc: "Paste FAQs, connect Shopify/CRM, or upload PDFs. Your AI phone assistant learns your business instantly via RAG.", icon: Database },
+              { n: "03", title: "Connect Phone Number", desc: "Get a dedicated PSTN number or bring your SIP trunk. Inbound and outbound routing configured in one click.", icon: Phone },
+              { n: "04", title: "Launch & Monitor", desc: "Go live. Monitor calls in real-time, read transcripts, view AI call analytics, and iterate from the dashboard.", icon: BarChart3 },
+            ].map((s, i) => {
+              const Icon = s.icon;
+              return (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 28 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: i * 0.1 }}
+                  className="relative bg-white border border-[#EADEC9] rounded-3xl p-7 space-y-4 overflow-hidden group hover:shadow-lg transition-all"
+                >
+                  {/* Step number watermark */}
+                  <span className="absolute -top-3 -right-2 text-[80px] font-extrabold text-[#059669]/5 leading-none select-none font-mono">
+                    {s.n}
+                  </span>
+                  <div className="w-12 h-12 rounded-2xl bg-[#D1FAE5] flex items-center justify-center">
+                    <Icon className="w-6 h-6 text-[#059669]" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-[#059669] font-mono mb-1">Step {s.n}</p>
+                    <h3 className="text-base font-extrabold text-[#0F172A] mb-2">{s.title}</h3>
+                    <p className="text-sm text-slate-500 leading-relaxed">{s.desc}</p>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
 
       {/* ── INBOUND + OUTBOUND SPLIT ── */}
       <section className="py-24 px-6 max-w-7xl mx-auto">
