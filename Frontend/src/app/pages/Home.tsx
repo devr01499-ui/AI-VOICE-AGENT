@@ -203,114 +203,121 @@ function BentoCapabilitySection({ setPage }: { setPage: (p: Page) => void }) {
   );
 }
 
-// ── Use Case Tabs Section ─────────────────────────────────────────────────────
+// ── Use Case Infographic Section ───────────────────────────────────────────────
 function UseCaseSection({ setPage }: { setPage: (p: Page) => void }) {
   const useCases = [
     {
       title: "AI Voice Agents for Appointment Booking",
-      desc: "Automate appointment booking, demo scheduling, and calendar integration across healthcare clinics, real estate teams, and SaaS companies. Reduce no-shows by 89% with proactive reminders and confirmation calls.",
-      stats: [{ v: "89%", l: "No-show reduction" }, { v: "3s", l: "Speed to confirm" }, { v: "24/7", l: "Always available" }],
-      keywords: ["appointment scheduling", "demo booking", "calendar integration", "AI receptionist"],
+      desc: "Automate appointment booking, demo scheduling, and calendar integration across healthcare clinics, real estate teams, and SaaS companies. Reduce no-shows by 89% with proactive reminders.",
       icon: Clock,
-      accent: "#059669",
     },
     {
       title: "AI Outbound Calling for Lead Qualification",
-      desc: "Deploy AI calling agents that contact leads within 3 seconds of form submission. Qualify budgets, score intent, and book sales calls automatically. The highest-converting outbound voice AI platform.",
-      stats: [{ v: "94%", l: "Contact rate" }, { v: "3×", l: "Pipeline growth" }, { v: "₹6.98", l: "Per qualified lead" }],
-      keywords: ["lead qualification", "outbound sales calls", "AI outbound calling", "cold lead calling"],
+      desc: "Deploy AI calling agents that contact leads within 3 seconds of form submission. Qualify budgets, score intent, and book sales calls automatically.",
       icon: TrendingUp,
-      accent: "#EA580C",
     },
     {
       title: "AI Inbound Calling & Front Desk Automation",
       desc: "Replace legacy IVR systems with a human-like AI receptionist that handles inbound calls, answers FAQs, routes calls intelligently, and escalates to human agents with full context.",
-      stats: [{ v: "100%", l: "First-ring answer" }, { v: "60%", l: "IVR deflection" }, { v: "4.9★", l: "CSAT score" }],
-      keywords: ["AI receptionist", "inbound call automation", "front desk automation", "call routing"],
       icon: PhoneCall,
-      accent: "#059669",
     },
     {
       title: "Collections & Payment Reminder Calls",
       desc: "Automate ethical EMI payment reminders, debt collection outreach, and renewal campaigns with PCI-DSS compliant AI calling agents. 3.4× higher recovery rates vs manual teams.",
-      stats: [{ v: "3.4×", l: "Recovery rate" }, { v: "78%", l: "Handled end-to-end" }, { v: "0", l: "Human hours used" }],
-      keywords: ["payment reminders", "collections calls", "renewal reminders", "AI collections"],
       icon: Activity,
-      accent: "#EA580C",
     },
   ];
 
+  const colors = ["#4358A6", "#2EB6BE", "#8F599B", "#D32B87"];
+
   return (
-    <section className="py-24 px-6" style={{ background: "linear-gradient(180deg, #FAF8F5 0%, #F0FDF4 100%)" }}>
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
-          <SectionLabel text="Use Cases" color="orange" />
-          <h2 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A] leading-tight"
-            style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
-            One Platform. Every High-Value<br />Call Automation Use Case.
-          </h2>
-          <p className="text-slate-500 leading-relaxed">
-            From appointment booking and lead qualification to collections and post-call follow-up — Clarity Voice handles every job-to-be-done.
-          </p>
+    <section className="py-24 px-4 bg-[#F8F9FA] relative overflow-hidden">
+      <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
+        <SectionLabel text="Use Cases" color="orange" />
+        <h2 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A] leading-tight"
+          style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
+          One Platform. Every High-Value<br />Call Automation Use Case.
+        </h2>
+      </div>
+
+      <div className="max-w-6xl mx-auto flex flex-col lg:flex-row items-center relative lg:min-h-[550px]">
+        
+        {/* Left Hub - Business Infographic Circle */}
+        <div className="w-full lg:w-[35%] flex justify-center lg:justify-end mb-16 lg:mb-0 relative z-10 lg:pr-8">
+           <div className="w-56 h-56 md:w-64 md:h-64 rounded-full bg-white flex flex-col items-center justify-center relative shadow-[0_15px_40px_rgba(0,0,0,0.06)] border-[8px] border-slate-50">
+             <div className="absolute -inset-4 rounded-full border border-slate-200 pointer-events-none"></div>
+             
+             {/* Left Curved Accent Line (matches the reference image outer ring) */}
+             <svg className="absolute -inset-6 w-[calc(100%+3rem)] h-[calc(100%+3rem)] pointer-events-none" viewBox="0 0 100 100">
+                <path d="M 15 15 A 45 45 0 0 0 15 85" fill="none" stroke="#1E293B" strokeWidth="0.5" />
+                <circle cx="15" cy="15" r="1.5" fill="#1E293B" />
+                <circle cx="15" cy="85" r="1.5" fill="#1E293B" />
+             </svg>
+
+             {/* Inner text */}
+             <span className="text-lg md:text-xl font-black text-slate-800 tracking-wider">BUSINESS</span>
+             <span className="text-[10px] md:text-xs font-bold text-slate-500 tracking-[0.2em] mt-1">INFOGRAPHIC</span>
+             <div className="flex gap-1.5 mt-4">
+               <span className="w-2 h-2 bg-[#4358A6]"></span>
+               <span className="w-2 h-2 bg-[#2EB6BE]"></span>
+               <span className="w-2 h-2 bg-[#8F599B]"></span>
+               <span className="w-2 h-2 bg-[#D32B87]"></span>
+               <span className="w-2 h-2 bg-[#E68A2E]"></span>
+               <span className="w-2 h-2 bg-[#E8B82B]"></span>
+             </div>
+           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {useCases.map((uc, i) => {
-            const Icon = uc.icon;
-            const isGreen = uc.accent === "#059669";
-            return (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 28 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: i * 0.1 }}
-                className="relative bg-white border border-[#EADEC9] rounded-3xl overflow-hidden group"
-                style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.06)" }}
-              >
-                {/* Top accent strip */}
-                <div className="h-1 w-full" style={{ background: `linear-gradient(90deg, ${uc.accent}, ${isGreen ? "#34D399" : "#D97706"})` }} />
+        {/* Tree Connection Lines (SVG) - Desktop Only */}
+        {/* They connect the left hub (y=50%) to the 4 right nodes. */}
+        <svg className="hidden lg:block absolute left-[35%] top-10 bottom-10 w-[15%] z-0 pointer-events-none" preserveAspectRatio="none" viewBox="0 0 100 100">
+          <path d="M 0 50 C 40 50, 60 0, 100 0" fill="none" stroke="#64748B" strokeWidth="0.5" />
+          <path d="M 0 50 C 40 50, 60 33.3, 100 33.3" fill="none" stroke="#64748B" strokeWidth="0.5" />
+          <path d="M 0 50 C 40 50, 60 66.6, 100 66.6" fill="none" stroke="#64748B" strokeWidth="0.5" />
+          <path d="M 0 50 C 40 50, 60 100, 100 100" fill="none" stroke="#64748B" strokeWidth="0.5" />
+          
+          <circle cx="100" cy="0" r="1.5" fill="#1E293B" />
+          <circle cx="100" cy="33.3" r="1.5" fill="#1E293B" />
+          <circle cx="100" cy="66.6" r="1.5" fill="#1E293B" />
+          <circle cx="100" cy="100" r="1.5" fill="#1E293B" />
+          
+          <circle cx="0" cy="50" r="1.5" fill="#1E293B" />
+        </svg>
 
-                <div className="p-8">
-                  {/* Icon + Title */}
-                  <div className="flex items-start gap-4 mb-5">
-                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: isGreen ? "#D1FAE5" : "#FEF3C7" }}>
-                      <Icon className="w-6 h-6" style={{ color: uc.accent }} />
-                    </div>
-                    <h3 className="text-lg font-extrabold text-[#0F172A] leading-snug pt-1"
-                      style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                      {uc.title}
-                    </h3>
-                  </div>
-
-                  <p className="text-sm text-slate-500 leading-relaxed mb-6">{uc.desc}</p>
-
-                  {/* Stats row */}
-                  <div className="grid grid-cols-3 gap-3 mb-6 p-4 rounded-2xl"
-                    style={{ background: isGreen ? "#F0FDF4" : "#FFFBEB" }}>
-                    {uc.stats.map((s, j) => (
-                      <div key={j} className="text-center">
-                        <p className="text-xl font-extrabold" style={{ color: uc.accent }}>{s.v}</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">{s.l}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Keyword pills */}
-                  <div className="flex flex-wrap gap-2">
-                    {uc.keywords.map((kw, j) => (
-                      <span key={j} className="text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full font-mono"
-                        style={{ background: isGreen ? "#D1FAE5" : "#FEF3C7", color: uc.accent }}>
-                        {kw}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
+        {/* Right List - 4 Nodes */}
+        <div className="w-full lg:w-[50%] flex flex-col justify-between h-auto lg:absolute lg:right-0 lg:top-10 lg:bottom-10 z-10 gap-6 lg:gap-0 pl-4 lg:pl-0 pr-4">
+           {useCases.map((uc, i) => {
+             const Icon = uc.icon;
+             const color = colors[i];
+             return (
+               <div key={i} className="flex items-center w-full relative group lg:h-20">
+                 {/* White Circle Icon */}
+                 <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white flex flex-shrink-0 items-center justify-center z-10 relative group-hover:scale-105 transition-transform border-[6px] border-[#F8F9FA]"
+                      style={{ boxShadow: "inset 0 -5px 10px rgba(0,0,0,0.05), 0 10px 20px rgba(0,0,0,0.08)" }}>
+                   <Icon className="w-6 h-6 md:w-8 md:h-8 text-slate-700" strokeWidth={1.5} />
+                 </div>
+                 
+                 {/* Colored Arrow Ribbon */}
+                 <div 
+                   className="flex-1 py-4 md:py-4 pl-12 md:pl-14 pr-8 md:pr-12 -ml-10 text-white relative z-0 transition-transform group-hover:translate-x-2"
+                   style={{ 
+                     backgroundColor: color,
+                     clipPath: "polygon(0% 0%, 95% 0%, 100% 50%, 95% 100%, 0% 100%)",
+                     boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)"
+                   }}
+                 >
+                   <div className="flex items-center gap-2 mb-1">
+                     <span className="text-[10px] md:text-[11px] uppercase tracking-widest font-bold opacity-90">INFOGRAPHIC</span>
+                     <span className="text-lg md:text-xl font-black">{`0${i+1}`}</span>
+                   </div>
+                   <h3 className="font-extrabold text-sm md:text-sm mb-1 leading-tight text-white line-clamp-1">{uc.title}</h3>
+                   <p className="text-[9px] md:text-[10px] text-white/80 leading-relaxed font-medium line-clamp-2 md:line-clamp-2 pr-4">{uc.desc}</p>
+                 </div>
+               </div>
+             )
+           })}
         </div>
+
       </div>
     </section>
   );
