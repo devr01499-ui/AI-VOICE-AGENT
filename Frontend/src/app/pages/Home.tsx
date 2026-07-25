@@ -764,6 +764,8 @@ function GridSteps() {
             const zIndex = (i + 1) * 10;
             // The left margin creates the overlap on desktop
             const marginLeft = i === 0 ? "0" : "-ml-0 xl:-ml-12";
+            // Extra right padding for cards 1, 2, 3 to prevent their text from being covered by the next card's overlapping number
+            const paddingRight = i !== steps.length - 1 ? "xl:pr-20" : "";
             
             return (
               <motion.div 
@@ -772,7 +774,7 @@ function GridSteps() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true, margin: "-50px" }}
                 transition={{ duration: 0.6, delay: i * 0.1 }}
-                className={`relative flex-1 rounded-3xl p-8 lg:p-10 flex flex-col justify-between min-h-[380px] shadow-2xl ${marginLeft}`}
+                className={`relative flex-1 rounded-3xl p-8 lg:p-10 ${paddingRight} flex flex-col justify-between min-h-[380px] shadow-2xl ${marginLeft}`}
                 style={{ 
                   backgroundColor: step.color, 
                   zIndex: zIndex,
