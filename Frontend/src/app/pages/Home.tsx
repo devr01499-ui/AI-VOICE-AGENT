@@ -152,31 +152,31 @@ function BentoCapabilitySection({ setPage }: { setPage: (p: Page) => void }) {
                 viewBox="0 0 1000 200"
               >
                 <path 
-                  d="M 1000 0 L 320 0 L 300 45 L 280 0 C 400 0, 480 200, 750 200 L 1000 200 Z" 
+                  d="M 1000 0 L 280 0 L 260 45 L 240 0 C 350 0, 350 200, 450 200 L 1000 200 Z" 
                   fill="#ffffff" 
                 />
               </svg>
 
               {/* Content Container */}
-              <div className="relative z-10 w-full flex flex-row items-center h-full">
+              <div className="relative z-10 w-full h-full">
                 
-                {/* Left Side: Icon */}
-                <div className="w-1/4 sm:w-1/5 flex justify-center items-center pl-2 sm:pl-6">
+                {/* Left Side: Icon (Strictly bounded to left 25%) */}
+                <div className="absolute left-0 top-0 bottom-0 w-[25%] flex justify-center items-center">
                   <div className="relative">
                     {/* Simulated Long Shadow for the Icon */}
                     <Icon 
-                      className="w-12 h-12 sm:w-16 sm:h-16 text-white absolute top-1 left-1 opacity-20 blur-[2px]" 
+                      className="w-10 h-10 sm:w-16 sm:h-16 text-white absolute top-1 left-1 opacity-20 blur-[2px]" 
                       strokeWidth={1.5} 
                     />
                     <Icon 
-                      className="w-12 h-12 sm:w-16 sm:h-16 text-white relative z-10 drop-shadow-[2px_2px_0px_rgba(0,0,0,0.1)]" 
+                      className="w-10 h-10 sm:w-16 sm:h-16 text-white relative z-10 drop-shadow-[2px_2px_0px_rgba(0,0,0,0.1)]" 
                       strokeWidth={1.5} 
                     />
                   </div>
                 </div>
 
-                {/* Right Side: Text */}
-                <div className="absolute inset-y-0 right-0 w-[65%] flex flex-col justify-center py-4 pr-6 sm:pr-10">
+                {/* Right Side: Text (Strictly bounded to right 55% so it's always on white) */}
+                <div className="absolute right-0 top-0 bottom-0 w-[55%] flex flex-col justify-center pr-4 sm:pr-8 md:pr-12">
                   <span 
                     className="text-[10px] sm:text-xs font-black uppercase tracking-widest mb-1"
                     style={{ color: bgColor }}
@@ -184,12 +184,12 @@ function BentoCapabilitySection({ setPage }: { setPage: (p: Page) => void }) {
                     Feature 0{i + 1}
                   </span>
                   <h3 
-                    className="text-base sm:text-lg md:text-xl font-extrabold text-slate-900 mb-2 leading-tight" 
+                    className="text-base sm:text-lg md:text-xl font-extrabold text-slate-900 mb-1 sm:mb-2 leading-tight" 
                     style={{ fontFamily: "'Clash Display', sans-serif" }}
                   >
                     {item.title}
                   </h3>
-                  <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
+                  <p className="text-[10px] sm:text-xs md:text-sm text-slate-700 leading-relaxed font-medium">
                     {item.desc}
                   </p>
                 </div>
