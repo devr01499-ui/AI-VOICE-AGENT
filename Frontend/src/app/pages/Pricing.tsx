@@ -18,7 +18,7 @@ export default function Pricing({ setPage }: PricingProps) {
         "name": "How is Clarity Voice pricing structured?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Clarity Voice offers transparent bundled plans: Startup Plan at ₹1,799/mo (500 minutes included), Growth Plan at ₹4,999/mo (1,500 minutes included), and a standalone pay-as-you-go flat rate of ₹3.99/minute with no stacked fees."
+          "text": "Clarity Voice offers transparent bundled plans: Startup Plan at ₹2,999/mo (750 minutes included), Growth Plan at ₹9,999/mo (2,865 minutes included), Enterprise Plan at ₹29,999/mo (10,000 minutes included), and a standalone pay-as-you-go flat rate of ₹3.99/minute with no stacked fees."
         }
       },
       {
@@ -75,12 +75,12 @@ export default function Pricing({ setPage }: PricingProps) {
               <h3 className="font-sora text-2xl font-bold text-ink mb-2">Startup Plan</h3>
               <p className="text-small text-ink-muted mb-8 font-plus-jakarta">Ideal for growing businesses testing automated call campaigns.</p>
               <div className="mb-8">
-                <span className="font-sora text-4xl font-extrabold text-ink">₹1,799</span>
+                <span className="font-sora text-4xl font-extrabold text-ink">₹2,999</span>
                 <span className="text-small text-ink-muted font-bold"> / month</span>
-                <p className="text-xs font-mono font-bold text-mint-primary mt-2">Includes 500 Bundled Mins (₹3.59/min)</p>
+                <p className="text-xs font-mono font-bold text-mint-primary mt-2">Includes 750 Bundled Mins (₹3.99/min)</p>
               </div>
               <ul className="space-y-4 mb-10 text-small text-ink font-semibold">
-                {['500 Bundled Call Minutes', '26+ HD Voice Personas', '70+ Languages & Dialects', 'Standard Webhooks & CRM Sync', 'Real-Time Transcripts', 'Community Support'].map(f => (
+                {['750 Bundled Call Minutes', '26+ HD Voice Personas', '70+ Languages & Dialects', 'Standard Webhooks & CRM Sync', 'Real-Time Transcripts', 'Community Support'].map(f => (
                   <li key={f} className="flex items-center gap-3">
                     <Check className="w-5 h-5 text-mint-primary flex-shrink-0" /> <span>{f}</span>
                   </li>
@@ -97,21 +97,21 @@ export default function Pricing({ setPage }: PricingProps) {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="panel-texture p-10 flex flex-col justify-between relative shadow-level-4"
+            className="bg-surface-white border border-[#EADEC9] rounded-3xl p-10 flex flex-col justify-between relative shadow-level-4"
           >
             <div className="absolute top-6 right-6 bg-amber-cta text-white text-caption font-bold px-3 py-1 rounded-full">
               MOST POPULAR
             </div>
             <div>
-              <h3 className="font-sora text-2xl font-bold text-white mb-2">Growth Plan</h3>
-              <p className="text-small text-mint-soft mb-8 font-plus-jakarta">For high-volume operations scaling outbound/inbound workflows.</p>
+              <h3 className="font-sora text-2xl font-bold text-ink mb-2">Growth Plan</h3>
+              <p className="text-small text-ink-muted mb-8 font-plus-jakarta">For high-volume operations scaling outbound/inbound workflows.</p>
               <div className="mb-8">
-                <span className="font-sora text-4xl font-extrabold text-mint-primary">₹4,999</span>
-                <span className="text-small text-mint-soft font-bold"> / month</span>
-                <p className="text-xs font-mono font-bold text-mint-soft mt-2">Includes 1,500 Bundled Mins (₹3.33/min)</p>
+                <span className="font-sora text-4xl font-extrabold text-ink">₹9,999</span>
+                <span className="text-small text-ink-muted font-bold"> / month</span>
+                <p className="text-xs font-mono font-bold text-mint-primary mt-2">Includes 2,865 Bundled Mins (₹3.49/min)</p>
               </div>
-              <ul className="space-y-4 mb-10 text-small text-white font-semibold">
-                {['1,500 Bundled Call Minutes', 'Everything in Startup', 'Priority Telephony Routing', '1 Custom Voice Clone', 'Sentiment Analytics & Scoring', 'Dedicated Phone Numbers', 'Priority Email & Chat Support'].map(f => (
+              <ul className="space-y-4 mb-10 text-small text-ink font-semibold">
+                {['2,865 Bundled Call Minutes', 'Everything in Startup', 'Priority Telephony Routing', '1 Custom Voice Clone', 'Sentiment Analytics & Scoring', 'Dedicated Phone Numbers', 'Priority Email & Chat Support'].map(f => (
                   <li key={f} className="flex items-center gap-3">
                     <Check className="w-5 h-5 text-mint-primary flex-shrink-0" /> <span>{f}</span>
                   </li>
@@ -135,12 +135,12 @@ export default function Pricing({ setPage }: PricingProps) {
               <h3 className="font-sora text-2xl font-bold text-ink mb-2">Enterprise Plan</h3>
               <p className="text-small text-ink-muted mb-8 font-plus-jakarta">For regulated enterprise contact centers requiring custom SLAs.</p>
               <div className="mb-8">
-                <span className="font-sora text-4xl font-extrabold text-ink">Custom</span>
-                <span className="text-small text-ink-muted font-bold"> volume</span>
-                <p className="text-xs font-mono font-bold text-amber-cta mt-2">Dedicated IP & Custom Infrastructure</p>
+                <span className="font-sora text-4xl font-extrabold text-ink">₹29,999</span>
+                <span className="text-small text-ink-muted font-bold"> / month</span>
+                <p className="text-xs font-mono font-bold text-mint-primary mt-2">Includes 10,000 Bundled Mins (₹2.99/min)</p>
               </div>
               <ul className="space-y-4 mb-10 text-small text-ink font-semibold">
-                {['Unlimited Call Volume Capacity', 'Everything in Growth', 'Dedicated SIP IP Addresses', 'Custom Voice Personas & Cloning', 'HIPAA & SOC 2 BAA Agreement', '99.99% Uptime SLA', 'Dedicated 24/7 Account Manager'].map(f => (
+                {['10,000 Bundled Call Minutes', 'Everything in Growth', 'Dedicated SIP IP Addresses', 'Custom Voice Personas & Cloning', 'HIPAA & SOC 2 BAA Agreement', '99.99% Uptime SLA', 'Dedicated 24/7 Account Manager'].map(f => (
                   <li key={f} className="flex items-center gap-3">
                     <Check className="w-5 h-5 text-mint-primary flex-shrink-0" /> <span>{f}</span>
                   </li>
