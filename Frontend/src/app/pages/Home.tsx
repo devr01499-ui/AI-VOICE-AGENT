@@ -9,6 +9,7 @@ import {
   BarChart3, Network, Mic2, Database, Radio, MessageSquare,
   FileText, RefreshCw, Webhook, Languages, Activity
 } from "lucide-react";
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 type Page = any;
 interface HomeProps { setPage: (p: Page) => void; }
@@ -567,36 +568,29 @@ export default function Home({ setPage }: HomeProps) {
             </div>
           </motion.div>
 
-          {/* Right: latency benchmark panel */}
-          <TiltCard className="rounded-3xl p-8 space-y-6">
-            <div className="p-8 space-y-6 rounded-3xl"
+          {/* Right: Lottie Animation Panel */}
+          <TiltCard className="rounded-3xl p-8 space-y-6 flex items-center justify-center">
+            <div className="w-full h-[450px] rounded-3xl relative overflow-hidden flex items-center justify-center shadow-2xl"
               style={{
                 background: "linear-gradient(145deg, #1B4332 0%, #0D2B20 100%)",
                 boxShadow: "0 20px 48px rgba(11,41,26,0.20)",
               }}>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-[#34D399] font-mono mb-1">Latency Benchmark</p>
-                <h3 className="text-2xl font-extrabold text-white">AI Voice Agent vs Competitors</h3>
+              <div className="absolute inset-0 opacity-20"
+                style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.4) 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
+              
+              <div className="relative z-10 w-full h-full flex items-center justify-center scale-125">
+                <DotLottieReact
+                  src="https://lottie.host/64d72863-7188-466d-a60d-2e6dd0f40d1e/bXw3YtZ2gZ.lottie"
+                  loop
+                  autoplay
+                  className="w-full h-full object-contain"
+                />
               </div>
-              {[
-                { label: "Clarity Voice — Native Multimodal AI", val: "180ms", pct: 18, color: "#10B981" },
-                { label: "Vapi / Retell AI (Stacked API Pipeline)", val: "850ms", pct: 75, color: "#F59E0B" },
-                { label: "Bland AI / Bolna (General Voice Bot)", val: "1,200ms", pct: 90, color: "#FB923C" },
-                { label: "Legacy IVR / Human Call Centers", val: "45 min", pct: 100, color: "#EF4444" },
-              ].map((row, i) => (
-                <div key={i} className="space-y-2">
-                  <div className="flex justify-between text-sm font-semibold">
-                    <span className="text-white/75">{row.label}</span>
-                    <span style={{ color: row.color }} className="font-mono">{row.val}</span>
-                  </div>
-                  <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden">
-                    <motion.div className="h-full rounded-full" style={{ background: row.color }}
-                      initial={{ width: 0 }} whileInView={{ width: `${row.pct}%` }} viewport={{ once: true }}
-                      transition={{ duration: 1, delay: i * 0.15 }} />
-                  </div>
-                </div>
-              ))}
-              <p className="text-[10px] text-white/35 font-mono">* End-to-end measured from user audio-stop to first AI audio byte</p>
+
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/30 backdrop-blur-md border border-white/10 px-6 py-2.5 rounded-full z-20 shadow-lg flex items-center gap-3">
+                 <div className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></div>
+                 <span className="text-white/90 text-sm font-semibold tracking-wide font-mono">Live Sub-180ms Audio Stream</span>
+              </div>
             </div>
           </TiltCard>
         </div>
