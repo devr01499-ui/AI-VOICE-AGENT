@@ -1,5 +1,5 @@
 import { motion, useScroll, useTransform } from "motion/react";
-import { useRef } from "react";
+import { useRef, Fragment } from "react";
 import Hero from "../components/hero/Hero";
 import IndustryShowroomGrid from "../components/showroom/IndustryShowroomGrid";
 import FeatureCapabilityGrid from "../components/showroom/FeatureCapabilityGrid";
@@ -529,7 +529,7 @@ function InfographicSteps() {
             const zIndexBack = zIndexFront - 1; // 19, 17, 15
             
             return (
-              <React.Fragment key={i}>
+              <Fragment key={i}>
                 {/* Front Panel */}
                 <motion.div 
                   initial={{ opacity: 0, x: isRight ? -30 : 30 }}
@@ -567,7 +567,7 @@ function InfographicSteps() {
                     <Icon className="w-10 h-10 text-white opacity-25" />
                   </div>
                 )}
-              </React.Fragment>
+              </Fragment>
             )
           })}
         </div>
