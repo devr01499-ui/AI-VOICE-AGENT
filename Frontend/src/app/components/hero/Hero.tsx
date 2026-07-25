@@ -280,7 +280,7 @@ export default function Hero({ setPage }: HeroProps) {
 
           {/* ── Text content ─────────────────────────────────────── */}
           <motion.div
-            className="space-y-8 max-w-[800px] mx-auto flex flex-col items-center"
+            className="space-y-8 max-w-[850px] mx-auto flex flex-col items-center bg-white/40 backdrop-blur-xl rounded-[40px] p-8 md:p-14 border border-white/50 shadow-[0_8px_32px_rgba(0,0,0,0.05)]"
             variants={containerVariants}
             initial="hidden"
             animate="visible"
