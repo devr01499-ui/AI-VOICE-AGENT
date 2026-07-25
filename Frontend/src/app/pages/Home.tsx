@@ -225,34 +225,34 @@ function UseCaseSection({ setPage }: { setPage: (p: Page) => void }) {
         </h2>
       </div>
 
-      <div className="max-w-[800px] mx-auto relative w-full aspect-square md:aspect-auto md:h-[800px] mt-10">
+      <div className="max-w-[850px] mx-auto relative w-full aspect-square md:aspect-auto md:h-[850px] mt-10">
         
         {/* SVG Interlocking Ribbons */}
-        <svg className="absolute inset-0 w-full h-full drop-shadow-xl" viewBox="-250 -250 500 500">
+        <svg className="absolute inset-0 w-full h-full drop-shadow-xl" viewBox="-280 -280 560 560">
           <defs>
             <filter id="ribbon-shadow" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="2" dy="6" stdDeviation="6" floodOpacity="0.3" floodColor="#000000" />
+              <feDropShadow dx="2" dy="6" stdDeviation="8" floodOpacity="0.25" floodColor="#000000" />
             </filter>
             
             <clipPath id="tr-head-clip">
-              <rect x="0" y="0" width="250" height="250" />
+              <rect x="0" y="0" width="280" height="280" />
             </clipPath>
 
-            {/* Curved Text Paths */}
-            <path id="text-tl" d="M -210 -90 A 120 120 0 0 1 -90 -210" fill="none" />
-            <path id="text-tr" d="M 90 -210 A 120 120 0 0 1 210 -90" fill="none" />
-            <path id="text-br" d="M 90 210 A 120 120 0 0 0 210 90" fill="none" />
-            <path id="text-bl" d="M -210 90 A 120 120 0 0 0 -90 210" fill="none" />
+            {/* Curved Text Paths (Radius 130, Center +/-110) */}
+            <path id="text-tl" d="M -240 -110 A 130 130 0 0 1 -110 -240" fill="none" />
+            <path id="text-tr" d="M 110 -240 A 130 130 0 0 1 240 -110" fill="none" />
+            <path id="text-br" d="M 110 240 A 130 130 0 0 0 240 110" fill="none" />
+            <path id="text-bl" d="M -240 110 A 130 130 0 0 0 -110 240" fill="none" />
             
-            {/* The 4 Ribbon Paths */}
+            {/* The 4 Ribbon Paths (Thickness 40, Inner 110, Outer 150) */}
             {/* TR (Orange) */}
-            <path id="path-tr" d="M -60 -90 A 150 150 0 1 1 90 60 L 70 30 L 90 0 A 90 90 0 1 0 0 -90 Z" />
+            <path id="path-tr" d="M -40 -110 A 150 150 0 1 1 110 40 L 90 20 L 110 0 A 110 110 0 1 0 0 -110 Z" />
             {/* TL (Teal) */}
-            <path id="path-tl" d="M -90 60 A 150 150 0 1 1 60 -90 L 30 -70 L 0 -90 A 90 90 0 1 0 -90 0 Z" />
+            <path id="path-tl" d="M -110 40 A 150 150 0 1 1 40 -110 L 20 -90 L 0 -110 A 110 110 0 1 0 -110 0 Z" />
             {/* BL (Brown) */}
-            <path id="path-bl" d="M 60 90 A 150 150 0 1 1 -90 -60 L -70 -30 L -90 0 A 90 90 0 1 0 0 90 Z" />
+            <path id="path-bl" d="M 40 110 A 150 150 0 1 1 -110 -40 L -90 -20 L -110 0 A 110 110 0 1 0 0 110 Z" />
             {/* BR (Beige) */}
-            <path id="path-br" d="M 90 -60 A 150 150 0 1 1 -60 90 L -30 70 L 0 90 A 90 90 0 1 0 90 0 Z" />
+            <path id="path-br" d="M 110 -40 A 150 150 0 1 1 -40 110 L -20 90 L 0 110 A 110 110 0 1 0 110 0 Z" />
           </defs>
 
           {/* Draw Ribbons in Pinwheel Order */}
@@ -265,50 +265,60 @@ function UseCaseSection({ setPage }: { setPage: (p: Page) => void }) {
           <use href="#path-tr" fill={colors[1]} clipPath="url(#tr-head-clip)" filter="url(#ribbon-shadow)" />
 
           {/* Curved Text */}
-          <text fill="#ffffff" fontSize="13" fontWeight="bold" letterSpacing="1.5" fontFamily="'Plus Jakarta Sans', sans-serif">
+          <text fill="#ffffff" fontSize="14" fontWeight="bold" letterSpacing="2" fontFamily="'Plus Jakarta Sans', sans-serif">
             <textPath href="#text-tl" startOffset="50%" textAnchor="middle">
-              {useCases[0].step} <tspan fontSize="20">{useCases[0].num}</tspan>
+              {useCases[0].step} <tspan fontSize="22">{useCases[0].num}</tspan>
             </textPath>
           </text>
           
-          <text fill="#ffffff" fontSize="13" fontWeight="bold" letterSpacing="1.5" fontFamily="'Plus Jakarta Sans', sans-serif">
+          <text fill="#ffffff" fontSize="14" fontWeight="bold" letterSpacing="2" fontFamily="'Plus Jakarta Sans', sans-serif">
             <textPath href="#text-tr" startOffset="50%" textAnchor="middle">
-              {useCases[1].step} <tspan fontSize="20">{useCases[1].num}</tspan>
+              {useCases[1].step} <tspan fontSize="22">{useCases[1].num}</tspan>
             </textPath>
           </text>
 
-          <text fill="#8C6E5C" fontSize="13" fontWeight="bold" letterSpacing="1.5" fontFamily="'Plus Jakarta Sans', sans-serif">
+          <text fill="#6D534A" fontSize="14" fontWeight="bold" letterSpacing="2" fontFamily="'Plus Jakarta Sans', sans-serif">
             <textPath href="#text-br" startOffset="50%" textAnchor="middle">
-              {useCases[2].step} <tspan fontSize="20">{useCases[2].num}</tspan>
+              {useCases[2].step} <tspan fontSize="22">{useCases[2].num}</tspan>
             </textPath>
           </text>
 
-          <text fill="#F4D09C" fontSize="13" fontWeight="bold" letterSpacing="1.5" fontFamily="'Plus Jakarta Sans', sans-serif">
+          <text fill="#F4D09C" fontSize="14" fontWeight="bold" letterSpacing="2" fontFamily="'Plus Jakarta Sans', sans-serif">
             <textPath href="#text-bl" startOffset="50%" textAnchor="middle">
-              {useCases[3].step} <tspan fontSize="20">{useCases[3].num}</tspan>
+              {useCases[3].step} <tspan fontSize="22">{useCases[3].num}</tspan>
             </textPath>
           </text>
         </svg>
 
+        {/* Central Hub Icon */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-30">
+          <div className="w-16 h-16 md:w-24 md:h-24 bg-white rounded-2xl shadow-[0_15px_30px_rgba(0,0,0,0.1)] flex items-center justify-center border-4 border-slate-50 rotate-45 transform transition-transform hover:scale-110">
+            <div className="rotate-[-45deg] flex flex-col items-center">
+              <Bot className="w-6 h-6 md:w-10 md:h-10 text-indigo-600 mb-1" strokeWidth={1.5} />
+              <span className="text-[8px] md:text-[10px] font-black tracking-widest text-slate-800">CORE</span>
+            </div>
+          </div>
+        </div>
+
         {/* HTML Content placed perfectly in the center of each ring */}
         {useCases.map((uc, i) => {
           const Icon = uc.icon;
-          // Centers: TL(32%,32%), TR(68%,32%), BR(68%,68%), BL(32%,68%)
-          const posX = i === 0 || i === 3 ? "32%" : "68%";
-          const posY = i === 0 || i === 1 ? "32%" : "68%";
+          // Centers: 30.3% and 69.6% based on SVG coordinates
+          const posX = i === 0 || i === 3 ? "30.3%" : "69.6%";
+          const posY = i === 0 || i === 1 ? "30.3%" : "69.6%";
           
           return (
             <div 
               key={i} 
-              className="absolute flex flex-col items-center justify-center text-center w-40 md:w-56"
+              className="absolute flex flex-col items-center justify-center text-center w-48 md:w-64 px-2"
               style={{ left: posX, top: posY, transform: "translate(-50%, -50%)" }}
             >
-              <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-white flex items-center justify-center shadow-[0_5px_15px_rgba(0,0,0,0.1)] mb-3" style={{ color: colors[i] }}>
+              <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-white flex items-center justify-center shadow-lg mb-4" style={{ color: colors[i] }}>
                 <Icon className="w-6 h-6 md:w-8 md:h-8" strokeWidth={2} />
               </div>
-              <h3 className="font-extrabold text-[#2C3E50] text-sm md:text-base mb-1.5 tracking-wide leading-tight">{uc.title}</h3>
-              <div className="w-10 h-1 mb-2 rounded-full opacity-50" style={{ backgroundColor: colors[i] }}></div>
-              <p className="text-[10px] md:text-xs text-slate-600 font-medium leading-relaxed px-2 md:px-0">
+              <h3 className="font-black text-slate-900 text-sm md:text-xl mb-2 tracking-wide leading-tight drop-shadow-sm">{uc.title}</h3>
+              <div className="w-12 h-1.5 mb-3 rounded-full opacity-80 shadow-sm" style={{ backgroundColor: colors[i] }}></div>
+              <p className="text-[11px] md:text-sm text-slate-700 font-semibold leading-relaxed drop-shadow-sm">
                 {uc.desc}
               </p>
             </div>
