@@ -242,9 +242,20 @@ function UseCaseSection({ setPage }: { setPage: (p: Page) => void }) {
 
       <div className="max-w-6xl mx-auto flex flex-col lg:flex-row items-center relative lg:min-h-[650px] lg:py-10">
         
+        {/* Deterministic CSS for absolute positioning on Desktop */}
+        <style dangerouslySetInnerHTML={{__html: `
+          @media (min-width: 1024px) {
+            .usecase-node { position: absolute !important; margin-bottom: 0 !important; transform: translateY(-50%) !important; }
+            .usecase-node-0 { top: 12.5%; }
+            .usecase-node-1 { top: 37.5%; }
+            .usecase-node-2 { top: 62.5%; }
+            .usecase-node-3 { top: 87.5%; }
+          }
+        `}} />
+
         {/* Left Hub - Business Infographic Circle */}
         <div className="w-full lg:w-[35%] flex justify-center mb-16 lg:mb-0 relative z-20">
-           <div className="w-56 h-56 md:w-64 md:h-64 rounded-full bg-white flex flex-col items-center justify-center relative shadow-[0_15px_40px_rgba(0,0,0,0.06)] border-[8px] border-slate-50 group">
+           <div className="w-56 h-56 md:w-64 md:h-64 rounded-full flex flex-col items-center justify-center relative shadow-[0_20px_50px_rgba(0,0,0,0.15)] border-[8px] border-white group bg-[#0F172A]">
              <div className="absolute -inset-4 rounded-full border border-slate-200 pointer-events-none"></div>
              
              {/* Left Curved Accent Line */}
@@ -254,8 +265,8 @@ function UseCaseSection({ setPage }: { setPage: (p: Page) => void }) {
                 <circle cx="15" cy="85" r="1.5" fill="#1E293B" />
              </svg>
 
-             {/* Lottie Animation */}
-             <div className="absolute inset-0 p-6 flex items-center justify-center scale-110 opacity-90 group-hover:opacity-100 transition-opacity">
+             {/* Lottie Animation (Now visible against dark bg) */}
+             <div className="absolute inset-0 p-8 flex items-center justify-center scale-125 opacity-90 group-hover:opacity-100 transition-all duration-500">
                <DotLottieReact
                  src="https://lottie.host/64d72863-7188-466d-a60d-2e6dd0f40d1e/bXw3YtZ2gZ.lottie"
                  loop
@@ -289,12 +300,10 @@ function UseCaseSection({ setPage }: { setPage: (p: Page) => void }) {
            {useCases.map((uc, i) => {
              const Icon = uc.icon;
              const color = colors[i];
-             const topPercent = 12.5 + i * 25;
              return (
                <div 
                  key={i} 
-                 className="flex items-center w-full relative group mb-6 lg:mb-0 lg:absolute lg:-translate-y-1/2 lg:top-[var(--lg-top)]"
-                 style={{ '--lg-top': `${topPercent}%` } as React.CSSProperties}
+                 className={`flex items-center w-full relative group mb-6 lg:mb-0 usecase-node usecase-node-${i}`}
                >
                  {/* White Circle Icon */}
                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white flex flex-shrink-0 items-center justify-center z-20 relative group-hover:scale-105 transition-transform border-[6px] border-[#F8F9FA]"
