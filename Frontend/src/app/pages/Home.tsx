@@ -602,55 +602,8 @@ export default function Home({ setPage }: HomeProps) {
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ── */}
-      <section className="py-24 px-6" style={{ background: "#F0FDF4" }}>
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center max-w-3xl mx-auto mb-14 space-y-4">
-            <SectionLabel text="Deploy in Under 10 Minutes" />
-            <h2 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A] leading-tight"
-              style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
-              From Zero to Live AI Voice Agent — 4 Steps
-            </h2>
-            <p className="text-slate-500 leading-relaxed">
-              No code. No call center setup. No engineering team. Build and deploy your AI phone agent in minutes using our no-code voice AI platform.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            {[
-              { n: "01", title: "Configure Your AI Agent", desc: "Name your agent, pick a voice persona, set language mode, and define the conversation goal — from the guided dashboard.", icon: Bot },
-              { n: "02", title: "Upload Knowledge Base", desc: "Paste FAQs, connect Shopify/CRM, or upload PDFs. Your AI phone assistant learns your business instantly via RAG.", icon: Database },
-              { n: "03", title: "Connect Phone Number", desc: "Get a dedicated PSTN number or bring your SIP trunk. Inbound and outbound routing configured in one click.", icon: Phone },
-              { n: "04", title: "Launch & Monitor", desc: "Go live. Monitor calls in real-time, read transcripts, view AI call analytics, and iterate from the dashboard.", icon: BarChart3 },
-            ].map((s, i) => {
-              const Icon = s.icon;
-              return (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 28 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: i * 0.1 }}
-                  className="relative bg-white border border-[#EADEC9] rounded-3xl p-7 space-y-4 overflow-hidden group hover:shadow-lg transition-all"
-                >
-                  {/* Step number watermark */}
-                  <span className="absolute -top-3 -right-2 text-[80px] font-extrabold text-[#059669]/5 leading-none select-none font-mono">
-                    {s.n}
-                  </span>
-                  <div className="w-12 h-12 rounded-2xl bg-[#D1FAE5] flex items-center justify-center">
-                    <Icon className="w-6 h-6 text-[#059669]" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-[#059669] font-mono mb-1">Step {s.n}</p>
-                    <h3 className="text-base font-extrabold text-[#0F172A] mb-2">{s.title}</h3>
-                    <p className="text-sm text-slate-500 leading-relaxed">{s.desc}</p>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+      {/* ── HOW IT WORKS (Grid Steps) ── */}
+      <GridSteps />
 
       {/* ── INBOUND + OUTBOUND SPLIT ── */}
       <section className="py-24 px-6 max-w-7xl mx-auto">
@@ -783,5 +736,112 @@ export default function Home({ setPage }: HomeProps) {
       {/* ── FINAL CTA ── */}
       <FinalCTA setPage={setPage} />
     </div>
+  );
+}
+
+// ── Grid Steps Section (2x2 L-Shape Cards) ──────────────────────────────────────
+function GridSteps() {
+  const steps = [
+    { n: "01", title: "Configure Your AI Agent", desc: "Name your agent, pick a voice persona, set language mode, and define the conversation goal.", icon: Bot, variant: "TL" },
+    { n: "02", title: "Upload Knowledge Base", desc: "Paste FAQs, connect Shopify/CRM, or upload PDFs. Your AI phone assistant learns your business instantly via RAG.", icon: Database, variant: "TR" },
+    { n: "04", title: "Launch & Monitor", desc: "Go live. Monitor calls in real-time, read transcripts, view AI call analytics, and iterate from the dashboard.", icon: BarChart3, variant: "BL" },
+    { n: "03", title: "Connect Phone Number", desc: "Get a dedicated PSTN number or bring your SIP trunk. Inbound and outbound routing configured in one click.", icon: Phone, variant: "BR" },
+  ];
+
+  return (
+    <section className="py-24 px-6 relative overflow-hidden bg-[#F1F5F9]">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
+          <SectionLabel text="Deploy in Under 10 Minutes" color="green" />
+          <h2 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A] leading-tight"
+            style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
+            From Zero to Live AI Voice Agent
+          </h2>
+          <p className="text-slate-500 leading-relaxed">
+            No code. No call center setup. No engineering team. Build and deploy your AI phone agent in minutes.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-16 max-w-5xl mx-auto">
+          {steps.map((step, i) => {
+            const Icon = step.icon;
+            const isTL = step.variant === "TL";
+            const isTR = step.variant === "TR";
+            const isBL = step.variant === "BL";
+            const isBR = step.variant === "BR";
+            
+            // Common Green Box
+            const GreenBox = (
+              <div className={`absolute ${isTL || isTR ? 'top-0' : 'bottom-0'} ${isTL || isBL ? 'left-0' : 'right-0'} w-28 h-28 lg:w-32 lg:h-32 bg-[#8EB04A] rounded-2xl flex flex-col items-center justify-center text-white z-20 shadow-lg`}>
+                <span className="text-4xl lg:text-5xl font-extrabold tracking-tighter">{step.n}</span>
+                <span className="text-[9px] lg:text-[10px] font-bold uppercase tracking-widest mt-1 opacity-90">Step {step.n === "01" ? "One" : step.n === "02" ? "Two" : step.n === "03" ? "Three" : "Four"}</span>
+                {/* Pointer Arrow */}
+                <div className={`absolute ${isTL || isTR ? '-bottom-2' : '-top-2'} left-1/2 -translate-x-1/2 w-4 h-4 bg-[#8EB04A] rotate-45`}></div>
+              </div>
+            );
+
+            // Text Content Block
+            const TextBlock = (
+              <div className={`bg-white ${isTL ? 'rounded-b-3xl rounded-tl-3xl' : isTR ? 'rounded-b-3xl rounded-tr-3xl' : isBL ? 'rounded-t-3xl rounded-bl-3xl' : 'rounded-t-3xl rounded-br-3xl'} p-8 pt-7 relative flex-1 flex flex-col justify-center shadow-[0_4px_20px_rgba(0,0,0,0.03)]`}>
+                <div className="flex items-center gap-2 mb-3">
+                   <div className="w-5 h-5 rounded-full bg-[#8EB04A] text-white flex items-center justify-center text-xs font-bold leading-none pb-0.5">+</div>
+                   <h3 className="text-[#8EB04A] font-extrabold tracking-wide uppercase text-sm">{step.title}</h3>
+                </div>
+                <p className="text-sm text-slate-500 leading-relaxed font-medium">{step.desc}</p>
+              </div>
+            );
+
+            // Icon Block
+            const IconBlockContent = (
+              <div className="flex-1 bg-white flex items-center justify-center relative shadow-[0_4px_20px_rgba(0,0,0,0.03)] group transition-all"
+                   style={{
+                     borderTopRightRadius: isTL ? '1.5rem' : 0,
+                     borderTopLeftRadius: isTR ? '1.5rem' : 0,
+                     borderBottomRightRadius: isBL ? '1.5rem' : 0,
+                     borderBottomLeftRadius: isBR ? '1.5rem' : 0,
+                   }}>
+                <Icon className="w-12 h-12 text-[#8EB04A] group-hover:scale-110 transition-transform duration-300 opacity-90" strokeWidth={1.5} />
+              </div>
+            );
+
+            const Spacer = <div className="w-24 lg:w-28 bg-transparent shrink-0"></div>;
+
+            const IconRow = (
+              <div className="flex h-24 lg:h-28">
+                {isTL || isBL ? Spacer : IconBlockContent}
+                {isTL || isBL ? IconBlockContent : Spacer}
+              </div>
+            );
+
+            return (
+              <motion.div 
+                key={i}
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: i * 0.1 }}
+                className="relative filter drop-shadow-xl group"
+              >
+                {GreenBox}
+                
+                <div className={`flex flex-col ${isTL || isBL ? 'ml-6 lg:ml-8' : 'mr-6 lg:mr-8'} ${isTL || isTR ? 'mt-6 lg:mt-8' : 'mb-6 lg:mb-8'} min-h-[280px]`}>
+                  {isTL || isTR ? (
+                    <>
+                      {IconRow}
+                      {TextBlock}
+                    </>
+                  ) : (
+                    <>
+                      {TextBlock}
+                      {IconRow}
+                    </>
+                  )}
+                </div>
+              </motion.div>
+            )
+          })}
+        </div>
+      </div>
+    </section>
   );
 }
