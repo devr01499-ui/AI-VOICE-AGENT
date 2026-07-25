@@ -534,18 +534,18 @@ function InfographicSteps() {
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true, margin: "-50px" }}
                     transition={{ duration: 0.6, delay: i * 0.1 }}
-                    className={\`relative z-20 w-[75%] \${isRight ? 'self-end rounded-l-full' : 'self-start rounded-r-full'} p-8 lg:p-10 flex items-center\`}
+                    className={`relative z-20 w-[75%] ${isRight ? 'self-end rounded-l-full' : 'self-start rounded-r-full'} p-8 lg:p-10 flex items-center`}
                     style={{ 
                       backgroundColor: step.color, 
                       zIndex: 40 - i * 10,
                       boxShadow: "0 30px 60px rgba(0,0,0,0.15), 0 10px 20px rgba(0,0,0,0.1)"
                     }}
                   >
-                    <div className={\`flex w-full items-center gap-6 lg:gap-8 \${isRight ? 'flex-row' : 'flex-row-reverse'}\`}>
+                    <div className={`flex w-full items-center gap-6 lg:gap-8 ${isRight ? 'flex-row' : 'flex-row-reverse'}`}>
                       <div className="text-white text-5xl lg:text-6xl font-light opacity-90">{step.n}</div>
-                      <div className={\`text-white flex-1 \${isRight ? 'text-left' : 'text-right'}\`}>
+                      <div className={`text-white flex-1 ${isRight ? 'text-left' : 'text-right'}`}>
                         <h3 className="text-xl lg:text-2xl font-bold mb-2 uppercase tracking-wide">{step.title}</h3>
-                        <p className={\`text-sm opacity-90 leading-relaxed max-w-sm \${isRight ? '' : 'ml-auto'}\`}>{step.desc}</p>
+                        <p className={`text-sm opacity-90 leading-relaxed max-w-sm ${isRight ? '' : 'ml-auto'}`}>{step.desc}</p>
                       </div>
                     </div>
                   </motion.div>
