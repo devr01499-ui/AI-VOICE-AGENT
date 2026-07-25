@@ -585,54 +585,59 @@ export default function Home({ setPage }: HomeProps) {
 
       {/* ── ABOUT / ARCHITECTURE ── */}
       <section className="py-24 px-6 max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-20 items-center">
+        <div className="bg-white rounded-[40px] p-10 lg:p-16 border border-[#E2E8F0] shadow-[0_24px_80px_-12px_rgba(0,0,0,0.06),_0_12px_24px_-4px_rgba(0,0,0,0.04)] relative overflow-hidden">
+          {/* Subtle background decoration inside the box */}
+          <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={{ backgroundImage: "radial-gradient(circle, #000 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
           
-          {/* Left: Text Content */}
-          <motion.div 
-            className="space-y-6" 
-            initial={{ opacity: 0, x: -30 }} 
-            whileInView={{ opacity: 1, x: 0 }} 
-            viewport={{ once: true }}
-          >
-            <h2 
-              className="text-4xl lg:text-5xl font-extrabold text-[#0F172A] leading-[1.15]"
-              style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-20 items-center relative z-10">
+            
+            {/* Left: Text Content */}
+            <motion.div 
+              className="space-y-6" 
+              initial={{ opacity: 0, x: -30 }} 
+              whileInView={{ opacity: 1, x: 0 }} 
+              viewport={{ once: true }}
             >
-              Built Different — Not Just<br />Another Stacked Voice API
-            </h2>
-            <p className="text-slate-500 text-[17px] leading-[1.7] max-w-[500px]">
-              Most AI voice calling software chains third-party STT → LLM → TTS providers, adding 800ms–1.5s of pipeline latency. Clarity Voice runs a vertically integrated audio model — direct WebRTC streaming with sub-180ms response. That's the difference between a voice bot and a real AI phone agent.
-            </p>
-          </motion.div>
-
-          {/* Right: 4 Feature Cards */}
-          <div className="space-y-4">
-            {[
-              { icon: Zap, title: "Sub-180ms End-to-End Latency", desc: "No REST overhead — direct audio streaming", color: "#059669" },
-              { icon: Globe2, title: "70+ Regional Dialects, Zero Translation", desc: "Native speech models, no lossy intermediate API", color: "#EA580C" },
-              { icon: ShieldCheck, title: "Edge-Level PII/PHI Redaction", desc: "HIPAA, SOC 2, PCI-DSS compliance built-in", color: "#059669" },
-              { icon: Network, title: "Function Calling & Tool Calling", desc: "Real-time API execution while live on the call", color: "#EA580C" },
-            ].map(({ icon: Icon, title, desc, color }, i) => (
-              <motion.div
-                key={i}
-                className="flex items-center gap-5 bg-white border border-[#E2E8F0] rounded-2xl px-6 py-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_4px_24px_rgba(0,0,0,0.06)] hover:border-[#CBD5E1] transition-all w-full"
-                initial={{ opacity: 0, y: 15 }} 
-                whileInView={{ opacity: 1, y: 0 }} 
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
+              <h2 
+                className="text-4xl lg:text-5xl font-extrabold text-[#0F172A] leading-[1.15]"
+                style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}
               >
-                <div className="w-[46px] h-[46px] rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ background: color === "#059669" ? "#ECFDF5" : "#FFF7ED" }}>
-                  <Icon className="w-5 h-5" style={{ color }} strokeWidth={2.5} />
-                </div>
-                <div>
-                  <h4 className="font-bold text-[#0F172A] text-[16px]">{title}</h4>
-                  <p className="text-[14px] text-slate-500 mt-1">{desc}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                Built Different — Not Just<br />Another Stacked Voice API
+              </h2>
+              <p className="text-slate-500 text-[17px] leading-[1.7] max-w-[500px]">
+                Most AI voice calling software chains third-party STT → LLM → TTS providers, adding 800ms–1.5s of pipeline latency. Clarity Voice runs a vertically integrated audio model — direct WebRTC streaming with sub-180ms response. That's the difference between a voice bot and a real AI phone agent.
+              </p>
+            </motion.div>
 
+            {/* Right: 4 Feature Cards */}
+            <div className="space-y-4">
+              {[
+                { icon: Zap, title: "Sub-180ms End-to-End Latency", desc: "No REST overhead — direct audio streaming", color: "#059669" },
+                { icon: Globe2, title: "70+ Regional Dialects, Zero Translation", desc: "Native speech models, no lossy intermediate API", color: "#EA580C" },
+                { icon: ShieldCheck, title: "Edge-Level PII/PHI Redaction", desc: "HIPAA, SOC 2, PCI-DSS compliance built-in", color: "#059669" },
+                { icon: Network, title: "Function Calling & Tool Calling", desc: "Real-time API execution while live on the call", color: "#EA580C" },
+              ].map(({ icon: Icon, title, desc, color }, i) => (
+                <motion.div
+                  key={i}
+                  className="flex items-center gap-5 bg-white border border-[#E2E8F0] rounded-2xl px-6 py-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_4px_24px_rgba(0,0,0,0.06)] hover:border-[#CBD5E1] transition-all w-full"
+                  initial={{ opacity: 0, y: 15 }} 
+                  whileInView={{ opacity: 1, y: 0 }} 
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                >
+                  <div className="w-[46px] h-[46px] rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ background: color === "#059669" ? "#ECFDF5" : "#FFF7ED" }}>
+                    <Icon className="w-5 h-5" style={{ color }} strokeWidth={2.5} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-[#0F172A] text-[16px]">{title}</h4>
+                    <p className="text-[14px] text-slate-500 mt-1">{desc}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+          </div>
         </div>
       </section>
 
