@@ -203,130 +203,93 @@ function BentoCapabilitySection({ setPage }: { setPage: (p: Page) => void }) {
   );
 }
 
-// ── Use Case Infographic Section ───────────────────────────────────────────────
+// ── Interlocking Clover Infographic Section ─────────────────────────────────────
 function UseCaseSection({ setPage }: { setPage: (p: Page) => void }) {
   const useCases = [
-    {
-      title: "AI Voice Agents for Appointment Booking",
-      desc: "Automate appointment booking, demo scheduling, and calendar integration across healthcare clinics, real estate teams, and SaaS companies. Reduce no-shows by 89% with proactive reminders.",
-      icon: Clock,
-    },
-    {
-      title: "AI Outbound Calling for Lead Qualification",
-      desc: "Deploy AI calling agents that contact leads within 3 seconds of form submission. Qualify budgets, score intent, and book sales calls automatically.",
-      icon: TrendingUp,
-    },
-    {
-      title: "AI Inbound Calling & Front Desk Automation",
-      desc: "Replace legacy IVR systems with a human-like AI receptionist that handles inbound calls, answers FAQs, routes calls intelligently, and escalates to human agents with full context.",
-      icon: PhoneCall,
-    },
-    {
-      title: "Collections & Payment Reminder Calls",
-      desc: "Automate ethical EMI payment reminders, debt collection outreach, and renewal campaigns with PCI-DSS compliant AI calling agents. 3.4× higher recovery rates vs manual teams.",
-      icon: Activity,
-    },
+    { step: "FIRST USE CASE", num: "01", title: "APPOINTMENTS", desc: "Automate booking, demo scheduling, and calendar integration. Reduce no-shows by 89%.", icon: Clock },
+    { step: "SECOND USE CASE", num: "02", title: "QUALIFICATION", desc: "Contact leads within 3s of form submission. Qualify budgets and score intent.", icon: TrendingUp },
+    { step: "THIRD USE CASE", num: "03", title: "INBOUND", desc: "Handle inbound calls, answer FAQs, and intelligently route to human agents.", icon: PhoneCall },
+    { step: "FOURTH USE CASE", num: "04", title: "COLLECTIONS", desc: "Automate EMI reminders and debt outreach with PCI-DSS compliance.", icon: Activity },
   ];
 
-  const colors = ["#4F46E5", "#0CA5A5", "#9333EA", "#E11D48"];
+  // Colors from the design: Teal, Orange, Beige, Brown
+  const colors = ["#5BC4BF", "#F58220", "#F4D09C", "#6D534A"];
 
   return (
-    <section className="py-24 px-4 bg-[#F8F9FA] relative overflow-hidden">
+    <section className="py-24 px-4 bg-[#FAF9F6] relative overflow-hidden">
       <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
         <SectionLabel text="Use Cases" color="orange" />
-        <h2 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A] leading-tight"
+        <h2 className="text-4xl lg:text-5xl font-extrabold text-[#2C3E50] leading-tight"
           style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
           One Platform. Every High-Value<br />Call Automation Use Case.
         </h2>
       </div>
 
-      <div className="max-w-6xl mx-auto flex flex-col lg:flex-row items-center relative lg:min-h-[700px] lg:py-10">
+      <div className="max-w-[800px] mx-auto relative w-full aspect-square md:aspect-auto md:h-[800px] mt-10">
         
-        {/* Left Hub - Business Infographic Circle (40% width) */}
-        <div className="w-full lg:w-[40%] flex justify-center mb-16 lg:mb-0 relative z-20">
-           <div className="w-56 h-56 md:w-72 md:h-72 rounded-full flex flex-col items-center justify-center relative shadow-[0_20px_50px_rgba(0,0,0,0.15)] border-[8px] border-white group bg-[#0F172A] z-10">
-             <div className="absolute -inset-4 rounded-full border border-slate-200 pointer-events-none"></div>
-             
-             {/* Left Curved Accent Line */}
-             <svg className="absolute -inset-6 w-[calc(100%+3rem)] h-[calc(100%+3rem)] pointer-events-none" viewBox="0 0 100 100">
-                <path d="M 15 15 A 45 45 0 0 0 15 85" fill="none" stroke="#1E293B" strokeWidth="0.5" />
-                <circle cx="15" cy="15" r="1.5" fill="#1E293B" />
-                <circle cx="15" cy="85" r="1.5" fill="#1E293B" />
-             </svg>
+        {/* SVG Interlocking Ribbons */}
+        <svg className="absolute inset-0 w-full h-full drop-shadow-xl" viewBox="-250 -250 500 500">
+          <defs>
+            <filter id="ribbon-shadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="2" dy="6" stdDeviation="6" floodOpacity="0.3" floodColor="#000000" />
+            </filter>
+            
+            <clipPath id="tr-head-clip">
+              <rect x="0" y="0" width="250" height="250" />
+            </clipPath>
 
-             {/* Robust CSS-Native Radar Animation for AI Voice Agent */}
-             <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden rounded-full">
-               <div className="absolute w-16 h-16 bg-teal-400/20 rounded-full animate-ping" style={{ animationDuration: '3s' }}></div>
-               <div className="absolute w-28 h-28 border-2 border-indigo-500/40 rounded-full animate-pulse" style={{ animationDuration: '2s' }}></div>
-               <div className="absolute w-40 h-40 border-2 border-rose-500/20 rounded-full animate-pulse" style={{ animationDuration: '2.5s' }}></div>
-               <div className="absolute w-52 h-52 border border-teal-400/10 rounded-full animate-pulse" style={{ animationDuration: '4s' }}></div>
-             </div>
+            {/* Curved Text Paths */}
+            <path id="text-tl" d="M -210 -90 A 120 120 0 0 1 -90 -210" fill="none" />
+            <path id="text-tr" d="M 90 -210 A 120 120 0 0 1 210 -90" fill="none" />
+            <path id="text-br" d="M 90 210 A 120 120 0 0 0 210 90" fill="none" />
+            <path id="text-bl" d="M -210 90 A 120 120 0 0 0 -90 210" fill="none" />
+            
+            {/* The 4 Ribbon Paths */}
+            {/* TR (Orange) */}
+            <path id="path-tr" d="M -60 -90 A 150 150 0 1 1 90 60 L 70 30 L 90 0 A 90 90 0 1 0 0 -90 Z" />
+            {/* TL (Teal) */}
+            <path id="path-tl" d="M -90 60 A 150 150 0 1 1 60 -90 L 30 -70 L 0 -90 A 90 90 0 1 0 -90 0 Z" />
+            {/* BL (Brown) */}
+            <path id="path-bl" d="M 60 90 A 150 150 0 1 1 -90 -60 L -70 -30 L -90 0 A 90 90 0 1 0 0 90 Z" />
+            {/* BR (Beige) */}
+            <path id="path-br" d="M 90 -60 A 150 150 0 1 1 -60 90 L -30 70 L 0 90 A 90 90 0 1 0 90 0 Z" />
+          </defs>
 
-             {/* Center Icon & Label */}
-             <div className="relative z-10 flex flex-col items-center">
-                <Bot className="w-12 h-12 md:w-16 md:h-16 text-white mb-2" strokeWidth={1.5} />
-                <span className="text-white text-[10px] md:text-xs font-bold tracking-[0.2em]">AI VOICE</span>
-             </div>
-           </div>
-        </div>
-
-        {/* Tree Connection Lines (SVG) - Desktop Only */}
-        {/* SVG spans perfectly from hub center (20%) to cards left edge (40%) */}
-        <svg className="hidden lg:block absolute left-[20%] right-[60%] top-10 bottom-10 z-10 pointer-events-none" preserveAspectRatio="none" viewBox="0 0 100 100">
-          <path d="M 0 50 C 40 50, 60 12.5, 100 12.5" fill="none" stroke="#94A3B8" strokeWidth="0.5" />
-          <path d="M 0 50 C 40 50, 60 37.5, 100 37.5" fill="none" stroke="#94A3B8" strokeWidth="0.5" />
-          <path d="M 0 50 C 40 50, 60 62.5, 100 62.5" fill="none" stroke="#94A3B8" strokeWidth="0.5" />
-          <path d="M 0 50 C 40 50, 60 87.5, 100 87.5" fill="none" stroke="#94A3B8" strokeWidth="0.5" />
+          {/* Draw Ribbons in Pinwheel Order */}
+          <use href="#path-tr" fill={colors[1]} filter="url(#ribbon-shadow)" />
+          <use href="#path-tl" fill={colors[0]} filter="url(#ribbon-shadow)" />
+          <use href="#path-bl" fill={colors[3]} filter="url(#ribbon-shadow)" />
+          <use href="#path-br" fill={colors[2]} filter="url(#ribbon-shadow)" />
           
-          {/* Connector dots on the cards */}
-          <circle cx="100" cy="12.5" r="1.5" fill="#475569" />
-          <circle cx="100" cy="37.5" r="1.5" fill="#475569" />
-          <circle cx="100" cy="62.5" r="1.5" fill="#475569" />
-          <circle cx="100" cy="87.5" r="1.5" fill="#475569" />
+          {/* Re-draw TR Head to complete the pinwheel overlap */}
+          <use href="#path-tr" fill={colors[1]} clipPath="url(#tr-head-clip)" filter="url(#ribbon-shadow)" />
+
+          {/* Curved Text */}
+          <text fill="#ffffff" fontSize="13" fontWeight="bold" letterSpacing="1.5" fontFamily="'Plus Jakarta Sans', sans-serif">
+            <textPath href="#text-tl" startOffset="50%" textAnchor="middle">
+              {useCases[0].step} <tspan fontSize="20">{useCases[0].num}</tspan>
+            </textPath>
+          </text>
           
-          {/* Connector dot on the hub center */}
-          <circle cx="0" cy="50" r="2" fill="#475569" />
+          <text fill="#ffffff" fontSize="13" fontWeight="bold" letterSpacing="1.5" fontFamily="'Plus Jakarta Sans', sans-serif">
+            <textPath href="#text-tr" startOffset="50%" textAnchor="middle">
+              {useCases[1].step} <tspan fontSize="20">{useCases[1].num}</tspan>
+            </textPath>
+          </text>
+
+          <text fill="#8C6E5C" fontSize="13" fontWeight="bold" letterSpacing="1.5" fontFamily="'Plus Jakarta Sans', sans-serif">
+            <textPath href="#text-br" startOffset="50%" textAnchor="middle">
+              {useCases[2].step} <tspan fontSize="20">{useCases[2].num}</tspan>
+            </textPath>
+          </text>
+
+          <text fill="#F4D09C" fontSize="13" fontWeight="bold" letterSpacing="1.5" fontFamily="'Plus Jakarta Sans', sans-serif">
+            <textPath href="#text-bl" startOffset="50%" textAnchor="middle">
+              {useCases[3].step} <tspan fontSize="20">{useCases[3].num}</tspan>
+            </textPath>
+          </text>
         </svg>
 
-        {/* Right List - 4 Nodes */}
-        <div className="w-full lg:w-[60%] flex flex-col h-auto lg:absolute lg:right-0 lg:top-10 lg:bottom-10 z-20 pl-4 lg:pl-0 pr-4">
-           {useCases.map((uc, i) => {
-             const Icon = uc.icon;
-             const color = colors[i];
-             
-             // Hardcoded Tailwind arbitrary values guarantee compilation
-             const absolutePositionClass = 
-               i === 0 ? "lg:[top:12.5%]" :
-               i === 1 ? "lg:[top:37.5%]" :
-               i === 2 ? "lg:[top:62.5%]" :
-               "lg:[top:87.5%]";
-
-             return (
-               <div 
-                 key={i} 
-                 className={`flex items-center w-full relative group mb-8 lg:mb-0 lg:absolute lg:-translate-y-1/2 ${absolutePositionClass}`}
-               >
-                 {/* White Circle Icon */}
-                 <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white flex flex-shrink-0 items-center justify-center z-20 relative group-hover:scale-105 transition-transform border-[6px] border-[#F8F9FA]"
-                      style={{ boxShadow: "inset 0 -5px 10px rgba(0,0,0,0.05), 0 10px 20px rgba(0,0,0,0.08)" }}>
-                   <Icon className="w-6 h-6 md:w-8 md:h-8 text-slate-700" strokeWidth={1.5} />
-                 </div>
-                 
-                 {/* Colored Arrow Ribbon */}
-                 <div 
-                   className="flex-1 py-6 md:py-8 pl-12 md:pl-16 pr-8 md:pr-14 -ml-10 text-white relative z-10 transition-transform group-hover:translate-x-2"
-                   style={{ 
-                     backgroundColor: color,
-                     clipPath: "polygon(0% 0%, 95% 0%, 100% 50%, 95% 100%, 0% 100%)",
-                     boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)"
-                   }}
-                 >
-                   <div className="flex items-center gap-2 mb-1.5">
-                     <span className="text-[10px] md:text-xs uppercase tracking-widest font-bold opacity-90">INFOGRAPHIC</span>
-                     <span className="text-xl md:text-3xl font-black leading-none">{`0${i+1}`}</span>
-                   </div>
-                   <h3 className="font-extrabold text-sm md:text-lg mb-2 leading-tight text-white pr-4">{uc.title}</h3>
-                   <p className="text-xs md:text-sm text-white/95 leading-relaxed font-medium pr-8">{uc.desc}</p>
                  </div>
                </div>
              )
