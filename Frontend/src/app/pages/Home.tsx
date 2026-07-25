@@ -72,154 +72,122 @@ function ScrollProgress() {
   );
 }
 
-// ── Bento Box Section ─────────────────────────────────────────────────────────
+// ── Horizontal Banner Features Section ──────────────────────────────────────────
 function BentoCapabilitySection({ setPage }: { setPage: (p: Page) => void }) {
   const items = [
     {
       title: "Sub-180ms Real-Time Voice AI",
-      desc: "Native multimodal pipeline — no stacked APIs. ASR + LLM + TTS vertically integrated for human-like phone conversations with zero lag. The best low-latency voice AI available.",
+      desc: "Native multimodal pipeline — no stacked APIs. ASR + LLM + TTS vertically integrated for human-like phone conversations with zero lag.",
       icon: Zap,
-      accent: "#059669",
-      bg: "#D1FAE5",
-      span: "col-span-2",
-      tall: true,
-      badge: "< 180ms",
     },
     {
       title: "Interruption & Barge-In Support",
       desc: "Full-duplex audio processing allows callers to interrupt naturally. The AI voice agent instantly adapts — real-time conversation that feels genuinely human.",
       icon: MessageSquare,
-      accent: "#EA580C",
-      bg: "#FEF3C7",
-      span: "col-span-1",
-      tall: false,
-      badge: "Full-Duplex",
     },
     {
-      title: "Multilingual Voice Support — 70+ Languages",
+      title: "Multilingual Voice Support",
       desc: "Native speech recognition across English, Hindi, Bengali, Kannada, Mandarin, Arabic, and 64+ more. Accent support built in. No translation overhead.",
       icon: Languages,
-      accent: "#059669",
-      bg: "#ECFDF5",
-      span: "col-span-1",
-      tall: false,
-      badge: "70+ Dialects",
     },
     {
       title: "RAG Knowledge Base Calling",
       desc: "Attach PDFs, URLs, and CRM data for 100% hallucination-free answers. Real-time retrieval during live calls — your AI receptionist knows everything about your business.",
       icon: Database,
-      accent: "#EA580C",
-      bg: "#FEF3C7",
-      span: "col-span-1",
-      tall: false,
-      badge: "Real-Time RAG",
     },
     {
       title: "Warm Transfer & Human Handoff",
       desc: "When escalation is needed, the AI voice agent executes a warm transfer with full call context and transcript — seamless hand-off to your human agent team.",
       icon: PhoneCall,
-      accent: "#059669",
-      bg: "#D1FAE5",
-      span: "col-span-2",
-      tall: false,
-      badge: "Human Escalation",
     },
     {
       title: "CRM & Webhook Automation",
       desc: "Bi-directional sync with Salesforce, HubSpot, Shopify, and custom REST webhooks. Automated call disposition, lead scoring, and pipeline updates in real-time.",
       icon: Webhook,
-      accent: "#EA580C",
-      bg: "#FEF3C7",
-      span: "col-span-1",
-      tall: false,
-      badge: "2-Way CRM Sync",
     },
     {
-      title: "Batch Calling & Smart Retry Logic",
+      title: "Batch Calling & Smart Retry",
       desc: "Launch 10,000+ simultaneous outbound AI calls with intelligent retry schedules for busy lines, voicemails, and unanswered calls. AI call automation at enterprise scale.",
       icon: RefreshCw,
-      accent: "#059669",
-      bg: "#ECFDF5",
-      span: "col-span-1",
-      tall: false,
-      badge: "10K+ Concurrent",
     },
     {
-      title: "Call Summarization & Sentiment Analysis",
+      title: "Call Summarization & Sentiment",
       desc: "Automated post-call disposition, key phrase extraction, sentiment scoring, call recording, and transcription indexing — everything you need for AI call analytics.",
       icon: BarChart3,
-      accent: "#EA580C",
-      bg: "#FEF3C7",
-      span: "col-span-1",
-      tall: false,
-      badge: "Auto-Analytics",
-    },
-    {
-      title: "Compliance Logging & PII Redaction",
-      desc: "Edge-level PII/PHI redaction before any log storage. SOC 2 Type II, HIPAA BAA, PCI-DSS, and GDPR audit trails. The most secure voice AI platform available.",
-      icon: ShieldCheck,
-      accent: "#059669",
-      bg: "#D1FAE5",
-      span: "col-span-1",
-      tall: false,
-      badge: "SOC 2 / HIPAA",
-    },
+    }
   ];
 
+  // The 4 specific colors from the reference image
+  const bannerColors = ["#E88B27", "#6C6A7B", "#2574A9", "#C23030"];
+
   return (
-    <section className="py-24 px-6 max-w-7xl mx-auto">
-      <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
-        <SectionLabel text="Platform Capabilities" />
+    <section className="py-24 px-4 sm:px-6 max-w-5xl mx-auto">
+      <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
+        <SectionLabel text="Platform Capabilities" color="orange" />
         <h2 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A] leading-tight"
           style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
           Every Feature Your Enterprise<br />AI Voice Platform Needs
         </h2>
-        <p className="text-slate-500 text-base leading-relaxed">
-          From real-time ASR/TTS to RAG knowledge base calling, CRM integration, and compliance logging — one unified AI voice automation platform.
-        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 auto-rows-auto">
+      <div className="flex flex-col gap-10">
         {items.map((item, i) => {
           const Icon = item.icon;
+          const bgColor = bannerColors[i % bannerColors.length];
+          
           return (
             <motion.div
               key={i}
-              initial={{ opacity: 0, y: 32 }}
+              initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: i * 0.06 }}
-              whileHover={{ y: -6, transition: { duration: 0.2 } }}
-              className={`${item.span} relative bg-white border border-[#EADEC9] rounded-3xl p-7 flex flex-col gap-4 overflow-hidden group cursor-default transition-all`}
-              style={{
-                boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
-                minHeight: item.tall ? "280px" : "auto",
-              }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.6, delay: (i % 4) * 0.1 }}
+              className="relative w-full rounded-md shadow-[0_15px_30px_rgba(0,0,0,0.15)] overflow-hidden min-h-[160px] md:min-h-[180px] flex items-center group"
+              style={{ backgroundColor: bgColor }}
             >
-              {/* Hover overlay */}
-              <div
-                className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                style={{ background: `linear-gradient(135deg, ${item.bg}80 0%, transparent 55%)` }}
-              />
-              {/* Badge */}
-              <span
-                className="absolute top-6 right-6 text-[9px] font-extrabold uppercase tracking-[0.15em] px-3 py-1 rounded-full font-mono"
-                style={{ background: item.bg, color: item.accent, border: `1px solid ${item.accent}25` }}
+              {/* White Wavy Overlay Shape with Notch */}
+              <svg 
+                className="absolute right-0 top-0 w-full h-full z-0 drop-shadow-[-8px_0_12px_rgba(0,0,0,0.25)]" 
+                preserveAspectRatio="none" 
+                viewBox="0 0 1000 200"
               >
-                {item.badge}
-              </span>
-              {/* Icon */}
-              <div className="relative z-10 w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform"
-                style={{ background: item.bg }}>
-                <Icon className="w-6 h-6" style={{ color: item.accent }} />
-              </div>
-              {/* Text */}
-              <div className="relative z-10 flex-1">
-                <h3 className="text-lg font-extrabold text-[#0F172A] mb-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                  {item.title}
-                </h3>
-                <p className="text-sm text-slate-500 leading-relaxed">{item.desc}</p>
+                <path 
+                  d="M 1000 0 L 320 0 L 300 45 L 280 0 C 400 0, 480 200, 750 200 L 1000 200 Z" 
+                  fill="#ffffff" 
+                />
+              </svg>
+
+              {/* Content Container */}
+              <div className="relative z-10 w-full flex flex-row items-center h-full">
+                
+                {/* Left Side: Icon */}
+                <div className="w-1/4 sm:w-1/5 flex justify-center items-center pl-2 sm:pl-6">
+                  <div className="relative">
+                    {/* Simulated Long Shadow for the Icon */}
+                    <Icon 
+                      className="w-12 h-12 sm:w-16 sm:h-16 text-white absolute top-1 left-1 opacity-20 blur-[2px]" 
+                      strokeWidth={1.5} 
+                    />
+                    <Icon 
+                      className="w-12 h-12 sm:w-16 sm:h-16 text-white relative z-10 drop-shadow-[2px_2px_0px_rgba(0,0,0,0.1)]" 
+                      strokeWidth={1.5} 
+                    />
+                  </div>
+                </div>
+
+                {/* Right Side: Text */}
+                <div className="w-3/4 sm:w-4/5 flex flex-col justify-center py-6 pr-6 pl-12 sm:pl-20 md:pl-32 xl:pl-40">
+                  <h3 
+                    className="text-lg sm:text-xl font-black uppercase tracking-wide mb-2 leading-tight" 
+                    style={{ color: bgColor, fontFamily: "'Clash Display', sans-serif" }}
+                  >
+                    {item.title}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium max-w-2xl">
+                    {item.desc}
+                  </p>
+                </div>
+
               </div>
             </motion.div>
           );
