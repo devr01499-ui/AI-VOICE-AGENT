@@ -272,30 +272,11 @@ export default function Hero({ setPage }: HeroProps) {
 
   return (
     <section
-      className="relative overflow-hidden pt-36 pb-16"
-      style={{ background: "#F7F5F2" }}
+      className="relative overflow-hidden pt-12 pb-4 bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: "url('/hero-bg.png')", backgroundColor: "#F7F5F2" }}
     >
-      {/* Mesh gradient background */}
-      <div className="absolute inset-0 pointer-events-none"
-        style={{
-          background: `
-            radial-gradient(ellipse 70% 55% at 15% 8%, rgba(5,150,105,0.07) 0%, transparent 55%),
-            radial-gradient(ellipse 55% 45% at 85% 85%, rgba(232,99,10,0.05) 0%, transparent 50%),
-            radial-gradient(ellipse 40% 35% at 65% 15%, rgba(52,211,153,0.04) 0%, transparent 45%)
-          `,
-        }}
-      />
-
-      {/* Subtle grid */}
-      <div className="absolute inset-0 pointer-events-none opacity-[0.025]"
-        style={{
-          backgroundImage: "linear-gradient(rgba(13,17,23,1) 1px, transparent 1px), linear-gradient(90deg, rgba(13,17,23,1) 1px, transparent 1px)",
-          backgroundSize: "60px 60px",
-        }}
-      />
-
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="flex flex-col items-center justify-center text-center py-10 lg:py-20">
+      <div className="max-w-7xl mx-auto px-6 relative z-10">
+        <div className="flex flex-col items-center justify-center text-center py-4 lg:py-6">
 
           {/* ── Text content ─────────────────────────────────────── */}
           <motion.div
