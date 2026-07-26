@@ -269,7 +269,7 @@ export default function HomePage() {
             <div className="flex flex-col gap-4 text-xs">
               <div className="bg-[#0F172A] border border-[#1E293B] rounded-lg p-4">
                 <span className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1">Agent Name</span>
-                <span className="text-[#F8FAFC] font-semibold text-sm">Clarity HR Customer Support Screener</span>
+                <span className="text-[#F8FAFC] font-semibold text-sm">Claritiy HR Customer Support Screener</span>
               </div>
 
               <div className="bg-[#0F172A] border border-[#1E293B] rounded-lg p-4">
@@ -307,13 +307,13 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Right Column: Clarity Voice AI Panel */}
+        {/* Right Column: Claritiy Voice AI Panel */}
         <div className="bg-[#141C2F] border border-[#1E293B] rounded-xl p-8 shadow-2xl text-center relative flex flex-col justify-between">
           <div>
             <div className="h-1 w-20 bg-[#10B981] rounded-full mx-auto mb-6 shadow-[0_0_10px_#10B981]" />
 
             <h1 className="text-2xl font-extrabold mb-2 tracking-tight bg-gradient-to-r from-[#F8FAFC] to-[#94A3B8] bg-clip-text text-transparent">
-              Clarity Voice AI
+              Claritiy Voice AI
             </h1>
             <p className="text-sm text-[#94A3B8] font-medium mb-8">Automated HR Screening Arena</p>
 
@@ -387,7 +387,7 @@ export default function HomePage() {
                             t.speaker === 'agent' ? 'text-[#818CF8]' : 'text-[#34D399]'
                           }`}
                         >
-                          {t.speaker === 'agent' ? 'Clarity Recruiter' : 'Candidate'}
+                          {t.speaker === 'agent' ? 'Claritiy Recruiter' : 'Candidate'}
                         </span>
                         <p className="text-[#E2E8F0] m-0 leading-relaxed font-medium">{t.text}</p>
                       </div>

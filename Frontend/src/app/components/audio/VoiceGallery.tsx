@@ -14,11 +14,11 @@ export default function VoiceGallery({ setPage }: VoiceGalleryProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const voices = [
-    { id: "puck", name: "Wei (Puck)", gender: "Male", tone: "Conversational", description: "Bright, energetic voice optimized for fast-paced confirmation calls.", quote: "Hey there! I'm calling from Clarity Voice to double-check your order details before we ship it out today." },
+    { id: "puck", name: "Wei (Puck)", gender: "Male", tone: "Conversational", description: "Bright, energetic voice optimized for fast-paced confirmation calls.", quote: "Hey there! I'm calling from Claritiy Voice to double-check your order details before we ship it out today." },
     { id: "kore", name: "Mei (Kore)", gender: "Female", tone: "Crisp", description: "Polite, clear, and reassuring female voice with excellent articulation.", quote: "Hello! Dr. Sharma's office is confirming your appointment scheduled for tomorrow at 10:00 AM." },
     { id: "charon", name: "Charon", gender: "Male", tone: "Authoritative", description: "Deeper male tone, ideal for formal business and logistics coordination.", quote: "Good afternoon. This is an automated security alert regarding a recent transaction on your account." },
     { id: "fenrir", name: "Fenrir", gender: "Male", tone: "Warm", description: "Friendly and comforting voice tone that establishes fast trust.", quote: "Hi! We noticed you checked out our property tour online and wanted to see if you had any quick questions." },
-    { id: "zephyr", name: "Zephyr", gender: "Male", tone: "Crisp", description: "Neutral, crisp tone with perfectly transparent clarity.", quote: "Thank you for confirming your pickup time. Your driver will meet you at the loading dock." },
+    { id: "zephyr", name: "Zephyr", gender: "Male", tone: "Crisp", description: "Neutral, crisp tone with perfectly transparent claritiy.", quote: "Thank you for confirming your pickup time. Your driver will meet you at the loading dock." },
     { id: "aoede", name: "Aoede", gender: "Female", tone: "Conversational", description: "Clear, engaging female persona specialized in transactional call flows.", quote: "Hi there! I am your AI assistant. Let me verify your cash-on-delivery order." }
   ];
 
@@ -84,7 +84,7 @@ export default function VoiceGallery({ setPage }: VoiceGalleryProps) {
     return matchGender && matchTone;
   });
 
-  const codeSnippet = `// POST request configuration for Clarity Voice API
+  const codeSnippet = `// POST request configuration for Claritiy Voice API
 const payload = {
   agentId: "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380d22",
   phoneNumber: "+919876543210",
@@ -92,7 +92,7 @@ const payload = {
   voiceId: "${playingVoice || 'kore'}"
 };
 
-const response = await fetch("https://api.insightclaritiysolution.com/v2/calls", {
+const response = await fetch("https://api.claritiy.com/v2/calls", {
   method: "POST",
   headers: {
     "Authorization": "Bearer YOUR_API_KEY",

@@ -19,7 +19,7 @@ export default function Compare({ setPage }: CompareProps) {
           animate={{ opacity: 1, y: 0 }}
           className="text-display text-ink leading-tight"
         >
-          Evaluating Clarity Voice vs. Bolna, Retell AI, Vapi, & ElevenLabs
+          Evaluating Claritiy Voice vs. Bolna, Retell AI, Vapi, & ElevenLabs
         </motion.h1>
         <motion.p 
           initial={{ opacity: 0, y: 30 }}
@@ -42,7 +42,7 @@ export default function Compare({ setPage }: CompareProps) {
               When evaluating developer voice platforms like Retell AI or Vapi, engineering teams are often attracted by low advertised base rates. However, in production deployments, these platforms bill users through stacked API pricing: charging separately for Speech-to-Text (ASR), LLM token processing, neural Text-to-Speech (TTS), and SIP carrier trunking.
             </p>
             <p>
-              For example, a 3-minute outbound qualification call billed through chained APIs can easily cost $0.25 to $0.40 per call when high-tier TTS models (like ElevenLabs) are attached. In contrast, <strong>Clarity Voice provides a single, transparent rate of ₹3.99/min</strong> (or bundled at ~₹3.33/min on Growth plans) with zero stacked vendor fees.
+              For example, a 3-minute outbound qualification call billed through chained APIs can easily cost $0.25 to $0.40 per call when high-tier TTS models (like ElevenLabs) are attached. In contrast, <strong>Claritiy Voice provides a single, transparent rate of ₹3.99/min</strong> (or bundled at ~₹3.33/min on Growth plans) with zero stacked vendor fees.
             </p>
           </div>
         </div>
@@ -59,7 +59,7 @@ export default function Compare({ setPage }: CompareProps) {
               Human conversation relies on immediate feedback. If an AI voice agent takes 800ms to 1,200ms to respond, callers experience awkward awkward pauses and frequently repeat themselves. When both human and bot speak simultaneously, platforms lacking full-duplex barge-in support collapse into chaotic audio collisions.
             </p>
             <p>
-              By bypassing HTTP REST hops and deploying direct WebRTC zero-copy audio pipelines, <strong>Clarity Voice achieves sub-180ms response latencies</strong>. If a caller interrupts mid-phrase, the AI immediately stops speaking, processes the new utterance, and responds naturally.
+              By bypassing HTTP REST hops and deploying direct WebRTC zero-copy audio pipelines, <strong>Claritiy Voice achieves sub-180ms response latencies</strong>. If a caller interrupts mid-phrase, the AI immediately stops speaking, processes the new utterance, and responds naturally.
             </p>
           </div>
         </div>
@@ -76,7 +76,7 @@ export default function Compare({ setPage }: CompareProps) {
               Western platforms like ElevenLabs and Bland AI are heavily optimized for North American English. When applied to Indian Tier-2 and Tier-3 markets, they struggle with regional accents, localized terminology, and code-switching (e.g. mixing Hindi with English phrases).
             </p>
             <p>
-              Clarity Voice natively models 70+ languages and regional dialects—including Hindi, Bengali, Gujarati, Marathi, Kannada, Malayalam, and Tamil—ensuring high intent accuracy for Cash-on-Delivery confirmation calls and loan collections across India.
+              Claritiy Voice natively models 70+ languages and regional dialects—including Hindi, Bengali, Gujarati, Marathi, Kannada, Malayalam, and Tamil—ensuring high intent accuracy for Cash-on-Delivery confirmation calls and loan collections across India.
             </p>
           </div>
         </div>
@@ -90,7 +90,7 @@ export default function Compare({ setPage }: CompareProps) {
           </h2>
           <div className="prose prose-lg text-ink-muted font-plus-jakarta text-body leading-relaxed space-y-6">
             <p>
-              While platforms like Bolna offer visual flow nodes, complex enterprise workflows require real-time backend tool execution while the call is active. Clarity Voice supports prompt-driven function calling, enabling voice agents to fetch live CRM records, verify database inventory, and send instant SMS payment links during live calls.
+              While platforms like Bolna offer visual flow nodes, complex enterprise workflows require real-time backend tool execution while the call is active. Claritiy Voice supports prompt-driven function calling, enabling voice agents to fetch live CRM records, verify database inventory, and send instant SMS payment links during live calls.
             </p>
           </div>
         </div>

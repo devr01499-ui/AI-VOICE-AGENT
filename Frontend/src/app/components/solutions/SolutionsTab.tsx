@@ -11,7 +11,7 @@ export default function SolutionsTab() {
       label: "E-Commerce & D2C",
       icon: ShoppingBag,
       headline: "Cut RTO by 40% with Automated Pre-Dispatch Confirmation Calls",
-      description: "When a customer places a Cash-on-Delivery order, Clarity Voice calls them within 60 seconds to verify their address, landmark, and buying intent. Orders get confirmed before couriers roll out—saving millions in reverse logistics."
+      description: "When a customer places a Cash-on-Delivery order, Claritiy Voice calls them within 60 seconds to verify their address, landmark, and buying intent. Orders get confirmed before couriers roll out—saving millions in reverse logistics."
     },
     {
       id: "healthcare",
@@ -25,7 +25,7 @@ export default function SolutionsTab() {
       label: "Real Estate & Property",
       icon: Building2,
       headline: "Qualify High-Intent Buyers While Your Competitors Sleep",
-      description: "Inbound property leads cold off within minutes. Clarity Voice engages prospective buyers instantly, asks budget and timeline criteria, and syncs tour bookings straight to your CRM."
+      description: "Inbound property leads cold off within minutes. Claritiy Voice engages prospective buyers instantly, asks budget and timeline criteria, and syncs tour bookings straight to your CRM."
     },
     {
       id: "banking",

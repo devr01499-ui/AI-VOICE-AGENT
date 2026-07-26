@@ -15,10 +15,10 @@ export default function Pricing({ setPage }: PricingProps) {
     "mainEntity": [
       {
         "@type": "Question",
-        "name": "How is Clarity Voice pricing structured?",
+        "name": "How is Claritiy Voice pricing structured?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Clarity Voice offers transparent bundled plans: Startup Plan at ₹2,999/mo (750 minutes included), Growth Plan at ₹9,999/mo (2,865 minutes included), Enterprise Plan at ₹29,999/mo (10,000 minutes included), and a standalone pay-as-you-go flat rate of ₹3.99/minute with no stacked fees."
+          "text": "Claritiy Voice offers transparent bundled plans: Startup Plan at ₹2,999/mo (750 minutes included), Growth Plan at ₹9,999/mo (2,865 minutes included), Enterprise Plan at ₹29,999/mo (10,000 minutes included), and a standalone pay-as-you-go flat rate of ₹3.99/minute with no stacked fees."
         }
       },
       {
@@ -26,7 +26,7 @@ export default function Pricing({ setPage }: PricingProps) {
         "name": "Are there hidden costs for Speech-to-Text (STT) or Text-to-Speech (TTS)?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "No. Unlike general voice AI platforms like Vapi or Retell that charge separate fees for STT, LLM tokens, and TTS voices, Clarity Voice provides unified pricing covering the complete audio pipeline."
+          "text": "No. Unlike general voice AI platforms like Vapi or Retell that charge separate fees for STT, LLM tokens, and TTS voices, Claritiy Voice provides unified pricing covering the complete audio pipeline."
         }
       }
     ]
@@ -171,7 +171,7 @@ export default function Pricing({ setPage }: PricingProps) {
               If your calling volume fluctuates seasonally, you can utilize our standalone Pay-As-You-Go tier at a flat <strong>₹3.99 per minute</strong>.
             </p>
             <p>
-              Unlike legacy telephony SaaS platforms that bill separately for Speech-to-Text ($0.02/min), LLM Tokens ($0.03/min), and Neural Text-to-Speech ($0.04/min), Clarity Voice unifies the entire stack into one transparent invoice. What you see is what you pay—with zero surprise overages.
+              Unlike legacy telephony SaaS platforms that bill separately for Speech-to-Text ($0.02/min), LLM Tokens ($0.03/min), and Neural Text-to-Speech ($0.04/min), Claritiy Voice unifies the entire stack into one transparent invoice. What you see is what you pay—with zero surprise overages.
             </p>
           </div>
         </div>

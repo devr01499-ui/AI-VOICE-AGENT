@@ -166,7 +166,7 @@ export class KnowledgeBaseController {
         response = await fetch(url, {
           signal: controller.signal,
           headers: {
-            'User-Agent': 'ClarityVoiceBot/1.0',
+            'User-Agent': 'ClaritiyVoiceBot/1.0',
           }
         });
       } catch (fetchErr: any) {

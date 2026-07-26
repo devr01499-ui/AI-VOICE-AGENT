@@ -11,12 +11,12 @@ export default function Terms() {
 
       <div className="prose prose-lg text-ink-muted font-plus-jakarta text-body leading-relaxed space-y-8 bg-surface-white border border-[#EADEC9] p-10 rounded-3xl shadow-level-2">
         <p>
-          These Terms of Service ("Terms") govern access to and usage of the Clarity Voice platform, APIs, WebRTC telephony streams, and software services provided by Clarity Voice Solutions ("Company").
+          These Terms of Service ("Terms") govern access to and usage of the Claritiy Voice platform, APIs, WebRTC telephony streams, and software services provided by Claritiy Voice Solutions ("Company").
         </p>
 
         <h2 className="font-sora text-2xl font-bold text-ink mt-8 mb-4">1. Service Level Agreements (SLAs)</h2>
         <p>
-          Clarity Voice guarantees a <strong>99.99% Uptime SLA</strong> for Enterprise tier clients and 99.9% Uptime for Growth tier clients, excluding pre-announced scheduled maintenance windows. Service uptime is tracked via transparent edge monitoring endpoints.
+          Claritiy Voice guarantees a <strong>99.99% Uptime SLA</strong> for Enterprise tier clients and 99.9% Uptime for Growth tier clients, excluding pre-announced scheduled maintenance windows. Service uptime is tracked via transparent edge monitoring endpoints.
         </p>
 
         <h2 className="font-sora text-2xl font-bold text-ink mt-8 mb-4">2. Acceptable Usage & Robocall Prohibition</h2>

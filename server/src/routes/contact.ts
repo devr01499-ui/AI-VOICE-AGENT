@@ -23,7 +23,7 @@ router.post("/", async (req, res) => {
     }
 
     const result = await resend.emails.send({
-      from: "Clarity Voice Contact <onboarding@resend.dev>", // Or a verified domain
+      from: "Claritiy Voice Contact <onboarding@resend.dev>", // Or a verified domain
       to: "devr01499@gmail.com",
       subject: `New Contact Us Submission from ${data.name}`,
       text: `Name: ${data.name}\nEmail: ${data.email}\n\nMessage:\n${data.message}`,

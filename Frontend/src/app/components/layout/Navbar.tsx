@@ -69,10 +69,10 @@ export default function Navbar({ page, setPage }: NavbarProps) {
             onClick={() => navigate("home")}
             className="flex items-center gap-2.5 group flex-shrink-0"
           >
-            <img src="/logo.png" alt="Clarity Voice" className="h-8 w-auto object-contain" />
+            <img src="/logo.png" alt="Claritiy Voice" className="h-8 w-auto object-contain" />
             <span className="font-extrabold text-[17px] tracking-tight text-[#0D1117]"
               style={{ fontFamily: "'Clash Display', sans-serif" }}>
-              Clarity<span className="text-[#059669]">Voice</span>
+              Claritiy<span className="text-[#059669]">Voice</span>
             </span>
           </button>
 
@@ -215,7 +215,7 @@ export default function Navbar({ page, setPage }: NavbarProps) {
             >
               <div className="flex items-center justify-between p-5 border-b border-[#E8E2D9]">
                 <span className="font-extrabold text-[#0D1117]" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-                  Clarity<span className="text-[#059669]">Voice</span>
+                  Claritiy<span className="text-[#059669]">Voice</span>
                 </span>
                 <button onClick={() => setMenuOpen(false)} className="p-2 rounded-xl hover:bg-black/5">
                   <X className="w-5 h-5" />

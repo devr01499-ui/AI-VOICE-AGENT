@@ -6,31 +6,31 @@ interface FAQProps { setPage: (p: Page) => void; }
 const FAQS = [
   {
     q: "What are AI voice calling agents and how do they work?",
-    a: "AI voice calling agents are autonomous, conversational software programs that place and receive phone calls using natural human language. Powered by real-time ASR (Automatic Speech Recognition), LLM (Large Language Model), and TTS (Text-to-Speech), Clarity Voice agents achieve sub-180ms latency — making them indistinguishable from human agents. Unlike legacy IVR systems, they understand intent, handle interruptions, and execute workflows dynamically.",
+    a: "AI voice calling agents are autonomous, conversational software programs that place and receive phone calls using natural human language. Powered by real-time ASR (Automatic Speech Recognition), LLM (Large Language Model), and TTS (Text-to-Speech), Claritiy Voice agents achieve sub-180ms latency — making them indistinguishable from human agents. Unlike legacy IVR systems, they understand intent, handle interruptions, and execute workflows dynamically.",
   },
   {
     q: "What is the difference between AI voice agents and IVR systems?",
-    a: "Traditional IVR systems force callers through rigid press-key menus. AI voice agents like Clarity Voice converse naturally — they understand spoken language, answer complex questions, handle barge-in interruptions, route intelligently, and escalate with warm transfer. AI call automation replaces the frustrating experience of legacy phone trees.",
+    a: "Traditional IVR systems force callers through rigid press-key menus. AI voice agents like Claritiy Voice converse naturally — they understand spoken language, answer complex questions, handle barge-in interruptions, route intelligently, and escalate with warm transfer. AI call automation replaces the frustrating experience of legacy phone trees.",
   },
   {
-    q: "Can Clarity Voice handle outbound AI calling at scale?",
-    a: "Yes. Clarity Voice's outbound voice AI platform can launch 10,000+ simultaneous outbound calls with smart retry logic for busy lines. Use cases include lead qualification, COD order verification, appointment reminders, payment collections, and reactivation campaigns — all automated without human agents.",
+    q: "Can Claritiy Voice handle outbound AI calling at scale?",
+    a: "Yes. Claritiy Voice's outbound voice AI platform can launch 10,000+ simultaneous outbound calls with smart retry logic for busy lines. Use cases include lead qualification, COD order verification, appointment reminders, payment collections, and reactivation campaigns — all automated without human agents.",
   },
   {
-    q: "Is Clarity Voice HIPAA and PCI-DSS compliant?",
-    a: "Yes. Clarity Voice implements edge-level PII/PHI data redaction before any log or transcript is stored. We are SOC 2 Type II audited, HIPAA BAA available on enterprise plans, and PCI-DSS compliant. Our compliance logging and audit trails meet GDPR, ISO 27001, and India's DPDP Act requirements.",
+    q: "Is Claritiy Voice HIPAA and PCI-DSS compliant?",
+    a: "Yes. Claritiy Voice implements edge-level PII/PHI data redaction before any log or transcript is stored. We are SOC 2 Type II audited, HIPAA BAA available on enterprise plans, and PCI-DSS compliant. Our compliance logging and audit trails meet GDPR, ISO 27001, and India's DPDP Act requirements.",
   },
   {
-    q: "What languages does Clarity Voice AI phone agents support?",
-    a: "Clarity Voice supports 70+ languages and regional dialects natively — including English, Hindi, Bengali, Kannada, Malayalam, Gujarati, Marathi, Tamil, Mandarin, Arabic, and more. Native accent support is built into the speech models, requiring no intermediate translation APIs.",
+    q: "What languages does Claritiy Voice AI phone agents support?",
+    a: "Claritiy Voice supports 70+ languages and regional dialects natively — including English, Hindi, Bengali, Kannada, Malayalam, Gujarati, Marathi, Tamil, Mandarin, Arabic, and more. Native accent support is built into the speech models, requiring no intermediate translation APIs.",
   },
   {
-    q: "How is Clarity Voice priced compared to Vapi, Retell AI, or Bland AI?",
-    a: "Clarity Voice offers transparent, flat-rate pricing: ₹3.99/minute pay-as-you-go or bundled plans starting at ₹1,799/month. Competitors like Vapi and Retell charge separately for STT, LLM, and TTS providers — which adds up. Our pricing includes everything in one bundled rate with no hidden costs.",
+    q: "How is Claritiy Voice priced compared to Vapi, Retell AI, or Bland AI?",
+    a: "Claritiy Voice offers transparent, flat-rate pricing: ₹3.99/minute pay-as-you-go or bundled plans starting at ₹1,799/month. Competitors like Vapi and Retell charge separately for STT, LLM, and TTS providers — which adds up. Our pricing includes everything in one bundled rate with no hidden costs.",
   },
   {
-    q: "Can I integrate Clarity Voice with my CRM, Shopify, or HubSpot?",
-    a: "Yes. Clarity Voice provides bi-directional CRM integration with Salesforce, HubSpot, Zoho, and Shopify via real-time REST webhooks. Call disposition, lead scores, appointment bookings, and transcripts sync automatically. We also support Twilio SIP trunking for enterprise telephony integration.",
+    q: "Can I integrate Claritiy Voice with my CRM, Shopify, or HubSpot?",
+    a: "Yes. Claritiy Voice provides bi-directional CRM integration with Salesforce, HubSpot, Zoho, and Shopify via real-time REST webhooks. Call disposition, lead scores, appointment bookings, and transcripts sync automatically. We also support Twilio SIP trunking for enterprise telephony integration.",
   },
   {
     q: "What is the setup time for deploying an AI voice agent?",

@@ -51,7 +51,7 @@ export default function Solutions({ setPage }: SolutionsProps) {
               Medical clinic reception desks are under non-stop pressure. Front-desk staff spend hours answering repetitive phone calls regarding clinic hours, doctor availability, appointment scheduling, and pre-procedure preparation guidelines. This administrative bottleneck creates long telephone hold times for sick patients and pulls staff away from in-person patient care.
             </p>
             <p>
-              <strong>Clarity Voice AI Healthcare Agents</strong> automate patient outreach while remaining strictly HIPAA-compliant. Incoming patient calls are answered instantly. The voice agent verifies patient identity using DOB and phone numbers, queries the clinic management system for open doctor slots, and confirms bookings directly into the calendar.
+              <strong>Claritiy Voice AI Healthcare Agents</strong> automate patient outreach while remaining strictly HIPAA-compliant. Incoming patient calls are answered instantly. The voice agent verifies patient identity using DOB and phone numbers, queries the clinic management system for open doctor slots, and confirms bookings directly into the calendar.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 font-mono text-xs">
               <div className="bg-cream-bg p-4 rounded-xl border border-border-soft">
@@ -85,7 +85,7 @@ export default function Solutions({ setPage }: SolutionsProps) {
               In emerging markets across Asia and the Middle East, Cash-on-Delivery (COD) accounts for up to 70% of total online transactions. However, unverified COD orders suffer from a devastating 25% to 35% Return-to-Origin (RTO) rate. When buyers enter incorrect pin codes, fake phone numbers, or simply change their minds during the 3-day transit window, merchants bear reverse shipping charges, product damage, and inventory lock-up.
             </p>
             <p>
-              <strong>Clarity Voice COD Confirmation Agents</strong> place automated verification calls within 60 seconds of order placement. Speaking in the buyer's regional dialect (e.g. Hindi, Gujarati, Marathi, Arabic), the agent confirms the order items, verifies delivery landmarks, and allows buyers to cancel or convert to prepaid before dispatch.
+              <strong>Claritiy Voice COD Confirmation Agents</strong> place automated verification calls within 60 seconds of order placement. Speaking in the buyer's regional dialect (e.g. Hindi, Gujarati, Marathi, Arabic), the agent confirms the order items, verifies delivery landmarks, and allows buyers to cancel or convert to prepaid before dispatch.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 font-mono text-xs">
               <div className="bg-cream-bg p-4 rounded-xl border border-border-soft">
@@ -119,7 +119,7 @@ export default function Solutions({ setPage }: SolutionsProps) {
               Traditional collection calls are fraught with high agent attrition, inconsistent script adherence, and regulatory compliance risks. Borrowers frequently block calls from unknown collection centers due to hostile human agent interactions.
             </p>
             <p>
-              <strong>Clarity Voice Ethical Financial Recovery Agents</strong> maintain a calm, polite, non-judgmental tone. The voice agent calls borrowers prior to or immediately following an EMI due date, reminds them of payment schedules, offers pre-approved settlement arrangements, and dispatches secure payment links via SMS while on the call.
+              <strong>Claritiy Voice Ethical Financial Recovery Agents</strong> maintain a calm, polite, non-judgmental tone. The voice agent calls borrowers prior to or immediately following an EMI due date, reminds them of payment schedules, offers pre-approved settlement arrangements, and dispatches secure payment links via SMS while on the call.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 font-mono text-xs">
               <div className="bg-cream-bg p-4 rounded-xl border border-border-soft">

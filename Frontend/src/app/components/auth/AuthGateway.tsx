@@ -142,9 +142,9 @@ function LeftPanel() {
       {/* Top: Brand */}
       <div className="relative z-10">
         <div className="flex items-center gap-3 mb-3">
-          <img src="/logo.png" alt="Clarity Voice" className="h-9 w-auto object-contain" />
+          <img src="/logo.png" alt="Claritiy Voice" className="h-9 w-auto object-contain" />
           <span className="text-xl font-extrabold tracking-tight">
-            Clarity<span className="text-[#34D399]">Voice</span>
+            Claritiy<span className="text-[#34D399]">Voice</span>
           </span>
         </div>
         <p className="text-xs text-white/50 font-mono uppercase tracking-widest">
@@ -286,7 +286,7 @@ export default function AuthGateway() {
           <div className="lg:hidden mb-6 p-4 rounded-2xl text-center"
             style={{ background: 'linear-gradient(135deg, #1B4332, #0D2B20)' }}>
             <AIVoiceVisualizer />
-            <p className="text-white/60 text-xs mt-2 font-mono">Clarity Voice — AI Voice Platform</p>
+            <p className="text-white/60 text-xs mt-2 font-mono">Claritiy Voice — AI Voice Platform</p>
           </div>
 
           {/* Card */}

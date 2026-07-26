@@ -51,8 +51,8 @@ const app = express();
 // ── Security ──────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false }));
 const allowedOrigins = [
-  'https://www.insightclaritiysolution.com',
-  'https://insightclaritiysolution.com',
+  'https://www.claritiy.com',
+  'https://claritiy.com',
   'http://localhost:5173',
   'http://localhost:3000'
 ];
@@ -64,7 +64,7 @@ app.use(cors({
       !origin || 
       allowedOrigins.indexOf(origin) !== -1 || 
       origin.endsWith('.vercel.app') || 
-      origin.includes('insightclaritiysolution.com')
+      origin.includes('claritiy.com')
     ) {
       callback(null, true);
     } else {
@@ -195,7 +195,7 @@ async function seedTestEnvironment() {
     update: {},
     create: {
       id: TEST_UUID,
-      email: "cto-test@clarity.ai",
+      email: "cto-test@claritiy.ai",
       fullName: "Core Tester",
       passwordHash: "secure_dev_password_hash",
       billingBalance: 1000.0
@@ -206,16 +206,16 @@ async function seedTestEnvironment() {
   await prisma.agent.upsert({
     where: { id: TEST_UUID },
     update: {
-      name: "Clarity HR Customer Support Screener",
-      systemPrompt: "You are Clarity AI, a highly professional senior HR recruiter running a phone screening interview for a Customer Support role. Speak in a warm, friendly, smooth, and highly conversational tone, just like a supportive human interviewer. Pause naturally and wait for candidate responses. Never output markdown formatting or bullet points. Your screening flow consists of three distinct questions: 1. \"First, could you share a specific situation where you successfully resolved a conflict with a frustrated customer?\" 2. \"Second, how do you manage high call volumes while keeping a positive and warm tone throughout the day?\" 3. \"And finally, what are your expected salary bounds for this Customer Support position?\" Be polite, listen actively, and say \"uh-huh\" or \"got it\" when they finish speaking to show smooth, realistic turn-taking. If they talk over you, stop speaking immediately.",
+      name: "Claritiy HR Customer Support Screener",
+      systemPrompt: "You are Claritiy AI, a highly professional senior HR recruiter running a phone screening interview for a Customer Support role. Speak in a warm, friendly, smooth, and highly conversational tone, just like a supportive human interviewer. Pause naturally and wait for candidate responses. Never output markdown formatting or bullet points. Your screening flow consists of three distinct questions: 1. \"First, could you share a specific situation where you successfully resolved a conflict with a frustrated customer?\" 2. \"Second, how do you manage high call volumes while keeping a positive and warm tone throughout the day?\" 3. \"And finally, what are your expected salary bounds for this Customer Support position?\" Be polite, listen actively, and say \"uh-huh\" or \"got it\" when they finish speaking to show smooth, realistic turn-taking. If they talk over you, stop speaking immediately.",
       voiceName: "Puck",
       model: "models/gemini-2.5-flash-native-audio-latest"
     },
     create: {
       id: TEST_UUID,
       userId: TEST_UUID,
-      name: "Clarity HR Customer Support Screener",
-      systemPrompt: "You are Clarity AI, a highly professional senior HR recruiter running a phone screening interview for a Customer Support role. Speak in a warm, friendly, smooth, and highly conversational tone, just like a supportive human interviewer. Pause naturally and wait for candidate responses. Never output markdown formatting or bullet points. Your screening flow consists of three distinct questions: 1. \"First, could you share a specific situation where you successfully resolved a conflict with a frustrated customer?\" 2. \"Second, how do you manage high call volumes while keeping a positive and warm tone throughout the day?\" 3. \"And finally, what are your expected salary bounds for this Customer Support position?\" Be polite, listen actively, and say \"uh-huh\" or \"got it\" when they finish speaking to show smooth, realistic turn-taking. If they talk over you, stop speaking immediately.",
+      name: "Claritiy HR Customer Support Screener",
+      systemPrompt: "You are Claritiy AI, a highly professional senior HR recruiter running a phone screening interview for a Customer Support role. Speak in a warm, friendly, smooth, and highly conversational tone, just like a supportive human interviewer. Pause naturally and wait for candidate responses. Never output markdown formatting or bullet points. Your screening flow consists of three distinct questions: 1. \"First, could you share a specific situation where you successfully resolved a conflict with a frustrated customer?\" 2. \"Second, how do you manage high call volumes while keeping a positive and warm tone throughout the day?\" 3. \"And finally, what are your expected salary bounds for this Customer Support position?\" Be polite, listen actively, and say \"uh-huh\" or \"got it\" when they finish speaking to show smooth, realistic turn-taking. If they talk over you, stop speaking immediately.",
       voiceName: "Puck",
       model: "models/gemini-2.5-flash-native-audio-latest"
     }
@@ -430,7 +430,7 @@ async function bootstrap(): Promise<void> {
 
   // Start listening
   server.listen(PORT, () => {
-    logger.info(`Clarity Backend Server running natively on port ${PORT}`);
+    logger.info(`Claritiy Backend Server running natively on port ${PORT}`);
     logger.info(`Bolna Server: listening on port ${PORT}`, {
       health: `http://localhost:${PORT}/health`,
       api: `http://localhost:${PORT}/api/v2`,

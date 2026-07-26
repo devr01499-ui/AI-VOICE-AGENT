@@ -158,13 +158,13 @@ function generateArticleContent(topicId: string, title: string, category: string
     {
       subtitle: "Technical Implementation & Flow Architecture",
       paragraphs: [
-        `From an engineering perspective, building an elite voice infrastructure for "${cleanTitle}" requires a vertically integrated pipeline. The voice stack is split into three core layers: Automatic Speech Recognition (ASR), Large Language Model orchestration (LLM), and Text-to-Speech synthesis (TTS). Chaining distinct API providers introduces a latency overhead of 800ms to 1.5s, which ruins conversational flow. Clarity Voice solves this by running a unified WebRTC audio pipeline directly connected to our agent workflow engine.`,
+        `From an engineering perspective, building an elite voice infrastructure for "${cleanTitle}" requires a vertically integrated pipeline. The voice stack is split into three core layers: Automatic Speech Recognition (ASR), Large Language Model orchestration (LLM), and Text-to-Speech synthesis (TTS). Chaining distinct API providers introduces a latency overhead of 800ms to 1.5s, which ruins conversational flow. Claritiy Voice solves this by running a unified WebRTC audio pipeline directly connected to our agent workflow engine.`,
         `Below is a representative JSON configuration mapping the telephony API workflow parameters for deploying a custom voice AI agent:`
       ],
       code: `{
-  "agent_id": "agent_clarity_voice_${topicId}",
+  "agent_id": "agent_claritiy_voice_${topicId}",
   "voice_profile": {
-    "provider": "clarity_native_multimodal",
+    "provider": "claritiy_native_multimodal",
     "voice_id": "premium_en_female_08",
     "pitch": 1.05,
     "cadence": 0.98,
@@ -270,7 +270,7 @@ export default function VoiceAIIndex({ setPage }: VoiceAIIndexProps) {
           <ArrowLeft className="w-4 h-4" /> Exit Book
         </button>
         <div className="text-white/60 text-xs font-mono tracking-widest uppercase">
-          Clarity Voice Architecture Index (2026)
+          Claritiy Voice Architecture Index (2026)
         </div>
       </div>
 

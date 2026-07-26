@@ -1,6 +1,6 @@
-# Clarity Voice
+# Claritiy Voice
 
-> Clarity Voice is an enterprise AI voice platform that automates customer support, sales qualification, appointment scheduling, and order verification across 70+ languages.
+> Claritiy Voice is an enterprise AI voice platform that automates customer support, sales qualification, appointment scheduling, and order verification across 70+ languages.
 
 ## Key Facts
 - Pricing: Startup Plan (₹1,799/mo with 500 mins), Growth Plan (₹4,999/mo with 1,500 mins), Pay-As-You-Go (₹3.99/min).
@@ -9,13 +9,13 @@
 - Languages: 70+ dialects including English, Hindi, Marathi, Bengali, Tamil, Telugu, Gujarati, Spanish, Arabic.
 
 ## Pages
-- Homepage: https://www.insightclaritiysolution.com/
-- Features: https://www.insightclaritiysolution.com/how-it-works
-- Solutions: https://www.insightclaritiysolution.com/solutions
-- HD Voices: https://www.insightclaritiysolution.com/voices
-- Pricing: https://www.insightclaritiysolution.com/pricing
-- Compare: https://www.insightclaritiysolution.com/compare
-- Blog: https://www.insightclaritiysolution.com/blog
-- Privacy: https://www.insightclaritiysolution.com/privacy
-- Terms: https://www.insightclaritiysolution.com/terms
-- Security: https://www.insightclaritiysolution.com/security
+- Homepage: https://www.claritiy.com/
+- Features: https://www.claritiy.com/how-it-works
+- Solutions: https://www.claritiy.com/solutions
+- HD Voices: https://www.claritiy.com/voices
+- Pricing: https://www.claritiy.com/pricing
+- Compare: https://www.claritiy.com/compare
+- Blog: https://www.claritiy.com/blog
+- Privacy: https://www.claritiy.com/privacy
+- Terms: https://www.claritiy.com/terms
+- Security: https://www.claritiy.com/security

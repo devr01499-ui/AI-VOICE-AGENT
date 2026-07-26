@@ -13,12 +13,12 @@ const ARTICLES = [
     id: "buyer-guide-2026",
     title: "Best AI Voice Calling Agents in 2026: An Enterprise Buyer's Guide",
     date: "July 20, 2026",
-    author: "Clarity Voice Research Team",
+    author: "Claritiy Voice Research Team",
     category: "Buyer Guide",
     readTime: "12 min read",
     content: `Selecting an enterprise AI voice agent platform requires evaluating total cost of ownership, speech recognition accuracy across regional accents, response latency parameters, and telephony reliability.
 
-This comprehensive guide compares leading voice AI platforms—including Clarity Voice, Retell AI, Vapi, ElevenLabs, Bland AI, and Bolna—across key architectural criteria.
+This comprehensive guide compares leading voice AI platforms—including Claritiy Voice, Retell AI, Vapi, ElevenLabs, Bland AI, and Bolna—across key architectural criteria.
 
 ### Key Evaluation Criteria
 1. **Response Latency**: Human speech flow breaks down when system delay exceeds 300ms. Platforms utilizing native WebRTC multimodal streaming achieve sub-180ms responses, outperforming chained API architectures.
@@ -100,7 +100,7 @@ Learn how edge-based PII/PHI redaction, ISO 27001 protocols, and DPDP Act 2023 c
     readTime: "10 min read",
     content: `Reaching consumers across Tier-2 and Tier-3 Indian cities requires localized dialect comprehension.
 
-Clarity Voice models natively process Hindi, Marathi, Gujarati, Bengali, Tamil, Telugu, and Kannada with zero translation loss.`
+Claritiy Voice models natively process Hindi, Marathi, Gujarati, Bengali, Tamil, Telugu, and Kannada with zero translation loss.`
   },
   {
     id: "full-duplex-barge-in",
@@ -181,7 +181,7 @@ export default function BlogIndex({ setPage }: BlogIndexProps) {
         <span className="text-caption font-bold text-mint-primary uppercase tracking-widest bg-mint-soft px-4 py-1.5 rounded-full font-mono">
           ENTERPRISE KNOWLEDGE HUB
         </span>
-        <h1 className="font-sora text-4xl md:text-6xl font-extrabold text-ink">Clarity Voice Insights & Research</h1>
+        <h1 className="font-sora text-4xl md:text-6xl font-extrabold text-ink">Claritiy Voice Insights & Research</h1>
         <p className="text-body text-ink-muted max-w-2xl mx-auto font-plus-jakarta">
           Deep-dive technical guides, buyer frameworks, and operational strategies for scaling voice AI automation.
         </p>

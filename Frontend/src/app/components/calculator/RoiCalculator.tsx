@@ -5,14 +5,14 @@ export default function RoiCalculator() {
   const [avgDurationMinutes, setAvgDurationMinutes] = useState(2);
 
   // Constants
-  const clarityCostPerMin = 3.99;
+  const claritiyCostPerMin = 3.99;
   const manualCostPerCall = 15; // Assume ₹15 per manual call (salary + overhead)
 
   // Calculations
   const totalMinutes = monthlyCalls * avgDurationMinutes;
-  const clarityCost = totalMinutes * clarityCostPerMin;
+  const claritiyCost = totalMinutes * claritiyCostPerMin;
   const manualCost = monthlyCalls * manualCostPerCall;
-  const monthlySavings = manualCost - clarityCost;
+  const monthlySavings = manualCost - claritiyCost;
 
   return (
     <div className="bg-surface-white border border-border-soft rounded-3xl p-8 md:p-12 shadow-level-2 mt-20">
@@ -24,7 +24,7 @@ export default function RoiCalculator() {
           Calculate Your Cost Savings
         </h2>
         <p className="text-body text-ink-muted mt-2">
-          Compare the cost of manual call center agents vs Clarity AI Voice.
+          Compare the cost of manual call center agents vs Claritiy AI Voice.
         </p>
       </div>
 
@@ -82,8 +82,8 @@ export default function RoiCalculator() {
               <span className="font-mono text-error">₹{manualCost.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
-              <span>Clarity AI Cost (₹3.99/min):</span>
-              <span className="font-mono text-mint-primary">₹{Math.round(clarityCost).toLocaleString()}</span>
+              <span>Claritiy AI Cost (₹3.99/min):</span>
+              <span className="font-mono text-mint-primary">₹{Math.round(claritiyCost).toLocaleString()}</span>
             </div>
           </div>
         </div>

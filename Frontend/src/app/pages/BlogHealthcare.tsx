@@ -59,7 +59,7 @@ export default function BlogHealthcare({ setPage }: BlogHealthcareProps) {
             Patients often wait on hold or miss callbacks from clinic schedulers. Schedulers spend hours manually dialing patients to verify appointments or outline pre-treatment instructions.
           </p>
           <p>
-            Clarity Voice automates this entire outreach cycle securely, ensuring that HIPAA-compliant parameters encrypt patient data automatically.
+            Claritiy Voice automates this entire outreach cycle securely, ensuring that HIPAA-compliant parameters encrypt patient data automatically.
           </p>
 
           <h2 className="font-sora text-2xl font-bold text-slate-900 mt-8 mb-4">Actionable Benefits of Voice AI in Healthcare</h2>

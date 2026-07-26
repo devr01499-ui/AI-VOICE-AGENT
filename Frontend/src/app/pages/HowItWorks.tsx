@@ -122,7 +122,7 @@ export default function HowItWorks({ setPage }: HowItWorksProps) {
           transition={{ delay: 0.1 }}
           className="text-body text-ink-muted max-w-3xl mx-auto font-plus-jakarta leading-relaxed"
         >
-          Discover how Clarity Voice orchestrates low-latency multimodal speech models, real-time function execution, RAG knowledge bases, and enterprise SIP trunking.
+          Discover how Claritiy Voice orchestrates low-latency multimodal speech models, real-time function execution, RAG knowledge bases, and enterprise SIP trunking.
         </motion.p>
       </section>
 
@@ -168,7 +168,7 @@ export default function HowItWorks({ setPage }: HowItWorksProps) {
                 Conversational human speech occurs within tight latency windows. When a human speaks to another human, average response latency is approximately 200 milliseconds. If an automated phone system introduces 800ms to 1.5 seconds of delay, callers immediately detect the artificial delay, causing hesitation, conversational overlap, and high drop-off rates.
               </p>
               <p>
-                Clarity Voice solves latency at the infrastructure layer. By employing zero-copy WebRTC audio buffer streaming directly to our multimodal reasoning core, we bypass traditional HTTP API proxy hops. Audio packets travel over UDP directly from telecom carriers to neural inference servers, reducing round-trip latency to sub-180 milliseconds.
+                Claritiy Voice solves latency at the infrastructure layer. By employing zero-copy WebRTC audio buffer streaming directly to our multimodal reasoning core, we bypass traditional HTTP API proxy hops. Audio packets travel over UDP directly from telecom carriers to neural inference servers, reducing round-trip latency to sub-180 milliseconds.
               </p>
             </div>
           </div>
@@ -187,7 +187,7 @@ export default function HowItWorks({ setPage }: HowItWorksProps) {
             </div>
             <div className="prose prose-lg text-ink-muted font-plus-jakarta text-body leading-relaxed space-y-6">
               <p>
-                Unlike legacy rigid decision-tree bots, Clarity Voice utilizes a prompt-driven state engine. Operators configure system instructions, agent personas, conversation goals, and function call schemas using natural language.
+                Unlike legacy rigid decision-tree bots, Claritiy Voice utilizes a prompt-driven state engine. Operators configure system instructions, agent personas, conversation goals, and function call schemas using natural language.
               </p>
               <p>
                 While live on a call, the voice AI agent dynamically decides when to invoke external APIs. For example, if a customer asks, "Can I reschedule my delivery to Friday afternoon?", the agent executes a background tool call to check courier availability, updates the database, and confirms the new time slot to the caller in real time.
@@ -209,7 +209,7 @@ export default function HowItWorks({ setPage }: HowItWorksProps) {
             </div>
             <div className="prose prose-lg text-ink-muted font-plus-jakarta text-body leading-relaxed space-y-6">
               <p>
-                To eliminate hallucinations and guarantee 100% compliant responses, Clarity Voice integrates high-speed vector retrieval directly into the conversation stream.
+                To eliminate hallucinations and guarantee 100% compliant responses, Claritiy Voice integrates high-speed vector retrieval directly into the conversation stream.
               </p>
               <p>
                 Enterprise teams can upload product documentation, medical protocols, financial terms, or warranty manuals. During a live phone call, incoming queries trigger micro-vector lookups, injecting exact factual chunks into the agent's context within milliseconds.
@@ -226,7 +226,7 @@ export default function HowItWorks({ setPage }: HowItWorksProps) {
             Complete Architectural Feature Matrix
           </h2>
           <p className="text-body text-ink-muted font-plus-jakarta">
-            Inspect all 12 core capability modules powering Clarity Voice enterprise deployments.
+            Inspect all 12 core capability modules powering Claritiy Voice enterprise deployments.
           </p>
         </div>
 

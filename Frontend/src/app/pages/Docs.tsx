@@ -2,7 +2,7 @@ import { motion } from "motion/react";
 import { Check } from "lucide-react";
 
 export default function Docs() {
-  const curlCode = `curl -X POST https://api.insightclaritiysolution.com/v2/calls \\
+  const curlCode = `curl -X POST https://api.claritiy.com/v2/calls \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -61,16 +61,16 @@ export default function Docs() {
           <div className="space-y-6">
             {[
               {
-                q: "How does Clarity Voice reduce COD RTO?",
-                a: "Clarity Voice places an automated confirmation call to every cash-on-delivery customer before their order is dispatched, verifying the order details and delivery address. This catches wrong numbers, changed minds, and unclear addresses before a courier is sent, which directly reduces return-to-origin (RTO) and failed delivery costs."
+                q: "How does Claritiy Voice reduce COD RTO?",
+                a: "Claritiy Voice places an automated confirmation call to every cash-on-delivery customer before their order is dispatched, verifying the order details and delivery address. This catches wrong numbers, changed minds, and unclear addresses before a courier is sent, which directly reduces return-to-origin (RTO) and failed delivery costs."
               },
               {
                 q: "Do I need to hire a calling team to confirm COD orders?",
-                a: "No. Clarity Voice replaces or scales alongside a manual calling team with AI voice agents that call every order automatically, at any volume, without additional hiring."
+                a: "No. Claritiy Voice replaces or scales alongside a manual calling team with AI voice agents that call every order automatically, at any volume, without additional hiring."
               },
               {
-                q: "What languages does Clarity Voice support for COD confirmation calls?",
-                a: "Clarity Voice supports English and Hindi today, with additional Indian languages including Bengali, Kannada, Malayalam, and Gujarati, plus Mandarin and Arabic for international sellers."
+                q: "What languages does Claritiy Voice support for COD confirmation calls?",
+                a: "Claritiy Voice supports English and Hindi today, with additional Indian languages including Bengali, Kannada, Malayalam, and Gujarati, plus Mandarin and Arabic for international sellers."
               }
             ].map((faq, idx) => (
               <div key={idx} className="card-soft">

@@ -11,7 +11,7 @@ export default function Privacy() {
 
       <div className="prose prose-lg text-ink-muted font-plus-jakarta text-body leading-relaxed space-y-8 bg-surface-white border border-[#EADEC9] p-10 rounded-3xl shadow-level-2">
         <p>
-          Clarity Voice Solutions ("Company," "we," "us," or "our") operates the enterprise AI voice automation platform located at https://www.insightclaritiysolution.com. This Privacy Policy governs our processing of personal data, call recordings, audio transcripts, and metadata in full compliance with the Digital Personal Data Protection (DPDP) Act 2023, EU General Data Protection Regulation (GDPR), and applicable international standards.
+          Claritiy Voice Solutions ("Company," "we," "us," or "our") operates the enterprise AI voice automation platform located at https://www.claritiy.com. This Privacy Policy governs our processing of personal data, call recordings, audio transcripts, and metadata in full compliance with the Digital Personal Data Protection (DPDP) Act 2023, EU General Data Protection Regulation (GDPR), and applicable international standards.
         </p>
 
         <h2 className="font-sora text-2xl font-bold text-ink mt-8 mb-4">1. Data Minimization & Collection Scope</h2>
@@ -21,7 +21,7 @@ export default function Privacy() {
 
         <h2 className="font-sora text-2xl font-bold text-ink mt-8 mb-4">2. Mandatory 30-Day Audio & Transcript Purge Policy</h2>
         <p>
-          To maintain zero residual privacy liability, Clarity Voice enforces an automated <strong>30-Day Audio & Transcript Purge Policy</strong>. All raw audio recordings, PSTN packet buffers, and complete conversation transcripts are permanently hard-deleted from our primary and backup databases 30 calendar days after call completion, unless an Enterprise client explicitly configures custom retention schedules under a signed Data Processing Agreement (DPA).
+          To maintain zero residual privacy liability, Claritiy Voice enforces an automated <strong>30-Day Audio & Transcript Purge Policy</strong>. All raw audio recordings, PSTN packet buffers, and complete conversation transcripts are permanently hard-deleted from our primary and backup databases 30 calendar days after call completion, unless an Enterprise client explicitly configures custom retention schedules under a signed Data Processing Agreement (DPA).
         </p>
 
         <h2 className="font-sora text-2xl font-bold text-ink mt-8 mb-4">3. Data Redaction at Edge</h2>

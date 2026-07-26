@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /dashboard
 
-Sitemap: https://www.insightclaritiysolution.com/sitemap.xml
+Sitemap: https://www.claritiy.com/sitemap.xml

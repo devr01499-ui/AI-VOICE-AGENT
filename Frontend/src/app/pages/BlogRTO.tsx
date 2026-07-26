@@ -39,7 +39,7 @@ export default function BlogRTO({ setPage }: BlogRTOProps) {
       >
         <div className="space-y-4">
           <div className="flex items-center gap-3 text-xs text-slate-400 font-mono font-bold">
-            <span className="flex items-center gap-1"><BookOpen className="w-3.5 h-3.5 text-[#059669]" /> Clarity Voice Logistics Team</span>
+            <span className="flex items-center gap-1"><BookOpen className="w-3.5 h-3.5 text-[#059669]" /> Claritiy Voice Logistics Team</span>
             <span>·</span>
             <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> 6 min read</span>
           </div>
@@ -85,8 +85,8 @@ export default function BlogRTO({ setPage }: BlogRTOProps) {
           <h2 className="font-sora text-2xl font-bold text-slate-900 mt-8 mb-4 font-extrabold text-center">Frequently Asked Questions</h2>
           <div className="space-y-4">
             <div className="border border-[#EADEC9] rounded-xl p-5 bg-white">
-              <h4 className="font-bold text-slate-900 mb-2">Q: How fast does Clarity Voice place confirmation calls after an order is placed?</h4>
-              <p className="text-xs">A: Clarity Voice triggers calls within 30 to 60 seconds of order creation, reaching buyers while their purchase intent is at its highest.</p>
+              <h4 className="font-bold text-slate-900 mb-2">Q: How fast does Claritiy Voice place confirmation calls after an order is placed?</h4>
+              <p className="text-xs">A: Claritiy Voice triggers calls within 30 to 60 seconds of order creation, reaching buyers while their purchase intent is at its highest.</p>
             </div>
             <div className="border border-[#EADEC9] rounded-xl p-5 bg-white">
               <h4 className="font-bold text-slate-900 mb-2">Q: What happens if a customer doesn't pick up the first verification call?</h4>

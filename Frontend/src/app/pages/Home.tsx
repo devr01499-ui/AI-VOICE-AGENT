@@ -333,14 +333,14 @@ function UseCaseSection({ setPage }: { setPage: (p: Page) => void }) {
 // ── Comparison Table ──────────────────────────────────────────────────────────
 function ComparisonSection({ setPage }: { setPage: (p: Page) => void }) {
   const rows = [
-    { feature: "Response Latency", clarity: "< 180ms", vapi: "800ms–1.5s", legacy: "45+ min queue", highlight: true },
-    { feature: "Native Audio Pipeline", clarity: "✅ Vertically Integrated", vapi: "❌ Stacked STT+LLM+TTS", legacy: "❌ Human only" },
-    { feature: "Multilingual Support", clarity: "✅ 70+ Languages", vapi: "✅ Limited", legacy: "⚠️ Per hire" },
-    { feature: "Concurrent Calls", clarity: "✅ Unlimited", vapi: "⚠️ Rate limited", legacy: "❌ Team capacity" },
-    { feature: "RAG Knowledge Base", clarity: "✅ Built-in", vapi: "⚠️ Manual setup", legacy: "❌ Scripts only" },
-    { feature: "HIPAA / SOC 2", clarity: "✅ Full Compliance", vapi: "⚠️ Partial", legacy: "⚠️ Varies" },
-    { feature: "Pricing Model", clarity: "✅ Flat ₹3.99/min", vapi: "❌ STT+LLM+TTS billed separately", legacy: "❌ ₹25K+/agent/mo" },
-    { feature: "Setup Time", clarity: "✅ < 10 minutes", vapi: "⚠️ Days of engineering", legacy: "❌ Weeks of hiring" },
+    { feature: "Response Latency", claritiy: "< 180ms", vapi: "800ms–1.5s", legacy: "45+ min queue", highlight: true },
+    { feature: "Native Audio Pipeline", claritiy: "✅ Vertically Integrated", vapi: "❌ Stacked STT+LLM+TTS", legacy: "❌ Human only" },
+    { feature: "Multilingual Support", claritiy: "✅ 70+ Languages", vapi: "✅ Limited", legacy: "⚠️ Per hire" },
+    { feature: "Concurrent Calls", claritiy: "✅ Unlimited", vapi: "⚠️ Rate limited", legacy: "❌ Team capacity" },
+    { feature: "RAG Knowledge Base", claritiy: "✅ Built-in", vapi: "⚠️ Manual setup", legacy: "❌ Scripts only" },
+    { feature: "HIPAA / SOC 2", claritiy: "✅ Full Compliance", vapi: "⚠️ Partial", legacy: "⚠️ Varies" },
+    { feature: "Pricing Model", claritiy: "✅ Flat ₹3.99/min", vapi: "❌ STT+LLM+TTS billed separately", legacy: "❌ ₹25K+/agent/mo" },
+    { feature: "Setup Time", claritiy: "✅ < 10 minutes", vapi: "⚠️ Days of engineering", legacy: "❌ Weeks of hiring" },
   ];
 
   return (
@@ -349,10 +349,10 @@ function ComparisonSection({ setPage }: { setPage: (p: Page) => void }) {
         <SectionLabel text="AI Voice Agents vs Competitors" color="orange" />
         <h2 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A]"
           style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
-          Clarity Voice vs Vapi, Retell AI,<br />Bland AI & Legacy Call Centers
+          Claritiy Voice vs Vapi, Retell AI,<br />Bland AI & Legacy Call Centers
         </h2>
         <p className="text-slate-500 leading-relaxed">
-          See exactly why Clarity Voice is the best AI calling platform for enterprises who need speed, scale, and compliance.
+          See exactly why Claritiy Voice is the best AI calling platform for enterprises who need speed, scale, and compliance.
         </p>
       </div>
 
@@ -367,7 +367,7 @@ function ComparisonSection({ setPage }: { setPage: (p: Page) => void }) {
         <div className="grid grid-cols-4 bg-[#1B4332] text-white text-xs font-bold uppercase tracking-wider">
           <div className="p-5 font-mono">Feature</div>
           <div className="p-5 font-mono text-[#34D399] border-l border-white/10">
-            ✦ Clarity Voice
+            ✦ Claritiy Voice
           </div>
           <div className="p-5 font-mono text-white/60 border-l border-white/10">Vapi / Retell</div>
           <div className="p-5 font-mono text-white/60 border-l border-white/10">Human Centers</div>
@@ -379,7 +379,7 @@ function ComparisonSection({ setPage }: { setPage: (p: Page) => void }) {
             className={`grid grid-cols-4 border-t border-[#EADEC9] ${row.highlight ? "bg-[#F0FDF4]" : i % 2 === 0 ? "bg-white" : "bg-[#FAF8F5]"} transition-colors hover:bg-[#F0FDF4]`}
           >
             <div className="p-4 text-sm font-bold text-[#0F172A]">{row.feature}</div>
-            <div className="p-4 text-sm font-semibold text-[#059669] border-l border-[#EADEC9]">{row.clarity}</div>
+            <div className="p-4 text-sm font-semibold text-[#059669] border-l border-[#EADEC9]">{row.claritiy}</div>
             <div className="p-4 text-sm text-slate-500 border-l border-[#EADEC9]">{row.vapi}</div>
             <div className="p-4 text-sm text-slate-500 border-l border-[#EADEC9]">{row.legacy}</div>
           </div>
@@ -605,7 +605,7 @@ export default function Home({ setPage }: HomeProps) {
                 Built Different — Not Just<br />Another Stacked Voice API
               </h2>
               <p className="text-slate-500 text-[17px] leading-[1.7] max-w-[500px]">
-                Most AI voice calling software chains third-party STT → LLM → TTS providers, adding 800ms–1.5s of pipeline latency. Clarity Voice runs a vertically integrated audio model — direct WebRTC streaming with sub-180ms response. That's the difference between a voice bot and a real AI phone agent.
+                Most AI voice calling software chains third-party STT → LLM → TTS providers, adding 800ms–1.5s of pipeline latency. Claritiy Voice runs a vertically integrated audio model — direct WebRTC streaming with sub-180ms response. That's the difference between a voice bot and a real AI phone agent.
               </p>
             </motion.div>
 
@@ -662,7 +662,7 @@ export default function Home({ setPage }: HomeProps) {
                 Enterprise-Grade Compliance & Secure Voice AI
               </h2>
               <p className="text-white/55 max-w-2xl mx-auto text-base leading-relaxed">
-                Clarity Voice is the most compliance-ready AI voice platform available. Edge-level PII/PHI redaction, consent-based calling, audit logs, and escalation logic — built for regulated industries including healthcare, banking, insurance, and finance.
+                Claritiy Voice is the most compliance-ready AI voice platform available. Edge-level PII/PHI redaction, consent-based calling, audit logs, and escalation logic — built for regulated industries including healthcare, banking, insurance, and finance.
               </p>
               <div className="flex flex-wrap justify-center gap-3">
                 {["🔒 SOC 2 TYPE II", "🏥 HIPAA BAA READY", "🛡️ ISO 27001", "⚖️ GDPR & DPDP ACT", "💳 PCI-DSS COMPLIANT", "📋 CONSENT-BASED CALLS"].map((b, i) => (

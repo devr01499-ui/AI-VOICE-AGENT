@@ -45,7 +45,7 @@ export default function Voices({ setPage }: VoicesProps) {
               BCP-47 Regional Dialect & Acoustic Profile Specifications
             </h2>
             <p className="text-body text-ink-muted font-plus-jakarta">
-              Clarity Voice models speech dynamics directly from native acoustic datasets, ensuring hyper-realistic pronunciation across global and regional Indian dialects.
+              Claritiy Voice models speech dynamics directly from native acoustic datasets, ensuring hyper-realistic pronunciation across global and regional Indian dialects.
             </p>
           </div>
 
@@ -54,7 +54,7 @@ export default function Voices({ setPage }: VoicesProps) {
               <Globe className="w-8 h-8 text-mint-primary" />
               <h3 className="font-sora text-xl font-bold text-ink">Regional Indian Dialect Support</h3>
               <p className="text-small text-ink-muted leading-relaxed font-plus-jakarta">
-                Standard translation APIs struggle with code-switching (e.g. Hinglish or Tanglish) and localized phrasing. Clarity Voice models are trained natively on regional speech matrices including <code>hi-IN</code> (Hindi), <code>bn-IN</code> (Bengali), <code>gu-IN</code> (Gujarati), <code>kn-IN</code> (Kannada), <code>ml-IN</code> (Malayalam), <code>mr-IN</code> (Marathi), and <code>ta-IN</code> (Tamil).
+                Standard translation APIs struggle with code-switching (e.g. Hinglish or Tanglish) and localized phrasing. Claritiy Voice models are trained natively on regional speech matrices including <code>hi-IN</code> (Hindi), <code>bn-IN</code> (Bengali), <code>gu-IN</code> (Gujarati), <code>kn-IN</code> (Kannada), <code>ml-IN</code> (Malayalam), <code>mr-IN</code> (Marathi), and <code>ta-IN</code> (Tamil).
               </p>
             </div>
 

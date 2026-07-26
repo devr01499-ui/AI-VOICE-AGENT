@@ -137,7 +137,7 @@ function IndustriesPage({ setPage }: { setPage: (p: Page) => void }) {
       name: "Healthcare",
       tagline: "Patient-first voice AI, built for compliance.",
       description:
-        "From appointment scheduling and medication reminders to post-discharge follow-ups and prior authorization calls — Clarity Voice handles the full patient communication cycle while remaining HIPAA-compliant on every call.",
+        "From appointment scheduling and medication reminders to post-discharge follow-ups and prior authorization calls — Claritiy Voice handles the full patient communication cycle while remaining HIPAA-compliant on every call.",
       useCases: ["Appointment reminders", "Prescription refill requests", "Insurance verification", "Discharge follow-up", "Chronic care check-ins"],
       stat: "89%",
       statLabel: "reduction in no-shows",
@@ -157,7 +157,7 @@ function IndustriesPage({ setPage }: { setPage: (p: Page) => void }) {
       name: "Retail & E-Commerce",
       tagline: "Turn support calls into loyalty moments.",
       description:
-        "Order status, returns, product availability, loyalty points — your customers want fast answers, not hold music. Clarity Voice resolves 94% of retail inquiries on the first call without human escalation.",
+        "Order status, returns, product availability, loyalty points — your customers want fast answers, not hold music. Claritiy Voice resolves 94% of retail inquiries on the first call without human escalation.",
       useCases: ["Order tracking & updates", "Return & refund processing", "Loyalty program support", "Product recommendations", "Abandoned cart recovery"],
       stat: "94%",
       statLabel: "first-call resolution",
@@ -177,7 +177,7 @@ function IndustriesPage({ setPage }: { setPage: (p: Page) => void }) {
       name: "Logistics & Supply Chain",
       tagline: "Proactive updates before customers ask.",
       description:
-        "Delivery ETAs, exceptions, driver dispatch, and freight status — Clarity Voice eliminates the inbound call spike that hits every time a shipment is delayed.",
+        "Delivery ETAs, exceptions, driver dispatch, and freight status — Claritiy Voice eliminates the inbound call spike that hits every time a shipment is delayed.",
       useCases: ["Delivery notifications", "Exception management", "Driver coordination", "Freight status updates", "Returns scheduling"],
       stat: "62%",
       statLabel: "reduction in WISMO calls",
@@ -187,7 +187,7 @@ function IndustriesPage({ setPage }: { setPage: (p: Page) => void }) {
       name: "Education",
       tagline: "Connect with every student and family.",
       description:
-        "Enrollment outreach, attendance alerts, financial aid follow-up, and admissions nurturing at scale — with the patience and clarity of your best counselor.",
+        "Enrollment outreach, attendance alerts, financial aid follow-up, and admissions nurturing at scale — with the patience and claritiy of your best counselor.",
       useCases: ["Enrollment campaigns", "Attendance notifications", "Financial aid outreach", "Admissions follow-up", "Event reminders"],
       stat: "41%",
       statLabel: "lift in enrollment rate",
@@ -197,7 +197,7 @@ function IndustriesPage({ setPage }: { setPage: (p: Page) => void }) {
       name: "Real Estate",
       tagline: "Qualify leads before your agents call.",
       description:
-        "Clarity Voice pre-qualifies inbound leads, schedules showings, follows up on listings, and nurtures long-cycle buyers — so your agents spend time closing, not chasing.",
+        "Claritiy Voice pre-qualifies inbound leads, schedules showings, follows up on listings, and nurtures long-cycle buyers — so your agents spend time closing, not chasing.",
       useCases: ["Lead qualification", "Showing scheduling", "Listing follow-up", "Mortgage inquiry routing", "Open house confirmation"],
       stat: "5\u00d7",
       statLabel: "more showings scheduled",
@@ -207,7 +207,7 @@ function IndustriesPage({ setPage }: { setPage: (p: Page) => void }) {
       name: "Insurance",
       tagline: "Claims, renewals, and outreach — handled.",
       description:
-        "From first notice of loss to renewal campaigns, Clarity Voice operates as a tireless extension of your contact center — with perfect recall of every policy detail.",
+        "From first notice of loss to renewal campaigns, Claritiy Voice operates as a tireless extension of your contact center — with perfect recall of every policy detail.",
       useCases: ["FNOL intake", "Policy renewal outreach", "Claims status updates", "Coverage explanations", "Cross-sell campaigns"],
       stat: "78%",
       statLabel: "of renewals handled end-to-end",
@@ -231,7 +231,7 @@ function IndustriesPage({ setPage }: { setPage: (p: Page) => void }) {
               <span className="italic">the phone.</span>
             </h1>
             <p className="text-muted-foreground max-w-sm" style={{ fontFamily: "'Figtree', sans-serif" }}>
-              Clarity Voice is purpose-built for eight verticals, with industry-specific language models, compliance profiles, and integrations pre-configured.
+              Claritiy Voice is purpose-built for eight verticals, with industry-specific language models, compliance profiles, and integrations pre-configured.
             </p>
           </div>
         </motion.div>
@@ -339,7 +339,7 @@ function IndustriesPage({ setPage }: { setPage: (p: Page) => void }) {
             Don&apos;t see your industry?
           </h2>
           <p className="text-white/70 mb-8 max-w-md mx-auto" style={{ fontFamily: "'Figtree', sans-serif" }}>
-            Clarity Voice is fully customizable. If your business runs on phone calls, we can build an agent for it.
+            Claritiy Voice is fully customizable. If your business runs on phone calls, we can build an agent for it.
           </p>
           <button
             className="bg-white text-foreground font-medium px-6 py-3 rounded-full hover:bg-white/90 transition-all"
@@ -528,24 +528,24 @@ function PricingPage({ setPage }: { setPage: (p: Page) => void }) {
         </h2>
         {[
           {
-            q: "How does Clarity Voice reduce COD RTO?",
-            a: "Clarity Voice places an automated confirmation call to every cash-on-delivery customer before their order is dispatched, verifying the order details and delivery address. This catches wrong numbers, changed minds, and unclear addresses before a courier is sent, which directly reduces return-to-origin (RTO) and failed delivery costs.",
+            q: "How does Claritiy Voice reduce COD RTO?",
+            a: "Claritiy Voice places an automated confirmation call to every cash-on-delivery customer before their order is dispatched, verifying the order details and delivery address. This catches wrong numbers, changed minds, and unclear addresses before a courier is sent, which directly reduces return-to-origin (RTO) and failed delivery costs.",
           },
           {
             q: "Do I need to hire a calling team to confirm COD orders?",
-            a: "No. Clarity Voice replaces or scales alongside a manual calling team with AI voice agents that call every order automatically, at any volume, without additional hiring.",
+            a: "No. Claritiy Voice replaces or scales alongside a manual calling team with AI voice agents that call every order automatically, at any volume, without additional hiring.",
           },
           {
-            q: "What languages does Clarity Voice support for COD confirmation calls?",
-            a: "Clarity Voice supports English and Hindi today, with additional Indian languages including Bengali, Kannada, Malayalam, and Gujarati, plus Mandarin and Arabic for international sellers.",
+            q: "What languages does Claritiy Voice support for COD confirmation calls?",
+            a: "Claritiy Voice supports English and Hindi today, with additional Indian languages including Bengali, Kannada, Malayalam, and Gujarati, plus Mandarin and Arabic for international sellers.",
           },
           {
-            q: "How much does Clarity Voice cost?",
-            a: "Clarity Voice costs ₹3.99 per minute pay-as-you-go, or from ₹1,799 per month on a plan with bundled minutes included at a lower effective rate.",
+            q: "How much does Claritiy Voice cost?",
+            a: "Claritiy Voice costs ₹3.99 per minute pay-as-you-go, or from ₹1,799 per month on a plan with bundled minutes included at a lower effective rate.",
           },
           {
-            q: "How is Clarity Voice different from Bolna, Retell, or Vapi?",
-            a: "Clarity Voice is built specifically around COD order confirmation and RTO reduction, with the workflow ready out of the box — general voice AI platforms require building that flow yourself, and typically charge separately for speech-to-text, the language model, and text-to-speech rather than one transparent per-minute price.",
+            q: "How is Claritiy Voice different from Bolna, Retell, or Vapi?",
+            a: "Claritiy Voice is built specifically around COD order confirmation and RTO reduction, with the workflow ready out of the box — general voice AI platforms require building that flow yourself, and typically charge separately for speech-to-text, the language model, and text-to-speech rather than one transparent per-minute price.",
           },
         ].map((faq, i) => (
           <FAQItem key={i} q={faq.q} a={faq.a} />
@@ -1067,7 +1067,6 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
 
       let WS_TARGET = 
         (import.meta as any).env?.VITE_WS_URL || 
-        process.env?.NEXT_PUBLIC_WS_URL || 
         (window.location.host === 'localhost:5173' || window.location.host === 'localhost:3000'
           ? 'ws://localhost:3001'
           : 'wss://ai-voice-agent-backend-mv32.onrender.com');
@@ -2100,7 +2099,7 @@ function DashNumbers() {
   const [showBuy, setShowBuy] = useState(false);
   const [showSip, setShowSip] = useState(false);
   const [showPass, setShowPass] = useState(false);
-  const [sipForm, setSipForm] = useState({uri:"sip:pbx.acmecorp.com",user:"clarityvoice",pass:"",codec:"PCMU,PCMA,G722",transport:"TLS",dtmf:"RFC 2833",register:true});
+  const [sipForm, setSipForm] = useState({uri:"sip:pbx.acmecorp.com",user:"claritiyvoice",pass:"",codec:"PCMU,PCMA,G722",transport:"TLS",dtmf:"RFC 2833",register:true});
   
   const loadNumbers = useCallback(async () => {
     try {
@@ -2190,7 +2189,7 @@ function DashNumbers() {
 
       <DModal open={showSip} onClose={()=>setShowSip(false)} title="SIP trunk configuration" width="max-w-xl">
         <div className="space-y-4">
-          <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3"><Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5"/><p className="text-xs text-blue-700" style={{fontFamily:"'Figtree',sans-serif"}}>Connects Clarity Voice directly to your on-premise PBX or UCaaS (Cisco, Avaya, Asterisk, FreePBX, 3CX).</p></div>
+          <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3"><Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5"/><p className="text-xs text-blue-700" style={{fontFamily:"'Figtree',sans-serif"}}>Connects Claritiy Voice directly to your on-premise PBX or UCaaS (Cisco, Avaya, Asterisk, FreePBX, 3CX).</p></div>
           <DField label="SIP URI"><DInput value={sipForm.uri} onChange={e=>setSipForm(f=>({...f,uri:e.target.value}))}/></DField>
           <div className="grid grid-cols-2 gap-3">
             <DField label="Username"><DInput value={sipForm.user} onChange={e=>setSipForm(f=>({...f,user:e.target.value}))}/></DField>
@@ -2982,7 +2981,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
           </div>
           <div className="bg-white border border-border rounded-xl p-5 space-y-3">
             <p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>Quick start</p>
-            <div className="bg-muted/40 border border-border rounded-xl p-4 overflow-x-auto"><pre className="text-xs" style={{fontFamily:"'DM Mono',monospace"}}>{`curl -X POST https://api.clarityvoice.com/v1/calls \\\n  -H "Authorization: Bearer cv_prod_sk_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{"agent_id":"a2","to":"+13125550198","from":"+18005550842"}'`}</pre></div>
+            <div className="bg-muted/40 border border-border rounded-xl p-4 overflow-x-auto"><pre className="text-xs" style={{fontFamily:"'DM Mono',monospace"}}>{`curl -X POST https://api.claritiyvoice.com/v1/calls \\\n  -H "Authorization: Bearer cv_prod_sk_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{"agent_id":"a2","to":"+13125550198","from":"+18005550842"}'`}</pre></div>
           </div>
         </div>
       )}
@@ -3112,7 +3111,7 @@ function HowItWorksPage({ setPage }: { setPage: (p: Page) => void }) {
   // Blockage/depreciation/damage: 15% of AOV per RTO order
   const productLoss = rtoOrders * aov * 0.15;
   const totalMonthlyLoss = shippingLoss + productLoss;
-  // 40% reduction by Clarity Voice
+  // 40% reduction by Claritiy Voice
   const monthlySaved = totalMonthlyLoss * 0.4;
   const annualSaved = Math.round(monthlySaved * 12);
 
@@ -3126,7 +3125,7 @@ function HowItWorksPage({ setPage }: { setPage: (p: Page) => void }) {
           <h1
             className="font-sora text-5xl lg:text-6xl font-extrabold leading-tight text-white mb-6 tracking-tight"
           >
-            How Clarity Voice <span className="italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Confirms COD Orders Automatically</span>
+            How Claritiy Voice <span className="italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Confirms COD Orders Automatically</span>
           </h1>
           <p className="text-base text-slate-400 max-w-2xl mx-auto leading-relaxed font-plus-jakarta">
             Direct integration with Shopify, Shiprocket, and custom ERPs allows us to trigger confirmation calls instantly at checkout, verifying address coordinates and intent in real time.
@@ -3146,7 +3145,7 @@ function HowItWorksPage({ setPage }: { setPage: (p: Page) => void }) {
             {
               step: "02",
               title: "Instant Trigger",
-              desc: "Clarity Voice receives checkout webhooks and schedules an automated voice agent call in 60s."
+              desc: "Claritiy Voice receives checkout webhooks and schedules an automated voice agent call in 60s."
             },
             {
               step: "03",
@@ -3333,7 +3332,7 @@ function BlogRtoPage({ setPage }: { setPage: (p: Page) => void }) {
               How to automate COD order confirmation?
             </h2>
             <p className="text-muted-foreground leading-relaxed">
-              Automation is achieved by syncing your store platform with an automated voice agent like Clarity Voice. As soon as a cash-on-delivery order is registered, a voice bot places a natural call in the customer’s preferred language (Hindi, English, or regional languages) to verify shipping coordinates and confirm buying intent.
+              Automation is achieved by syncing your store platform with an automated voice agent like Claritiy Voice. As soon as a cash-on-delivery order is registered, a voice bot places a natural call in the customer’s preferred language (Hindi, English, or regional languages) to verify shipping coordinates and confirm buying intent.
             </p>
           </div>
         </motion.div>
@@ -3356,7 +3355,7 @@ function VoicesPage({ setPage }: { setPage: (p: Page) => void }) {
     { id: "kore", name: "Mei (Kore)", category: "Professional Female", description: "Polite, clear, and reassuring female voice with excellent articulation." },
     { id: "charon", name: "Charon", category: "Authoritative & Formal", description: "Deeper male tone, ideal for formal business and logistics coordination." },
     { id: "fenrir", name: "Fenrir", category: "Warm & Reassuring", description: "Friendly and comforting voice tone that establishes fast trust." },
-    { id: "zephyr", name: "Zephyr", category: "Warm & Reassuring", description: "Neutral, crisp tone with perfectly transparent clarity." },
+    { id: "zephyr", name: "Zephyr", category: "Warm & Reassuring", description: "Neutral, crisp tone with perfectly transparent claritiy." },
     { id: "aoede", name: "Aoede", category: "Professional Female", description: "Clear, engaging female persona specialized in transactional call flows." }
   ];
 
@@ -3421,7 +3420,7 @@ function VoicesPage({ setPage }: { setPage: (p: Page) => void }) {
     ? voices 
     : voices.filter(v => v.category === selectedCategory);
 
-  const codeSnippet = `// POST request configuration for Clarity Voice API
+  const codeSnippet = `// POST request configuration for Claritiy Voice API
 const payload = {
   agentId: "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380d22",
   phoneNumber: "+919876543210",
@@ -3429,7 +3428,7 @@ const payload = {
   voiceId: "${playingVoice || 'kore'}"
 };
 
-const response = await fetch("https://api.insightclaritiysolution.com/v2/calls", {
+const response = await fetch("https://api.claritiy.com/v2/calls", {
   method: "POST",
   headers: {
     "Authorization": "Bearer YOUR_API_KEY",
@@ -3557,42 +3556,42 @@ function ComparePage({ setPage }: { setPage: (p: Page) => void }) {
   const comparisonData = [
     {
       feature: "Flat Per-Minute Rate",
-      clarity: "₹3.99/min (Flat pay-as-you-go)",
+      claritiy: "₹3.99/min (Flat pay-as-you-go)",
       vapi: "~₹26.50/min (Stacked fees)",
       retell: "~₹31.00/min (Stacked fees)",
       bolna: "~₹15.00/min (Inconsistent charges)"
     },
     {
       feature: "Shopify & Woo Integrations",
-      clarity: "✅ Native (1-click plugin setup)",
+      claritiy: "✅ Native (1-click plugin setup)",
       vapi: "❌ Developer custom code required",
       retell: "❌ Developer custom code required",
       bolna: "❌ Custom webhook integration only"
     },
     {
       feature: "Regional Indian Dialects",
-      clarity: "✅ Mapped & optimized (Hi, Bn, Kn, Ml, Gu)",
+      claritiy: "✅ Mapped & optimized (Hi, Bn, Kn, Ml, Gu)",
       vapi: "⚠️ Global model support (high latency)",
       retell: "⚠️ Global model support (high latency)",
       bolna: "⚠️ Restricted regional capability"
     },
     {
       feature: "RTO Address Landmarks",
-      clarity: "✅ Auto-parses pincodes & landmarks",
+      claritiy: "✅ Auto-parses pincodes & landmarks",
       vapi: "❌ Build custom prompt maps manually",
       retell: "❌ Build custom prompt maps manually",
       bolna: "❌ Build custom prompt maps manually"
     },
     {
       feature: "Duplex Barge-In Latency",
-      clarity: "✅ < 180ms response speed",
+      claritiy: "✅ < 180ms response speed",
       vapi: "⚠️ ~240ms to 320ms latency",
       retell: "⚠️ ~200ms to 280ms latency",
       bolna: "⚠️ ~350ms latency"
     },
     {
       feature: "Compliance Standards",
-      clarity: "✅ HIPAA, SOC 2, GDPR, PCI-DSS",
+      claritiy: "✅ HIPAA, SOC 2, GDPR, PCI-DSS",
       vapi: "✅ HIPAA, SOC 2, GDPR, PCI-DSS",
       retell: "✅ HIPAA, SOC 2, GDPR, PCI-DSS",
       bolna: "⚠️ Varies by custom server deployment"
@@ -3609,10 +3608,10 @@ function ComparePage({ setPage }: { setPage: (p: Page) => void }) {
           <h1
             className="font-sora text-5xl lg:text-6xl font-extrabold leading-tight text-white mb-6 tracking-tight"
           >
-            Clarity Voice <span className="italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">vs Competitor Platforms</span>
+            Claritiy Voice <span className="italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">vs Competitor Platforms</span>
           </h1>
           <p className="text-base text-slate-400 max-w-2xl mx-auto leading-relaxed font-plus-jakarta">
-            Why pay stacked API fees and hire engineers to build custom RTO flows? Clarity Voice provides a flat, all-inclusive rate with direct Shopify integrations out of the box.
+            Why pay stacked API fees and hire engineers to build custom RTO flows? Claritiy Voice provides a flat, all-inclusive rate with direct Shopify integrations out of the box.
           </p>
         </motion.div>
       </section>
@@ -3624,7 +3623,7 @@ function ComparePage({ setPage }: { setPage: (p: Page) => void }) {
             <thead>
               <tr className="border-b border-slate-800 bg-[#181C28]/85 text-slate-300 font-mono text-xs uppercase tracking-wider">
                 <th className="p-5 font-bold">Capability / Spec</th>
-                <th className="p-5 font-bold text-cyan-400">Clarity Voice</th>
+                <th className="p-5 font-bold text-cyan-400">Claritiy Voice</th>
                 <th className="p-5 font-semibold text-slate-400">Vapi</th>
                 <th className="p-5 font-semibold text-slate-400">Retell AI</th>
                 <th className="p-5 font-semibold text-slate-400">Bolna</th>
@@ -3634,7 +3633,7 @@ function ComparePage({ setPage }: { setPage: (p: Page) => void }) {
               {comparisonData.map((row, idx) => (
                 <tr key={idx} className="hover:bg-[#181C28]/30 transition-colors">
                   <td className="p-5 font-semibold text-white">{row.feature}</td>
-                  <td className="p-5 text-cyan-300 bg-cyan-950/10 font-semibold">{row.clarity}</td>
+                  <td className="p-5 text-cyan-300 bg-cyan-950/10 font-semibold">{row.claritiy}</td>
                   <td className="p-5 text-slate-400">{row.vapi}</td>
                   <td className="p-5 text-slate-400">{row.retell}</td>
                   <td className="p-5 text-slate-400">{row.bolna}</td>
@@ -3650,7 +3649,7 @@ function ComparePage({ setPage }: { setPage: (p: Page) => void }) {
           <div className="space-y-1">
             <h4 className="font-sora text-sm font-bold text-amber-300">Understanding "Stacked API Pricing"</h4>
             <p className="text-xs text-slate-400 leading-relaxed font-plus-jakarta">
-              Standard voice agents (Vapi, Retell, Bolna) charge a platform orchestration fee (usually $0.15/min) and require you to connect your own API keys. You pay separately for Speech-to-Text (Deepgram), LLM reasoning (OpenAI), and Text-to-Speech (ElevenLabs). This often inflates costs above ₹25.00/min. Clarity Voice provides a flat, all-inclusive rate of ₹3.99/min out of the box.
+              Standard voice agents (Vapi, Retell, Bolna) charge a platform orchestration fee (usually $0.15/min) and require you to connect your own API keys. You pay separately for Speech-to-Text (Deepgram), LLM reasoning (OpenAI), and Text-to-Speech (ElevenLabs). This often inflates costs above ₹25.00/min. Claritiy Voice provides a flat, all-inclusive rate of ₹3.99/min out of the box.
             </p>
           </div>
         </div>
@@ -3729,27 +3728,27 @@ export default function App() {
 
   useEffect(() => {
     const titleMap: Record<Page, string> = {
-      home: "Clarity Voice — AI Calls That Confirm Every COD Order Before It Ships",
-      industries: "Clarity Voice — AI Calling Solutions for Every Industry",
-      pricing: "Clarity Voice Pricing — ₹3.99/min, No Hidden Fees",
-      "how-it-works": "How Clarity Voice Confirms COD Orders Automatically",
+      home: "Claritiy Voice — AI Calls That Confirm Every COD Order Before It Ships",
+      industries: "Claritiy Voice — AI Calling Solutions for Every Industry",
+      pricing: "Claritiy Voice Pricing — ₹3.99/min, No Hidden Fees",
+      "how-it-works": "How Claritiy Voice Confirms COD Orders Automatically",
       "blog-rto": "How to Reduce COD RTO for D2C Brands in India",
-      compare: "Clarity Voice vs Bolna vs Retell vs Vapi",
-      dashboard: "Dashboard — Clarity Voice",
-      faq: "FAQ — Clarity Voice",
-      contact: "Contact Us — Clarity Voice",
+      compare: "Claritiy Voice vs Bolna vs Retell vs Vapi",
+      dashboard: "Dashboard — Claritiy Voice",
+      faq: "FAQ — Claritiy Voice",
+      contact: "Contact Us — Claritiy Voice",
     };
 
     const descMap: Record<Page, string> = {
-      home: "Clarity Voice calls every COD customer before dispatch to confirm the order, cutting RTO — without hiring a calling team.",
+      home: "Claritiy Voice calls every COD customer before dispatch to confirm the order, cutting RTO — without hiring a calling team.",
       industries: "Tailored voice AI agent solutions for e-commerce, healthcare, finance, logistics and more.",
       pricing: "Transparent, per-minute AI voice agent pricing. No stacked STT, LLM, or TTS fees like other platforms.",
-      "how-it-works": "See exactly how Clarity Voice calls, confirms, and logs every cash-on-delivery order before it ships.",
+      "how-it-works": "See exactly how Claritiy Voice calls, confirms, and logs every cash-on-delivery order before it ships.",
       "blog-rto": "A practical guide to cutting cash-on-delivery returns and reverse logistics costs using automated AI confirmation calls.",
-      compare: "Compare Clarity Voice against Bolna, Retell AI, and Vapi for automated Indian COD order confirmations.",
+      compare: "Compare Claritiy Voice against Bolna, Retell AI, and Vapi for automated Indian COD order confirmations.",
       dashboard: "Manage your AI voice agents and view call analytics.",
-      faq: "Frequently asked questions about Clarity Voice.",
-      contact: "Get in touch with the Clarity Voice team.",
+      faq: "Frequently asked questions about Claritiy Voice.",
+      contact: "Get in touch with the Claritiy Voice team.",
     };
 
     const pathMap: Record<Page, string> = {
@@ -3764,7 +3763,7 @@ export default function App() {
       contact: "contact",
     };
 
-    document.title = titleMap[page] || "Clarity Voice";
+    document.title = titleMap[page] || "Claritiy Voice";
 
     // Update meta description
     let metaDesc = document.querySelector("meta[name='description']");
@@ -3783,7 +3782,7 @@ export default function App() {
       document.head.appendChild(canonical);
     }
     const path = pathMap[page] ?? "";
-    canonical.setAttribute("href", `https://www.insightclaritiysolution.com/${path}`);
+    canonical.setAttribute("href", `https://www.claritiy.com/${path}`);
 
     // Update Robots tag
     let robots = document.querySelector("meta[name='robots']");
@@ -3808,10 +3807,10 @@ export default function App() {
         "mainEntity": [
           {
             "@type": "Question",
-            "name": "How does Clarity Voice reduce COD RTO?",
+            "name": "How does Claritiy Voice reduce COD RTO?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Clarity Voice places an automated confirmation call to every cash-on-delivery customer before their order is dispatched, verifying the order details and delivery address. This catches wrong numbers, changed minds, and unclear addresses before a courier is sent, which directly reduces return-to-origin (RTO) and failed delivery costs."
+              "text": "Claritiy Voice places an automated confirmation call to every cash-on-delivery customer before their order is dispatched, verifying the order details and delivery address. This catches wrong numbers, changed minds, and unclear addresses before a courier is sent, which directly reduces return-to-origin (RTO) and failed delivery costs."
             }
           },
           {
@@ -3819,31 +3818,31 @@ export default function App() {
             "name": "Do I need to hire a calling team to confirm COD orders?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "No. Clarity Voice replaces or scales alongside a manual calling team with AI voice agents that call every order automatically, at any volume, without additional hiring."
+              "text": "No. Claritiy Voice replaces or scales alongside a manual calling team with AI voice agents that call every order automatically, at any volume, without additional hiring."
             }
           },
           {
             "@type": "Question",
-            "name": "What languages does Clarity Voice support for COD confirmation calls?",
+            "name": "What languages does Claritiy Voice support for COD confirmation calls?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Clarity Voice supports English and Hindi today, with additional Indian languages including Bengali, Kannada, Malayalam, and Gujarati, plus Mandarin and Arabic for international sellers."
+              "text": "Claritiy Voice supports English and Hindi today, with additional Indian languages including Bengali, Kannada, Malayalam, and Gujarati, plus Mandarin and Arabic for international sellers."
             }
           },
           {
             "@type": "Question",
-            "name": "How much does Clarity Voice cost?",
+            "name": "How much does Claritiy Voice cost?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Clarity Voice costs ₹3.99 per minute pay-as-you-go, or from ₹1,799 per month on a plan with bundled minutes included at a lower effective rate."
+              "text": "Claritiy Voice costs ₹3.99 per minute pay-as-you-go, or from ₹1,799 per month on a plan with bundled minutes included at a lower effective rate."
             }
           },
           {
             "@type": "Question",
-            "name": "How is Clarity Voice different from Bolna, Retell, or Vapi?",
+            "name": "How is Claritiy Voice different from Bolna, Retell, or Vapi?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Clarity Voice is built specifically around COD order confirmation and RTO reduction, with the workflow ready out of the box — general voice AI platforms require building that flow yourself, and typically charge separately for speech-to-text, the language model, and text-to-speech rather than one transparent per-minute price."
+              "text": "Claritiy Voice is built specifically around COD order confirmation and RTO reduction, with the workflow ready out of the box — general voice AI platforms require building that flow yourself, and typically charge separately for speech-to-text, the language model, and text-to-speech rather than one transparent per-minute price."
             }
           }
         ]
@@ -3857,11 +3856,11 @@ export default function App() {
       appScript.text = JSON.stringify({
         "@context": "https://schema.org",
         "@type": "SoftwareApplication",
-        "name": "Clarity Voice",
+        "name": "Claritiy Voice",
         "applicationCategory": "BusinessApplication",
         "operatingSystem": "Web",
-        "url": "https://www.insightclaritiysolution.com",
-        "description": "Clarity Voice is an AI voice calling platform that confirms cash-on-delivery (COD) orders before dispatch, reducing RTO and failed deliveries for Indian D2C and e-commerce sellers.",
+        "url": "https://www.claritiy.com",
+        "description": "Claritiy Voice is an AI voice calling platform that confirms cash-on-delivery (COD) orders before dispatch, reducing RTO and failed deliveries for Indian D2C and e-commerce sellers.",
         "offers": {
           "@type": "Offer",
           "priceCurrency": "INR",
@@ -3881,10 +3880,10 @@ export default function App() {
         "mainEntity": [
           {
             "@type": "Question",
-            "name": "How does Clarity Voice reduce COD RTO?",
+            "name": "How does Claritiy Voice reduce COD RTO?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Clarity Voice places an automated confirmation call to every cash-on-delivery customer before their order is dispatched, verifying the order details and delivery address. This catches wrong numbers, changed minds, and unclear addresses before a courier is sent, which directly reduces return-to-origin (RTO) and failed delivery costs."
+              "text": "Claritiy Voice places an automated confirmation call to every cash-on-delivery customer before their order is dispatched, verifying the order details and delivery address. This catches wrong numbers, changed minds, and unclear addresses before a courier is sent, which directly reduces return-to-origin (RTO) and failed delivery costs."
             }
           },
           {
@@ -3892,31 +3891,31 @@ export default function App() {
             "name": "Do I need to hire a calling team to confirm COD orders?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "No. Clarity Voice replaces or scales alongside a manual calling team with AI voice agents that call every order automatically, at any volume, without additional hiring."
+              "text": "No. Claritiy Voice replaces or scales alongside a manual calling team with AI voice agents that call every order automatically, at any volume, without additional hiring."
             }
           },
           {
             "@type": "Question",
-            "name": "What languages does Clarity Voice support for COD confirmation calls?",
+            "name": "What languages does Claritiy Voice support for COD confirmation calls?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Clarity Voice supports English and Hindi today, with additional Indian languages including Bengali, Kannada, Malayalam, and Gujarati, plus Mandarin and Arabic for international sellers."
+              "text": "Claritiy Voice supports English and Hindi today, with additional Indian languages including Bengali, Kannada, Malayalam, and Gujarati, plus Mandarin and Arabic for international sellers."
             }
           },
           {
             "@type": "Question",
-            "name": "How much does Clarity Voice cost?",
+            "name": "How much does Claritiy Voice cost?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Clarity Voice costs ₹3.99 per minute pay-as-you-go, or from ₹1,799 per month on a plan with bundled minutes included at a lower effective rate."
+              "text": "Claritiy Voice costs ₹3.99 per minute pay-as-you-go, or from ₹1,799 per month on a plan with bundled minutes included at a lower effective rate."
             }
           },
           {
             "@type": "Question",
-            "name": "How is Clarity Voice different from Bolna, Retell, or Vapi?",
+            "name": "How is Claritiy Voice different from Bolna, Retell, or Vapi?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Clarity Voice is built specifically around COD order confirmation and RTO reduction, with the workflow ready out of the box — general voice AI platforms require building that flow yourself, and typically charge separately for speech-to-text, the language model, and text-to-speech rather than one transparent per-minute price."
+              "text": "Claritiy Voice is built specifically around COD order confirmation and RTO reduction, with the workflow ready out of the box — general voice AI platforms require building that flow yourself, and typically charge separately for speech-to-text, the language model, and text-to-speech rather than one transparent per-minute price."
             }
           }
         ]

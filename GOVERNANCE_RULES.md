@@ -1,4 +1,4 @@
-# Antigravity Operational Governance Rules — Clarity Voice Core
+# Antigravity Operational Governance Rules — Claritiy Voice Core
 
 You are strictly bound to this zero-regression architectural contract. Before rewriting, creating, or modifying any file in this repository, you must cross-reference your proposed changes against these structural constraints.
 

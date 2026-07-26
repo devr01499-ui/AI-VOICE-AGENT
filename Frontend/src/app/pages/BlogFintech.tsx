@@ -59,7 +59,7 @@ export default function BlogFintech({ setPage }: BlogFintechProps) {
             Traditional collection calling methods often stress consumers, resulting in call avoidance. AI voice agents present a calm, non-judgmental, and highly compliant voice option.
           </p>
           <p>
-            Clarity Voice enables agents to dynamically select local languages, parsing EMI installment options, loan details, and payment gateway coordinates securely.
+            Claritiy Voice enables agents to dynamically select local languages, parsing EMI installment options, loan details, and payment gateway coordinates securely.
           </p>
         </div>
       </motion.article>

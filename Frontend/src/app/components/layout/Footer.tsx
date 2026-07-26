@@ -31,9 +31,9 @@ export default function Footer({ setPage }: FooterProps) {
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start gap-12">
         <div className="space-y-4">
           <div className="flex items-center gap-3 h-8">
-            <img src="/logo.png" alt="Clarity Voice Logo" className="h-8 w-auto object-contain" />
+            <img src="/logo.png" alt="Claritiy Voice Logo" className="h-8 w-auto object-contain" />
             <span className="font-sora text-lg font-extrabold tracking-tight text-[#0F172A]">
-              Clarity<span className="text-[#059669]">Voice</span>
+              Claritiy<span className="text-[#059669]">Voice</span>
             </span>
           </div>
           <p className="text-xs text-slate-500 max-w-xs leading-relaxed font-plus-jakarta">
@@ -73,8 +73,8 @@ export default function Footer({ setPage }: FooterProps) {
                 { label: "FAQ", action: () => setPage("faq") },
                 { label: "Contact Us", action: () => setPage("contact") },
                 { label: "Developer Docs", action: () => setPage("docs") },
-                { label: "WhatsApp Support", action: () => window.open("https://wa.me/919707337259?text=Hello%20Clarity%20Voice%20Team", "_blank") },
-                { label: "LinkedIn", action: () => window.open("https://www.linkedin.com/company/clarity-voice", "_blank") },
+                { label: "WhatsApp Support", action: () => window.open("https://wa.me/919707337259?text=Hello%20Claritiy%20Voice%20Team", "_blank") },
+                { label: "LinkedIn", action: () => window.open("https://www.linkedin.com/company/claritiy-voice", "_blank") },
               ]
             },
             {
@@ -106,7 +106,7 @@ export default function Footer({ setPage }: FooterProps) {
         </div>
       </div>
       <div className="max-w-7xl mx-auto mt-12 pt-8 border-t border-[#EADEC9]/40 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500 font-plus-jakarta">
-        <p>&copy; 2026 Clarity Voice. All rights reserved.</p>
+        <p>&copy; 2026 Claritiy Voice. All rights reserved.</p>
         <p className="font-mono text-[#059669] font-bold">Predictable Pay-As-You-Go from ₹3.99/min</p>
       </div>
     </footer>

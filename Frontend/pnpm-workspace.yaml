@@ -13,3 +13,4 @@ minimumReleaseAge: 10080
 allowBuilds:
   '@tailwindcss/oxide': true
   esbuild: true
+  puppeteer: set this to true or false

@@ -58,13 +58,13 @@ Begin at the Welcome Node. Speak this greeting: "${beginMessage}"`;
   return prompt;
 }
 
-export function compile(flowGraph: string, agentName: string = 'Clarity AI'): string {
+export function compile(flowGraph: string, agentName: string = 'Claritiy AI'): string {
   if (!flowGraph || flowGraph === "" || flowGraph === "{}") {
-    return "You are a professional corporate assistant for Clarity.";
+    return "You are a professional corporate assistant for Claritiy.";
   }
   const parsed = JSON.parse(flowGraph);
   if (!parsed || !Array.isArray(parsed.nodes)) {
-    return "You are a professional corporate assistant for Clarity.";
+    return "You are a professional corporate assistant for Claritiy.";
   }
   return compileFlowToPrompt(agentName, parsed.nodes);
 }
