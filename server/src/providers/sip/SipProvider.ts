@@ -1,5 +1,4 @@
-// @ts-ignore
-import * as sip from 'sip';
+import { UserAgent, Inviter, SessionState, UserAgentOptions, URI } from 'sip.js';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../../utils/logger';
 import { ProviderError } from '../../types/errors';
@@ -16,49 +15,51 @@ import type {
 /**
  * Bolna Server — Generic SIP Provider
  *
- * Implements ITelephonyProvider to place outbound calls using standard SIP protocol.
- * Capable of working with Twilio, Exotel, Plivo, or any other standard SIP trunk.
+ * Implements ITelephonyProvider to place outbound calls using sip.js.
  */
 export class SipProvider implements ITelephonyProvider {
   public readonly name = 'generic-sip';
   public readonly type = 'telephony';
 
-  private activeCalls = new Map<string, { status: string; duration: number }>();
-
-  private sipClient: any;
+  // We maintain the active Session objects in memory to manage the media/signaling lifecycle,
+  // but call STATUS and METADATA are persisted to the database per Phase 4 requirements.
+  private activeSessions = new Map<string, Inviter>();
+  private userAgents = new Map<string, UserAgent>();
 
   constructor() {}
 
   async connect(): Promise<void> {
-    logger.info('SipProvider: starting SIP listener...');
-    
-    // Start the SIP stack on a port (e.g. 5060 or dynamic for testing)
-    // In a real production deployment, this needs public IP mapping or NAT traversal.
-    const sipPort = process.env.SIP_PORT ? parseInt(process.env.SIP_PORT) : 5060;
-    this.sipClient = sip.create({ port: sipPort }, (request: any) => {
-      logger.info(`SipProvider: received incoming SIP request: ${request.method}`);
-      // In a full implementation, we'd handle incoming INVITEs here for inbound calling.
-      // For now, we respond with 501 Not Implemented to unsupported inbound requests.
-      this.sipClient.send(sip.makeResponse(request, 501, 'Not Implemented'));
-    });
-
-    logger.info('SipProvider: SIP stack initialized.');
+    logger.info('SipProvider: starting SIP engine (sip.js)...');
+    // UserAgents are instantiated on-demand per trunk configuration
   }
 
   async disconnect(): Promise<void> {
-    logger.info('SipProvider: stopping SIP listener...');
-    if (this.sipClient && this.sipClient.destroy) {
-      this.sipClient.destroy();
+    logger.info('SipProvider: stopping SIP engine...');
+    for (const session of this.activeSessions.values()) {
+      try {
+        if (session.state === SessionState.Established) {
+          await session.bye();
+        } else if (session.state === SessionState.Initial || session.state === SessionState.Establishing) {
+          await session.cancel();
+        }
+      } catch (err) {
+        logger.error('SipProvider: failed to terminate session during disconnect', { error: err });
+      }
     }
+    
+    for (const ua of this.userAgents.values()) {
+      await ua.stop();
+    }
+    
+    this.userAgents.clear();
+    this.activeSessions.clear();
   }
 
   async healthCheck(): Promise<HealthCheckResult> {
-    // A SIP client running locally is generally healthy if the stack is up.
-    // Real health check could send OPTIONS ping to a configured proxy.
     return {
       healthy: true,
       latencyMs: 1,
-      details: 'SIP stack is active',
+      details: 'sip.js engine ready',
     };
   }
 
@@ -69,7 +70,6 @@ export class SipProvider implements ITelephonyProvider {
       throw new ProviderError('generic-sip', 'Access Denied: userId is required for SIP calling.');
     }
 
-    // Fetch the specific SipTrunk configuration for this user
     const userTrunk = await prisma.sipTrunk.findFirst({
       where: { userId: params.userId, status: 'active' }
     });
@@ -78,7 +78,7 @@ export class SipProvider implements ITelephonyProvider {
       throw new ProviderError('generic-sip', `No active SIP trunk configured for user ${params.userId}.`);
     }
 
-    const sipUri = userTrunk.sipUri; // e.g., sip.twilio.com
+    const sipUriDomain = userTrunk.sipUri; 
     const username = userTrunk.username || 'unknown';
     let password = '';
 
@@ -90,84 +90,170 @@ export class SipProvider implements ITelephonyProvider {
       }
     }
 
-    const callUuid = uuidv4();
-    const tag = Math.random().toString(36).substr(2, 9);
-    
-    // Construct the standard SIP INVITE message
-    const inviteRequest = {
-      method: 'INVITE',
-      uri: `sip:${params.to}@${sipUri}`,
-      headers: {
-        to: { uri: `sip:${params.to}@${sipUri}` },
-        from: { uri: `sip:${params.from}@${sipUri}`, params: { tag } },
-        'call-id': callUuid,
-        cseq: { method: 'INVITE', seq: 1 },
-        contact: [{ uri: `sip:${params.from}@127.0.0.1:${process.env.SIP_PORT || 5060}` }],
-        // Basic SIP Auth Header structure (though typically a 401 challenge is sent back first)
-        authorization: `Digest username="${username}", password="${password}"`, // Simplified
-        'content-type': 'application/sdp',
-      },
-      // Note: Real implementations require an actual SDP body describing media ports (RTP)
-      content: 'v=0\r\no=bolna 123 456 IN IP4 127.0.0.1\r\ns=-\r\nc=IN IP4 127.0.0.1\r\nt=0 0\r\nm=audio 10000 RTP/AVP 0 8\r\na=rtpmap:0 PCMU/8000\r\na=rtpmap:8 PCMA/8000\r\n',
-    };
+    const publicIp = process.env.PUBLIC_IP || '127.0.0.1';
+    if (publicIp === '127.0.0.1') {
+      logger.warn('SipProvider: PUBLIC_IP not set, using 127.0.0.1 for SDP media address. Two-way audio may fail across NAT.');
+    }
 
-    this.activeCalls.set(callUuid, { status: 'ringing', duration: 0 });
+    const uaKey = `${username}@${sipUriDomain}`;
+    let ua = this.userAgents.get(uaKey);
 
-    try {
-      this.sipClient.send(inviteRequest, (rs: any) => {
-        logger.info(`SipProvider: received SIP response ${rs.status}`);
-        
-        if (rs.status >= 200 && rs.status < 300) {
-          logger.info(`SipProvider: call ${callUuid} answered.`);
-          this.activeCalls.set(callUuid, { status: 'in_progress', duration: 0 });
-          // Acknowledge the 200 OK
-          this.sipClient.send({
-            method: 'ACK',
-            uri: rs.headers.contact ? rs.headers.contact[0].uri : inviteRequest.uri,
-            headers: {
-              to: rs.headers.to,
-              from: rs.headers.from,
-              'call-id': callUuid,
-              cseq: { method: 'ACK', seq: 1 },
-            }
-          });
-        } else if (rs.status >= 400) {
-          logger.error(`SipProvider: call ${callUuid} failed with SIP status ${rs.status}`);
-          this.activeCalls.set(callUuid, { status: 'failed', duration: 0 });
-        }
-      });
-
-      return {
-        callUuid: callUuid,
-        requestUuid: callUuid,
+    if (!ua) {
+      // Configure sip.js UserAgent with Digest Auth
+      const uaOptions: UserAgentOptions = {
+        uri: UserAgent.makeURI(`sip:${username}@${sipUriDomain}`),
+        authorizationUsername: username,
+        authorizationPassword: password,
+        transportOptions: {
+          server: `wss://${sipUriDomain}`, // Defaulting to WSS for Node.js
+        },
+        logBuiltinEnabled: false,
       };
 
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      throw new ProviderError('generic-sip', `Failed to send SIP INVITE: ${message}`);
+      try {
+        ua = new UserAgent(uaOptions);
+        await ua.start();
+        this.userAgents.set(uaKey, ua);
+      } catch (err) {
+        throw new ProviderError('generic-sip', `Failed to start UserAgent: ${err}`);
+      }
     }
+
+    const targetURI = UserAgent.makeURI(`sip:${params.to}@${sipUriDomain}`);
+    if (!targetURI) {
+      throw new ProviderError('generic-sip', `Invalid target URI: sip:${params.to}@${sipUriDomain}`);
+    }
+
+    const requestUuid = uuidv4();
+    const sipCallUuid = uuidv4();
+
+    // Persist initial state to DB instead of in-memory Map
+    // We cannot create a valid Call record without agentId because of foreign key constraint in the schema.
+    // Instead of forcing agentId='system' which fails if no agent exists, we use the Orchestrator's pattern:
+    // The orchestrator owns the Call model row, the SipProvider tracks a separate record or we just store
+    // minimal metadata if we can't create it. However, since Phase 4 explicitly demands we persist call state,
+    // we assume the user intends we just fetch/update the call using telemetryId.
+    // Wait, the orchestrator sets telemetryId after initiateCall returns!
+    // So the orchestrator creates a Call row, then calls initiateCall, then saves requestUuid to telemetryId.
+    // We can't update the orchestrator's row before it sets it! 
+    // Wait, we CAN fetch the call if we pass callId in params? params doesn't have callId.
+    // So, we don't CREATE the Call row here. We return requestUuid, orchestrator saves it to telemetryId.
+    // Our event listener for SessionState will update the DB by looking up the Call with telemetryId = requestUuid!
+    
+    const inviter = new Inviter(ua, targetURI, {
+      extraHeaders: [
+        `From: <sip:${params.from}@${sipUriDomain}>`,
+        `Call-ID: ${sipCallUuid}`
+      ]
+    });
+
+    this.activeSessions.set(requestUuid, inviter);
+
+    inviter.stateChange.addListener(async (newState: SessionState) => {
+      logger.info(`SipProvider: call request ${requestUuid} transitioned to state ${newState}`);
+      
+      let dbStatus = 'ringing';
+      if (newState === SessionState.Established) {
+        dbStatus = 'in_progress';
+      } else if (newState === SessionState.Terminated) {
+        dbStatus = 'completed';
+        this.activeSessions.delete(requestUuid);
+      }
+
+      try {
+        // Find the Orchestrator's call using the telemetryId we returned
+        const callRows = await prisma.call.findMany({
+          where: { telemetryId: requestUuid }
+        });
+        if (callRows.length > 0) {
+          await prisma.call.update({
+            where: { id: callRows[0].id },
+            data: { status: dbStatus }
+          });
+        }
+      } catch (err) {
+        logger.error(`SipProvider: failed to update call state in DB for request ${requestUuid}`, { error: err });
+      }
+    });
+
+    try {
+      // sip.js handles the 401/407 digest auth challenges automatically during invite
+      await inviter.invite();
+    } catch (err) {
+      throw new ProviderError('generic-sip', `Failed to send SIP INVITE (Check WSS connectivity and credentials): ${err}`);
+    }
+
+    return {
+      callUuid: sipCallUuid,
+      requestUuid: requestUuid,
+    };
   }
 
   async terminateCall(callUuid: string): Promise<void> {
     logger.info('SipProvider: terminating call', { callUuid });
     
-    // In a full implementation, we need the stored Dialog state (to-tag, remote-contact) 
-    // to construct a proper BYE message. For this minimal generic engine, we simulate termination.
-    if (this.activeCalls.has(callUuid)) {
-      this.activeCalls.set(callUuid, { status: 'completed', duration: 10 });
+    // In our new architecture, the Orchestrator passes its Call.id here? No, it passes telemetryId or callUuid?
+    // The orchestrator calls telephonyProvider.terminateCall? Wait, in CallOrchestrator I didn't see terminateCall for generic-sip.
+    // It is called somewhere. It passes `callUuid` which was returned from initiateCall.
+    
+    // Find the inviter locally
+    let session = this.activeSessions.get(callUuid); // if they pass requestUuid
+    if (!session) {
+       // if they pass sipCallUuid, we'd need to track it by sipCallUuid too
+       for (const [key, val] of this.activeSessions.entries()) {
+           if (val.request.callId === callUuid) session = val;
+       }
+    }
+
+    if (session) {
+      try {
+        if (session.state === SessionState.Established) {
+          await session.bye(); // Sends actual SIP BYE
+        } else if (session.state === SessionState.Initial || session.state === SessionState.Establishing) {
+          await session.cancel(); // Sends actual SIP CANCEL
+        }
+      } catch (err) {
+        logger.error(`SipProvider: failed to terminate SIP session ${callUuid}`, { error: err });
+      }
+      this.activeSessions.delete(callUuid);
+    } else {
+      logger.warn(`SipProvider: active session not found locally for ${callUuid}. Another instance may own it.`);
+    }
+
+    try {
+      // Find the Call row to update
+      const callRows = await prisma.call.findMany({
+        where: { OR: [ { id: callUuid }, { telemetryId: callUuid } ] }
+      });
+      if (callRows.length > 0) {
+        await prisma.call.update({
+          where: { id: callRows[0].id },
+          data: { status: 'completed' }
+        });
+      }
+    } catch (err) {
+      logger.error(`SipProvider: failed to persist termination state in DB for ${callUuid}`, { error: err });
     }
   }
 
   async getCallStatus(callUuid: string): Promise<CallStatusResult> {
-    const callData = this.activeCalls.get(callUuid);
-    if (!callData) {
-      return { status: 'completed', direction: 'outbound' };
+    try {
+      const callRows = await prisma.call.findMany({
+        where: { OR: [ { id: callUuid }, { telemetryId: callUuid } ] }
+      });
+
+      if (callRows.length === 0) {
+        return { status: 'completed', direction: 'outbound' };
+      }
+      
+      return {
+        status: callRows[0].status,
+        direction: callRows[0].callDirection || 'outbound',
+        duration: callRows[0].durationSeconds || 0,
+      };
+    } catch (err) {
+      logger.error(`SipProvider: failed to fetch call status from DB for ${callUuid}`, { error: err });
+      return { status: 'failed', direction: 'outbound' };
     }
-    
-    return {
-      status: callData.status,
-      direction: 'outbound',
-      duration: callData.duration,
-    };
   }
 }
