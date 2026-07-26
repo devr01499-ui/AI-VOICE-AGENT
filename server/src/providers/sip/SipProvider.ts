@@ -1,4 +1,4 @@
-import { UserAgent, Inviter, SessionState, UserAgentOptions, URI } from 'sip.js';
+import Srf from 'drachtio-srf';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../../utils/logger';
 import { ProviderError } from '../../types/errors';
@@ -15,56 +15,83 @@ import type {
 /**
  * Bolna Server — Generic SIP Provider
  *
- * Implements ITelephonyProvider to place outbound calls using sip.js.
+ * Implements ITelephonyProvider to place outbound calls using drachtio-srf.
  */
 export class SipProvider implements ITelephonyProvider {
   public readonly name = 'generic-sip';
   public readonly type = 'telephony';
 
-  // We maintain the active Session objects in memory to manage the media/signaling lifecycle,
-  // but call STATUS and METADATA are persisted to the database per Phase 4 requirements.
-  private activeSessions = new Map<string, Inviter>();
-  private userAgents = new Map<string, UserAgent>();
+  private srf: Srf;
+  private isConnected = false;
+  // Map of requestUuid -> drachtio dialog for active sessions
+  private activeDialogs = new Map<string, any>();
 
-  constructor() {}
+  constructor() {
+    this.srf = new Srf();
+  }
 
   async connect(): Promise<void> {
-    logger.info('SipProvider: starting SIP engine (sip.js)...');
-    // UserAgents are instantiated on-demand per trunk configuration
+    logger.info('SipProvider: starting SIP engine (drachtio-srf)...');
+    
+    return new Promise((resolve, reject) => {
+      // Connect to the local drachtio server
+      const host = process.env.DRACHTIO_HOST || '127.0.0.1';
+      const port = parseInt(process.env.DRACHTIO_PORT || '9022', 10);
+      const secret = process.env.DRACHTIO_SECRET || 'cymru';
+
+      this.srf.connect({
+        host,
+        port,
+        secret
+      });
+
+      this.srf.on('connect', (err: any, hostport: string) => {
+        if (err) {
+          logger.error('SipProvider: failed to connect to drachtio-server', { error: err });
+          return reject(err);
+        }
+        logger.info(`SipProvider: successfully connected to drachtio-server at ${hostport}`);
+        this.isConnected = true;
+        resolve();
+      });
+
+      this.srf.on('error', (err: any) => {
+        logger.error('SipProvider: drachtio-server error', { error: err });
+      });
+    });
   }
 
   async disconnect(): Promise<void> {
     logger.info('SipProvider: stopping SIP engine...');
-    for (const session of this.activeSessions.values()) {
+    for (const dialog of this.activeDialogs.values()) {
       try {
-        if (session.state === SessionState.Established) {
-          await session.bye();
-        } else if (session.state === SessionState.Initial || session.state === SessionState.Establishing) {
-          await session.cancel();
-        }
+        await dialog.destroy();
       } catch (err) {
-        logger.error('SipProvider: failed to terminate session during disconnect', { error: err });
+        logger.error('SipProvider: failed to destroy dialog during disconnect', { error: err });
       }
     }
-    
-    for (const ua of this.userAgents.values()) {
-      await ua.stop();
+    this.activeDialogs.clear();
+
+    if (this.isConnected) {
+      this.srf.disconnect();
+      this.isConnected = false;
     }
-    
-    this.userAgents.clear();
-    this.activeSessions.clear();
   }
 
   async healthCheck(): Promise<HealthCheckResult> {
     return {
-      healthy: true,
-      latencyMs: 1,
-      details: 'sip.js engine ready',
+      healthy: this.isConnected,
+      latencyMs: 1, // Assumes low latency over local network to drachtio server
+      details: this.isConnected ? 'drachtio-srf connected' : 'drachtio-srf disconnected',
     };
   }
 
   async initiateCall(params: InitiateCallParams): Promise<InitiateCallResult> {
     logger.info('SipProvider: initiating call', { to: params.to, from: params.from });
+
+    if (!this.isConnected) {
+      throw new ProviderError('generic-sip', 'SIP engine is not connected to drachtio server.');
+    }
 
     if (!params.userId) {
       throw new ProviderError('generic-sip', 'Access Denied: userId is required for SIP calling.');
@@ -78,7 +105,7 @@ export class SipProvider implements ITelephonyProvider {
       throw new ProviderError('generic-sip', `No active SIP trunk configured for user ${params.userId}.`);
     }
 
-    const sipUriDomain = userTrunk.sipUri; 
+    const sipUriDomain = userTrunk.sipUri;
     const username = userTrunk.username || 'unknown';
     let password = '';
 
@@ -94,93 +121,103 @@ export class SipProvider implements ITelephonyProvider {
     if (publicIp === '127.0.0.1') {
       logger.warn('SipProvider: PUBLIC_IP not set, using 127.0.0.1 for SDP media address. Two-way audio may fail across NAT.');
     }
-
-    const uaKey = `${username}@${sipUriDomain}`;
-    let ua = this.userAgents.get(uaKey);
-
-    if (!ua) {
-      // Configure sip.js UserAgent with Digest Auth
-      const uaOptions: UserAgentOptions = {
-        uri: UserAgent.makeURI(`sip:${username}@${sipUriDomain}`),
-        authorizationUsername: username,
-        authorizationPassword: password,
-        transportOptions: {
-          server: `wss://${sipUriDomain}`, // Defaulting to WSS for Node.js
-        },
-        logBuiltinEnabled: false,
-      };
-
-      try {
-        ua = new UserAgent(uaOptions);
-        await ua.start();
-        this.userAgents.set(uaKey, ua);
-      } catch (err) {
-        throw new ProviderError('generic-sip', `Failed to start UserAgent: ${err}`);
-      }
-    }
-
-    const targetURI = UserAgent.makeURI(`sip:${params.to}@${sipUriDomain}`);
-    if (!targetURI) {
-      throw new ProviderError('generic-sip', `Invalid target URI: sip:${params.to}@${sipUriDomain}`);
-    }
-
+    
     const requestUuid = uuidv4();
     const sipCallUuid = uuidv4();
+    const targetURI = `sip:${params.to}@${sipUriDomain}`;
 
-    // Persist initial state to DB instead of in-memory Map
-    // We cannot create a valid Call record without agentId because of foreign key constraint in the schema.
-    // Instead of forcing agentId='system' which fails if no agent exists, we use the Orchestrator's pattern:
-    // The orchestrator owns the Call model row, the SipProvider tracks a separate record or we just store
-    // minimal metadata if we can't create it. However, since Phase 4 explicitly demands we persist call state,
-    // we assume the user intends we just fetch/update the call using telemetryId.
-    // Wait, the orchestrator sets telemetryId after initiateCall returns!
-    // So the orchestrator creates a Call row, then calls initiateCall, then saves requestUuid to telemetryId.
-    // We can't update the orchestrator's row before it sets it! 
-    // Wait, we CAN fetch the call if we pass callId in params? params doesn't have callId.
-    // So, we don't CREATE the Call row here. We return requestUuid, orchestrator saves it to telemetryId.
-    // Our event listener for SessionState will update the DB by looking up the Call with telemetryId = requestUuid!
-    
-    const inviter = new Inviter(ua, targetURI, {
-      extraHeaders: [
-        `From: <sip:${params.from}@${sipUriDomain}>`,
-        `Call-ID: ${sipCallUuid}`
-      ]
-    });
-
-    this.activeSessions.set(requestUuid, inviter);
-
-    inviter.stateChange.addListener(async (newState: SessionState) => {
-      logger.info(`SipProvider: call request ${requestUuid} transitioned to state ${newState}`);
-      
-      let dbStatus = 'ringing';
-      if (newState === SessionState.Established) {
-        dbStatus = 'in_progress';
-      } else if (newState === SessionState.Terminated) {
-        dbStatus = 'completed';
-        this.activeSessions.delete(requestUuid);
-      }
-
-      try {
-        // Find the Orchestrator's call using the telemetryId we returned
-        const callRows = await prisma.call.findMany({
-          where: { telemetryId: requestUuid }
-        });
-        if (callRows.length > 0) {
-          await prisma.call.update({
-            where: { id: callRows[0].id },
-            data: { status: dbStatus }
-          });
-        }
-      } catch (err) {
-        logger.error(`SipProvider: failed to update call state in DB for request ${requestUuid}`, { error: err });
-      }
-    });
+    // A minimal dummy SDP to establish the call with proper IP substitution
+    const localSdp = `v=0\r\no=- 1234567890 1 IN IP4 ${publicIp}\r\ns=-\r\nc=IN IP4 ${publicIp}\r\nt=0 0\r\nm=audio 10000 RTP/AVP 0 8 101\r\na=rtpmap:0 PCMU/8000\r\na=rtpmap:8 PCMA/8000\r\na=rtpmap:101 telephone-event/8000\r\na=sendrecv\r\n`;
 
     try {
-      // sip.js handles the 401/407 digest auth challenges automatically during invite
-      await inviter.invite();
+      // drachtio-srf handles the 401/407 challenges automatically when auth is provided.
+      this.srf.createUAC(targetURI, {
+        localSdp,
+        headers: {
+          'From': `sip:${params.from}@${sipUriDomain}`,
+          'Call-ID': sipCallUuid,
+        },
+        auth: {
+          username: username,
+          password: password
+        }
+      })
+      .then(async (dialog: any) => {
+        logger.info(`SipProvider: call ${requestUuid} established`);
+        this.activeDialogs.set(requestUuid, dialog);
+
+        // Update DB
+        try {
+          const callRows = await prisma.call.findMany({
+            where: { telemetryId: requestUuid }
+          });
+          if (callRows.length > 0) {
+            await prisma.call.update({
+              where: { id: callRows[0].id },
+              data: { status: 'in_progress' }
+            });
+          }
+        } catch (err) {
+          logger.error(`SipProvider: failed to update call state in DB for request ${requestUuid}`, { error: err });
+        }
+
+        // Listen for remote hangup
+        dialog.on('destroy', async () => {
+          logger.info(`SipProvider: call ${requestUuid} terminated by remote party`);
+          this.activeDialogs.delete(requestUuid);
+
+          try {
+            const callRows = await prisma.call.findMany({
+              where: { telemetryId: requestUuid }
+            });
+            if (callRows.length > 0) {
+              await prisma.call.update({
+                where: { id: callRows[0].id },
+                data: { status: 'completed' }
+              });
+            }
+          } catch (err) {
+            logger.error(`SipProvider: failed to persist termination state in DB for ${requestUuid}`, { error: err });
+          }
+        });
+      })
+      .catch(async (err: any) => {
+        logger.error(`SipProvider: Failed to establish call ${requestUuid}`, { error: err });
+        // Call failed (e.g. 403 Forbidden, 486 Busy, timeout, etc.)
+        try {
+          const callRows = await prisma.call.findMany({
+            where: { telemetryId: requestUuid }
+          });
+          if (callRows.length > 0) {
+            await prisma.call.update({
+              where: { id: callRows[0].id },
+              data: { status: 'failed' }
+            });
+          }
+        } catch (dbErr) {
+          logger.error(`SipProvider: failed to update call state to failed in DB for ${requestUuid}`, { error: dbErr });
+        }
+      });
+      
+      // Assume ringing before the dialog is established
+      setTimeout(async () => {
+         try {
+           const callRows = await prisma.call.findMany({
+             where: { telemetryId: requestUuid }
+           });
+           if (callRows.length > 0 && callRows[0].status === 'queued') {
+             await prisma.call.update({
+               where: { id: callRows[0].id },
+               data: { status: 'ringing' }
+             });
+           }
+         } catch (err) {
+           logger.error(`SipProvider: failed to update ringing state`, { error: err });
+         }
+      }, 500);
+
     } catch (err) {
-      throw new ProviderError('generic-sip', `Failed to send SIP INVITE (Check WSS connectivity and credentials): ${err}`);
+      throw new ProviderError('generic-sip', `Failed to send SIP INVITE: ${err}`);
     }
 
     return {
@@ -192,36 +229,21 @@ export class SipProvider implements ITelephonyProvider {
   async terminateCall(callUuid: string): Promise<void> {
     logger.info('SipProvider: terminating call', { callUuid });
     
-    // In our new architecture, the Orchestrator passes its Call.id here? No, it passes telemetryId or callUuid?
-    // The orchestrator calls telephonyProvider.terminateCall? Wait, in CallOrchestrator I didn't see terminateCall for generic-sip.
-    // It is called somewhere. It passes `callUuid` which was returned from initiateCall.
-    
-    // Find the inviter locally
-    let session = this.activeSessions.get(callUuid); // if they pass requestUuid
-    if (!session) {
-       // if they pass sipCallUuid, we'd need to track it by sipCallUuid too
-       for (const [key, val] of this.activeSessions.entries()) {
-           if (val.request.callId === callUuid) session = val;
-       }
-    }
+    // Check active dialogs for this requestUuid
+    let dialog = this.activeDialogs.get(callUuid);
 
-    if (session) {
+    if (dialog) {
       try {
-        if (session.state === SessionState.Established) {
-          await session.bye(); // Sends actual SIP BYE
-        } else if (session.state === SessionState.Initial || session.state === SessionState.Establishing) {
-          await session.cancel(); // Sends actual SIP CANCEL
-        }
+        await dialog.destroy(); // Sends actual SIP BYE
       } catch (err) {
-        logger.error(`SipProvider: failed to terminate SIP session ${callUuid}`, { error: err });
+        logger.error(`SipProvider: failed to terminate SIP dialog ${callUuid}`, { error: err });
       }
-      this.activeSessions.delete(callUuid);
+      this.activeDialogs.delete(callUuid);
     } else {
-      logger.warn(`SipProvider: active session not found locally for ${callUuid}. Another instance may own it.`);
+      logger.warn(`SipProvider: active dialog not found locally for ${callUuid}. Call might already be disconnected or still establishing.`);
     }
 
     try {
-      // Find the Call row to update
       const callRows = await prisma.call.findMany({
         where: { OR: [ { id: callUuid }, { telemetryId: callUuid } ] }
       });

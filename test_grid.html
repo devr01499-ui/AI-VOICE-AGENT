@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: #E2E8F0; padding: 50px; }
+  </style>
+</head>
+<body>
+  <div class="grid grid-cols-2 gap-10 max-w-4xl mx-auto">
+    
+    <!-- CARD 01 (L-Shape top-left missing) -->
+    <div class="relative drop-shadow-xl">
+      <!-- Green Box -->
+      <div class="absolute top-0 left-0 w-32 h-32 bg-[#8DB049] rounded-2xl flex flex-col items-center justify-center text-white">
+        <span class="text-5xl font-bold">01</span>
+        <span class="text-[10px] font-bold uppercase tracking-wider mt-1">Step One</span>
+        <div class="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-[#8DB049] rotate-45"></div>
+      </div>
+      
+      <!-- White L-Shape -->
+      <div class="flex flex-col ml-8 mt-8"> <!-- Offset to create the gap -->
+        <!-- Top part of L -->
+        <div class="flex h-24">
+          <div class="w-24 bg-transparent shrink-0"></div> <!-- Gap for green box overlap -->
+          <div class="flex-1 bg-white rounded-tr-3xl flex items-center justify-center relative">
+            <svg class="w-12 h-12 text-[#8DB049]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3l9 9h-3v9h-12v-9h-3l9-9z"/></svg>
+            <div class="absolute top-1/2 -right-2 -translate-y-1/2 w-4 h-4 bg-white rotate-45"></div>
+          </div>
+        </div>
+        <!-- Bottom part of L -->
+        <div class="bg-white rounded-b-3xl rounded-tl-3xl p-8 pt-6 relative">
+          <div class="flex items-center gap-2 mb-3">
+             <div class="w-5 h-5 rounded-full bg-[#8DB049] text-white flex items-center justify-center text-xs font-bold">+</div>
+             <h3 class="text-[#8DB049] font-bold tracking-wider">STEP ONE</h3>
+          </div>
+          <p class="text-xs text-slate-500 leading-relaxed">Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Donec odio. Quisque volutpat mattis eros. Nullam malesuada erat ut turpis.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- CARD 02 (Reversed L-Shape top-right missing) -->
+    <div class="relative drop-shadow-xl">
+      <!-- Green Box -->
+      <div class="absolute top-0 right-0 w-32 h-32 bg-[#8DB049] rounded-2xl flex flex-col items-center justify-center text-white">
+        <span class="text-5xl font-bold">02</span>
+        <span class="text-[10px] font-bold uppercase tracking-wider mt-1">Step Two</span>
+        <div class="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-[#8DB049] rotate-45"></div>
+      </div>
+      
+      <!-- White L-Shape -->
+      <div class="flex flex-col mr-8 mt-8">
+        <!-- Top part of L -->
+        <div class="flex h-24">
+          <div class="flex-1 bg-white rounded-tl-3xl flex items-center justify-center relative">
+            <svg class="w-12 h-12 text-[#8DB049]" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>
+            <div class="absolute bottom-4 -left-2 w-4 h-4 bg-white rotate-45"></div>
+          </div>
+          <div class="w-24 bg-transparent shrink-0"></div>
+        </div>
+        <!-- Bottom part of L -->
+        <div class="bg-white rounded-b-3xl rounded-tr-3xl p-8 pt-6 relative">
+          <div class="flex items-center gap-2 mb-3">
+             <div class="w-5 h-5 rounded-full bg-[#8DB049] text-white flex items-center justify-center text-xs font-bold">+</div>
+             <h3 class="text-[#8DB049] font-bold tracking-wider">STEP TWO</h3>
+          </div>
+          <p class="text-xs text-slate-500 leading-relaxed">Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Donec odio. Quisque volutpat mattis eros. Nullam malesuada erat ut turpis.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

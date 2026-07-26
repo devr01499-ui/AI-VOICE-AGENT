@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  drachtio:
+    image: drachtio/drachtio-server:latest
+    container_name: bolna-drachtio
+    restart: unless-stopped
+    ports:
+      - "${SIP_PORT:-5060}:5060/udp"
+      - "${SIP_PORT:-5060}:5060/tcp"
+      - "9022:9022"
+    environment:
+      - DRACHTIO_SECRET=${DRACHTIO_SECRET:-cymru}
+    # Using entrypoint or command to inject the public IP into contact
+    command: >
+      drachtio --contact "sip:${PUBLIC_IP:-127.0.0.1}:5060;transport=udp,tcp" 
+      --secret "${DRACHTIO_SECRET:-cymru}" 
+      --port 9022 
+      --loglevel info
+    networks:
+      - bolna-network
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: bolna-server
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3001}:${PORT:-3001}"
+    env_file:
+      - ./server/.env
+    environment:
+      - DRACHTIO_HOST=drachtio
+      - DRACHTIO_PORT=9022
+      - DRACHTIO_SECRET=${DRACHTIO_SECRET:-cymru}
+      - PUBLIC_IP=${PUBLIC_IP:-127.0.0.1}
+      - SIP_PORT=${SIP_PORT:-5060}
+      - DATABASE_URL=${DATABASE_URL}
+      - PORT=${PORT:-3001}
+    depends_on:
+      - drachtio
+    networks:
+      - bolna-network
+
+networks:
+  bolna-network:
+    driver: bridge

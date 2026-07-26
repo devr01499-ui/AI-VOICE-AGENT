@@ -29,6 +29,7 @@
     "better-sqlite3": "^12.10.1",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
+    "drachtio-srf": "^5.0.27",
     "express": "^5.1.0",
     "helmet": "^8.1.0",
     "jsdom": "^29.1.1",
