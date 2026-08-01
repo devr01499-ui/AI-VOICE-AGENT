@@ -3663,12 +3663,31 @@ export default function App() {
   const [page, setPage] = useState<Page>(() => {
     if (typeof window !== "undefined") {
       const path = window.location.pathname;
-      if (path === "/pricing") return "pricing";
-      if (path === "/how-it-works") return "how-it-works";
-      if (path === "/industries") return "industries";
+      const pathMap: Record<string, Page> = {
+        "/": "home",
+        "/pricing": "pricing",
+        "/how-it-works": "how-it-works",
+        "/industries": "industries",
+        "/compare/bolna-retell-vapi": "compare",
+        "/dashboard": "dashboard",
+        "/faq": "faq",
+        "/contact": "contact",
+        "/solutions": "solutions",
+        "/voices": "voices",
+        "/docs": "docs",
+        "/privacy": "privacy",
+        "/terms": "terms",
+        "/security": "security",
+        "/voice-ai-index": "voice-ai-index",
+        "/blog": "blog",
+        "/blog/how-to-reduce-cod-rto": "blog-rto",
+        "/blog/healthcare-ai-calling": "blog-healthcare",
+        "/blog/fintech-collections-ai": "blog-fintech",
+      };
+      // Fallback for dynamic compare or blog routes if exact match fails
+      if (pathMap[path]) return pathMap[path];
       if (path.startsWith("/blog/how-to-reduce-cod-rto")) return "blog-rto";
       if (path.startsWith("/compare")) return "compare";
-      if (path === "/dashboard") return "dashboard";
     }
     return "home";
   });
@@ -3678,22 +3697,34 @@ export default function App() {
   useEffect(() => {
     const handleUrlChange = () => {
       const path = window.location.pathname;
-      if (path === "/pricing") {
-        setPage("pricing");
-      } else if (path === "/how-it-works") {
-        setPage("how-it-works");
-      } else if (path === "/industries") {
-        setPage("industries");
+      const pathMap: Record<string, Page> = {
+        "/": "home",
+        "/pricing": "pricing",
+        "/how-it-works": "how-it-works",
+        "/industries": "industries",
+        "/compare/bolna-retell-vapi": "compare",
+        "/dashboard": "dashboard",
+        "/faq": "faq",
+        "/contact": "contact",
+        "/solutions": "solutions",
+        "/voices": "voices",
+        "/docs": "docs",
+        "/privacy": "privacy",
+        "/terms": "terms",
+        "/security": "security",
+        "/voice-ai-index": "voice-ai-index",
+        "/blog": "blog",
+        "/blog/how-to-reduce-cod-rto": "blog-rto",
+        "/blog/healthcare-ai-calling": "blog-healthcare",
+        "/blog/fintech-collections-ai": "blog-fintech",
+      };
+      
+      if (pathMap[path]) {
+        setPage(pathMap[path]);
       } else if (path.startsWith("/blog/how-to-reduce-cod-rto")) {
         setPage("blog-rto");
       } else if (path.startsWith("/compare")) {
         setPage("compare");
-      } else if (path === "/dashboard") {
-        setPage("dashboard");
-      } else if (path === "/faq") {
-        setPage("faq");
-      } else if (path === "/contact") {
-        setPage("contact");
       } else {
         setPage("home");
       }

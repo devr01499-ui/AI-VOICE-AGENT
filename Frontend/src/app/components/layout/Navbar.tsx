@@ -72,7 +72,7 @@ export default function Navbar({ page, setPage }: NavbarProps) {
             <img src="/logo.png" alt="Claritiy Voice" className="h-8 w-auto object-contain" />
             <span className="font-extrabold text-[17px] tracking-tight text-[#0D1117]"
               style={{ fontFamily: "'Clash Display', sans-serif" }}>
-              Claritiy<span className="text-[#059669]">Voice</span>
+              Claritiy <span className="text-[#059669]">Voice</span>
             </span>
           </button>
 

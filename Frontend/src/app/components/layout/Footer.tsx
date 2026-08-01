@@ -33,7 +33,7 @@ export default function Footer({ setPage }: FooterProps) {
           <div className="flex items-center gap-3 h-8">
             <img src="/logo.png" alt="Claritiy Voice Logo" className="h-8 w-auto object-contain" />
             <span className="font-sora text-lg font-extrabold tracking-tight text-[#0F172A]">
-              Claritiy<span className="text-[#059669]">Voice</span>
+              Claritiy <span className="text-[#059669]">Voice</span>
             </span>
           </div>
           <p className="text-xs text-slate-500 max-w-xs leading-relaxed font-plus-jakarta">
