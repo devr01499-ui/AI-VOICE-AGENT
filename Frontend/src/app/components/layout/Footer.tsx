@@ -80,9 +80,9 @@ export default function Footer({ setPage }: FooterProps) {
             {
               heading: "Legal",
               links: [
-                { label: "Privacy Policy", action: () => setPage("privacy") },
-                { label: "Terms of Use", action: () => setPage("terms") },
-                { label: "Security & Standards", action: () => setPage("security") },
+                { label: "Privacy Policy", href: "/privacy", action: () => setPage("privacy") },
+                { label: "Terms of Use", href: "/terms", action: () => setPage("terms") },
+                { label: "Security & Standards", href: "/security", action: () => setPage("security") },
               ]
             },
           ].map((col) => (
@@ -92,13 +92,22 @@ export default function Footer({ setPage }: FooterProps) {
               </p>
               <div className="flex flex-col gap-2.5">
                 {col.links.map((l) => (
-                  <button
+                  <a
                     key={l.label}
-                    onClick={l.action}
+                    href={"href" in l ? l.href : "#"}
+                    onClick={(e) => {
+                      if ("href" in l && l.href?.startsWith("/")) {
+                        e.preventDefault();
+                        window.history.pushState(null, "", l.href);
+                      }
+                      l.action();
+                    }}
+                    target={"href" in l && l.href?.startsWith("http") ? "_blank" : undefined}
+                    rel={"href" in l && l.href?.startsWith("http") ? "noopener noreferrer" : undefined}
                     className="block text-left text-sm text-slate-500 hover:text-[#059669] cursor-pointer transition-colors border-none bg-transparent p-0 w-fit font-semibold"
                   >
                     {l.label}
-                  </button>
+                  </a>
                 ))}
               </div>
             </div>

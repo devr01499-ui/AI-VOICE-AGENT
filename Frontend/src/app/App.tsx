@@ -3738,7 +3738,7 @@ export default function App() {
 
   useEffect(() => {
     const titleMap: Record<Page, string> = {
-      home: "Claritiy Voice — AI Calls That Confirm Every COD Order Before It Ships",
+      home: "Claritiy Voice",
       industries: "Claritiy Voice — AI Calling Solutions for Every Industry",
       pricing: "Claritiy Voice Pricing — ₹3.99/min, No Hidden Fees",
       "how-it-works": "How Claritiy Voice Confirms COD Orders Automatically",
