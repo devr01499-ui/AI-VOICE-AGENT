@@ -1,5 +1,31 @@
 User-agent: *
 Allow: /
-Disallow: /dashboard
+Disallow: /dashboard/
+Disallow: /api/
 
-Sitemap: https://www.claritiy.com/sitemap.xml
+User-agent: PerplexityBot
+Allow: /
+Disallow: /dashboard/
+Disallow: /api/
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /dashboard/
+Disallow: /api/
+
+User-agent: GoogleOther
+Allow: /
+Disallow: /dashboard/
+Disallow: /api/
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /dashboard/
+Disallow: /api/
+
+User-agent: bingbot
+Allow: /
+Disallow: /dashboard/
+Disallow: /api/
+
+Sitemap: https://www.clarity.com/sitemap.xml

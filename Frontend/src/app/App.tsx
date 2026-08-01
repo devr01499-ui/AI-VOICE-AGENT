@@ -3715,6 +3715,16 @@ export default function App() {
       dashboard: "/dashboard",
       faq: "/faq",
       contact: "/contact",
+      solutions: "/solutions",
+      voices: "/voices",
+      blog: "/blog",
+      "blog-healthcare": "/blog/healthcare-ai-calling",
+      "blog-fintech": "/blog/fintech-collections-ai",
+      docs: "/docs",
+      privacy: "/privacy",
+      terms: "/terms",
+      security: "/security",
+      "voice-ai-index": "/voice-ai-index",
     };
     const targetPath = pathMap[p] || "/";
     if (window.location.pathname !== targetPath) {
@@ -3737,6 +3747,16 @@ export default function App() {
       dashboard: "Dashboard — Claritiy Voice",
       faq: "FAQ — Claritiy Voice",
       contact: "Contact Us — Claritiy Voice",
+      solutions: "Solutions — Claritiy Voice",
+      voices: "AI Voices Library — Claritiy Voice",
+      blog: "Blog — Claritiy Voice",
+      "blog-healthcare": "AI Calling in Healthcare — Claritiy Voice",
+      "blog-fintech": "AI Collections for Fintech — Claritiy Voice",
+      docs: "Documentation — Claritiy Voice",
+      privacy: "Privacy Policy — Claritiy Voice",
+      terms: "Terms of Service — Claritiy Voice",
+      security: "Security — Claritiy Voice",
+      "voice-ai-index": "Voice AI Index — Claritiy Voice",
     };
 
     const descMap: Record<Page, string> = {
@@ -3749,6 +3769,16 @@ export default function App() {
       dashboard: "Manage your AI voice agents and view call analytics.",
       faq: "Frequently asked questions about Claritiy Voice.",
       contact: "Get in touch with the Claritiy Voice team.",
+      solutions: "Explore how Claritiy Voice's AI agents can automate calls for your specific use cases.",
+      voices: "Listen to our library of ultra-realistic AI voices in multiple languages and accents.",
+      blog: "Insights and updates on voice AI, order confirmation, and customer engagement.",
+      "blog-healthcare": "How AI voice agents are transforming patient outreach and appointment scheduling.",
+      "blog-fintech": "Automating payment reminders and collections with conversational AI.",
+      docs: "API documentation and guides for integrating Claritiy Voice.",
+      privacy: "Read our privacy policy to understand how we protect your data.",
+      terms: "Terms of service for using the Claritiy Voice platform.",
+      security: "Learn about our enterprise-grade security and compliance measures.",
+      "voice-ai-index": "The complete index of voice AI capabilities and benchmarks.",
     };
 
     const pathMap: Record<Page, string> = {
@@ -3761,6 +3791,16 @@ export default function App() {
       dashboard: "dashboard",
       faq: "faq",
       contact: "contact",
+      solutions: "solutions",
+      voices: "voices",
+      blog: "blog",
+      "blog-healthcare": "blog/healthcare-ai-calling",
+      "blog-fintech": "blog/fintech-collections-ai",
+      docs: "docs",
+      privacy: "privacy",
+      terms: "terms",
+      security: "security",
+      "voice-ai-index": "voice-ai-index",
     };
 
     document.title = titleMap[page] || "Claritiy Voice";
