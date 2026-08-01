@@ -63,17 +63,17 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* CARD 1: Persona & Instructions */}
-      <div className="bg-white border border-border rounded-xl p-5 space-y-4 shadow-sm flex flex-col justify-between">
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-muted rounded-lg">
-              <MessageSquare className="w-4 h-4 text-foreground" />
+      <div className="nm-card flex flex-col justify-between h-full">
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 nm-pressed rounded-xl flex items-center justify-center">
+              <MessageSquare className="w-5 h-5 text-[var(--nm-accent)]" />
             </div>
-            <p className="text-sm font-semibold" style={{ fontFamily: "'Figtree', sans-serif" }}>
+            <p className="text-base font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Figtree', sans-serif" }}>
               Agent Instructions & Persona
             </p>
           </div>
-          <p className="text-xs text-muted-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
+          <p className="text-sm font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Figtree', sans-serif" }}>
             Define how the agent greets callers, answers questions, handles intent, and completes calls.
           </p>
           <textarea
@@ -84,29 +84,29 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
               triggerDebouncedSave({ systemPrompt: e.target.value });
             }}
             placeholder="You are a professional voice AI assistant..."
-            className="w-full p-3 border border-border rounded-xl text-xs bg-white focus:outline-none resize-none"
+            className="nm-input w-full p-5 text-sm resize-none h-64"
             style={{ fontFamily: "'Figtree', sans-serif" }}
           />
         </div>
-        <p className="text-[10px] text-muted-foreground italic mt-2" style={{ fontFamily: "'Figtree', sans-serif" }}>
+        <p className="text-[11px] font-bold text-[var(--nm-text)] italic mt-4" style={{ fontFamily: "'Figtree', sans-serif" }}>
           * Changes apply instantly to the next incoming/outbound call stream session.
         </p>
       </div>
 
       {/* CARD 2: LLM Configuration parameters */}
-      <div className="bg-white border border-border rounded-xl p-5 space-y-5 shadow-sm">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-muted rounded-lg">
-            <Sliders className="w-4 h-4 text-foreground" />
+      <div className="nm-card space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 nm-pressed rounded-xl flex items-center justify-center">
+            <Sliders className="w-5 h-5 text-[var(--nm-accent)]" />
           </div>
-          <p className="text-sm font-semibold" style={{ fontFamily: "'Figtree', sans-serif" }}>
+          <p className="text-base font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Figtree', sans-serif" }}>
             LLM & Voice Parameters
           </p>
         </div>
 
         {/* Voice dropdown selector */}
-        <div className="space-y-2">
-          <label className="text-[10px] font-semibold text-muted-foreground block" style={{ fontFamily: "'DM Mono', monospace" }}>
+        <div className="space-y-3">
+          <label className="text-xs font-bold text-[var(--nm-text)] block" style={{ fontFamily: "'DM Mono', monospace" }}>
             SYSTEM NATIVE VOICE PROFILE
           </label>
           <div className="relative">
@@ -116,7 +116,7 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
                 setVoice(e.target.value);
                 triggerDebouncedSave({ systemVoice: e.target.value, voice: e.target.value });
               }}
-              className="w-full px-3 py-2 border border-border rounded-lg text-xs bg-white focus:outline-none"
+              className="nm-input w-full px-5 py-3 text-sm focus:outline-none"
               style={{ fontFamily: "'Figtree', sans-serif" }}
             >
               {/* All 30 Gemini built-in voices — single select, one voice per agent */}
@@ -155,8 +155,8 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
         </div>
 
         {/* Language Mode dropdown selector */}
-        <div className="space-y-2">
-          <label className="text-[10px] font-semibold text-muted-foreground block" style={{ fontFamily: "'DM Mono', monospace" }}>
+        <div className="space-y-3">
+          <label className="text-xs font-bold text-[var(--nm-text)] block" style={{ fontFamily: "'DM Mono', monospace" }}>
             CONVERSATIONAL LANGUAGE MODE
           </label>
           <div className="relative">
@@ -166,7 +166,7 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
                 setLanguageMode(e.target.value);
                 triggerDebouncedSave({ languageMode: e.target.value });
               }}
-              className="w-full px-3 py-2 border border-border rounded-lg text-xs bg-white focus:outline-none"
+              className="nm-input w-full px-5 py-3 text-sm focus:outline-none"
               style={{ fontFamily: "'Figtree', sans-serif" }}
             >
               <option value="auto">Auto-detect (multilingual)</option>
@@ -183,12 +183,12 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
         </div>
 
         {/* Temperature slider */}
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div className="flex justify-between items-center">
-            <label className="text-[10px] font-semibold text-muted-foreground" style={{ fontFamily: "'DM Mono', monospace" }}>
+            <label className="text-xs font-bold text-[var(--nm-text)]" style={{ fontFamily: "'DM Mono', monospace" }}>
               CREATIVE TEMPERATURE
             </label>
-            <span className="text-xs font-semibold text-foreground px-2 py-0.5 bg-muted rounded-md" style={{ fontFamily: "'DM Mono', monospace" }}>
+            <span className="text-sm font-bold text-[var(--nm-text)] px-3 py-1 nm-raised rounded-lg" style={{ fontFamily: "'DM Mono', monospace" }}>
               {temp.toFixed(2)}
             </span>
           </div>
@@ -203,20 +203,20 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
               setTemp(val);
               triggerDebouncedSave({ temperature: val });
             }}
-            className="w-full accent-foreground cursor-pointer h-1 bg-muted rounded-lg appearance-none"
+            className="w-full accent-[var(--nm-accent)] cursor-pointer"
           />
-          <div className="flex justify-between text-[10px] text-muted-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
+          <div className="flex justify-between text-xs font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Figtree', sans-serif" }}>
             <span>Factual (0.0)</span>
             <span>Creative (1.0)</span>
           </div>
         </div>
 
-        <div className="pt-2 border-t border-border space-y-3">
-          <p className="text-[10px] font-semibold text-muted-foreground" style={{ fontFamily: "'DM Mono', monospace" }}>
+        <div className="pt-6 border-t border-transparent space-y-4">
+          <p className="text-xs font-bold text-[var(--nm-text)]" style={{ fontFamily: "'DM Mono', monospace" }}>
             ACTIVE MODEL
           </p>
-          <div className="flex items-center gap-2 text-xs font-semibold p-2.5 bg-muted/40 border border-border rounded-lg">
-            <Sparkles className="w-4 h-4 text-foreground" />
+          <div className="flex items-center gap-3 text-sm font-bold p-4 nm-pressed rounded-xl text-[var(--nm-text)]">
+            <Sparkles className="w-5 h-5 text-[var(--nm-accent)]" />
             <span>Gemini 2.5 Flash Native Multimodal Audio</span>
           </div>
         </div>

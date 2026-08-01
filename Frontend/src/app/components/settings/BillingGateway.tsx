@@ -69,32 +69,32 @@ export default function BillingGateway() {
       </div>
 
       {successMsg && (
-        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-xl text-xs font-semibold">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+        <div className="flex items-center gap-3 nm-pressed text-[var(--nm-accent)] px-4 py-3 rounded-xl text-sm font-bold">
+          <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
           {successMsg}
         </div>
       )}
 
       {errorMsg && (
-        <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-xs font-semibold">
-          <ShieldAlert className="w-4 h-4 text-red-600 flex-shrink-0" />
+        <div className="flex items-center gap-3 nm-pressed text-red-500 px-4 py-3 rounded-xl text-sm font-bold">
+          <ShieldAlert className="w-5 h-5 flex-shrink-0" />
           {errorMsg}
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* CARD 1: BYOK */}
-        <div className="bg-white border border-border rounded-xl p-6 shadow-sm flex flex-col justify-between">
+        <div className="nm-card p-6 flex flex-col justify-between">
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-muted rounded-lg">
-                <Key className="w-5 h-5 text-foreground" />
+            <div className="flex items-center gap-4">
+              <div className="p-3 nm-pressed rounded-xl">
+                <Key className="w-6 h-6 text-[var(--nm-text)]" />
               </div>
               <div>
-                <p className="text-sm font-semibold" style={{ fontFamily: "'Figtree', sans-serif" }}>
+                <p className="text-base font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Figtree', sans-serif" }}>
                   Option A: Bring Your Own Key (BYOK)
                 </p>
-                <p className="text-xs text-muted-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
+                <p className="text-sm font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Figtree', sans-serif" }}>
                   Direct connections. Completely cost-free to platform balance.
                 </p>
               </div>
@@ -102,7 +102,7 @@ export default function BillingGateway() {
 
             <form onSubmit={handleSaveKey} className="space-y-3">
               <div>
-                <label className="text-[10px] font-semibold text-muted-foreground block mb-1.5" style={{ fontFamily: "'DM Mono', monospace" }}>
+                <label className="text-xs font-bold text-[var(--nm-text)] block mb-2 uppercase" style={{ fontFamily: "'DM Mono', monospace" }}>
                   GOOGLE GEMINI LIVE API KEY
                 </label>
                 <div className="relative">
@@ -111,13 +111,13 @@ export default function BillingGateway() {
                     value={geminiKey}
                     onChange={(e) => setGeminiKey(e.target.value)}
                     placeholder="AIzaSy..."
-                    className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-white focus:outline-none pr-16"
+                    className="w-full px-4 py-3 nm-input rounded-xl text-sm focus:outline-none pr-16 font-bold text-[var(--nm-text)]"
                     style={{ fontFamily: obscureKey ? "password" : "'DM Mono', monospace" }}
                   />
                   <button
                     type="button"
                     onClick={() => setObscureKey(!obscureKey)}
-                    className="absolute right-3 top-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
+                    className="absolute right-4 top-3 text-sm font-bold text-[var(--nm-text)] hover:text-[var(--nm-accent)]"
                     style={{ fontFamily: "'Figtree', sans-serif" }}
                   >
                     {obscureKey ? "Show" : "Hide"}
@@ -128,7 +128,7 @@ export default function BillingGateway() {
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full bg-foreground text-background text-xs font-semibold py-2 rounded-lg hover:bg-foreground/90 transition-all active:scale-98 disabled:opacity-50"
+                className="w-full nm-button nm-state-success text-sm font-bold py-3 rounded-xl transition-all active:scale-95 disabled:opacity-50"
                 style={{ fontFamily: "'Figtree', sans-serif" }}
               >
                 {saving ? "Saving Custom Key..." : "Save Custom Key"}
@@ -138,37 +138,37 @@ export default function BillingGateway() {
         </div>
 
         {/* CARD 2: Platform Account Balance */}
-        <div className="bg-white border border-border rounded-xl p-6 shadow-sm flex flex-col justify-between">
+        <div className="nm-card p-6 flex flex-col justify-between">
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-muted rounded-lg">
-                <CreditCard className="w-5 h-5 text-foreground" />
+            <div className="flex items-center gap-4">
+              <div className="p-3 nm-pressed rounded-xl">
+                <CreditCard className="w-6 h-6 text-[var(--nm-text)]" />
               </div>
               <div>
-                <p className="text-sm font-semibold" style={{ fontFamily: "'Figtree', sans-serif" }}>
+                <p className="text-base font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Figtree', sans-serif" }}>
                   Option B: Platform Balance
                 </p>
-                <p className="text-xs text-muted-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
+                <p className="text-sm font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Figtree', sans-serif" }}>
                   Uses Claritiy Voice shared keys. Subtracts balance minutes.
                 </p>
               </div>
             </div>
 
-            <div className="bg-muted/30 border border-border rounded-xl p-4 text-center">
-              <p className="text-[10px] font-semibold text-muted-foreground mb-1" style={{ fontFamily: "'DM Mono', monospace" }}>
+            <div className="nm-pressed rounded-2xl p-6 text-center">
+              <p className="text-xs font-bold text-[var(--nm-text)] mb-2 uppercase tracking-wider" style={{ fontFamily: "'DM Mono', monospace" }}>
                 ACCOUNT BALANCE
               </p>
-              <p className="text-3xl font-bold tracking-tight" style={{ fontFamily: "'Instrument Serif', serif" }}>
+              <p className="text-4xl font-bold tracking-tight text-[var(--nm-text)]" style={{ fontFamily: "'Instrument Serif', serif" }}>
                 {balance !== null ? `${balance.toFixed(1)} Minutes` : "0.0 Minutes"}
               </p>
-              <p className="text-[10px] text-muted-foreground mt-1" style={{ fontFamily: "'Figtree', sans-serif" }}>
+              <p className="text-sm font-bold text-[var(--nm-text)] mt-2" style={{ fontFamily: "'Figtree', sans-serif" }}>
                 Remaining allowed platform minutes
               </p>
             </div>
 
             <button
               disabled
-              className="w-full bg-muted text-muted-foreground text-xs font-semibold py-2 rounded-lg cursor-not-allowed border border-border"
+              className="w-full nm-raised text-sm font-bold py-3 rounded-xl cursor-not-allowed text-[var(--nm-text)] opacity-50"
               style={{ fontFamily: "'Figtree', sans-serif" }}
             >
               Purchase Calling Credits (Stripe Launching Soon)

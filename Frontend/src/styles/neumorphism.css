@@ -1,0 +1,340 @@
+/* Neumorphism Design System for Dashboard */
+
+:root {
+  --nm-bg: #E6E7EB;
+  --nm-text: #6B6E76;
+  --nm-accent: #F2857A;
+  
+  /* High contrast state colors */
+  --nm-error: #EF4444; 
+  --nm-warning: #D97706; 
+  --nm-disabled: #A3A6AD;
+  --nm-disabled-bg: #D1D5DB; 
+  
+  /* Shadows */
+  --nm-shadow-raised: 6px 6px 12px rgba(163,166,173,0.5), -6px -6px 12px rgba(255,255,255,0.9);
+  --nm-shadow-pressed: inset 4px 4px 8px rgba(163,166,173,0.5), inset -4px -4px 8px rgba(255,255,255,0.8);
+  
+  --nm-radius-btn: 14px;
+  --nm-radius-card: 20px;
+  --nm-radius-pill: 999px;
+  --nm-radius-circle: 50%;
+}
+
+/* Base utility classes */
+.nm-dashboard-container {
+  background-color: var(--nm-bg);
+  color: var(--nm-text);
+  min-height: 100vh;
+}
+
+/* Raised components */
+.nm-raised {
+  background-color: var(--nm-bg);
+  box-shadow: var(--nm-shadow-raised);
+}
+
+.nm-pressed {
+  background-color: var(--nm-bg);
+  box-shadow: var(--nm-shadow-pressed);
+}
+
+/* Buttons */
+.nm-button {
+  background-color: var(--nm-bg);
+  color: var(--nm-text);
+  box-shadow: var(--nm-shadow-raised);
+  border-radius: var(--nm-radius-btn);
+  padding: 10px 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.nm-button:hover {
+  color: var(--nm-accent);
+}
+
+.nm-button:active, .nm-button.active {
+  box-shadow: var(--nm-shadow-pressed);
+  color: var(--nm-accent);
+}
+
+.nm-button-primary {
+  background-color: var(--nm-accent);
+  color: white;
+  box-shadow: 6px 6px 12px rgba(242,133,122,0.4), -6px -6px 12px rgba(255,255,255,0.9);
+}
+
+.nm-button-primary:active {
+  box-shadow: inset 4px 4px 8px rgba(200,90,80,0.4), inset -4px -4px 8px rgba(255,180,180,0.8);
+}
+
+/* Inputs / Search bar */
+.nm-input {
+  background-color: var(--nm-bg);
+  color: var(--nm-text);
+  box-shadow: var(--nm-shadow-pressed);
+  border-radius: var(--nm-radius-btn);
+  padding: 12px 20px;
+  border: none;
+  outline: none;
+  width: 100%;
+}
+
+.nm-input::placeholder {
+  color: var(--nm-disabled);
+}
+
+.nm-input:focus {
+  box-shadow: var(--nm-shadow-pressed), 0 0 0 1px rgba(242,133,122,0.5);
+}
+
+/* Cards */
+.nm-card {
+  background-color: var(--nm-bg);
+  box-shadow: var(--nm-shadow-raised);
+  border-radius: var(--nm-radius-card);
+  padding: 24px;
+}
+
+/* Pill / Action buttons */
+.nm-pill {
+  background-color: var(--nm-bg);
+  color: var(--nm-text);
+  box-shadow: var(--nm-shadow-raised);
+  border-radius: var(--nm-radius-pill);
+  padding: 8px 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.nm-pill:active, .nm-pill.active {
+  box-shadow: var(--nm-shadow-pressed);
+  color: var(--nm-accent);
+}
+
+/* Circle Icon Buttons (Prev/Next/Play) */
+.nm-icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--nm-radius-circle);
+  background-color: var(--nm-bg);
+  color: var(--nm-text);
+  box-shadow: var(--nm-shadow-raised);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.nm-icon-btn:active, .nm-icon-btn.active {
+  box-shadow: var(--nm-shadow-pressed);
+  color: var(--nm-accent);
+}
+
+/* Toggle Switch */
+.nm-toggle-track {
+  width: 48px;
+  height: 24px;
+  border-radius: var(--nm-radius-pill);
+  background-color: var(--nm-bg);
+  box-shadow: var(--nm-shadow-pressed);
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.nm-toggle-track.on {
+  background-color: var(--nm-accent);
+  box-shadow: inset 4px 4px 8px rgba(0,0,0,0.1), inset -4px -4px 8px rgba(255,255,255,0.3);
+}
+
+.nm-toggle-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--nm-radius-circle);
+  background-color: var(--nm-bg);
+  box-shadow: var(--nm-shadow-raised);
+  position: absolute;
+  left: 2px;
+  transition: all 0.3s ease;
+}
+
+.nm-toggle-track.on .nm-toggle-thumb {
+  left: calc(100% - 22px);
+  background-color: white;
+  box-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Radio & Checkbox */
+.nm-radio, .nm-checkbox {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--nm-radius-circle);
+  background-color: var(--nm-bg);
+  box-shadow: var(--nm-shadow-raised);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.nm-checkbox {
+  border-radius: 6px;
+}
+
+.nm-radio.checked, .nm-checkbox.checked {
+  box-shadow: var(--nm-shadow-pressed);
+}
+
+.nm-radio.checked::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--nm-accent);
+}
+
+.nm-checkbox.checked::after {
+  content: '✓';
+  color: var(--nm-accent);
+  font-size: 14px;
+  font-weight: bold;
+}
+
+/* Tooltip / Speech bubble */
+.nm-tooltip {
+  background-color: var(--nm-bg);
+  box-shadow: var(--nm-shadow-raised);
+  border-radius: var(--nm-radius-btn);
+  padding: 8px 12px;
+  position: relative;
+  color: var(--nm-text);
+  font-size: 14px;
+}
+
+.nm-tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 12px;
+  height: 12px;
+  background-color: var(--nm-bg);
+  box-shadow: 4px 4px 6px rgba(163,166,173,0.3);
+}
+
+/* Dropdown */
+.nm-dropdown-btn {
+  background-color: var(--nm-bg);
+  color: var(--nm-text);
+  box-shadow: var(--nm-shadow-raised);
+  border-radius: var(--nm-radius-pill);
+  padding: 10px 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  border: none;
+}
+
+.nm-dropdown-menu {
+  background-color: var(--nm-bg);
+  box-shadow: var(--nm-shadow-raised);
+  border-radius: var(--nm-radius-card);
+  padding: 8px;
+  margin-top: 8px;
+}
+
+.nm-dropdown-item {
+  background-color: var(--nm-bg);
+  box-shadow: var(--nm-shadow-raised);
+  border-radius: var(--nm-radius-btn);
+  padding: 8px 16px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.nm-dropdown-item:last-child {
+  margin-bottom: 0;
+}
+.nm-dropdown-item:hover {
+  color: var(--nm-accent);
+}
+
+/* Progress / Slider */
+.nm-slider-track {
+  width: 100%;
+  height: 8px;
+  background-color: var(--nm-bg);
+  box-shadow: var(--nm-shadow-pressed);
+  border-radius: var(--nm-radius-pill);
+  position: relative;
+}
+
+.nm-slider-fill {
+  height: 100%;
+  background-color: var(--nm-accent);
+  border-radius: var(--nm-radius-pill);
+}
+
+.nm-slider-thumb {
+  width: 20px;
+  height: 20px;
+  background-color: var(--nm-bg);
+  box-shadow: var(--nm-shadow-raised);
+  border-radius: var(--nm-radius-circle);
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+}
+
+/* Progress indicator */
+.nm-progress-ring {
+  border-radius: 50%;
+  background: conic-gradient(var(--nm-accent) var(--progress, 0%), transparent 0);
+  position: relative;
+}
+.nm-progress-ring::before {
+  content: '';
+  position: absolute;
+  inset: 4px; /* inner cutout */
+  background-color: var(--nm-bg);
+  border-radius: 50%;
+  box-shadow: var(--nm-shadow-raised); /* gives it depth */
+}
+
+/* High contrast states */
+.nm-state-error {
+  color: var(--nm-error) !important;
+  border: 1px solid rgba(239, 68, 68, 0.4) !important;
+  box-shadow: 6px 6px 12px rgba(163,166,173,0.5), -6px -6px 12px rgba(255,255,255,0.9), inset 0 0 4px rgba(239,68,68,0.2) !important;
+}
+
+.nm-state-warning {
+  color: var(--nm-warning) !important;
+  border: 1px solid rgba(217, 119, 6, 0.4) !important;
+  box-shadow: 6px 6px 12px rgba(163,166,173,0.5), -6px -6px 12px rgba(255,255,255,0.9), inset 0 0 4px rgba(217,119,6,0.2) !important;
+}
+
+.nm-state-disabled {
+  opacity: 0.7;
+  pointer-events: none;
+}

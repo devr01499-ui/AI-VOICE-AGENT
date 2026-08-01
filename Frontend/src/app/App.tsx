@@ -641,13 +641,13 @@ function DModal({ open, onClose, title, children, width="max-w-lg" }: { open:boo
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-forest-deep/40 backdrop-blur-sm" onClick={onClose}/>
-      <motion.div initial={{opacity:0,scale:0.96,y:10}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:0.96}} transition={{duration:0.18}} className={`relative bg-surface-white rounded-[32px] border border-border-soft shadow-level-4 w-full ${width} max-h-[90vh] overflow-y-auto`}>
-        <div className="flex items-center justify-between px-8 py-6 border-b border-border-soft sticky top-0 bg-surface-white z-10 rounded-t-[32px]">
-          <p className="font-semibold text-ink text-lg" style={{fontFamily:"'Clash Display',sans-serif"}}>{title}</p>
-          <button onClick={onClose} className="p-2 hover:bg-cream-bg rounded-full transition-colors"><X className="w-5 h-5 text-ink-muted"/></button>
+      <div className="absolute inset-0 bg-black/10 backdrop-blur-md" onClick={onClose}/>
+      <motion.div initial={{opacity:0,scale:0.96,y:10}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:0.96}} transition={{duration:0.18}} className={`relative rounded-[32px] w-full ${width} max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border-[3px] border-white`} style={{backgroundColor: 'var(--nm-bg)'}}>
+        <div className="flex items-center justify-between px-8 py-6 sticky top-0 z-10">
+          <p className="font-bold text-[var(--nm-text)] text-xl" style={{fontFamily:"'Clash Display',sans-serif"}}>{title}</p>
+          <button onClick={onClose} className="p-3 nm-raised hover:nm-pressed rounded-full transition-all text-[var(--nm-text)]"><X className="w-5 h-5"/></button>
         </div>
-        <div className="p-8">{children}</div>
+        <div className="p-8 overflow-y-auto">{children}</div>
       </motion.div>
     </div>
   );
@@ -755,10 +755,10 @@ function DashOverview() {
         {stats.map(s=>{
           const Icon=s.icon;
           return (
-            <div key={s.label} className="bg-white border border-border rounded-xl p-4">
-              <div className="flex justify-between items-center mb-3"><span className="text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{s.label.toUpperCase()}</span><Icon className="w-4 h-4 text-muted-foreground" strokeWidth={1.5}/></div>
-              <p className="text-2xl font-bold text-foreground mb-1" style={{fontFamily:"'Instrument Serif',serif"}}>{s.value}</p>
-              <p className={`text-xs flex items-center gap-1 ${s.live?"text-emerald-600":"text-muted-foreground"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{s.live&&<span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"/>}{s.delta}</p>
+            <div key={s.label} className="nm-card p-5">
+              <div className="flex justify-between items-center mb-3"><span className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{s.label.toUpperCase()}</span><Icon className="w-4 h-4 text-[var(--nm-text)]" strokeWidth={1.5}/></div>
+              <p className="text-3xl font-bold text-[var(--nm-text)] mb-1" style={{fontFamily:"'Instrument Serif',serif"}}>{s.value}</p>
+              <p className={`text-xs flex items-center gap-2 ${s.live?"text-[var(--nm-accent)]":"text-[var(--nm-text)]"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{s.live&&<span className="w-2 h-2 bg-[var(--nm-accent)] rounded-full animate-pulse"/>}{s.delta}</p>
             </div>
           );
         })}
@@ -766,70 +766,70 @@ function DashOverview() {
 
       <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">
         {apiAgents.map(a=>(
-          <div key={a.id} className="bg-white border border-border rounded-xl px-3 py-2.5 flex items-center gap-2">
-            <SDot status={a.status}/><div className="min-w-0"><p className="text-xs font-medium text-foreground truncate" style={{fontFamily:"'Figtree',sans-serif"}}>{a.name}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>Active agent</p></div>
+          <div key={a.id} className="nm-raised rounded-xl px-4 py-3 flex items-center gap-3">
+            <SDot status={a.status}/><div className="min-w-0"><p className="text-sm font-bold text-[var(--nm-text)] truncate" style={{fontFamily:"'Figtree',sans-serif"}}>{a.name}</p><p className="text-xs text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>Active agent</p></div>
           </div>
         ))}
         {apiAgents.length === 0 && (
-          <div className="col-span-full bg-white border border-border rounded-xl p-6 text-center text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>
+          <div className="col-span-full nm-pressed rounded-xl p-6 text-center text-sm text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>
             You haven't created any agents yet. Go to the Agents tab to create one.
           </div>
         )}
       </div>
 
-      <div className="bg-white border border-border rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-border flex items-center gap-2">
-          <SDot status={liveCalls.length > 0 ? "active" : "inactive"}/><p className="text-sm font-semibold text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Live calls</p><DBadge>{liveCalls.length}</DBadge>
+      <div className="nm-raised rounded-2xl overflow-hidden mt-6">
+        <div className="px-5 py-4 border-b border-transparent flex items-center gap-3">
+          <SDot status={liveCalls.length > 0 ? "active" : "inactive"}/><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Live calls</p><DBadge>{liveCalls.length}</DBadge>
         </div>
-        <div className="divide-y divide-border">
+        <div className="divide-y divide-transparent">
           {liveCalls.map(c=>(
-            <div key={c.name} className="px-4 py-3 flex items-center gap-3 hover:bg-muted/20 transition-colors">
-              <div className="w-7 h-7 bg-muted rounded-full flex items-center justify-center flex-shrink-0"><span className="text-xs font-bold text-muted-foreground">{c.name[0]}</span></div>
-              <div className="flex-1 min-w-0"><p className="text-sm font-medium text-foreground truncate" style={{fontFamily:"'Figtree',sans-serif"}}>{c.name}</p><p className="text-xs text-muted-foreground truncate" style={{fontFamily:"'Figtree',sans-serif"}}>{c.agent}</p></div>
-              <span className="hidden md:block text-xs border border-border rounded px-2 py-0.5" style={{fontFamily:"'Figtree',sans-serif"}}>{c.intent}</span>
-              <span className={`hidden lg:block text-xs font-medium ${c.sent==="Positive"?"text-emerald-600":c.sent==="Negative"?"text-red-500":"text-muted-foreground"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{c.sent}</span>
-              <span className="text-xs flex-shrink-0 text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{c.dur}</span>
-              <div className="w-10 hidden sm:flex text-muted-foreground"><MiniWave bars={8}/></div>
+            <div className="px-5 py-4 flex items-center gap-4 hover:nm-pressed transition-all cursor-pointer border-b border-transparent">
+              <div className="w-10 h-10 nm-pressed rounded-full flex items-center justify-center flex-shrink-0"><span className="text-sm font-bold text-[var(--nm-accent)]">{c.name[0]}</span></div>
+              <div className="flex-1 min-w-0"><p className="text-base font-bold text-[var(--nm-text)] truncate" style={{fontFamily:"'Figtree',sans-serif"}}>{c.name}</p><p className="text-xs text-[var(--nm-text)] truncate" style={{fontFamily:"'Figtree',sans-serif"}}>{c.agent}</p></div>
+              <span className="hidden md:block text-xs nm-raised rounded-full px-3 py-1 font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{c.intent}</span>
+              <span className={`hidden lg:block text-xs font-bold ${c.sent==="Positive"?"text-[var(--nm-accent)]":c.sent==="Negative"?"nm-state-error":"text-[var(--nm-text)]"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{c.sent}</span>
+              <span className="text-sm font-bold flex-shrink-0 text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{c.dur}</span>
+              <div className="w-12 hidden sm:flex text-[var(--nm-accent)]"><MiniWave bars={8}/></div>
             </div>
           ))}
           {liveCalls.length === 0 && (
-            <div className="p-6 text-center text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>
+            <div className="p-8 text-center text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>
               No live calls active at the moment.
             </div>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <div className="bg-white border border-border rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-border"><p className="text-sm font-semibold text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Recent completed</p></div>
-          <div className="divide-y divide-border">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
+        <div className="nm-raised rounded-2xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-transparent"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Recent completed</p></div>
+          <div className="divide-y divide-transparent">
             {recent.map(c=>(
-              <div key={c.name} className="px-4 py-2.5 flex items-center gap-3 hover:bg-muted/20 transition-colors">
-                <div className="flex-1 min-w-0"><p className="text-sm font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{c.name}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{c.intent} · {c.dur}</p></div>
+              <div key={c.name} className="px-5 py-3.5 flex items-center gap-4 hover:nm-pressed transition-all cursor-pointer">
+                <div className="flex-1 min-w-0"><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{c.name}</p><p className="text-xs text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{c.intent} • {c.dur}</p></div>
                 <DBadge v={c.result==="Resolved"?"success":"error"}>{c.result}</DBadge>
-                <span className="text-xs text-muted-foreground hidden sm:block" style={{fontFamily:"'DM Mono',monospace"}}>{c.ago}</span>
+                <span className="text-xs font-bold text-[var(--nm-text)] hidden sm:block" style={{fontFamily:"'DM Mono',monospace"}}>{c.ago}</span>
               </div>
             ))}
             {recent.length === 0 && (
-              <div className="p-6 text-center text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>
+              <div className="p-8 text-center text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>
                 No recent calls completed yet.
               </div>
             )}
           </div>
         </div>
-        <div className="bg-white border border-border rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-border"><p className="text-sm font-semibold text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Active batch campaigns</p></div>
-          <div className="p-4 space-y-4">
+        <div className="nm-raised rounded-2xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-transparent"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Active batch campaigns</p></div>
+          <div className="p-5 space-y-5">
             {campaigns.filter(c=>c.status==="running"||c.status==="paused").map(c=>(
               <div key={c.id}>
-                <div className="flex items-center justify-between mb-1.5"><p className="text-sm font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{c.name}</p><DBadge v={c.status==="running"?"success":"warning"}>{c.status}</DBadge></div>
-                <DProg v={c.called} max={c.total} className="mb-1"/>
-                <p className="text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{c.called.toLocaleString()} / {c.total.toLocaleString()} called · {c.connected.toLocaleString()} connected</p>
+                <div className="flex items-center justify-between mb-2.5"><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{c.name}</p><DBadge v={c.status==="running"?"success":"warning"}>{c.status}</DBadge></div>
+                <div className="nm-slider-track mb-2"><div className="nm-slider-fill" style={{width: `${(c.called/c.total)*100}%`}}></div></div>
+                <p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{c.called.toLocaleString()} / {c.total.toLocaleString()} called • {c.connected.toLocaleString()} connected</p>
               </div>
             ))}
             {campaigns.filter(c=>c.status==="running"||c.status==="paused").length === 0 && (
-              <div className="text-center py-6 text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>
+              <div className="text-center py-8 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>
                 No active campaigns. Go to the Batch Calls tab to launch one.
               </div>
             )}
@@ -1356,20 +1356,20 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
   const filtered = filter==="all" ? agents : agents.filter(a=>a.type===filter);
 
   if (view==="detail" && selected) return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <DBtn variant="ghost" size="sm" onClick={()=>{setView("list");setSelected(null);}}><ChevronLeft className="w-4 h-4"/> Back</DBtn>
-          <div><p className="text-sm font-semibold text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{selected.name as string}</p><div className="flex items-center gap-2 mt-0.5"><SDot status={selected.status as string}/><DBadge>{selected.type==="prompt"?"Prompt-based":"Conversational"}</DBadge></div></div>
+          <div><p className="text-xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{selected.name as string}</p><div className="flex items-center gap-2 mt-1"><SDot status={selected.status as string}/><DBadge>{selected.type==="prompt"?"Prompt-based":"Conversational"}</DBadge></div></div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           <DBtn variant="secondary" size="sm" onClick={handleTestCall} disabled={testCallStatus==='calling'}><PlayCircle className="w-3.5 h-3.5"/> {testCallStatus==='calling'?'Calling…':testCallStatus==='done'?'Called!':testCallStatus==='error'?'Failed':'Test call'}</DBtn>
           <DBtn size="sm" onClick={handleSaveAgent} disabled={saveStatus==='saving'}><Check className="w-3.5 h-3.5"/> {saveStatus==='saving'?'Saving…':saveStatus==='done'?'Saved!':saveStatus==='error'?'Error':'Save'}</DBtn>
         </div>
       </div>
-      <div className="flex gap-1 border-b border-border">
+      <div className="flex gap-3 pb-2 border-b border-transparent">
         {(["config","prompt","knowledge","calls"] as const).map(t=>(
-          <button key={t} onClick={()=>setDetailTab(t)} className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${detailTab===t?"border-foreground text-foreground":"border-transparent text-muted-foreground hover:text-foreground"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{t==="prompt"?(selected.type==="prompt"?"System Prompt":"Conv. Flow"):t==="knowledge"?"Knowledge Base":t==="calls"?"Recent Calls":"Configuration"}</button>
+          <button key={t} onClick={()=>setDetailTab(t)} className={`px-5 py-2.5 text-sm font-bold rounded-full transition-all ${detailTab===t?"nm-pressed text-[var(--nm-accent)]":"nm-raised text-[var(--nm-text)] hover:nm-pressed"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{t==="prompt"?(selected.type==="prompt"?"System Prompt":"Conv. Flow"):t==="knowledge"?"Knowledge Base":t==="calls"?"Recent Calls":"Configuration"}</button>
         ))}
       </div>
       {detailTab==="config" && (
@@ -1380,23 +1380,23 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
         />
       )}
       {detailTab==="prompt" && (
-        <div className="bg-white border border-border rounded-xl p-5 space-y-3">
+        <div className="nm-card space-y-4">
           <DTextarea rows={16} defaultValue={selected.type==="prompt"?`You are a professional AI voice agent for Acme Corp specialising in ${(selected.name as string).toLowerCase()}.\n\nPersona:\n- Warm, clear, professional\n- Never rush the caller\n- Acknowledge concerns before responding\n\nRules:\n- Verify identity before accessing account data\n- Escalate to a human agent if the caller is distressed\n- Keep responses concise (2–3 sentences max)\n\nEscalation triggers:\n"frustrated", "manager", "cancel", "lawsuit" → offer immediate transfer`:"Step 1: Greet → Step 2: Verify → Step 3: Handle intent → Step 4: Confirm & close"}/>
-          <p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Changes take effect on the next call.</p>
+          <p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Changes take effect on the next call.</p>
           <DBtn size="sm"><Check className="w-3.5 h-3.5"/> Save prompt</DBtn>
         </div>
       )}
       {detailTab==="knowledge" && (
-        <div className="bg-white border border-border rounded-xl overflow-hidden">
-          <table className="w-full"><thead><tr className="border-b border-border bg-muted/30">{["Document","Type","Size","Status","Attached"].map(h=><th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
-          <tbody className="divide-y divide-border">
+        <div className="nm-raised rounded-2xl overflow-hidden mt-6">
+          <table className="w-full"><thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Document","Type","Size","Status","Attached"].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
+          <tbody className="divide-y divide-transparent">
             {kbList.map(k=>(
-              <tr key={k.id} className="hover:bg-muted/20">
-                <td className="px-4 py-3 text-sm text-foreground max-w-[200px] truncate" style={{fontFamily:"'Figtree',sans-serif"}}>{k.name}</td>
-                <td className="px-4 py-3"><DBadge>{(k.name.split('.').pop() ?? 'TXT').toUpperCase()}</DBadge></td>
-                <td className="px-4 py-3 text-xs" style={{fontFamily:"'DM Mono',monospace"}}>{(k.sizeChars/1024).toFixed(1)} KB</td>
-                <td className="px-4 py-3"><DBadge v="success"><SDot status="ready"/> ready</DBadge></td>
-                <td className="px-4 py-3"><DToggle on={(selected.kb as string[] || []).includes(k.id)} set={async (attached)=>{
+              <tr key={k.id} className="hover:nm-pressed transition-all">
+                <td className="px-5 py-4 text-base font-bold text-[var(--nm-text)] max-w-[200px] truncate" style={{fontFamily:"'Figtree',sans-serif"}}>{k.name}</td>
+                <td className="px-5 py-4"><DBadge>{(k.name.split('.').pop() ?? 'TXT').toUpperCase()}</DBadge></td>
+                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{(k.sizeChars/1024).toFixed(1)} KB</td>
+                <td className="px-5 py-4"><DBadge v="success"><SDot status="ready"/> ready</DBadge></td>
+                <td className="px-5 py-4"><DToggle on={(selected.kb as string[] || []).includes(k.id)} set={async (attached)=>{
                   try {
                     if (attached) {
                       await apiClient.post(`/api/v2/knowledge-base/${k.id}/assign`, { agentId: selected.id });
@@ -1419,24 +1419,24 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
             ))}
             {kbList.length === 0 && (
               <tr>
-                <td colSpan={5} className="text-center p-8 text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>NO DOCUMENTS ATTACHED YET.</td>
+                <td colSpan={5} className="text-center p-8 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>NO DOCUMENTS ATTACHED YET.</td>
               </tr>
             )}
           </tbody></table>
         </div>
       )}
       {detailTab==="calls" && (
-        <div className="bg-white border border-border rounded-xl overflow-hidden">
-          <table className="w-full"><thead><tr className="border-b border-border bg-muted/30">{["Caller","Duration","Result","Sentiment","Date",""].map(h=><th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
-          <tbody className="divide-y divide-border">
+        <div className="nm-raised rounded-2xl overflow-hidden mt-6">
+          <table className="w-full"><thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Caller","Duration","Result","Sentiment","Date",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
+          <tbody className="divide-y divide-transparent">
             {[{name:"Marcus Johnson",dur:"4m 12s",result:"Resolved",sent:"Positive",date:"Today 2:14 PM"},{name:"Elena Vasquez",dur:"2m 38s",result:"Scheduled",sent:"Positive",date:"Today 1:58 PM"},{name:"David Kim",dur:"7m 55s",result:"Transferred",sent:"Neutral",date:"Today 1:41 PM"},{name:"Aisha Okafor",dur:"3m 20s",result:"Resolved",sent:"Positive",date:"Today 1:22 PM"}].map(c=>(
-              <tr key={c.name} className="hover:bg-muted/20">
-                <td className="px-4 py-3 text-sm font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>{c.name}</td>
-                <td className="px-4 py-3 text-xs" style={{fontFamily:"'DM Mono',monospace"}}>{c.dur}</td>
-                <td className="px-4 py-3"><DBadge v={c.result==="Resolved"||c.result==="Scheduled"?"success":"warning"}>{c.result}</DBadge></td>
-                <td className="px-4 py-3 text-xs" style={{fontFamily:"'Figtree',sans-serif"}}>{c.sent}</td>
-                <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{c.date}</td>
-                <td className="px-4 py-3"><DBtn size="sm" variant="ghost"><Eye className="w-3.5 h-3.5"/> Transcript</DBtn></td>
+              <tr key={c.name} className="hover:nm-pressed transition-all cursor-pointer">
+                <td className="px-5 py-4 text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{c.name}</td>
+                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{c.dur}</td>
+                <td className="px-5 py-4"><DBadge v={c.result==="Resolved"||c.result==="Scheduled"?"success":"warning"}>{c.result}</DBadge></td>
+                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{c.sent}</td>
+                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{c.date}</td>
+                <td className="px-5 py-4"><DBtn size="sm" variant="ghost"><Eye className="w-3.5 h-3.5"/> Transcript</DBtn></td>
               </tr>
             ))}
           </tbody></table>
@@ -1651,26 +1651,26 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
   );
 
   if (view==="create") return (
-    <div className="space-y-5">
-      <div className="flex items-center gap-3">
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
         <DBtn variant="ghost" size="sm" onClick={()=>setView("list")}><ChevronLeft className="w-4 h-4"/> Back</DBtn>
-        <p className="text-sm font-semibold text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Create new agent</p>
+        <p className="text-xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Create new agent</p>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {(["prompt","conversational"] as const).map(t=>(
-          <button key={t} onClick={()=>setCreateType(t)} className={`border-2 rounded-xl p-5 text-left transition-all ${createType===t?"border-foreground":"border-border hover:border-foreground/30"}`}>
-            <div className="flex items-center gap-3 mb-2">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${createType===t?"bg-foreground":"bg-muted"}`}>{t==="prompt"?<Cpu className={`w-4 h-4 ${createType===t?"text-white":"text-muted-foreground"}`}/>:<MessageSquare className={`w-4 h-4 ${createType===t?"text-white":"text-muted-foreground"}`}/>}</div>
-              <p className="font-semibold text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{t==="prompt"?"Prompt-based":"Conversational Flow"}</p>
+          <button key={t} onClick={()=>setCreateType(t)} className={`rounded-2xl p-6 text-left transition-all ${createType===t?"nm-pressed":"nm-raised hover:nm-pressed"}`}>
+            <div className="flex items-center gap-4 mb-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${createType===t?"nm-pressed":"nm-raised"}`}>{t==="prompt"?<Cpu className={`w-5 h-5 ${createType===t?"text-[var(--nm-accent)]":"text-[var(--nm-text)]"}`}/>:<MessageSquare className={`w-5 h-5 ${createType===t?"text-[var(--nm-accent)]":"text-[var(--nm-text)]"}`}/>}</div>
+              <p className="font-bold text-[var(--nm-text)] text-lg" style={{fontFamily:"'Figtree',sans-serif"}}>{t==="prompt"?"Prompt-based":"Conversational Flow"}</p>
             </div>
-            <p className="text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{t==="prompt"?"Define behavior with a system prompt. Best for flexible open-ended conversations.":"Design a step-by-step flow with conditions. Best for structured, scripted calls."}</p>
+            <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{t==="prompt"?"Define behavior with a system prompt. Best for flexible open-ended conversations.":"Design a step-by-step flow with conditions. Best for structured, scripted calls."}</p>
           </button>
         ))}
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="space-y-4">
-          <div className="bg-white border border-border rounded-xl p-5 space-y-4">
-            <p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>Basic configuration</p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-6">
+          <div className="nm-card space-y-5">
+            <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Basic configuration</p>
             <DField label="Agent name"><DInput placeholder="e.g. Healthcare Scheduler" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></DField>
             <DField label="Language"><DSelect value={form.lang} onChange={e=>setForm(f=>({...f,lang:e.target.value}))}><option>EN</option><option>EN, ES</option><option>EN, FR</option><option>EN, DE</option><option>ZH</option><option>HI</option><option>JA</option></DSelect></DField>
             <DField label="Voice"><DSelect value={form.voice} onChange={e=>setForm(f=>({...f,voice:e.target.value}))}>{VOICES_SEED.map(v=><option key={v.id} value={v.id}>{v.name} ({v.accent}){v.provider==="clone"?" ★":""}</option>)}</DSelect></DField>
@@ -1678,21 +1678,21 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
             <DField label="Welcome message"><DInput placeholder="Hi! Thanks for calling. How can I help?" value={form.welcomeMsg} onChange={e=>setForm(f=>({...f,welcomeMsg:e.target.value}))}/></DField>
             <DField label="End-call phrase" hint="Caller saying this gracefully ends the call."><DInput value={form.endPhrase} onChange={e=>setForm(f=>({...f,endPhrase:e.target.value}))}/></DField>
           </div>
-          <div className="bg-white border border-border rounded-xl p-5 space-y-4">
-            <p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>LLM parameters</p>
-            <DField label={`Temperature: ${form.temperature}`}><input type="range" min="0" max="1" step="0.1" value={form.temperature} onChange={e=>setForm(f=>({...f,temperature:e.target.value}))} className="w-full accent-foreground"/></DField>
-            <DField label={`Max turns: ${form.maxTurns}`}><input type="range" min="5" max="50" value={form.maxTurns} onChange={e=>setForm(f=>({...f,maxTurns:e.target.value}))} className="w-full accent-foreground"/></DField>
+          <div className="nm-card space-y-5">
+            <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>LLM parameters</p>
+            <DField label={`Temperature: ${form.temperature}`}><input type="range" min="0" max="1" step="0.1" value={form.temperature} onChange={e=>setForm(f=>({...f,temperature:e.target.value}))} className="w-full accent-[var(--nm-accent)]"/></DField>
+            <DField label={`Max turns: ${form.maxTurns}`}><input type="range" min="5" max="50" value={form.maxTurns} onChange={e=>setForm(f=>({...f,maxTurns:e.target.value}))} className="w-full accent-[var(--nm-accent)]"/></DField>
           </div>
         </div>
-        <div className="space-y-4">
+        <div className="space-y-6">
           {createType==="prompt" ? (
-            <div className="bg-white border border-border rounded-xl p-5 space-y-3">
-              <p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>System prompt</p>
+            <div className="nm-card space-y-4">
+              <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>System prompt</p>
               <DTextarea rows={14} placeholder={`You are a professional AI voice agent for Acme Corp.\n\nPersona:\n- Warm, clear, professional\n- Never rush the caller\n\nRules:\n- Verify identity before accessing account data\n- Escalate if caller is distressed\n- Keep responses concise\n\nEscalation triggers:\n"frustrated", "manager", "cancel" → offer transfer`} value={form.systemPrompt} onChange={e=>setForm(f=>({...f,systemPrompt:e.target.value}))}/>
-              <p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{form.systemPrompt.length} chars</p>
+              <p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{form.systemPrompt.length} chars</p>
             </div>
           ) : (
-            <div className="bg-white border border-border rounded-xl p-5 space-y-4">
+            <div className="nm-card space-y-5">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>Conversation flow</p>
                 <DBtn size="sm" variant="secondary" onClick={()=>setForm(f=>({...f,steps:[...f.steps,{id:`s${Date.now()}`,label:"New step",cond:""}]}))}><Plus className="w-3.5 h-3.5"/> Add step</DBtn>
@@ -1714,17 +1714,17 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
               </div>
             </div>
           )}
-          <div className="bg-white border border-border rounded-xl p-5 space-y-3">
-            <p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>Attach knowledge base</p>
-            <div className="space-y-2 max-h-40 overflow-y-auto">
+          <div className="nm-card space-y-4">
+            <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Attach knowledge base</p>
+            <div className="space-y-3 max-h-40 overflow-y-auto">
               {kbList.map(k=>(
-                <label key={k.id} className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={form.kb.includes(k.id)} onChange={e=>setForm(f=>({...f,kb:e.target.checked?[...f.kb,k.id]:f.kb.filter(id=>id!==k.id)}))} className="accent-foreground"/>
-                  <span className="text-sm" style={{fontFamily:"'Figtree',sans-serif"}}>{k.name}</span><DBadge>{(k.sizeChars/1024).toFixed(1)} KB</DBadge>
+                <label key={k.id} className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={form.kb.includes(k.id)} onChange={e=>setForm(f=>({...f,kb:e.target.checked?[...f.kb,k.id]:f.kb.filter(id=>id!==k.id)}))} className="w-4 h-4"/>
+                  <span className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{k.name}</span><DBadge>{(k.sizeChars/1024).toFixed(1)} KB</DBadge>
                 </label>
               ))}
               {kbList.length === 0 && (
-                <p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>No knowledge base documents uploaded yet.</p>
+                <p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>No knowledge base documents uploaded yet.</p>
               )}
             </div>
           </div>
@@ -1738,36 +1738,36 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
     <div className="space-y-4">
       {agentsLoading && <div className="text-xs text-muted-foreground py-2" style={{fontFamily:"'Figtree',sans-serif"}}>Loading agents…</div>}
       {agentsError && <div className="text-xs text-red-500 py-2" style={{fontFamily:"'Figtree',sans-serif"}}>⚠ {agentsError}</div>}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex gap-3">
           {(["all","prompt","conversational"] as const).map(f=>(
-            <button key={f} onClick={()=>setFilter(f)} className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${filter===f?"bg-foreground text-white":"border border-border text-muted-foreground hover:text-foreground"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{f==="all"?"All agents":f==="prompt"?"Prompt-based":"Conversational"}</button>
+            <button key={f} onClick={()=>setFilter(f)} className={`text-xs font-bold px-5 py-2.5 rounded-full transition-all ${filter===f?"nm-pressed text-[var(--nm-accent)]":"nm-raised text-[var(--nm-text)] hover:nm-pressed hover:text-[var(--nm-accent)]"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{f==="all"?"All agents":f==="prompt"?"Prompt-based":"Conversational"}</button>
           ))}
         </div>
         <DBtn onClick={()=>setView("create")}><Plus className="w-4 h-4"/> New agent</DBtn>
       </div>
       {filtered.length === 0 ? (
-        <div className="p-8 text-center bg-white border border-border rounded-xl">
-          <Bot className="w-8 h-8 text-muted-foreground mx-auto mb-2"/>
-          <p className="text-sm font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>You haven't created any agents yet</p>
-          <p className="text-xs text-muted-foreground mt-1 mb-4" style={{fontFamily:"'Figtree',sans-serif"}}>Create an agent to configure prompts, voice models, and start calling.</p>
-          <DBtn onClick={()=>setView("create")} size="sm"><Plus className="w-3.5 h-3.5"/> Create Agent</DBtn>
+        <div className="p-12 text-center nm-card">
+          <Bot className="w-10 h-10 text-[var(--nm-text)] mx-auto mb-4"/>
+          <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>You haven't created any agents yet</p>
+          <p className="text-sm font-bold text-[var(--nm-text)] mt-2 mb-6" style={{fontFamily:"'Figtree',sans-serif"}}>Create an agent to configure prompts, voice models, and start calling.</p>
+          <DBtn onClick={()=>setView("create")} size="sm"><Plus className="w-4 h-4"/> Create Agent</DBtn>
         </div>
       ) : (
-        <div className="bg-white border border-border rounded-xl overflow-hidden">
+        <div className="nm-raised rounded-2xl overflow-hidden mt-6">
           <table className="w-full">
-            <thead><tr className="border-b border-border bg-muted/30">{["Agent","Type","Status","Calls","CSAT","Voice","Model",""].map(h=><th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
-            <tbody className="divide-y divide-border">
+            <thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Agent","Type","Status","Calls","CSAT","Voice","Model",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
+            <tbody className="divide-y divide-transparent">
               {filtered.map(a=>(
-              <tr key={a.id as string} className="hover:bg-muted/20 transition-colors">
-                <td className="px-4 py-3"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">{a.type==="prompt"?<Cpu className="w-4 h-4 text-muted-foreground"/>:<MessageSquare className="w-4 h-4 text-muted-foreground"/>}</div><div><p className="text-sm font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{a.name as string}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{a.lang as string}</p></div></div></td>
-                <td className="px-4 py-3"><DBadge>{a.type==="prompt"?"Prompt":"Conversational"}</DBadge></td>
-                <td className="px-4 py-3"><div className="flex items-center gap-1.5"><SDot status={a.status as string}/><span className="text-xs capitalize" style={{fontFamily:"'Figtree',sans-serif"}}>{a.status as string}</span></div></td>
-                <td className="px-4 py-3 text-sm" style={{fontFamily:"'DM Mono',monospace"}}>{(a.calls as number).toLocaleString()}</td>
-                <td className="px-4 py-3 text-sm" style={{fontFamily:"'DM Mono',monospace"}}>{a.csat??"—"}</td>
-                <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{a.voice as string}</td>
-                <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{a.model as string}</td>
-                <td className="px-4 py-3">
+              <tr key={a.id as string} className="hover:nm-pressed transition-all cursor-pointer">
+                <td className="px-5 py-4"><div className="flex items-center gap-4"><div className="w-10 h-10 nm-pressed rounded-full flex items-center justify-center flex-shrink-0">{a.type==="prompt"?<Cpu className="w-5 h-5 text-[var(--nm-accent)]"/>:<MessageSquare className="w-5 h-5 text-[var(--nm-accent)]"/>}</div><div><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{a.name as string}</p><p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{a.lang as string}</p></div></div></td>
+                <td className="px-5 py-4"><DBadge>{a.type==="prompt"?"Prompt":"Conversational"}</DBadge></td>
+                <td className="px-5 py-4"><div className="flex items-center gap-2"><SDot status={a.status as string}/><span className="text-sm font-bold text-[var(--nm-text)] capitalize" style={{fontFamily:"'Figtree',sans-serif"}}>{a.status as string}</span></div></td>
+                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{(a.calls as number).toLocaleString()}</td>
+                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{a.csat??"—"}</td>
+                <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{a.voice as string}</td>
+                <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{a.model as string}</td>
+                <td className="px-5 py-4">
                   <div className="flex items-center gap-2">
                     <DBtn size="sm" variant="ghost" onClick={async ()=>{
                       try {
@@ -1836,39 +1836,39 @@ function DashBatch() {
         <p className="text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{campaigns.length} campaigns</p>
         <DBtn onClick={()=>setShowCreate(true)}><Plus className="w-4 h-4"/> New campaign</DBtn>
       </div>
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-6">
         {[{label:"Total contacts",value:campaigns.reduce((s,c)=>s+c.total,0).toLocaleString(),icon:Users},{label:"Connected",value:campaigns.reduce((s,c)=>s+c.connected,0).toLocaleString(),icon:CheckCircle2},{label:"Converted",value:campaigns.reduce((s,c)=>s+c.converted,0).toLocaleString(),icon:TrendingUp},{label:"Running now",value:campaigns.filter(c=>c.status==="running").length,icon:Activity}].map(s=>{
           const Icon=s.icon;
-          return (<div key={s.label} className="bg-white border border-border rounded-xl p-4"><div className="flex justify-between mb-2"><span className="text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{s.label.toUpperCase()}</span><Icon className="w-4 h-4 text-muted-foreground" strokeWidth={1.5}/></div><p className="text-2xl font-bold text-foreground" style={{fontFamily:"'Instrument Serif',serif"}}>{s.value}</p></div>);
+          return (<div key={s.label} className="nm-card p-6"><div className="flex justify-between mb-3"><span className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{s.label.toUpperCase()}</span><Icon className="w-5 h-5 text-[var(--nm-accent)]" strokeWidth={1.5}/></div><p className="text-3xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Instrument Serif',serif"}}>{s.value}</p></div>);
         })}
       </div>
       {campaigns.length === 0 ? (
-        <div className="p-8 text-center bg-white border border-border rounded-xl">
-          <Radio className="w-8 h-8 text-muted-foreground mx-auto mb-2"/>
-          <p className="text-sm font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>You haven't created any campaigns yet</p>
-          <p className="text-xs text-muted-foreground mt-1 mb-4" style={{fontFamily:"'Figtree',sans-serif"}}>Launch a batch calling campaign to place simultaneous outbound calls using your agents.</p>
-          <DBtn onClick={()=>setShowCreate(true)} size="sm"><Plus className="w-3.5 h-3.5"/> Create Campaign</DBtn>
+        <div className="p-12 text-center nm-card">
+          <Radio className="w-10 h-10 text-[var(--nm-text)] mx-auto mb-4"/>
+          <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>You haven't created any campaigns yet</p>
+          <p className="text-sm font-bold text-[var(--nm-text)] mt-2 mb-6" style={{fontFamily:"'Figtree',sans-serif"}}>Launch a batch calling campaign to place simultaneous outbound calls using your agents.</p>
+          <DBtn onClick={()=>setShowCreate(true)} size="sm"><Plus className="w-4 h-4"/> Create Campaign</DBtn>
         </div>
       ) : (
-        <div className="bg-white border border-border rounded-xl overflow-hidden">
+        <div className="nm-raised rounded-2xl overflow-hidden mt-6">
           <table className="w-full">
-            <thead><tr className="border-b border-border bg-muted/30">{["Campaign","Status","Progress","Connected","Converted","Created",""].map(h=><th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
-            <tbody className="divide-y divide-border">
+            <thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Campaign","Status","Progress","Connected","Converted","Created",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
+            <tbody className="divide-y divide-transparent">
               {campaigns.map(c=>{
                 const pct=c.total>0?Math.round((c.called/c.total)*100):0;
                 return (
-                  <tr key={c.id} className="hover:bg-muted/20 transition-colors cursor-pointer" onClick={()=>setSelected(c)}>
-                    <td className="px-4 py-3"><p className="text-sm font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{c.name}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{liveAgents.find(a=>a.id===c.agentId)?.name || 'Default Agent'}</p></td>
-                    <td className="px-4 py-3"><DBadge v={c.status==="running"?"success":c.status==="paused"?"warning":c.status==="completed"?"info":c.status==="failed"?"error":"neutral"}><SDot status={c.status}/> {c.status}</DBadge></td>
-                    <td className="px-4 py-3 w-36"><DProg v={c.called} max={c.total} className="mb-1"/><p className="text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{c.called.toLocaleString()} / {c.total.toLocaleString()} ({pct}%)</p></td>
-                    <td className="px-4 py-3 text-sm" style={{fontFamily:"'DM Mono',monospace"}}>{c.connected.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-sm" style={{fontFamily:"'DM Mono',monospace"}}>{c.converted.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{c.created}</td>
-                    <td className="px-4 py-3" onClick={e=>e.stopPropagation()}>
-                      <div className="flex gap-1">
-                        {c.status==="running"&&<DBtn size="sm" variant="secondary"><PauseCircle className="w-3.5 h-3.5"/></DBtn>}
-                        {c.status==="paused"&&<DBtn size="sm" variant="secondary"><PlayCircle className="w-3.5 h-3.5"/></DBtn>}
-                        {(c.status==="draft"||c.status==="paused")&&<DBtn size="sm" variant="ghost"><StopCircle className="w-3.5 h-3.5"/></DBtn>}
+                  <tr key={c.id} className="hover:nm-pressed transition-all cursor-pointer" onClick={()=>setSelected(c)}>
+                    <td className="px-5 py-4"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{c.name}</p><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{liveAgents.find(a=>a.id===c.agentId)?.name || 'Default Agent'}</p></td>
+                    <td className="px-5 py-4"><DBadge v={c.status==="running"?"success":c.status==="paused"?"warning":c.status==="completed"?"info":c.status==="failed"?"error":"neutral"}><SDot status={c.status}/> {c.status}</DBadge></td>
+                    <td className="px-5 py-4 w-40"><DProg v={c.called} max={c.total} className="mb-2"/><p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{c.called.toLocaleString()} / {c.total.toLocaleString()} ({pct}%)</p></td>
+                    <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{c.connected.toLocaleString()}</td>
+                    <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{c.converted.toLocaleString()}</td>
+                    <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{c.created}</td>
+                    <td className="px-5 py-4" onClick={e=>e.stopPropagation()}>
+                      <div className="flex gap-2">
+                        {c.status==="running"&&<DBtn size="sm" variant="secondary"><PauseCircle className="w-4 h-4"/></DBtn>}
+                        {c.status==="paused"&&<DBtn size="sm" variant="secondary"><PlayCircle className="w-4 h-4"/></DBtn>}
+                        {(c.status==="draft"||c.status==="paused")&&<DBtn size="sm" variant="ghost"><StopCircle className="w-4 h-4"/></DBtn>}
                       </div>
                     </td>
                   </tr>
@@ -1885,9 +1885,9 @@ function DashBatch() {
           <DField label="AI Agent"><DSelect value={form.agentId} onChange={e=>setForm(f=>({...f,agentId:e.target.value}))}>{liveAgents.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</DSelect></DField>
           <DField label="Outbound number"><DSelect value={form.numberId} onChange={e=>setForm(f=>({...f,numberId:e.target.value}))}>{numbersList.map(n=><option key={n.id} value={n.id}>{n.phoneNumber} — {n.label || 'Provisioned'}</option>)}{numbersList.length === 0 && <option value="">No numbers provisioned</option>}</DSelect></DField>
           <DField label="Contact list (CSV)" hint="Must include a 'phone' column. Max 50,000 rows.">
-            <div className="border-2 border-dashed border-border rounded-xl p-5 text-center cursor-pointer hover:bg-muted/20 transition-colors" onClick={()=>fileRef.current?.click()}>
-              <Upload className="w-5 h-5 text-muted-foreground mx-auto mb-2"/>
-              <p className="text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{form.csvRows>0?`${form.csvRows.toLocaleString()} contacts loaded`:"Click to upload CSV"}</p>
+            <div className="nm-card p-6 text-center cursor-pointer hover:nm-pressed transition-all" onClick={()=>fileRef.current?.click()}>
+              <Upload className="w-6 h-6 text-[var(--nm-text)] mx-auto mb-3"/>
+              <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{form.csvRows>0?`${form.csvRows.toLocaleString()} contacts loaded`:"Click to upload CSV"}</p>
               <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={()=>setForm(f=>({...f,csvRows:Math.floor(Math.random()*3000)+500}))}/>
             </div>
           </DField>
@@ -1903,13 +1903,13 @@ function DashBatch() {
 
       <DModal open={!!selected} onClose={()=>setSelected(null)} title={selected?.name??""} width="max-w-xl">
         {selected&&(
-          <div className="space-y-5">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[{label:"Total",value:selected.total.toLocaleString()},{label:"Called",value:selected.called.toLocaleString()},{label:"Connected",value:selected.connected.toLocaleString()},{label:"Converted",value:selected.converted.toLocaleString()}].map(s=>(
-                <div key={s.label} className="bg-muted/30 rounded-xl p-3"><p className="text-xs text-muted-foreground mb-1" style={{fontFamily:"'DM Mono',monospace"}}>{s.label.toUpperCase()}</p><p className="text-xl font-bold" style={{fontFamily:"'Instrument Serif',serif"}}>{s.value}</p></div>
+                <div key={s.label} className="nm-card p-4 text-center"><p className="text-xs font-bold text-[var(--nm-text)] mb-2" style={{fontFamily:"'DM Mono',monospace"}}>{s.label.toUpperCase()}</p><p className="text-2xl font-bold" style={{fontFamily:"'Instrument Serif',serif"}}>{s.value}</p></div>
               ))}
             </div>
-            <div><p className="text-xs text-muted-foreground mb-2" style={{fontFamily:"'DM Mono',monospace"}}>PROGRESS — {Math.round((selected.called/selected.total)*100)}%</p><DProg v={selected.called} max={selected.total}/></div>
+            <div className="nm-card"><p className="text-xs font-bold text-[var(--nm-text)] mb-3" style={{fontFamily:"'DM Mono',monospace"}}>PROGRESS — {Math.round((selected.called/selected.total)*100)}%</p><DProg v={selected.called} max={selected.total}/></div>
             <div className="flex gap-2">
               {selected.status==="running"&&<DBtn variant="secondary"><PauseCircle className="w-4 h-4"/> Pause</DBtn>}
               {selected.status==="paused"&&<DBtn><PlayCircle className="w-4 h-4"/> Resume</DBtn>}
@@ -2046,42 +2046,42 @@ function DashCallLogs() {
   void callsLoading;
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="relative"><Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"/><DInput className="pl-8 w-44" placeholder="Search caller…"/></div>
-          <select className="bg-muted/40 border border-border rounded-lg px-2 py-1.5 text-xs outline-none" style={{fontFamily:"'Figtree',sans-serif"}}><option>All agents</option>{liveAgents.map(a=><option key={a.id}>{a.name}</option>)}</select>
-          <select className="bg-muted/40 border border-border rounded-lg px-2 py-1.5 text-xs outline-none" style={{fontFamily:"'Figtree',sans-serif"}}><option>Today</option><option>Last 7 days</option><option>Last 30 days</option></select>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--nm-text)]"/><DInput className="pl-10 w-56" placeholder="Search caller…"/></div>
+          <select className="nm-input rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--nm-text)] outline-none" style={{fontFamily:"'Figtree',sans-serif"}}><option>All agents</option>{liveAgents.map(a=><option key={a.id}>{a.name}</option>)}</select>
+          <select className="nm-input rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--nm-text)] outline-none" style={{fontFamily:"'Figtree',sans-serif"}}><option>Today</option><option>Last 7 days</option><option>Last 30 days</option></select>
         </div>
         <DBtn size="sm" variant="secondary"><Download className="w-3.5 h-3.5"/> Export CSV</DBtn>
       </div>
-      <div className="bg-white border border-border rounded-xl overflow-hidden">
+      <div className="nm-raised rounded-2xl overflow-hidden mt-6">
         <table className="w-full">
-          <thead><tr className="border-b border-border bg-muted/30">{["Caller","Agent","Duration","Result","Sentiment","Recording","Time",""].map(h=><th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
-          <tbody className="divide-y divide-border">
+          <thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Caller","Agent","Duration","Result","Sentiment","Recording","Time",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
+          <tbody className="divide-y divide-transparent">
             {calls.map(c=>(
-              <tr key={c.id} className="hover:bg-muted/20 transition-colors">
-                <td className="px-4 py-3"><p className="text-sm font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{c.name}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{c.number}</p></td>
-                <td className="px-4 py-3 text-xs text-muted-foreground hidden md:table-cell" style={{fontFamily:"'Figtree',sans-serif"}}>{c.agent}</td>
-                <td className="px-4 py-3 text-xs hidden lg:table-cell" style={{fontFamily:"'DM Mono',monospace"}}>{c.dur}</td>
-                <td className="px-4 py-3"><DBadge v={c.result==="Resolved"||c.result==="Scheduled"?"success":c.result==="Transferred"?"warning":c.result==="Voicemail"?"neutral":"info"}>{c.result}</DBadge></td>
-                <td className="px-4 py-3 text-xs hidden lg:table-cell"><span className={c.sent==="Positive"?"text-emerald-600":c.sent==="Negative"?"text-red-500":"text-muted-foreground"} style={{fontFamily:"'Figtree',sans-serif"}}>{c.sent}</span></td>
-                <td className="px-4 py-3 hidden lg:table-cell">{c.rec?<DBtn size="sm" variant="ghost"><Play className="w-3.5 h-3.5"/></DBtn>:<span className="text-xs text-muted-foreground">—</span>}</td>
-                <td className="px-4 py-3 text-xs text-muted-foreground hidden md:table-cell" style={{fontFamily:"'DM Mono',monospace"}}>{c.date}</td>
-                <td className="px-4 py-3"><DBtn size="sm" variant="ghost" onClick={()=>openTranscript(c.id)}><Eye className="w-3.5 h-3.5"/> Transcript</DBtn></td>
+              <tr key={c.id} className="hover:nm-pressed transition-all">
+                <td className="px-5 py-4"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{c.name}</p><p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{c.number}</p></td>
+                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)] hidden md:table-cell" style={{fontFamily:"'Figtree',sans-serif"}}>{c.agent}</td>
+                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)] hidden lg:table-cell" style={{fontFamily:"'DM Mono',monospace"}}>{c.dur}</td>
+                <td className="px-5 py-4"><DBadge v={c.result==="Resolved"||c.result==="Scheduled"?"success":c.result==="Transferred"?"warning":c.result==="Voicemail"?"neutral":"info"}>{c.result}</DBadge></td>
+                <td className="px-5 py-4 text-sm font-bold hidden lg:table-cell"><span className={c.sent==="Positive"?"text-emerald-500":c.sent==="Negative"?"text-[var(--nm-accent)]":"text-[var(--nm-text)]"} style={{fontFamily:"'Figtree',sans-serif"}}>{c.sent}</span></td>
+                <td className="px-5 py-4 hidden lg:table-cell">{c.rec?<DBtn size="sm" variant="ghost"><Play className="w-4 h-4"/></DBtn>:<span className="text-sm font-bold text-[var(--nm-text)]">—</span>}</td>
+                <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)] hidden md:table-cell" style={{fontFamily:"'DM Mono',monospace"}}>{c.date}</td>
+                <td className="px-5 py-4"><DBtn size="sm" variant="ghost" onClick={()=>openTranscript(c.id)}><Eye className="w-4 h-4"/> Transcript</DBtn></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
       <DModal open={!!transcriptOpen} onClose={()=>{setTranscriptOpen(null);setTranscriptText([]);}} title={"Call transcript — " + calls.find(c=>c.id===transcriptOpen)?.name}>
-        <div className="space-y-3">
-          <div className="p-3 bg-muted/30 rounded-xl text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{calls.find(c=>c.id===transcriptOpen)?.date} · {calls.find(c=>c.id===transcriptOpen)?.dur} · {calls.find(c=>c.id===transcriptOpen)?.result}</div>
-          {transcriptLoading && <p className="text-xs text-muted-foreground text-center py-4" style={{fontFamily:"'Figtree',sans-serif"}}>Loading transcript…</p>}
-          <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+        <div className="space-y-4">
+          <div className="p-4 nm-pressed rounded-2xl text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{calls.find(c=>c.id===transcriptOpen)?.date} · {calls.find(c=>c.id===transcriptOpen)?.dur} · {calls.find(c=>c.id===transcriptOpen)?.result}</div>
+          {transcriptLoading && <p className="text-sm font-bold text-[var(--nm-text)] text-center py-4" style={{fontFamily:"'Figtree',sans-serif"}}>Loading transcript…</p>}
+          <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
             {(transcriptText.length > 0 ? transcriptText : staticTranscript).map((m,i)=>(
-              <div key={i} className={`flex gap-2 ${m.role==="caller"?"justify-end":""}`}>
-                {m.role==="agent"&&<div className="w-6 h-6 bg-foreground rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"><Bot className="w-3 h-3 text-white"/></div>}
-                <div className={`rounded-xl px-3 py-2 max-w-[80%] ${m.role==="agent"?"bg-muted rounded-tl-none":"bg-foreground text-white rounded-tr-none"}`}><p className="text-xs" style={{fontFamily:"'Figtree',sans-serif"}}>{m.text}</p></div>
+              <div key={i} className={`flex gap-3 ${m.role==="caller"?"justify-end":""}`}>
+                {m.role==="agent"&&<div className="w-8 h-8 nm-pressed rounded-full flex items-center justify-center flex-shrink-0 mt-1"><Bot className="w-4 h-4 text-[var(--nm-accent)]"/></div>}
+                <div className={`rounded-2xl px-5 py-3 max-w-[80%] ${m.role==="agent"?"nm-raised rounded-tl-none":"nm-pressed text-[var(--nm-accent)] rounded-tr-none"}`}><p className="text-sm font-bold" style={{fontFamily:"'Figtree',sans-serif"}}>{m.text}</p></div>
               </div>
             ))}
           </div>
@@ -2143,31 +2143,31 @@ function DashNumbers() {
       </div>
       
       {loading && numbers.length === 0 ? (
-        <div className="p-8 text-center text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>LOADING PHONE NUMBERS...</div>
+        <div className="p-8 text-center text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>LOADING PHONE NUMBERS...</div>
       ) : numbers.length === 0 ? (
-        <div className="p-8 text-center bg-white border border-border rounded-xl">
-          <Phone className="w-8 h-8 text-muted-foreground mx-auto mb-2"/>
-          <p className="text-sm font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>You haven't provisioned any numbers yet</p>
-          <p className="text-xs text-muted-foreground mt-1 mb-4" style={{fontFamily:"'Figtree',sans-serif"}}>Provision a local or toll-free number to route calls to your agents.</p>
-          <div className="flex justify-center gap-2">
-            <DBtn variant="secondary" onClick={()=>setShowSip(true)} size="sm"><Network className="w-3.5 h-3.5"/> SIP config</DBtn>
-            <DBtn onClick={()=>setShowBuy(true)} size="sm"><Plus className="w-3.5 h-3.5"/> Buy number</DBtn>
+        <div className="p-12 text-center nm-card">
+          <Phone className="w-10 h-10 text-[var(--nm-text)] mx-auto mb-4"/>
+          <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>You haven't provisioned any numbers yet</p>
+          <p className="text-sm font-bold text-[var(--nm-text)] mt-2 mb-6" style={{fontFamily:"'Figtree',sans-serif"}}>Provision a local or toll-free number to route calls to your agents.</p>
+          <div className="flex justify-center gap-3">
+            <DBtn variant="secondary" onClick={()=>setShowSip(true)} size="sm"><Network className="w-4 h-4"/> SIP config</DBtn>
+            <DBtn onClick={()=>setShowBuy(true)} size="sm"><Plus className="w-4 h-4"/> Buy number</DBtn>
           </div>
         </div>
       ) : (
-        <div className="bg-white border border-border rounded-xl overflow-hidden">
+        <div className="nm-raised rounded-2xl overflow-hidden mt-6">
           <table className="w-full">
-            <thead><tr className="border-b border-border bg-muted/30">{["Number","Label","Type","Region","Agent","Status",""].map(h=><th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
-            <tbody className="divide-y divide-border">
+            <thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Number","Label","Type","Region","Agent","Status",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
+            <tbody className="divide-y divide-transparent">
               {numbers.map(n=>(
-                <tr key={n.id} className="hover:bg-muted/20 transition-colors">
-                  <td className="px-4 py-3 text-sm font-medium" style={{fontFamily:"'DM Mono',monospace"}}>{n.number}</td>
-                  <td className="px-4 py-3 text-sm" style={{fontFamily:"'Figtree',sans-serif"}}>{n.label}</td>
-                  <td className="px-4 py-3"><DBadge v={n.type==="tollfree"?"info":"neutral"}>{n.type==="tollfree"?"Toll-free":n.type==="sip"?"SIP":"Local"}</DBadge></td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{n.region}</td>
-                  <td className="px-4 py-3">{n.agentId?<span className="text-xs border border-border rounded px-2 py-0.5" style={{fontFamily:"'Figtree',sans-serif"}}>{liveAgents.find(a=>a.id===n.agentId)?.name || 'Default Agent'}</span>:<span className="text-xs text-muted-foreground">Unassigned</span>}</td>
-                  <td className="px-4 py-3"><div className="flex items-center gap-1.5"><SDot status={n.status}/><span className="text-xs capitalize" style={{fontFamily:"'Figtree',sans-serif"}}>{n.status}</span></div></td>
-                  <td className="px-4 py-3"><div className="flex gap-1"><DBtn size="sm" variant="ghost"><Edit3 className="w-3.5 h-3.5"/></DBtn><DBtn size="sm" variant="ghost"><Trash2 className="w-3.5 h-3.5 text-red-400"/></DBtn></div></td>
+                <tr key={n.id} className="hover:nm-pressed transition-all">
+                  <td className="px-5 py-4 text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{n.number}</td>
+                  <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{n.label}</td>
+                  <td className="px-5 py-4"><DBadge v={n.type==="tollfree"?"info":"neutral"}>{n.type==="tollfree"?"Toll-free":n.type==="sip"?"SIP":"Local"}</DBadge></td>
+                  <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{n.region}</td>
+                  <td className="px-5 py-4">{n.agentId?<span className="text-xs font-bold text-[var(--nm-text)] nm-pressed rounded px-3 py-1" style={{fontFamily:"'Figtree',sans-serif"}}>{liveAgents.find(a=>a.id===n.agentId)?.name || 'Default Agent'}</span>:<span className="text-xs font-bold text-[var(--nm-text)]">Unassigned</span>}</td>
+                  <td className="px-5 py-4"><div className="flex items-center gap-2"><SDot status={n.status}/><span className="text-sm font-bold text-[var(--nm-text)] capitalize" style={{fontFamily:"'Figtree',sans-serif"}}>{n.status}</span></div></td>
+                  <td className="px-5 py-4"><div className="flex gap-2"><DBtn size="sm" variant="ghost"><Edit3 className="w-4 h-4"/></DBtn><DBtn size="sm" variant="ghost"><Trash2 className="w-4 h-4 text-red-400"/></DBtn></div></td>
                 </tr>
               ))}
             </tbody>
@@ -2299,27 +2299,27 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
         <p className="text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{docs.length} documents uploaded</p>
         <DBtn onClick={()=>setShowAdd(true)}><Plus className="w-4 h-4"/> Add document</DBtn>
       </div>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-6">
         {[{label:"Total documents",v:docs.length},{label:"Total characters",v:docs.reduce((s,d)=>s+d.sizeChars,0).toLocaleString()},{label:"Indexed sources",v:docs.length}].map(s=>(
-          <div key={s.label} className="bg-white border border-border rounded-xl p-4"><p className="text-xs text-muted-foreground mb-2" style={{fontFamily:"'DM Mono',monospace"}}>{s.label.toUpperCase()}</p><p className="text-2xl font-bold" style={{fontFamily:"'Instrument Serif',serif"}}>{s.v}</p></div>
+          <div key={s.label} className="nm-card p-4 text-center"><p className="text-xs font-bold text-[var(--nm-text)] mb-2" style={{fontFamily:"'DM Mono',monospace"}}>{s.label.toUpperCase()}</p><p className="text-2xl font-bold" style={{fontFamily:"'Instrument Serif',serif"}}>{s.v}</p></div>
         ))}
       </div>
-      <div className="bg-white border border-border rounded-xl overflow-hidden shadow-sm">
+      <div className="nm-raised rounded-2xl overflow-hidden mt-6">
         {loading && docs.length === 0 ? (
-          <div className="p-8 text-center text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>LOADING DATASETS...</div>
+          <div className="p-8 text-center text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>LOADING DATASETS...</div>
         ) : (
           <table className="w-full">
-            <thead><tr className="border-b border-border bg-muted/30">{["Document / URL","Linked Agents","Size","Uploaded",""].map(h=><th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
-            <tbody className="divide-y divide-border">
+            <thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Document / URL","Linked Agents","Size","Uploaded",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
+            <tbody className="divide-y divide-transparent">
               {docs.map(d=>(
-                <tr key={d.id} className="hover:bg-muted/20 transition-colors">
-                  <td className="px-4 py-3 max-w-[240px]"><div className="flex items-center gap-2"><FileText className="w-4 h-4 text-muted-foreground flex-shrink-0"/><p className="text-sm text-foreground truncate font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>{d.name}</p></div></td>
-                  <td className="px-4 py-3 relative">
-                    <div className="flex items-center gap-1 flex-wrap max-w-[300px]">
+                <tr key={d.id} className="hover:nm-pressed transition-all">
+                  <td className="px-5 py-4 max-w-[240px]"><div className="flex items-center gap-3"><FileText className="w-5 h-5 text-[var(--nm-text)] flex-shrink-0"/><p className="text-base text-[var(--nm-text)] truncate font-bold" style={{fontFamily:"'Figtree',sans-serif"}}>{d.name}</p></div></td>
+                  <td className="px-5 py-4 relative">
+                    <div className="flex items-center gap-2 flex-wrap max-w-[300px]">
                       {d.agentIds && d.agentIds.map(aId => {
                         const agName = apiAgents.find(a => a.id === aId)?.name || aId;
                         return (
-                          <span key={aId} className="text-[10px] bg-muted border border-border text-muted-foreground rounded px-1.5 py-0.5 font-medium flex items-center gap-1">
+                          <span key={aId} className="text-[10px] font-bold text-[var(--nm-text)] nm-pressed rounded px-2 py-1 flex items-center gap-1">
                             {agName}
                             <button onClick={async (e) => {
                               e.stopPropagation();
@@ -2337,14 +2337,14 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
                                 setDocs(previousDocs);
                                 alert("Failed to unassign agent: " + (err instanceof Error ? err.message : String(err)));
                               }
-                            }} className="hover:text-red-500 text-xs font-bold">×</button>
+                            }} className="hover:text-[var(--nm-accent)] text-xs font-bold">×</button>
                           </span>
                         );
                       })}
                       <Popover open={openDropdownDocId === d.id} onOpenChange={(open) => setOpenDropdownDocId(open ? d.id : null)}>
                         <PopoverTrigger asChild>
                           <button 
-                            className="text-[10px] text-foreground hover:bg-muted border border-border rounded px-1.5 py-0.5 font-medium flex items-center gap-0.5"
+                            className="text-[10px] font-bold text-[var(--nm-text)] nm-raised rounded px-2 py-1 flex items-center gap-0.5 hover:nm-pressed"
                           >
                             <Plus className="w-2.5 h-2.5"/> Link Agent
                           </button>
@@ -2352,7 +2352,7 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
                         <PopoverContent 
                           align="start" 
                           sideOffset={6} 
-                          className="bg-white border border-border rounded-xl p-3 shadow-xl z-50 min-w-[200px] w-auto space-y-2 text-left" 
+                          className="nm-card p-4 z-50 min-w-[200px] w-auto space-y-3 text-left" 
                           onClick={e => e.stopPropagation()}
                         >
                           <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-2" style={{fontFamily:"'DM Mono',monospace"}}>Select Agents</p>
@@ -2687,13 +2687,13 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
     <div className="space-y-4">
       {/* Quick Agent Configuration settings */}
       {apiAgents.length > 0 && (
-        <div className="bg-white border border-border rounded-xl p-5 space-y-4 shadow-sm">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider" style={{fontFamily:"'DM Mono',monospace"}}>Quick Agent Voice &amp; Language Settings</p>
+        <div className="nm-card p-6 space-y-4">
+          <p className="text-xs font-bold text-[var(--nm-text)] uppercase tracking-wider" style={{fontFamily:"'DM Mono',monospace"}}>Quick Agent Voice &amp; Language Settings</p>
           <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Select Agent to Configure:</span>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Select Agent to Configure:</span>
               <select
-                className="text-xs bg-muted border border-border rounded px-2.5 py-1.5 focus:outline-none font-medium"
+                className="nm-input rounded-xl px-4 py-2 text-sm focus:outline-none font-bold text-[var(--nm-text)]"
                 value={selectedConfigAgentId}
                 onChange={e => setSelectedConfigAgentId(e.target.value)}
                 style={{fontFamily:"'Figtree',sans-serif"}}
@@ -2707,11 +2707,11 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
           </div>
 
           {selectedConfigAgent && (
-            <div className="border-t border-border pt-4 mt-2">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider" style={{fontFamily:"'DM Mono',monospace"}}>Agent Voice &amp; Language Profile Settings</span>
+            <div className="border-t border-transparent pt-4 mt-2">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-bold text-[var(--nm-text)] uppercase tracking-wider" style={{fontFamily:"'DM Mono',monospace"}}>Agent Voice &amp; Language Profile Settings</span>
                 {configSaveStatus !== 'idle' && (
-                  <span className={`text-[10px] px-2 py-0.5 rounded font-medium ${configSaveStatus === 'saving' ? 'bg-amber-50 text-amber-700' : configSaveStatus === 'done' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`} style={{fontFamily:"'Figtree',sans-serif"}}>
+                  <span className={`text-[10px] px-3 py-1 rounded-lg font-bold ${configSaveStatus === 'saving' ? 'bg-amber-50 text-amber-700' : configSaveStatus === 'done' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`} style={{fontFamily:"'Figtree',sans-serif"}}>
                     {configSaveStatus === 'saving' ? 'Auto-saving...' : configSaveStatus === 'done' ? 'Saved' : 'Error'}
                   </span>
                 )}
@@ -2730,20 +2730,20 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-2">{(["all","builtin","clone"] as const).map(f=><button key={f} onClick={()=>setVoiceFilter(f)} className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${voiceFilter===f?"bg-foreground text-white":"border border-border text-muted-foreground hover:text-foreground"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{f==="all"?"All voices":f==="builtin"?"Built-in":"Cloned"}</button>)}</div>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex gap-3">{(["all","builtin","clone"] as const).map(f=><button key={f} onClick={()=>setVoiceFilter(f)} className={`text-sm font-bold px-4 py-2 rounded-xl transition-all ${voiceFilter===f?"nm-pressed text-[var(--nm-accent)]":"nm-raised text-[var(--nm-text)] hover:nm-pressed"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{f==="all"?"All voices":f==="builtin"?"Built-in":"Cloned"}</button>)}</div>
         <DBtn disabled title="Voice cloning coming soon"><Mic2 className="w-4 h-4"/> Clone a voice (Coming soon)</DBtn>
       </div>
 
       {/* Nation and Language UI Filters */}
-      <div className="flex flex-wrap items-center gap-4 bg-white border border-border rounded-xl p-4 shadow-sm">
+      <div className="flex flex-wrap items-center gap-5 nm-card p-6">
         {/* Nation Selection */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider" style={{fontFamily:"'DM Mono',monospace"}}>Nation:</span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-bold text-[var(--nm-text)] uppercase tracking-wider" style={{fontFamily:"'DM Mono',monospace"}}>Nation:</span>
           <select
             value={selectedNation}
             onChange={(e) => setSelectedNation(e.target.value)}
-            className="text-xs bg-muted border border-border rounded px-2.5 py-1.5 focus:outline-none font-medium animate-fade-in"
+            className="nm-input rounded-xl px-4 py-2 text-sm focus:outline-none font-bold text-[var(--nm-text)] animate-fade-in"
             style={{fontFamily:"'Figtree',sans-serif"}}
             id="nation-filter-select"
           >
@@ -2756,12 +2756,12 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
         </div>
 
         {/* Language Selection */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider" style={{fontFamily:"'DM Mono',monospace"}}>Language:</span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-bold text-[var(--nm-text)] uppercase tracking-wider" style={{fontFamily:"'DM Mono',monospace"}}>Language:</span>
           <select
             value={selectedLanguage}
             onChange={(e) => setSelectedLanguage(e.target.value)}
-            className="text-xs bg-muted border border-border rounded px-2.5 py-1.5 focus:outline-none font-medium animate-fade-in"
+            className="nm-input rounded-xl px-4 py-2 text-sm focus:outline-none font-bold text-[var(--nm-text)] animate-fade-in"
             style={{fontFamily:"'Figtree',sans-serif"}}
             id="language-filter-select"
           >
@@ -2784,66 +2784,66 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
       </div>
 
       {filtered.length === 0 ? (
-        <div className="p-8 text-center bg-white border border-border rounded-xl col-span-full">
-          <Mic className="w-8 h-8 text-muted-foreground mx-auto mb-2"/>
-          <p className="text-sm font-medium text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>No cloned voices found</p>
-          <p className="text-xs text-muted-foreground mt-1 mb-4" style={{fontFamily:"'Figtree',sans-serif"}}>Cloned custom voices feature is coming soon.</p>
+        <div className="p-12 text-center nm-card col-span-full">
+          <Mic className="w-10 h-10 text-[var(--nm-text)] mx-auto mb-4"/>
+          <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>No cloned voices found</p>
+          <p className="text-sm font-bold text-[var(--nm-text)] mt-2 mb-4" style={{fontFamily:"'Figtree',sans-serif"}}>Cloned custom voices feature is coming soon.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {filtered.map(v=>{
             const assignedAgents = apiAgents.filter(a => (a.systemVoice || 'Puck') === v.id);
             return (
-              <div key={v.id} className="bg-white border border-border rounded-xl p-4 hover:shadow-sm transition-shadow flex flex-col justify-between">
+              <div key={v.id} className="nm-card p-6 flex flex-col justify-between">
                 <div>
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-4">
                       <VoiceAvatar voiceId={v.id} gender={v.gender} />
                       <div>
-                        <p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>
+                        <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>
                           {(() => {
                             const curatedName = getCuratedDisplayName(v.id, selectedNation, selectedLanguage);
                             return curatedName ? `${curatedName} (${v.id})` : v.name;
                           })()}
                         </p>
-                        <p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{v.accent}</p>
+                        <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{v.accent}</p>
                       </div>
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-1 mb-3">{v.lang.split(", ").map(l=><DBadge key={l}>{l}</DBadge>)}</div>
+                  <div className="flex flex-wrap gap-2 mb-4">{v.lang.split(", ").map(l=><DBadge key={l}>{l}</DBadge>)}</div>
                   
-                  <div className="flex items-center gap-3 mt-3 mb-4">
-                    <div className="flex-1 bg-muted rounded-lg h-8 flex items-center px-2 text-muted-foreground">
+                  <div className="flex items-center gap-4 mt-4 mb-5">
+                    <div className="flex-1 nm-pressed rounded-xl h-12 flex items-center px-4 text-[var(--nm-accent)]">
                       <MiniWave on={playingId === v.id} bars={18}/>
                     </div>
                     <button
                       onClick={() => playPreview(v.id)}
-                      className="w-8 h-8 border border-border rounded-full flex items-center justify-center hover:bg-muted transition-colors flex-shrink-0"
+                      className="w-12 h-12 nm-raised rounded-full flex items-center justify-center hover:nm-pressed transition-all flex-shrink-0 text-[var(--nm-text)]"
                     >
-                      {playingId === v.id ? <Pause className="w-3.5 h-3.5"/> : <Play className="w-3.5 h-3.5"/>}
+                      {playingId === v.id ? <Pause className="w-5 h-5"/> : <Play className="w-5 h-5"/>}
                     </button>
                   </div>
                 </div>
 
-                <div className="space-y-2 mt-3 pt-3 border-t border-border">
-                  <div className="flex items-center justify-between text-[10px] text-muted-foreground font-semibold uppercase tracking-wider" style={{fontFamily:"'DM Mono',monospace"}}>
+                <div className="space-y-3 mt-4 pt-4 border-t border-transparent">
+                  <div className="flex items-center justify-between text-xs font-bold text-[var(--nm-text)] uppercase tracking-wider" style={{fontFamily:"'DM Mono',monospace"}}>
                     <span>Assigned Agents</span>
                     <span>{assignedAgents.length}</span>
                   </div>
                   {assignedAgents.length > 0 ? (
-                    <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto">
+                    <div className="flex flex-wrap gap-2 max-h-20 overflow-y-auto">
                       {assignedAgents.map(a => (
-                        <span key={a.id} className="text-[10px] bg-muted border border-border text-foreground rounded px-1.5 py-0.5 font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>{a.name}</span>
+                        <span key={a.id} className="text-xs nm-pressed text-[var(--nm-text)] font-bold rounded-lg px-3 py-1.5" style={{fontFamily:"'Figtree',sans-serif"}}>{a.name}</span>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-[10px] text-muted-foreground italic" style={{fontFamily:"'Figtree',sans-serif"}}>No agents assigned</p>
+                    <p className="text-xs text-[var(--nm-text)] italic font-bold" style={{fontFamily:"'Figtree',sans-serif"}}>No agents assigned</p>
                   )}
                   {setApiAgents && apiAgents.length > 0 && (
-                    <div className="flex items-center gap-2 pt-1.5">
-                      <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider flex-shrink-0" style={{fontFamily:"'DM Mono',monospace"}}>Assign:</span>
+                    <div className="flex items-center gap-3 pt-2">
+                      <span className="text-xs font-bold text-[var(--nm-text)] uppercase tracking-wider flex-shrink-0" style={{fontFamily:"'DM Mono',monospace"}}>Assign:</span>
                       <select
-                        className="text-xs bg-muted border border-border rounded px-1.5 py-0.5 focus:outline-none w-full font-medium"
+                        className="nm-input text-sm rounded-xl px-4 py-2 focus:outline-none w-full font-bold text-[var(--nm-text)]"
                         value=""
                         onChange={async (e) => {
                           const agentId = e.target.value;
@@ -2929,11 +2929,11 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
   const [webhook, setWebhook] = useState("https://hooks.acmecorp.com/aivoice");
   return (
     <div className="space-y-4 max-w-2xl">
-      <div className="flex gap-1 border-b border-border">
-        {(["workspace","api","webhooks","billing","team"] as const).map(t=><button key={t} onClick={()=>setStab(t)} className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors capitalize ${stab===t?"border-foreground text-foreground":"border-transparent text-muted-foreground hover:text-foreground"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{t}</button>)}
+      <div className="flex gap-2">
+        {(["workspace","api","webhooks","billing","team"] as const).map(t=><button key={t} onClick={()=>setStab(t)} className={`px-5 py-2.5 text-sm font-bold capitalize transition-all ${stab===t?"nm-pressed text-[var(--nm-accent)] rounded-xl":"hover:nm-pressed text-[var(--nm-text)] rounded-xl"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{t}</button>)}
       </div>
       {stab==="workspace"&&(
-        <div className="bg-white border border-border rounded-xl p-5 space-y-4">
+        <div className="nm-card p-6 space-y-5">
           <DField label="Workspace name"><DInput defaultValue={profile?.fullName ?? "Acme Corp"}/></DField>
           <DField label="Billing email"><DInput type="email" defaultValue={profile?.email ?? "billing@acmecorp.com"}/></DField>
           <DField label="Timezone"><DSelect><option>America/New_York (UTC−5)</option><option>America/Chicago (UTC−6)</option><option>America/Los_Angeles (UTC−8)</option><option>Europe/London (UTC+0)</option></DSelect></DField>
@@ -2944,19 +2944,19 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
             </DSelect>
           </DField>
           {[{l:"Call recording",d:"Record all calls for compliance"},{l:"Real-time transcription",d:"Stream live transcripts to the dashboard"},{l:"Sentiment analysis",d:"Analyse caller sentiment on every call"},{l:"Auto-summary",d:"Generate a summary after each call ends"}].map(s=>(
-            <div key={s.l} className="flex items-center justify-between"><div><p className="text-sm font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>{s.l}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{s.d}</p></div><DToggle on={true} set={()=>{}}/></div>
+            <div key={s.l} className="flex items-center justify-between"><div><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{s.l}</p><p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{s.d}</p></div><DToggle on={true} set={()=>{}}/></div>
           ))}
           <DBtn><Check className="w-4 h-4"/> Save settings</DBtn>
           {(profile as any)?.isAdmin && (
-            <div className="mt-4 pt-4 border-t border-border">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2" style={{fontFamily:"'DM Mono',monospace"}}>Admin — Credits Consumed</p>
-              <div className="bg-muted/40 rounded-xl p-4 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-foreground/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-base">📊</span>
+            <div className="mt-6 pt-6 border-t border-transparent">
+              <p className="text-xs font-bold uppercase tracking-wider text-[var(--nm-text)] mb-4" style={{fontFamily:"'DM Mono',monospace"}}>Admin — Credits Consumed</p>
+              <div className="nm-pressed rounded-2xl p-6 flex items-center gap-5">
+                <div className="w-12 h-12 rounded-full nm-raised flex items-center justify-center flex-shrink-0">
+                  <span className="text-xl">📊</span>
                 </div>
                 <div>
-                  <p className="text-xl font-bold" style={{fontFamily:"'Figtree',sans-serif"}}>{((profile as any)?.totalMinutesConsumed ?? 0).toFixed(2)} <span className="text-sm font-normal text-muted-foreground">min</span></p>
-                  <p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Total platform minutes consumed across all sandbox sessions</p>
+                  <p className="text-2xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{((profile as any)?.totalMinutesConsumed ?? 0).toFixed(2)} <span className="text-base font-bold text-[var(--nm-text)]">min</span></p>
+                  <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Total platform minutes consumed across all sandbox sessions</p>
                 </div>
               </div>
             </div>
@@ -2964,32 +2964,32 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
         </div>
       )}
       {stab==="api"&&(
-        <div className="space-y-4">
-          <div className="bg-white border border-border rounded-xl p-5 space-y-5">
-            <p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>API keys</p>
+        <div className="space-y-6">
+          <div className="nm-card p-6 space-y-6">
+            <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>API keys</p>
             {[{label:"Production key",key:"cv_prod_sk_2x9mNpQrTvWx...3K8L",env:"production"},{label:"Test key",key:"cv_test_sk_8nBpQsRuVxZa...7M2N",env:"test"}].map(k=>(
-              <div key={k.label} className="space-y-2">
-                <div className="flex items-center justify-between"><span className="text-xs font-medium text-muted-foreground uppercase" style={{fontFamily:"'DM Mono',monospace"}}>{k.label}</span><DBadge v={k.env==="production"?"success":"info"}>{k.env}</DBadge></div>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-muted/40 border border-border rounded-lg px-3 py-2 text-xs overflow-hidden" style={{fontFamily:"'DM Mono',monospace"}}>{apiVis?k.key:"cv_"+k.env.slice(0,4)+"_sk_••••••••••••••••••••••••••••"}</div>
-                  <button onClick={()=>setApiVis(!apiVis)} className="p-2 border border-border rounded-lg hover:bg-muted">{apiVis?<EyeOff className="w-4 h-4 text-muted-foreground"/>:<Eye className="w-4 h-4 text-muted-foreground"/>}</button>
-                  <button className="p-2 border border-border rounded-lg hover:bg-muted"><Copy className="w-4 h-4 text-muted-foreground"/></button>
+              <div key={k.label} className="space-y-3">
+                <div className="flex items-center justify-between"><span className="text-xs font-bold text-[var(--nm-text)] uppercase" style={{fontFamily:"'DM Mono',monospace"}}>{k.label}</span><DBadge v={k.env==="production"?"success":"info"}>{k.env}</DBadge></div>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 nm-pressed rounded-xl px-4 py-3 text-sm font-bold text-[var(--nm-text)] overflow-hidden" style={{fontFamily:"'DM Mono',monospace"}}>{apiVis?k.key:"cv_"+k.env.slice(0,4)+"_sk_••••••••••••••••••••••••••••"}</div>
+                  <button onClick={()=>setApiVis(!apiVis)} className="p-3 nm-raised rounded-xl hover:nm-pressed text-[var(--nm-text)] transition-all">{apiVis?<EyeOff className="w-5 h-5"/>:<Eye className="w-5 h-5"/>}</button>
+                  <button className="p-3 nm-raised rounded-xl hover:nm-pressed text-[var(--nm-text)] transition-all"><Copy className="w-5 h-5"/></button>
                 </div>
               </div>
             ))}
             <DBtn variant="secondary"><RefreshCw className="w-4 h-4"/> Rotate keys</DBtn>
           </div>
-          <div className="bg-white border border-border rounded-xl p-5 space-y-3">
-            <p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>Quick start</p>
-            <div className="bg-muted/40 border border-border rounded-xl p-4 overflow-x-auto"><pre className="text-xs" style={{fontFamily:"'DM Mono',monospace"}}>{`curl -X POST https://api.claritiyvoice.com/v1/calls \\\n  -H "Authorization: Bearer cv_prod_sk_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{"agent_id":"a2","to":"+13125550198","from":"+18005550842"}'`}</pre></div>
+          <div className="nm-card p-6 space-y-4">
+            <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Quick start</p>
+            <div className="nm-pressed rounded-2xl p-5 overflow-x-auto text-[var(--nm-text)]"><pre className="text-sm font-bold" style={{fontFamily:"'DM Mono',monospace"}}>{`curl -X POST https://api.claritiyvoice.com/v1/calls \\\n  -H "Authorization: Bearer cv_prod_sk_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{"agent_id":"a2","to":"+13125550198","from":"+18005550842"}'`}</pre></div>
           </div>
         </div>
       )}
       {stab==="webhooks"&&(
-        <div className="bg-white border border-border rounded-xl p-5 space-y-4">
+        <div className="nm-card p-6 space-y-5">
           <DField label="Webhook URL" hint="We POST events to this URL in real time."><DInput value={webhook} onChange={e=>setWebhook(e.target.value)}/></DField>
-          <DField label="Events"><div className="space-y-2 mt-1">{["call.started","call.ended","call.transferred","call.recording_ready","campaign.completed","agent.error"].map(ev=><label key={ev} className="flex items-center gap-2 cursor-pointer"><input type="checkbox" defaultChecked className="accent-foreground"/><span className="text-sm" style={{fontFamily:"'DM Mono',monospace"}}>{ev}</span></label>)}</div></DField>
-          <DField label="Signing secret" hint="Verify payloads with HMAC-SHA256."><div className="flex gap-2"><DInput type="password" defaultValue="whsec_2xNpQrTvWxYzAbCdEfGh"/><button className="p-2 border border-border rounded-lg hover:bg-muted"><Copy className="w-4 h-4 text-muted-foreground"/></button></div></DField>
+          <DField label="Events"><div className="space-y-3 mt-2">{["call.started","call.ended","call.transferred","call.recording_ready","campaign.completed","agent.error"].map(ev=><label key={ev} className="flex items-center gap-3 cursor-pointer"><input type="checkbox" defaultChecked className="accent-[var(--nm-accent)] w-4 h-4"/><span className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{ev}</span></label>)}</div></DField>
+          <DField label="Signing secret" hint="Verify payloads with HMAC-SHA256."><div className="flex gap-3"><DInput type="password" defaultValue="whsec_2xNpQrTvWxYzAbCdEfGh"/><button className="p-3 nm-raised rounded-xl hover:nm-pressed text-[var(--nm-text)] transition-all"><Copy className="w-5 h-5"/></button></div></DField>
           <DBtn><Check className="w-4 h-4"/> Save &amp; test webhook</DBtn>
         </div>
       )}
@@ -2997,12 +2997,12 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
         <BillingGateway />
       )}
       {stab==="team"&&(
-        <div className="space-y-3">
-          <div className="bg-white border border-border rounded-xl overflow-hidden">
-            <table className="w-full"><thead><tr className="border-b border-border bg-muted/30">{["Member","Role","Last active",""].map(h=><th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
-            <tbody className="divide-y divide-border">
+        <div className="space-y-4">
+          <div className="nm-raised rounded-2xl overflow-hidden">
+            <table className="w-full"><thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Member","Role","Last active",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
+            <tbody className="divide-y divide-transparent">
               {[{name:"Jamie Chen",email:"jamie@acmecorp.com",role:"Admin",active:"Now"},{name:"Rachel Okonkwo",email:"rachel@acmecorp.com",role:"Manager",active:"2h ago"},{name:"Tomás Rivera",email:"tomas@acmecorp.com",role:"Analyst",active:"Yesterday"},{name:"Priya Sharma",email:"priya@acmecorp.com",role:"Viewer",active:"3d ago"}].map(m=>(
-                <tr key={m.name} className="hover:bg-muted/20"><td className="px-4 py-3"><p className="text-sm font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>{m.name}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{m.email}</p></td><td className="px-4 py-3"><DBadge>{m.role}</DBadge></td><td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{m.active}</td><td className="px-4 py-3"><DBtn size="sm" variant="ghost"><Edit3 className="w-3.5 h-3.5"/></DBtn></td></tr>
+                <tr key={m.name} className="hover:nm-pressed transition-all"><td className="px-5 py-4"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{m.name}</p><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{m.email}</p></td><td className="px-5 py-4"><DBadge>{m.role}</DBadge></td><td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{m.active}</td><td className="px-5 py-4"><DBtn size="sm" variant="ghost"><Edit3 className="w-4 h-4"/></DBtn></td></tr>
               ))}
             </tbody></table>
           </div>
@@ -3034,34 +3034,34 @@ function DashboardPage({ session }: { session: Session }) {
   const titles: Record<DashSection,string> = {overview:"Overview",agents:"Agents",batch:"Batch Calls",calls:"Call Logs",numbers:"Phone Numbers",knowledge:"Knowledge Base",voices:"Voice Library",analytics:"Analytics",settings:"Settings"};
 
   return (
-    <div className="flex h-screen bg-muted/20 overflow-hidden">
-      <div className={`${sidebarOpen?"w-52":"w-12"} flex-shrink-0 bg-white border-r border-border flex flex-col transition-all duration-200 overflow-hidden`}>
-        <div className="h-11 border-b border-border flex items-center px-2 justify-between">
-          {sidebarOpen&&<span className="text-xs font-medium text-muted-foreground ml-1" style={{fontFamily:"'DM Mono',monospace"}}>DASHBOARD</span>}
-          <button onClick={()=>setSidebarOpen(!sidebarOpen)} className="w-7 h-7 rounded-md hover:bg-muted flex items-center justify-center ml-auto transition-colors"><Menu className="w-3.5 h-3.5 text-muted-foreground"/></button>
+    <div className="flex h-screen nm-dashboard-container overflow-hidden">
+      <div className={`${sidebarOpen?"w-52":"w-16"} flex-shrink-0 nm-raised flex flex-col transition-all duration-300 z-20`}>
+        <div className="h-16 flex items-center px-4 justify-between">
+          {sidebarOpen&&<span className="text-xs font-bold tracking-widest text-[var(--nm-text)] ml-1" style={{fontFamily:"'DM Mono',monospace"}}>DASHBOARD</span>}
+          <button onClick={()=>setSidebarOpen(!sidebarOpen)} className="nm-icon-btn ml-auto"><Menu className="w-4 h-4"/></button>
         </div>
-        <nav className="flex-1 overflow-y-auto py-2 px-1.5 space-y-3">
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
           {navGroups.map(group=>(
             <div key={group.label}>
               {sidebarOpen&&<p className="text-xs font-medium text-muted-foreground px-2 mb-1" style={{fontFamily:"'DM Mono',monospace"}}>{group.label.toUpperCase()}</p>}
               <div className="space-y-0.5">
                 {group.items.map(item=>{
                   const Icon=item.icon; const active=section===item.id;
-                  return <button key={item.id} onClick={()=>setSection(item.id as DashSection)} title={!sidebarOpen?item.label:undefined} className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-sm font-medium transition-colors ${active?"bg-foreground text-white":"text-muted-foreground hover:text-foreground hover:bg-muted"}`} style={{fontFamily:"'Figtree',sans-serif"}}><Icon className="w-4 h-4 flex-shrink-0" strokeWidth={active?2:1.5}/>{sidebarOpen&&<span className="truncate">{item.label}</span>}</button>;
+                  return <button key={item.id} onClick={()=>setSection(item.id as DashSection)} title={!sidebarOpen?item.label:undefined} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all mb-2 ${active?"nm-pressed text-[var(--nm-accent)]":"hover:nm-raised text-[var(--nm-text)]"}`} style={{fontFamily:"'Figtree',sans-serif"}}><Icon className="w-4 h-4 flex-shrink-0" strokeWidth={active?2.5:2}/>{sidebarOpen&&<span className="truncate">{item.label}</span>}</button>;
                 })}
               </div>
             </div>
           ))}
         </nav>
         {sidebarOpen&&(
-          <div className="p-2 border-t border-border flex flex-col gap-1">
-            <div className="flex items-center gap-2 px-2 py-1.5">
-              <div className="w-6 h-6 bg-foreground rounded-full flex items-center justify-center flex-shrink-0"><span className="text-xs text-white font-bold">{(profile?.fullName ?? profile?.email ?? 'U').charAt(0).toUpperCase()}</span></div>
-              <div className="min-w-0 flex-1"><p className="text-xs font-medium truncate" style={{fontFamily:"'Figtree',sans-serif"}}>{profile?.fullName ?? profile?.email ?? 'User'}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{profile?.billingBalance != null ? `Balance: $${profile.billingBalance}` : 'Growth plan'}</p></div>
+          <div className="p-4 mt-auto flex flex-col gap-3">
+            <div className="flex items-center gap-3 nm-raised p-2 rounded-xl">
+              <div className="w-8 h-8 nm-pressed rounded-full flex items-center justify-center flex-shrink-0"><span className="text-sm text-[var(--nm-accent)] font-bold">{(profile?.fullName ?? profile?.email ?? 'U').charAt(0).toUpperCase()}</span></div>
+              <div className="min-w-0 flex-1"><p className="text-xs font-bold truncate" style={{fontFamily:"'Figtree',sans-serif"}}>{profile?.fullName ?? profile?.email ?? 'User'}</p><p className="text-xs font-medium text-[var(--nm-accent)]" style={{fontFamily:"'Figtree',sans-serif"}}>{profile?.billingBalance != null ? `$${profile.billingBalance}` : 'Growth'}</p></div>
             </div>
             <button 
               onClick={() => supabase.auth.signOut()} 
-              className="text-left text-[10px] text-red-500 font-semibold px-2 py-1 hover:bg-red-50 rounded transition-all"
+              className="text-center text-[11px] font-bold py-2 nm-button w-full nm-state-error"
               style={{fontFamily:"'Figtree',sans-serif"}}
             >
               Sign Out
@@ -3069,12 +3069,12 @@ function DashboardPage({ session }: { session: Session }) {
           </div>
         )}
       </div>
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="bg-white border-b border-border px-5 h-11 flex items-center justify-between flex-shrink-0">
-          <p className="text-sm font-semibold text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{titles[section]}</p>
-          <div className="flex items-center gap-2">
-            <div className="relative hidden md:flex items-center"><Search className="w-3.5 h-3.5 absolute left-2.5 text-muted-foreground"/><input className="bg-muted rounded-lg pl-8 pr-3 py-1 text-xs outline-none w-40 focus:ring-1 focus:ring-foreground/20" placeholder="Search…" style={{fontFamily:"'Figtree',sans-serif"}}/></div>
-            <button className="relative p-1.5 hover:bg-muted rounded-lg transition-colors"><Bell className="w-4 h-4 text-muted-foreground"/><span className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full"/></button>
+      <div className="flex-1 flex flex-col overflow-hidden relative z-0">
+        <div className="nm-raised px-8 h-16 flex items-center justify-between flex-shrink-0 m-4 rounded-2xl">
+          <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{titles[section]}</p>
+          <div className="flex items-center gap-4">
+            <div className="relative hidden md:flex items-center"><Search className="w-4 h-4 absolute left-3 text-[var(--nm-text)]"/><input className="nm-input pl-10 pr-4 py-2 text-sm w-64" placeholder="Search..." style={{fontFamily:"'Figtree',sans-serif"}}/></div>
+            <button className="relative nm-icon-btn"><Bell className="w-4 h-4"/><span className="absolute top-1 right-1 w-2.5 h-2.5 bg-[var(--nm-error)] rounded-full"/></button>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-5">

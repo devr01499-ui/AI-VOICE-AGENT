@@ -56,13 +56,13 @@ export function AnalyticsOverview() {
 
   if (error || !data) {
     return (
-      <div className="bg-red-50/50 border border-red-200/60 rounded-xl p-6 text-center my-6">
-        <p className="text-sm text-red-600 font-medium" style={{ fontFamily: "'Figtree', sans-serif" }}>
+      <div className="nm-card nm-state-error text-center my-6">
+        <p className="text-sm font-bold" style={{ fontFamily: "'Figtree', sans-serif" }}>
           {error || "An unexpected error occurred while compiling workspace analytics."}
         </p>
         <button
           onClick={() => loadData()}
-          className="mt-4 px-4 py-2 bg-foreground text-background text-xs font-semibold rounded-lg hover:bg-foreground/90 transition-all"
+          className="mt-4 nm-button"
         >
           Retry Connection
         </button>
@@ -83,21 +83,21 @@ export function AnalyticsOverview() {
       {/* Header and Refresh Button */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-bold tracking-tight" style={{ fontFamily: "'Figtree', sans-serif" }}>
+          <h2 className="text-2xl font-bold tracking-tight text-[var(--nm-text)]" style={{ fontFamily: "'Figtree', sans-serif" }}>
             Operational Analytics
           </h2>
-          <p className="text-sm text-muted-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
+          <p className="text-sm font-medium text-[var(--nm-text)]" style={{ fontFamily: "'Figtree', sans-serif" }}>
             Real-time call volume, duration metrics, and agent performance.
           </p>
         </div>
         <button
           onClick={() => loadData(true)}
           disabled={refreshing}
-          className="flex items-center gap-2 px-3 py-1.5 border border-border rounded-lg bg-white text-xs font-medium hover:bg-muted/10 active:scale-95 transition-all shadow-sm"
+          className="nm-pill"
           style={{ fontFamily: "'DM Mono', monospace" }}
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
-          {refreshing ? "REFRESHING..." : "SYNC NOW"}
+          <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+          <span className="font-bold">{refreshing ? "REFRESHING..." : "SYNC NOW"}</span>
         </button>
       </div>
 
@@ -131,17 +131,17 @@ export function AnalyticsOverview() {
         ].map((card) => {
           const Icon = card.icon;
           return (
-            <div key={card.label} className="bg-white border border-border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+            <div key={card.label} className="nm-card">
               <div className="flex justify-between items-start mb-3">
-                <p className="text-xs text-muted-foreground font-semibold" style={{ fontFamily: "'DM Mono', monospace" }}>
+                <p className="text-xs font-bold text-[var(--nm-text)]" style={{ fontFamily: "'DM Mono', monospace" }}>
                   {card.label}
                 </p>
-                <Icon className="w-4 h-4 text-muted-foreground/60" />
+                <Icon className="w-5 h-5 text-[var(--nm-text)]" />
               </div>
-              <p className="text-3xl font-bold mb-1" style={{ fontFamily: "'Instrument Serif', serif" }}>
+              <p className="text-4xl font-bold mb-2 text-[var(--nm-text)]" style={{ fontFamily: "'Instrument Serif', serif" }}>
                 {card.value}
               </p>
-              <p className="text-xs text-muted-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
+              <p className="text-xs font-medium text-[var(--nm-text)]" style={{ fontFamily: "'Figtree', sans-serif" }}>
                 {card.sub}
               </p>
             </div>
@@ -150,31 +150,31 @@ export function AnalyticsOverview() {
       </div>
 
       {/* Call State Heatmap/Bar chart */}
-      <div className="bg-white border border-border rounded-xl p-6 shadow-sm">
-        <p className="text-sm font-semibold mb-4" style={{ fontFamily: "'Figtree', sans-serif" }}>
+      <div className="nm-card">
+        <p className="text-base font-bold mb-6 text-[var(--nm-text)]" style={{ fontFamily: "'Figtree', sans-serif" }}>
           Call Termination Status Breakdown
         </p>
-        <div className="space-y-4">
+        <div className="space-y-5">
           {Object.entries(data.statusCodeBreakdown)
             .filter(([_, val]) => val > 0)
             .map(([status, count]) => {
               const pct = ((count / data.totalCalls) * 100).toFixed(1);
               return (
-                <div key={status} className="flex items-center gap-3">
+                <div key={status} className="flex items-center gap-4">
                   <span
-                    className="text-xs font-semibold text-muted-foreground w-28 flex-shrink-0"
+                    className="text-xs font-bold text-[var(--nm-text)] w-28 flex-shrink-0"
                     style={{ fontFamily: "'DM Mono', monospace" }}
                   >
                     {status.toUpperCase()}
                   </span>
-                  <div className="flex-1 bg-muted rounded-full h-2.5 overflow-hidden">
+                  <div className="flex-1 nm-slider-track">
                     <div
-                      className="h-full bg-foreground rounded-full transition-all duration-500"
+                      className="nm-slider-fill transition-all duration-500"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
                   <span
-                    className="text-xs font-medium w-16 text-right"
+                    className="text-xs font-bold w-16 text-right text-[var(--nm-text)]"
                     style={{ fontFamily: "'DM Mono', monospace" }}
                   >
                     {count} ({pct}%)
@@ -183,7 +183,7 @@ export function AnalyticsOverview() {
               );
             })}
           {Object.keys(data.statusCodeBreakdown).length === 0 && (
-            <p className="text-xs text-muted-foreground text-center py-4" style={{ fontFamily: "'DM Mono', monospace" }}>
+            <p className="text-sm font-bold text-[var(--nm-text)] text-center py-4" style={{ fontFamily: "'DM Mono', monospace" }}>
               NO TERMINATION DATA RECORDED YET.
             </p>
           )}
@@ -191,33 +191,35 @@ export function AnalyticsOverview() {
       </div>
 
       {/* Recent Transacted Records */}
-      <div className="bg-white border border-border rounded-xl p-6 shadow-sm">
-        <p className="text-sm font-semibold mb-4" style={{ fontFamily: "'Figtree', sans-serif" }}>
-          Recent Call History Log
-        </p>
-        <div className="overflow-x-auto">
+      <div className="nm-raised rounded-2xl overflow-hidden mt-6">
+        <div className="px-6 py-5 border-b border-transparent">
+          <p className="text-base font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Figtree', sans-serif" }}>
+            Recent Call History Log
+          </p>
+        </div>
+        <div className="overflow-x-auto p-4">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-border text-xs text-muted-foreground" style={{ fontFamily: "'DM Mono', monospace" }}>
-                <th className="pb-3 font-semibold">DATE & TIME</th>
-                <th className="pb-3 font-semibold">STATUS</th>
-                <th className="pb-3 font-semibold text-right">DURATION</th>
+              <tr className="text-xs font-bold text-[var(--nm-text)]" style={{ fontFamily: "'DM Mono', monospace" }}>
+                <th className="pb-4 px-4">DATE & TIME</th>
+                <th className="pb-4 px-4">STATUS</th>
+                <th className="pb-4 px-4 text-right">DURATION</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-transparent">
               {data.callsList.map((call, idx) => (
-                <tr key={idx} className="hover:bg-muted/10 transition-colors">
-                  <td className="py-3 text-xs text-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
+                <tr key={idx} className="hover:nm-pressed transition-all cursor-pointer">
+                  <td className="py-4 px-4 text-sm font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Figtree', sans-serif" }}>
                     {new Date(call.createdAt).toLocaleString()}
                   </td>
-                  <td className="py-3">
+                  <td className="py-4 px-4">
                     <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
                         call.status === "completed"
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          ? "nm-raised text-[var(--nm-accent)]"
                           : call.status === "failed"
-                          ? "bg-red-50 text-red-700 border-red-200"
-                          : "bg-amber-50 text-amber-700 border-amber-200"
+                          ? "nm-raised nm-state-error"
+                          : "nm-raised text-[var(--nm-warning)]"
                       }`}
                       style={{ fontFamily: "'DM Mono', monospace" }}
                     >
@@ -225,7 +227,7 @@ export function AnalyticsOverview() {
                     </span>
                   </td>
                   <td
-                    className="py-3 text-xs text-right text-muted-foreground"
+                    className="py-4 px-4 text-sm font-bold text-right text-[var(--nm-text)]"
                     style={{ fontFamily: "'DM Mono', monospace" }}
                   >
                     {call.durationSeconds ? `${call.durationSeconds}s` : "0s"}
@@ -234,7 +236,7 @@ export function AnalyticsOverview() {
               ))}
               {data.callsList.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="text-center py-6 text-xs text-muted-foreground" style={{ fontFamily: "'DM Mono', monospace" }}>
+                  <td colSpan={3} className="text-center py-8 text-sm font-bold text-[var(--nm-text)]" style={{ fontFamily: "'DM Mono', monospace" }}>
                     NO CALL RECORDS FOUND IN THIS WORKSPACE.
                   </td>
                 </tr>
