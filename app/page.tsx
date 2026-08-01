@@ -315,7 +315,7 @@ export default function HomePage() {
             <div className="h-2 w-20 bg-emerald-500 rounded-full mx-auto mb-6 shadow-[inset_2px_2px_4px_rgba(0,0,0,0.3),inset_-2px_-2px_4px_rgba(255,255,255,0.5),0_0_10px_#10B981]" />
 
             <h1 className="text-3xl font-black mb-2 tracking-tight text-gray-700 drop-shadow-[1px_2px_2px_white]">
-              Claritiy Voice AI
+              Claritiy Voice
             </h1>
             <p className="text-sm text-gray-500 font-bold mb-8 drop-shadow-[1px_1px_1px_white]">Automated HR Screening Arena</p>
 
