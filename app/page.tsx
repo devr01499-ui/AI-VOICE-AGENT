@@ -242,14 +242,14 @@ export default function HomePage() {
   };
 
   return (
-    <div className="bg-[#090D16] text-[#F8FAFC] min-h-screen flex items-center justify-center p-6 relative overflow-hidden w-full">
+    <div className="bg-[#e0e5ec] text-[#4a5568] min-h-screen flex items-center justify-center p-6 relative overflow-hidden w-full font-sans">
       {/* Notifications toast */}
       {toast && (
         <div
-          className={`fixed top-5 right-5 z-50 p-4 rounded-xl text-sm font-semibold shadow-2xl border ${
+          className={`fixed top-5 right-5 z-50 p-4 rounded-xl text-sm font-bold shadow-[6px_6px_12px_#b8bec7,-6px_-6px_12px_#ffffff] border ${
             toast.type === 'success'
-              ? 'bg-[#065F46] border-[#34D399] text-[#F8FAFC]'
-              : 'bg-[#991B1B] border-[#F87171] text-[#F8FAFC]'
+              ? 'bg-[#e0e5ec] border-[#e0e5ec] text-emerald-600'
+              : 'bg-[#e0e5ec] border-[#e0e5ec] text-red-600'
           }`}
         >
           {toast.text}
@@ -257,69 +257,71 @@ export default function HomePage() {
       )}
 
       {/* Grid Layout Panel */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl w-full z-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 max-w-5xl w-full z-10">
 
         {/* Left Column: Recruiter Profile Card */}
-        <div className="bg-[#141C2F] border border-[#1E293B] rounded-xl p-8 shadow-2xl flex flex-col justify-between text-left">
+        <div className="bg-[#e0e5ec] rounded-[32px] p-8 shadow-[12px_12px_24px_#b8bec7,-12px_-12px_24px_#ffffff] flex flex-col justify-between text-left border border-white/50 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/80 to-transparent"></div>
           <div>
-            <div className="h-1 w-20 bg-[#6366F1] rounded-full mb-6 shadow-[0_0_10px_#6366F1]" />
-            <h2 className="text-xl font-bold mb-2 tracking-tight text-white">Active Voice Recruiter</h2>
-            <p className="text-xs text-[#94A3B8] font-medium mb-6">Customer Support screening agent details</p>
+            <div className="h-2 w-20 bg-indigo-500 rounded-full mb-6 shadow-[inset_2px_2px_4px_rgba(0,0,0,0.3),inset_-2px_-2px_4px_rgba(255,255,255,0.5),0_0_10px_#6366F1]" />
+            <h2 className="text-2xl font-extrabold mb-2 tracking-tight text-gray-700 drop-shadow-[1px_1px_1px_white]">Active Voice Recruiter</h2>
+            <p className="text-xs text-gray-500 font-bold mb-6 drop-shadow-[1px_1px_1px_white]">Customer Support screening agent details</p>
 
-            <div className="flex flex-col gap-4 text-xs">
-              <div className="bg-[#0F172A] border border-[#1E293B] rounded-lg p-4">
-                <span className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-1">Agent Name</span>
-                <span className="text-[#F8FAFC] font-semibold text-sm">Claritiy HR Customer Support Screener</span>
+            <div className="flex flex-col gap-5 text-xs">
+              <div className="bg-[#e0e5ec] rounded-2xl p-5 shadow-[inset_6px_6px_12px_#b8bec7,inset_-6px_-6px_12px_#ffffff] border border-white/20">
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-2 drop-shadow-[1px_1px_1px_white]">Agent Name</span>
+                <span className="text-gray-700 font-extrabold text-sm drop-shadow-[1px_1px_1px_white]">Claritiy HR Customer Support Screener</span>
               </div>
 
-              <div className="bg-[#0F172A] border border-[#1E293B] rounded-lg p-4">
-                <span className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-2">Screening Questions</span>
-                <ul className="list-decimal pl-4 space-y-2 text-[#94A3B8]">
-                  <li>Describe a situation where you resolved conflict with a frustrated customer.</li>
-                  <li>How do you handle high call volumes while remaining warm and positive?</li>
-                  <li>What are your expected salary bounds for this position?</li>
+              <div className="bg-[#e0e5ec] rounded-2xl p-5 shadow-[inset_6px_6px_12px_#b8bec7,inset_-6px_-6px_12px_#ffffff] border border-white/20">
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-3 drop-shadow-[1px_1px_1px_white]">Screening Questions</span>
+                <ul className="list-decimal pl-4 space-y-3 text-gray-600 font-bold">
+                  <li className="drop-shadow-[1px_1px_1px_white]">Describe a situation where you resolved conflict with a frustrated customer.</li>
+                  <li className="drop-shadow-[1px_1px_1px_white]">How do you handle high call volumes while remaining warm and positive?</li>
+                  <li className="drop-shadow-[1px_1px_1px_white]">What are your expected salary bounds for this position?</li>
                 </ul>
               </div>
 
-              <div className="bg-[#0F172A] border border-[#1E293B] rounded-lg p-4 flex justify-between items-center">
+              <div className="bg-[#e0e5ec] rounded-2xl p-5 shadow-[inset_6px_6px_12px_#b8bec7,inset_-6px_-6px_12px_#ffffff] border border-white/20 flex justify-between items-center">
                 <div>
-                  <span className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-0.5">Model Engine</span>
-                  <span className="text-[#F8FAFC] font-mono">Gemini 2.5 Flash</span>
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 drop-shadow-[1px_1px_1px_white]">Model Engine</span>
+                  <span className="text-gray-700 font-bold font-mono drop-shadow-[1px_1px_1px_white]">Gemini 2.5 Flash</span>
                 </div>
-                <span className="px-2.5 py-1 rounded bg-[#6366F1]/10 text-[#818CF8] text-[10px] font-bold border border-[#4F46E5]/30">
+                <span className="px-3 py-1.5 rounded-xl bg-[#e0e5ec] text-indigo-600 text-[10px] font-extrabold shadow-[4px_4px_8px_#b8bec7,-4px_-4px_8px_#ffffff] border border-white/50">
                   Realtime API
                 </span>
               </div>
 
-              <div className="bg-[#0F172A] border border-[#1E293B] rounded-lg p-4 flex justify-between items-center">
+              <div className="bg-[#e0e5ec] rounded-2xl p-5 shadow-[inset_6px_6px_12px_#b8bec7,inset_-6px_-6px_12px_#ffffff] border border-white/20 flex justify-between items-center">
                 <div>
-                  <span className="block text-[10px] font-bold uppercase tracking-wider text-[#64748B] mb-0.5">Voice Tone</span>
-                  <span className="text-[#F8FAFC] font-semibold">Puck (Human-like, Clear, Smooth)</span>
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 drop-shadow-[1px_1px_1px_white]">Voice Tone</span>
+                  <span className="text-gray-700 font-extrabold drop-shadow-[1px_1px_1px_white]">Puck (Human-like, Clear)</span>
                 </div>
-                <span className="px-2.5 py-1 rounded bg-[#10B981]/10 text-[#34D399] text-[10px] font-bold border border-[#059669]/30">
+                <span className="px-3 py-1.5 rounded-xl bg-[#e0e5ec] text-emerald-600 text-[10px] font-extrabold shadow-[4px_4px_8px_#b8bec7,-4px_-4px_8px_#ffffff] border border-white/50">
                   Active
                 </span>
               </div>
             </div>
           </div>
-          <div className="text-[10px] text-[#64748B] mt-6 text-center border-t border-[#1E293B] pt-4 font-mono">
+          <div className="text-[10px] text-gray-500 mt-8 text-center pt-4 font-mono font-bold shadow-[inset_0_2px_4px_-2px_#b8bec7] rounded-b-xl drop-shadow-[1px_1px_1px_white]">
             Agent ID: d0eebc99-9c0b-4ef8-bb6d-6bb9bd380d22
           </div>
         </div>
 
         {/* Right Column: Claritiy Voice AI Panel */}
-        <div className="bg-[#141C2F] border border-[#1E293B] rounded-xl p-8 shadow-2xl text-center relative flex flex-col justify-between">
+        <div className="bg-[#e0e5ec] rounded-[32px] p-8 shadow-[12px_12px_24px_#b8bec7,-12px_-12px_24px_#ffffff] text-center relative flex flex-col justify-between border border-white/50">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/80 to-transparent"></div>
           <div>
-            <div className="h-1 w-20 bg-[#10B981] rounded-full mx-auto mb-6 shadow-[0_0_10px_#10B981]" />
+            <div className="h-2 w-20 bg-emerald-500 rounded-full mx-auto mb-6 shadow-[inset_2px_2px_4px_rgba(0,0,0,0.3),inset_-2px_-2px_4px_rgba(255,255,255,0.5),0_0_10px_#10B981]" />
 
-            <h1 className="text-2xl font-extrabold mb-2 tracking-tight bg-gradient-to-r from-[#F8FAFC] to-[#94A3B8] bg-clip-text text-transparent">
+            <h1 className="text-3xl font-black mb-2 tracking-tight text-gray-700 drop-shadow-[1px_2px_2px_white]">
               Claritiy Voice AI
             </h1>
-            <p className="text-sm text-[#94A3B8] font-medium mb-8">Automated HR Screening Arena</p>
+            <p className="text-sm text-gray-500 font-bold mb-8 drop-shadow-[1px_1px_1px_white]">Automated HR Screening Arena</p>
 
-            <div className="flex flex-col gap-5 text-left">
+            <div className="flex flex-col gap-6 text-left">
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#64748B] mb-2">
+                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-gray-500 mb-3 drop-shadow-[1px_1px_1px_white]">
                   Candidate Phone Number (E.164)
                 </label>
                 <input
@@ -327,7 +329,7 @@ export default function HomePage() {
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   placeholder="+91XXXXXXXXXX"
-                  className="w-full bg-[#0F172A] border border-[#334155] rounded-lg p-3.5 text-sm font-mono text-[#F8FAFC] outline-none focus:border-[#10B981] transition-all box-border"
+                  className="w-full bg-[#e0e5ec] rounded-2xl p-4 text-sm font-bold font-mono text-gray-700 shadow-[inset_6px_6px_12px_#b8bec7,inset_-6px_-6px_12px_#ffffff] border-none outline-none focus:ring-2 focus:ring-emerald-400/50 transition-all box-border"
                 />
               </div>
 
@@ -336,7 +338,7 @@ export default function HomePage() {
                   <button
                     onClick={handleHangUp}
                     disabled={dialing}
-                    className="w-full p-4 bg-[#DC2626] hover:bg-[#B91C1C] text-[#F8FAFC] border-none rounded-xl text-sm font-bold cursor-pointer shadow-lg hover:shadow-xl transition-all"
+                    className="w-full p-4 bg-red-500 hover:bg-red-600 text-white border-none rounded-2xl text-sm font-black cursor-pointer shadow-[6px_6px_12px_#b8bec7,-6px_-6px_12px_#ffffff,inset_2px_2px_4px_rgba(255,255,255,0.4),inset_-2px_-2px_4px_rgba(0,0,0,0.2)] active:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.4),inset_-4px_-4px_8px_rgba(255,255,255,0.1)] active:translate-y-1 transition-all"
                   >
                     Hang Up Connection
                   </button>
@@ -344,52 +346,52 @@ export default function HomePage() {
                   <button
                     onClick={handleStartCall}
                     disabled={dialing}
-                    className="w-full p-4 bg-[#10B981] hover:bg-[#059669] text-[#F8FAFC] border-none rounded-xl text-sm font-bold cursor-pointer shadow-lg hover:shadow-xl transition-all"
+                    className="w-full p-4 bg-emerald-500 hover:bg-emerald-600 text-white border-none rounded-2xl text-sm font-black cursor-pointer shadow-[6px_6px_12px_#b8bec7,-6px_-6px_12px_#ffffff,inset_2px_2px_4px_rgba(255,255,255,0.4),inset_-2px_-2px_4px_rgba(0,0,0,0.2)] active:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.4),inset_-4px_-4px_8px_rgba(255,255,255,0.1)] active:translate-y-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Initiate Live Screen Call
                   </button>
                 )}
               </div>
 
-              <div className="flex justify-between items-center bg-[#0F172A] border border-[#1E293B] rounded-lg p-3 text-xs">
-                <span className="text-[#94A3B8] font-medium">Line Status</span>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`h-2 w-2 rounded-full inline-block ${
+              <div className="flex justify-between items-center bg-[#e0e5ec] rounded-2xl p-4 text-xs shadow-[inset_6px_6px_12px_#b8bec7,inset_-6px_-6px_12px_#ffffff] border border-white/20">
+                <span className="text-gray-500 font-extrabold drop-shadow-[1px_1px_1px_white]">Line Status</span>
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`h-3 w-3 rounded-full shadow-[inset_1px_1px_3px_rgba(0,0,0,0.3),inset_-1px_-1px_3px_rgba(255,255,255,0.5)] ${
                       callStatus === 'connected'
-                        ? 'bg-[#10B981]'
+                        ? 'bg-emerald-500'
                         : callStatus === 'idle'
-                        ? 'bg-[#64748B]'
-                        : 'bg-[#F59E0B]'
+                        ? 'bg-gray-400'
+                        : 'bg-amber-500'
                     }`}
                   />
-                  <strong className="text-[#F8FAFC]">{getStatusLabel(callStatus)}</strong>
+                  <strong className="text-gray-700 font-extrabold drop-shadow-[1px_1px_1px_white]">{getStatusLabel(callStatus)}</strong>
                   {callStatus === 'connected' && (
-                    <span className="text-[#10B981] font-mono ml-1.5">({formatSecToTime(callDuration)})</span>
+                    <span className="text-emerald-600 font-black font-mono ml-1.5 drop-shadow-[1px_1px_1px_white]">({formatSecToTime(callDuration)})</span>
                   )}
                 </div>
               </div>
 
               <div className="mt-2">
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#64748B] mb-2">
+                <label className="block text-[11px] font-extrabold uppercase tracking-wider text-gray-500 mb-3 drop-shadow-[1px_1px_1px_white]">
                   Live Dialogue Transcription
                 </label>
-                <div className="w-full h-44 bg-[#0F172A] border border-[#1E293B] rounded-lg p-4 overflow-y-auto flex flex-col gap-3 font-sans text-xs box-border">
+                <div className="w-full h-44 bg-[#e0e5ec] rounded-2xl p-5 shadow-[inset_6px_6px_12px_#b8bec7,inset_-6px_-6px_12px_#ffffff] overflow-y-auto flex flex-col gap-4 font-sans text-xs box-border border border-white/20">
                   {transcripts.length === 0 ? (
-                    <div className="text-[#64748B] text-center italic my-auto">
+                    <div className="text-gray-500 font-bold text-center italic my-auto drop-shadow-[1px_1px_1px_white]">
                       Dialogue streams will render here in real-time...
                     </div>
                   ) : (
                     transcripts.map((t) => (
-                      <div key={t.id} className="flex flex-col gap-1">
+                      <div key={t.id} className="flex flex-col gap-1.5">
                         <span
-                          className={`font-bold tracking-wide uppercase text-[9px] ${
-                            t.speaker === 'agent' ? 'text-[#818CF8]' : 'text-[#34D399]'
+                          className={`font-black tracking-wider uppercase text-[10px] drop-shadow-[1px_1px_1px_white] ${
+                            t.speaker === 'agent' ? 'text-indigo-600' : 'text-emerald-600'
                           }`}
                         >
                           {t.speaker === 'agent' ? 'Claritiy Recruiter' : 'Candidate'}
                         </span>
-                        <p className="text-[#E2E8F0] m-0 leading-relaxed font-medium">{t.text}</p>
+                        <p className="text-gray-700 m-0 leading-relaxed font-bold drop-shadow-[1px_1px_1px_white] bg-[#e0e5ec] p-3 rounded-xl shadow-[4px_4px_8px_#b8bec7,-4px_-4px_8px_#ffffff]">{t.text}</p>
                       </div>
                     ))
                   )}
@@ -400,19 +402,18 @@ export default function HomePage() {
           </div>
 
           {/* SIP Trunking panel */}
-          <div className="mt-8 pt-6 border-t border-[#1E293B] flex justify-between items-center text-left">
+          <div className="mt-10 pt-6 shadow-[inset_0_2px_4px_-2px_#b8bec7] flex justify-between items-center text-left rounded-b-xl px-2">
             <div>
-              <span className="block text-xs font-semibold text-white mb-1">Outbound Calling Engine</span>
-              <span className="block text-[10px] text-[#94A3B8]">Default: Vobiz Carrier</span>
+              <span className="block text-xs font-extrabold text-gray-700 mb-1 drop-shadow-[1px_1px_1px_white]">Outbound Calling Engine</span>
+              <span className="block text-[10px] font-bold text-gray-500 drop-shadow-[1px_1px_1px_white]">Default: Vobiz Carrier</span>
             </div>
             
             <button
               onClick={() => setIsSipModalOpen(true)}
-              className="relative group flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 hover:border-emerald-400 transition-all overflow-hidden"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black text-emerald-600 bg-[#e0e5ec] shadow-[6px_6px_12px_#b8bec7,-6px_-6px_12px_#ffffff] hover:shadow-[inset_2px_2px_4px_#b8bec7,inset_-2px_-2px_4px_#ffffff] transition-all border border-white/50 active:translate-y-1"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/0 via-emerald-500/10 to-emerald-500/0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
-              <Settings2 className="w-4 h-4" />
-              Configure SIP Trunk
+              <Settings2 className="w-4 h-4 drop-shadow-[1px_1px_1px_white]" />
+              <span className="drop-shadow-[1px_1px_1px_white]">Configure SIP</span>
             </button>
           </div>
         </div>
