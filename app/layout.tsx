@@ -4,7 +4,7 @@ import AuthProvider from '@/providers/AuthProvider';
 import QueryProvider from '@/providers/QueryProvider';
 
 export const metadata: Metadata = {
-  title: 'Claritiy Voice AI - Automated HR Screening Arena',
+  title: 'Claritiy Voice',
   description: 'Production Telephony MVP for low-latency automated HR candidate screening.',
 };
 

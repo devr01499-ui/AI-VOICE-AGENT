@@ -424,6 +424,14 @@ export default function HomePage() {
         onClose={() => setIsSipModalOpen(false)}
         onSave={handleConnectSipTrunk}
       />
+
+      <footer className="mt-16 py-8 border-t border-gray-200 text-center text-sm text-gray-500 w-full flex-shrink-0">
+        <p className="mb-2">© 2026 Claritiy Voice. All rights reserved.</p>
+        <div className="flex justify-center gap-4">
+          <a href="/privacy" className="hover:text-emerald-600 hover:underline">Privacy Policy</a>
+          <a href="/terms" className="hover:text-emerald-600 hover:underline">Terms of Service</a>
+        </div>
+      </footer>
     </div>
   );
 }
