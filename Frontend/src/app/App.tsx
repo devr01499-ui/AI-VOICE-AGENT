@@ -637,6 +637,20 @@ function DField({ label, children, hint }: { label:string; children:React.ReactN
     </div>
   );
 }
+export function ConfirmDeleteModal({ open, onClose, onConfirm, title, message }: { open: boolean, onClose: () => void, onConfirm: () => void, title: string, message: string }) {
+  return (
+    <DModal open={open} onClose={onClose} title={title} width="max-w-sm">
+      <div className="space-y-6">
+        <p className="text-[var(--nm-text)] text-sm" style={{fontFamily:"'Figtree',sans-serif"}}>{message}</p>
+        <div className="flex justify-end gap-3">
+          <DBtn variant="secondary" onClick={onClose}>Cancel</DBtn>
+          <DBtn variant="danger" onClick={() => { onConfirm(); onClose(); }}>Delete</DBtn>
+        </div>
+      </div>
+    </DModal>
+  );
+}
+
 function DModal({ open, onClose, title, children, width="max-w-lg" }: { open:boolean; onClose:()=>void; title:string; children:React.ReactNode; width?:string }) {
   if (!open) return null;
   return (
@@ -1282,31 +1296,35 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
     }).then(() => { setSaveStatus('done'); loadAgents(); }).catch(() => setSaveStatus('error')).finally(() => setTimeout(() => setSaveStatus('idle'), 2000));
   }
 
-  async function handleDelete(agentId: string) {
-    if (window.confirm("Are you sure you want to delete this agent? It will be deleted forever.")) {
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(agentId);
-      if (!isUuid) {
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean, id: string }>({ open: false, id: '' });
+
+  async function performDelete(agentId: string) {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(agentId);
+    if (!isUuid) {
+      setAgents(prev => prev.filter(x => x.id !== agentId));
+      if (setApiAgents) {
+        setApiAgents(p => p.filter(a => a.id !== agentId));
+      }
+      return;
+    }
+
+    try {
+      const response = await apiClient.delete(`/api/v2/agents/${agentId}`);
+      if (response.data?.success) {
         setAgents(prev => prev.filter(x => x.id !== agentId));
         if (setApiAgents) {
           setApiAgents(p => p.filter(a => a.id !== agentId));
         }
-        return;
+      } else {
+        alert(`Failed to delete agent`);
       }
-
-      try {
-        const response = await apiClient.delete(`/api/v2/agents/${agentId}`);
-        if (response.data?.success) {
-          setAgents(prev => prev.filter(x => x.id !== agentId));
-          if (setApiAgents) {
-            setApiAgents(p => p.filter(a => a.id !== agentId));
-          }
-        } else {
-          alert(`Failed to delete agent`);
-        }
-      } catch (err: any) {
-        alert(`Failed to delete agent: ${err.message}`);
-      }
+    } catch (err: any) {
+      alert(`Failed to delete agent: ${err.message}`);
     }
+  }
+
+  async function handleDelete(agentId: string) {
+    setDeleteModal({ open: true, id: agentId });
   }
 
   function handleCreate() {
@@ -1736,6 +1754,13 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
 
   return (
     <div className="space-y-4">
+      <ConfirmDeleteModal 
+        open={deleteModal.open} 
+        onClose={() => setDeleteModal({ open: false, id: '' })} 
+        onConfirm={() => performDelete(deleteModal.id)} 
+        title="Delete Agent" 
+        message="Are you sure you want to delete this agent? It will be deleted forever." 
+      />
       {agentsLoading && <div className="text-xs text-muted-foreground py-2" style={{fontFamily:"'Figtree',sans-serif"}}>Loading agents…</div>}
       {agentsError && <div className="text-xs text-red-500 py-2" style={{fontFamily:"'Figtree',sans-serif"}}>⚠ {agentsError}</div>}
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -2128,6 +2153,17 @@ function DashNumbers() {
     fetchAgents().then(setLiveAgents).catch(() => {});
   }, [loadNumbers]);
 
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean, id: string }>({ open: false, id: '' });
+
+  async function performDelete(id: string) {
+    setNumbers(prev => prev.filter(n => n.id !== id));
+    try {
+      await apiClient.delete(`/api/v2/numbers/${id}`);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   const buyResults = [
     {number:"+1 (212) 555-0182",region:"New York, NY",type:"local",mo:2.00},
     {number:"+1 (310) 555-0847",region:"Los Angeles, CA",type:"local",mo:2.00},
@@ -2137,6 +2173,13 @@ function DashNumbers() {
   ];
   return (
     <div className="space-y-4">
+      <ConfirmDeleteModal 
+        open={deleteModal.open} 
+        onClose={() => setDeleteModal({ open: false, id: '' })} 
+        onConfirm={() => performDelete(deleteModal.id)} 
+        title="Delete Phone Number" 
+        message="Are you sure you want to delete this phone number? It will be removed permanently." 
+      />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{numbers.length} numbers provisioned</p>
         <div className="flex gap-2"><DBtn variant="secondary" onClick={()=>setShowSip(true)}><Network className="w-4 h-4"/> SIP config</DBtn><DBtn onClick={()=>setShowBuy(true)}><Plus className="w-4 h-4"/> Buy number</DBtn></div>
@@ -2167,7 +2210,7 @@ function DashNumbers() {
                   <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{n.region}</td>
                   <td className="px-5 py-4">{n.agentId?<span className="text-xs font-bold text-[var(--nm-text)] nm-pressed rounded px-3 py-1" style={{fontFamily:"'Figtree',sans-serif"}}>{liveAgents.find(a=>a.id===n.agentId)?.name || 'Default Agent'}</span>:<span className="text-xs font-bold text-[var(--nm-text)]">Unassigned</span>}</td>
                   <td className="px-5 py-4"><div className="flex items-center gap-2"><SDot status={n.status}/><span className="text-sm font-bold text-[var(--nm-text)] capitalize" style={{fontFamily:"'Figtree',sans-serif"}}>{n.status}</span></div></td>
-                  <td className="px-5 py-4"><div className="flex gap-2"><DBtn size="sm" variant="ghost"><Edit3 className="w-4 h-4"/></DBtn><DBtn size="sm" variant="ghost"><Trash2 className="w-4 h-4 text-red-400"/></DBtn></div></td>
+                  <td className="px-5 py-4"><div className="flex gap-2"><DBtn size="sm" variant="ghost"><Edit3 className="w-4 h-4"/></DBtn><DBtn size="sm" variant="ghost" onClick={() => setDeleteModal({ open: true, id: n.id })}><Trash2 className="w-4 h-4 text-red-400"/></DBtn></div></td>
                 </tr>
               ))}
             </tbody>
@@ -2289,8 +2332,9 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
     reader.readAsDataURL(file);
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Are you sure you want to delete this document?")) return;
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean, id: string }>({ open: false, id: '' });
+
+  async function performDelete(id: string) {
     const previousDocs = [...docs];
     try {
       setDocs(prev => prev.filter(d => d.id !== id));
@@ -2302,8 +2346,19 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
     }
   }
 
+  async function handleDelete(id: string) {
+    setDeleteModal({ open: true, id });
+  }
+
   return (
     <div className="space-y-4">
+      <ConfirmDeleteModal 
+        open={deleteModal.open} 
+        onClose={() => setDeleteModal({ open: false, id: '' })} 
+        onConfirm={() => performDelete(deleteModal.id)} 
+        title="Delete Document" 
+        message="Are you sure you want to delete this document? It will be removed permanently." 
+      />
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{docs.length} documents uploaded</p>
         <DBtn onClick={()=>setShowAdd(true)}><Plus className="w-4 h-4"/> Add document</DBtn>

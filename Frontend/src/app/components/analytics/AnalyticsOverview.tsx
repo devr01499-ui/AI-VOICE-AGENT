@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { fetchAnalyticsSummary } from "../../api";
 import { Cpu, RefreshCw, Phone, Clock, Activity, BarChart2 } from "lucide-react";
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 interface AnalyticsData {
   totalMinutesUsed: number;
@@ -25,8 +26,8 @@ export function AnalyticsOverview() {
     else setRefreshing(true);
     try {
       const summary = await fetchAnalyticsSummary();
-      if (summary && summary.success) {
-        setData(summary.data);
+      if (summary) {
+        setData(summary);
         setError(null);
       } else {
         setError("Failed to fetch call metrics");
@@ -77,6 +78,27 @@ export function AnalyticsOverview() {
   const successRate = data.totalCalls > 0 
     ? ((completed / data.totalCalls) * 100).toFixed(1)
     : "0.0";
+
+  const volumeByHour: Record<string, number> = {};
+  if (data && data.callsList) {
+    data.callsList.forEach(call => {
+      const d = new Date(call.createdAt);
+      const hour = d.getHours();
+      const hourStr = hour < 10 ? `0${hour}:00` : `${hour}:00`;
+      volumeByHour[hourStr] = (volumeByHour[hourStr] || 0) + 1;
+    });
+  }
+
+  const busiestHoursData = Object.keys(volumeByHour).sort().map(hour => ({
+    hour,
+    calls: volumeByHour[hour]
+  }));
+
+  const chartTheme = {
+    fill: "var(--nm-accent, #3b82f6)",
+    text: "var(--nm-text, #475569)",
+    grid: "var(--nm-bg, #ECEDF0)",
+  };
 
   return (
     <div className="space-y-6">
@@ -149,44 +171,81 @@ export function AnalyticsOverview() {
         })}
       </div>
 
-      {/* Call State Heatmap/Bar chart */}
-      <div className="nm-card">
-        <p className="text-base font-bold mb-6 text-[var(--nm-text)]" style={{ fontFamily: "'Figtree', sans-serif" }}>
-          Call Termination Status Breakdown
-        </p>
-        <div className="space-y-5">
-          {Object.entries(data.statusCodeBreakdown)
-            .filter(([_, val]) => val > 0)
-            .map(([status, count]) => {
-              const pct = ((count / data.totalCalls) * 100).toFixed(1);
-              return (
-                <div key={status} className="flex items-center gap-4">
-                  <span
-                    className="text-xs font-bold text-[var(--nm-text)] w-28 flex-shrink-0"
-                    style={{ fontFamily: "'DM Mono', monospace" }}
-                  >
-                    {status.toUpperCase()}
-                  </span>
-                  <div className="flex-1 nm-slider-track">
-                    <div
-                      className="nm-slider-fill transition-all duration-500"
-                      style={{ width: `${pct}%` }}
-                    />
+      {/* Charts Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Call State Heatmap/Bar chart */}
+        <div className="nm-card">
+          <p className="text-base font-bold mb-6 text-[var(--nm-text)]" style={{ fontFamily: "'Figtree', sans-serif" }}>
+            Call Termination Status Breakdown
+          </p>
+          <div className="space-y-5">
+            {Object.entries(data.statusCodeBreakdown)
+              .filter(([_, val]) => val > 0)
+              .map(([status, count]) => {
+                const pct = ((count / data.totalCalls) * 100).toFixed(1);
+                return (
+                  <div key={status} className="flex items-center gap-4">
+                    <span
+                      className="text-xs font-bold text-[var(--nm-text)] w-28 flex-shrink-0"
+                      style={{ fontFamily: "'DM Mono', monospace" }}
+                    >
+                      {status.toUpperCase()}
+                    </span>
+                    <div className="flex-1 nm-slider-track">
+                      <div
+                        className="nm-slider-fill transition-all duration-500"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span
+                      className="text-xs font-bold w-16 text-right text-[var(--nm-text)]"
+                      style={{ fontFamily: "'DM Mono', monospace" }}
+                    >
+                      {count} ({pct}%)
+                    </span>
                   </div>
-                  <span
-                    className="text-xs font-bold w-16 text-right text-[var(--nm-text)]"
-                    style={{ fontFamily: "'DM Mono', monospace" }}
-                  >
-                    {count} ({pct}%)
-                  </span>
-                </div>
-              );
-            })}
-          {Object.keys(data.statusCodeBreakdown).length === 0 && (
-            <p className="text-sm font-bold text-[var(--nm-text)] text-center py-4" style={{ fontFamily: "'DM Mono', monospace" }}>
-              NO TERMINATION DATA RECORDED YET.
-            </p>
-          )}
+                );
+              })}
+            {Object.keys(data.statusCodeBreakdown).length === 0 && (
+              <p className="text-sm font-bold text-[var(--nm-text)] text-center py-4" style={{ fontFamily: "'DM Mono', monospace" }}>
+                NO TERMINATION DATA RECORDED YET.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Busiest Hours Chart */}
+        <div className="nm-card">
+          <p className="text-base font-bold mb-6 text-[var(--nm-text)]" style={{ fontFamily: "'Figtree', sans-serif" }}>
+            Busiest Hours (Recent 100 Calls)
+          </p>
+          <div className="h-64">
+            {busiestHoursData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={busiestHoursData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorCalls" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={chartTheme.fill} stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor={chartTheme.fill} stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.grid} />
+                  <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: chartTheme.text }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: chartTheme.text }} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', background: 'var(--nm-bg)', boxShadow: '6px 6px 12px var(--nm-shadow-drk), -6px -6px 12px var(--nm-shadow-lgt)' }}
+                    itemStyle={{ color: chartTheme.text, fontSize: '12px', fontWeight: 'bold' }}
+                    labelStyle={{ color: chartTheme.text, fontSize: '10px' }}
+                  />
+                  <Area type="monotone" dataKey="calls" stroke={chartTheme.fill} strokeWidth={2} fillOpacity={1} fill="url(#colorCalls)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm font-bold text-[var(--nm-text)] text-center py-4" style={{ fontFamily: "'DM Mono', monospace" }}>
+                NO CALLS RECORDED YET.
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
