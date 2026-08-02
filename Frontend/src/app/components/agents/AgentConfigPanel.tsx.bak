@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Sliders, Sparkles, MessageSquare, Bot, Settings2 } from "lucide-react";
+import { Sliders, Sparkles, MessageSquare } from "lucide-react";
 import { updateAgent } from "../../api";
-import ConversationalBuilder from "./ConversationalBuilder";
 
 interface AgentConfigPanelProps {
   agent: any;
@@ -10,7 +9,6 @@ interface AgentConfigPanelProps {
 }
 
 export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: AgentConfigPanelProps) {
-  const [activeTab, setActiveTab] = useState<'manual' | 'ai'>('manual');
   const [prompt, setPrompt] = useState(agent.systemPrompt || "");
   const [voice, setVoice] = useState(agent.systemVoice || agent.voice || "Puck");
   const [temp, setTemp] = useState(agent.temperature ?? 0.7);
@@ -63,48 +61,7 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
   }, []);
 
   return (
-    <div className="space-y-6">
-      {/* Tab Switcher */}
-      <div className="flex gap-4 border-b border-[var(--nm-bg-dark)] pb-4">
-        <button
-          onClick={() => setActiveTab('manual')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-            activeTab === 'manual' 
-              ? 'nm-pressed text-[var(--nm-text)]' 
-              : 'text-[var(--nm-text)] opacity-70 hover:opacity-100 hover:nm-raised'
-          }`}
-          style={{ fontFamily: "'Figtree', sans-serif" }}
-        >
-          <Settings2 className="w-4 h-4" />
-          Manual Configuration
-        </button>
-        <button
-          onClick={() => setActiveTab('ai')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-            activeTab === 'ai' 
-              ? 'nm-pressed text-[var(--nm-accent)]' 
-              : 'text-[var(--nm-text)] opacity-70 hover:opacity-100 hover:nm-raised'
-          }`}
-          style={{ fontFamily: "'Figtree', sans-serif" }}
-        >
-          <Bot className="w-4 h-4" />
-          AI Builder
-        </button>
-      </div>
-
-      {activeTab === 'ai' ? (
-        <ConversationalBuilder
-          onApply={(config) => {
-            setPrompt(config.systemPrompt);
-            setVoice(config.systemVoice);
-            setTemp(config.temperature);
-            setLanguageMode(config.languageMode);
-            setActiveTab('manual');
-            triggerDebouncedSave(config);
-          }}
-        />
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* CARD 1: Persona & Instructions */}
       <div className="nm-card flex flex-col justify-between h-full">
         <div className="space-y-4">
@@ -264,8 +221,6 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
           </div>
         </div>
       </div>
-    </div>
-      )}
     </div>
   );
 }

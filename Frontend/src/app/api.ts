@@ -244,6 +244,26 @@ export async function optimizePrompt(description: string): Promise<{
   });
 }
 
+/** POST /api/v2/agents/conversational-builder — Chat with AI to build agent config */
+export async function buildAgentConversation(
+  message: string,
+  history: Array<{ role: 'user' | 'model'; content: string }>
+): Promise<{
+  isFinal: boolean;
+  response: string | null;
+  config: {
+    systemPrompt: string;
+    systemVoice: string;
+    temperature: number;
+    languageMode: string;
+  } | null;
+}> {
+  return apiFetch("/api/v2/agents/conversational-builder", {
+    method: "POST",
+    body: JSON.stringify({ message, history }),
+  });
+}
+
 /** GET /api/v2/agents/me/profile — Fetch current user profile */
 export async function fetchProfile(): Promise<ApiProfile> {
   return apiFetch<ApiProfile>("/api/v2/agents/me/profile");

@@ -15,6 +15,7 @@ import { getUserIdFromRequest } from '../utils/auth';
 import { requireAuth } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { ADMIN_EMAIL } from '../config/constants';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 
 const router = Router();
 
@@ -56,8 +57,107 @@ router.get(
       });
       return;
     } catch (error: any) {
-      logger.error("Handled Gracefully - Agent Ingestion Runtime Exception:", { error: error?.message || String(error) });
-      res.status(200).json({ success: false, data: null });
+      logger.error("Error optimizing prompt", { error: error?.message || String(error) });
+      res.status(500).json({ success: false, error: 'Failed to optimize prompt' });
+      return;
+    }
+  }
+);
+
+/** POST /api/v2/agents/conversational-builder — Chat endpoint to build an agent config. */
+router.post(
+  '/conversational-builder',
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'Unauthorized' });
+        return;
+      }
+
+      const { history, message } = req.body;
+      if (!message && (!history || history.length === 0)) {
+        res.status(400).json({ success: false, error: 'Message or history is required' });
+        return;
+      }
+
+      if (!process.env.GEMINI_API_KEY) {
+        res.status(500).json({ success: false, error: 'GEMINI_API_KEY is not configured on the server.' });
+        return;
+      }
+
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.5-flash",
+        systemInstruction: `You are an expert AI Voice Agent Builder for 'Claritiy Voice'.
+Your goal is to gather requirements from the user and output a complete agent configuration JSON.
+To build a great voice agent, you need to know:
+1. The agent's core purpose or use case (e.g. outbound sales, inbound customer support).
+2. The agent's tone and personality (e.g. professional, friendly, energetic).
+3. The language requirements (English, Hindi, etc.).
+
+If the user has not provided enough information, ask ONE short, polite clarifying question in plain text.
+If you have enough information, output ONLY a valid JSON object (no markdown formatting, no markdown code blocks, just raw JSON) matching this exact structure:
+{
+  "systemPrompt": "The complete, detailed persona and instruction prompt for the agent to follow.",
+  "systemVoice": "Puck",
+  "temperature": 0.7,
+  "languageMode": "auto"
+}
+
+Notes for systemVoice: choose one of Puck, Aoede, Charon, Fenrir, Kore, Leda, Orus, Zephyr, Callirhoe, Autonoe, Enceladus, Iapetus, Umbriel, Algieba, Despina, Erinome, Algenib, Rasalgethi, Laomedeia, Achernar, Alnilam, Schedar, Gacrux, Pulcherrima, Achird, Adara, Castor, Deneb, Eltanin, Mizar.
+DO NOT wrap the JSON in markdown blocks. Output the raw JSON object string when ready, otherwise output conversational text.`,
+      });
+
+      const chatHistory = (history || []).map((msg: any) => ({
+        role: msg.role === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.content }],
+      }));
+
+      const chat = model.startChat({
+        history: chatHistory,
+        generationConfig: {
+          temperature: 0.2,
+        },
+      });
+
+      const result = await chat.sendMessage(message || "Hello, I want to build an agent.");
+      const responseText = result.response.text().trim();
+
+      // Attempt to parse as JSON to see if it's a final configuration
+      let isFinal = false;
+      let config = null;
+      let cleanJson = responseText;
+
+      // Handle cases where Gemini might still add markdown blocks despite instructions
+      if (cleanJson.startsWith('```json')) {
+        cleanJson = cleanJson.replace(/^```json/, '').replace(/```$/, '').trim();
+      } else if (cleanJson.startsWith('```')) {
+        cleanJson = cleanJson.replace(/^```/, '').replace(/```$/, '').trim();
+      }
+
+      try {
+        config = JSON.parse(cleanJson);
+        if (config && typeof config === 'object' && config.systemPrompt) {
+          isFinal = true;
+        }
+      } catch (e) {
+        // Not JSON, which means it's a conversational follow-up
+      }
+
+      res.json({
+        success: true,
+        data: {
+          isFinal,
+          response: isFinal ? null : responseText, // original text for chat log if not final
+          config: isFinal ? config : null,
+        }
+      });
+      return;
+    } catch (error: any) {
+      logger.error("Error in conversational builder", { error: error?.message || String(error) });
+      res.status(500).json({ success: false, error: 'Failed to process request' });
       return;
     }
   }

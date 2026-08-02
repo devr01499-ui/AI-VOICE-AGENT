@@ -28,6 +28,8 @@ export default defineConfig({
     alias: {
       // Alias @ to the src directory
       '@': path.resolve(__dirname, './src'),
+      // Fix for Radix UI build issue with Vite 6
+      '@radix-ui/react-compose-refs': path.resolve(__dirname, 'node_modules/@radix-ui/react-compose-refs/dist/index.mjs'),
     },
   },
 
