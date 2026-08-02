@@ -1,19 +1,19 @@
 /* Neumorphism Design System for Dashboard */
 
 :root {
-  --nm-bg: #E6E7EB;
-  --nm-text: #6B6E76;
+  --nm-bg: #FFFFFF;
+  --nm-text: #374151;
   --nm-accent: #F2857A;
   
   /* High contrast state colors */
   --nm-error: #EF4444; 
   --nm-warning: #D97706; 
-  --nm-disabled: #A3A6AD;
-  --nm-disabled-bg: #D1D5DB; 
+  --nm-disabled: #9CA3AF;
+  --nm-disabled-bg: #F3F4F6; 
   
   /* Shadows */
-  --nm-shadow-raised: 6px 6px 12px rgba(163,166,173,0.5), -6px -6px 12px rgba(255,255,255,0.9);
-  --nm-shadow-pressed: inset 4px 4px 8px rgba(163,166,173,0.5), inset -4px -4px 8px rgba(255,255,255,0.8);
+  --nm-shadow-raised: 8px 8px 20px rgba(0,0,0,0.05), -8px -8px 20px rgba(255,255,255,1);
+  --nm-shadow-pressed: inset 4px 4px 10px rgba(0,0,0,0.05), inset -4px -4px 10px rgba(255,255,255,1);
   
   --nm-radius-btn: 14px;
   --nm-radius-card: 20px;
