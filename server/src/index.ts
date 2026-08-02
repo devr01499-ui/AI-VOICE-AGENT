@@ -44,6 +44,8 @@ import analyticsRoutes from './routes/analytics';
 import userRoutes from './routes/user';
 import contactRoutes from './routes/contact';
 import teamRoutes from './routes/team';
+import apikeysRoutes from './routes/apikeys';
+import { requireAuthOrApiKey } from './middleware/authWrapper';
 
 // ─── Express App ─────────────────────────────────
 
@@ -157,15 +159,16 @@ import { CallController } from './controllers/CallController';
 
 // ─── API Routes ──────────────────────────────────
 
-app.use('/api/v2/calls', requireAuth, callRoutes);
-app.post('/api/calls/outbound', requireAuth, CallController.initiateCall);
-app.post('/api/v2/calls/outbound', requireAuth, CallController.initiateCall);
+app.use('/api/v2/calls', requireAuthOrApiKey, callRoutes);
+app.post('/api/calls/outbound', requireAuthOrApiKey, CallController.initiateCall);
+app.post('/api/v2/calls/outbound', requireAuthOrApiKey, CallController.initiateCall);
 app.use('/api/v2/agents', requireAuth, agentRoutes);
 app.use('/api/v2/numbers', requireAuth, numbersRoutes);
 app.use('/api/v2/knowledge-base', requireAuth, kbRoutes);
 app.use('/api/v2/analytics', requireAuth, analyticsRoutes);
 app.use('/api/v2/user', requireAuth, userRoutes);
 app.use('/api/v2/team', requireAuth, teamRoutes);
+app.use('/api/v2/apikeys', apikeysRoutes);
 app.use('/api/v2/webhooks', webhookRoutes);
 app.post('/api/v2/telephony/webhook', WebhookController.handleTelephonyWebhook);
 app.use('/api/v2/contact', contactRoutes);

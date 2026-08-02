@@ -54,6 +54,62 @@ export default function Docs() {
             <pre className="whitespace-pre">{responseJson}</pre>
           </div>
         </div>
+
+        {/* Integrations Section */}
+        <div className="pt-20">
+          <h2 className="text-h2 text-ink mb-8 text-center">No-Code Integrations</h2>
+          <div className="space-y-6">
+            <div className="card-soft">
+              <h4 className="text-h3 text-ink mb-4 flex items-center gap-3">
+                <span className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#FF4F00] text-white font-bold text-lg">Z</span>
+                Zapier
+              </h4>
+              <p className="text-body text-ink-muted mb-4">You can easily trigger Claritiy Voice calls from any Zapier workflow using the <strong>Webhooks by Zapier</strong> app.</p>
+              <ol className="list-decimal pl-6 space-y-2 text-body text-ink-muted">
+                <li>In your Zap, add a <strong>Webhooks by Zapier</strong> action step.</li>
+                <li>Set the Event to <strong>Custom Request</strong> or <strong>POST</strong>.</li>
+                <li>Set the URL to <code className="bg-forest-deep/10 px-1 py-0.5 rounded text-forest-deep text-sm">https://api.claritiy.com/api/v2/calls/outbound</code>.</li>
+                <li>Set the Payload Type to <strong>json</strong>.</li>
+                <li>Under Data, add <code className="text-sm bg-forest-deep/10 px-1 py-0.5 rounded">agentId</code> and <code className="text-sm bg-forest-deep/10 px-1 py-0.5 rounded">phoneNumber</code> (mapped from your previous steps).</li>
+                <li>Under Headers, add a key named <code className="text-sm bg-forest-deep/10 px-1 py-0.5 rounded">Authorization</code> and set the value to <code className="text-sm bg-forest-deep/10 px-1 py-0.5 rounded">Bearer YOUR_API_KEY</code>.</li>
+              </ol>
+            </div>
+
+            <div className="card-soft">
+              <h4 className="text-h3 text-ink mb-4 flex items-center gap-3">
+                <span className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#8B237C] text-white font-bold text-lg">M</span>
+                Make (Integromat)
+              </h4>
+              <p className="text-body text-ink-muted mb-4">Use the <strong>HTTP</strong> module in Make to initiate calls from your scenarios.</p>
+              <ol className="list-decimal pl-6 space-y-2 text-body text-ink-muted">
+                <li>Add the <strong>HTTP &gt; Make a request</strong> module.</li>
+                <li>URL: <code className="bg-forest-deep/10 px-1 py-0.5 rounded text-forest-deep text-sm">https://api.claritiy.com/api/v2/calls/outbound</code></li>
+                <li>Method: <strong>POST</strong></li>
+                <li>Headers: Key <code className="text-sm bg-forest-deep/10 px-1 py-0.5 rounded">Authorization</code>, Value <code className="text-sm bg-forest-deep/10 px-1 py-0.5 rounded">Bearer YOUR_API_KEY</code></li>
+                <li>Body type: <strong>Raw</strong></li>
+                <li>Content type: <strong>JSON (application/json)</strong></li>
+                <li>Request content: Enter your JSON payload mapping <code className="text-sm bg-forest-deep/10 px-1 py-0.5 rounded">{"{"}"agentId": "...", "phoneNumber": "..."{"}"}</code>.</li>
+              </ol>
+            </div>
+
+            <div className="card-soft">
+              <h4 className="text-h3 text-ink mb-4 flex items-center gap-3">
+                <span className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#EA4335] text-white font-bold text-lg">n</span>
+                n8n
+              </h4>
+              <p className="text-body text-ink-muted mb-4">In n8n, use the <strong>HTTP Request</strong> node to connect to the Claritiy API.</p>
+              <ol className="list-decimal pl-6 space-y-2 text-body text-ink-muted">
+                <li>Add an <strong>HTTP Request</strong> node.</li>
+                <li>Method: <strong>POST</strong></li>
+                <li>URL: <code className="bg-forest-deep/10 px-1 py-0.5 rounded text-forest-deep text-sm">https://api.claritiy.com/api/v2/calls/outbound</code></li>
+                <li>Authentication: <strong>Header Auth</strong></li>
+                <li>Create a new credential: Name it "Claritiy Voice", set Header to <code className="text-sm bg-forest-deep/10 px-1 py-0.5 rounded">Authorization</code>, Value to <code className="text-sm bg-forest-deep/10 px-1 py-0.5 rounded">Bearer YOUR_API_KEY</code>.</li>
+                <li>Send Body: <strong>true</strong>, Body Content Type: <strong>JSON</strong></li>
+                <li>Specify Body: Add <code className="text-sm bg-forest-deep/10 px-1 py-0.5 rounded">agentId</code> and <code className="text-sm bg-forest-deep/10 px-1 py-0.5 rounded">phoneNumber</code> as parameters.</li>
+              </ol>
+            </div>
+          </div>
+        </div>
         
         {/* FAQ Section */}
         <div className="pt-20">

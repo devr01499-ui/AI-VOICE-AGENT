@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } fro
 import { supabase } from "./lib/supabaseClient";
 import AuthGateway from "./components/auth/AuthGateway";
 import { Session } from "@supabase/supabase-js";
-import BillingGateway from "./components/settings/BillingGateway";
+import BillingGateway from './components/settings/BillingGateway';
+import { ApiKeyManagement } from './components/settings/ApiKeyManagement';
 import AgentConfigPanel from "./components/agents/AgentConfigPanel";
 import { AnalyticsOverview } from "./components/analytics/AnalyticsOverview";
 import {
@@ -3101,20 +3102,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
       )}
       {stab==="api"&&(
         <div className="space-y-6">
-          <div className="nm-card p-6 space-y-6">
-            <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>API keys</p>
-            {[{label:"Production key",key:"cv_prod_sk_2x9mNpQrTvWx...3K8L",env:"production"},{label:"Test key",key:"cv_test_sk_8nBpQsRuVxZa...7M2N",env:"test"}].map(k=>(
-              <div key={k.label} className="space-y-3">
-                <div className="flex items-center justify-between"><span className="text-xs font-bold text-[var(--nm-text)] uppercase" style={{fontFamily:"'DM Mono',monospace"}}>{k.label}</span><DBadge v={k.env==="production"?"success":"info"}>{k.env}</DBadge></div>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 nm-pressed rounded-xl px-4 py-3 text-sm font-bold text-[var(--nm-text)] overflow-hidden" style={{fontFamily:"'DM Mono',monospace"}}>{apiVis?k.key:"cv_"+k.env.slice(0,4)+"_sk_••••••••••••••••••••••••••••"}</div>
-                  <button onClick={()=>setApiVis(!apiVis)} className="p-3 nm-raised rounded-xl hover:nm-pressed text-[var(--nm-text)] transition-all">{apiVis?<EyeOff className="w-5 h-5"/>:<Eye className="w-5 h-5"/>}</button>
-                  <button className="p-3 nm-raised rounded-xl hover:nm-pressed text-[var(--nm-text)] transition-all"><Copy className="w-5 h-5"/></button>
-                </div>
-              </div>
-            ))}
-            <DBtn variant="secondary"><RefreshCw className="w-4 h-4"/> Rotate keys</DBtn>
-          </div>
+            <ApiKeyManagement />
           <div className="nm-card p-6 space-y-4">
             <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Quick start</p>
             <div className="nm-pressed rounded-2xl p-5 overflow-x-auto text-[var(--nm-text)]"><pre className="text-sm font-bold" style={{fontFamily:"'DM Mono',monospace"}}>{`curl -X POST https://api.claritiyvoice.com/v1/calls \\\n  -H "Authorization: Bearer cv_prod_sk_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{"agent_id":"a2","to":"+13125550198","from":"+18005550842"}'`}</pre></div>
