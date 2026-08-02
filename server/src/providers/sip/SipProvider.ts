@@ -31,6 +31,12 @@ export class SipProvider implements ITelephonyProvider {
   }
 
   async connect(): Promise<void> {
+    if (process.env.SIP_TRUNKING_ENABLED !== 'true') {
+      logger.info('SipProvider: SIP_TRUNKING_ENABLED is not true; skipping drachtio-srf connection');
+      this.isConnected = false;
+      return Promise.resolve();
+    }
+
     logger.info('SipProvider: starting SIP engine (drachtio-srf)...');
     
     return new Promise((resolve, reject) => {

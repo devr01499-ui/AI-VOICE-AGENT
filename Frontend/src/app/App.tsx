@@ -2189,24 +2189,33 @@ function DashNumbers() {
 
       <DModal open={showSip} onClose={()=>setShowSip(false)} title="SIP trunk configuration" width="max-w-xl">
         <div className="space-y-4">
-          <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3"><Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5"/><p className="text-xs text-blue-700" style={{fontFamily:"'Figtree',sans-serif"}}>Connects Claritiy Voice directly to your on-premise PBX or UCaaS (Cisco, Avaya, Asterisk, FreePBX, 3CX).</p></div>
-          <DField label="SIP URI"><DInput value={sipForm.uri} onChange={e=>setSipForm(f=>({...f,uri:e.target.value}))}/></DField>
-          <div className="grid grid-cols-2 gap-3">
-            <DField label="Username"><DInput value={sipForm.user} onChange={e=>setSipForm(f=>({...f,user:e.target.value}))}/></DField>
-            <DField label="Password"><div className="relative"><DInput type={showPass?"text":"password"} value={sipForm.pass} onChange={e=>setSipForm(f=>({...f,pass:e.target.value}))} placeholder="••••••••"/><button onClick={()=>setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">{showPass?<EyeOff className="w-4 h-4"/>:<Eye className="w-4 h-4"/>}</button></div></DField>
+          <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5"/>
+            <div>
+              <p className="text-sm font-bold text-amber-800" style={{fontFamily:"'Figtree',sans-serif"}}>Bring Your Own SIP Trunk is Coming Soon</p>
+              <p className="text-xs font-medium text-amber-700 mt-1" style={{fontFamily:"'Figtree',sans-serif"}}>This feature is currently disabled and undergoing maintenance. You cannot save or connect a new SIP trunk at this time.</p>
+            </div>
           </div>
-          <DField label="Codecs" hint="Recommended: PCMU,PCMA for max compatibility. G722 for HD voice."><DInput value={sipForm.codec} onChange={e=>setSipForm(f=>({...f,codec:e.target.value}))}/></DField>
-          <div className="grid grid-cols-2 gap-3">
-            <DField label="Transport"><DSelect value={sipForm.transport} onChange={e=>setSipForm(f=>({...f,transport:e.target.value}))}><option>TLS</option><option>TCP</option><option>UDP</option></DSelect></DField>
-            <DField label="DTMF mode"><DSelect value={sipForm.dtmf} onChange={e=>setSipForm(f=>({...f,dtmf:e.target.value}))}><option>RFC 2833</option><option>In-band</option><option>SIP INFO</option></DSelect></DField>
+          <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3 opacity-50"><Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5"/><p className="text-xs text-blue-700" style={{fontFamily:"'Figtree',sans-serif"}}>Connects Claritiy Voice directly to your on-premise PBX or UCaaS (Cisco, Avaya, Asterisk, FreePBX, 3CX).</p></div>
+          <div className="opacity-50 pointer-events-none space-y-4">
+            <DField label="SIP URI"><DInput disabled value={sipForm.uri} onChange={e=>setSipForm(f=>({...f,uri:e.target.value}))}/></DField>
+            <div className="grid grid-cols-2 gap-3">
+              <DField label="Username"><DInput disabled value={sipForm.user} onChange={e=>setSipForm(f=>({...f,user:e.target.value}))}/></DField>
+              <DField label="Password"><div className="relative"><DInput disabled type={showPass?"text":"password"} value={sipForm.pass} onChange={e=>setSipForm(f=>({...f,pass:e.target.value}))} placeholder="••••••••"/><button disabled onClick={()=>setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">{showPass?<EyeOff className="w-4 h-4"/>:<Eye className="w-4 h-4"/>}</button></div></DField>
+            </div>
+            <DField label="Codecs" hint="Recommended: PCMU,PCMA for max compatibility. G722 for HD voice."><DInput disabled value={sipForm.codec} onChange={e=>setSipForm(f=>({...f,codec:e.target.value}))}/></DField>
+            <div className="grid grid-cols-2 gap-3">
+              <DField label="Transport"><DSelect disabled value={sipForm.transport} onChange={e=>setSipForm(f=>({...f,transport:e.target.value}))}><option>TLS</option><option>TCP</option><option>UDP</option></DSelect></DField>
+              <DField label="DTMF mode"><DSelect disabled value={sipForm.dtmf} onChange={e=>setSipForm(f=>({...f,dtmf:e.target.value}))}><option>RFC 2833</option><option>In-band</option><option>SIP INFO</option></DSelect></DField>
+            </div>
+            <div className="flex items-center justify-between"><div><p className="text-sm font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>SIP registration</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Register with your PBX for inbound routing</p></div><DToggle on={sipForm.register} set={()=>{}}/></div>
+            <div className="bg-muted/40 border border-border rounded-xl p-4 space-y-1">
+              <p className="text-xs font-medium text-muted-foreground mb-2" style={{fontFamily:"'DM Mono',monospace"}}>ADD THESE IPs TO YOUR PBX ALLOWLIST</p>
+              {["34.120.88.42","34.102.147.9"].map(ip=><p key={ip} className="text-xs font-medium" style={{fontFamily:"'DM Mono',monospace"}}>{ip}</p>)}
+              <p className="text-xs text-muted-foreground mt-1" style={{fontFamily:"'DM Mono',monospace"}}>SIP Port: 5061 (TLS) · RTP: 10000–60000</p>
+            </div>
           </div>
-          <div className="flex items-center justify-between"><div><p className="text-sm font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>SIP registration</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Register with your PBX for inbound routing</p></div><DToggle on={sipForm.register} set={v=>setSipForm(f=>({...f,register:v}))}/></div>
-          <div className="bg-muted/40 border border-border rounded-xl p-4 space-y-1">
-            <p className="text-xs font-medium text-muted-foreground mb-2" style={{fontFamily:"'DM Mono',monospace"}}>ADD THESE IPs TO YOUR PBX ALLOWLIST</p>
-            {["34.120.88.42","34.102.147.9"].map(ip=><p key={ip} className="text-xs font-medium" style={{fontFamily:"'DM Mono',monospace"}}>{ip}</p>)}
-            <p className="text-xs text-muted-foreground mt-1" style={{fontFamily:"'DM Mono',monospace"}}>SIP Port: 5061 (TLS) · RTP: 10000–60000</p>
-          </div>
-          <div className="flex gap-3"><DBtn><Check className="w-4 h-4"/> Save &amp; test connection</DBtn><DBtn variant="secondary" onClick={()=>setShowSip(false)}>Cancel</DBtn></div>
+          <div className="flex gap-3 mt-4"><DBtn disabled><Check className="w-4 h-4"/> Save &amp; test connection</DBtn><DBtn variant="secondary" onClick={()=>setShowSip(false)}>Cancel</DBtn></div>
         </div>
       </DModal>
     </div>
