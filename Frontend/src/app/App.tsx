@@ -893,23 +893,35 @@ function base64ToFloat32(base64: string): Float32Array {
 // ── Agents ──
 type AgentView = "list"|"create"|"detail";
 function DashAgents({ session, profile, setApiAgents }: { session: Session | null; profile: ApiProfile | null; setApiAgents?: React.Dispatch<React.SetStateAction<ApiAgent[]>> }) {
-  const [agents, setAgents] = useState<AgentRow[]>([]);
-  const [agentsLoading, setAgentsLoading] = useState(false);
+  const [agents, setAgents] = useState<AgentRow[]>(() => {
+    try {
+      const cached = localStorage.getItem('cache_agent_rows');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [];
+  });
+  const [agentsLoading, setAgentsLoading] = useState(agents.length === 0);
   const [agentsError, setAgentsError] = useState<string | null>(null);
-  const [kbList, setKbList] = useState<ApiKnowledgeBase[]>([]);
-
-  useEffect(() => {
-    fetchKBList().then(setKbList).catch(() => {});
-  }, []);
+  const [kbList, setKbList] = useState<ApiKnowledgeBase[]>(() => {
+    try {
+      const cached = localStorage.getItem('cache_kb_list');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [];
+  });
 
   const loadAgents = useCallback(() => {
-    setAgentsLoading(true);
     setAgentsError(null);
-    fetchAgents()
-      .then((data) => {
-        fetchKBList().then((kbListResult) => {
-          setKbList(kbListResult);
-          setAgents((data || []).map(a => {
+    if (agents.length === 0) setAgentsLoading(true);
+    
+    fetchKBList().then(kbListResult => {
+      setKbList(kbListResult);
+      localStorage.setItem('cache_kb_list', JSON.stringify(kbListResult));
+      return kbListResult;
+    }).catch(() => []).then(kbListResult => {
+      fetchAgents()
+        .then((data) => {
+          const newAgents = (data || []).map(a => {
             const assignedKbIds = (kbListResult || [])
               .filter(k => k.agentIds && k.agentIds.includes(a.id))
               .map(k => k.id);
@@ -929,38 +941,23 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
               isTranscriptionEnabled: a.isTranscriptionEnabled ?? false,
               created: a.createdAt?.slice(0, 10) ?? '',
             } as unknown as AgentRow;
-          }));
-        }).catch(() => {
-          setAgents((data || []).map(a => ({
-            id: a.id,
-            name: a.name,
-            type: (a.agentType === 'prompt' ? 'prompt' : 'conversational') as 'prompt' | 'conversational',
-            status: (a.status as 'active' | 'paused' | 'draft') ?? 'draft',
-            calls: 0,
-            csat: null,
-            lang: 'EN',
-            voice: a.voiceName ?? 'Nova',
-            model: a.model ?? 'gemini-2.5-flash',
-            kb: [],
-            numbers: [],
-            isRecordingEnabled: a.isRecordingEnabled ?? false,
-            isTranscriptionEnabled: a.isTranscriptionEnabled ?? false,
-            created: a.createdAt?.slice(0, 10) ?? '',
-          } as unknown as AgentRow)));
-        });
-      })
-      .catch((err: any) => {
-        console.error("[Dashboard Fetch Error]:", err);
-        // Only throw banner if network is completely unauthenticated or internal server error
-        const msg = String(err.message || err);
-        if (msg.includes('401') || msg.includes('403') || msg.includes('500') || msg.includes('UNAUTHORIZED_ACCESS')) {
-          setAgentsError("Internal Server Authentication Exception");
-        } else {
-          setAgentsError(msg || 'Failed to load agents');
-        }
-      })
-      .finally(() => setAgentsLoading(false));
-  }, []);
+          });
+          setAgents(newAgents);
+          localStorage.setItem('cache_agent_rows', JSON.stringify(newAgents));
+          if (setApiAgents) setApiAgents(data);
+        })
+        .catch((err: any) => {
+          console.error("[Dashboard Fetch Error]:", err);
+          const msg = String(err.message || err);
+          if (msg.includes('401') || msg.includes('403') || msg.includes('500') || msg.includes('UNAUTHORIZED_ACCESS')) {
+            setAgentsError("Internal Server Authentication Exception");
+          } else {
+            setAgentsError(msg || 'Failed to load agents');
+          }
+        })
+        .finally(() => setAgentsLoading(false));
+    });
+  }, [agents.length, setApiAgents]);
 
   useEffect(() => { loadAgents(); }, [loadAgents]);
   const [view, setView] = useState<AgentView>("list");
@@ -1964,20 +1961,38 @@ function DashCallLogs() {
   const [transcriptOpen, setTranscriptOpen] = useState<string|null>(null);
   const [transcriptText, setTranscriptText] = useState<{role:string;text:string}[]>([]);
   const [transcriptLoading, setTranscriptLoading] = useState(false);
-  const [liveCalls, setLiveCalls] = useState<ApiCall[]>([]);
-  const [callsLoading, setCallsLoading] = useState(false);
-  const [liveAgents, setLiveAgents] = useState<ApiAgent[]>([]);
+  const [liveCalls, setLiveCalls] = useState<ApiCall[]>(() => {
+    try {
+      const cached = localStorage.getItem('cache_live_calls');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [];
+  });
+  const [callsLoading, setCallsLoading] = useState(liveCalls.length === 0);
+  const [liveAgents, setLiveAgents] = useState<ApiAgent[]>(() => {
+    try {
+      const cached = localStorage.getItem('cache_live_agents');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [];
+  });
 
   // Fallback static transcript
   const staticTranscript = [{role:"agent",text:"Thank you for calling. My name is Nova. How can I help you today?"},{role:"caller",text:"Hi, I wanted to check on my recent claim. The claim number is 847291."},{role:"agent",text:"Of course! To verify your identity, could you please confirm the last four digits of your Social Security number?"},{role:"caller",text:"Sure, it's 6284."},{role:"agent",text:"Thank you. I can see your claim 847291 is currently in review. The estimated completion date is July 14th. Would you like me to send you an email update when the status changes?"},{role:"caller",text:"Yes, please. That would be great."},{role:"agent",text:"I've set up email alerts for you. Is there anything else I can help you with today?"},{role:"caller",text:"No, that's everything. Thanks!"},{role:"agent",text:"You're welcome. Have a great day. Goodbye!"}];
 
   useEffect(() => {
-    setCallsLoading(true);
+    if (liveCalls.length === 0) setCallsLoading(true);
     fetchCalls({ limit: 50 })
-      .then(setLiveCalls)
+      .then((data) => {
+        setLiveCalls(data);
+        localStorage.setItem('cache_live_calls', JSON.stringify(data));
+      })
       .catch(() => {})
       .finally(() => setCallsLoading(false));
-    fetchAgents().then(setLiveAgents).catch(() => {});
+    fetchAgents().then(data => {
+      setLiveAgents(data);
+      localStorage.setItem('cache_live_agents', JSON.stringify(data));
+    }).catch(() => {});
   }, []);
 
   // Connect to live WebSocket transcript if the opened call is active
@@ -3082,11 +3097,20 @@ function DashboardPage({ session }: { session: Session }) {
   const [section, setSection] = useState<DashSection>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [profile, setProfile] = useState<ApiProfile | null>(null);
-  const [apiAgents, setApiAgents] = useState<ApiAgent[]>([]);
+  const [apiAgents, setApiAgents] = useState<ApiAgent[]>(() => {
+    try {
+      const cached = localStorage.getItem('cache_api_agents');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [];
+  });
   
   useEffect(() => { 
     fetchProfile().then(setProfile).catch(() => {}); 
-    fetchAgents().then(setApiAgents).catch(() => {});
+    fetchAgents().then(data => {
+      setApiAgents(data);
+      localStorage.setItem('cache_api_agents', JSON.stringify(data));
+    }).catch(() => {});
   }, [session]);
 
   const navGroups = [

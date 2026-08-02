@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { fetchAnalyticsSummary } from "../../api";
 import { Cpu, RefreshCw, Phone, Clock, Activity, BarChart2 } from "lucide-react";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
@@ -16,18 +16,25 @@ interface AnalyticsData {
 }
 
 export function AnalyticsOverview() {
-  const [data, setData] = useState<AnalyticsData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<AnalyticsData | null>(() => {
+    try {
+      const cached = localStorage.getItem('cache_analytics');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return null;
+  });
+  const [loading, setLoading] = useState(!data);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadData = async (isSilent = false) => {
-    if (!isSilent) setLoading(true);
+    if (!isSilent && !data) setLoading(true);
     else setRefreshing(true);
     try {
       const summary = await fetchAnalyticsSummary();
       if (summary) {
         setData(summary);
+        localStorage.setItem('cache_analytics', JSON.stringify(summary));
         setError(null);
       } else {
         setError("Failed to fetch call metrics");
