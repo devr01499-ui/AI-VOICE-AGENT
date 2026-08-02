@@ -180,6 +180,7 @@ export class VobizProvider implements ITelephonyProvider {
       answer_method: 'POST',
       ...(params.ringUrl && { ring_url: params.ringUrl, ring_method: 'POST' }),
       ...(params.hangupUrl && { hangup_url: params.hangupUrl, hangup_method: 'POST' }),
+      record: true,
     };
 
     const dynamicHeaders = {

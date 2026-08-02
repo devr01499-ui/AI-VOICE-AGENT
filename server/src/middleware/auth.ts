@@ -9,6 +9,8 @@ import { ADMIN_EMAIL } from '../config/constants';
 export interface AuthenticatedRequest extends Request {
   userId?: string;
   user?: any;
+  effectiveWorkspaceId?: string;
+  workspaceRole?: string;
   auth?: {
     userId: string;
   };
@@ -100,7 +102,22 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
       }
     });
 
+    // Check if the user is a team member for any workspace
+    const teamMember = await prisma.teamMember.findFirst({
+      where: { memberId: userId }
+    });
+
+    let effectiveWorkspaceId = userId;
+    let workspaceRole = 'owner';
+
+    if (teamMember) {
+      effectiveWorkspaceId = teamMember.ownerId;
+      workspaceRole = teamMember.role;
+    }
+
     req.userId = userId;
+    req.effectiveWorkspaceId = effectiveWorkspaceId;
+    req.workspaceRole = workspaceRole;
     req.user = userProfile;
     if (req && typeof req === 'object') {
       req.auth = { userId };

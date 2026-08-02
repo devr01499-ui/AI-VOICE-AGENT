@@ -38,8 +38,26 @@ model User {
   webhooks             Webhook[]
   providerCredentials  ProviderCredential[]
   callSessions         CallSession[]
+  ownedTeamMembers     TeamMember[] @relation("WorkspaceOwner")
+  memberOfTeams        TeamMember[] @relation("WorkspaceMember")
 
   @@map("users")
+}
+
+model TeamMember {
+  id        String   @id @default(uuid())
+  ownerId   String   @map("owner_id")
+  memberId  String   @map("member_id")
+  role      String   @default("viewer") // viewer | editor
+  createdAt DateTime @default(now()) @map("created_at")
+
+  owner     User     @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  member    User     @relation("WorkspaceMember", fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, memberId])
+  @@index([ownerId])
+  @@index([memberId])
+  @@map("team_members")
 }
 
 model ApiKey {
@@ -140,6 +158,9 @@ model Call {
   providerCallSid      String?   @unique @map("provider_call_sid")
   userData             String    @default("{}") @map("user_data") // JSON
   webhookUrl           String?   @map("webhook_url")
+  recordingUrl         String?   @map("recording_url")
+  sentiment            String?   @map("sentiment")
+  summary              String?   @map("summary")
   recordingEnabled     Boolean   @default(true) @map("recording_enabled")
   maxDuration          Int       @default(1800) @map("max_duration")
   createdAt            DateTime  @default(now()) @map("created_at")

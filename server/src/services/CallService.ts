@@ -16,6 +16,7 @@ import { VobizService } from '../core/telephony/VobizService';
 import { env } from '../config/env';
 import type { CallStatus, CallResponse, TranscriptSegmentResponse, Speaker } from '../types';
 import { Call, Execution, TranscriptSegment } from '@prisma/client';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // ─── Input Shapes ─────────────────────────────────
 
@@ -225,5 +226,53 @@ export class CallService {
       durationSeconds: call.durationSeconds,
       recordingUrl: call.execution?.recordingUrl ?? null,
     }));
+  }
+
+  static async generatePostCallIntelligence(callId: string): Promise<void> {
+    try {
+      const call = await prisma.call.findUnique({
+        where: { id: callId },
+        include: { user: true }
+      });
+      if (!call) return;
+
+      const segments = await TranscriptRepository.findByCallId(callId);
+      if (segments.length === 0) return;
+
+      const transcriptText = segments.map((s: any) => `${s.speaker === 'agent' ? 'Agent' : 'Caller'}: ${s.content}`).join('\n');
+
+      const apiKey = call.user.geminiApiKey || env.GEMINI_API_KEY;
+      if (!apiKey || apiKey === 'AIzaSyAQ-x2GqymD5KvQ1tC9H78Z4E9uGGqIExQ') {
+        logger.warn('generatePostCallIntelligence: skipped, missing gemini api key');
+        return;
+      }
+
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+      const prompt = `You are an expert call analyst. Analyze the following transcript.
+Provide exactly two lines of output:
+Line 1: A one-word sentiment analysis of the caller (Positive, Neutral, or Negative).
+Line 2: A concise, two-sentence summary of the call.
+
+Transcript:
+${transcriptText}`;
+
+      const result = await model.generateContent(prompt);
+      const text = result.response.text().trim();
+      const lines = text.split('\n').filter(l => l.trim().length > 0);
+      
+      const sentiment = lines.length > 0 ? lines[0].replace(/[^a-zA-Z]/g, '').trim() : 'Neutral';
+      const summary = lines.length > 1 ? lines.slice(1).join(' ').trim() : text;
+
+      await prisma.call.update({
+        where: { id: callId },
+        data: { sentiment, summary }
+      });
+
+      logger.info('generatePostCallIntelligence: success', { callId, sentiment });
+    } catch (err: any) {
+      logger.error('generatePostCallIntelligence: error', { error: err.message, callId });
+    }
   }
 }

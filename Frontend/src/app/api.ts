@@ -44,20 +44,28 @@ export const DEFAULT_AGENT_ID = "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380d22";
 export interface ApiAgent {
   id: string;
   name: string;
-  description: string | null;
+  description: string |callingBalanceMinutes?: number | null;
+  workspaceRole?: string;
   agentType: string;
   status: string;
   version: number;
-  workspaceId: string | null;
-  model: string | null;
-  voiceName: string | null;
-  temperature: number | null;
-  systemPrompt: string | null;
-  flowGraph: string | null;
+  workspaceId: string |callingBalanceMinutes?: number | null;
+  workspaceRole?: string;
+  model: string |callingBalanceMinutes?: number | null;
+  workspaceRole?: string;
+  voiceName: string |callingBalanceMinutes?: number | null;
+  workspaceRole?: string;
+  temperature: number |callingBalanceMinutes?: number | null;
+  workspaceRole?: string;
+  systemPrompt: string |callingBalanceMinutes?: number | null;
+  workspaceRole?: string;
+  flowGraph: string |callingBalanceMinutes?: number | null;
+  workspaceRole?: string;
   agentConfig: unknown;
   isRecordingEnabled?: boolean;
   isTranscriptionEnabled?: boolean;
-  systemVoice?: string | null;
+  systemVoice?: string |callingBalanceMinutes?: number | null;
+  workspaceRole?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -66,22 +74,30 @@ export interface ApiCall {
   id: string;
   status: string;
   phoneNumber?: string;
-  duration?: number | null;
+  duration?: number |callingBalanceMinutes?: number | null;
+  workspaceRole?: string;
   createdAt: string;
   updatedAt: string;
-  agent?: { name: string } | null;
-  transcript?: string | null;
-  recordingUrl?: string | null;
+  agent?: { name: string } |callingBalanceMinutes?: number | null;
+  workspaceRole?: string;
+  transcript?: string |callingBalanceMinutes?: number | null;
+  workspaceRole?: string;
+  recordingUrl?: string |callingBalanceMinutes?: number | null;
+  workspaceRole?: string;
   userId?: string;
 }
 
 export interface ApiProfile {
   id: string;
   email: string;
-  fullName: string | null;
-  billingBalance: number | null;
-  geminiApiKey?: string | null;
-  callingBalanceMinutes?: number | null;
+  fullName: string |callingBalanceMinutes?: number | null;
+  workspaceRole?: string;
+  billingBalance: number |callingBalanceMinutes?: number | null;
+  workspaceRole?: string;
+  geminiApiKey?: string |callingBalanceMinutes?: number | null;
+  workspaceRole?: string;
+  callingBalanceMinutes?: number |callingBalanceMinutes?: number | null;
+  workspaceRole?: string;
 }
 
 export interface ApiResponse<T> {
@@ -125,7 +141,8 @@ async function apiFetch<T>(
 ): Promise<T> {
   const url = `${API_BASE}${path}`;
 
-  let token: string | null = null;
+  let token: string | null =callingBalanceMinutes?: number | null;
+  workspaceRole?: string;
   try {
     // Dynamically look up active project-specific session key from localStorage
     const storageKey = Object.keys(localStorage).find(key => key.startsWith('sb-') && key.endsWith('-auth-token'));
@@ -133,7 +150,8 @@ async function apiFetch<T>(
       const sessionData = localStorage.getItem(storageKey);
       if (sessionData) {
         const parsed = JSON.parse(sessionData);
-        token = parsed?.access_token || null;
+        token = parsed?.access_token ||callingBalanceMinutes?: number | null;
+  workspaceRole?: string;
       }
     }
     // Legacy fallback lookup
@@ -147,7 +165,8 @@ async function apiFetch<T>(
   // Asymmetric fallback: retrieve active Supabase session asynchronously if needed
   if (!token) {
     const sessionResult = await supabase.auth.getSession().catch(() => null);
-    token = sessionResult?.data?.session?.access_token || null;
+    token = sessionResult?.data?.session?.access_token ||callingBalanceMinutes?: number | null;
+  workspaceRole?: string;
   }
 
   if (!token || token === 'undefined' || token === 'null' || token.startsWith('{')) {
@@ -298,7 +317,8 @@ export async function terminateCall(callId: string): Promise<void> {
 
 /** GET /api/v2/calls/:callId/transcript — Fetch call transcript */
 export async function getCallTranscript(callId: string): Promise<{
-  transcript: string | null;
+  transcript: string |callingBalanceMinutes?: number | null;
+  workspaceRole?: string;
   turns?: unknown[];
 }> {
   return apiFetch(`/api/v2/calls/${callId}/transcript`);
@@ -387,3 +407,7 @@ export const apiClient = {
     return { data: { success: true, data: result } };
   }
 };
+export interface ApiTeamMember { id: string; ownerId: string; memberId: string; role: string; createdAt: string; member: { id: string; email: string; fullName: string; createdAt: string; }; }
+export async function fetchTeamMembers(): Promise<ApiTeamMember[]> { return await apiFetch('/team'); }
+export async function inviteTeamMember(email: string): Promise<ApiTeamMember> { return await apiFetch('/team/invite', { method: 'POST', body: JSON.stringify({ email }) }); }
+export async function removeTeamMember(memberId: string): Promise<void> { await apiFetch('/team/' + memberId, { method: 'DELETE' }); }

@@ -26,8 +26,8 @@ const agentIdParamSchema = z.object({
 
 const listQuerySchema = z.object({
   status: z.enum(['active', 'inactive', 'draft']).optional(),
-  limit: z.string().regex(/^\d+$/).transform(Number).optional(),
-  offset: z.string().regex(/^\d+$/).transform(Number).optional(),
+  limit: z.string().regex(/^const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;d+$/).transform(Number).optional(),
+  offset: z.string().regex(/^const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;d+$/).transform(Number).optional(),
 });
 
 // ─── Route Handlers ──────────────────────────────
@@ -38,7 +38,7 @@ router.get(
   requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = (req as any).user?.id || (req as any).userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;
       if (!userId) {
         logger.warn("Authentication block tripped: User context resolved empty.");
         res.status(200).json({ success: false, data: null, message: "User identity unresolvable" });
@@ -51,6 +51,7 @@ router.get(
         data: user ? {
           ...user,
           isAdmin: user.email === ADMIN_EMAIL,
+          workspaceRole: (req as any).workspaceRole || 'owner',
         } : null,
       });
       return;
@@ -68,7 +69,7 @@ router.post(
   requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = (req as any).user?.id || (req as any).userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
@@ -112,7 +113,7 @@ router.get(
   validateQuery(listQuerySchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = (req as any).user?.id || (req as any).userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;
       if (!userId) {
         res.status(200).json({ success: true, data: [], count: 0 });
         return;
@@ -212,7 +213,7 @@ router.get(
   validateParams(agentIdParamSchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = (req as any).user?.id || (req as any).userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
@@ -272,7 +273,7 @@ router.post(
   requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = (req as any).user?.id || (req as any).userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
@@ -317,7 +318,7 @@ router.put(
   validateParams(agentIdParamSchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = (req as any).user?.id || (req as any).userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
@@ -405,9 +406,13 @@ router.delete(
   validateParams(agentIdParamSchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = (req as any).user?.id || (req as any).userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
+        return;
+      }
+      if ((req as any).workspaceRole === 'viewer') {
+        res.status(403).json({ success: false, error: 'Team members cannot delete agents' });
         return;
       }
 

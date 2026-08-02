@@ -1,7 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
+import { env } from '../config/env';
 import crypto from 'crypto';
+import { ProviderError } from '../types/errors';
+import { CallService } from '../services/CallService';
 
 export class WebhookController {
   private static validateTelephonySignature(req: Request): boolean {
@@ -140,6 +143,7 @@ export class WebhookController {
       ) {
         let duration = logEntry.durationSeconds;
         const endTime = new Date();
+        const recordingUrl = req.body.RecordingUrl || req.body.recording_url || null;
 
         if (durationParam) {
           duration = parseInt(String(durationParam), 10);
@@ -154,10 +158,18 @@ export class WebhookController {
           data: {
             status: 'completed',
             endTime,
-            durationSeconds: duration
+            durationSeconds: duration,
+            ...(recordingUrl ? { recordingUrl } : {})
           }
         });
         logger.info('WebhookController: transition status to completed', { callId: logEntry.id, durationSeconds: duration });
+
+        if (normalizedStatus === 'completed') {
+          CallService.generatePostCallIntelligence(logEntry.id).catch(err => {
+            logger.error('Failed to generate call intelligence', { error: err.message, callId: logEntry.id });
+          });
+        }
+
 
         // Balance alignment check block
         const userProfile = await prisma.user.findUnique({

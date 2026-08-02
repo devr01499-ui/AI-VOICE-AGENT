@@ -2078,9 +2078,11 @@ function DashCallLogs() {
         agent: c.agent?.name ?? '—',
         dur: c.duration != null ? `${Math.floor(c.duration/60)}m ${c.duration%60}s` : '—',
         result: c.status === 'completed' ? 'Resolved' : c.status === 'failed' ? 'Failed' : c.status === 'active' ? 'Active' : c.status,
-        sent: 'N/A',
+        sent: c.sentiment ?? 'N/A',
         date: new Date(c.createdAt).toLocaleString(),
-        rec: false,
+        rec: !!c.recordingUrl,
+        recordingUrl: c.recordingUrl,
+        summary: c.summary,
       }))
     : STATIC_CALLS;
   void callsLoading;
@@ -2115,7 +2117,24 @@ function DashCallLogs() {
       </div>
       <DModal open={!!transcriptOpen} onClose={()=>{setTranscriptOpen(null);setTranscriptText([]);}} title={"Call transcript — " + calls.find(c=>c.id===transcriptOpen)?.name}>
         <div className="space-y-4">
-          <div className="p-4 nm-pressed rounded-2xl text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{calls.find(c=>c.id===transcriptOpen)?.date} · {calls.find(c=>c.id===transcriptOpen)?.dur} · {calls.find(c=>c.id===transcriptOpen)?.result}</div>
+          <div className="p-4 nm-pressed rounded-2xl text-sm font-bold text-[var(--nm-text)] flex justify-between items-center" style={{fontFamily:"'DM Mono',monospace"}}>
+            <span>{calls.find(c=>c.id===transcriptOpen)?.date} · {calls.find(c=>c.id===transcriptOpen)?.dur} · {calls.find(c=>c.id===transcriptOpen)?.result}</span>
+            <span className={calls.find(c=>c.id===transcriptOpen)?.sent==="Positive"?"text-emerald-500":calls.find(c=>c.id===transcriptOpen)?.sent==="Negative"?"text-[var(--nm-accent)]":"text-[var(--nm-text)]"} style={{fontFamily:"'Figtree',sans-serif"}}>Sentiment: {calls.find(c=>c.id===transcriptOpen)?.sent}</span>
+          </div>
+          
+          {calls.find(c=>c.id===transcriptOpen)?.summary && (
+            <div className="p-4 nm-raised rounded-2xl text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>
+              <p className="mb-2 uppercase text-xs opacity-50" style={{fontFamily:"'DM Mono',monospace"}}>Call Summary</p>
+              {calls.find(c=>c.id===transcriptOpen)?.summary}
+            </div>
+          )}
+
+          {calls.find(c=>c.id===transcriptOpen)?.recordingUrl && (
+            <div className="nm-raised rounded-2xl p-4">
+              <audio controls src={calls.find(c=>c.id===transcriptOpen)?.recordingUrl!} className="w-full h-10" />
+            </div>
+          )}
+
           {transcriptLoading && <p className="text-sm font-bold text-[var(--nm-text)] text-center py-4" style={{fontFamily:"'Figtree',sans-serif"}}>Loading transcript…</p>}
           <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
             {(transcriptText.length > 0 ? transcriptText : staticTranscript).map((m,i)=>(
@@ -2995,6 +3014,44 @@ function DashAnalytics() {
 function DashSettings({ profile }: { profile: ApiProfile | null }) {
   const [stab, setStab] = useState<"workspace"|"api"|"webhooks"|"billing"|"team">("workspace");
   const [numbersList, setNumbersList] = useState<any[]>([]);
+  const [team, setTeam] = useState<any[]>([]);
+  const [inviteEmail, setInviteEmail] = useState('');
+
+  useEffect(() => {
+    apiClient.get('/api/v2/team').then(res => {
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setTeam(res.data.data);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleInvite = async () => {
+    if (!inviteEmail) return;
+    try {
+      const res = await apiClient.post('/api/v2/team/invite', { email: inviteEmail });
+      if (res.data?.success) {
+        setTeam(p => [...p, res.data.data]);
+        setInviteEmail('');
+      } else {
+        alert(res.data?.error || "Failed to invite");
+      }
+    } catch (err: any) {
+      alert(err?.response?.data?.error || "Failed to invite user");
+    }
+  };
+
+  const handleRemove = async (memberId: string) => {
+    try {
+      const res = await apiClient.delete(`/api/v2/team/${memberId}`);
+      if (res.data?.success) {
+        setTeam(p => p.filter(m => m.memberId !== memberId));
+      } else {
+        alert(res.data?.error || "Failed to remove");
+      }
+    } catch (err: any) {
+      alert(err?.response?.data?.error || "Failed to remove user");
+    }
+  };
 
   useEffect(() => {
     apiClient.get('/api/v2/numbers').then((res) => {
@@ -3078,14 +3135,18 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
       {stab==="team"&&(
         <div className="space-y-4">
           <div className="nm-raised rounded-2xl overflow-hidden">
-            <table className="w-full"><thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Member","Role","Last active",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
+            <table className="w-full"><thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Member","Role","Joined",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
             <tbody className="divide-y divide-transparent">
-              {[{name:"Jamie Chen",email:"jamie@acmecorp.com",role:"Admin",active:"Now"},{name:"Rachel Okonkwo",email:"rachel@acmecorp.com",role:"Manager",active:"2h ago"},{name:"Tomás Rivera",email:"tomas@acmecorp.com",role:"Analyst",active:"Yesterday"},{name:"Priya Sharma",email:"priya@acmecorp.com",role:"Viewer",active:"3d ago"}].map(m=>(
-                <tr key={m.name} className="hover:nm-pressed transition-all"><td className="px-5 py-4"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{m.name}</p><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{m.email}</p></td><td className="px-5 py-4"><DBadge>{m.role}</DBadge></td><td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{m.active}</td><td className="px-5 py-4"><DBtn size="sm" variant="ghost"><Edit3 className="w-4 h-4"/></DBtn></td></tr>
+              {team.map(m=>(
+                <tr key={m.memberId} className="hover:nm-pressed transition-all"><td className="px-5 py-4"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{m.member?.fullName || 'No Name'}</p><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{m.member?.email}</p></td><td className="px-5 py-4"><DBadge>{m.role}</DBadge></td><td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{new Date(m.createdAt).toLocaleDateString()}</td><td className="px-5 py-4"><DBtn size="sm" variant="ghost" onClick={() => handleRemove(m.memberId)}><Trash2 className="w-4 h-4 text-red-500"/></DBtn></td></tr>
               ))}
+              {team.length === 0 && <tr><td colSpan={4} className="text-center p-4 text-sm">No team members yet.</td></tr>}
             </tbody></table>
           </div>
-          <DBtn variant="secondary"><Plus className="w-4 h-4"/> Invite team member</DBtn>
+          <div className="flex gap-2">
+            <DInput placeholder="Invite by email..." value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} type="email" />
+            <DBtn onClick={handleInvite}><Plus className="w-4 h-4"/> Invite</DBtn>
+          </div>
         </div>
       )}
     </div>
@@ -3113,11 +3174,12 @@ function DashboardPage({ session }: { session: Session }) {
     }).catch(() => {});
   }, [session]);
 
+  const isViewer = profile?.workspaceRole === 'viewer';
   const navGroups = [
     {label:"Workspace",items:[{id:"overview",icon:LayoutDashboard,label:"Overview"},{id:"agents",icon:Bot,label:"Agents"},{id:"batch",icon:Radio,label:"Batch Calls"},{id:"calls",icon:PhoneIncoming,label:"Call Logs"}]},
-    {label:"Resources",items:[{id:"numbers",icon:Phone,label:"Phone Numbers"},{id:"knowledge",icon:BookOpen,label:"Knowledge Base"},{id:"voices",icon:Mic2,label:"Voice Library"},{id:"analytics",icon:BarChart3,label:"Analytics"}]},
-    {label:"Admin",items:[{id:"settings",icon:Settings,label:"Settings"}]},
-  ] as const;
+    {label:"Resources",items:[...(isViewer ? [] : [{id:"numbers",icon:Phone,label:"Phone Numbers"},{id:"knowledge",icon:BookOpen,label:"Knowledge Base"},{id:"voices",icon:Mic2,label:"Voice Library"}] as any), {id:"analytics",icon:BarChart3,label:"Analytics"}]},
+    ...(isViewer ? [] : [{label:"Admin",items:[{id:"settings",icon:Settings,label:"Settings"}]} as any]),
+  ];
 
   const titles: Record<DashSection,string> = {overview:"Overview",agents:"Agents",batch:"Batch Calls",calls:"Call Logs",numbers:"Phone Numbers",knowledge:"Knowledge Base",voices:"Voice Library",analytics:"Analytics",settings:"Settings"};
 

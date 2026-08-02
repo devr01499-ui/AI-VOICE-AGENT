@@ -43,6 +43,7 @@ import kbRoutes from './routes/knowledgeBase';
 import analyticsRoutes from './routes/analytics';
 import userRoutes from './routes/user';
 import contactRoutes from './routes/contact';
+import teamRoutes from './routes/team';
 
 // ─── Express App ─────────────────────────────────
 
@@ -164,6 +165,7 @@ app.use('/api/v2/numbers', requireAuth, numbersRoutes);
 app.use('/api/v2/knowledge-base', requireAuth, kbRoutes);
 app.use('/api/v2/analytics', requireAuth, analyticsRoutes);
 app.use('/api/v2/user', requireAuth, userRoutes);
+app.use('/api/v2/team', requireAuth, teamRoutes);
 app.use('/api/v2/webhooks', webhookRoutes);
 app.post('/api/v2/telephony/webhook', WebhookController.handleTelephonyWebhook);
 app.use('/api/v2/contact', contactRoutes);
