@@ -41,7 +41,7 @@ router.get('/auth', requireAuth, (req, res) => {
 
     res.redirect(url);
   } catch (error) {
-    logger.error('Failed to generate Google Calendar auth URL', error);
+    logger.error('Failed to generate Google Calendar auth URL', { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: 'Failed to generate auth URL' });
   }
 });
@@ -92,7 +92,7 @@ router.get('/callback', async (req, res) => {
     }
 
   } catch (error) {
-    logger.error('Failed to handle Google Calendar callback', error);
+    logger.error('Failed to handle Google Calendar callback', { error: error instanceof Error ? error.message : String(error) });
     res.redirect('/?error=calendar_auth_failed');
   }
 });
@@ -104,6 +104,10 @@ router.get('/callback', async (req, res) => {
 router.get('/status', requireAuth, async (req, res) => {
   try {
     const userId = getUserIdFromRequest(req);
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { googleCalendarTokens: true }
@@ -113,7 +117,7 @@ router.get('/status', requireAuth, async (req, res) => {
       connected: !!user?.googleCalendarTokens
     });
   } catch (error) {
-    logger.error('Failed to get Google Calendar status', error);
+    logger.error('Failed to get Google Calendar status', { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: 'Failed to get status' });
   }
 });
@@ -125,13 +129,17 @@ router.get('/status', requireAuth, async (req, res) => {
 router.delete('/', requireAuth, async (req, res) => {
   try {
     const userId = getUserIdFromRequest(req);
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
     await prisma.user.update({
       where: { id: userId },
       data: { googleCalendarTokens: null }
     });
     res.json({ success: true });
   } catch (error) {
-    logger.error('Failed to disconnect Google Calendar', error);
+    logger.error('Failed to disconnect Google Calendar', { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: 'Failed to disconnect calendar' });
   }
 });
