@@ -12,6 +12,7 @@ import { AgentRepository } from '../repositories/AgentRepository';
 import { validateParams, validateQuery } from '../middleware/validation';
 import { prisma } from '../lib/prisma';
 import { getUserIdFromRequest } from '../utils/auth';
+import { requireAuth } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { ADMIN_EMAIL } from '../config/constants';
 
@@ -34,9 +35,10 @@ const listQuerySchema = z.object({
 /** GET /api/v2/agents/me/profile — Fetch current user profile and balance metrics. */
 router.get(
   '/me/profile',
+  requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = (req as any).userId || ((req as any).user && (req as any).user.id);
+      const userId = (req as any).user?.id || (req as any).userId;
       if (!userId) {
         logger.warn("Authentication block tripped: User context resolved empty.");
         res.status(200).json({ success: false, data: null, message: "User identity unresolvable" });
@@ -63,9 +65,10 @@ router.get(
 /** POST /api/v2/agents/optimize — Low-Code Prompt Optimizer helper. */
 router.post(
   '/optimize',
+  requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = getUserIdFromRequest(req);
+      const userId = (req as any).user?.id || (req as any).userId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
@@ -105,10 +108,11 @@ CONVERSATIONAL RULES & VOICE METADATA:
 /** GET /api/v2/agents — List all agents (isolated to the authenticated userId). */
 router.get(
   '/',
+  requireAuth,
   validateQuery(listQuerySchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = (req as any).userId || ((req as any).user && (req as any).user.id);
+      const userId = (req as any).user?.id || (req as any).userId;
       if (!userId) {
         res.status(200).json({ success: true, data: [], count: 0 });
         return;
@@ -204,10 +208,11 @@ router.get(
 /** GET /api/v2/agents/:agentId — Get a single agent by ID. */
 router.get(
   '/:agentId',
+  requireAuth,
   validateParams(agentIdParamSchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = getUserIdFromRequest(req);
+      const userId = (req as any).user?.id || (req as any).userId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
@@ -264,9 +269,10 @@ router.get(
 /** POST /api/v2/agents — Create a new agent. */
 router.post(
   '/',
+  requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = getUserIdFromRequest(req);
+      const userId = (req as any).user?.id || (req as any).userId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
@@ -307,10 +313,11 @@ router.post(
 /** PUT /api/v2/agents/:agentId — Update an existing agent. */
 router.put(
   '/:agentId',
+  requireAuth,
   validateParams(agentIdParamSchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = getUserIdFromRequest(req);
+      const userId = (req as any).user?.id || (req as any).userId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
@@ -394,10 +401,11 @@ router.put(
 /** DELETE /api/v2/agents/:agentId — Delete an existing agent. */
 router.delete(
   '/:agentId',
+  requireAuth,
   validateParams(agentIdParamSchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = getUserIdFromRequest(req);
+      const userId = (req as any).user?.id || (req as any).userId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;

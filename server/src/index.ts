@@ -438,7 +438,7 @@ async function bootstrap(): Promise<void> {
     });
 
     // Call this method within the server listen block
-    if (env.NODE_ENV !== 'production') {
+    if (process.env.SEED_TEST_DATA === 'true') {
       seedTestEnvironment().catch(err => console.error("Database seed failure:", err));
     }
 
