@@ -17,6 +17,7 @@ import { env } from '../config/env';
 import type { CallStatus, CallResponse, TranscriptSegmentResponse, Speaker } from '../types';
 import { Call, Execution, TranscriptSegment } from '@prisma/client';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { prisma } from '../lib/prisma';
 
 // ─── Input Shapes ─────────────────────────────────
 
@@ -260,7 +261,7 @@ ${transcriptText}`;
 
       const result = await model.generateContent(prompt);
       const text = result.response.text().trim();
-      const lines = text.split('\n').filter(l => l.trim().length > 0);
+      const lines = text.split('\n').filter((l: string) => l.trim().length > 0);
       
       const sentiment = lines.length > 0 ? lines[0].replace(/[^a-zA-Z]/g, '').trim() : 'Neutral';
       const summary = lines.length > 1 ? lines.slice(1).join(' ').trim() : text;

@@ -63,7 +63,7 @@ router.delete('/:memberId', requireAuth, validateParams(memberIdSchema), async (
     if (!ownerId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
     if (req.workspaceRole !== 'owner') { res.status(403).json({ success: false, error: 'Only workspace owners can remove members' }); return; }
 
-    await prisma.teamMember.delete({ where: { ownerId_memberId: { ownerId, memberId } } });
+    await prisma.teamMember.delete({ where: { ownerId_memberId: { ownerId, memberId: String(memberId) } } });
     res.json({ success: true, message: 'Team member removed' });
   } catch (error: any) {
     if (error.code === 'P2025') { res.status(404).json({ success: false, error: 'Team member not found' }); return; }
