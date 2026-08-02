@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Sliders, Sparkles, MessageSquare, Bot, Settings2 } from "lucide-react";
+import { Sliders, Sparkles, MessageSquare, Bot, Settings2, Calendar } from "lucide-react";
 import { updateAgent } from "../../api";
 import ConversationalBuilder from "./ConversationalBuilder";
 
@@ -15,8 +15,22 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
   const [voice, setVoice] = useState(agent.systemVoice || agent.voice || "Puck");
   const [temp, setTemp] = useState(agent.temperature ?? 0.7);
   const [languageMode, setLanguageMode] = useState(agent.languageMode || "auto");
+  const [calendarConnected, setCalendarConnected] = useState(false);
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    fetch('http://localhost:3001/api/v2/calendar/status', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    })
+      .then(r => r.json())
+      .then(d => {
+        setCalendarConnected(!!d.connected);
+      })
+      .catch(() => {});
+  }, []);
 
   // Sync state if selected agent changes
   useEffect(() => {
@@ -263,6 +277,31 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
             <span>Gemini 2.5 Flash Native Multimodal Audio</span>
           </div>
         </div>
+        <div className="pt-6 border-t border-transparent space-y-4">
+          <p className="text-xs font-bold text-[var(--nm-text)]" style={{ fontFamily: "'DM Mono', monospace" }}>
+            INTEGRATIONS
+          </p>
+          <div className="flex items-center justify-between p-4 nm-inset rounded-xl">
+            <div className="flex items-center gap-3 text-[var(--nm-text)]">
+              <Calendar className="w-5 h-5 text-[var(--nm-accent)]" />
+              <div>
+                <p className="text-sm font-bold" style={{ fontFamily: "'Figtree', sans-serif" }}>Google Calendar</p>
+                <p className="text-xs opacity-70">Allow agent to check availability & schedule events.</p>
+              </div>
+            </div>
+            {calendarConnected ? (
+              <span className="text-sm font-bold text-green-500">Connected</span>
+            ) : (
+              <a 
+                href={`http://localhost:3001/api/v2/calendar/auth?token=${localStorage.getItem('token')}`}
+                className="nm-button px-4 py-2 text-sm font-bold text-[var(--nm-text)] hover:text-[var(--nm-accent)]"
+              >
+                Connect
+              </a>
+            )}
+          </div>
+        </div>
+
       </div>
     </div>
       )}

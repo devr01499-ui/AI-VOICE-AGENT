@@ -23,6 +23,7 @@ model User {
   billingBalance        Float    @default(100.0) @map("billing_balance")
   contactNumber         String?  @map("contact_number")
   geminiApiKey          String?  @map("gemini_api_key")
+  googleCalendarTokens  String?  @map("google_calendar_tokens")
   callingBalanceMinutes Float    @default(10.0) @map("calling_balance_minutes")
   totalMinutesConsumed  Float    @default(0.0) @map("total_minutes_consumed")
   createdAt             DateTime @default(now()) @map("created_at")

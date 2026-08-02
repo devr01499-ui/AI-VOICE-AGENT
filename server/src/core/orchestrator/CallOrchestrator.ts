@@ -12,6 +12,7 @@ import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
 import { prisma } from '../../lib/prisma';
 import { ADMIN_EMAIL } from '../../config/constants';
+import { CalendarService } from './CalendarService';
 
 class ConversationState implements IConversationState {
   phase: 'greeting_sent' | 'listening' | 'processing' | 'responding' = 'greeting_sent';
@@ -222,6 +223,38 @@ export class CallOrchestrator {
     });
 
     // Register active tools
+    agentConfig.tools = agentConfig.tools || [];
+    agentConfig.tools.push({
+      name: 'check_availability',
+      description: 'Check Google Calendar for available meeting slots',
+      executionType: 'builtin',
+      config: {},
+      parameters: {
+        type: 'object',
+        properties: {
+          startTime: { type: 'string', description: 'ISO string of start time' },
+          endTime: { type: 'string', description: 'ISO string of end time' }
+        },
+        required: ['startTime', 'endTime']
+      }
+    });
+    agentConfig.tools.push({
+      name: 'schedule_event',
+      description: 'Schedule an event on Google Calendar',
+      executionType: 'builtin',
+      config: {},
+      parameters: {
+        type: 'object',
+        properties: {
+          summary: { type: 'string', description: 'Event summary/title' },
+          startTime: { type: 'string', description: 'ISO string of start time' },
+          endTime: { type: 'string', description: 'ISO string of end time' },
+          description: { type: 'string', description: 'Event description (optional)' }
+        },
+        required: ['summary', 'startTime', 'endTime']
+      }
+    });
+
     if (agentConfig.tools && agentConfig.tools.length > 0) {
       this.toolExecutor.clearRegistry();
       this.toolExecutor.registerTools(agentConfig.tools);
@@ -305,6 +338,16 @@ export class CallOrchestrator {
           if (name === 'send_sms') {
             logger.info('Flow Engine: trigger send_sms tool call via Pipecat', { callId, args });
             return JSON.stringify({ success: true, messageSent: true });
+          }
+          if (name === 'check_availability') {
+            logger.info('Flow Engine: trigger check_availability tool call via Pipecat', { callId, args });
+            const result = await CalendarService.checkAvailability(activeAgent.userId, parsedArgs.startTime as string, parsedArgs.endTime as string);
+            return JSON.stringify(result);
+          }
+          if (name === 'schedule_event') {
+            logger.info('Flow Engine: trigger schedule_event tool call via Pipecat', { callId, args });
+            const result = await CalendarService.scheduleEvent(activeAgent.userId, parsedArgs.summary as string, parsedArgs.startTime as string, parsedArgs.endTime as string, parsedArgs.description as string);
+            return JSON.stringify(result);
           }
           const result = await this.toolExecutor.executeTool(name, parsedArgs);
           return JSON.stringify(result);

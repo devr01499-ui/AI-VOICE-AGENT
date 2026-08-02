@@ -19,7 +19,10 @@ export interface AuthenticatedRequest extends Request {
 export async function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
   let activePhase = 'token_verification';
   try {
-    const authHeader = req.headers.authorization;
+    let authHeader = req.headers.authorization;
+    if (!authHeader && req.query.token && typeof req.query.token === 'string') {
+      authHeader = `Bearer ${req.query.token}`;
+    }
     let userId: string | null = null;
     let email = '';
     let userMetadata: any = {};
