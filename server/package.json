@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "prebuild": "prisma generate",
+    "prebuild": "npm run prisma:check-drift && prisma generate",
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
-    "prisma:push": "prisma db push",
+    "prisma:check-drift": "prisma migrate status",
     "prisma:studio": "prisma studio",
     "typecheck": "tsc --noEmit"
   },
