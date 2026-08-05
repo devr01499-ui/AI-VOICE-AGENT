@@ -27,8 +27,8 @@ const agentIdParamSchema = z.object({
 
 const listQuerySchema = z.object({
   status: z.enum(['active', 'inactive', 'draft']).optional(),
-  limit: z.string().regex(/^const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;d+$/).transform(Number).optional(),
-  offset: z.string().regex(/^const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;d+$/).transform(Number).optional(),
+  limit: z.string().regex(/^\d+$/).transform(Number).optional(),
+  offset: z.string().regex(/^\d+$/).transform(Number).optional(),
 });
 
 // ─── Route Handlers ──────────────────────────────
@@ -538,6 +538,79 @@ router.delete(
       });
     } catch (err) {
       next(err);
+    }
+  }
+);
+
+/** POST /api/v2/agents/:agentId/chat — Converse with an agent using LLM. */
+router.post(
+  '/:agentId/chat',
+  requireAuth,
+  validateParams(agentIdParamSchema),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'Unauthorized' });
+        return;
+      }
+
+      const agentId = req.params.agentId as string;
+      const { message, history = [] } = req.body;
+
+      if (!message) {
+        res.status(400).json({ success: false, error: 'Message is required' });
+        return;
+      }
+
+      // 1. Fetch Agent & System Prompt
+      const agent = await prisma.agent.findFirst({
+        where: { id: agentId, userId: userId }
+      });
+
+      if (!agent) {
+        res.status(404).json({ success: false, error: 'Agent not found' });
+        return;
+      }
+
+      // 2. Fetch User's Gemini API Key (or fallback to ENV)
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      const geminiApiKey = (user as any)?.geminiApiKey || process.env.GEMINI_API_KEY;
+
+      if (!geminiApiKey) {
+        res.status(400).json({ success: false, error: 'Gemini API key is not configured.' });
+        return;
+      }
+
+      // 3. Setup Gemini API
+      const genAI = new GoogleGenerativeAI(geminiApiKey);
+      const model = genAI.getGenerativeModel({ 
+        model: agent.model || 'gemini-2.5-flash',
+        systemInstruction: agent.systemPrompt || "You are a helpful AI assistant."
+      });
+
+      // 4. Construct Chat
+      const chat = model.startChat({
+        history: history.map((msg: any) => ({
+          role: msg.role === 'user' ? 'user' : 'model',
+          parts: [{ text: msg.text }],
+        })),
+        generationConfig: {
+          temperature: agent.temperature ? Number(agent.temperature) : 0.7,
+        }
+      });
+
+      // 5. Send message and wait for response
+      const result = await chat.sendMessage(message);
+      const responseText = result.response.text();
+
+      res.status(200).json({
+        success: true,
+        data: { text: responseText }
+      });
+    } catch (err: any) {
+      logger.error('Agent chat error', { error: err.message, stack: err.stack });
+      res.status(500).json({ success: false, error: 'Failed to chat with agent', details: err.message });
     }
   }
 );

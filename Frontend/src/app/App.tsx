@@ -7,7 +7,7 @@ import { ApiKeyManagement } from './components/settings/ApiKeyManagement';
 import AgentConfigPanel from "./components/agents/AgentConfigPanel";
 import { AnalyticsOverview } from "./components/analytics/AnalyticsOverview";
 import {
-  fetchAgents, fetchAgent, fetchCalls, fetchProfile, createAgent, updateAgent,
+  fetchAgents, fetchAgent, fetchCalls, fetchProfile, createAgent, updateAgent, chatWithAgent,
   initiateCall, getCallTranscript, getLiveTranscriptWsUrl,
   fetchKBList, uploadKBDocument, scrapeKBUrl, deleteKBDocument,
   DEV_USER_ID, DEFAULT_AGENT_ID, API_BASE, apiClient,
@@ -30,6 +30,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "./components/ui/popover
 import Navbar from "./components/layout/Navbar";
 import Footer from "./components/layout/Footer";
 import SchemaInjector from "./components/seo/SchemaInjector";
+import { DashCompanionCall } from "./DashCompanionCall";
 const Home = lazy(() => import("./pages/Home"));
 const Solutions = lazy(() => import("./pages/Solutions"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
@@ -3149,6 +3150,7 @@ function DashCompanion({ session, setApiAgents }: { session: Session, setApiAgen
   const [personality, setPersonality] = useState("Intellectual, empathetic, and witty");
   const [loading, setLoading] = useState(false);
   const [createdAgentId, setCreatedAgentId] = useState<string | null>(null);
+  const [callMode, setCallMode] = useState(false);
 
   const handleCreate = async () => {
     if (!name.trim()) return alert("Please enter a name for your companion.");
@@ -3197,20 +3199,25 @@ Key Instructions:
         </p>
 
         {createdAgentId ? (
-          <div className="nm-pressed rounded-2xl p-8 text-center space-y-4">
-            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 nm-raised">
-              <CheckCircle2 className="w-8 h-8" />
+          callMode ? (
+            <DashCompanionCall agentId={createdAgentId} onEnd={() => setCallMode(false)} />
+          ) : (
+            <div className="nm-pressed rounded-2xl p-8 text-center space-y-4">
+              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 nm-raised">
+                <CheckCircle2 className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Clash Display',sans-serif"}}>
+                Companion Created Successfully!
+              </h3>
+              <p className="text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>
+                You can now find {name} in your Agents list, or you can talk to them right now!
+              </p>
+              <div className="pt-4 flex items-center justify-center gap-4">
+                <DBtn onClick={() => setCallMode(true)}>Talk Now</DBtn>
+                <button onClick={() => { setCreatedAgentId(null); setName(""); }} className="text-sm text-muted-foreground hover:text-[var(--nm-text)] underline">Create Another</button>
+              </div>
             </div>
-            <h3 className="text-xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Clash Display',sans-serif"}}>
-              Companion Created Successfully!
-            </h3>
-            <p className="text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>
-              You can now find {name} in your Agents list and assign a phone number to start talking.
-            </p>
-            <div className="pt-4">
-              <DBtn onClick={() => { setCreatedAgentId(null); setName(""); }}>Create Another</DBtn>
-            </div>
-          </div>
+          )
         ) : (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

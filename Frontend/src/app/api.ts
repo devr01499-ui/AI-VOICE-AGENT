@@ -264,6 +264,18 @@ export async function buildAgentConversation(
   });
 }
 
+/** POST /api/v2/agents/:agentId/chat — Converse with an agent using LLM */
+export async function chatWithAgent(
+  agentId: string,
+  message: string,
+  history: Array<{ role: 'user' | 'model'; text: string }> = []
+): Promise<{ text: string }> {
+  return apiFetch<{ text: string }>(`/api/v2/agents/${agentId}/chat`, {
+    method: "POST",
+    body: JSON.stringify({ message, history }),
+  });
+}
+
 /** GET /api/v2/agents/me/profile — Fetch current user profile */
 export async function fetchProfile(): Promise<ApiProfile> {
   return apiFetch<ApiProfile>("/api/v2/agents/me/profile");
