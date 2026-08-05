@@ -3142,7 +3142,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
 }
 
 // ── DashCompanion ──
-function DashCompanion({ session }: { session: Session }) {
+function DashCompanion({ session, setApiAgents }: { session: Session, setApiAgents?: React.Dispatch<React.SetStateAction<ApiAgent[]>> }) {
   const [name, setName] = useState("");
   const [voice, setVoice] = useState("Aoede");
   const [age, setAge] = useState("25");
@@ -3151,7 +3151,7 @@ function DashCompanion({ session }: { session: Session }) {
   const [createdAgentId, setCreatedAgentId] = useState<string | null>(null);
 
   const handleCreate = async () => {
-    if (!name.trim()) return alert("Please enter a name");
+    if (!name.trim()) return alert("Please enter a name for your companion.");
     setLoading(true);
     try {
       const systemPrompt = `You are ${name}, a ${age}-year-old highly intelligent, emotional, and responsive AI companion. 
@@ -3174,8 +3174,11 @@ Key Instructions:
         systemPrompt: systemPrompt
       };
       
-      const newAgent = await createAgent(agentData);
+      const newAgent = await createAgent(agentData as any);
       setCreatedAgentId(newAgent.id);
+      if (setApiAgents) {
+        setApiAgents(prev => [...prev, newAgent]);
+      }
     } catch (err: any) {
       alert("Failed to create companion: " + (err.message || "Unknown error"));
     } finally {
@@ -3227,7 +3230,7 @@ Key Instructions:
               </DField>
             </div>
             <div className="pt-6 border-t border-border flex justify-end">
-              <DBtn onClick={handleCreate} disabled={loading || !name.trim()}>
+              <DBtn onClick={handleCreate} disabled={loading}>
                 {loading ? "Creating..." : "Create Companion"}
               </DBtn>
             </div>
@@ -3325,7 +3328,7 @@ function DashboardPage({ session }: { session: Session }) {
               {section==="voices"&&<DashVoices apiAgents={apiAgents} setApiAgents={setApiAgents}/>}
               {section==="analytics"&&<DashAnalytics/>}
               {section==="settings"&&<DashSettings profile={profile} />}
-              {section==="companion"&&<DashCompanion session={session} />}
+              {section==="companion"&&<DashCompanion session={session} setApiAgents={setApiAgents} />}
             </motion.div>
           </AnimatePresence>
         </div>
