@@ -102,7 +102,11 @@ export function DashCompanionCall({ agentId, onEnd }: { agentId: string; onEnd: 
       setHistory(p => [...p, { role: 'model', text: response.text }]);
       speakResponse(response.text);
     } catch (err: any) {
-      setError(err.message || "Failed to communicate with Companion.");
+      if (err.message && err.message.includes("Gemini API key is not configured")) {
+        setError("Gemini API key is missing! Please configure it in the server's .env file as GEMINI_API_KEY, or add it to your user Profile settings.");
+      } else {
+        setError(err.message || "Failed to communicate with Companion.");
+      }
       setCallState("idle");
     }
   };
@@ -170,26 +174,16 @@ export function DashCompanionCall({ agentId, onEnd }: { agentId: string; onEnd: 
         
         {/* Core Avatar */}
         <div className={`relative z-10 w-48 h-48 rounded-full border-4 flex items-center justify-center transition-all duration-500 shadow-xl overflow-hidden ${avatarColors[callState]}`}>
-          {callState === "thinking" ? (
-            <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
-          ) : callState === "speaking" ? (
-            <div className="flex items-end justify-center h-16 gap-2">
-               <div className="w-3 bg-purple-400 rounded-full animate-bounce" style={{ height: '60%', animationDelay: '0ms' }} />
-               <div className="w-3 bg-purple-400 rounded-full animate-bounce" style={{ height: '100%', animationDelay: '150ms' }} />
-               <div className="w-3 bg-purple-400 rounded-full animate-bounce" style={{ height: '40%', animationDelay: '300ms' }} />
-               <div className="w-3 bg-purple-400 rounded-full animate-bounce" style={{ height: '80%', animationDelay: '450ms' }} />
+          <img 
+            src="/tom_holland_avatar.png" 
+            alt="AI Avatar" 
+            className={`w-full h-full object-cover transition-transform duration-300 ${callState === "speaking" ? "scale-105 opacity-90" : "scale-100 opacity-100"}`}
+            style={callState === "speaking" ? { animation: 'pulse 1s infinite' } : {}}
+          />
+          {callState === "thinking" && (
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+              <Loader2 className="w-12 h-12 text-blue-400 animate-spin" />
             </div>
-          ) : (
-             <div className="w-24 h-24 text-emerald-600">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 8V4H8" />
-                  <rect width="16" height="12" x="4" y="8" rx="2" />
-                  <path d="M2 14h2" />
-                  <path d="M20 14h2" />
-                  <path d="M15 13v2" />
-                  <path d="M9 13v2" />
-               </svg>
-             </div>
           )}
         </div>
       </div>
