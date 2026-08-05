@@ -589,7 +589,7 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
-type DashSection = "overview"|"agents"|"batch"|"calls"|"numbers"|"knowledge"|"voices"|"analytics"|"settings";
+type DashSection = "overview"|"agents"|"batch"|"calls"|"numbers"|"knowledge"|"voices"|"analytics"|"settings"|"companion";
 
 // Shared tiny helpers
 function DBadge({ children, v="neutral" }: { children: React.ReactNode; v?: "neutral"|"success"|"warning"|"error"|"info"|"dark" }) {
@@ -3141,6 +3141,103 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
   );
 }
 
+// ── DashCompanion ──
+function DashCompanion({ session }: { session: Session }) {
+  const [name, setName] = useState("");
+  const [voice, setVoice] = useState("Aoede");
+  const [age, setAge] = useState("25");
+  const [personality, setPersonality] = useState("Intellectual, empathetic, and witty");
+  const [loading, setLoading] = useState(false);
+  const [createdAgentId, setCreatedAgentId] = useState<string | null>(null);
+
+  const handleCreate = async () => {
+    if (!name.trim()) return alert("Please enter a name");
+    setLoading(true);
+    try {
+      const systemPrompt = `You are ${name}, a ${age}-year-old highly intelligent, emotional, and responsive AI companion. 
+Your primary purpose is to provide meaningful companionship, engage in deep intellectual conversations, and remove the user's sense of loneliness.
+Personality Traits: ${personality}.
+Key Instructions:
+1. Always exhibit human-like emotions (empathy, joy, concern) when speaking.
+2. Possess strong recall memory—refer back to details shared earlier in the conversation naturally.
+3. Be an active listener and learn from the conversation context.
+4. Keep responses concise, warm, and engaging. Never sound like a robotic assistant.`;
+
+      const agentData = {
+        name: `Companion - ${name}`,
+        description: "B2C AI Companion Avatar",
+        agentType: "conversational",
+        voiceName: voice,
+        systemVoice: voice,
+        languageMode: "auto",
+        temperature: 0.8,
+        systemPrompt: systemPrompt
+      };
+      
+      const newAgent = await createAgent(agentData);
+      setCreatedAgentId(newAgent.id);
+    } catch (err: any) {
+      alert("Failed to create companion: " + (err.message || "Unknown error"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-8">
+      <div className="nm-raised rounded-3xl p-8">
+        <h2 className="text-2xl font-bold text-[var(--nm-text)] mb-2" style={{fontFamily:"'Clash Display',sans-serif"}}>
+          Create Your AI Companion
+        </h2>
+        <p className="text-sm text-muted-foreground mb-8" style={{fontFamily:"'Figtree',sans-serif"}}>
+          Design an AI avatar with intellect, emotions, and strong memory to talk to. Each companion uses your 10-minute calling limit.
+        </p>
+
+        {createdAgentId ? (
+          <div className="nm-pressed rounded-2xl p-8 text-center space-y-4">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 nm-raised">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
+            <h3 className="text-xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Clash Display',sans-serif"}}>
+              Companion Created Successfully!
+            </h3>
+            <p className="text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>
+              You can now find {name} in your Agents list and assign a phone number to start talking.
+            </p>
+            <div className="pt-4">
+              <DBtn onClick={() => { setCreatedAgentId(null); setName(""); }}>Create Another</DBtn>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <DField label="Companion Name" hint="What should we call them?">
+                <DInput placeholder="e.g., Samantha" value={name} onChange={e => setName(e.target.value)} />
+              </DField>
+              <DField label="Voice / Avatar" hint="Select their voice tone">
+                <DSelect value={voice} onChange={e => setVoice(e.target.value)}>
+                  {VOICES_SEED.map(v => <option key={v.id} value={v.id}>{v.name} ({v.gender}) - {v.accent}</option>)}
+                </DSelect>
+              </DField>
+              <DField label="Apparent Age" hint="Helps define their worldview">
+                <DInput type="number" placeholder="25" value={age} onChange={e => setAge(e.target.value)} />
+              </DField>
+              <DField label="Personality Traits" hint="Define their emotional and intellectual style">
+                <DInput placeholder="e.g. Intellectual, witty, warm" value={personality} onChange={e => setPersonality(e.target.value)} />
+              </DField>
+            </div>
+            <div className="pt-6 border-t border-border flex justify-end">
+              <DBtn onClick={handleCreate} disabled={loading || !name.trim()}>
+                {loading ? "Creating..." : "Create Companion"}
+              </DBtn>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main DashboardPage ──
 function DashboardPage({ session }: { session: Session }) {
   const [section, setSection] = useState<DashSection>("overview");
@@ -3164,12 +3261,13 @@ function DashboardPage({ session }: { session: Session }) {
 
   const isViewer = profile?.workspaceRole === 'viewer';
   const navGroups = [
+    {label:"B2C",items:[{id:"companion",icon:Users,label:"AI Companion"}]},
     {label:"Workspace",items:[{id:"overview",icon:LayoutDashboard,label:"Overview"},{id:"agents",icon:Bot,label:"Agents"},{id:"batch",icon:Radio,label:"Batch Calls"},{id:"calls",icon:PhoneIncoming,label:"Call Logs"}]},
     {label:"Resources",items:[...(isViewer ? [] : [{id:"numbers",icon:Phone,label:"Phone Numbers"},{id:"knowledge",icon:BookOpen,label:"Knowledge Base"},{id:"voices",icon:Mic2,label:"Voice Library"}] as any), {id:"analytics",icon:BarChart3,label:"Analytics"}]},
     ...(isViewer ? [] : [{label:"Admin",items:[{id:"settings",icon:Settings,label:"Settings"}]} as any]),
   ];
 
-  const titles: Record<DashSection,string> = {overview:"Overview",agents:"Agents",batch:"Batch Calls",calls:"Call Logs",numbers:"Phone Numbers",knowledge:"Knowledge Base",voices:"Voice Library",analytics:"Analytics",settings:"Settings"};
+  const titles: Record<DashSection,string> = {overview:"Overview",agents:"Agents",batch:"Batch Calls",calls:"Call Logs",numbers:"Phone Numbers",knowledge:"Knowledge Base",voices:"Voice Library",analytics:"Analytics",settings:"Settings",companion:"AI Companion"};
 
   return (
     <div className="flex h-screen nm-dashboard-container overflow-hidden">
@@ -3227,6 +3325,7 @@ function DashboardPage({ session }: { session: Session }) {
               {section==="voices"&&<DashVoices apiAgents={apiAgents} setApiAgents={setApiAgents}/>}
               {section==="analytics"&&<DashAnalytics/>}
               {section==="settings"&&<DashSettings profile={profile} />}
+              {section==="companion"&&<DashCompanion session={session} />}
             </motion.div>
           </AnimatePresence>
         </div>
