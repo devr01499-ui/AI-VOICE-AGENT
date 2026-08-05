@@ -575,7 +575,7 @@ router.post(
 
       // 2. Fetch User's Gemini API Key (or fallback to ENV)
       const user = await prisma.user.findUnique({ where: { id: userId } });
-      const geminiApiKey = (user as any)?.geminiApiKey || process.env.GEMINI_API_KEY;
+      const geminiApiKey = (user as any)?.geminiApiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
       if (!geminiApiKey) {
         res.status(400).json({ success: false, error: 'Gemini API key is not configured.' });
