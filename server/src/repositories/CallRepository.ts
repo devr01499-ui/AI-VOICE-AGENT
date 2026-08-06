@@ -37,6 +37,7 @@ interface UpdateCallData {
   webhookUrl?: string;
   recordingEnabled?: boolean;
   maxDuration?: number;
+  recordingUrl?: string;
 }
 
 /**

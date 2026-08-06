@@ -70,7 +70,7 @@ export class Pipeline {
           });
         }
       },
-      onTranscriptDelta: (sessId: string, text: string, isUser: boolean, isFinal?: boolean) => {
+      onTranscriptDelta: (sessId: string, text: string, isFinal: boolean, isUser?: boolean) => {
         // 1. Pipe to the socket event stream
         eventBus.publish(PROVIDER_EVENTS.TRANSCRIPT_UPDATED, {
           callId: this.callId,
@@ -79,27 +79,19 @@ export class Pipeline {
           isFinal: isFinal !== undefined ? isFinal : true,
         });
 
-        // 2. Commit to database dynamically
-        import('../../../lib/prisma').then(({ prisma }) => {
-          prisma.transcriptSegment.count({
-            where: { callId: this.callId }
-          }).then(seqCount => {
-            prisma.transcriptSegment.create({
-              data: {
-                callId: this.callId,
-                speaker: isUser ? 'user' : 'agent',
-                content: text,
-                startTime: 0,
-                sequenceNumber: seqCount + 1,
-              }
-            }).catch(err => {
-              logger.error('Pipeline: Failed to create transcript segment', { callId: this.callId, error: err.message });
-            });
-          }).catch(err => {
-            logger.error('Pipeline: Failed to count transcript segments', { callId: this.callId, error: err.message });
+        // 2. Commit to database dynamically via TranscriptManager
+        import('../../../runtime/TranscriptManager').then(({ TranscriptManager }) => {
+          const transcriptManager = new TranscriptManager();
+          transcriptManager.addUtterance(
+            this.callId,
+            isUser ? 'user' : 'agent',
+            text,
+            0 // startTime
+          ).catch(err => {
+            logger.error('Pipeline: Failed to create transcript segment', { callId: this.callId, error: err.message });
           });
         }).catch(err => {
-          logger.error('Pipeline: Failed to load database adapter for transcript segment logging', { callId: this.callId, error: err.message });
+          logger.error('Pipeline: Failed to load TranscriptManager', { callId: this.callId, error: err.message });
         });
       },
       onSpeechStopped: (sessId: string, interrupted?: boolean) => {

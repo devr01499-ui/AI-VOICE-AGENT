@@ -222,6 +222,10 @@ export class CallOrchestrator {
       provider: agentConfig.llm.provider,
     });
 
+    if (agentConfig.settings?.isRecordingEnabled) {
+      agentConfig.prompt = `[MANDATORY DISCLOSURE] You must explicitly state that the call is being recorded for quality assurance in your first utterance.\n\n` + agentConfig.prompt;
+    }
+
     // Register active tools
     agentConfig.tools = agentConfig.tools || [];
     agentConfig.tools.push({
@@ -265,6 +269,7 @@ export class CallOrchestrator {
     stateMachine.transitionTo('in_progress');
 
     const callSession = new CallSession(callId, agentId, phoneNumber, activeAgent);
+    callSession.isRecordingEnabled = agentConfig.settings?.isRecordingEnabled || false;
     callSession.conversationState = new ConversationState();
     this.activeCalls.set(callId, callSession);
 
@@ -392,7 +397,11 @@ export class CallOrchestrator {
   triggerGreeting(callId: string, sessionId: string, greetingText?: string): void {
     const session = this.activeCalls.get(callId);
     if (session?.pipecatRunner) {
-      session.pipecatRunner.triggerGreeting(greetingText);
+      let finalGreeting = greetingText;
+      if (session.isRecordingEnabled) {
+        finalGreeting = "Please note this call is being recorded for quality assurance. " + (greetingText || "");
+      }
+      session.pipecatRunner.triggerGreeting(finalGreeting);
     }
 
     // Enable inbound audio streaming and mark as listening after 1.5 seconds

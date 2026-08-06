@@ -17,6 +17,7 @@ export class CallSession {
   public status: CallStatus = 'queued';
   public conversationState?: IConversationState;
   public inboundAudioAllowed: boolean = false;
+  public isRecordingEnabled: boolean = false;
 
   constructor(
     public readonly callId: string,

@@ -148,6 +148,18 @@ export class PipecatRunner {
           logger.error('PipecatRunner: Supabase storage upload failed', { error: error.message });
         } else {
           logger.info('PipecatRunner: Supabase storage upload successful', { path: data?.path });
+          import('../../repositories/CallRepository').then(({ CallRepository }) => {
+            if (data?.path) {
+              CallRepository.update(this.callId, { recordingUrl: data.path }).catch(err => {
+                logger.error('PipecatRunner: Failed to update Call recordingUrl', { error: String(err) });
+              });
+              CallRepository.updateExecution(this.callId, { recordingUrl: data.path }).catch(err => {
+                logger.error('PipecatRunner: Failed to update Execution recordingUrl', { error: String(err) });
+              });
+            }
+          }).catch(err => {
+            logger.error('PipecatRunner: Failed to load CallRepository', { error: String(err) });
+          });
         }
       } catch (err) {
         logger.error('PipecatRunner: Exception during Supabase storage upload', { error: String(err) });
