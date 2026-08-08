@@ -36,6 +36,7 @@ model User {
   knowledgeBases       KnowledgeBase[]
   batches              Batch[]
   subAccounts          SubAccount[]
+  vobizSubAccount      VobizSubAccount?
   webhooks             Webhook[]
   providerCredentials  ProviderCredential[]
   callSessions         CallSession[]
@@ -213,6 +214,7 @@ model PhoneNumber {
   telephonyProvider String   @map("telephony_provider") // twilio | plivo | exotel
   capabilities      String   @default("[\"voice\"]") // JSON array
   status            String   @default("active") // active | inactive
+  kycStatus         String   @default("pending") @map("kyc_status") // pending | verified | failed
   monthlyCost       Float    @default(1.0) @map("monthly_cost")
   purchasedAt       DateTime @default(now()) @map("purchased_at")
 
@@ -344,6 +346,20 @@ model SubAccount {
 
   @@index([parentUserId])
   @@map("sub_accounts")
+}
+
+model VobizSubAccount {
+  id            String   @id @default(uuid())
+  userId        String   @unique @map("user_id")
+  authId        String   @map("auth_id")
+  authToken     String   @map("auth_token") // Encrypted
+  kycMode       String   @default("customer_use") @map("kyc_mode")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("vobiz_sub_accounts")
 }
 
 // ─────────────────────────────────────────────

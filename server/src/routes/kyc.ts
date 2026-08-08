@@ -81,7 +81,7 @@ router.post('/submit', requireAuth, async (req, res, next) => {
 router.get('/status/:phoneNumberId', requireAuth, async (req, res, next) => {
   try {
     const userId = (req as any).userId;
-    const { phoneNumberId } = req.params;
+    const phoneNumberId = req.params.phoneNumberId as string;
 
     const phoneNumber = await prisma.phoneNumber.findFirst({
       where: { id: phoneNumberId, userId },

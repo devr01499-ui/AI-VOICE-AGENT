@@ -85,6 +85,10 @@ const envSchema = z.object({
   PUBLIC_URL: z.string().trim().default(''),
 
   NGROK_AUTH_TOKEN: z.string().trim().default(''),
+
+  // ── Billing / Razorpay ──────────────────────
+  RAZORPAY_KEY_ID: z.string().trim().optional(),
+  RAZORPAY_KEY_SECRET: z.string().trim().optional(),
 });
 
 /**

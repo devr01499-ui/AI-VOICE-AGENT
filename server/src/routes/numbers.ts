@@ -159,7 +159,7 @@ router.post('/purchase', requireAuth, async (req, res, next) => {
 router.delete('/:id', requireAuth, async (req, res, next) => {
   try {
     const userId = (req as any).userId;
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     if (!id) {
       res.status(400).json({ success: false, error: 'Phone number ID is required' });
