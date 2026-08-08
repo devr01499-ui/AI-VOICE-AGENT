@@ -24,7 +24,13 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
 
     if (existingOrder) {
       if (existingOrder.orderStatus === 'success') {
-         return existingOrder; // Already purchased successfully
+         const existingPhone = await prisma.phoneNumber.findFirst({
+           where: { userId: params.userId, phoneNumber: existingOrder.selectedNumber }
+         });
+         if (!existingPhone) {
+           throw new Error('Order is successful but phone number record is missing');
+         }
+         return { order: existingOrder, phoneNumber: existingPhone };
       }
       if (existingOrder.orderStatus === 'failed') {
          throw new Error(`Previous purchase attempt failed: ${existingOrder.failureReason}`);
