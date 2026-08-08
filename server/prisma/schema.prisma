@@ -561,3 +561,48 @@ model CallSession {
   @@index([userId])
   @@map("call_sessions")
 }
+
+// ─────────────────────────────────────────────
+// INTEGRATIONS & BILLING AUDIT
+// ─────────────────────────────────────────────
+
+model PhoneNumberOrder {
+  id                    String    @id @default(uuid())
+  internalOrganizationId String   @map("internal_organization_id")
+  userId                String    @map("user_id")
+  selectedNumber        String    @map("selected_number")
+  vobizNumberId         String?   @map("vobiz_number_id")
+  priceSnapshot         Float     @map("price_snapshot")
+  currency              String    @default("USD")
+  paymentStatus         String    @default("pending") @map("payment_status") // pending | paid | failed
+  providerStatus        String    @default("pending") @map("provider_status") // pending | success | failed
+  orderStatus           String    @default("created") @map("order_status") // created | validating | purchase_pending | success | failed | reconciliation_required
+  idempotencyKey        String    @unique @map("idempotency_key")
+  providerRequestId     String?   @map("provider_request_id")
+  failureReason         String?   @map("failure_reason")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([idempotencyKey])
+  @@map("phone_number_orders")
+}
+
+model IntegrationAuditLog {
+  id                 String   @id @default(uuid())
+  organizationId     String?  @map("organization_id")
+  userId             String?  @map("user_id")
+  provider           String   // e.g. "vobiz"
+  operation          String   // e.g. "purchase_number", "fetch_inventory"
+  internalResourceId String?  @map("internal_resource_id")
+  providerResourceId String?  @map("provider_resource_id")
+  requestId          String?  @map("request_id") // ID from provider
+  status             String   // success | failed
+  errorCode          String?  @map("error_code")
+  errorMessage       String?  @map("error_message")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([provider, operation])
+  @@map("integration_audit_logs")
+}
