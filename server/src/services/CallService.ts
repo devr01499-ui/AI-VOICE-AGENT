@@ -54,6 +54,30 @@ export class CallService {
       ]);
     }
 
+    // ── Enforce concurrency limits ─────────────
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new ValidationError('User not found');
+
+    let maxConcurrency = 1; // free/Starter
+    if (user.accountType === 'developer' || user.accountType === 'professional') {
+      maxConcurrency = 5; // Growth
+    } else if (user.accountType === 'enterprise') {
+      maxConcurrency = 15; // Scale
+    }
+
+    const activeCallCount = await prisma.call.count({
+      where: {
+        userId,
+        status: { in: ['queued', 'ringing', 'in_progress'] },
+      }
+    });
+
+    if (activeCallCount >= maxConcurrency) {
+      throw new ValidationError('Concurrency limit exceeded', [
+        { field: 'concurrency', message: `Max allowed concurrent calls for your plan is ${maxConcurrency}.` }
+      ]);
+    }
+
     // ── Validate agent exists ──────────────────
     const agent = await AgentRepository.findById(agentId);
     if (agent.status !== 'active' && agent.status !== 'draft') {
