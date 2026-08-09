@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "lib/pseo/**/*.ts",
+    "scripts/pseo/**/*.ts",
+    "app/(pseo)/**/*.ts",
+    "app/(pseo)/**/*.tsx"
+  ],
+  "exclude": []
+}

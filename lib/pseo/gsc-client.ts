@@ -15,7 +15,7 @@ export async function getGscClient() {
   });
 
   const authClient = await auth.getClient();
-  // @ts-expect-error - Google APIs typing mismatch
+  // @ts-expect-error - upstream bug: googleapis GlobalOptions expects OAuth2Client but GoogleAuth.getClient() returns a union of other clients (https://github.com/googleapis/google-api-nodejs-client/issues/2920)
   google.options({ auth: authClient });
 
   gscClient = google.searchconsole('v1');
@@ -30,7 +30,7 @@ export async function submitToIndexingApi(url: string) {
   const authClient = await auth.getClient();
   
   const indexing = google.indexing('v3');
-  // @ts-expect-error - Google APIs typing mismatch
+  // @ts-expect-error - upstream bug: googleapis GlobalOptions expects OAuth2Client but GoogleAuth.getClient() returns a union of other clients (https://github.com/googleapis/google-api-nodejs-client/issues/2920)
   google.options({ auth: authClient });
   
   try {

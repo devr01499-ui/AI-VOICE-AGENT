@@ -22,8 +22,7 @@ export async function generateContentWithGemini(prompt: string, useSearchGroundi
   };
 
   if (useSearchGrounding) {
-    // @ts-expect-error - googleSearch may not be in this version's Tool typing
-    modelOptions.tools = [{ googleSearch: {} }];
+    modelOptions.tools = [{ googleSearchRetrieval: {} }];
   }
 
   const model = client.getGenerativeModel(modelOptions);

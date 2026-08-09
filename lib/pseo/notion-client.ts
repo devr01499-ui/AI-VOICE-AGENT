@@ -1,4 +1,5 @@
 import { Client } from '@notionhq/client';
+import { BlockObjectRequest, UpdatePageParameters } from '@notionhq/client/build/src/api-endpoints';
 
 let notionInstance: Client | null = null;
 
@@ -19,7 +20,7 @@ export async function getPendingTopics(databaseId: string, limit: number = 3) {
   const notion = getNotionClient();
   await sleep(350); // defensive rate limiting
   
-  // @ts-expect-error - Notion SDK typing mismatch
+  // @ts-expect-error - upstream bug: Notion SDK's complex union types for database query filters often fail TypeScript type inference (https://github.com/makenotion/notion-sdk-js/issues/384)
   const response = await notion.databases.query({
     database_id: databaseId,
     filter: {
@@ -56,14 +57,13 @@ export async function createReviewEntry(databaseId: string, title: string, templ
   // Notion blocks max 2000 chars per text block.
   const paragraphs = contentPreview.split('\n\n').map(p => p.trim()).filter(Boolean);
   
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const blocks: any[] = paragraphs.map(p => ({
+  const blocks = paragraphs.map(p => ({
     object: 'block',
     type: 'paragraph',
     paragraph: {
       rich_text: [{ type: 'text', text: { content: p.substring(0, 2000) } }],
     },
-  }));
+  })) as BlockObjectRequest[];
 
   await notion.pages.create({
     parent: { database_id: databaseId },
@@ -86,7 +86,7 @@ export async function getReviewedEntries(databaseId: string) {
   const notion = getNotionClient();
   await sleep(350);
   
-  // @ts-expect-error - Notion SDK typing mismatch
+  // @ts-expect-error - upstream bug: Notion SDK's complex union types for database query filters often fail TypeScript type inference (https://github.com/makenotion/notion-sdk-js/issues/384)
   const response = await notion.databases.query({
     database_id: databaseId,
     filter: {
@@ -110,8 +110,7 @@ export async function updateReviewEntryStatus(pageId: string, status: string, ur
   const notion = getNotionClient();
   await sleep(350);
   
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const properties: any = {
+  const properties: UpdatePageParameters['properties'] = {
     Status: {
       status: { name: status },
     },
