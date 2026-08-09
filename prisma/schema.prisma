@@ -544,3 +544,34 @@ model VobizSubAccount {
   @@index([userId])
   @@map("vobiz_sub_accounts")
 }
+
+// ─────────────────────────────────────────────
+// PROGRAMMATIC SEO (pSEO)
+// ─────────────────────────────────────────────
+
+model ProgrammaticPage {
+  id              String   @id @default(cuid())
+  templateType    String
+  slug            String   @unique
+  category        String
+  variableData    Json
+  title           String
+  metaDescription String
+  h1              String
+  bodyContent     String   @db.Text
+  faqItems        Json
+  schemaMarkup    Json
+  status          String   @default("draft") // draft | published | archived
+  notionPageId    String?  @unique
+  publishedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  gscImpressions  Int?     @default(0)
+  gscClicks       Int?     @default(0)
+  gscAvgPosition  Float?
+  gscLastSynced   DateTime?
+
+  @@index([status])
+  @@index([category])
+}

@@ -1,0 +1,31 @@
+{
+  "brandName": "Claritiy Voice",
+  "tagline": "AI voice calling platform that confirms cash-on-delivery (COD) orders before dispatch.",
+  "coreProblemSolved": "Reducing RTO (return-to-origin) and failed deliveries for Indian D2C and e-commerce sellers.",
+  "howItWorks": "Places automated AI voice calls to customers who placed a cash-on-delivery order, confirming the order details and delivery address before the item is shipped. Catches wrong numbers, changed minds, and incorrect addresses.",
+  "targetAudience": [
+    "Indian D2C brands",
+    "E-commerce sellers offering cash-on-delivery"
+  ],
+  "pricing": {
+    "startingPrice": "₹3.99 per minute",
+    "plans": ["Pay-as-you-go", "Monthly", "Annual"]
+  },
+  "languagesSupported": [
+    "English",
+    "Hindi",
+    "Bengali",
+    "Kannada",
+    "Malayalam",
+    "Gujarati",
+    "Mandarin",
+    "Arabic"
+  ],
+  "coreUseCase": "Pre-dispatch COD order confirmation calls",
+  "urls": {
+    "homepage": "https://www.claritiy.com/",
+    "howItWorks": "https://www.claritiy.com/how-it-works",
+    "pricing": "https://www.claritiy.com/pricing",
+    "docs": "https://www.claritiy.com/docs"
+  }
+}
