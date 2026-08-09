@@ -55,7 +55,8 @@ export class VobizSubAccountService {
       subAuthId = `SA_MOCK_${userId.replace(/-/g, '').substring(0, 16)}`;
       subAuthToken = `tok_mock_${Math.random().toString(36).substring(2, 15)}`;
     } else {
-      const url = `${this.baseUrl}/Account/${this.masterAuthId}/Subaccount/`;
+      // Partner API endpoint for provisioning sub-accounts
+      const url = `${this.baseUrl}/partner/accounts`;
       const body = {
         name: `Customer_${userId}`,
         enabled: true,
@@ -104,5 +105,50 @@ export class VobizSubAccountService {
     logger.info('VobizSubAccountService: successfully provisioned sub-account', { userId, subAuthId });
 
     return subAccount;
+  }
+
+  /**
+   * Transfers balance from the partner master account to a sub-account's wallet.
+   */
+  async transferBalance(subAuthId: string, amount: number, currency: string = 'USD') {
+    logger.info('VobizSubAccountService: transferring balance', { subAuthId, amount, currency });
+
+    if (this.isMock) {
+      return { success: true, message: 'Mock transfer successful' };
+    }
+
+    const url = `${this.baseUrl}/partner/accounts/${subAuthId}/transfer-balance`;
+    const body = {
+      amount,
+      currency,
+      description: 'Initial balance funding'
+    };
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-Auth-ID': this.masterAuthId,
+      'X-Auth-Token': this.masterAuthToken,
+    };
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new ProviderError('vobiz', `Balance transfer failed (${response.status}): ${text}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (err) {
+      if (err instanceof ProviderError) throw err;
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      throw new ProviderError('vobiz', `Balance transfer error: ${message}`);
+    }
   }
 }

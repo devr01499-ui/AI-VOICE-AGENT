@@ -20,8 +20,8 @@ export class VobizInventoryService extends VobizIntegrationService {
     userId: string,
     filters: { country?: string, type?: string, region?: string }
   ): Promise<VobizInventoryNumber[]> {
-    // According to OpenAPI: /api/v1/Account/{auth_id}/inventory/numbers
-    const endpoint = `/api/v1/Account/${this.authId}/inventory/numbers`;
+    // According to OpenAPI: /api/v1/inventory/numbers
+    const endpoint = '/api/v1/inventory/numbers';
     
     // Construct query parameters safely
     const queryParams = new URLSearchParams();
@@ -56,7 +56,7 @@ export class VobizInventoryService extends VobizIntegrationService {
    * Fetches details of a specific number from inventory to validate price before purchase.
    */
   public async getNumberDetails(userId: string, numberId: string): Promise<VobizInventoryNumber> {
-    const endpoint = `/api/v1/Account/${this.authId}/inventory/numbers/${numberId}`;
+    const endpoint = `/api/v1/inventory/numbers/${numberId}`;
     
     const response = await this.request<VobizInventoryNumber>(
       'GET', 

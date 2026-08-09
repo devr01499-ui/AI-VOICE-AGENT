@@ -55,6 +55,8 @@ const envSchema = z.object({
 
   VOBIZ_API_URL: z.string().trim().default(''),
 
+  VOBIZ_WEBHOOK_SECRET: z.string().trim().optional(),
+
   // ── OpenAI ──────────────────────────────────
   OPENAI_API_KEY: z.string().trim().optional(),
 

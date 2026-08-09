@@ -100,6 +100,9 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
         throw new Error(`Number purchased but assignment failed: ${assignRes.error}`);
       }
 
+      // Fund the sub-account wallet so it can make calls
+      await subAccountService.transferBalance(subAccount.authId, currentTotalMonthlyCost);
+
       // 6. Record the purchased number in our database
       const newPhone = await prisma.phoneNumber.create({
         data: {

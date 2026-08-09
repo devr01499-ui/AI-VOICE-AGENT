@@ -2157,7 +2157,22 @@ function DashNumbers() {
   const [numbers, setNumbers] = useState<any[]>([]);
   const [liveAgents, setLiveAgents] = useState<ApiAgent[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Inventory Search State
   const [showBuy, setShowBuy] = useState(false);
+  const [searchCountry, setSearchCountry] = useState("US");
+  const [searchType, setSearchType] = useState("local");
+  const [searchRegion, setSearchRegion] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [purchaseLoading, setPurchaseLoading] = useState<string | null>(null);
+
+  // KYC Flow State
+  const [showKyc, setShowKyc] = useState<string | null>(null); // phoneNumberId
+  const [kycStep, setKycStep] = useState(1);
+  const [kycDocType, setKycDocType] = useState("PAN");
+  const [kycStatus, setKycStatus] = useState<string | null>(null);
+
   const [showSip, setShowSip] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [sipForm, setSipForm] = useState({uri:"sip:pbx.acmecorp.com",user:"claritiyvoice",pass:"",codec:"PCMU,PCMA,G722",transport:"TLS",dtmf:"RFC 2833",register:true});
@@ -2175,6 +2190,7 @@ function DashNumbers() {
           agentId: n.assignedAgentId || null,
           region: n.region || 'US Region',
           status: n.status || 'active',
+          kycStatus: n.kycStatus || 'verified',
         })));
       }
     } catch (err) {
@@ -2189,8 +2205,101 @@ function DashNumbers() {
     fetchAgents().then(setLiveAgents).catch(() => {});
   }, [loadNumbers]);
 
-  const [deleteModal, setDeleteModal] = useState<{ open: boolean, id: string }>({ open: false, id: '' });
+  const handleSearch = async () => {
+    setSearchLoading(true);
+    setSearchResults([]);
+    try {
+      const res = await apiClient.get(`/api/v2/numbers/search?country=${searchCountry}&type=${searchType}&region=${searchRegion}`);
+      if (res.data?.success) {
+        setSearchResults(res.data.data.results || []);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Failed to fetch numbers inventory.');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
 
+  const handlePurchase = async (num: any) => {
+    setPurchaseLoading(num.e164);
+    try {
+      // 1. Create Order
+      const expectedPrice = num.monthly_fee || 2.0;
+      const orderRes = await apiClient.post('/api/v2/numbers/create-order', { baseCost: expectedPrice });
+      if (!orderRes.data?.success) throw new Error('Order creation failed');
+      
+      const order = orderRes.data.data;
+
+      // 2. Mock Razorpay Flow (Simulate immediate success)
+      const mockPaymentId = `pay_${Date.now()}`;
+      const mockSignature = order.mock ? 'mock_sig' : 'mock_sig'; // Backend accepts any if mock
+
+      // 3. Purchase Number
+      const purchaseRes = await apiClient.post('/api/v2/numbers/purchase', {
+        vobizNumberId: num.number_id,
+        expectedPrice: expectedPrice,
+        orderId: order.id,
+        paymentId: mockPaymentId,
+        signature: mockSignature,
+      });
+
+      if (purchaseRes.data?.success) {
+        setShowBuy(false);
+        await loadNumbers();
+        if (purchaseRes.data.data.status === 'KYC Required') {
+          setShowKyc(purchaseRes.data.data.phoneNumberId);
+          setKycStep(1);
+          setKycStatus(null);
+        }
+      } else {
+        throw new Error(purchaseRes.data?.error || 'Purchase failed');
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert('Failed to purchase number: ' + e.message);
+    } finally {
+      setPurchaseLoading(null);
+    }
+  };
+
+  const submitKyc = async () => {
+    try {
+      const res = await apiClient.post('/api/v2/kyc/submit', {
+        phoneNumberId: showKyc,
+        documentType: kycDocType,
+        documentData: 'base64_mock_data_here'
+      });
+      if (res.data?.success) {
+        setKycStep(3);
+        setKycStatus('pending');
+        pollKycStatus(showKyc!);
+      } else {
+        alert('KYC Submission failed');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('KYC Error');
+    }
+  };
+
+  const pollKycStatus = (id: string) => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await apiClient.get(`/api/v2/kyc/status/${id}`);
+        if (res.data?.success) {
+          const status = res.data.data.kycStatus;
+          setKycStatus(status);
+          if (status === 'verified' || status === 'failed') {
+            clearInterval(interval);
+            loadNumbers();
+          }
+        }
+      } catch (e) {}
+    }, 5000);
+  };
+
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean, id: string }>({ open: false, id: '' });
   async function performDelete(id: string) {
     setNumbers(prev => prev.filter(n => n.id !== id));
     try {
@@ -2200,13 +2309,6 @@ function DashNumbers() {
     }
   }
 
-  const buyResults = [
-    {number:"+1 (212) 555-0182",region:"New York, NY",type:"local",mo:2.00},
-    {number:"+1 (310) 555-0847",region:"Los Angeles, CA",type:"local",mo:2.00},
-    {number:"+1 (800) 555-0293",region:"National",type:"tollfree",mo:3.50},
-    {number:"+1 (888) 555-0741",region:"National",type:"tollfree",mo:3.50},
-    {number:"+1 (512) 555-0038",region:"Austin, TX",type:"local",mo:2.00},
-  ];
   return (
     <div className="space-y-4">
       <ConfirmDeleteModal 
@@ -2216,9 +2318,82 @@ function DashNumbers() {
         title="Delete Phone Number" 
         message="Are you sure you want to delete this phone number? It will be removed permanently." 
       />
+      
+      {/* KYC Wizard Modal */}
+      <DModal open={!!showKyc} onClose={() => { if(kycStep === 3) setShowKyc(null); else setShowKyc(null); }} title="Complete KYC Verification" width="max-w-xl">
+        <div className="space-y-6">
+          <div className="flex items-center gap-2 mb-6">
+            <div className={`flex-1 h-1.5 rounded-full ${kycStep >= 1 ? 'bg-foreground' : 'bg-muted'}`} />
+            <div className={`flex-1 h-1.5 rounded-full ${kycStep >= 2 ? 'bg-foreground' : 'bg-muted'}`} />
+            <div className={`flex-1 h-1.5 rounded-full ${kycStep >= 3 ? 'bg-foreground' : 'bg-muted'}`} />
+          </div>
+
+          {kycStep === 1 && (
+            <div className="space-y-4">
+              <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Step 1: Business Type</p>
+              <DField label="Select your entity type">
+                <DSelect>
+                  <option>Individual / Sole Proprietorship</option>
+                  <option>Private Limited Company</option>
+                  <option>Partnership</option>
+                </DSelect>
+              </DField>
+              <div className="flex justify-end pt-4"><DBtn onClick={() => setKycStep(2)}>Continue <ArrowRight className="w-4 h-4"/></DBtn></div>
+            </div>
+          )}
+
+          {kycStep === 2 && (
+            <div className="space-y-4">
+              <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Step 2: Document Upload</p>
+              <DField label="Document Type">
+                <DSelect value={kycDocType} onChange={e => setKycDocType(e.target.value)}>
+                  <option value="PAN">PAN Card</option>
+                  <option value="GST">GST Certificate</option>
+                  <option value="CIN">Certificate of Incorporation (CIN)</option>
+                </DSelect>
+              </DField>
+              <div className="nm-card p-8 text-center cursor-pointer hover:nm-pressed border-dashed border-2 border-border transition-all">
+                <Upload className="w-6 h-6 text-[var(--nm-text)] mx-auto mb-3"/>
+                <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Click to upload {kycDocType}</p>
+              </div>
+              <div className="flex justify-between pt-4">
+                <DBtn variant="secondary" onClick={() => setKycStep(1)}>Back</DBtn>
+                <DBtn onClick={submitKyc}>Submit KYC <Check className="w-4 h-4"/></DBtn>
+              </div>
+            </div>
+          )}
+
+          {kycStep === 3 && (
+            <div className="space-y-4 text-center py-6">
+              {kycStatus === 'pending' ? (
+                <>
+                  <div className="w-12 h-12 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin mx-auto mb-4" />
+                  <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Verification Pending</p>
+                  <p className="text-sm text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Vobiz is reviewing your documents. This usually takes a few minutes.</p>
+                </>
+              ) : kycStatus === 'verified' ? (
+                <>
+                  <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-4" />
+                  <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>KYC Approved!</p>
+                  <p className="text-sm text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Your phone number is now active and ready to use.</p>
+                  <DBtn onClick={() => setShowKyc(null)} className="mt-4">Close</DBtn>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                  <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Verification Failed</p>
+                  <p className="text-sm text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Please try submitting your documents again.</p>
+                  <DBtn onClick={() => setKycStep(1)} className="mt-4">Retry KYC</DBtn>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </DModal>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{numbers.length} numbers provisioned</p>
-        <div className="flex gap-2"><DBtn variant="secondary" onClick={()=>setShowSip(true)}><Network className="w-4 h-4"/> SIP config</DBtn><DBtn onClick={()=>setShowBuy(true)}><Plus className="w-4 h-4"/> Buy number</DBtn></div>
+        <div className="flex gap-2"><DBtn variant="secondary" onClick={()=>setShowSip(true)}><Network className="w-4 h-4"/> SIP config</DBtn><DBtn onClick={()=>{setShowBuy(true); handleSearch();}}><Plus className="w-4 h-4"/> Buy number</DBtn></div>
       </div>
       
       {loading && numbers.length === 0 ? (
@@ -2230,7 +2405,7 @@ function DashNumbers() {
           <p className="text-sm font-bold text-[var(--nm-text)] mt-2 mb-6" style={{fontFamily:"'Figtree',sans-serif"}}>Provision a local or toll-free number to route calls to your agents.</p>
           <div className="flex justify-center gap-3">
             <DBtn variant="secondary" onClick={()=>setShowSip(true)} size="sm"><Network className="w-4 h-4"/> SIP config</DBtn>
-            <DBtn onClick={()=>setShowBuy(true)} size="sm"><Plus className="w-4 h-4"/> Buy number</DBtn>
+            <DBtn onClick={()=>{setShowBuy(true); handleSearch();}} size="sm"><Plus className="w-4 h-4"/> Buy number</DBtn>
           </div>
         </div>
       ) : (
@@ -2245,8 +2420,19 @@ function DashNumbers() {
                   <td className="px-5 py-4"><DBadge v={n.type==="tollfree"?"info":"neutral"}>{n.type==="tollfree"?"Toll-free":n.type==="sip"?"SIP":"Local"}</DBadge></td>
                   <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{n.region}</td>
                   <td className="px-5 py-4">{n.agentId?<span className="text-xs font-bold text-[var(--nm-text)] nm-pressed rounded px-3 py-1" style={{fontFamily:"'Figtree',sans-serif"}}>{liveAgents.find(a=>a.id===n.agentId)?.name || 'Default Agent'}</span>:<span className="text-xs font-bold text-[var(--nm-text)]">Unassigned</span>}</td>
-                  <td className="px-5 py-4"><div className="flex items-center gap-2"><SDot status={n.status}/><span className="text-sm font-bold text-[var(--nm-text)] capitalize" style={{fontFamily:"'Figtree',sans-serif"}}>{n.status}</span></div></td>
-                  <td className="px-5 py-4"><div className="flex gap-2"><DBtn size="sm" variant="ghost"><Edit3 className="w-4 h-4"/></DBtn><DBtn size="sm" variant="ghost" onClick={() => setDeleteModal({ open: true, id: n.id })}><Trash2 className="w-4 h-4 text-red-400"/></DBtn></div></td>
+                  <td className="px-5 py-4">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2"><SDot status={n.status}/><span className="text-sm font-bold text-[var(--nm-text)] capitalize" style={{fontFamily:"'Figtree',sans-serif"}}>{n.status}</span></div>
+                      {n.kycStatus === 'pending' && <span className="text-[10px] text-amber-500 font-bold" style={{fontFamily:"'Figtree',sans-serif"}}>KYC Pending</span>}
+                      {n.kycStatus === 'failed' && <span className="text-[10px] text-red-500 font-bold" style={{fontFamily:"'Figtree',sans-serif"}}>KYC Failed</span>}
+                    </div>
+                  </td>
+                  <td className="px-5 py-4"><div className="flex gap-2">
+                    {n.kycStatus === 'pending' && <DBtn size="sm" variant="secondary" onClick={() => {setShowKyc(n.id); setKycStep(3); setKycStatus('pending'); pollKycStatus(n.id);}}>Check KYC</DBtn>}
+                    {n.kycStatus === 'failed' && <DBtn size="sm" variant="secondary" onClick={() => {setShowKyc(n.id); setKycStep(3); setKycStatus('failed');}}>Retry KYC</DBtn>}
+                    {n.kycStatus === 'verified' && <DBtn size="sm" variant="ghost"><Edit3 className="w-4 h-4"/></DBtn>}
+                    <DBtn size="sm" variant="ghost" onClick={() => setDeleteModal({ open: true, id: n.id })}><Trash2 className="w-4 h-4 text-red-400"/></DBtn>
+                  </div></td>
                 </tr>
               ))}
             </tbody>
@@ -2254,15 +2440,56 @@ function DashNumbers() {
         </div>
       )}
 
-      <DModal open={showBuy} onClose={()=>setShowBuy(false)} title="Buy phone number">
-        <div className="space-y-4">
-          <DField label="Search by area code or city"><div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"/><DInput className="pl-9" placeholder="212, Austin, 800…"/></div></DField>
-          <div className="space-y-2">{buyResults.map(r=>(
-            <div key={r.number} className="flex items-center justify-between p-3 border border-border rounded-xl hover:bg-muted/20 transition-colors">
-              <div><p className="text-sm font-medium" style={{fontFamily:"'DM Mono',monospace"}}>{r.number}</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{r.region} · <DBadge>{r.type}</DBadge></p></div>
-              <div className="flex items-center gap-3"><span className="text-sm font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>${r.mo}/mo</span><DBtn size="sm" onClick={()=>{setNumbers(p=>[...p,{id:`pn${Date.now()}`,number:r.number,label:"New number",type:r.type as "local"|"tollfree",agentId:null,region:r.region,status:"active"}]);setShowBuy(false);}}>Provision</DBtn></div>
-            </div>
-          ))}</div>
+      <DModal open={showBuy} onClose={()=>setShowBuy(false)} title="Buy phone number" width="max-w-2xl">
+        <div className="space-y-6">
+          <div className="flex items-end gap-3">
+            <DField label="Country">
+              <DSelect value={searchCountry} onChange={e=>setSearchCountry(e.target.value)}>
+                <option value="US">United States</option>
+                <option value="CA">Canada</option>
+                <option value="GB">United Kingdom</option>
+                <option value="IN">India</option>
+                <option value="AU">Australia</option>
+              </DSelect>
+            </DField>
+            <DField label="Type">
+              <DSelect value={searchType} onChange={e=>setSearchType(e.target.value)}>
+                <option value="local">Local</option>
+                <option value="tollfree">Toll-Free</option>
+                <option value="mobile">Mobile</option>
+              </DSelect>
+            </DField>
+            <DField label="Region / Code">
+              <DInput value={searchRegion} onChange={e=>setSearchRegion(e.target.value)} placeholder="e.g. 212, Austin" />
+            </DField>
+            <DBtn onClick={handleSearch} disabled={searchLoading}>{searchLoading ? 'Searching...' : 'Search'}</DBtn>
+          </div>
+          
+          <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+            {searchLoading ? (
+              <div className="p-8 text-center text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>SEARCHING INVENTORY...</div>
+            ) : searchResults.length > 0 ? (
+              searchResults.map(r=>(
+                <div key={r.number_id} className="flex items-center justify-between p-4 border border-border rounded-xl hover:bg-muted/20 transition-colors">
+                  <div>
+                    <p className="text-base font-medium" style={{fontFamily:"'DM Mono',monospace"}}>{r.e164}</p>
+                    <p className="text-xs text-muted-foreground mt-1" style={{fontFamily:"'Figtree',sans-serif"}}>{r.country} · {r.region || 'National'} · <DBadge>{r.type}</DBadge></p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <span className="text-base font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>${r.monthly_fee}/mo</span>
+                      <p className="text-[10px] text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>+${r.setup_fee} setup</p>
+                    </div>
+                    <DBtn size="sm" disabled={purchaseLoading === r.e164} onClick={() => handlePurchase(r)}>
+                      {purchaseLoading === r.e164 ? <RefreshCw className="w-4 h-4 animate-spin"/> : 'Buy'}
+                    </DBtn>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="p-8 text-center text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>No numbers found matching your criteria. Try different filters.</div>
+            )}
+          </div>
         </div>
       </DModal>
 
