@@ -6,6 +6,7 @@ import { VobizSubAccountService } from '../services/VobizSubAccountService';
 import { ProviderError } from '../types/errors';
 import crypto from 'crypto';
 import { env } from '../config/env';
+import { verifyVobizWebhook } from '../middleware/vobizWebhook';
 
 const router = Router();
 
@@ -115,33 +116,8 @@ router.get('/status/:phoneNumberId', requireAuth, async (req, res, next) => {
  * Hard constraint: A number's kyc_calls_blocked status must only ever change because 
  * Vobiz's own system confirmed it.
  */
-router.post('/webhook/vobiz', async (req, res, next) => {
+router.post('/webhook/vobiz', verifyVobizWebhook, async (req, res, next) => {
   try {
-    const sig = req.header('X-Vobiz-Signature');
-    const secret = env.VOBIZ_WEBHOOK_SECRET;
-
-    if (secret && sig) {
-      const rawBody = (req as any).rawBody;
-      if (!rawBody) {
-        res.status(400).json({ success: false, error: 'Raw body missing' });
-        return;
-      }
-
-      const expected = crypto
-        .createHmac('sha256', secret)
-        .update(rawBody)
-        .digest('hex');
-
-      if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sig))) {
-        logger.warn('KYC Webhook: Invalid signature', { expected, sig });
-        res.status(401).json({ success: false, error: 'Unauthorized: Invalid signature' });
-        return;
-      }
-    } else {
-      logger.warn('KYC Webhook: Missing signature or secret', { hasSecret: !!secret, hasSig: !!sig });
-      res.status(401).json({ success: false, error: 'Unauthorized' });
-      return;
-    }
 
     const { phoneNumber, status, reason } = req.body;
     
