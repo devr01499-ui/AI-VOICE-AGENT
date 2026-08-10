@@ -43,8 +43,15 @@ router.post('/verify-plan', async (req, res) => {
       res.status(400).json({ success: false, error: 'Invalid payment signature' });
       return;
     }
+
+    if (!req.userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+
+    await billingService.processPlanPurchase(req.userId, plan);
     
-    logger.info(`Plan purchased: ${plan}, OrderId: ${orderId}`);
+    logger.info(`Plan purchased: ${plan}, OrderId: ${orderId}, UserId: ${req.userId}`);
 
     res.json({
       success: true,

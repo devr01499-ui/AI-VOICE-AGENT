@@ -184,7 +184,7 @@ app.use('/api/v2/calendar', calendarRoutes);
 app.post('/api/v2/telephony/webhook', WebhookController.handleTelephonyWebhook);
 app.use('/api/v2/contact', contactRoutes);
 app.use('/api/v2/kyc', kycRoutes);
-app.use('/api/v2/billing', billingRoutes);
+app.use('/api/v2/billing', requireAuth, billingRoutes);
 
 // ─── 404 Handler ─────────────────────────────────
 

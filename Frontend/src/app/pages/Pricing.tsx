@@ -39,6 +39,7 @@ export default function Pricing({ setPage }: PricingProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
         body: JSON.stringify({ price })
       });
@@ -61,6 +62,7 @@ export default function Pricing({ setPage }: PricingProps) {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
               },
               body: JSON.stringify({
                 plan: planName,

@@ -106,4 +106,50 @@ export class BillingService {
 
     return generatedSignature === signature;
   }
+
+  /**
+   * Provisions a user's account after a successful plan purchase.
+   */
+  async processPlanPurchase(userId: string, planName: string) {
+    let accountType = 'free';
+    let addedMinutes = 0;
+
+    switch (planName.toLowerCase()) {
+      case 'startup':
+        accountType = 'developer';
+        addedMinutes = 750;
+        break;
+      case 'growth':
+        accountType = 'professional';
+        addedMinutes = 2865;
+        break;
+      case 'enterprise':
+        accountType = 'enterprise';
+        addedMinutes = 10000;
+        break;
+      default:
+        throw new Error(`Unknown plan: ${planName}`);
+    }
+
+    try {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) throw new Error('User not found');
+
+      const newBalance = user.callingBalanceMinutes + addedMinutes;
+
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          accountType,
+          callingBalanceMinutes: newBalance,
+        },
+      });
+
+      logger.info(`BillingService: Provisioned ${planName} for user ${userId}. Added ${addedMinutes} mins.`);
+      return true;
+    } catch (err) {
+      logger.error('BillingService: Failed to process plan purchase in DB', { error: String(err) });
+      throw new Error('Failed to provision account');
+    }
+  }
 }
