@@ -13,10 +13,11 @@ declare global {
 type Page = any;
 
 interface PricingProps {
-  setPage: (p: Page) => void;
+  setPage?: (p: Page) => void;
+  isDashboard?: boolean;
 }
 
-export default function Pricing({ setPage }: PricingProps) {
+export default function Pricing({ setPage, isDashboard }: PricingProps) {
   const [purchasingPlan, setPurchasingPlan] = useState<string | null>(null);
 
   const loadRazorpayScript = () => {
@@ -82,7 +83,11 @@ export default function Pricing({ setPage }: PricingProps) {
             const verifyData = await verifyRes.json();
             if (verifyData.success) {
               alert(`Success! You have purchased the ${planName} Plan.`);
-              setPage("dashboard");
+              if (setPage) {
+                setPage("dashboard");
+              } else {
+                window.location.reload();
+              }
             } else {
               alert(verifyData.error || 'Verification failed.');
             }
@@ -138,13 +143,14 @@ export default function Pricing({ setPage }: PricingProps) {
   };
 
   return (
-    <div className="space-y-28 pb-32 pt-32 bg-cream-bg min-h-screen">
+    <div className={`${isDashboard ? "space-y-12 pb-12 pt-4 bg-transparent" : "space-y-28 pb-32 pt-32 bg-cream-bg min-h-screen"}`}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
 
-      <section className="px-6 max-w-5xl mx-auto text-center space-y-6">
+      {!isDashboard && (
+        <section className="px-6 max-w-5xl mx-auto text-center space-y-6">
         <span className="text-caption font-bold text-mint-primary uppercase tracking-widest bg-mint-soft px-4 py-1.5 rounded-full font-mono">
           TRANSPARENT ENTERPRISE PRICING
         </span>
@@ -164,6 +170,7 @@ export default function Pricing({ setPage }: PricingProps) {
           One unified price per minute. No stacked fees for speech recognition, LLM reasoning, or neural voice synthesis.
         </motion.p>
       </section>
+      )}
 
       {/* 3 Tier Pricing Cards */}
       <section className="px-6 max-w-7xl mx-auto relative z-10">
@@ -274,12 +281,15 @@ export default function Pricing({ setPage }: PricingProps) {
         </div>
 
         {/* Embedded ROI Calculator */}
-        <div className="mt-20">
-          <RoiCalculator />
-        </div>
+        {!isDashboard && (
+          <div className="mt-20">
+            <RoiCalculator />
+          </div>
+        )}
       </section>
 
       {/* Copy Section: Transparent Pricing Philosophy */}
+      {!isDashboard && (
       <section className="px-6 max-w-5xl mx-auto relative z-10">
         <div className="bg-surface-white border border-[#EADEC9] rounded-3xl p-10 md:p-16 shadow-level-2 space-y-8">
           <h2 className="font-sora text-3xl font-bold text-ink">
@@ -295,6 +305,7 @@ export default function Pricing({ setPage }: PricingProps) {
           </div>
         </div>
       </section>
+      )}
     </div>
   );
 }

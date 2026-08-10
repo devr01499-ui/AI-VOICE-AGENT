@@ -24,7 +24,7 @@ import {
   Cpu, MessageSquare, Eye, EyeOff, Copy, RefreshCw, Trash2,
   Edit3, Download, Send, PlayCircle, PauseCircle, StopCircle,
   CheckCircle2, AlertCircle, Info, Star, Headphones, Wand2,
-  ChevronLeft, ChevronDown, Users, Key, Sliders,
+  ChevronLeft, ChevronDown, Users, Key, Sliders, CreditCard,
 } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "./components/ui/popover";
 import Navbar from "./components/layout/Navbar";
@@ -590,7 +590,7 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
-type DashSection = "overview"|"agents"|"batch"|"calls"|"numbers"|"knowledge"|"voices"|"analytics"|"settings"|"companion";
+type DashSection = "overview"|"agents"|"batch"|"calls"|"numbers"|"knowledge"|"voices"|"analytics"|"settings"|"billing"|"companion";
 
 // Shared tiny helpers
 function DBadge({ children, v="neutral" }: { children: React.ReactNode; v?: "neutral"|"success"|"warning"|"error"|"info"|"dark" }) {
@@ -3501,10 +3501,10 @@ function DashboardPage({ session }: { session: Session }) {
     // {label:"B2C",items:[{id:"companion",icon:Users,label:"AI Companion"}]},
     {label:"Workspace",items:[{id:"overview",icon:LayoutDashboard,label:"Overview"},{id:"agents",icon:Bot,label:"Agents"},{id:"batch",icon:Radio,label:"Batch Calls"},{id:"calls",icon:PhoneIncoming,label:"Call Logs"}]},
     {label:"Resources",items:[...(isViewer ? [] : [{id:"numbers",icon:Phone,label:"Phone Numbers"},{id:"knowledge",icon:BookOpen,label:"Knowledge Base"},{id:"voices",icon:Mic2,label:"Voice Library"}] as any), {id:"analytics",icon:BarChart3,label:"Analytics"}]},
-    ...(isViewer ? [] : [{label:"Admin",items:[{id:"settings",icon:Settings,label:"Settings"}]} as any]),
+    ...(isViewer ? [] : [{label:"Admin",items:[{id:"settings",icon:Settings,label:"Settings"}, {id:"billing",icon:CreditCard,label:"Billing & Plans"}]} as any]),
   ];
 
-  const titles: Record<DashSection,string> = {overview:"Overview",agents:"Agents",batch:"Batch Calls",calls:"Call Logs",numbers:"Phone Numbers",knowledge:"Knowledge Base",voices:"Voice Library",analytics:"Analytics",settings:"Settings",companion:"AI Companion"};
+  const titles: Record<DashSection,string> = {overview:"Overview",agents:"Agents",batch:"Batch Calls",calls:"Call Logs",numbers:"Phone Numbers",knowledge:"Knowledge Base",voices:"Voice Library",analytics:"Analytics",settings:"Settings",billing:"Billing & Plans",companion:"AI Companion"};
 
   return (
     <div className="flex h-screen nm-dashboard-container overflow-hidden">
@@ -3562,6 +3562,7 @@ function DashboardPage({ session }: { session: Session }) {
               {section==="voices"&&<DashVoices apiAgents={apiAgents} setApiAgents={setApiAgents}/>}
               {section==="analytics"&&<DashAnalytics/>}
               {section==="settings"&&<DashSettings profile={profile} />}
+              {section==="billing"&&<Pricing isDashboard />}
               {section==="companion"&&<DashCompanion session={session} setApiAgents={setApiAgents} />}
             </motion.div>
           </AnimatePresence>
