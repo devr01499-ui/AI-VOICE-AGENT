@@ -11,6 +11,11 @@ declare global {
 }
 
 export function NumberSearchAndPurchase() {
+  const getRuntimeUrl = () => {
+    const envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
+    const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+    return envUrl || (isLocal ? 'http://localhost:3001' : 'https://ai-voice-agent-backend-mv32.onrender.com');
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any[]>([]);
@@ -30,7 +35,8 @@ export function NumberSearchAndPurchase() {
         qParams.append('region', query);
       }
 
-      const res = await fetch(`/api/v2/numbers/search?${qParams.toString()}`, {
+      const apiBase = getRuntimeUrl();
+      const res = await fetch(`${apiBase}/api/v2/numbers/search?${qParams.toString()}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
         }
@@ -77,7 +83,8 @@ export function NumberSearchAndPurchase() {
       if (!isLoaded) throw new Error('Payment system failed to load.');
 
       const totalCost = (num.setup_fee || 0) + (num.monthly_fee || 2.0);
-      const orderRes = await fetch('/api/v2/numbers/create-order', {
+      const apiBase = getRuntimeUrl();
+      const orderRes = await fetch(`${apiBase}/api/v2/numbers/create-order`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -97,7 +104,8 @@ export function NumberSearchAndPurchase() {
         order_id: orderData.data.id,
         handler: async function (response: any) {
           try {
-            const verifyRes = await fetch('/api/v2/numbers/purchase', {
+            const apiBase = getRuntimeUrl();
+            const verifyRes = await fetch(`${apiBase}/api/v2/numbers/purchase`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',

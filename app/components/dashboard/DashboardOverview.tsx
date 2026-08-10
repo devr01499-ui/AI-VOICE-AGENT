@@ -4,6 +4,12 @@ import React, { useEffect, useState } from 'react';
 import { Phone, Trash2, Clock, Activity, Loader2 } from 'lucide-react';
 
 export function DashboardOverview() {
+  const getRuntimeUrl = () => {
+    const envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
+    const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+    return envUrl || (isLocal ? 'http://localhost:3001' : 'https://ai-voice-agent-backend-mv32.onrender.com');
+  };
+
   const [numbers, setNumbers] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -11,15 +17,16 @@ export function DashboardOverview() {
 
   const fetchData = async () => {
     try {
+      const apiBase = getRuntimeUrl();
       // Fetch user for billing info
-      const userRes = await fetch('/api/v2/user', {
+      const userRes = await fetch(`${apiBase}/api/v2/user`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` }
       });
       const userData = await userRes.json();
       if (userData.success) setUser(userData.data);
 
       // Fetch provisioned numbers
-      const numRes = await fetch('/api/v2/numbers', {
+      const numRes = await fetch(`${apiBase}/api/v2/numbers`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` }
       });
       const numData = await numRes.json();
@@ -39,7 +46,8 @@ export function DashboardOverview() {
     if (!confirm('Are you sure you want to release this number? This action cannot be undone.')) return;
     setReleasingId(id);
     try {
-      const res = await fetch(`/api/v2/numbers/${id}`, {
+      const apiBase = getRuntimeUrl();
+      const res = await fetch(`${apiBase}/api/v2/numbers/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` }
       });

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import { Check, ArrowRight, ShieldCheck, Zap, Loader2 } from "lucide-react";
 import RoiCalculator from "../components/calculator/RoiCalculator";
+import { API_BASE } from "../api";
 
 declare global {
   interface Window {
@@ -34,7 +35,7 @@ export default function Pricing({ setPage }: PricingProps) {
       const isLoaded = await loadRazorpayScript();
       if (!isLoaded) throw new Error('Payment system failed to load.');
 
-      const orderRes = await fetch('http://localhost:5000/api/v2/billing/create-plan-order', {
+      const orderRes = await fetch(`${API_BASE}/api/v2/billing/create-plan-order`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -56,7 +57,7 @@ export default function Pricing({ setPage }: PricingProps) {
         },
         handler: async function (response: any) {
           try {
-            const verifyRes = await fetch('http://localhost:5000/api/v2/billing/verify-plan', {
+            const verifyRes = await fetch(`${API_BASE}/api/v2/billing/verify-plan`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',

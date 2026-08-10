@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Sliders, Sparkles, MessageSquare, Bot, Settings2, Calendar } from "lucide-react";
-import { updateAgent } from "../../api";
+import { updateAgent, API_BASE } from "../../api";
 import ConversationalBuilder from "./ConversationalBuilder";
 
 interface AgentConfigPanelProps {
@@ -20,7 +20,7 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    fetch('http://localhost:3001/api/v2/calendar/status', {
+    fetch(`${API_BASE}/api/v2/calendar/status`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -293,7 +293,7 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
               <span className="text-sm font-bold text-green-500">Connected</span>
             ) : (
               <a 
-                href={`http://localhost:3001/api/v2/calendar/auth?token=${localStorage.getItem('token')}`}
+                href={`${API_BASE}/api/v2/calendar/auth?token=${localStorage.getItem('token')}`}
                 className="nm-button px-4 py-2 text-sm font-bold text-[var(--nm-text)] hover:text-[var(--nm-accent)]"
               >
                 Connect

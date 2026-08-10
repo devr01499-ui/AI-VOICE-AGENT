@@ -11,6 +11,12 @@ interface KycVerificationFormProps {
 }
 
 export function KycVerificationForm({ phoneNumberId, initialStatus, onSuccess }: KycVerificationFormProps) {
+  const getRuntimeUrl = () => {
+    const envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
+    const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+    return envUrl || (isLocal ? 'http://localhost:3001' : 'https://ai-voice-agent-backend-mv32.onrender.com');
+  };
+
   const [documentType, setDocumentType] = useState('PAN');
   const [documentNumber, setDocumentNumber] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,8 +31,9 @@ export function KycVerificationForm({ phoneNumberId, initialStatus, onSuccess }:
     setError(null);
 
     try {
+      const apiBase = getRuntimeUrl();
       // Simulate API call to our own backend which calls Vobiz API
-      const res = await fetch('/api/v2/kyc/submit', {
+      const res = await fetch(`${apiBase}/api/v2/kyc/submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
