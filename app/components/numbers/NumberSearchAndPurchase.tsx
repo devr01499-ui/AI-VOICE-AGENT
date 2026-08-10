@@ -96,7 +96,7 @@ export function NumberSearchAndPurchase() {
       if (!orderData.success) throw new Error(orderData.error || 'Order creation failed');
 
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy',
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: orderData.data.amount,
         currency: orderData.data.currency,
         name: 'Claritiy Voice',
