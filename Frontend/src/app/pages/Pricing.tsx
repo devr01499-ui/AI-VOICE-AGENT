@@ -46,7 +46,7 @@ export default function Pricing({ setPage }: PricingProps) {
       if (!orderData.success) throw new Error(orderData.error || 'Order creation failed');
 
       const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_mock',
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy',
         amount: orderData.data.amount,
         currency: orderData.data.currency,
         name: 'Claritiy Voice',
