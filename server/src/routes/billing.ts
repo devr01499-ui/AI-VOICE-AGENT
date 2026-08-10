@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { BillingService } from '../services/BillingService';
 import { logger } from '../utils/logger';
+import { AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -27,7 +28,7 @@ router.post('/create-plan-order', async (req, res) => {
   }
 });
 
-router.post('/verify-plan', async (req, res) => {
+router.post('/verify-plan', async (req: any, res: any) => {
   try {
     const { plan, orderId, paymentId, signature } = req.body;
 
