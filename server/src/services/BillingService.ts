@@ -29,6 +29,10 @@ export class BillingService {
     // Amount in smallest currency unit (e.g., paise for INR)
     const amountInPaise = Math.round(totalAmount * 100);
 
+    if (amountInPaise < 100) {
+      throw new Error('Minimum amount must be at least 100 paise');
+    }
+
     if (!this.razorpay) {
       // Mock order
       return {
@@ -48,6 +52,40 @@ export class BillingService {
       return order;
     } catch (err) {
       logger.error('BillingService: Failed to create order', { error: String(err) });
+      throw new Error('Payment initialization failed');
+    }
+  }
+
+  /**
+   * Creates a Razorpay order for purchasing a subscription plan.
+   */
+  async createPlanPurchaseOrder(baseMonthlyCost: number) {
+    // Amount in smallest currency unit (e.g., paise for INR)
+    const amountInPaise = Math.round(baseMonthlyCost * 100);
+
+    if (amountInPaise < 100) {
+      throw new Error('Minimum amount must be at least 100 paise');
+    }
+
+    if (!this.razorpay) {
+      // Mock order
+      return {
+        id: `order_mock_plan_${Date.now()}`,
+        amount: amountInPaise,
+        currency: 'INR',
+        mock: true,
+      };
+    }
+
+    try {
+      const order = await this.razorpay.orders.create({
+        amount: amountInPaise,
+        currency: 'INR',
+        receipt: `receipt_plan_${Date.now()}`,
+      });
+      return order;
+    } catch (err) {
+      logger.error('BillingService: Failed to create plan order', { error: String(err) });
       throw new Error('Payment initialization failed');
     }
   }

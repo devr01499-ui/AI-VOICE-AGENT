@@ -1,6 +1,13 @@
+import { useState } from "react";
 import { motion } from "motion/react";
-import { Check, ArrowRight, ShieldCheck, Zap } from "lucide-react";
+import { Check, ArrowRight, ShieldCheck, Zap, Loader2 } from "lucide-react";
 import RoiCalculator from "../components/calculator/RoiCalculator";
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 
 type Page = any;
 
@@ -9,6 +16,94 @@ interface PricingProps {
 }
 
 export default function Pricing({ setPage }: PricingProps) {
+  const [purchasingPlan, setPurchasingPlan] = useState<string | null>(null);
+
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handlePurchase = async (planName: string, price: number) => {
+    setPurchasingPlan(planName);
+    try {
+      const isLoaded = await loadRazorpayScript();
+      if (!isLoaded) throw new Error('Payment system failed to load.');
+
+      const orderRes = await fetch('http://localhost:5000/api/v2/billing/create-plan-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ price })
+      });
+      const orderData = await orderRes.json();
+      if (!orderData.success) throw new Error(orderData.error || 'Order creation failed');
+
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_mock',
+        amount: orderData.data.amount,
+        currency: orderData.data.currency,
+        name: 'Claritiy Voice',
+        description: `${planName} Plan`,
+        order_id: orderData.data.id,
+        prefill: {
+          email: '', // Let user fill it in
+        },
+        handler: async function (response: any) {
+          try {
+            const verifyRes = await fetch('http://localhost:5000/api/v2/billing/verify-plan', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                plan: planName,
+                email: response.razorpay_customer_email || 'unknown@example.com',
+                orderId: response.razorpay_order_id,
+                paymentId: response.razorpay_payment_id,
+                signature: response.razorpay_signature,
+              })
+            });
+            const verifyData = await verifyRes.json();
+            if (verifyData.success) {
+              alert(`Success! You have purchased the ${planName} Plan.`);
+              setPage("dashboard");
+            } else {
+              alert(verifyData.error || 'Verification failed.');
+            }
+          } catch (verifyErr: any) {
+             alert(verifyErr.message || 'Verification error');
+          }
+        },
+        modal: {
+          ondismiss: function() {
+            setPurchasingPlan(null);
+          }
+        },
+        theme: {
+          color: '#059669' 
+        }
+      };
+
+      const paymentObject = new window.Razorpay(options);
+      
+      paymentObject.on('payment.failed', function (response: any) {
+        alert(`Payment failed: ${response.error.description || 'Unknown error'}`);
+        setPurchasingPlan(null);
+      });
+
+      paymentObject.open();
+
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Provisioning failed');
+      setPurchasingPlan(null);
+    }
+  };
   const faqSchema = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -87,8 +182,12 @@ export default function Pricing({ setPage }: PricingProps) {
                 ))}
               </ul>
             </div>
-            <button onClick={() => setPage("dashboard")} className="btn-cta bg-surface-white text-ink border border-border-soft hover:bg-cream-bg w-full">
-              Get Started
+            <button 
+              onClick={() => handlePurchase("Startup", 2999)} 
+              disabled={purchasingPlan === "Startup"}
+              className="btn-cta bg-surface-white text-ink border border-border-soft hover:bg-cream-bg w-full flex items-center justify-center gap-2"
+            >
+              {purchasingPlan === "Startup" ? <Loader2 className="w-5 h-5 animate-spin" /> : "Purchase Startup Plan"}
             </button>
           </motion.div>
 
@@ -118,9 +217,19 @@ export default function Pricing({ setPage }: PricingProps) {
                 ))}
               </ul>
             </div>
-            <button onClick={() => setPage("dashboard")} className="btn-primary w-full bg-mint-primary text-forest-deep">
-              Start Building Now
-              <ArrowRight className="w-5 h-5 ml-2" />
+            <button 
+              onClick={() => handlePurchase("Growth", 9999)} 
+              disabled={purchasingPlan === "Growth"}
+              className="btn-primary w-full bg-mint-primary text-forest-deep flex items-center justify-center"
+            >
+              {purchasingPlan === "Growth" ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  Purchase Growth Plan
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </>
+              )}
             </button>
           </motion.div>
 

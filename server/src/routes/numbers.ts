@@ -96,9 +96,13 @@ router.post('/create-order', requireAuth, async (req, res, next) => {
     const order = await billingService.createNumberPurchaseOrder(userId, baseCost);
 
     res.json({ success: true, data: order });
-  } catch (err) {
+  } catch (err: any) {
     logger.error('Numbers: failed to create order', { error: String(err) });
-    next(err);
+    if (err.message === 'Minimum amount must be at least 100 paise') {
+      res.status(400).json({ success: false, error: err.message });
+      return;
+    }
+    res.status(500).json({ success: false, error: 'Payment initialization failed' });
   }
 });
 
@@ -111,7 +115,7 @@ router.post('/purchase', requireAuth, async (req, res, next) => {
     const userId = (req as any).userId;
     const { vobizNumberId, expectedPrice, orderId, paymentId, signature } = req.body;
 
-    if (!vobizNumberId || expectedPrice === undefined || !orderId || !paymentId) {
+    if (!vobizNumberId || expectedPrice === undefined || !orderId || !paymentId || !signature) {
       res.status(400).json({ success: false, error: 'Missing required purchase fields' });
       return;
     }

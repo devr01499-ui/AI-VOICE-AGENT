@@ -3498,7 +3498,7 @@ function DashboardPage({ session }: { session: Session }) {
 
   const isViewer = profile?.workspaceRole === 'viewer';
   const navGroups = [
-    {label:"B2C",items:[{id:"companion",icon:Users,label:"AI Companion"}]},
+    // {label:"B2C",items:[{id:"companion",icon:Users,label:"AI Companion"}]},
     {label:"Workspace",items:[{id:"overview",icon:LayoutDashboard,label:"Overview"},{id:"agents",icon:Bot,label:"Agents"},{id:"batch",icon:Radio,label:"Batch Calls"},{id:"calls",icon:PhoneIncoming,label:"Call Logs"}]},
     {label:"Resources",items:[...(isViewer ? [] : [{id:"numbers",icon:Phone,label:"Phone Numbers"},{id:"knowledge",icon:BookOpen,label:"Knowledge Base"},{id:"voices",icon:Mic2,label:"Voice Library"}] as any), {id:"analytics",icon:BarChart3,label:"Analytics"}]},
     ...(isViewer ? [] : [{label:"Admin",items:[{id:"settings",icon:Settings,label:"Settings"}]} as any]),

@@ -137,6 +137,13 @@ export function NumberSearchAndPurchase() {
       };
 
       const paymentObject = new window.Razorpay(options);
+      
+      paymentObject.on('payment.failed', function (response: any) {
+        setError(`Payment failed: ${response.error.description || 'Unknown error'}`);
+        setPurchasing(false);
+        setSelectedNumber(null);
+      });
+
       paymentObject.open();
 
     } catch (err) {
