@@ -30,6 +30,13 @@ export default function Pricing({ setPage }: PricingProps) {
   };
 
   const handlePurchase = async (planName: string, price: number) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Please sign in or create an account to purchase a plan.');
+      setPage('dashboard');
+      return;
+    }
+
     setPurchasingPlan(planName);
     try {
       const isLoaded = await loadRazorpayScript();
