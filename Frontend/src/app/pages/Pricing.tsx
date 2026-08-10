@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { Check, ArrowRight, ShieldCheck, Zap, Loader2 } from "lucide-react";
 import RoiCalculator from "../components/calculator/RoiCalculator";
@@ -22,6 +22,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
 
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
+      if (window.Razorpay) return resolve(true);
       const script = document.createElement('script');
       script.src = 'https://checkout.razorpay.com/v1/checkout.js';
       script.onload = () => resolve(true);
@@ -29,6 +30,10 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
       document.body.appendChild(script);
     });
   };
+
+  useEffect(() => {
+    loadRazorpayScript();
+  }, []);
 
   const handlePurchase = async (planName: string, price: number) => {
     const token = localStorage.getItem('token');
