@@ -4474,11 +4474,19 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session: currentSession }, error: authError }) => {
       if (authError || !currentSession) {
         console.log("[App Shell Interceptor]: Rendering protected dashboard grid via localized data structures.");
+        localStorage.removeItem('token');
+      } else {
+        localStorage.setItem('token', currentSession.access_token);
       }
       setSession(currentSession);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
       setSession(currentSession);
+      if (currentSession) {
+        localStorage.setItem('token', currentSession.access_token);
+      } else {
+        localStorage.removeItem('token');
+      }
       if (event === 'SIGNED_IN') {
         handleNavigate("dashboard");
       }
