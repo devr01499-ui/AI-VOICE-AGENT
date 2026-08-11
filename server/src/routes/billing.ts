@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { BillingService } from '../services/BillingService';
 import { logger } from '../utils/logger';
-import { AuthenticatedRequest } from '../middleware/auth';
+import { AuthenticatedRequest, requireAuth } from '../middleware/auth';
 
 const router = Router();
 
-router.post('/create-plan-order', async (req, res) => {
+router.post('/create-plan-order', requireAuth, async (req, res) => {
   try {
     const { price } = req.body; // e.g. 2999
     
@@ -28,7 +28,7 @@ router.post('/create-plan-order', async (req, res) => {
   }
 });
 
-router.post('/verify-plan', async (req: any, res: any) => {
+router.post('/verify-plan', requireAuth, async (req: any, res: any) => {
   try {
     const { plan, orderId, paymentId, signature } = req.body;
 

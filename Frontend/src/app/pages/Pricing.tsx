@@ -106,9 +106,11 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
               }
             } else {
               alert(verifyData.error || 'Verification failed.');
+              setPurchasingPlan(null);
             }
           } catch (verifyErr: any) {
              alert(verifyErr.message || 'Verification error');
+             setPurchasingPlan(null);
           }
         },
         modal: {
