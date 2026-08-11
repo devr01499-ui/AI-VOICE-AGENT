@@ -28,7 +28,10 @@ export class VobizInventoryService extends VobizIntegrationService {
       `/v1/account/${this.authId}/inventory/numbers`,     // missing /api + lowercase
       `/api/v1/inventory/numbers`,                        // global path
       `/api/v2/Account/${this.authId}/inventory/numbers`, // v2 version
-      `/api/v1/numbers/inventory`                         // flipped path
+      `/api/v1/numbers/inventory`,                        // flipped path
+      `/partner/inventory/numbers`,                       // partner global
+      `/api/v1/partner/inventory/numbers`,                // partner global with api
+      `/api/v1/numbers`                                   // just numbers
     ];
 
     let lastResponse: any = null;
@@ -58,7 +61,7 @@ export class VobizInventoryService extends VobizIntegrationService {
     }
 
     if (!lastResponse?.success || !lastResponse?.data) {
-      throw new ProviderError('vobiz', `Failed to fetch inventory from Vobiz: ${lastResponse?.error || 'All endpoints returned 404'}`);
+      throw new ProviderError('vobiz', `Failed to fetch inventory from Vobiz: ${lastResponse?.error || 'All endpoints returned 404'} (BaseURL: ${this.baseUrl})`);
     }
 
     const responseData = lastResponse.data as any;
@@ -82,7 +85,10 @@ export class VobizInventoryService extends VobizIntegrationService {
       `/v1/account/${this.authId}/inventory/numbers/${numberId}`,     
       `/api/v1/inventory/numbers/${numberId}`,                        
       `/api/v2/Account/${this.authId}/inventory/numbers/${numberId}`, 
-      `/api/v1/numbers/inventory/${numberId}`                         
+      `/api/v1/numbers/inventory/${numberId}`,
+      `/partner/inventory/numbers/${numberId}`,
+      `/api/v1/partner/inventory/numbers/${numberId}`,
+      `/api/v1/numbers/${numberId}`
     ];
 
     let lastResponse: any = null;
@@ -100,7 +106,7 @@ export class VobizInventoryService extends VobizIntegrationService {
     }
 
     if (!lastResponse?.success || !lastResponse?.data) {
-      throw new ProviderError('vobiz', `Failed to fetch number details: ${lastResponse?.error || 'All endpoints returned 404'}`);
+      throw new ProviderError('vobiz', `Failed to fetch number details: ${lastResponse?.error || 'All endpoints returned 404'} (BaseURL: ${this.baseUrl})`);
     }
 
     return lastResponse.data;
