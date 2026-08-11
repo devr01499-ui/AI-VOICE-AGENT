@@ -11,6 +11,7 @@
 
 
 | ERR-006 | Dashboard test endpoint /api/v2/calls/debug/gemini returns 500 error / fails to connect | debug/gemini sent an empty userId causing the value gateway check to fail (userId required for value gateway check). Also, createSession resolved with undefined because handler.resolve() was called without { sessionId }, causing a subsequent TypeError. | Passed userId explicitly in the debug endpoint config. Fixed setupComplete resolution in GeminiLiveProvider to pass { sessionId } to the promise resolver. | Always ensure that mock/diagnostic routes supply all mandatory properties expected by shared providers, and ensure Promise return types are strictly enforced at runtime. | 2026-07-24 |
+| ERR-007 | Razorpay checkout button shows infinite spinner, no modal opens and no error is caught | Missing RAZORPAY_KEY_ID / SECRET in production backend triggered silent mock mode fallback, returning `mock: true` and fake order IDs. Frontend blindly attempted live Razorpay init with fake ID, causing silent internal SDK failure | Added strict frontend validation to throw an explicit error and cancel loading state if a mock order is received in production | Never silently fall back to mock billing modes in production; explicitly check for and throw on mock signals across the network boundary to ensure UI can fail gracefully | 2026-08-11 |
 
 ## Phase 1 (pSEO Models & Deps)
 - Installed dependencies: @google/generative-ai, @notionhq/client, googleapis

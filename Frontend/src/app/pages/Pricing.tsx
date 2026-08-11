@@ -57,7 +57,18 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
         body: JSON.stringify({ price })
       });
       const orderData = await orderRes.json();
-      if (!orderData.success) throw new Error(orderData.error || 'Order creation failed');
+      
+      if (!orderData.success) {
+        const errorMsg = typeof orderData.error === 'object' && orderData.error !== null 
+          ? orderData.error.message 
+          : orderData.error;
+        throw new Error(errorMsg || 'Order creation failed');
+      }
+
+      // Check for mock order fallback indicating backend missing production keys
+      if (orderData.data?.mock === true || (orderData.data?.id && String(orderData.data.id).startsWith('order_mock_'))) {
+        throw new Error('Payment system is not properly configured. Please contact support.');
+      }
 
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
@@ -107,6 +118,11 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
         },
         theme: {
           color: '#059669' 
+        },
+        config: {
+          display: {
+            hide: [{ method: 'emi' }]
+          }
         }
       };
 
@@ -177,9 +193,41 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
       </section>
       )}
 
-      {/* 3 Tier Pricing Cards */}
-      <section className="px-6 max-w-7xl mx-auto relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      {/* 4 Tier Pricing Cards */}
+      <section className="px-6 max-w-[90rem] mx-auto relative z-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 xl:gap-8">
+          
+          {/* Trial Plan */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="bg-surface-white border border-[#EADEC9] rounded-3xl p-8 lg:p-10 flex flex-col justify-between shadow-level-2"
+          >
+            <div>
+              <h3 className="font-sora text-2xl font-bold text-ink mb-2">Trial Plan</h3>
+              <p className="text-small text-ink-muted mb-8 font-plus-jakarta">Test our platform to verify your account for outbound.</p>
+              <div className="mb-8">
+                <span className="font-sora text-4xl font-extrabold text-ink">₹40</span>
+                <span className="text-small text-ink-muted font-bold"> / once</span>
+                <p className="text-xs font-mono font-bold text-mint-primary mt-2">Includes 20 Bundled Mins</p>
+              </div>
+              <ul className="space-y-4 mb-10 text-small text-ink font-semibold">
+                {['20 Bundled Call Minutes', 'All Core Features', 'Real-Time Transcripts', 'Instant Verification'].map(f => (
+                  <li key={f} className="flex items-center gap-3">
+                    <Check className="w-5 h-5 text-mint-primary flex-shrink-0" /> <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <button 
+              onClick={() => handlePurchase("Trial", 40)} 
+              disabled={purchasingPlan === "Trial"}
+              className="btn-cta bg-surface-white text-ink border border-border-soft hover:bg-cream-bg w-full flex items-center justify-center gap-2"
+            >
+              {purchasingPlan === "Trial" ? <Loader2 className="w-5 h-5 animate-spin" /> : "Purchase Trial"}
+            </button>
+          </motion.div>
           
           {/* Startup Plan */}
           <motion.div
@@ -278,13 +326,37 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
                 ))}
               </ul>
             </div>
-            <button onClick={() => window.location.href="mailto:support@claritiy.com"} className="btn-cta bg-surface-white text-ink border border-border-soft hover:bg-cream-bg w-full">
-              Contact Enterprise Sales
+            <button 
+              onClick={() => handlePurchase("Enterprise", 29999)} 
+              disabled={purchasingPlan === "Enterprise"}
+              className="btn-cta bg-surface-white text-ink border border-border-soft hover:bg-cream-bg w-full flex items-center justify-center gap-2"
+            >
+              {purchasingPlan === "Enterprise" ? <Loader2 className="w-5 h-5 animate-spin" /> : "Purchase Enterprise Plan"}
             </button>
           </motion.div>
 
         </div>
 
+        {/* Custom Enterprise Banner */}
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="mt-12 bg-forest-deep text-surface-white rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between shadow-level-4 border border-[#047857]"
+        >
+          <div className="mb-6 md:mb-0 md:mr-8 text-center md:text-left">
+            <h3 className="font-sora text-2xl font-bold mb-2">Need a Custom Enterprise Solution?</h3>
+            <p className="text-cream-bg/80 font-plus-jakarta max-w-2xl">
+              For ultra-high volume routing, on-premise deployments, or custom SLAs, our sales engineering team can build a tailored package for your exact needs.
+            </p>
+          </div>
+          <button 
+            onClick={() => setPage ? setPage("contact") : window.location.href = "/contact"}
+            className="btn-cta bg-mint-primary text-forest-deep border-none hover:bg-mint-soft whitespace-nowrap px-8 py-4 text-base"
+          >
+            Contact Sales
+          </button>
+        </motion.div>
         {/* Embedded ROI Calculator */}
         {!isDashboard && (
           <div className="mt-20">

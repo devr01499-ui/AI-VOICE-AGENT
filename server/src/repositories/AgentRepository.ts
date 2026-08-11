@@ -180,10 +180,10 @@ export class AgentRepository {
       const profile = await prisma.user.findUnique({
         where: { id: userId }
       });
-      return profile || { id: userId, callingBalanceMinutes: 10, geminiApiKey: null };
+      return profile || { id: userId, callingBalanceMinutes: 0, geminiApiKey: null };
     } catch (error) {
-      console.error(`[AgentRepository Fatal] Failed querying profile for user ${userId}:`, error);
-      return { id: userId, callingBalanceMinutes: 10, geminiApiKey: null }; // Return default structural profile object
+      logger.error('Failed to get user monetization profile', { error });
+      return { id: userId, callingBalanceMinutes: 0, geminiApiKey: null }; // Return default structural profile object
     }
   }
 }

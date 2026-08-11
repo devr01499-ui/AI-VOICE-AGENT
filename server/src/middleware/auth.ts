@@ -101,7 +101,7 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
         contactNumber: contactNumber,
         passwordHash: 'seeded-supabase-auth-placeholder',
         billingBalance: 1000.0,
-        callingBalanceMinutes: 10.0,
+        callingBalanceMinutes: 0.0,
       }
     });
 

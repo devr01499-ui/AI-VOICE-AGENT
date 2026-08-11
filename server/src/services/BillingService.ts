@@ -115,6 +115,10 @@ export class BillingService {
     let addedMinutes = 0;
 
     switch (planName.toLowerCase()) {
+      case 'trial':
+        accountType = 'trial';
+        addedMinutes = 20;
+        break;
       case 'startup':
         accountType = 'developer';
         addedMinutes = 750;

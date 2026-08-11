@@ -93,7 +93,18 @@ export function NumberSearchAndPurchase() {
         body: JSON.stringify({ baseCost: totalCost })
       });
       const orderData = await orderRes.json();
-      if (!orderData.success) throw new Error(orderData.error || 'Order creation failed');
+      
+      if (!orderData.success) {
+        const errorMsg = typeof orderData.error === 'object' && orderData.error !== null 
+          ? orderData.error.message 
+          : orderData.error;
+        throw new Error(errorMsg || 'Order creation failed');
+      }
+
+      // Check for mock order fallback indicating backend missing production keys
+      if (orderData.data?.mock === true || (orderData.data?.id && String(orderData.data.id).startsWith('order_mock_'))) {
+        throw new Error('Payment system is not properly configured. Please contact support.');
+      }
 
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
@@ -141,6 +152,11 @@ export function NumberSearchAndPurchase() {
         },
         theme: {
           color: '#059669' // Match the green Provision button
+        },
+        config: {
+          display: {
+            hide: [{ method: 'emi' }]
+          }
         }
       };
 
