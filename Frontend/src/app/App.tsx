@@ -2175,6 +2175,7 @@ function DashNumbers() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [purchaseLoading, setPurchaseLoading] = useState<string | null>(null);
+  const [buyAgentId, setBuyAgentId] = useState<string>("");
 
   // KYC Flow State
   const [showKyc, setShowKyc] = useState<string | null>(null); // phoneNumberId
@@ -2251,6 +2252,7 @@ function DashNumbers() {
         orderId: order.id,
         paymentId: mockPaymentId,
         signature: mockSignature,
+        agentId: buyAgentId || undefined,
       });
 
       if (purchaseRes.data?.success) {
@@ -2472,6 +2474,17 @@ function DashNumbers() {
               <DInput value={searchRegion} onChange={e=>setSearchRegion(e.target.value)} placeholder="e.g. 212, Austin" />
             </DField>
             <DBtn onClick={handleSearch} disabled={searchLoading}>{searchLoading ? 'Searching...' : 'Search'}</DBtn>
+          </div>
+          
+          <div className="flex items-end gap-3 pb-2 border-b border-border">
+            <DField label="Assign to Agent (Optional)">
+              <DSelect value={buyAgentId} onChange={(e: any)=>setBuyAgentId(e.target.value)}>
+                <option value="">Do not assign yet</option>
+                {liveAgents.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </DSelect>
+            </DField>
           </div>
           
           <div className="space-y-3 max-h-80 overflow-y-auto pr-2">

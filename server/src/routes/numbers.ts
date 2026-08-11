@@ -127,7 +127,7 @@ router.post('/create-order', requireAuth, requireActivePlan, async (req, res, ne
 router.post('/purchase', requireAuth, requireActivePlan, async (req, res, next) => {
   try {
     const userId = (req as any).userId;
-    const { vobizNumberId, expectedPrice, orderId, paymentId, signature } = req.body;
+    const { vobizNumberId, expectedPrice, orderId, paymentId, signature, agentId } = req.body;
 
     if (!vobizNumberId || expectedPrice === undefined || !orderId || !paymentId || !signature) {
       res.status(400).json({ success: false, error: 'Missing required purchase fields' });
@@ -151,6 +151,7 @@ router.post('/purchase', requireAuth, requireActivePlan, async (req, res, next) 
       idempotencyKey: orderId, // strict idempotency based on payment order
       vobizNumberId,
       expectedPrice,
+      agentId,
     });
 
     res.json({

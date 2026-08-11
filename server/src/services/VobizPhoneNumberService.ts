@@ -14,6 +14,7 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
     idempotencyKey: string,
     vobizNumberId: string, // ID from the inventory list
     expectedPrice: number,
+    agentId?: string,
   }) {
     logger.info('Starting number purchase workflow', { userId: params.userId, numberId: params.vobizNumberId });
 
@@ -107,6 +108,7 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
       const newPhone = await prisma.phoneNumber.create({
         data: {
           userId: params.userId,
+          assignedAgentId: params.agentId || null,
           phoneNumber: numberDetails.e164,
           countryCode: numberDetails.country,
           type: 'local',
