@@ -149,7 +149,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
         "name": "How is Claritiy Voice pricing structured?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Claritiy Voice offers transparent bundled plans: Startup Plan at ₹2,999/mo (750 minutes included), Growth Plan at ₹9,999/mo (2,865 minutes included), Enterprise Plan at ₹29,999/mo (10,000 minutes included), and a standalone pay-as-you-go flat rate of ₹3.99/minute with no stacked fees."
+          "text": "Claritiy Voice offers transparent bundled plans: Trial Plan at ₹40 (20 minutes included), Startup Plan at ₹2,999/mo (750 minutes included), Growth Plan at ₹9,999/mo (2,865 minutes included), Enterprise Plan at ₹29,999/mo (10,000 minutes included), and a standalone pay-as-you-go flat rate of ₹3.99/minute with no stacked fees."
         }
       },
       {

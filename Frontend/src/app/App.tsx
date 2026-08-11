@@ -361,55 +361,64 @@ function PricingPage({ setPage }: { setPage: (p: Page) => void }) {
 
   const plans = [
     {
-      name: "Pay-As-You-Go",
-      price: 3.99,
-      desc: "Pay only for what you use. Zero commitment.",
-      minutes: "No limit",
+      name: "Trial Plan",
+      price: 40,
+      desc: "Test our platform to verify your account for outbound.",
+      minutes: "20 Bundled Mins",
       features: [
-        "₹3.99 per minute voice runtime",
-        "Unlimited active AI agents",
-        "All supported languages (English, Hindi, and more)",
-        "Call analytics & logs",
-        "Shopify & Woo integrations",
-        "Standard webhook support",
+        "20 Bundled Call Minutes",
+        "All Core Features",
+        "Real-Time Transcripts",
+        "Instant Verification"
       ],
-      cta: "Sign up now",
-    },
-    {
-      name: "Starter Bundle",
-      price: annual ? 1499 : 1799,
-      desc: "For early stage D2C brands starting with COD verification.",
-      minutes: "500",
-      features: [
-        "500 voice minutes included/month",
-        "Extra minutes at ₹3.75/min",
-        "1 active AI agent profile",
-        "English & Hindi support",
-        "Basic Shopify COD automation flow",
-        "Standard voice preview options",
-        "Email support",
-      ],
-      cta: "Start building",
+      cta: "Purchase Trial",
       highlight: false,
     },
     {
-      name: "Growth Bundle",
-      price: annual ? 5499 : 6999,
-      desc: "For high-volume e-commerce brands reducing RTO.",
-      minutes: "2,000",
+      name: "Startup Plan",
+      price: 2999,
+      desc: "Ideal for growing businesses testing automated call campaigns.",
+      minutes: "750 Bundled Mins",
       features: [
-        "2,000 voice minutes included/month",
-        "Extra minutes at ₹3.50/min",
-        "Up to 10 active AI agents",
-        "All 8 local and global languages",
-        "Shopify, WooCommerce, and custom webhooks",
-        "Advanced call analytics & analytics dashboard",
-        "CRM & Google sheets integrations",
-        "Priority chat support",
+        "750 Bundled Call Minutes (₹3.99/min after)",
+        "26+ HD Voice Personas",
+        "70+ Languages & Dialects",
+        "Standard Webhooks & CRM Sync",
+        "Real-Time Transcripts"
       ],
-      cta: "Start building",
+      cta: "Purchase Startup Plan",
+      highlight: false,
+    },
+    {
+      name: "Growth Plan",
+      price: 9999,
+      desc: "For high-volume operations scaling outbound/inbound workflows.",
+      minutes: "2,865 Bundled Mins",
+      features: [
+        "2,865 Bundled Call Minutes (₹3.49/min after)",
+        "Everything in Startup",
+        "Priority Telephony Routing",
+        "1 Custom Voice Clone",
+        "Sentiment Analytics & Scoring"
+      ],
+      cta: "Purchase Growth Plan",
       highlight: true,
     },
+    {
+      name: "Enterprise Plan",
+      price: 29999,
+      desc: "For regulated enterprise contact centers requiring custom SLAs.",
+      minutes: "10,000 Bundled Mins",
+      features: [
+        "10,000 Bundled Call Minutes (₹2.99/min after)",
+        "Everything in Growth",
+        "Dedicated SIP IP Addresses",
+        "Custom Voice Personas & Cloning",
+        "HIPAA & SOC 2 BAA Agreement"
+      ],
+      cta: "Purchase Enterprise Plan",
+      highlight: false,
+    }
   ];
 
   return (
