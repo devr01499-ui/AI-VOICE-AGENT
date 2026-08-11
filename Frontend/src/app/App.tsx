@@ -2222,9 +2222,9 @@ function DashNumbers() {
       if (res.data?.success) {
         setSearchResults(res.data.data.results || []);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert('Failed to fetch numbers inventory.');
+      alert(e?.response?.data?.error || 'Failed to fetch numbers inventory.');
     } finally {
       setSearchLoading(false);
     }
@@ -2236,7 +2236,7 @@ function DashNumbers() {
       // 1. Create Order
       const expectedPrice = num.monthly_fee || 2.0;
       const orderRes = await apiClient.post('/api/v2/numbers/create-order', { baseCost: expectedPrice });
-      if (!orderRes.data?.success) throw new Error('Order creation failed');
+      if (!orderRes.data?.success) throw new Error(orderRes.data?.error || 'Order creation failed');
       
       const order = orderRes.data.data;
 
@@ -2266,7 +2266,7 @@ function DashNumbers() {
       }
     } catch (e: any) {
       console.error(e);
-      alert('Failed to purchase number: ' + e.message);
+      alert('Failed to purchase number: ' + (e?.response?.data?.error || e.message));
     } finally {
       setPurchaseLoading(null);
     }
