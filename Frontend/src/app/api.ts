@@ -185,7 +185,11 @@ async function apiFetch<T>(
   const json = (await res.json()) as ApiResponse<T>;
 
   if (!res.ok || !json.success) {
-    throw new Error(json.error ?? `API error ${res.status}`);
+    let errorMessage = json.error;
+    if (errorMessage && typeof errorMessage === 'object') {
+      errorMessage = (errorMessage as any).message || JSON.stringify(errorMessage);
+    }
+    throw new Error(errorMessage as string ?? `API error ${res.status}`);
   }
 
   return json.data;

@@ -2225,7 +2225,7 @@ function DashNumbers() {
       }
     } catch (e: any) {
       console.error(e);
-      alert(e?.response?.data?.error || 'Failed to fetch numbers inventory.');
+      alert(e.message || 'Failed to fetch numbers inventory.');
     } finally {
       setSearchLoading(false);
     }
