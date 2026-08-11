@@ -149,7 +149,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
         "name": "How is Claritiy Voice pricing structured?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Claritiy Voice offers transparent bundled plans: Trial Plan at ₹40 (20 minutes included), Startup Plan at ₹2,999/mo (750 minutes included), Growth Plan at ₹9,999/mo (2,865 minutes included), Enterprise Plan at ₹29,999/mo (10,000 minutes included), and a standalone pay-as-you-go flat rate of ₹3.99/minute with no stacked fees."
+          "text": "Claritiy Voice offers transparent bundled plans: Trial Plan at ₹1 (20 minutes included), Startup Plan at ₹2,999/mo (750 minutes included), Growth Plan at ₹9,999/mo (2,865 minutes included), Enterprise Plan at ₹29,999/mo (10,000 minutes included), and a standalone pay-as-you-go flat rate of ₹3.99/minute with no stacked fees."
         }
       },
       {
@@ -208,7 +208,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
               <h3 className="font-sora text-2xl font-bold text-ink mb-2">Trial Plan</h3>
               <p className="text-small text-ink-muted mb-8 font-plus-jakarta">Test our platform to verify your account for outbound.</p>
               <div className="mb-8">
-                <span className="font-sora text-4xl font-extrabold text-ink">₹40</span>
+                <span className="font-sora text-4xl font-extrabold text-ink">₹1</span>
                 <span className="text-small text-ink-muted font-bold"> / once</span>
                 <p className="text-xs font-mono font-bold text-mint-primary mt-2">Includes 20 Bundled Mins</p>
               </div>
@@ -221,7 +221,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
               </ul>
             </div>
             <button 
-              onClick={() => handlePurchase("Trial", 40)} 
+              onClick={() => handlePurchase("Trial", 1)} 
               disabled={purchasingPlan === "Trial"}
               className="btn-cta bg-surface-white text-ink border border-border-soft hover:bg-cream-bg w-full flex items-center justify-center gap-2"
             >

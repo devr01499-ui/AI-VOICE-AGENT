@@ -362,7 +362,7 @@ function PricingPage({ setPage }: { setPage: (p: Page) => void }) {
   const plans = [
     {
       name: "Trial Plan",
-      price: 40,
+      price: 1,
       desc: "Test our platform to verify your account for outbound.",
       minutes: "20 Bundled Mins",
       features: [
