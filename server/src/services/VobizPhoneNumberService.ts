@@ -3,6 +3,7 @@ import { VobizSubAccountService } from './VobizSubAccountService';
 import { VobizInventoryService } from './VobizInventoryService';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
+import { ProviderError, AppError } from '../types/errors';
 
 export class VobizPhoneNumberService extends VobizIntegrationService {
   
@@ -80,7 +81,7 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
       );
 
       if (!purchaseRes.success) {
-        throw new Error(`Provider purchase failed: ${purchaseRes.error}`);
+        throw new ProviderError('vobiz', `Provider purchase failed: ${purchaseRes.error}`);
       }
 
       // 5. Assign to Sub Account
@@ -98,7 +99,7 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
           where: { id: order.id },
           data: { orderStatus: 'reconciliation_required', failureReason: `Assignment failed: ${assignRes.error}` }
         });
-        throw new Error(`Number purchased but assignment failed: ${assignRes.error}`);
+        throw new ProviderError('vobiz', `Number purchased but assignment failed: ${assignRes.error}`);
       }
 
       // Fund the sub-account wallet so it can make calls

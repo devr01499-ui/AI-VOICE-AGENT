@@ -91,10 +91,19 @@ export class VobizIntegrationService {
         organizationId: options.organizationId
       });
 
+      let parsedError = responseData?.message;
+      if (!parsedError && responseData?.error) {
+        if (typeof responseData.error === 'string') {
+          parsedError = responseData.error;
+        } else if (typeof responseData.error === 'object') {
+          parsedError = responseData.error.message || JSON.stringify(responseData.error);
+        }
+      }
+
       return {
         success: false,
         statusCode: response.status,
-        error: responseData?.message || responseData?.error || 'Unknown Vobiz API Error'
+        error: parsedError || 'Unknown Vobiz API Error'
       };
     }
 
