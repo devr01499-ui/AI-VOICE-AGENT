@@ -20,20 +20,25 @@ interface PricingProps {
 export default function Pricing({ setPage, isDashboard }: PricingProps) {
   const [purchasingPlan, setPurchasingPlan] = useState<string | null>(null);
 
-  const loadRazorpayScript = () => {
+  const waitForRazorpay = () => {
     return new Promise((resolve) => {
       if (window.Razorpay) return resolve(true);
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
+      
+      // Fallback polling if script is still downloading async
+      let retries = 0;
+      const interval = setInterval(() => {
+        if (window.Razorpay) {
+          clearInterval(interval);
+          resolve(true);
+        }
+        retries++;
+        if (retries > 20) {
+          clearInterval(interval);
+          resolve(false);
+        }
+      }, 250);
     });
   };
-
-  useEffect(() => {
-    loadRazorpayScript();
-  }, []);
 
   const handlePurchase = async (planName: string, price: number) => {
     const token = localStorage.getItem('token');
@@ -45,8 +50,8 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
 
     setPurchasingPlan(planName);
     try {
-      const isLoaded = await loadRazorpayScript();
-      if (!isLoaded) throw new Error('Payment system failed to load.');
+      const isLoaded = await waitForRazorpay();
+      if (!isLoaded) throw new Error('Payment system failed to load. Please disable adblockers and refresh.');
 
       const orderRes = await fetch(`${API_BASE}/api/v2/billing/create-plan-order`, {
         method: 'POST',

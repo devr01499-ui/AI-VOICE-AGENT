@@ -2241,34 +2241,80 @@ function DashNumbers() {
       
       const order = orderRes.data.data;
 
-      // 2. Mock Razorpay Flow (Simulate immediate success)
-      const mockPaymentId = `pay_${Date.now()}`;
-      const mockSignature = order.mock ? 'mock_sig' : 'mock_sig'; // Backend accepts any if mock
+      if (order.mock) {
+        // Fast-path mock flow
+        await completeNumberPurchase(num.number_id, expectedPrice, order.id, `pay_${Date.now()}`, 'mock_sig');
+      } else {
+        // Real Razorpay Flow
+        if (!window.Razorpay) throw new Error('Payment system not loaded. Please disable adblockers and refresh.');
+        
+        const options = {
+          key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+          amount: order.amount,
+          currency: order.currency,
+          name: 'Claritiy Voice',
+          description: `Phone Number Subscription`,
+          order_id: order.id,
+          prefill: { email: '' },
+          handler: async function (response: any) {
+            try {
+              await completeNumberPurchase(
+                num.number_id, 
+                expectedPrice, 
+                response.razorpay_order_id, 
+                response.razorpay_payment_id, 
+                response.razorpay_signature
+              );
+            } catch (err: any) {
+              alert('Failed to complete purchase: ' + err.message);
+            }
+          },
+          modal: { ondismiss: function() { setPurchaseLoading(null); } },
+          theme: { color: '#059669' }
+        };
 
-      // 3. Purchase Number
+        const paymentObject = new window.Razorpay(options);
+        paymentObject.on('payment.failed', function (response: any) {
+          alert(`Payment failed: ${response.error.description || 'Unknown error'}`);
+          setPurchaseLoading(null);
+        });
+        paymentObject.open();
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert('Failed to initialize purchase: ' + (e?.response?.data?.error || e.message));
+      setPurchaseLoading(null);
+    }
+  };
+
+  const completeNumberPurchase = async (vobizNumberId: string, expectedPrice: number, orderId: string, paymentId: string, signature: string) => {
+    try {
       const purchaseRes = await apiClient.post('/api/v2/numbers/purchase', {
-        vobizNumberId: num.number_id,
-        expectedPrice: expectedPrice,
-        orderId: order.id,
-        paymentId: mockPaymentId,
-        signature: mockSignature,
+        vobizNumberId,
+        expectedPrice,
+        orderId,
+        paymentId,
+        signature,
         agentId: buyAgentId || undefined,
       });
 
       if (purchaseRes.data?.success) {
         setShowBuy(false);
         await loadNumbers();
-        if (purchaseRes.data.data.status === 'KYC Required') {
-          setShowKyc(purchaseRes.data.data.phoneNumberId);
+        // Check if onboarding/KYC is required
+        if (purchaseRes.data.data.status === 'KYC Required' || purchaseRes.data.data.kycStatus === 'pending') {
+          setShowKyc(purchaseRes.data.data.phoneNumberId || purchaseRes.data.data.id);
           setKycStep(1);
           setKycStatus(null);
+        } else {
+          alert('Phone number purchased and assigned successfully!');
         }
       } else {
         throw new Error(purchaseRes.data?.error || 'Purchase failed');
       }
     } catch (e: any) {
       console.error(e);
-      alert('Failed to purchase number: ' + (e?.response?.data?.error || e.message));
+      alert('Failed to finalize purchase: ' + (e?.response?.data?.error || e.message));
     } finally {
       setPurchaseLoading(null);
     }
