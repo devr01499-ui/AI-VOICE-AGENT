@@ -202,6 +202,15 @@ export class CallController {
       }
       const callId = callSession.id;
 
+      // Balance alignment check block
+      const user = await prisma.user.findUnique({ where: { id: callSession.userId } });
+      if (user && user.callingBalanceMinutes <= 0) {
+        logger.warn('CallController: Insufficient balance for webhook call connection', { callId, userId: user.id });
+        res.set('Content-Type', 'application/xml');
+        res.status(200).send('<Response><Speak>Insufficient balance to complete this call.</Speak><Hangup/></Response>');
+        return;
+      }
+
       logger.info('CallController: Vobiz answer webhook', { callId });
 
       // Update status to connected

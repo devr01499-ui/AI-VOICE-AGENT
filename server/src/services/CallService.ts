@@ -58,6 +58,10 @@ export class CallService {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new ValidationError('User not found');
 
+    if (user.callingBalanceMinutes <= 0) {
+      throw new ValidationError('Insufficient balance to place outbound calls. Please purchase a plan.');
+    }
+
     let maxConcurrency = 1; // free/Starter
     if (user.accountType === 'developer' || user.accountType === 'professional') {
       maxConcurrency = 5; // Growth

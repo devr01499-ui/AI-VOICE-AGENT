@@ -10,6 +10,19 @@ import { VobizPhoneNumberService } from '../services/VobizPhoneNumberService';
 
 const router = Router();
 
+const requireActivePlan = async (req: any, res: any, next: any) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user || user.callingBalanceMinutes <= 0) {
+      res.status(403).json({ success: false, error: 'You must purchase a Trial Plan or Subscription to unlock phone number provisioning.' });
+      return;
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+
 /**
  * GET /api/v2/numbers
  * 
@@ -51,7 +64,7 @@ router.get('/', requireAuth, async (req, res, next) => {
  * 
  * Searches for available numbers using the Vobiz Inventory API.
  */
-router.get('/search', requireAuth, async (req, res, next) => {
+router.get('/search', requireAuth, requireActivePlan, async (req, res, next) => {
   try {
     const userId = (req as any).userId;
     if (!userId) {
@@ -87,7 +100,7 @@ router.get('/search', requireAuth, async (req, res, next) => {
  * POST /api/v2/numbers/create-order
  * Creates a Razorpay order for purchasing a number
  */
-router.post('/create-order', requireAuth, async (req, res, next) => {
+router.post('/create-order', requireAuth, requireActivePlan, async (req, res, next) => {
   try {
     const userId = (req as any).userId;
     const { baseCost = 1.5 } = req.body;
@@ -110,7 +123,7 @@ router.post('/create-order', requireAuth, async (req, res, next) => {
  * POST /api/v2/numbers/purchase
  * Verifies payment and securely provisions the number via Vobiz Integration.
  */
-router.post('/purchase', requireAuth, async (req, res, next) => {
+router.post('/purchase', requireAuth, requireActivePlan, async (req, res, next) => {
   try {
     const userId = (req as any).userId;
     const { vobizNumberId, expectedPrice, orderId, paymentId, signature } = req.body;
