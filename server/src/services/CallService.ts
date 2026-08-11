@@ -18,6 +18,7 @@ import type { CallStatus, CallResponse, TranscriptSegmentResponse, Speaker } fro
 import { Call, Execution, TranscriptSegment } from '@prisma/client';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { prisma } from '../lib/prisma';
+import { ADMIN_EMAIL } from '../config/constants';
 
 // ─── Input Shapes ─────────────────────────────────
 
@@ -58,7 +59,7 @@ export class CallService {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new ValidationError('User not found');
 
-    if (user.callingBalanceMinutes <= 0) {
+    if (user.email !== ADMIN_EMAIL && user.callingBalanceMinutes <= 0) {
       throw new ValidationError('Insufficient balance to place outbound calls. Please purchase a plan.');
     }
 

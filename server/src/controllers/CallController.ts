@@ -204,7 +204,7 @@ export class CallController {
 
       // Balance alignment check block
       const user = await prisma.user.findUnique({ where: { id: callSession.userId } });
-      if (user && user.callingBalanceMinutes <= 0) {
+      if (user && user.email !== ADMIN_EMAIL && user.callingBalanceMinutes <= 0) {
         logger.warn('CallController: Insufficient balance for webhook call connection', { callId, userId: user.id });
         res.set('Content-Type', 'application/xml');
         res.status(200).send('<Response><Speak>Insufficient balance to complete this call.</Speak><Hangup/></Response>');

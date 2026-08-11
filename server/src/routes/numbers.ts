@@ -7,13 +7,14 @@ import { BillingService } from '../services/BillingService';
 import { UsageSyncService } from '../services/UsageSyncService';
 import { VobizInventoryService } from '../services/VobizInventoryService';
 import { VobizPhoneNumberService } from '../services/VobizPhoneNumberService';
+import { ADMIN_EMAIL } from '../config/constants';
 
 const router = Router();
 
 const requireActivePlan = async (req: any, res: any, next: any) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
-    if (!user || user.callingBalanceMinutes <= 0) {
+    if (!user || (user.email !== ADMIN_EMAIL && user.callingBalanceMinutes <= 0)) {
       res.status(403).json({ success: false, error: 'You must purchase a Trial Plan or Subscription to unlock phone number provisioning.' });
       return;
     }
