@@ -637,3 +637,48 @@ model ProgrammaticPage {
   @@index([status])
   @@index([category])
 }
+
+// ─────────────────────────────────────────────
+// CALENDAR & SCHEDULING
+// ─────────────────────────────────────────────
+
+model ScheduledCall {
+  id                String   @id @default(cuid())
+  source            String   // "ai_booked" | "manual" | "batch"
+  agentId           String
+  phoneNumber       String
+  scheduledAtUtc    DateTime
+  timezone          String   // IANA tz string, e.g. "Asia/Kolkata"
+  status            String   @default("scheduled") // scheduled | in_progress | completed | failed | canceled | rescheduled
+  batchId           String?  // set if part of a batch campaign
+  idempotencyKey    String   @unique
+  attemptCount      Int      @default(0)
+  maxAttempts       Int      @default(3)
+  lastAttemptAt     DateTime?
+  originCallId      String?  // the original call session that generated this booking, if AI-booked
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([status])
+  @@index([scheduledAtUtc])
+  @@index([batchId])
+}
+
+model BatchCampaign {
+  id                String   @id @default(cuid())
+  name              String
+  agentId           String
+  startAtUtc        DateTime
+  timezone          String
+  pacingPerMinute   Int      @default(5)
+  maxConcurrent     Int      @default(2)
+  status            String   @default("scheduled") // scheduled | running | paused | completed | canceled
+  totalContacts     Int      @default(0)
+  completedCount    Int      @default(0)
+  failedCount       Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([status])
+}

@@ -13,6 +13,7 @@ import { logger } from '../../utils/logger';
 import { prisma } from '../../lib/prisma';
 import { ADMIN_EMAIL } from '../../config/constants';
 import { CalendarService } from './CalendarService';
+import { bookFollowUpCallTool, executeBookFollowUpCall } from '../../lib/calendar/bookingTool';
 
 class ConversationState implements IConversationState {
   phase: 'greeting_sent' | 'listening' | 'processing' | 'responding' = 'greeting_sent';
@@ -228,6 +229,7 @@ export class CallOrchestrator {
 
     // Register active tools
     agentConfig.tools = agentConfig.tools || [];
+    agentConfig.tools.push(bookFollowUpCallTool);
     agentConfig.tools.push({
       name: 'check_availability',
       description: 'Check Google Calendar for available meeting slots',
@@ -343,6 +345,11 @@ export class CallOrchestrator {
           if (name === 'send_sms') {
             logger.info('Flow Engine: trigger send_sms tool call via Pipecat', { callId, args });
             return JSON.stringify({ success: true, messageSent: true });
+          }
+          if (name === 'book_follow_up_call') {
+            logger.info('Flow Engine: trigger book_follow_up_call tool call via Pipecat', { callId, args });
+            const result = await executeBookFollowUpCall(agentId, phoneNumber, callId, parsedArgs);
+            return JSON.stringify(result);
           }
           if (name === 'check_availability') {
             logger.info('Flow Engine: trigger check_availability tool call via Pipecat', { callId, args });
