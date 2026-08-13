@@ -24,7 +24,7 @@ import {
   Cpu, MessageSquare, Eye, EyeOff, Copy, RefreshCw, Trash2,
   Edit3, Download, Send, PlayCircle, PauseCircle, StopCircle,
   CheckCircle2, AlertCircle, Info, Star, Headphones, Wand2,
-  ChevronLeft, ChevronDown, Users, Key, Sliders, CreditCard,
+  ChevronLeft, ChevronDown, Users, Key, Sliders, CreditCard, Calendar,
 } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "./components/ui/popover";
 import Navbar from "./components/layout/Navbar";
@@ -3302,10 +3302,7 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
   );
 }
 
-// ── Analytics ──
-function DashAnalytics() {
-  return <AnalyticsOverview />;
-}
+// ── Removed Analytics ──
 
 // ── Settings ──
 function DashSettings({ profile }: { profile: ApiProfile | null }) {
