@@ -4552,9 +4552,8 @@ export default function App() {
       } else {
         localStorage.removeItem('token');
       }
-      if (event === 'SIGNED_IN') {
-        handleNavigate("dashboard");
-      }
+      // Removed automatic handleNavigate("dashboard") on SIGNED_IN
+      // User must explicitly navigate to dashboard to see AuthGateway or DashboardPage.
     });
     return () => subscription.unsubscribe();
   }, []);
