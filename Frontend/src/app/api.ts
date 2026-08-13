@@ -396,6 +396,18 @@ export async function deleteKBDocument(id: string): Promise<void> {
   });
 }
 
+export async function fetchCompanionCalls(): Promise<any> {
+  return apiFetch<any>('/api/v2/calls/companion');
+}
+
+export async function fetchCalendarBookings(): Promise<any> {
+  return apiFetch<any>('/api/v2/calendar/bookings');
+}
+
+export async function fetchCalendarBatches(): Promise<any> {
+  return apiFetch<any>('/api/v2/calendar/batches');
+}
+
 export async function fetchAnalyticsSummary(): Promise<any> {
   return apiFetch<any>('/api/v2/analytics/summary');
 }

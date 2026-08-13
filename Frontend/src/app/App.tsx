@@ -5,7 +5,7 @@ import { Session } from "@supabase/supabase-js";
 import BillingGateway from './components/settings/BillingGateway';
 import { ApiKeyManagement } from './components/settings/ApiKeyManagement';
 import AgentConfigPanel from "./components/agents/AgentConfigPanel";
-import { AnalyticsOverview } from "./components/analytics/AnalyticsOverview";
+import { DashCalendar } from "./components/calendar/CalendarOverview";
 import {
   fetchAgents, fetchAgent, fetchCalls, fetchProfile, createAgent, updateAgent, chatWithAgent,
   initiateCall, getCallTranscript, getLiveTranscriptWsUrl,
@@ -599,7 +599,7 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
-type DashSection = "overview"|"agents"|"batch"|"calls"|"numbers"|"knowledge"|"voices"|"analytics"|"settings"|"billing"|"companion";
+type DashSection = "overview"|"agents"|"batch"|"calls"|"numbers"|"knowledge"|"voices"|"calendar"|"settings"|"billing"|"companion";
 
 // Shared tiny helpers
 function DBadge({ children, v="neutral" }: { children: React.ReactNode; v?: "neutral"|"success"|"warning"|"error"|"info"|"dark" }) {
@@ -3568,11 +3568,11 @@ function DashboardPage({ session }: { session: Session }) {
   const navGroups = [
     // {label:"B2C",items:[{id:"companion",icon:Users,label:"AI Companion"}]},
     {label:"Workspace",items:[{id:"overview",icon:LayoutDashboard,label:"Overview"},{id:"agents",icon:Bot,label:"Agents"},{id:"batch",icon:Radio,label:"Batch Calls"},{id:"calls",icon:PhoneIncoming,label:"Call Logs"}]},
-    {label:"Resources",items:[...(isViewer ? [] : [{id:"numbers",icon:Phone,label:"Phone Numbers"},{id:"knowledge",icon:BookOpen,label:"Knowledge Base"},{id:"voices",icon:Mic2,label:"Voice Library"}] as any), {id:"analytics",icon:BarChart3,label:"Analytics"}]},
+    {label:"Resources",items:[...(isViewer ? [] : [{id:"numbers",icon:Phone,label:"Phone Numbers"},{id:"knowledge",icon:BookOpen,label:"Knowledge Base"},{id:"voices",icon:Mic2,label:"Voice Library"}] as any), {id:"calendar",icon:Calendar,label:"Calendar"}]},
     ...(isViewer ? [] : [{label:"Admin",items:[{id:"settings",icon:Settings,label:"Settings"}, {id:"billing",icon:CreditCard,label:"Billing & Plans"}]} as any]),
   ];
 
-  const titles: Record<DashSection,string> = {overview:"Overview",agents:"Agents",batch:"Batch Calls",calls:"Call Logs",numbers:"Phone Numbers",knowledge:"Knowledge Base",voices:"Voice Library",analytics:"Analytics",settings:"Settings",billing:"Billing & Plans",companion:"AI Companion"};
+  const titles: Record<DashSection,string> = {overview:"Overview",agents:"Agents",batch:"Batch Calls",calls:"Call Logs",numbers:"Phone Numbers",knowledge:"Knowledge Base",voices:"Voice Library",calendar:"Calendar & Schedule",settings:"Settings",billing:"Billing & Plans",companion:"AI Companion"};
 
   return (
     <div className="flex h-screen nm-dashboard-container overflow-hidden">
@@ -3628,7 +3628,7 @@ function DashboardPage({ session }: { session: Session }) {
               {section==="numbers"&&<DashNumbers/>}
               {section==="knowledge"&&<DashKnowledge apiAgents={apiAgents}/>}
               {section==="voices"&&<DashVoices apiAgents={apiAgents} setApiAgents={setApiAgents}/>}
-              {section==="analytics"&&<DashAnalytics/>}
+              {section==="calendar"&&<DashCalendar/>}
               {section==="settings"&&<DashSettings profile={profile} />}
               {section==="billing"&&<Pricing isDashboard />}
               {section==="companion"&&<DashCompanion session={session} setApiAgents={setApiAgents} />}

@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
 import { getUserIdFromRequest } from '../utils/auth';
 import { logger } from '../utils/logger';
+import { scheduleCall, cancelBooking, rescheduleBooking } from '../lib/calendar/scheduler';
 
 const router = Router();
 
@@ -141,6 +142,58 @@ router.delete('/', requireAuth, async (req, res) => {
   } catch (error) {
     logger.error('Failed to disconnect Google Calendar', { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ error: 'Failed to disconnect calendar' });
+  }
+});
+
+/**
+ * GET /api/v2/calendar/bookings
+ */
+router.get('/bookings', requireAuth, async (req, res) => {
+  try {
+    const userId = getUserIdFromRequest(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const userAgents = await prisma.agent.findMany({
+      where: { userId },
+      select: { id: true }
+    });
+    const userAgentIds = userAgents.map(a => a.id);
+
+    const bookings = await prisma.scheduledCall.findMany({
+      where: { agentId: { in: userAgentIds } },
+      orderBy: { scheduledAtUtc: 'asc' },
+    });
+
+    res.json(bookings);
+  } catch (error) {
+    logger.error('Failed to get bookings', { error: String(error) });
+    res.status(500).json({ error: 'Failed to get bookings' });
+  }
+});
+
+/**
+ * GET /api/v2/calendar/batches
+ */
+router.get('/batches', requireAuth, async (req, res) => {
+  try {
+    const userId = getUserIdFromRequest(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const userAgents = await prisma.agent.findMany({
+      where: { userId },
+      select: { id: true }
+    });
+    const userAgentIds = userAgents.map(a => a.id);
+
+    const batches = await prisma.batchCampaign.findMany({
+      where: { agentId: { in: userAgentIds } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(batches);
+  } catch (error) {
+    logger.error('Failed to get batches', { error: String(error) });
+    res.status(500).json({ error: 'Failed to get batches' });
   }
 });
 

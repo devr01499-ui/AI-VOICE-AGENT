@@ -40,7 +40,6 @@ import { SandboxStreamHandler } from './websockets/SandboxStreamHandler';
 import { requireAuth } from './middleware/auth';
 import { WebhookController } from './controllers/WebhookController';
 import kbRoutes from './routes/knowledgeBase';
-import analyticsRoutes from './routes/analytics';
 import userRoutes from './routes/user';
 import contactRoutes from './routes/contact';
 import teamRoutes from './routes/team';
@@ -175,7 +174,6 @@ app.post('/api/v2/calls/outbound', requireAuthOrApiKey, CallController.initiateC
 app.use('/api/v2/agents', requireAuth, agentRoutes);
 app.use('/api/v2/numbers', requireAuth, numbersRoutes);
 app.use('/api/v2/knowledge-base', requireAuth, kbRoutes);
-app.use('/api/v2/analytics', requireAuth, analyticsRoutes);
 app.use('/api/v2/user', requireAuth, userRoutes);
 app.use('/api/v2/team', requireAuth, teamRoutes);
 app.use('/api/v2/apikeys', apikeysRoutes);
