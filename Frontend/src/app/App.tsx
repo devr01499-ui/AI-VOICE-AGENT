@@ -604,7 +604,7 @@ type DashSection = "overview"|"agents"|"batch"|"calls"|"numbers"|"knowledge"|"vo
 // Shared tiny helpers
 function DBadge({ children, v="neutral" }: { children: React.ReactNode; v?: "neutral"|"success"|"warning"|"error"|"info"|"dark" }) {
   const cls = { neutral:"bg-muted text-muted-foreground border border-border", success:"bg-emerald-50 text-emerald-700 border border-emerald-100", warning:"bg-amber-50 text-amber-700 border border-amber-100", error:"bg-red-50 text-red-600 border border-red-100", info:"bg-blue-50 text-blue-700 border border-blue-100", dark:"bg-foreground text-white" }[v];
-  return <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${cls}`} style={{fontFamily:"'Figtree',sans-serif"}}>{children}</span>;
+  return <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${cls}`} style={{fontFamily:"'Outfit', sans-serif"}}>{children}</span>;
 }
 function SDot({ status }: { status: string }) {
   const c = ["active","running","ready"].includes(status) ? "bg-emerald-500" : ["paused","indexing","pending"].includes(status) ? "bg-amber-500" : ["error","failed"].includes(status) ? "bg-red-500" : "bg-zinc-400";
@@ -652,7 +652,7 @@ export function ConfirmDeleteModal({ open, onClose, onConfirm, title, message }:
   return (
     <DModal open={open} onClose={onClose} title={title} width="max-w-sm">
       <div className="space-y-6">
-        <p className="text-[var(--nm-text)] text-sm" style={{fontFamily:"'Figtree',sans-serif"}}>{message}</p>
+        <p className="text-[var(--nm-text)] text-sm" style={{fontFamily:"'Outfit', sans-serif"}}>{message}</p>
         <div className="flex justify-end gap-3">
           <DBtn variant="secondary" onClick={onClose}>Cancel</DBtn>
           <DBtn variant="danger" onClick={() => { onConfirm(); onClose(); }}>Delete</DBtn>
@@ -781,9 +781,9 @@ function DashOverview() {
           const Icon=s.icon;
           return (
             <div key={s.label} className="nm-card p-5">
-              <div className="flex justify-between items-center mb-3"><span className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{s.label.toUpperCase()}</span><Icon className="w-4 h-4 text-[var(--nm-text)]" strokeWidth={1.5}/></div>
+              <div className="flex justify-between items-center mb-3"><span className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{s.label.toUpperCase()}</span><Icon className="w-4 h-4 text-[var(--nm-text)]" strokeWidth={1.5}/></div>
               <p className="text-3xl font-bold text-[var(--nm-text)] mb-1" style={{fontFamily:"'Instrument Serif',serif"}}>{s.value}</p>
-              <p className={`text-xs flex items-center gap-2 ${s.live?"text-[var(--nm-accent)]":"text-[var(--nm-text)]"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{s.live&&<span className="w-2 h-2 bg-[var(--nm-accent)] rounded-full animate-pulse"/>}{s.delta}</p>
+              <p className={`text-xs flex items-center gap-2 ${s.live?"text-[var(--nm-accent)]":"text-[var(--nm-text)]"}`} style={{fontFamily:"'Outfit', sans-serif"}}>{s.live&&<span className="w-2 h-2 bg-[var(--nm-accent)] rounded-full animate-pulse"/>}{s.delta}</p>
             </div>
           );
         })}
@@ -792,11 +792,11 @@ function DashOverview() {
       <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">
         {apiAgents.map(a=>(
           <div key={a.id} className="nm-raised rounded-xl px-4 py-3 flex items-center gap-3">
-            <SDot status={a.status}/><div className="min-w-0"><p className="text-sm font-bold text-[var(--nm-text)] truncate" style={{fontFamily:"'Figtree',sans-serif"}}>{a.name}</p><p className="text-xs text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>Active agent</p></div>
+            <SDot status={a.status}/><div className="min-w-0"><p className="text-sm font-bold text-[var(--nm-text)] truncate" style={{fontFamily:"'Outfit', sans-serif"}}>{a.name}</p><p className="text-xs text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Active agent</p></div>
           </div>
         ))}
         {apiAgents.length === 0 && (
-          <div className="col-span-full nm-pressed rounded-xl p-6 text-center text-sm text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>
+          <div className="col-span-full nm-pressed rounded-xl p-6 text-center text-sm text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>
             You haven't created any agents yet. Go to the Agents tab to create one.
           </div>
         )}
@@ -804,21 +804,21 @@ function DashOverview() {
 
       <div className="nm-raised rounded-2xl overflow-hidden mt-6">
         <div className="px-5 py-4 border-b border-transparent flex items-center gap-3">
-          <SDot status={liveCalls.length > 0 ? "active" : "inactive"}/><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Live calls</p><DBadge>{liveCalls.length}</DBadge>
+          <SDot status={liveCalls.length > 0 ? "active" : "inactive"}/><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Live calls</p><DBadge>{liveCalls.length}</DBadge>
         </div>
         <div className="divide-y divide-transparent">
           {liveCalls.map(c=>(
             <div className="px-5 py-4 flex items-center gap-4 hover:nm-pressed transition-all cursor-pointer border-b border-transparent">
               <div className="w-10 h-10 nm-pressed rounded-full flex items-center justify-center flex-shrink-0"><span className="text-sm font-bold text-[var(--nm-accent)]">{c.name[0]}</span></div>
-              <div className="flex-1 min-w-0"><p className="text-base font-bold text-[var(--nm-text)] truncate" style={{fontFamily:"'Figtree',sans-serif"}}>{c.name}</p><p className="text-xs text-[var(--nm-text)] truncate" style={{fontFamily:"'Figtree',sans-serif"}}>{c.agent}</p></div>
-              <span className="hidden md:block text-xs nm-raised rounded-full px-3 py-1 font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{c.intent}</span>
-              <span className={`hidden lg:block text-xs font-bold ${c.sent==="Positive"?"text-[var(--nm-accent)]":c.sent==="Negative"?"nm-state-error":"text-[var(--nm-text)]"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{c.sent}</span>
-              <span className="text-sm font-bold flex-shrink-0 text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{c.dur}</span>
+              <div className="flex-1 min-w-0"><p className="text-base font-bold text-[var(--nm-text)] truncate" style={{fontFamily:"'Outfit', sans-serif"}}>{c.name}</p><p className="text-xs text-[var(--nm-text)] truncate" style={{fontFamily:"'Outfit', sans-serif"}}>{c.agent}</p></div>
+              <span className="hidden md:block text-xs nm-raised rounded-full px-3 py-1 font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.intent}</span>
+              <span className={`hidden lg:block text-xs font-bold ${c.sent==="Positive"?"text-[var(--nm-accent)]":c.sent==="Negative"?"nm-state-error":"text-[var(--nm-text)]"}`} style={{fontFamily:"'Outfit', sans-serif"}}>{c.sent}</span>
+              <span className="text-sm font-bold flex-shrink-0 text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.dur}</span>
               <div className="w-12 hidden sm:flex text-[var(--nm-accent)]"><MiniWave bars={8}/></div>
             </div>
           ))}
           {liveCalls.length === 0 && (
-            <div className="p-8 text-center text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>
+            <div className="p-8 text-center text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>
               No live calls active at the moment.
             </div>
           )}
@@ -827,34 +827,34 @@ function DashOverview() {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
         <div className="nm-raised rounded-2xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-transparent"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Recent completed</p></div>
+          <div className="px-5 py-4 border-b border-transparent"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Recent completed</p></div>
           <div className="divide-y divide-transparent">
             {recent.map(c=>(
               <div key={c.name} className="px-5 py-3.5 flex items-center gap-4 hover:nm-pressed transition-all cursor-pointer">
-                <div className="flex-1 min-w-0"><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{c.name}</p><p className="text-xs text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{c.intent} • {c.dur}</p></div>
+                <div className="flex-1 min-w-0"><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.name}</p><p className="text-xs text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.intent} • {c.dur}</p></div>
                 <DBadge v={c.result==="Resolved"?"success":"error"}>{c.result}</DBadge>
-                <span className="text-xs font-bold text-[var(--nm-text)] hidden sm:block" style={{fontFamily:"'DM Mono',monospace"}}>{c.ago}</span>
+                <span className="text-xs font-bold text-[var(--nm-text)] hidden sm:block" style={{fontFamily:"'Outfit', sans-serif"}}>{c.ago}</span>
               </div>
             ))}
             {recent.length === 0 && (
-              <div className="p-8 text-center text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>
+              <div className="p-8 text-center text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>
                 No recent calls completed yet.
               </div>
             )}
           </div>
         </div>
         <div className="nm-raised rounded-2xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-transparent"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Active batch campaigns</p></div>
+          <div className="px-5 py-4 border-b border-transparent"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Active batch campaigns</p></div>
           <div className="p-5 space-y-5">
             {campaigns.filter(c=>c.status==="running"||c.status==="paused").map(c=>(
               <div key={c.id}>
-                <div className="flex items-center justify-between mb-2.5"><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{c.name}</p><DBadge v={c.status==="running"?"success":"warning"}>{c.status}</DBadge></div>
+                <div className="flex items-center justify-between mb-2.5"><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.name}</p><DBadge v={c.status==="running"?"success":"warning"}>{c.status}</DBadge></div>
                 <div className="nm-slider-track mb-2"><div className="nm-slider-fill" style={{width: `${(c.called/c.total)*100}%`}}></div></div>
-                <p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{c.called.toLocaleString()} / {c.total.toLocaleString()} called • {c.connected.toLocaleString()} connected</p>
+                <p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.called.toLocaleString()} / {c.total.toLocaleString()} called • {c.connected.toLocaleString()} connected</p>
               </div>
             ))}
             {campaigns.filter(c=>c.status==="running"||c.status==="paused").length === 0 && (
-              <div className="text-center py-8 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>
+              <div className="text-center py-8 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>
                 No active campaigns. Go to the Batch Calls tab to launch one.
               </div>
             )}
@@ -1386,7 +1386,7 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <DBtn variant="ghost" size="sm" onClick={()=>{setView("list");setSelected(null);}}><ChevronLeft className="w-4 h-4"/> Back</DBtn>
-          <div><p className="text-xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{selected.name as string}</p><div className="flex items-center gap-2 mt-1"><SDot status={selected.status as string}/><DBadge>{selected.type==="prompt"?"Prompt-based":"Conversational"}</DBadge></div></div>
+          <div><p className="text-xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{selected.name as string}</p><div className="flex items-center gap-2 mt-1"><SDot status={selected.status as string}/><DBadge>{selected.type==="prompt"?"Prompt-based":"Conversational"}</DBadge></div></div>
         </div>
         <div className="flex gap-3">
           <DBtn variant="secondary" size="sm" onClick={handleTestCall} disabled={testCallStatus==='calling'}><PlayCircle className="w-3.5 h-3.5"/> {testCallStatus==='calling'?'Calling…':testCallStatus==='done'?'Called!':testCallStatus==='error'?'Failed':'Test call'}</DBtn>
@@ -1395,7 +1395,7 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
       </div>
       <div className="flex gap-3 pb-2 border-b border-transparent">
         {(["config","prompt","knowledge","calls"] as const).map(t=>(
-          <button key={t} onClick={()=>setDetailTab(t)} className={`px-5 py-2.5 text-sm font-bold rounded-full transition-all ${detailTab===t?"nm-pressed text-[var(--nm-accent)]":"nm-raised text-[var(--nm-text)] hover:nm-pressed"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{t==="prompt"?(selected.type==="prompt"?"System Prompt":"Conv. Flow"):t==="knowledge"?"Knowledge Base":t==="calls"?"Recent Calls":"Configuration"}</button>
+          <button key={t} onClick={()=>setDetailTab(t)} className={`px-5 py-2.5 text-sm font-bold rounded-full transition-all ${detailTab===t?"nm-pressed text-[var(--nm-accent)]":"nm-raised text-[var(--nm-text)] hover:nm-pressed"}`} style={{fontFamily:"'Outfit', sans-serif"}}>{t==="prompt"?(selected.type==="prompt"?"System Prompt":"Conv. Flow"):t==="knowledge"?"Knowledge Base":t==="calls"?"Recent Calls":"Configuration"}</button>
         ))}
       </div>
       {detailTab==="config" && (
@@ -1408,19 +1408,19 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
       {detailTab==="prompt" && (
         <div className="nm-card space-y-4">
           <DTextarea rows={16} defaultValue={selected.type==="prompt"?`You are a professional AI voice agent for Acme Corp specialising in ${(selected.name as string).toLowerCase()}.\n\nPersona:\n- Warm, clear, professional\n- Never rush the caller\n- Acknowledge concerns before responding\n\nRules:\n- Verify identity before accessing account data\n- Escalate to a human agent if the caller is distressed\n- Keep responses concise (2–3 sentences max)\n\nEscalation triggers:\n"frustrated", "manager", "cancel", "lawsuit" → offer immediate transfer`:"Step 1: Greet → Step 2: Verify → Step 3: Handle intent → Step 4: Confirm & close"}/>
-          <p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Changes take effect on the next call.</p>
+          <p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Changes take effect on the next call.</p>
           <DBtn size="sm"><Check className="w-3.5 h-3.5"/> Save prompt</DBtn>
         </div>
       )}
       {detailTab==="knowledge" && (
         <div className="nm-raised rounded-2xl overflow-hidden mt-6">
-          <table className="w-full"><thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Document","Type","Size","Status","Attached"].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
+          <table className="w-full"><thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Document","Type","Size","Status","Attached"].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>)}</tr></thead>
           <tbody className="divide-y divide-transparent">
             {kbList.map(k=>(
               <tr key={k.id} className="hover:nm-pressed transition-all">
-                <td className="px-5 py-4 text-base font-bold text-[var(--nm-text)] max-w-[200px] truncate" style={{fontFamily:"'Figtree',sans-serif"}}>{k.name}</td>
+                <td className="px-5 py-4 text-base font-bold text-[var(--nm-text)] max-w-[200px] truncate" style={{fontFamily:"'Outfit', sans-serif"}}>{k.name}</td>
                 <td className="px-5 py-4"><DBadge>{(k.name.split('.').pop() ?? 'TXT').toUpperCase()}</DBadge></td>
-                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{(k.sizeChars/1024).toFixed(1)} KB</td>
+                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{(k.sizeChars/1024).toFixed(1)} KB</td>
                 <td className="px-5 py-4"><DBadge v="success"><SDot status="ready"/> ready</DBadge></td>
                 <td className="px-5 py-4"><DToggle on={(selected.kb as string[] || []).includes(k.id)} set={async (attached)=>{
                   try {
@@ -1445,7 +1445,7 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
             ))}
             {kbList.length === 0 && (
               <tr>
-                <td colSpan={5} className="text-center p-8 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>NO DOCUMENTS ATTACHED YET.</td>
+                <td colSpan={5} className="text-center p-8 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>NO DOCUMENTS ATTACHED YET.</td>
               </tr>
             )}
           </tbody></table>
@@ -1453,15 +1453,15 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
       )}
       {detailTab==="calls" && (
         <div className="nm-raised rounded-2xl overflow-hidden mt-6">
-          <table className="w-full"><thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Caller","Duration","Result","Sentiment","Date",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
+          <table className="w-full"><thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Caller","Duration","Result","Sentiment","Date",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>)}</tr></thead>
           <tbody className="divide-y divide-transparent">
             {[{name:"Marcus Johnson",dur:"4m 12s",result:"Resolved",sent:"Positive",date:"Today 2:14 PM"},{name:"Elena Vasquez",dur:"2m 38s",result:"Scheduled",sent:"Positive",date:"Today 1:58 PM"},{name:"David Kim",dur:"7m 55s",result:"Transferred",sent:"Neutral",date:"Today 1:41 PM"},{name:"Aisha Okafor",dur:"3m 20s",result:"Resolved",sent:"Positive",date:"Today 1:22 PM"}].map(c=>(
               <tr key={c.name} className="hover:nm-pressed transition-all cursor-pointer">
-                <td className="px-5 py-4 text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{c.name}</td>
-                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{c.dur}</td>
+                <td className="px-5 py-4 text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.name}</td>
+                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.dur}</td>
                 <td className="px-5 py-4"><DBadge v={c.result==="Resolved"||c.result==="Scheduled"?"success":"warning"}>{c.result}</DBadge></td>
-                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{c.sent}</td>
-                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{c.date}</td>
+                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.sent}</td>
+                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.date}</td>
                 <td className="px-5 py-4"><DBtn size="sm" variant="ghost"><Eye className="w-3.5 h-3.5"/> Transcript</DBtn></td>
               </tr>
             ))}
@@ -1473,7 +1473,7 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white border border-border rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
             <div className="flex justify-between items-center pb-2 border-b border-border">
-              <h3 className="text-base font-semibold text-foreground flex items-center gap-2" style={{fontFamily:"'Figtree',sans-serif"}}>
+              <h3 className="text-base font-semibold text-foreground flex items-center gap-2" style={{fontFamily:"'Outfit', sans-serif"}}>
                 <PhoneCall className="w-5 h-5 text-muted-foreground"/> Test Voice Agent
               </h3>
               <button onClick={() => setShowPicker(false)} className="text-muted-foreground hover:text-foreground">
@@ -1500,7 +1500,7 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
               >
                 <Headphones className="w-8 h-8 text-muted-foreground"/>
                 <div>
-                  <p className="text-xs font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>Desktop Browser</p>
+                  <p className="text-xs font-semibold" style={{fontFamily:"'Outfit', sans-serif"}}>Desktop Browser</p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">Test instantly in-browser</p>
                 </div>
               </button>
@@ -1520,7 +1520,7 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
               >
                 <Phone className="w-8 h-8 text-muted-foreground"/>
                 <div>
-                  <p className="text-xs font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>Live Phone Call</p>
+                  <p className="text-xs font-semibold" style={{fontFamily:"'Outfit', sans-serif"}}>Live Phone Call</p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">Test on a mobile device</p>
                 </div>
               </button>
@@ -1532,7 +1532,7 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
                 <div className="flex items-start gap-2.5 text-amber-800">
                   <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0"/>
                   <div className="text-xs space-y-1">
-                    <p className="font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>No Active Numbers Found</p>
+                    <p className="font-semibold" style={{fontFamily:"'Outfit', sans-serif"}}>No Active Numbers Found</p>
                     <p className="text-amber-700/90 leading-relaxed">No active phone numbers found in this workspace. Please provision a business number under the 'Phone Numbers' tab or use Desktop Testing mode.</p>
                   </div>
                 </div>
@@ -1589,10 +1589,10 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
                   )}
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Desktop Testing Sandbox</p>
+                  <p className="text-xs font-semibold text-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>Desktop Testing Sandbox</p>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className={`w-1.5 h-1.5 rounded-full ${sandboxStatus === 'connected' ? 'bg-emerald-500 animate-pulse' : sandboxStatus === 'connecting' ? 'bg-amber-500 animate-pulse' : 'bg-muted-foreground'}`}/>
-                    <span className="text-[10px] text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>
+                    <span className="text-[10px] text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>
                       {sandboxStatus === 'connected' ? 'Connected' : sandboxStatus === 'connecting' ? 'Connecting...' : sandboxStatus === 'disconnected' ? 'Disconnected' : 'Offline'}
                     </span>
                   </div>
@@ -1601,7 +1601,7 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
 
               <div className="flex items-center gap-2">
                 {sandboxLatency !== null && (
-                  <div className="flex items-center gap-1 bg-foreground/[0.03] px-2 py-1 rounded-md text-[10px] text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>
+                  <div className="flex items-center gap-1 bg-foreground/[0.03] px-2 py-1 rounded-md text-[10px] text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>
                     <Activity className="w-3 h-3 text-muted-foreground"/> {sandboxLatency}ms latency
                   </div>
                 )}
@@ -1614,7 +1614,7 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
             {/* Transcript scroll pane */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/5">
               {sandboxError && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2 text-xs text-red-600 font-medium animate-in fade-in slide-in-from-top-2 duration-200" style={{fontFamily:"'Figtree',sans-serif"}}>
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2 text-xs text-red-600 font-medium animate-in fade-in slide-in-from-top-2 duration-200" style={{fontFamily:"'Outfit', sans-serif"}}>
                   <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-red-500" />
                   <div className="flex-1">
                     <p className="font-semibold mb-0.5">Sandbox Error</p>
@@ -1632,7 +1632,7 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
                     msg.speaker === 'user'
                       ? 'bg-foreground text-white rounded-tr-none'
                       : 'bg-white border border-border text-foreground rounded-tl-none'
-                  }`} style={{fontFamily:"'Figtree',sans-serif", lineHeight: 1.4}}>
+                  }`} style={{fontFamily:"'Outfit', sans-serif", lineHeight: 1.4}}>
                     <p className="font-semibold text-[9px] uppercase tracking-wider mb-1 opacity-70">
                       {msg.speaker === 'user' ? 'You' : 'Agent'}
                     </p>
@@ -1646,7 +1646,7 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
             {/* Live telemetry VAD visualizer & controls footer */}
             <div className="p-4 border-t border-border bg-white space-y-3 shadow-md">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-muted-foreground uppercase font-semibold" style={{fontFamily:"'DM Mono',monospace"}}>Microphone Pipeline</span>
+                <span className="text-[10px] text-muted-foreground uppercase font-semibold" style={{fontFamily:"'Outfit', sans-serif"}}>Microphone Pipeline</span>
                 <SoundWave active={sandboxActive} bars={16} className="h-4"/>
               </div>
 
@@ -1655,7 +1655,7 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
                   <button
                     onClick={stopSandbox}
                     className="w-full py-2 px-4 rounded-xl text-xs font-semibold bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-colors flex items-center justify-center gap-1.5"
-                    style={{fontFamily:"'Figtree',sans-serif"}}
+                    style={{fontFamily:"'Outfit', sans-serif"}}
                   >
                     <StopCircle className="w-4 h-4"/> Stop Session
                   </button>
@@ -1663,7 +1663,7 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
                   <button
                     onClick={startSandbox}
                     className="w-full py-2 px-4 rounded-xl text-xs font-semibold bg-foreground text-white hover:bg-foreground/90 transition-colors flex items-center justify-center gap-1.5"
-                    style={{fontFamily:"'Figtree',sans-serif"}}
+                    style={{fontFamily:"'Outfit', sans-serif"}}
                   >
                     <Mic className="w-4 h-4"/> Restart Session
                   </button>
@@ -1680,23 +1680,23 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <DBtn variant="ghost" size="sm" onClick={()=>setView("list")}><ChevronLeft className="w-4 h-4"/> Back</DBtn>
-        <p className="text-xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Create new agent</p>
+        <p className="text-xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Create new agent</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {(["prompt","conversational"] as const).map(t=>(
           <button key={t} onClick={()=>setCreateType(t)} className={`rounded-2xl p-6 text-left transition-all ${createType===t?"nm-pressed":"nm-raised hover:nm-pressed"}`}>
             <div className="flex items-center gap-4 mb-3">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${createType===t?"nm-pressed":"nm-raised"}`}>{t==="prompt"?<Cpu className={`w-5 h-5 ${createType===t?"text-[var(--nm-accent)]":"text-[var(--nm-text)]"}`}/>:<MessageSquare className={`w-5 h-5 ${createType===t?"text-[var(--nm-accent)]":"text-[var(--nm-text)]"}`}/>}</div>
-              <p className="font-bold text-[var(--nm-text)] text-lg" style={{fontFamily:"'Figtree',sans-serif"}}>{t==="prompt"?"Prompt-based":"Conversational Flow"}</p>
+              <p className="font-bold text-[var(--nm-text)] text-lg" style={{fontFamily:"'Outfit', sans-serif"}}>{t==="prompt"?"Prompt-based":"Conversational Flow"}</p>
             </div>
-            <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{t==="prompt"?"Define behavior with a system prompt. Best for flexible open-ended conversations.":"Design a step-by-step flow with conditions. Best for structured, scripted calls."}</p>
+            <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{t==="prompt"?"Define behavior with a system prompt. Best for flexible open-ended conversations.":"Design a step-by-step flow with conditions. Best for structured, scripted calls."}</p>
           </button>
         ))}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-6">
           <div className="nm-card space-y-5">
-            <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Basic configuration</p>
+            <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Basic configuration</p>
             <DField label="Agent name"><DInput placeholder="e.g. Healthcare Scheduler" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></DField>
             <DField label="Language"><DSelect value={form.lang} onChange={e=>setForm(f=>({...f,lang:e.target.value}))}><option>EN</option><option>EN, ES</option><option>EN, FR</option><option>EN, DE</option><option>ZH</option><option>HI</option><option>JA</option></DSelect></DField>
             <DField label="Voice"><DSelect value={form.voice} onChange={e=>setForm(f=>({...f,voice:e.target.value}))}>{VOICES_SEED.map(v=><option key={v.id} value={v.id}>{v.name} ({v.accent}){v.provider==="clone"?" ★":""}</option>)}</DSelect></DField>
@@ -1705,7 +1705,7 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
             <DField label="End-call phrase" hint="Caller saying this gracefully ends the call."><DInput value={form.endPhrase} onChange={e=>setForm(f=>({...f,endPhrase:e.target.value}))}/></DField>
           </div>
           <div className="nm-card space-y-5">
-            <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>LLM parameters</p>
+            <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>LLM parameters</p>
             <DField label={`Temperature: ${form.temperature}`}><input type="range" min="0" max="1" step="0.1" value={form.temperature} onChange={e=>setForm(f=>({...f,temperature:e.target.value}))} className="w-full accent-[var(--nm-accent)]"/></DField>
             <DField label={`Max turns: ${form.maxTurns}`}><input type="range" min="5" max="50" value={form.maxTurns} onChange={e=>setForm(f=>({...f,maxTurns:e.target.value}))} className="w-full accent-[var(--nm-accent)]"/></DField>
           </div>
@@ -1713,21 +1713,21 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
         <div className="space-y-6">
           {createType==="prompt" ? (
             <div className="nm-card space-y-4">
-              <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>System prompt</p>
+              <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>System prompt</p>
               <DTextarea rows={14} placeholder={`You are a professional AI voice agent for Acme Corp.\n\nPersona:\n- Warm, clear, professional\n- Never rush the caller\n\nRules:\n- Verify identity before accessing account data\n- Escalate if caller is distressed\n- Keep responses concise\n\nEscalation triggers:\n"frustrated", "manager", "cancel" → offer transfer`} value={form.systemPrompt} onChange={e=>setForm(f=>({...f,systemPrompt:e.target.value}))}/>
-              <p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{form.systemPrompt.length} chars</p>
+              <p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{form.systemPrompt.length} chars</p>
             </div>
           ) : (
             <div className="nm-card space-y-5">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold" style={{fontFamily:"'Figtree',sans-serif"}}>Conversation flow</p>
+                <p className="text-sm font-semibold" style={{fontFamily:"'Outfit', sans-serif"}}>Conversation flow</p>
                 <DBtn size="sm" variant="secondary" onClick={()=>setForm(f=>({...f,steps:[...f.steps,{id:`s${Date.now()}`,label:"New step",cond:""}]}))}><Plus className="w-3.5 h-3.5"/> Add step</DBtn>
               </div>
               <div className="space-y-2">
                 {form.steps.map((step,i)=>(
                   <div key={step.id} className="flex items-start gap-2">
                     <div className="flex flex-col items-center gap-0.5 mt-2 flex-shrink-0">
-                      <div className="w-5 h-5 rounded-full bg-foreground text-white flex items-center justify-center"><span className="text-xs" style={{fontFamily:"'DM Mono',monospace"}}>{i+1}</span></div>
+                      <div className="w-5 h-5 rounded-full bg-foreground text-white flex items-center justify-center"><span className="text-xs" style={{fontFamily:"'Outfit', sans-serif"}}>{i+1}</span></div>
                       {i<form.steps.length-1&&<div className="w-px h-4 bg-border"/>}
                     </div>
                     <div className="flex-1 space-y-1">
@@ -1741,16 +1741,16 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
             </div>
           )}
           <div className="nm-card space-y-4">
-            <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Attach knowledge base</p>
+            <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Attach knowledge base</p>
             <div className="space-y-3 max-h-40 overflow-y-auto">
               {kbList.map(k=>(
                 <label key={k.id} className="flex items-center gap-3 cursor-pointer">
                   <input type="checkbox" checked={form.kb.includes(k.id)} onChange={e=>setForm(f=>({...f,kb:e.target.checked?[...f.kb,k.id]:f.kb.filter(id=>id!==k.id)}))} className="w-4 h-4"/>
-                  <span className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{k.name}</span><DBadge>{(k.sizeChars/1024).toFixed(1)} KB</DBadge>
+                  <span className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{k.name}</span><DBadge>{(k.sizeChars/1024).toFixed(1)} KB</DBadge>
                 </label>
               ))}
               {kbList.length === 0 && (
-                <p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>No knowledge base documents uploaded yet.</p>
+                <p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>No knowledge base documents uploaded yet.</p>
               )}
             </div>
           </div>
@@ -1769,12 +1769,12 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
         title="Delete Agent" 
         message="Are you sure you want to delete this agent? It will be deleted forever." 
       />
-      {agentsLoading && <div className="text-xs text-muted-foreground py-2" style={{fontFamily:"'Figtree',sans-serif"}}>Loading agents…</div>}
-      {agentsError && <div className="text-xs text-red-500 py-2" style={{fontFamily:"'Figtree',sans-serif"}}>⚠ {agentsError}</div>}
+      {agentsLoading && <div className="text-xs text-muted-foreground py-2" style={{fontFamily:"'Outfit', sans-serif"}}>Loading agents…</div>}
+      {agentsError && <div className="text-xs text-red-500 py-2" style={{fontFamily:"'Outfit', sans-serif"}}>⚠ {agentsError}</div>}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex gap-3">
           {(["all","prompt","conversational"] as const).map(f=>(
-            <button key={f} onClick={()=>setFilter(f)} className={`text-xs font-bold px-5 py-2.5 rounded-full transition-all ${filter===f?"nm-pressed text-[var(--nm-accent)]":"nm-raised text-[var(--nm-text)] hover:nm-pressed hover:text-[var(--nm-accent)]"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{f==="all"?"All agents":f==="prompt"?"Prompt-based":"Conversational"}</button>
+            <button key={f} onClick={()=>setFilter(f)} className={`text-xs font-bold px-5 py-2.5 rounded-full transition-all ${filter===f?"nm-pressed text-[var(--nm-accent)]":"nm-raised text-[var(--nm-text)] hover:nm-pressed hover:text-[var(--nm-accent)]"}`} style={{fontFamily:"'Outfit', sans-serif"}}>{f==="all"?"All agents":f==="prompt"?"Prompt-based":"Conversational"}</button>
           ))}
         </div>
         <DBtn onClick={()=>setView("create")}><Plus className="w-4 h-4"/> New agent</DBtn>
@@ -1782,24 +1782,24 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
       {filtered.length === 0 ? (
         <div className="p-12 text-center nm-card">
           <Bot className="w-10 h-10 text-[var(--nm-text)] mx-auto mb-4"/>
-          <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>You haven't created any agents yet</p>
-          <p className="text-sm font-bold text-[var(--nm-text)] mt-2 mb-6" style={{fontFamily:"'Figtree',sans-serif"}}>Create an agent to configure prompts, voice models, and start calling.</p>
+          <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>You haven't created any agents yet</p>
+          <p className="text-sm font-bold text-[var(--nm-text)] mt-2 mb-6" style={{fontFamily:"'Outfit', sans-serif"}}>Create an agent to configure prompts, voice models, and start calling.</p>
           <DBtn onClick={()=>setView("create")} size="sm"><Plus className="w-4 h-4"/> Create Agent</DBtn>
         </div>
       ) : (
         <div className="nm-raised rounded-2xl overflow-hidden mt-6">
           <table className="w-full">
-            <thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Agent","Type","Status","Calls","CSAT","Voice","Model",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
+            <thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Agent","Type","Status","Calls","CSAT","Voice","Model",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>)}</tr></thead>
             <tbody className="divide-y divide-transparent">
               {filtered.map(a=>(
               <tr key={a.id as string} className="hover:nm-pressed transition-all cursor-pointer">
-                <td className="px-5 py-4"><div className="flex items-center gap-4"><div className="w-10 h-10 nm-pressed rounded-full flex items-center justify-center flex-shrink-0">{a.type==="prompt"?<Cpu className="w-5 h-5 text-[var(--nm-accent)]"/>:<MessageSquare className="w-5 h-5 text-[var(--nm-accent)]"/>}</div><div><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{a.name as string}</p><p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{a.lang as string}</p></div></div></td>
+                <td className="px-5 py-4"><div className="flex items-center gap-4"><div className="w-10 h-10 nm-pressed rounded-full flex items-center justify-center flex-shrink-0">{a.type==="prompt"?<Cpu className="w-5 h-5 text-[var(--nm-accent)]"/>:<MessageSquare className="w-5 h-5 text-[var(--nm-accent)]"/>}</div><div><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{a.name as string}</p><p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{a.lang as string}</p></div></div></td>
                 <td className="px-5 py-4"><DBadge>{a.type==="prompt"?"Prompt":"Conversational"}</DBadge></td>
-                <td className="px-5 py-4"><div className="flex items-center gap-2"><SDot status={a.status as string}/><span className="text-sm font-bold text-[var(--nm-text)] capitalize" style={{fontFamily:"'Figtree',sans-serif"}}>{a.status as string}</span></div></td>
-                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{(a.calls as number).toLocaleString()}</td>
-                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{a.csat??"—"}</td>
-                <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{a.voice as string}</td>
-                <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{a.model as string}</td>
+                <td className="px-5 py-4"><div className="flex items-center gap-2"><SDot status={a.status as string}/><span className="text-sm font-bold text-[var(--nm-text)] capitalize" style={{fontFamily:"'Outfit', sans-serif"}}>{a.status as string}</span></div></td>
+                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{(a.calls as number).toLocaleString()}</td>
+                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{a.csat??"—"}</td>
+                <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{a.voice as string}</td>
+                <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{a.model as string}</td>
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-2">
                     <DBtn size="sm" variant="ghost" onClick={async ()=>{
@@ -1866,37 +1866,37 @@ function DashBatch() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{campaigns.length} campaigns</p>
+        <p className="text-sm text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{campaigns.length} campaigns</p>
         <DBtn onClick={()=>setShowCreate(true)}><Plus className="w-4 h-4"/> New campaign</DBtn>
       </div>
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-6">
         {[{label:"Total contacts",value:campaigns.reduce((s,c)=>s+c.total,0).toLocaleString(),icon:Users},{label:"Connected",value:campaigns.reduce((s,c)=>s+c.connected,0).toLocaleString(),icon:CheckCircle2},{label:"Converted",value:campaigns.reduce((s,c)=>s+c.converted,0).toLocaleString(),icon:TrendingUp},{label:"Running now",value:campaigns.filter(c=>c.status==="running").length,icon:Activity}].map(s=>{
           const Icon=s.icon;
-          return (<div key={s.label} className="nm-card p-6"><div className="flex justify-between mb-3"><span className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{s.label.toUpperCase()}</span><Icon className="w-5 h-5 text-[var(--nm-accent)]" strokeWidth={1.5}/></div><p className="text-3xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Instrument Serif',serif"}}>{s.value}</p></div>);
+          return (<div key={s.label} className="nm-card p-6"><div className="flex justify-between mb-3"><span className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{s.label.toUpperCase()}</span><Icon className="w-5 h-5 text-[var(--nm-accent)]" strokeWidth={1.5}/></div><p className="text-3xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Instrument Serif',serif"}}>{s.value}</p></div>);
         })}
       </div>
       {campaigns.length === 0 ? (
         <div className="p-12 text-center nm-card">
           <Radio className="w-10 h-10 text-[var(--nm-text)] mx-auto mb-4"/>
-          <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>You haven't created any campaigns yet</p>
-          <p className="text-sm font-bold text-[var(--nm-text)] mt-2 mb-6" style={{fontFamily:"'Figtree',sans-serif"}}>Launch a batch calling campaign to place simultaneous outbound calls using your agents.</p>
+          <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>You haven't created any campaigns yet</p>
+          <p className="text-sm font-bold text-[var(--nm-text)] mt-2 mb-6" style={{fontFamily:"'Outfit', sans-serif"}}>Launch a batch calling campaign to place simultaneous outbound calls using your agents.</p>
           <DBtn onClick={()=>setShowCreate(true)} size="sm"><Plus className="w-4 h-4"/> Create Campaign</DBtn>
         </div>
       ) : (
         <div className="nm-raised rounded-2xl overflow-hidden mt-6">
           <table className="w-full">
-            <thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Campaign","Status","Progress","Connected","Converted","Created",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
+            <thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Campaign","Status","Progress","Connected","Converted","Created",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>)}</tr></thead>
             <tbody className="divide-y divide-transparent">
               {campaigns.map(c=>{
                 const pct=c.total>0?Math.round((c.called/c.total)*100):0;
                 return (
                   <tr key={c.id} className="hover:nm-pressed transition-all cursor-pointer" onClick={()=>setSelected(c)}>
-                    <td className="px-5 py-4"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{c.name}</p><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{liveAgents.find(a=>a.id===c.agentId)?.name || 'Default Agent'}</p></td>
+                    <td className="px-5 py-4"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.name}</p><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{liveAgents.find(a=>a.id===c.agentId)?.name || 'Default Agent'}</p></td>
                     <td className="px-5 py-4"><DBadge v={c.status==="running"?"success":c.status==="paused"?"warning":c.status==="completed"?"info":c.status==="failed"?"error":"neutral"}><SDot status={c.status}/> {c.status}</DBadge></td>
-                    <td className="px-5 py-4 w-40"><DProg v={c.called} max={c.total} className="mb-2"/><p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{c.called.toLocaleString()} / {c.total.toLocaleString()} ({pct}%)</p></td>
-                    <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{c.connected.toLocaleString()}</td>
-                    <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{c.converted.toLocaleString()}</td>
-                    <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{c.created}</td>
+                    <td className="px-5 py-4 w-40"><DProg v={c.called} max={c.total} className="mb-2"/><p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.called.toLocaleString()} / {c.total.toLocaleString()} ({pct}%)</p></td>
+                    <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.connected.toLocaleString()}</td>
+                    <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.converted.toLocaleString()}</td>
+                    <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.created}</td>
                     <td className="px-5 py-4" onClick={e=>e.stopPropagation()}>
                       <div className="flex gap-2">
                         {c.status==="running"&&<DBtn size="sm" variant="secondary"><PauseCircle className="w-4 h-4"/></DBtn>}
@@ -1920,14 +1920,14 @@ function DashBatch() {
           <DField label="Contact list (CSV)" hint="Must include a 'phone' column. Max 50,000 rows.">
             <div className="nm-card p-6 text-center cursor-pointer hover:nm-pressed transition-all" onClick={()=>fileRef.current?.click()}>
               <Upload className="w-6 h-6 text-[var(--nm-text)] mx-auto mb-3"/>
-              <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{form.csvRows>0?`${form.csvRows.toLocaleString()} contacts loaded`:"Click to upload CSV"}</p>
+              <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{form.csvRows>0?`${form.csvRows.toLocaleString()} contacts loaded`:"Click to upload CSV"}</p>
               <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={()=>setForm(f=>({...f,csvRows:Math.floor(Math.random()*3000)+500}))}/>
             </div>
           </DField>
           <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider" style={{fontFamily:"'DM Mono',monospace"}}>Schedule</p>
-            <label className="flex items-center gap-2 cursor-pointer"><input type="radio" checked={form.scheduleNow} onChange={()=>setForm(f=>({...f,scheduleNow:true}))} className="accent-foreground"/><span className="text-sm" style={{fontFamily:"'Figtree',sans-serif"}}>Start immediately</span></label>
-            <label className="flex items-center gap-2 cursor-pointer"><input type="radio" checked={!form.scheduleNow} onChange={()=>setForm(f=>({...f,scheduleNow:false}))} className="accent-foreground"/><span className="text-sm" style={{fontFamily:"'Figtree',sans-serif"}}>Schedule for later</span></label>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider" style={{fontFamily:"'Outfit', sans-serif"}}>Schedule</p>
+            <label className="flex items-center gap-2 cursor-pointer"><input type="radio" checked={form.scheduleNow} onChange={()=>setForm(f=>({...f,scheduleNow:true}))} className="accent-foreground"/><span className="text-sm" style={{fontFamily:"'Outfit', sans-serif"}}>Start immediately</span></label>
+            <label className="flex items-center gap-2 cursor-pointer"><input type="radio" checked={!form.scheduleNow} onChange={()=>setForm(f=>({...f,scheduleNow:false}))} className="accent-foreground"/><span className="text-sm" style={{fontFamily:"'Outfit', sans-serif"}}>Schedule for later</span></label>
             {!form.scheduleNow&&<DInput type="datetime-local" value={form.scheduledAt} onChange={e=>setForm(f=>({...f,scheduledAt:e.target.value}))}/>}
           </div>
           <div className="flex gap-3 pt-2"><DBtn onClick={handleCreate}><Send className="w-4 h-4"/> Launch campaign</DBtn><DBtn variant="secondary" onClick={()=>setShowCreate(false)}>Cancel</DBtn></div>
@@ -1939,10 +1939,10 @@ function DashBatch() {
           <div className="space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[{label:"Total",value:selected.total.toLocaleString()},{label:"Called",value:selected.called.toLocaleString()},{label:"Connected",value:selected.connected.toLocaleString()},{label:"Converted",value:selected.converted.toLocaleString()}].map(s=>(
-                <div key={s.label} className="nm-card p-4 text-center"><p className="text-xs font-bold text-[var(--nm-text)] mb-2" style={{fontFamily:"'DM Mono',monospace"}}>{s.label.toUpperCase()}</p><p className="text-2xl font-bold" style={{fontFamily:"'Instrument Serif',serif"}}>{s.value}</p></div>
+                <div key={s.label} className="nm-card p-4 text-center"><p className="text-xs font-bold text-[var(--nm-text)] mb-2" style={{fontFamily:"'Outfit', sans-serif"}}>{s.label.toUpperCase()}</p><p className="text-2xl font-bold" style={{fontFamily:"'Instrument Serif',serif"}}>{s.value}</p></div>
               ))}
             </div>
-            <div className="nm-card"><p className="text-xs font-bold text-[var(--nm-text)] mb-3" style={{fontFamily:"'DM Mono',monospace"}}>PROGRESS — {Math.round((selected.called/selected.total)*100)}%</p><DProg v={selected.called} max={selected.total}/></div>
+            <div className="nm-card"><p className="text-xs font-bold text-[var(--nm-text)] mb-3" style={{fontFamily:"'Outfit', sans-serif"}}>PROGRESS — {Math.round((selected.called/selected.total)*100)}%</p><DProg v={selected.called} max={selected.total}/></div>
             <div className="flex gap-2">
               {selected.status==="running"&&<DBtn variant="secondary"><PauseCircle className="w-4 h-4"/> Pause</DBtn>}
               {selected.status==="paused"&&<DBtn><PlayCircle className="w-4 h-4"/> Resume</DBtn>}
@@ -2102,24 +2102,24 @@ function DashCallLogs() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--nm-text)]"/><DInput className="pl-10 w-56" placeholder="Search caller…"/></div>
-          <select className="nm-input rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--nm-text)] outline-none" style={{fontFamily:"'Figtree',sans-serif"}}><option>All agents</option>{liveAgents.map(a=><option key={a.id}>{a.name}</option>)}</select>
-          <select className="nm-input rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--nm-text)] outline-none" style={{fontFamily:"'Figtree',sans-serif"}}><option>Today</option><option>Last 7 days</option><option>Last 30 days</option></select>
+          <select className="nm-input rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--nm-text)] outline-none" style={{fontFamily:"'Outfit', sans-serif"}}><option>All agents</option>{liveAgents.map(a=><option key={a.id}>{a.name}</option>)}</select>
+          <select className="nm-input rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--nm-text)] outline-none" style={{fontFamily:"'Outfit', sans-serif"}}><option>Today</option><option>Last 7 days</option><option>Last 30 days</option></select>
         </div>
         <DBtn size="sm" variant="secondary"><Download className="w-3.5 h-3.5"/> Export CSV</DBtn>
       </div>
       <div className="nm-raised rounded-2xl overflow-hidden mt-6">
         <table className="w-full">
-          <thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Caller","Agent","Duration","Result","Sentiment","Recording","Time",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
+          <thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Caller","Agent","Duration","Result","Sentiment","Recording","Time",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>)}</tr></thead>
           <tbody className="divide-y divide-transparent">
             {calls.map(c=>(
               <tr key={c.id} className="hover:nm-pressed transition-all">
-                <td className="px-5 py-4"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{c.name}</p><p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{c.number}</p></td>
-                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)] hidden md:table-cell" style={{fontFamily:"'Figtree',sans-serif"}}>{c.agent}</td>
-                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)] hidden lg:table-cell" style={{fontFamily:"'DM Mono',monospace"}}>{c.dur}</td>
+                <td className="px-5 py-4"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.name}</p><p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.number}</p></td>
+                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)] hidden md:table-cell" style={{fontFamily:"'Outfit', sans-serif"}}>{c.agent}</td>
+                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)] hidden lg:table-cell" style={{fontFamily:"'Outfit', sans-serif"}}>{c.dur}</td>
                 <td className="px-5 py-4"><DBadge v={c.result==="Resolved"||c.result==="Scheduled"?"success":c.result==="Transferred"?"warning":c.result==="Voicemail"?"neutral":"info"}>{c.result}</DBadge></td>
-                <td className="px-5 py-4 text-sm font-bold hidden lg:table-cell"><span className={c.sent==="Positive"?"text-emerald-500":c.sent==="Negative"?"text-[var(--nm-accent)]":"text-[var(--nm-text)]"} style={{fontFamily:"'Figtree',sans-serif"}}>{c.sent}</span></td>
+                <td className="px-5 py-4 text-sm font-bold hidden lg:table-cell"><span className={c.sent==="Positive"?"text-emerald-500":c.sent==="Negative"?"text-[var(--nm-accent)]":"text-[var(--nm-text)]"} style={{fontFamily:"'Outfit', sans-serif"}}>{c.sent}</span></td>
                 <td className="px-5 py-4 hidden lg:table-cell">{c.rec?<DBtn size="sm" variant="ghost"><Play className="w-4 h-4"/></DBtn>:<span className="text-sm font-bold text-[var(--nm-text)]">—</span>}</td>
-                <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)] hidden md:table-cell" style={{fontFamily:"'DM Mono',monospace"}}>{c.date}</td>
+                <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)] hidden md:table-cell" style={{fontFamily:"'Outfit', sans-serif"}}>{c.date}</td>
                 <td className="px-5 py-4"><DBtn size="sm" variant="ghost" onClick={()=>openTranscript(c.id)}><Eye className="w-4 h-4"/> Transcript</DBtn></td>
               </tr>
             ))}
@@ -2128,14 +2128,14 @@ function DashCallLogs() {
       </div>
       <DModal open={!!transcriptOpen} onClose={()=>{setTranscriptOpen(null);setTranscriptText([]);}} title={"Call transcript — " + calls.find(c=>c.id===transcriptOpen)?.name}>
         <div className="space-y-4">
-          <div className="p-4 nm-pressed rounded-2xl text-sm font-bold text-[var(--nm-text)] flex justify-between items-center" style={{fontFamily:"'DM Mono',monospace"}}>
+          <div className="p-4 nm-pressed rounded-2xl text-sm font-bold text-[var(--nm-text)] flex justify-between items-center" style={{fontFamily:"'Outfit', sans-serif"}}>
             <span>{calls.find(c=>c.id===transcriptOpen)?.date} · {calls.find(c=>c.id===transcriptOpen)?.dur} · {calls.find(c=>c.id===transcriptOpen)?.result}</span>
-            <span className={calls.find(c=>c.id===transcriptOpen)?.sent==="Positive"?"text-emerald-500":calls.find(c=>c.id===transcriptOpen)?.sent==="Negative"?"text-[var(--nm-accent)]":"text-[var(--nm-text)]"} style={{fontFamily:"'Figtree',sans-serif"}}>Sentiment: {calls.find(c=>c.id===transcriptOpen)?.sent}</span>
+            <span className={calls.find(c=>c.id===transcriptOpen)?.sent==="Positive"?"text-emerald-500":calls.find(c=>c.id===transcriptOpen)?.sent==="Negative"?"text-[var(--nm-accent)]":"text-[var(--nm-text)]"} style={{fontFamily:"'Outfit', sans-serif"}}>Sentiment: {calls.find(c=>c.id===transcriptOpen)?.sent}</span>
           </div>
           
           {calls.find(c=>c.id===transcriptOpen)?.summary && (
-            <div className="p-4 nm-raised rounded-2xl text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>
-              <p className="mb-2 uppercase text-xs opacity-50" style={{fontFamily:"'DM Mono',monospace"}}>Call Summary</p>
+            <div className="p-4 nm-raised rounded-2xl text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>
+              <p className="mb-2 uppercase text-xs opacity-50" style={{fontFamily:"'Outfit', sans-serif"}}>Call Summary</p>
               {calls.find(c=>c.id===transcriptOpen)?.summary}
             </div>
           )}
@@ -2146,12 +2146,12 @@ function DashCallLogs() {
             </div>
           )}
 
-          {transcriptLoading && <p className="text-sm font-bold text-[var(--nm-text)] text-center py-4" style={{fontFamily:"'Figtree',sans-serif"}}>Loading transcript…</p>}
+          {transcriptLoading && <p className="text-sm font-bold text-[var(--nm-text)] text-center py-4" style={{fontFamily:"'Outfit', sans-serif"}}>Loading transcript…</p>}
           <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
             {(transcriptText.length > 0 ? transcriptText : staticTranscript).map((m,i)=>(
               <div key={i} className={`flex gap-3 ${m.role==="caller"?"justify-end":""}`}>
                 {m.role==="agent"&&<div className="w-8 h-8 nm-pressed rounded-full flex items-center justify-center flex-shrink-0 mt-1"><Bot className="w-4 h-4 text-[var(--nm-accent)]"/></div>}
-                <div className={`rounded-2xl px-5 py-3 max-w-[80%] ${m.role==="agent"?"nm-raised rounded-tl-none":"nm-pressed text-[var(--nm-accent)] rounded-tr-none"}`}><p className="text-sm font-bold" style={{fontFamily:"'Figtree',sans-serif"}}>{m.text}</p></div>
+                <div className={`rounded-2xl px-5 py-3 max-w-[80%] ${m.role==="agent"?"nm-raised rounded-tl-none":"nm-pressed text-[var(--nm-accent)] rounded-tr-none"}`}><p className="text-sm font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{m.text}</p></div>
               </div>
             ))}
           </div>
@@ -2387,7 +2387,7 @@ function DashNumbers() {
 
           {kycStep === 1 && (
             <div className="space-y-4">
-              <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Step 1: Business Type</p>
+              <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Step 1: Business Type</p>
               <DField label="Select your entity type">
                 <DSelect>
                   <option>Individual / Sole Proprietorship</option>
@@ -2401,7 +2401,7 @@ function DashNumbers() {
 
           {kycStep === 2 && (
             <div className="space-y-4">
-              <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Step 2: Document Upload</p>
+              <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Step 2: Document Upload</p>
               <DField label="Document Type">
                 <DSelect value={kycDocType} onChange={e => setKycDocType(e.target.value)}>
                   <option value="PAN">PAN Card</option>
@@ -2411,7 +2411,7 @@ function DashNumbers() {
               </DField>
               <div className="nm-card p-8 text-center cursor-pointer hover:nm-pressed border-dashed border-2 border-border transition-all">
                 <Upload className="w-6 h-6 text-[var(--nm-text)] mx-auto mb-3"/>
-                <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Click to upload {kycDocType}</p>
+                <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Click to upload {kycDocType}</p>
               </div>
               <div className="flex justify-between pt-4">
                 <DBtn variant="secondary" onClick={() => setKycStep(1)}>Back</DBtn>
@@ -2425,21 +2425,21 @@ function DashNumbers() {
               {kycStatus === 'pending' ? (
                 <>
                   <div className="w-12 h-12 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin mx-auto mb-4" />
-                  <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Verification Pending</p>
-                  <p className="text-sm text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Vobiz is reviewing your documents. This usually takes a few minutes.</p>
+                  <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Verification Pending</p>
+                  <p className="text-sm text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Vobiz is reviewing your documents. This usually takes a few minutes.</p>
                 </>
               ) : kycStatus === 'verified' ? (
                 <>
                   <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-4" />
-                  <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>KYC Approved!</p>
-                  <p className="text-sm text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Your phone number is now active and ready to use.</p>
+                  <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>KYC Approved!</p>
+                  <p className="text-sm text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Your phone number is now active and ready to use.</p>
                   <DBtn onClick={() => setShowKyc(null)} className="mt-4">Close</DBtn>
                 </>
               ) : (
                 <>
                   <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                  <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Verification Failed</p>
-                  <p className="text-sm text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Please try submitting your documents again.</p>
+                  <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Verification Failed</p>
+                  <p className="text-sm text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Please try submitting your documents again.</p>
                   <DBtn onClick={() => setKycStep(1)} className="mt-4">Retry KYC</DBtn>
                 </>
               )}
@@ -2449,17 +2449,17 @@ function DashNumbers() {
       </DModal>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{numbers.length} numbers provisioned</p>
+        <p className="text-sm text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{numbers.length} numbers provisioned</p>
         <div className="flex gap-2"><DBtn variant="secondary" onClick={()=>setShowSip(true)}><Network className="w-4 h-4"/> SIP config</DBtn><DBtn onClick={()=>{setShowBuy(true); handleSearch();}}><Plus className="w-4 h-4"/> Buy number</DBtn></div>
       </div>
       
       {loading && numbers.length === 0 ? (
-        <div className="p-8 text-center text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>LOADING PHONE NUMBERS...</div>
+        <div className="p-8 text-center text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>LOADING PHONE NUMBERS...</div>
       ) : numbers.length === 0 ? (
         <div className="p-12 text-center nm-card">
           <Phone className="w-10 h-10 text-[var(--nm-text)] mx-auto mb-4"/>
-          <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>You haven't provisioned any numbers yet</p>
-          <p className="text-sm font-bold text-[var(--nm-text)] mt-2 mb-6" style={{fontFamily:"'Figtree',sans-serif"}}>Provision a local or toll-free number to route calls to your agents.</p>
+          <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>You haven't provisioned any numbers yet</p>
+          <p className="text-sm font-bold text-[var(--nm-text)] mt-2 mb-6" style={{fontFamily:"'Outfit', sans-serif"}}>Provision a local or toll-free number to route calls to your agents.</p>
           <div className="flex justify-center gap-3">
             <DBtn variant="secondary" onClick={()=>setShowSip(true)} size="sm"><Network className="w-4 h-4"/> SIP config</DBtn>
             <DBtn onClick={()=>{setShowBuy(true); handleSearch();}} size="sm"><Plus className="w-4 h-4"/> Buy number</DBtn>
@@ -2468,20 +2468,20 @@ function DashNumbers() {
       ) : (
         <div className="nm-raised rounded-2xl overflow-hidden mt-6">
           <table className="w-full">
-            <thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Number","Label","Type","Region","Agent","Status",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
+            <thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Number","Label","Type","Region","Agent","Status",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>)}</tr></thead>
             <tbody className="divide-y divide-transparent">
               {numbers.map(n=>(
                 <tr key={n.id} className="hover:nm-pressed transition-all">
-                  <td className="px-5 py-4 text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{n.number}</td>
-                  <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{n.label}</td>
+                  <td className="px-5 py-4 text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{n.number}</td>
+                  <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{n.label}</td>
                   <td className="px-5 py-4"><DBadge v={n.type==="tollfree"?"info":"neutral"}>{n.type==="tollfree"?"Toll-free":n.type==="sip"?"SIP":"Local"}</DBadge></td>
-                  <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{n.region}</td>
-                  <td className="px-5 py-4">{n.agentId?<span className="text-xs font-bold text-[var(--nm-text)] nm-pressed rounded px-3 py-1" style={{fontFamily:"'Figtree',sans-serif"}}>{liveAgents.find(a=>a.id===n.agentId)?.name || 'Default Agent'}</span>:<span className="text-xs font-bold text-[var(--nm-text)]">Unassigned</span>}</td>
+                  <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{n.region}</td>
+                  <td className="px-5 py-4">{n.agentId?<span className="text-xs font-bold text-[var(--nm-text)] nm-pressed rounded px-3 py-1" style={{fontFamily:"'Outfit', sans-serif"}}>{liveAgents.find(a=>a.id===n.agentId)?.name || 'Default Agent'}</span>:<span className="text-xs font-bold text-[var(--nm-text)]">Unassigned</span>}</td>
                   <td className="px-5 py-4">
                     <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2"><SDot status={n.status}/><span className="text-sm font-bold text-[var(--nm-text)] capitalize" style={{fontFamily:"'Figtree',sans-serif"}}>{n.status}</span></div>
-                      {n.kycStatus === 'pending' && <span className="text-[10px] text-amber-500 font-bold" style={{fontFamily:"'Figtree',sans-serif"}}>KYC Pending</span>}
-                      {n.kycStatus === 'failed' && <span className="text-[10px] text-red-500 font-bold" style={{fontFamily:"'Figtree',sans-serif"}}>KYC Failed</span>}
+                      <div className="flex items-center gap-2"><SDot status={n.status}/><span className="text-sm font-bold text-[var(--nm-text)] capitalize" style={{fontFamily:"'Outfit', sans-serif"}}>{n.status}</span></div>
+                      {n.kycStatus === 'pending' && <span className="text-[10px] text-amber-500 font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>KYC Pending</span>}
+                      {n.kycStatus === 'failed' && <span className="text-[10px] text-red-500 font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>KYC Failed</span>}
                     </div>
                   </td>
                   <td className="px-5 py-4"><div className="flex gap-2">
@@ -2535,18 +2535,18 @@ function DashNumbers() {
           
           <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
             {searchLoading ? (
-              <div className="p-8 text-center text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>SEARCHING INVENTORY...</div>
+              <div className="p-8 text-center text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>SEARCHING INVENTORY...</div>
             ) : searchResults.length > 0 ? (
               searchResults.map(r=>(
                 <div key={r.number_id} className="flex items-center justify-between p-4 border border-border rounded-xl hover:bg-muted/20 transition-colors">
                   <div>
-                    <p className="text-base font-medium" style={{fontFamily:"'DM Mono',monospace"}}>{r.e164}</p>
-                    <p className="text-xs text-muted-foreground mt-1" style={{fontFamily:"'Figtree',sans-serif"}}>{r.country} · {r.region || 'National'} · <DBadge>{r.type}</DBadge></p>
+                    <p className="text-base font-medium" style={{fontFamily:"'Outfit', sans-serif"}}>{r.e164}</p>
+                    <p className="text-xs text-muted-foreground mt-1" style={{fontFamily:"'Outfit', sans-serif"}}>{r.country} · {r.region || 'National'} · <DBadge>{r.type}</DBadge></p>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <span className="text-base font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>${r.monthly_fee}/mo</span>
-                      <p className="text-[10px] text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>+${r.setup_fee} setup</p>
+                      <span className="text-base font-medium" style={{fontFamily:"'Outfit', sans-serif"}}>${r.monthly_fee}/mo</span>
+                      <p className="text-[10px] text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>+${r.setup_fee} setup</p>
                     </div>
                     <DBtn size="sm" disabled={purchaseLoading === r.e164} onClick={() => handlePurchase(r)}>
                       {purchaseLoading === r.e164 ? <RefreshCw className="w-4 h-4 animate-spin"/> : 'Buy'}
@@ -2555,7 +2555,7 @@ function DashNumbers() {
                 </div>
               ))
             ) : (
-              <div className="p-8 text-center text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>No numbers found matching your criteria. Try different filters.</div>
+              <div className="p-8 text-center text-sm text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>No numbers found matching your criteria. Try different filters.</div>
             )}
           </div>
         </div>
@@ -2566,11 +2566,11 @@ function DashNumbers() {
           <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
             <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5"/>
             <div>
-              <p className="text-sm font-bold text-amber-800" style={{fontFamily:"'Figtree',sans-serif"}}>Bring Your Own SIP Trunk is Coming Soon</p>
-              <p className="text-xs font-medium text-amber-700 mt-1" style={{fontFamily:"'Figtree',sans-serif"}}>This feature is currently disabled and undergoing maintenance. You cannot save or connect a new SIP trunk at this time.</p>
+              <p className="text-sm font-bold text-amber-800" style={{fontFamily:"'Outfit', sans-serif"}}>Bring Your Own SIP Trunk is Coming Soon</p>
+              <p className="text-xs font-medium text-amber-700 mt-1" style={{fontFamily:"'Outfit', sans-serif"}}>This feature is currently disabled and undergoing maintenance. You cannot save or connect a new SIP trunk at this time.</p>
             </div>
           </div>
-          <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3 opacity-50"><Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5"/><p className="text-xs text-blue-700" style={{fontFamily:"'Figtree',sans-serif"}}>Connects Claritiy Voice directly to your on-premise PBX or UCaaS (Cisco, Avaya, Asterisk, FreePBX, 3CX).</p></div>
+          <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3 opacity-50"><Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5"/><p className="text-xs text-blue-700" style={{fontFamily:"'Outfit', sans-serif"}}>Connects Claritiy Voice directly to your on-premise PBX or UCaaS (Cisco, Avaya, Asterisk, FreePBX, 3CX).</p></div>
           <div className="opacity-50 pointer-events-none space-y-4">
             <DField label="SIP URI"><DInput disabled value={sipForm.uri} onChange={e=>setSipForm(f=>({...f,uri:e.target.value}))}/></DField>
             <div className="grid grid-cols-2 gap-3">
@@ -2582,11 +2582,11 @@ function DashNumbers() {
               <DField label="Transport"><DSelect disabled value={sipForm.transport} onChange={e=>setSipForm(f=>({...f,transport:e.target.value}))}><option>TLS</option><option>TCP</option><option>UDP</option></DSelect></DField>
               <DField label="DTMF mode"><DSelect disabled value={sipForm.dtmf} onChange={e=>setSipForm(f=>({...f,dtmf:e.target.value}))}><option>RFC 2833</option><option>In-band</option><option>SIP INFO</option></DSelect></DField>
             </div>
-            <div className="flex items-center justify-between"><div><p className="text-sm font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>SIP registration</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>Register with your PBX for inbound routing</p></div><DToggle on={sipForm.register} set={()=>{}}/></div>
+            <div className="flex items-center justify-between"><div><p className="text-sm font-medium" style={{fontFamily:"'Outfit', sans-serif"}}>SIP registration</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>Register with your PBX for inbound routing</p></div><DToggle on={sipForm.register} set={()=>{}}/></div>
             <div className="bg-muted/40 border border-border rounded-xl p-4 space-y-1">
-              <p className="text-xs font-medium text-muted-foreground mb-2" style={{fontFamily:"'DM Mono',monospace"}}>ADD THESE IPs TO YOUR PBX ALLOWLIST</p>
-              {["34.120.88.42","34.102.147.9"].map(ip=><p key={ip} className="text-xs font-medium" style={{fontFamily:"'DM Mono',monospace"}}>{ip}</p>)}
-              <p className="text-xs text-muted-foreground mt-1" style={{fontFamily:"'DM Mono',monospace"}}>SIP Port: 5061 (TLS) · RTP: 10000–60000</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2" style={{fontFamily:"'Outfit', sans-serif"}}>ADD THESE IPs TO YOUR PBX ALLOWLIST</p>
+              {["34.120.88.42","34.102.147.9"].map(ip=><p key={ip} className="text-xs font-medium" style={{fontFamily:"'Outfit', sans-serif"}}>{ip}</p>)}
+              <p className="text-xs text-muted-foreground mt-1" style={{fontFamily:"'Outfit', sans-serif"}}>SIP Port: 5061 (TLS) · RTP: 10000–60000</p>
             </div>
           </div>
           <div className="flex gap-3 mt-4"><DBtn disabled><Check className="w-4 h-4"/> Save &amp; test connection</DBtn><DBtn variant="secondary" onClick={()=>setShowSip(false)}>Cancel</DBtn></div>
@@ -2691,24 +2691,24 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
         message="Are you sure you want to delete this document? It will be removed permanently." 
       />
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>{docs.length} documents uploaded</p>
+        <p className="text-sm text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{docs.length} documents uploaded</p>
         <DBtn onClick={()=>setShowAdd(true)}><Plus className="w-4 h-4"/> Add document</DBtn>
       </div>
       <div className="grid grid-cols-3 gap-6">
         {[{label:"Total documents",v:docs.length},{label:"Total characters",v:docs.reduce((s,d)=>s+d.sizeChars,0).toLocaleString()},{label:"Indexed sources",v:docs.length}].map(s=>(
-          <div key={s.label} className="nm-card p-4 text-center"><p className="text-xs font-bold text-[var(--nm-text)] mb-2" style={{fontFamily:"'DM Mono',monospace"}}>{s.label.toUpperCase()}</p><p className="text-2xl font-bold" style={{fontFamily:"'Instrument Serif',serif"}}>{s.v}</p></div>
+          <div key={s.label} className="nm-card p-4 text-center"><p className="text-xs font-bold text-[var(--nm-text)] mb-2" style={{fontFamily:"'Outfit', sans-serif"}}>{s.label.toUpperCase()}</p><p className="text-2xl font-bold" style={{fontFamily:"'Instrument Serif',serif"}}>{s.v}</p></div>
         ))}
       </div>
       <div className="nm-raised rounded-2xl overflow-hidden mt-6">
         {loading && docs.length === 0 ? (
-          <div className="p-8 text-center text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>LOADING DATASETS...</div>
+          <div className="p-8 text-center text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>LOADING DATASETS...</div>
         ) : (
           <table className="w-full">
-            <thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Document / URL","Linked Agents","Size","Uploaded",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
+            <thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Document / URL","Linked Agents","Size","Uploaded",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>)}</tr></thead>
             <tbody className="divide-y divide-transparent">
               {docs.map(d=>(
                 <tr key={d.id} className="hover:nm-pressed transition-all">
-                  <td className="px-5 py-4 max-w-[240px]"><div className="flex items-center gap-3"><FileText className="w-5 h-5 text-[var(--nm-text)] flex-shrink-0"/><p className="text-base text-[var(--nm-text)] truncate font-bold" style={{fontFamily:"'Figtree',sans-serif"}}>{d.name}</p></div></td>
+                  <td className="px-5 py-4 max-w-[240px]"><div className="flex items-center gap-3"><FileText className="w-5 h-5 text-[var(--nm-text)] flex-shrink-0"/><p className="text-base text-[var(--nm-text)] truncate font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{d.name}</p></div></td>
                   <td className="px-5 py-4 relative">
                     <div className="flex items-center gap-2 flex-wrap max-w-[300px]">
                       {d.agentIds && d.agentIds.map(aId => {
@@ -2750,12 +2750,12 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
                           className="nm-card p-4 z-50 min-w-[200px] w-auto space-y-3 text-left" 
                           onClick={e => e.stopPropagation()}
                         >
-                          <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-2" style={{fontFamily:"'DM Mono',monospace"}}>Select Agents</p>
+                          <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-2" style={{fontFamily:"'Outfit', sans-serif"}}>Select Agents</p>
                           <div className="max-h-40 overflow-y-auto space-y-1.5">
                             {apiAgents.map(a => {
                               const isAssigned = (d.agentIds || []).includes(a.id);
                               return (
-                                <label key={a.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded transition-colors text-xs font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>
+                                <label key={a.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded transition-colors text-xs font-medium" style={{fontFamily:"'Outfit', sans-serif"}}>
                                   <input 
                                     type="checkbox" 
                                     checked={isAssigned} 
@@ -2789,24 +2789,24 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
                               );
                             })}
                             {apiAgents.length === 0 && (
-                              <p className="text-[10px] text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>No agents created yet.</p>
+                              <p className="text-[10px] text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>No agents created yet.</p>
                             )}
                           </div>
                           <div className="border-t border-border pt-1 text-right">
-                            <button onClick={() => setOpenDropdownDocId(null)} className="text-[10px] text-muted-foreground hover:text-foreground font-medium" style={{fontFamily:"'Figtree',sans-serif"}}>Close</button>
+                            <button onClick={() => setOpenDropdownDocId(null)} className="text-[10px] text-muted-foreground hover:text-foreground font-medium" style={{fontFamily:"'Outfit', sans-serif"}}>Close</button>
                           </div>
                         </PopoverContent>
                       </Popover>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{(d.sizeChars / 1024).toFixed(1)} KB</td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>{new Date(d.createdAt).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{(d.sizeChars / 1024).toFixed(1)} KB</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{new Date(d.createdAt).toLocaleDateString()}</td>
                   <td className="px-4 py-3 text-right"><DBadge size="sm" variant="ghost" className="cursor-pointer" onClick={() => handleDelete(d.id)}><Trash2 className="w-3.5 h-3.5 text-red-400"/></DBadge></td>
                 </tr>
               ))}
               {docs.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="text-center p-8 text-xs text-muted-foreground" style={{fontFamily:"'DM Mono',monospace"}}>NO DOCUMENTS UPLOADED YET.</td>
+                  <td colSpan={5} className="text-center p-8 text-xs text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>NO DOCUMENTS UPLOADED YET.</td>
                 </tr>
               )}
             </tbody>
@@ -2815,10 +2815,10 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
       </div>
       <DModal open={showAdd} onClose={()=>setShowAdd(false)} title="Add to knowledge base">
         <div className="space-y-4">
-          <div className="flex gap-2 border-b border-border pb-3">{(["file","url"] as const).map(t=><button key={t} onClick={()=>setAddTab(t)} className={`text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${addTab===t?"bg-foreground text-white":"text-muted-foreground hover:text-foreground"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{t==="file"?"Upload file":"Crawl URL"}</button>)}</div>
+          <div className="flex gap-2 border-b border-border pb-3">{(["file","url"] as const).map(t=><button key={t} onClick={()=>setAddTab(t)} className={`text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${addTab===t?"bg-foreground text-white":"text-muted-foreground hover:text-foreground"}`} style={{fontFamily:"'Outfit', sans-serif"}}>{t==="file"?"Upload file":"Crawl URL"}</button>)}</div>
           
           <div className="mb-2">
-            <label className="text-xs font-semibold text-muted-foreground block mb-1.5" style={{fontFamily:"'DM Mono',monospace"}}>LINK TO AI AGENT (OPTIONAL)</label>
+            <label className="text-xs font-semibold text-muted-foreground block mb-1.5" style={{fontFamily:"'Outfit', sans-serif"}}>LINK TO AI AGENT (OPTIONAL)</label>
             <select 
               value={selectedAgentId} 
               onChange={e => setSelectedAgentId(e.target.value)}
@@ -2834,8 +2834,8 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
           {addTab==="file"?(
             <div className="border-2 border-dashed border-border rounded-xl p-10 text-center cursor-pointer hover:bg-muted/20 transition-colors" onClick={()=>fileRef.current?.click()}>
               <Upload className="w-7 h-7 text-muted-foreground mx-auto mb-3"/>
-              <p className="text-sm font-medium mb-1" style={{fontFamily:"'Figtree',sans-serif"}}>Drop file or click to browse</p>
-              <p className="text-xs text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>TXT, PDF, CSV, DOCX — max 500 KB text extraction</p>
+              <p className="text-sm font-medium mb-1" style={{fontFamily:"'Outfit', sans-serif"}}>Drop file or click to browse</p>
+              <p className="text-xs text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>TXT, PDF, CSV, DOCX — max 500 KB text extraction</p>
               <input ref={fileRef} type="file" accept=".txt,.pdf,.csv,.docx" className="hidden" onChange={addFile}/>
             </div>
           ):(
@@ -3083,15 +3083,15 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
       {/* Quick Agent Configuration settings */}
       {apiAgents.length > 0 && (
         <div className="nm-card p-6 space-y-4">
-          <p className="text-xs font-bold text-[var(--nm-text)] uppercase tracking-wider" style={{fontFamily:"'DM Mono',monospace"}}>Quick Agent Voice &amp; Language Settings</p>
+          <p className="text-xs font-bold text-[var(--nm-text)] uppercase tracking-wider" style={{fontFamily:"'Outfit', sans-serif"}}>Quick Agent Voice &amp; Language Settings</p>
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-3">
-              <span className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Select Agent to Configure:</span>
+              <span className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Select Agent to Configure:</span>
               <select
                 className="nm-input rounded-xl px-4 py-2 text-sm focus:outline-none font-bold text-[var(--nm-text)]"
                 value={selectedConfigAgentId}
                 onChange={e => setSelectedConfigAgentId(e.target.value)}
-                style={{fontFamily:"'Figtree',sans-serif"}}
+                style={{fontFamily:"'Outfit', sans-serif"}}
               >
                 <option value="">-- Choose Agent --</option>
                 {apiAgents.map(a => (
@@ -3104,9 +3104,9 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
           {selectedConfigAgent && (
             <div className="border-t border-transparent pt-4 mt-2">
               <div className="flex items-center justify-between mb-4">
-                <span className="text-xs font-bold text-[var(--nm-text)] uppercase tracking-wider" style={{fontFamily:"'DM Mono',monospace"}}>Agent Voice &amp; Language Profile Settings</span>
+                <span className="text-xs font-bold text-[var(--nm-text)] uppercase tracking-wider" style={{fontFamily:"'Outfit', sans-serif"}}>Agent Voice &amp; Language Profile Settings</span>
                 {configSaveStatus !== 'idle' && (
-                  <span className={`text-[10px] px-3 py-1 rounded-lg font-bold ${configSaveStatus === 'saving' ? 'bg-amber-50 text-amber-700' : configSaveStatus === 'done' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`} style={{fontFamily:"'Figtree',sans-serif"}}>
+                  <span className={`text-[10px] px-3 py-1 rounded-lg font-bold ${configSaveStatus === 'saving' ? 'bg-amber-50 text-amber-700' : configSaveStatus === 'done' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`} style={{fontFamily:"'Outfit', sans-serif"}}>
                     {configSaveStatus === 'saving' ? 'Auto-saving...' : configSaveStatus === 'done' ? 'Saved' : 'Error'}
                   </span>
                 )}
@@ -3126,7 +3126,7 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex gap-3">{(["all","builtin","clone"] as const).map(f=><button key={f} onClick={()=>setVoiceFilter(f)} className={`text-sm font-bold px-4 py-2 rounded-xl transition-all ${voiceFilter===f?"nm-pressed text-[var(--nm-accent)]":"nm-raised text-[var(--nm-text)] hover:nm-pressed"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{f==="all"?"All voices":f==="builtin"?"Built-in":"Cloned"}</button>)}</div>
+        <div className="flex gap-3">{(["all","builtin","clone"] as const).map(f=><button key={f} onClick={()=>setVoiceFilter(f)} className={`text-sm font-bold px-4 py-2 rounded-xl transition-all ${voiceFilter===f?"nm-pressed text-[var(--nm-accent)]":"nm-raised text-[var(--nm-text)] hover:nm-pressed"}`} style={{fontFamily:"'Outfit', sans-serif"}}>{f==="all"?"All voices":f==="builtin"?"Built-in":"Cloned"}</button>)}</div>
         <DBtn disabled title="Voice cloning coming soon"><Mic2 className="w-4 h-4"/> Clone a voice (Coming soon)</DBtn>
       </div>
 
@@ -3134,12 +3134,12 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
       <div className="flex flex-wrap items-center gap-5 nm-card p-6">
         {/* Nation Selection */}
         <div className="flex items-center gap-3">
-          <span className="text-xs font-bold text-[var(--nm-text)] uppercase tracking-wider" style={{fontFamily:"'DM Mono',monospace"}}>Nation:</span>
+          <span className="text-xs font-bold text-[var(--nm-text)] uppercase tracking-wider" style={{fontFamily:"'Outfit', sans-serif"}}>Nation:</span>
           <select
             value={selectedNation}
             onChange={(e) => setSelectedNation(e.target.value)}
             className="nm-input rounded-xl px-4 py-2 text-sm focus:outline-none font-bold text-[var(--nm-text)] animate-fade-in"
-            style={{fontFamily:"'Figtree',sans-serif"}}
+            style={{fontFamily:"'Outfit', sans-serif"}}
             id="nation-filter-select"
           >
             <option value="all">All Nations</option>
@@ -3152,12 +3152,12 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
 
         {/* Language Selection */}
         <div className="flex items-center gap-3">
-          <span className="text-xs font-bold text-[var(--nm-text)] uppercase tracking-wider" style={{fontFamily:"'DM Mono',monospace"}}>Language:</span>
+          <span className="text-xs font-bold text-[var(--nm-text)] uppercase tracking-wider" style={{fontFamily:"'Outfit', sans-serif"}}>Language:</span>
           <select
             value={selectedLanguage}
             onChange={(e) => setSelectedLanguage(e.target.value)}
             className="nm-input rounded-xl px-4 py-2 text-sm focus:outline-none font-bold text-[var(--nm-text)] animate-fade-in"
-            style={{fontFamily:"'Figtree',sans-serif"}}
+            style={{fontFamily:"'Outfit', sans-serif"}}
             id="language-filter-select"
           >
             <option value="all">All Languages</option>
@@ -3173,7 +3173,7 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
         </div>
 
         {/* Honest accent disclaimer */}
-        <p className="text-[10px] text-muted-foreground italic ml-auto" style={{fontFamily:"'Figtree',sans-serif"}}>
+        <p className="text-[10px] text-muted-foreground italic ml-auto" style={{fontFamily:"'Outfit', sans-serif"}}>
           * Note: Nation filters suggest curated local names. Underlying models do not simulate regional accents.
         </p>
       </div>
@@ -3181,8 +3181,8 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
       {filtered.length === 0 ? (
         <div className="p-12 text-center nm-card col-span-full">
           <Mic className="w-10 h-10 text-[var(--nm-text)] mx-auto mb-4"/>
-          <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>No cloned voices found</p>
-          <p className="text-sm font-bold text-[var(--nm-text)] mt-2 mb-4" style={{fontFamily:"'Figtree',sans-serif"}}>Cloned custom voices feature is coming soon.</p>
+          <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>No cloned voices found</p>
+          <p className="text-sm font-bold text-[var(--nm-text)] mt-2 mb-4" style={{fontFamily:"'Outfit', sans-serif"}}>Cloned custom voices feature is coming soon.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -3195,13 +3195,13 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
                     <div className="flex items-center gap-4">
                       <VoiceAvatar voiceId={v.id} gender={v.gender} />
                       <div>
-                        <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>
+                        <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>
                           {(() => {
                             const curatedName = getCuratedDisplayName(v.id, selectedNation, selectedLanguage);
                             return curatedName ? `${curatedName} (${v.id})` : v.name;
                           })()}
                         </p>
-                        <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{v.accent}</p>
+                        <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{v.accent}</p>
                       </div>
                     </div>
                   </div>
@@ -3221,22 +3221,22 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
                 </div>
 
                 <div className="space-y-3 mt-4 pt-4 border-t border-transparent">
-                  <div className="flex items-center justify-between text-xs font-bold text-[var(--nm-text)] uppercase tracking-wider" style={{fontFamily:"'DM Mono',monospace"}}>
+                  <div className="flex items-center justify-between text-xs font-bold text-[var(--nm-text)] uppercase tracking-wider" style={{fontFamily:"'Outfit', sans-serif"}}>
                     <span>Assigned Agents</span>
                     <span>{assignedAgents.length}</span>
                   </div>
                   {assignedAgents.length > 0 ? (
                     <div className="flex flex-wrap gap-2 max-h-20 overflow-y-auto">
                       {assignedAgents.map(a => (
-                        <span key={a.id} className="text-xs nm-pressed text-[var(--nm-text)] font-bold rounded-lg px-3 py-1.5" style={{fontFamily:"'Figtree',sans-serif"}}>{a.name}</span>
+                        <span key={a.id} className="text-xs nm-pressed text-[var(--nm-text)] font-bold rounded-lg px-3 py-1.5" style={{fontFamily:"'Outfit', sans-serif"}}>{a.name}</span>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-[var(--nm-text)] italic font-bold" style={{fontFamily:"'Figtree',sans-serif"}}>No agents assigned</p>
+                    <p className="text-xs text-[var(--nm-text)] italic font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>No agents assigned</p>
                   )}
                   {setApiAgents && apiAgents.length > 0 && (
                     <div className="flex items-center gap-3 pt-2">
-                      <span className="text-xs font-bold text-[var(--nm-text)] uppercase tracking-wider flex-shrink-0" style={{fontFamily:"'DM Mono',monospace"}}>Assign:</span>
+                      <span className="text-xs font-bold text-[var(--nm-text)] uppercase tracking-wider flex-shrink-0" style={{fontFamily:"'Outfit', sans-serif"}}>Assign:</span>
                       <select
                         className="nm-input text-sm rounded-xl px-4 py-2 focus:outline-none w-full font-bold text-[var(--nm-text)]"
                         value=""
@@ -3283,7 +3283,7 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
                             alert("Failed to assign voice: " + (err instanceof Error ? err.message : String(err)));
                           }
                         }}
-                        style={{fontFamily:"'Figtree',sans-serif"}}
+                        style={{fontFamily:"'Outfit', sans-serif"}}
                       >
                         <option value="">-- Choose Agent --</option>
                         {apiAgents.map(a => (
@@ -3363,7 +3363,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
   return (
     <div className="space-y-4 max-w-2xl">
       <div className="flex gap-2">
-        {(["workspace","api","webhooks","billing","team"] as const).map(t=><button key={t} onClick={()=>setStab(t)} className={`px-5 py-2.5 text-sm font-bold capitalize transition-all ${stab===t?"nm-pressed text-[var(--nm-accent)] rounded-xl":"hover:nm-pressed text-[var(--nm-text)] rounded-xl"}`} style={{fontFamily:"'Figtree',sans-serif"}}>{t}</button>)}
+        {(["workspace","api","webhooks","billing","team"] as const).map(t=><button key={t} onClick={()=>setStab(t)} className={`px-5 py-2.5 text-sm font-bold capitalize transition-all ${stab===t?"nm-pressed text-[var(--nm-accent)] rounded-xl":"hover:nm-pressed text-[var(--nm-text)] rounded-xl"}`} style={{fontFamily:"'Outfit', sans-serif"}}>{t}</button>)}
       </div>
       {stab==="workspace"&&(
         <div className="nm-card p-6 space-y-5">
@@ -3377,19 +3377,19 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
             </DSelect>
           </DField>
           {[{l:"Call recording",d:"Record all calls for compliance"},{l:"Real-time transcription",d:"Stream live transcripts to the dashboard"},{l:"Sentiment analysis",d:"Analyse caller sentiment on every call"},{l:"Auto-summary",d:"Generate a summary after each call ends"}].map(s=>(
-            <div key={s.l} className="flex items-center justify-between"><div><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{s.l}</p><p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{s.d}</p></div><DToggle on={true} set={()=>{}}/></div>
+            <div key={s.l} className="flex items-center justify-between"><div><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{s.l}</p><p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{s.d}</p></div><DToggle on={true} set={()=>{}}/></div>
           ))}
           <DBtn><Check className="w-4 h-4"/> Save settings</DBtn>
           {(profile as any)?.isAdmin && (
             <div className="mt-6 pt-6 border-t border-transparent">
-              <p className="text-xs font-bold uppercase tracking-wider text-[var(--nm-text)] mb-4" style={{fontFamily:"'DM Mono',monospace"}}>Admin — Credits Consumed</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-[var(--nm-text)] mb-4" style={{fontFamily:"'Outfit', sans-serif"}}>Admin — Credits Consumed</p>
               <div className="nm-pressed rounded-2xl p-6 flex items-center gap-5">
                 <div className="w-12 h-12 rounded-full nm-raised flex items-center justify-center flex-shrink-0">
                   <span className="text-xl">📊</span>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{((profile as any)?.totalMinutesConsumed ?? 0).toFixed(2)} <span className="text-base font-bold text-[var(--nm-text)]">min</span></p>
-                  <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Total platform minutes consumed across all sandbox sessions</p>
+                  <p className="text-2xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{((profile as any)?.totalMinutesConsumed ?? 0).toFixed(2)} <span className="text-base font-bold text-[var(--nm-text)]">min</span></p>
+                  <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Total platform minutes consumed across all sandbox sessions</p>
                 </div>
               </div>
             </div>
@@ -3400,15 +3400,15 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
         <div className="space-y-6">
             <ApiKeyManagement />
           <div className="nm-card p-6 space-y-4">
-            <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Quick start</p>
-            <div className="nm-pressed rounded-2xl p-5 overflow-x-auto text-[var(--nm-text)]"><pre className="text-sm font-bold" style={{fontFamily:"'DM Mono',monospace"}}>{`curl -X POST https://api.claritiyvoice.com/v1/calls \\\n  -H "Authorization: Bearer cv_prod_sk_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{"agent_id":"a2","to":"+13125550198","from":"+18005550842"}'`}</pre></div>
+            <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Quick start</p>
+            <div className="nm-pressed rounded-2xl p-5 overflow-x-auto text-[var(--nm-text)]"><pre className="text-sm font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{`curl -X POST https://api.claritiyvoice.com/v1/calls \\\n  -H "Authorization: Bearer cv_prod_sk_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{"agent_id":"a2","to":"+13125550198","from":"+18005550842"}'`}</pre></div>
           </div>
         </div>
       )}
       {stab==="webhooks"&&(
         <div className="nm-card p-6 space-y-5">
           <DField label="Webhook URL" hint="We POST events to this URL in real time."><DInput value={webhook} onChange={e=>setWebhook(e.target.value)}/></DField>
-          <DField label="Events"><div className="space-y-3 mt-2">{["call.started","call.ended","call.transferred","call.recording_ready","campaign.completed","agent.error"].map(ev=><label key={ev} className="flex items-center gap-3 cursor-pointer"><input type="checkbox" defaultChecked className="accent-[var(--nm-accent)] w-4 h-4"/><span className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{ev}</span></label>)}</div></DField>
+          <DField label="Events"><div className="space-y-3 mt-2">{["call.started","call.ended","call.transferred","call.recording_ready","campaign.completed","agent.error"].map(ev=><label key={ev} className="flex items-center gap-3 cursor-pointer"><input type="checkbox" defaultChecked className="accent-[var(--nm-accent)] w-4 h-4"/><span className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{ev}</span></label>)}</div></DField>
           <DField label="Signing secret" hint="Verify payloads with HMAC-SHA256."><div className="flex gap-3"><DInput type="password" defaultValue="whsec_2xNpQrTvWxYzAbCdEfGh"/><button className="p-3 nm-raised rounded-xl hover:nm-pressed text-[var(--nm-text)] transition-all"><Copy className="w-5 h-5"/></button></div></DField>
           <DBtn><Check className="w-4 h-4"/> Save &amp; test webhook</DBtn>
         </div>
@@ -3419,10 +3419,10 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
       {stab==="team"&&(
         <div className="space-y-4">
           <div className="nm-raised rounded-2xl overflow-hidden">
-            <table className="w-full"><thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Member","Role","Joined",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'DM Mono',monospace"}}>{h.toUpperCase()}</th>)}</tr></thead>
+            <table className="w-full"><thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Member","Role","Joined",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>)}</tr></thead>
             <tbody className="divide-y divide-transparent">
               {team.map(m=>(
-                <tr key={m.memberId} className="hover:nm-pressed transition-all"><td className="px-5 py-4"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{m.member?.fullName || 'No Name'}</p><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{m.member?.email}</p></td><td className="px-5 py-4"><DBadge>{m.role}</DBadge></td><td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>{new Date(m.createdAt).toLocaleDateString()}</td><td className="px-5 py-4"><DBtn size="sm" variant="ghost" onClick={() => handleRemove(m.memberId)}><Trash2 className="w-4 h-4 text-red-500"/></DBtn></td></tr>
+                <tr key={m.memberId} className="hover:nm-pressed transition-all"><td className="px-5 py-4"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{m.member?.fullName || 'No Name'}</p><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{m.member?.email}</p></td><td className="px-5 py-4"><DBadge>{m.role}</DBadge></td><td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{new Date(m.createdAt).toLocaleDateString()}</td><td className="px-5 py-4"><DBtn size="sm" variant="ghost" onClick={() => handleRemove(m.memberId)}><Trash2 className="w-4 h-4 text-red-500"/></DBtn></td></tr>
               ))}
               {team.length === 0 && <tr><td colSpan={4} className="text-center p-4 text-sm">No team members yet.</td></tr>}
             </tbody></table>
@@ -3489,7 +3489,7 @@ Key Instructions:
         <h2 className="text-2xl font-bold text-[var(--nm-text)] mb-2" style={{fontFamily:"'Clash Display',sans-serif"}}>
           Create Your AI Companion
         </h2>
-        <p className="text-sm text-muted-foreground mb-8" style={{fontFamily:"'Figtree',sans-serif"}}>
+        <p className="text-sm text-muted-foreground mb-8" style={{fontFamily:"'Outfit', sans-serif"}}>
           Design an AI avatar with intellect, emotions, and strong memory to talk to. Each companion uses your 10-minute calling limit.
         </p>
 
@@ -3504,7 +3504,7 @@ Key Instructions:
               <h3 className="text-xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Clash Display',sans-serif"}}>
                 Companion Created Successfully!
               </h3>
-              <p className="text-sm text-muted-foreground" style={{fontFamily:"'Figtree',sans-serif"}}>
+              <p className="text-sm text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>
                 You can now find {name} in your Agents list, or you can talk to them right now!
               </p>
               <div className="pt-4 flex items-center justify-center gap-4">
@@ -3578,17 +3578,17 @@ function DashboardPage({ session }: { session: Session }) {
     <div className="flex h-screen nm-dashboard-container overflow-hidden">
       <div className={`${sidebarOpen?"w-52":"w-16"} flex-shrink-0 nm-raised flex flex-col transition-all duration-300 z-20`}>
         <div className="h-16 flex items-center px-4 justify-between">
-          {sidebarOpen&&<span className="text-xs font-bold tracking-widest text-[var(--nm-text)] ml-1" style={{fontFamily:"'DM Mono',monospace"}}>DASHBOARD</span>}
+          {sidebarOpen&&<span className="text-xs font-bold tracking-widest text-[var(--nm-text)] ml-1" style={{fontFamily:"'Outfit', sans-serif"}}>DASHBOARD</span>}
           <button onClick={()=>setSidebarOpen(!sidebarOpen)} className="nm-icon-btn ml-auto"><Menu className="w-4 h-4"/></button>
         </div>
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
           {navGroups.map(group=>(
             <div key={group.label}>
-              {sidebarOpen&&<p className="text-xs font-medium text-muted-foreground px-2 mb-1" style={{fontFamily:"'DM Mono',monospace"}}>{group.label.toUpperCase()}</p>}
+              {sidebarOpen&&<p className="text-xs font-medium text-muted-foreground px-2 mb-1" style={{fontFamily:"'Outfit', sans-serif"}}>{group.label.toUpperCase()}</p>}
               <div className="space-y-0.5">
                 {group.items.map(item=>{
                   const Icon=item.icon; const active=section===item.id;
-                  return <button key={item.id} onClick={()=>setSection(item.id as DashSection)} title={!sidebarOpen?item.label:undefined} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all mb-2 ${active?"nm-pressed text-[var(--nm-accent)]":"hover:nm-raised text-[var(--nm-text)]"}`} style={{fontFamily:"'Figtree',sans-serif"}}><Icon className="w-4 h-4 flex-shrink-0" strokeWidth={active?2.5:2}/>{sidebarOpen&&<span className="truncate">{item.label}</span>}</button>;
+                  return <button key={item.id} onClick={()=>setSection(item.id as DashSection)} title={!sidebarOpen?item.label:undefined} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all mb-2 ${active?"nm-pressed text-[var(--nm-accent)]":"hover:nm-raised text-[var(--nm-text)]"}`} style={{fontFamily:"'Outfit', sans-serif"}}><Icon className="w-4 h-4 flex-shrink-0" strokeWidth={active?2.5:2}/>{sidebarOpen&&<span className="truncate">{item.label}</span>}</button>;
                 })}
               </div>
             </div>
@@ -3598,12 +3598,12 @@ function DashboardPage({ session }: { session: Session }) {
           <div className="p-4 mt-auto flex flex-col gap-3">
             <div className="flex items-center gap-3 nm-raised p-2 rounded-xl">
               <div className="w-8 h-8 nm-pressed rounded-full flex items-center justify-center flex-shrink-0"><span className="text-sm text-[var(--nm-accent)] font-bold">{(profile?.fullName ?? profile?.email ?? 'U').charAt(0).toUpperCase()}</span></div>
-              <div className="min-w-0 flex-1"><p className="text-xs font-bold truncate" style={{fontFamily:"'Figtree',sans-serif"}}>{profile?.fullName ?? profile?.email ?? 'User'}</p><p className="text-xs font-medium text-[var(--nm-accent)]" style={{fontFamily:"'Figtree',sans-serif"}}>{profile?.billingBalance != null ? `$${profile.billingBalance}` : 'Growth'}</p></div>
+              <div className="min-w-0 flex-1"><p className="text-xs font-bold truncate" style={{fontFamily:"'Outfit', sans-serif"}}>{profile?.fullName ?? profile?.email ?? 'User'}</p><p className="text-xs font-medium text-[var(--nm-accent)]" style={{fontFamily:"'Outfit', sans-serif"}}>{profile?.billingBalance != null ? `$${profile.billingBalance}` : 'Growth'}</p></div>
             </div>
             <button 
               onClick={() => supabase.auth.signOut()} 
               className="text-center text-[11px] font-bold py-2 nm-button w-full nm-state-error"
-              style={{fontFamily:"'Figtree',sans-serif"}}
+              style={{fontFamily:"'Outfit', sans-serif"}}
             >
               Sign Out
             </button>
@@ -3612,9 +3612,9 @@ function DashboardPage({ session }: { session: Session }) {
       </div>
       <div className="flex-1 flex flex-col overflow-hidden relative z-0">
         <div className="nm-raised px-8 h-16 flex items-center justify-between flex-shrink-0 m-4 rounded-2xl">
-          <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>{titles[section]}</p>
+          <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{titles[section]}</p>
           <div className="flex items-center gap-4">
-            <div className="relative hidden md:flex items-center"><Search className="w-4 h-4 absolute left-3 text-[var(--nm-text)]"/><input className="nm-input pl-10 pr-4 py-2 text-sm w-64" placeholder="Search..." style={{fontFamily:"'Figtree',sans-serif"}}/></div>
+            <div className="relative hidden md:flex items-center"><Search className="w-4 h-4 absolute left-3 text-[var(--nm-text)]"/><input className="nm-input pl-10 pr-4 py-2 text-sm w-64" placeholder="Search..." style={{fontFamily:"'Outfit', sans-serif"}}/></div>
             <button className="relative nm-icon-btn"><Bell className="w-4 h-4"/><span className="absolute top-1 right-1 w-2.5 h-2.5 bg-[var(--nm-error)] rounded-full"/></button>
           </div>
         </div>

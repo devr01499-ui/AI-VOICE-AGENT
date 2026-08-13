@@ -55,8 +55,8 @@ export function DashCalendar() {
     <div className="space-y-6 max-w-7xl mx-auto w-full h-full pb-10">
       <div className="flex justify-between items-center mb-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-[var(--nm-text)]" style={{fontFamily:"'Figtree',sans-serif"}}>Calendar & Scheduling</h2>
-          <p className="text-sm text-gray-500 mt-1" style={{fontFamily:"'Figtree',sans-serif"}}>Monitor automated outreach and AI-booked follow-ups.</p>
+          <h2 className="text-2xl font-bold tracking-tight text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Calendar & Scheduling</h2>
+          <p className="text-sm text-gray-500 mt-1" style={{fontFamily:"'Outfit', sans-serif"}}>Monitor automated outreach and AI-booked follow-ups.</p>
         </div>
       </div>
 
@@ -106,7 +106,7 @@ export function DashCalendar() {
         
         {/* Main Schedule List */}
         <div className="lg:col-span-2 space-y-4">
-          <h3 className="text-lg font-bold text-[var(--nm-text)] mb-4 flex items-center gap-2" style={{fontFamily:"'Figtree',sans-serif"}}>
+          <h3 className="text-lg font-bold text-[var(--nm-text)] mb-4 flex items-center gap-2" style={{fontFamily:"'Outfit', sans-serif"}}>
             <Clock className="w-5 h-5 text-indigo-400" /> Upcoming Calls
           </h3>
           
@@ -135,7 +135,7 @@ export function DashCalendar() {
                             <MapPin className="w-3 h-3"/> {booking.timezone}
                           </span>
                         </div>
-                        <h4 className="text-lg font-bold text-[var(--nm-text)] mt-2" style={{fontFamily:"'Figtree',sans-serif"}}>
+                        <h4 className="text-lg font-bold text-[var(--nm-text)] mt-2" style={{fontFamily:"'Outfit', sans-serif"}}>
                           {booking.phoneNumber}
                         </h4>
                         
@@ -148,7 +148,7 @@ export function DashCalendar() {
                       </div>
                       
                       <div className="text-right flex flex-col items-end justify-center nm-pressed px-4 py-2 rounded-xl border border-white/5">
-                        <span className="text-xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'DM Mono',monospace"}}>
+                        <span className="text-xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>
                           {d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                         <span className="text-xs text-gray-500 font-medium">
@@ -165,7 +165,7 @@ export function DashCalendar() {
 
         {/* Sidebar: Batch Campaigns */}
         <div className="space-y-4">
-          <h3 className="text-lg font-bold text-[var(--nm-text)] mb-4 flex items-center gap-2" style={{fontFamily:"'Figtree',sans-serif"}}>
+          <h3 className="text-lg font-bold text-[var(--nm-text)] mb-4 flex items-center gap-2" style={{fontFamily:"'Outfit', sans-serif"}}>
             <Bot className="w-5 h-5 text-amber-400" /> Active Campaigns
           </h3>
           
