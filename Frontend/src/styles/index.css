@@ -2,3 +2,28 @@
 @import './tailwind.css';
 @import './theme.css';
 @import './neumorphism.css';
+
+/* Custom premium scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface-white);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ink-muted);
+  border-radius: 5px;
+  border: 2px solid var(--surface-white);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
