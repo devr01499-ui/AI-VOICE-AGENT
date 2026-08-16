@@ -235,7 +235,7 @@ export default function VoiceAIIndex({ setPage, initialTopicId }: VoiceAIIndexPr
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-8 relative z-10 scrollbar-hide">
+            <div className="flex-1 overflow-y-auto p-8 relative z-10 scrollbar-thin scrollbar-thumb-emerald-600/30 scrollbar-track-transparent hover:scrollbar-thumb-emerald-600/50">
               <div className="space-y-10">
                 {CATEGORIES.map((cat, cIdx) => {
                   const chapterNum = cIdx + 1;
@@ -306,7 +306,7 @@ export default function VoiceAIIndex({ setPage, initialTopicId }: VoiceAIIndexPr
               <Bookmark className="w-4 h-4 text-[#059669] opacity-50" />
             </div>
 
-            <div id="reading-pane" className="flex-1 overflow-y-auto px-10 pb-10 relative z-10 scrollbar-hide">
+            <div id="reading-pane" className="flex-1 overflow-y-auto px-10 pb-10 relative z-10 scrollbar-thin scrollbar-thumb-emerald-600/30 scrollbar-track-transparent hover:scrollbar-thumb-emerald-600/50">
               <AnimatePresence mode="wait">
                 <motion.article
                   key={activeTopic.topNum + "-" + activeTopic.chapNum}
