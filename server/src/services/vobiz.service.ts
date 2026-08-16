@@ -1,4 +1,3 @@
-import fetch from 'node-fetch';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 
