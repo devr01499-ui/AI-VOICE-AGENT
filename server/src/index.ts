@@ -47,6 +47,7 @@ import apikeysRoutes from './routes/apikeys';
 import calendarRoutes from './routes/calendar';
 import kycRoutes from './routes/kyc';
 import billingRoutes from './routes/billing';
+import telephonyRoutes from './routes/telephony';
 import { requireAuthOrApiKey } from './middleware/authWrapper';
 
 // ─── Express App ─────────────────────────────────
@@ -183,6 +184,7 @@ app.post('/api/v2/telephony/webhook', WebhookController.handleTelephonyWebhook);
 app.use('/api/v2/contact', contactRoutes);
 app.use('/api/v2/kyc', kycRoutes);
 app.use('/api/v2/billing', requireAuth, billingRoutes);
+app.use('/api/v2/telephony', requireAuth, telephonyRoutes);
 
 // ─── 404 Handler ─────────────────────────────────
 
