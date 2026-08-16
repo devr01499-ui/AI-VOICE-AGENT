@@ -444,10 +444,11 @@ async function bootstrap(): Promise<void> {
     }
   });
 
-  const PORT = process.env.PORT || 3001;
+  const PORT = parseInt(process.env.PORT || '3001', 10);
+  const HOST = '0.0.0.0';
 
   // Start listening
-  server.listen(PORT, () => {
+  server.listen(PORT, HOST, () => {
     logger.info(`Claritiy Backend Server running natively on port ${PORT}`);
     logger.info(`Bolna Server: listening on port ${PORT}`, {
       health: `http://localhost:${PORT}/health`,

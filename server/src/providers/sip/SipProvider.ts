@@ -54,7 +54,7 @@ export class SipProvider implements ITelephonyProvider {
       this.srf.on('connect', (err: any, hostport: string) => {
         if (err) {
           logger.error('SipProvider: failed to connect to drachtio-server', { error: err });
-          return reject(err);
+          return resolve(); // Resolve instead of reject so server can start without SIP
         }
         logger.info(`SipProvider: successfully connected to drachtio-server at ${hostport}`);
         this.isConnected = true;
@@ -63,6 +63,10 @@ export class SipProvider implements ITelephonyProvider {
 
       this.srf.on('error', (err: any) => {
         logger.error('SipProvider: drachtio-server error', { error: err });
+        // Prevent hanging if initial connection fails
+        if (!this.isConnected) {
+           resolve(); // Resolve to let the server boot without SIP
+        }
       });
     });
   }
