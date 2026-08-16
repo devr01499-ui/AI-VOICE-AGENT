@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 
 // Interfaces for our data
 interface InventoryNumber {
@@ -22,6 +23,9 @@ interface SubAccount {
 }
 
 export default function TelephonyMarketplace() {
+  const { data: session } = useSession();
+  const userId = (session as any)?.user?.id || (session as any)?.userId || '';
+
   const [inventory, setInventory] = useState<InventoryNumber[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,8 +38,10 @@ export default function TelephonyMarketplace() {
 
   // Fetch inventory on mount
   useEffect(() => {
-    fetchInventory();
-  }, []);
+    if (userId) {
+      fetchInventory();
+    }
+  }, [userId]);
 
   const fetchInventory = async (searchQuery: string = '') => {
     setLoading(true);
@@ -45,8 +51,10 @@ export default function TelephonyMarketplace() {
       if (searchQuery) url.searchParams.append('search', searchQuery);
 
       const res = await fetch(url.toString(), {
-        // Mock authorization for client-side if needed, but the backend uses session/cookie
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': userId
+        }
       });
       
       const data = await res.json();
@@ -71,7 +79,10 @@ export default function TelephonyMarketplace() {
     try {
       const res = await fetch('/api/v2/telephony/sub-accounts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': userId
+        },
       });
       
       const data = await res.json();
@@ -97,7 +108,10 @@ export default function TelephonyMarketplace() {
     try {
       const res = await fetch('/api/v2/telephony/purchase', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': userId
+        },
         body: JSON.stringify({
           numberId,
           subAuthId: subAccount.auth_id
