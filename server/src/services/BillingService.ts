@@ -108,6 +108,35 @@ export class BillingService {
   }
 
   /**
+   * Refunds a Razorpay payment fully.
+   * Called when a post-payment Vobiz purchase failure occurs.
+   * The user must NEVER be left charged without a number.
+   */
+  async refundOrder(paymentId: string, amountInPaise: number): Promise<{ success: boolean; refundId?: string }> {
+    if (!this.razorpay) {
+      logger.warn('BillingService.refundOrder: Mock mode — refund not executed', { paymentId });
+      return { success: true, refundId: `refund_mock_${Date.now()}` };
+    }
+
+    try {
+      const refund = await this.razorpay.payments.refund(paymentId, {
+        amount: amountInPaise,
+        speed: 'optimum',
+        notes: { reason: 'VOBIZ_PURCHASE_FAILURE - number could not be provisioned' },
+      });
+      logger.info('BillingService.refundOrder: Refund issued', { paymentId, refundId: refund.id });
+      return { success: true, refundId: refund.id };
+    } catch (err) {
+      logger.error('BillingService.refundOrder: REFUND FAILED — MANUAL ACTION REQUIRED', {
+        paymentId,
+        error: String(err),
+      });
+      return { success: false };
+    }
+  }
+
+
+  /**
    * Provisions a user's account after a successful plan purchase.
    */
   async processPlanPurchase(userId: string, planName: string) {

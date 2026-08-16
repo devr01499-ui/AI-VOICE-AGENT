@@ -42,3 +42,16 @@ px prisma db push to bypass Supabase shadow DB auth schema error safely.
 - Typecheck passed successfully.
 - Fixed 3 specific lint errors (prefer-const and no-explicit-any) in VobizInventoryService and VobizPhoneNumberService. Global lint suite has existing legacy errors, but no new regressions introduced here.
 - phone_numbers/inventory was completely removed from the main codebase (only present in isolated test scripts).
+
+
+## Phone Number Provisioning & Management Build
+- Extended PhoneNumber model additively: added region, setupFee, currency, aadhaarRequired, vobizNumberId, nextBillingDate fields.
+- Ran npx prisma generate — Prisma client v7.8.0 regenerated cleanly.
+- Rewrote VobizPhoneNumberService to store all new fields and tag Vobiz purchase failures with [VOBIZ_PURCHASE_FAILURE].
+- Added BillingService.refundOrder() for automatic post-payment Vobiz failure refund path.
+- Rewrote numbers router: search (/search), purchase (/purchase with idempotency + refund path), mine (/mine), list (/), all using requireAuth. No raw Vobiz errors exposed to frontend.
+- Rewrote NumberSearchAndPurchase.tsx: country dropdown, capability badges, Aadhaar guard (disabled button + tooltip), confirmation modal, immediate button disable on click, refund-aware error banner.
+- Created /dashboard/numbers/page.tsx (My Numbers view): reads from our DB, empty state with CTA, sync button, billing dates.
+- Server typecheck: PASSED (exit code 0). No new regressions.
+- Aadhaar-required numbers: shown in results with disabled Buy button and tooltip directing user to support.
+- Payment path: one-off Razorpay charge via existing createNumberPurchaseOrder (ADR-004 compliant, no sub-accounts).

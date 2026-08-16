@@ -10,6 +10,8 @@ export interface VobizInventoryNumber {
   setup_fee: number;
   monthly_fee: number;
   currency: string;
+  capabilities?: { voice?: boolean; sms?: boolean; fax?: boolean };
+  aadhaar_verification_required?: boolean;
 }
 
 export class VobizInventoryService extends VobizIntegrationService {

@@ -205,18 +205,24 @@ model Execution {
 // ─────────────────────────────────────────────
 
 model PhoneNumber {
-  id                String   @id @default(uuid())
-  phoneNumber       String   @unique @map("phone_number") // E.164 format
-  userId            String   @map("user_id")
-  assignedAgentId   String?  @map("assigned_agent_id")
-  countryCode       String   @map("country_code")
-  type              String   @default("local") // local | toll_free
-  telephonyProvider String   @map("telephony_provider") // twilio | plivo | exotel
-  capabilities      String   @default("[\"voice\"]") // JSON array
-  status            String   @default("active") // active | inactive
-  kycStatus         String   @default("pending") @map("kyc_status") // pending | verified | failed
-  monthlyCost       Float    @default(1.0) @map("monthly_cost")
-  purchasedAt       DateTime @default(now()) @map("purchased_at")
+  id                    String    @id @default(uuid())
+  phoneNumber           String    @unique @map("phone_number") // E.164 format
+  userId                String    @map("user_id")
+  assignedAgentId       String?   @map("assigned_agent_id")
+  countryCode           String    @map("country_code")
+  region                String?   // e.g. "California" or area code
+  type                  String    @default("local") // local | toll_free
+  telephonyProvider     String    @map("telephony_provider") // vobiz | twilio | plivo | exotel
+  capabilities          String    @default("[\"voice\"]") // JSON array
+  status                String    @default("active") // active | inactive
+  kycStatus             String    @default("pending") @map("kyc_status") // pending | verified | failed
+  monthlyCost           Float     @default(1.0) @map("monthly_cost")
+  setupFee              Float     @default(0.0) @map("setup_fee")
+  currency              String    @default("USD")
+  aadhaarRequired       Boolean   @default(false) @map("aadhaar_required")
+  vobizNumberId         String?   @map("vobiz_number_id") // ID from Vobiz inventory
+  nextBillingDate       DateTime? @map("next_billing_date")
+  purchasedAt           DateTime  @default(now()) @map("purchased_at")
 
   user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   agent Agent? @relation(fields: [assignedAgentId], references: [id], onDelete: SetNull)
