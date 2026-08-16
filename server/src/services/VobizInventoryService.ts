@@ -21,7 +21,7 @@ export class VobizInventoryService extends VobizIntegrationService {
     userId: string,
     filters: { country?: string, type?: string, region?: string }
   ): Promise<VobizInventoryNumber[]> {
-    const endpoint = `/api/v1/Account/${this.authId}/phone_numbers/inventory`;
+    const endpoint = `/api/v1/Account/${this.authId}/inventory/numbers`;
 
     const queryParams = new URLSearchParams();
     if (filters.country) queryParams.append('country', filters.country);
@@ -48,7 +48,7 @@ export class VobizInventoryService extends VobizIntegrationService {
         return responseData;
     }
 
-    return responseData.items || responseData.numbers || [];
+    return responseData.numbers || [];
 
   }
 
@@ -56,16 +56,19 @@ export class VobizInventoryService extends VobizIntegrationService {
    * Fetches details of a specific number from inventory to validate price before purchase.
    */
   public async getNumberDetails(userId: string, numberId: string): Promise<VobizInventoryNumber> {
-    // There is no direct endpoint to fetch a single number from inventory in the docs.
-    // We must query the inventory and filter by ID.
-    // In a real scenario we'd query by the actual number, but assuming numberId is the e164 or id.
-    const available = await this.getAvailableNumbers(userId, {});
-    const numberDetails = available.find(n => n.id === numberId || n.e164 === numberId);
+    const endpoint = `/api/v1/Account/${this.authId}/inventory/numbers/${numberId}`;
+
+    const response = await this.request<VobizInventoryNumber>(
+      'GET', 
+      endpoint, 
+      undefined, 
+      { userId }
+    );
     
-    if (!numberDetails) {
-      throw new ProviderError('vobiz', `Number details not found for ID: ${numberId}`);
+    if (!response?.success || !response?.data) {
+      throw new ProviderError('vobiz', `Failed to fetch number details: ${response?.error || 'Unknown Error'}`);
     }
 
-    return numberDetails;
+    return response.data;
   }
 }

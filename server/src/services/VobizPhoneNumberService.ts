@@ -67,11 +67,11 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
       });
 
       // 3. Purchase into Master Account
-      const purchaseEndpoint = `/api/v1/Account/${this.authId}/phone_numbers/purchase-from-inventory`;
+      const purchaseEndpoint = `/api/v1/Account/${this.authId}/numbers/purchase-from-inventory`;
       const purchaseRes = await this.request(
         'POST', 
         purchaseEndpoint, 
-        { e164: numberDetails.e164, currency: numberDetails.currency || 'USD' },
+        { number_id: params.vobizNumberId },
         { userId: params.userId }
       );
 
