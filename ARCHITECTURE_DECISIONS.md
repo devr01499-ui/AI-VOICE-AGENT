@@ -21,3 +21,9 @@
 - **Rejected Alternative**: Downgrading to Prisma v6. Reason: Reverting Prisma versions would break dependencies and cause version conflicts with package-lock.json and other workspace configurations.
 - **Consequences**: Adds `better-sqlite3` and its types to dependencies, but enables Prisma 7 compatibility in SQLite local environments.
 
+## ADR-004: Vobiz Phone Number Integration Strategy
+- **Status**: Accepted
+- **Context**: The application requires provisioning and assigning phone numbers. We initially explored the Vobiz Partner Program and Sub-Accounts to isolate billing per customer.
+- **Decision**: Use the standard Vobiz Phone Numbers API under the master account to search and purchase numbers. Do not use the Partner API for Sub-Account provisioning.
+- **Rejected Alternative**: Vobiz Partner Program & automated Sub-Account provisioning. Reason: Adds unnecessary complexity and is not currently required for the MVP.
+- **Consequences**: Simplifies the integration significantly. If per-customer KYC and isolated billing become legally required (e.g., for Indian numbers), we will migrate to standard Vobiz Sub-Accounts in the future.
