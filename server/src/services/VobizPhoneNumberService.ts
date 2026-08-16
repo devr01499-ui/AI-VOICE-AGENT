@@ -2,7 +2,7 @@ import { VobizIntegrationService } from './VobizIntegrationService';
 import { VobizInventoryService } from './VobizInventoryService';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
-import { ProviderError, AppError } from '../types/errors';
+import { ProviderError } from '../types/errors';
 
 export class VobizPhoneNumberService extends VobizIntegrationService {
   
@@ -71,7 +71,7 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
       const purchaseRes = await this.request(
         'POST', 
         purchaseEndpoint, 
-        { number_id: params.vobizNumberId },
+        { e164: numberDetails.e164, currency: numberDetails.currency },
         { userId: params.userId }
       );
 
@@ -102,7 +102,8 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
 
       return { order: successOrder, phoneNumber: newPhone };
 
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as Error;
       await prisma.phoneNumberOrder.update({
         where: { id: order.id },
         data: { 

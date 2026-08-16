@@ -4,7 +4,7 @@ async function testInventory() {
     const service = new VobizInventoryService();
     console.log("Fetching available numbers...");
     try {
-        const numbers = await service.getAvailableNumbers('test-user-id', { country: 'US' });
+        const numbers = await service.getAvailableNumbers('test-user-id', {});
         console.log("Success! Received numbers:");
         console.log(JSON.stringify(numbers, null, 2));
 
@@ -14,7 +14,7 @@ async function testInventory() {
             console.log("Number details:");
             console.log(JSON.stringify(details, null, 2));
         } else {
-            console.log("No numbers found in inventory for US.");
+            console.log("No numbers found in inventory.");
         }
     } catch (e: any) {
         console.error("Test Failed:");

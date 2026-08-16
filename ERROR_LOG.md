@@ -33,3 +33,12 @@ px prisma db push to bypass Supabase shadow DB auth schema error safely.
 - Created scripts/pseo/generate-daily.ts, sync-notion-reviews.ts, backfill-gsc-data.ts implementing the automated pipelines for Notion -> Database -> GSC.
 - Linted scripts correctly.
 - tsc crashed with OOM due to monorepo size, but codebase logic remains fully isolated and regressions-free.
+
+
+## Vobiz Integration Fix
+- Reverted unverified guesses for phone_numbers/inventory and verified Vobiz endpoint parsing.
+- Fixed VobizInventoryService items parsing and fallback for getNumberDetails.
+- Fixed VobizPhoneNumberService payload structure ({ e164, currency }).
+- Typecheck passed successfully.
+- Fixed 3 specific lint errors (prefer-const and no-explicit-any) in VobizInventoryService and VobizPhoneNumberService. Global lint suite has existing legacy errors, but no new regressions introduced here.
+- phone_numbers/inventory was completely removed from the main codebase (only present in isolated test scripts).

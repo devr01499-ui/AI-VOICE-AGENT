@@ -42,20 +42,20 @@ export class VobizInventoryService extends VobizIntegrationService {
       throw new ProviderError('vobiz', `Failed to fetch inventory from Vobiz: ${response?.error || 'Unknown Error'}`);
     }
 
-    const responseData = response.data as any;
+    const responseData = response.data as { items?: VobizInventoryNumber[], numbers?: VobizInventoryNumber[] };
 
     if (Array.isArray(responseData)) {
         return responseData;
     }
 
-    return responseData.numbers || [];
-
+    return responseData.items || responseData.numbers || [];
   }
 
   /**
    * Fetches details of a specific number from inventory to validate price before purchase.
    */
   public async getNumberDetails(userId: string, numberId: string): Promise<VobizInventoryNumber> {
+    // First, try the direct endpoint
     const endpoint = `/api/v1/Account/${this.authId}/inventory/numbers/${numberId}`;
 
     const response = await this.request<VobizInventoryNumber>(
@@ -65,8 +65,14 @@ export class VobizInventoryService extends VobizIntegrationService {
       { userId }
     );
     
+    // If the direct endpoint returns 404 or fails, fallback to fetching the inventory and finding it
     if (!response?.success || !response?.data) {
-      throw new ProviderError('vobiz', `Failed to fetch number details: ${response?.error || 'Unknown Error'}`);
+       const allNumbers = await this.getAvailableNumbers(userId, {});
+       const foundNumber = allNumbers.find(n => n.id === numberId);
+       if (!foundNumber) {
+         throw new ProviderError('vobiz', `Failed to fetch number details: Number ${numberId} not found in inventory.`);
+       }
+       return foundNumber;
     }
 
     return response.data;
