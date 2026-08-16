@@ -4200,6 +4200,8 @@ function ComparePage({ setPage }: { setPage: (p: Page) => void }) {
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
+  const [session, setSession] = useState<Session | null>(null);
+  
   const [page, setPage] = useState<Page>(() => {
     if (typeof window !== "undefined") {
       const path = window.location.pathname;
@@ -4224,18 +4226,28 @@ export default function App() {
         "/blog/healthcare-ai-calling": "blog-healthcare",
         "/blog/fintech-collections-ai": "blog-fintech",
       };
-      // Fallback for dynamic compare or blog routes if exact match fails
+      
       if (pathMap[path]) return pathMap[path];
       if (path.startsWith("/blog/how-to-reduce-cod-rto")) return "blog-rto";
       if (path.startsWith("/compare")) return "compare";
+      if (path.startsWith("/voice-ai-index")) return "voice-ai-index";
     }
     return "home";
   });
-  const [session, setSession] = useState<Session | null>(null);
+  
+  const [currentTopicId, setCurrentTopicId] = useState<string | null>(() => {
+    const path = window.location.pathname;
+    if (path.startsWith("/voice-ai-index/")) {
+      return path.replace("/voice-ai-index/", "");
+    }
+    return null;
+  });
 
-  // Synchronize state from popstate events
+  const [agentId, setAgentId] = useState<string | null>(null);
+
+  // Sync state with browser back/forward buttons
   useEffect(() => {
-    const handleUrlChange = () => {
+    const handlePopState = () => {
       const path = window.location.pathname;
       const pathMap: Record<string, Page> = {
         "/": "home",
@@ -4265,13 +4277,20 @@ export default function App() {
         setPage("blog-rto");
       } else if (path.startsWith("/compare")) {
         setPage("compare");
+      } else if (path.startsWith("/voice-ai-index")) {
+        setPage("voice-ai-index");
+        if (path.startsWith("/voice-ai-index/")) {
+          setCurrentTopicId(path.replace("/voice-ai-index/", ""));
+        } else {
+          setCurrentTopicId(null);
+        }
       } else {
         setPage("home");
       }
     };
 
-    window.addEventListener("popstate", handleUrlChange);
-    return () => window.removeEventListener("popstate", handleUrlChange);
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
   const handleNavigate = (p: Page) => {
@@ -4608,7 +4627,7 @@ export default function App() {
             {page === "faq" && <FAQ setPage={handleNavigate} />}
             {page === "contact" && <ContactUs />}
             {page === "dashboard" && <AuthGateway />}
-            {page === "voice-ai-index" && <VoiceAIIndex setPage={handleNavigate} />}
+            {page === "voice-ai-index" && <VoiceAIIndex setPage={setPage} initialTopicId={currentTopicId} />}
           </Suspense>
         </motion.div>
       </AnimatePresence>
