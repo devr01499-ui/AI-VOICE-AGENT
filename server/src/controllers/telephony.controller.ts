@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import { VobizService } from '../services/vobiz.service';
-import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
+import { prisma } from '../lib/prisma';
+import { EncryptionService } from '../utils/EncryptionService';
 
 export class TelephonyController {
   /**
@@ -50,21 +51,87 @@ export class TelephonyController {
       });
     } catch (error: any) {
       logger.error('TelephonyController.getInventory failed', { error: error.message });
-      return res.status(500).json({ success: false, error: 'Failed to fetch inventory' });
+      return res.status(500).json({ success: false, error: error.message || 'Failed to fetch inventory' });
+    }
+  }
+
+  /**
+   * GET /api/telephony/sub-accounts
+   * Retrieves an existing Sub-Account for the authenticated user from the DB.
+   */
+  public static async getSubAccount(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.id || 'anonymous';
+      if (userId === 'anonymous') {
+         return res.status(401).json({ success: false, error: 'Unauthorized' });
+      }
+
+      const existing = await prisma.vobizSubAccount.findUnique({
+        where: { userId },
+      });
+
+      if (!existing) {
+        return res.status(404).json({ success: false, error: 'Not found' });
+      }
+
+      return res.status(200).json({
+        success: true,
+        subAccount: {
+          api_id: existing.id,
+          auth_id: existing.authId,
+          auth_token: existing.authToken,
+          message: 'Retrieved existing sub-account'
+        },
+      });
+    } catch (error: any) {
+      logger.error('TelephonyController.getSubAccount failed', { error: error.message });
+      return res.status(500).json({ success: false, error: error.message || 'Failed to fetch sub-account' });
     }
   }
 
   /**
    * POST /api/telephony/sub-accounts
-   * Provisions a Sub-Account for the authenticated user.
+   * Provisions a Sub-Account for the authenticated user and saves it to the DB.
    */
   public static async provisionSubAccount(req: Request, res: Response) {
     try {
       const userId = (req as any).user?.id || 'anonymous';
+      
+      // Safety check: if they already have one, just return it
+      if (userId !== 'anonymous') {
+        const existing = await prisma.vobizSubAccount.findUnique({
+          where: { userId },
+        });
+        if (existing) {
+          return res.status(200).json({
+            success: true,
+            subAccount: {
+              api_id: existing.id,
+              auth_id: existing.authId,
+              auth_token: existing.authToken,
+              message: 'Retrieved existing sub-account'
+            },
+          });
+        }
+      }
+
       const orgName = (req as any).user?.fullName || 'User';
       const orgIdPrefix = userId.substring(0, 8);
 
       const vobizResponse = await VobizService.provisionSubAccount(orgIdPrefix, orgName);
+
+      // Persist the sub-account so they don't lose it on refresh
+      if (userId !== 'anonymous' && vobizResponse.auth_id && vobizResponse.auth_token) {
+        const encryptedToken = EncryptionService.encrypt(vobizResponse.auth_token);
+        await prisma.vobizSubAccount.create({
+          data: {
+            userId,
+            authId: vobizResponse.auth_id,
+            authToken: encryptedToken,
+            kycMode: 'personal_use',
+          },
+        });
+      }
 
       return res.status(200).json({
         success: true,
@@ -72,7 +139,7 @@ export class TelephonyController {
       });
     } catch (error: any) {
       logger.error('TelephonyController.provisionSubAccount failed', { error: error.message });
-      return res.status(500).json({ success: false, error: 'Failed to provision sub-account' });
+      return res.status(500).json({ success: false, error: error.message || 'Failed to provision sub-account' });
     }
   }
 
@@ -106,7 +173,7 @@ export class TelephonyController {
       });
     } catch (error: any) {
       logger.error('TelephonyController.purchaseAndAssign failed', { error: error.message });
-      return res.status(500).json({ success: false, error: 'Failed to purchase and assign DID' });
+      return res.status(500).json({ success: false, error: error.message || 'Failed to purchase and assign DID' });
     }
   }
 }

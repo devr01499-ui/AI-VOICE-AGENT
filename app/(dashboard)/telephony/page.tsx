@@ -40,8 +40,27 @@ export default function TelephonyMarketplace() {
   useEffect(() => {
     if (userId) {
       fetchInventory();
+      fetchSubAccount();
     }
   }, [userId]);
+
+  const fetchSubAccount = async () => {
+    try {
+      const url = new URL('/api/v2/telephony/sub-accounts', window.location.origin);
+      const res = await fetch(url.toString(), {
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': userId
+        }
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.subAccount) {
+        setSubAccount(data.subAccount);
+      }
+    } catch (err) {
+      // It's okay if they don't have one yet
+    }
+  };
 
   const fetchInventory = async (searchQuery: string = '') => {
     setLoading(true);
