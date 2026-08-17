@@ -15,9 +15,12 @@ export class VobizIntegrationService {
   protected authToken: string;
 
   constructor() {
-    this.baseUrl = env.VOBIZ_API_URL || 'https://api.vobiz.ai';
-    this.authId = env.VOBIZ_AUTH_ID;
-    this.authToken = env.VOBIZ_AUTH_TOKEN;
+    let url = (env.VOBIZ_API_URL || 'https://api.vobiz.ai').trim();
+    if (!url) url = 'https://api.vobiz.ai';
+    this.baseUrl = url.replace(/\/+$/, '');
+
+    this.authId = (env.VOBIZ_AUTH_ID || '').trim();
+    this.authToken = (env.VOBIZ_AUTH_TOKEN || '').trim();
 
     if (!this.authId || !this.authToken) {
       logger.warn('VobizIntegrationService: VOBIZ_AUTH_ID or VOBIZ_AUTH_TOKEN is missing. Vobiz API calls will fail.');

@@ -101,18 +101,25 @@ router.get('/search', requireAuth, async (req, res, next) => {
       },
     });
   } catch (err) {
-    // Log the REAL, specific error — never use a generic catch here without this
+    // Log the REAL, specific error
     const errorDetail = err instanceof Error ? err.message : String(err);
     logger.error('[NUMBERS_SEARCH_ERROR] Failed to fetch inventory from Vobiz', {
       error: errorDetail,
       stack: err instanceof Error ? err.stack : undefined,
     });
-    // Return a user-safe message — but log the real one above for Render log visibility
+
+    // Sanitize error string to prevent raw secret leaks while still surfacing real failure reason
+    let sanitizedError = errorDetail;
+    if (env.VOBIZ_AUTH_TOKEN && sanitizedError.includes(env.VOBIZ_AUTH_TOKEN)) {
+      sanitizedError = sanitizedError.replaceAll(env.VOBIZ_AUTH_TOKEN, '[REDACTED]');
+    }
+    if (env.VOBIZ_AUTH_ID && sanitizedError.includes(env.VOBIZ_AUTH_ID)) {
+      sanitizedError = sanitizedError.replaceAll(env.VOBIZ_AUTH_ID, '[REDACTED]');
+    }
+
     res.status(502).json({
       success: false,
-      error: 'Unable to fetch available numbers at this time. Please try again.',
-      // Internal-only hint visible in structured logs, not raw Vobiz strings
-      _debug_hint: process.env.NODE_ENV !== 'production' ? errorDetail : undefined,
+      error: `Failed to fetch available numbers: ${sanitizedError}`,
     });
   }
 });
