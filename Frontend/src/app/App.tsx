@@ -2169,7 +2169,7 @@ function DashNumbers() {
   
   // Inventory Search State
   const [showBuy, setShowBuy] = useState(false);
-  const [searchCountry, setSearchCountry] = useState("US");
+  const [searchCountry, setSearchCountry] = useState("IN");
   const [searchType, setSearchType] = useState("local");
   const [searchRegion, setSearchRegion] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -2502,11 +2502,7 @@ function DashNumbers() {
           <div className="flex items-end gap-3">
             <DField label="Country">
               <DSelect value={searchCountry} onChange={e=>setSearchCountry(e.target.value)}>
-                <option value="US">United States</option>
-                <option value="CA">Canada</option>
-                <option value="GB">United Kingdom</option>
                 <option value="IN">India</option>
-                <option value="AU">Australia</option>
               </DSelect>
             </DField>
             <DField label="Type">
