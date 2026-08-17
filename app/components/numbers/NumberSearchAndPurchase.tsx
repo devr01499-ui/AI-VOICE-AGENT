@@ -10,15 +10,16 @@ declare global {
   interface Window { Razorpay: any; }
 }
 
+// Countries supported by Vobiz inventory — verified against their catalog
 const COUNTRIES = [
+  { code: 'IN', name: 'India', flag: '🇮🇳' },
   { code: 'US', name: 'United States', flag: '🇺🇸' },
   { code: 'GB', name: 'United Kingdom', flag: '🇬🇧' },
-  { code: 'CA', name: 'Canada', flag: '🇨🇦' },
-  { code: 'AU', name: 'Australia', flag: '🇦🇺' },
-  { code: 'IN', name: 'India', flag: '🇮🇳' },
-  { code: 'DE', name: 'Germany', flag: '🇩🇪' },
   { code: 'SG', name: 'Singapore', flag: '🇸🇬' },
+  { code: 'AE', name: 'UAE', flag: '🇦🇪' },
+  { code: 'AU', name: 'Australia', flag: '🇦🇺' },
 ];
+
 
 interface VobizNumber {
   id: string;
@@ -140,7 +141,7 @@ export function NumberSearchAndPurchase() {
     return envUrl || (isLocal ? 'http://localhost:3001' : 'https://ai-voice-agent-backend-mv32.onrender.com');
   };
 
-  const [selectedCountry, setSelectedCountry] = useState('US');
+  const [selectedCountry, setSelectedCountry] = useState('IN');
   const [countryOpen, setCountryOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);

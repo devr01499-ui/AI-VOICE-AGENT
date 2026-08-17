@@ -68,13 +68,16 @@ router.get('/', requireAuth, async (req, res, next) => {
 
 /**
  * GET /api/v2/numbers/search?country=&type=&region=&page=&per_page=
- * Proxies Vobiz Inventory API. Auth + plan required.
+ * Proxies Vobiz Inventory API. Auth required (no plan gate — users must be able to
+ * browse numbers before purchasing a plan or with zero calling balance).
  */
-router.get('/search', requireAuth, requireActivePlan, async (req, res, next) => {
+router.get('/search', requireAuth, async (req, res, next) => {
   try {
     const userId = (req as any).userId;
 
-    const { country = 'US', type = 'local', region, per_page } = req.query;
+    const { country = 'IN', type = 'local', region, per_page } = req.query;
+
+    logger.info('[NUMBERS_SEARCH] Fetching inventory', { userId, country, type, region });
 
     const inventoryService = new VobizInventoryService();
     let numbers = await inventoryService.getAvailableNumbers(userId, {
@@ -88,6 +91,8 @@ router.get('/search', requireAuth, requireActivePlan, async (req, res, next) => 
       numbers = numbers.slice(0, parseInt(per_page as string, 10));
     }
 
+    logger.info('[NUMBERS_SEARCH] Inventory fetched successfully', { userId, count: numbers.length });
+
     res.json({
       success: true,
       data: {
@@ -96,8 +101,19 @@ router.get('/search', requireAuth, requireActivePlan, async (req, res, next) => 
       },
     });
   } catch (err) {
-    logger.error('Numbers: failed to search numbers', { error: String(err) });
-    res.status(502).json({ success: false, error: 'Unable to fetch available numbers at this time. Please try again.' });
+    // Log the REAL, specific error — never use a generic catch here without this
+    const errorDetail = err instanceof Error ? err.message : String(err);
+    logger.error('[NUMBERS_SEARCH_ERROR] Failed to fetch inventory from Vobiz', {
+      error: errorDetail,
+      stack: err instanceof Error ? err.stack : undefined,
+    });
+    // Return a user-safe message — but log the real one above for Render log visibility
+    res.status(502).json({
+      success: false,
+      error: 'Unable to fetch available numbers at this time. Please try again.',
+      // Internal-only hint visible in structured logs, not raw Vobiz strings
+      _debug_hint: process.env.NODE_ENV !== 'production' ? errorDetail : undefined,
+    });
   }
 });
 
