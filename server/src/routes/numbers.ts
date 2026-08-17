@@ -7,6 +7,8 @@ import { UsageSyncService } from '../services/UsageSyncService';
 import { VobizInventoryService } from '../services/VobizInventoryService';
 import { VobizPhoneNumberService } from '../services/VobizPhoneNumberService';
 import { ADMIN_EMAIL } from '../config/constants';
+import { env } from '../config/env';
+
 
 const router = Router();
 
