@@ -10,16 +10,10 @@ declare global {
   interface Window { Razorpay: any; }
 }
 
-// Countries supported by Vobiz inventory — verified against their catalog
+// Only India supported for now
 const COUNTRIES = [
   { code: 'IN', name: 'India', flag: '🇮🇳' },
-  { code: 'US', name: 'United States', flag: '🇺🇸' },
-  { code: 'GB', name: 'United Kingdom', flag: '🇬🇧' },
-  { code: 'SG', name: 'Singapore', flag: '🇸🇬' },
-  { code: 'AE', name: 'UAE', flag: '🇦🇪' },
-  { code: 'AU', name: 'Australia', flag: '🇦🇺' },
 ];
-
 
 interface VobizNumber {
   id: string;
