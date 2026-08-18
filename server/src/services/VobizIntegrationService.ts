@@ -17,7 +17,8 @@ export class VobizIntegrationService {
   constructor() {
     let url = (env.VOBIZ_API_URL || 'https://api.vobiz.ai').trim();
     if (!url) url = 'https://api.vobiz.ai';
-    this.baseUrl = url.replace(/\/+$/, '');
+    url = url.replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
+    this.baseUrl = url;
 
     this.authId = (env.VOBIZ_AUTH_ID || '').trim();
     this.authToken = (env.VOBIZ_AUTH_TOKEN || '').trim();

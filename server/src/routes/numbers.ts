@@ -79,7 +79,7 @@ router.get('/vobiz-probe', requireAuth, async (req, res) => {
   const rawAuthId = (env.VOBIZ_AUTH_ID || process.env.VOBIZ_AUTH_ID || '').trim();
   const rawAuthToken = (env.VOBIZ_AUTH_TOKEN || process.env.VOBIZ_AUTH_TOKEN || '').trim();
   let baseUrl = (env.VOBIZ_API_URL || process.env.VOBIZ_API_URL || 'https://api.vobiz.ai').trim();
-  baseUrl = baseUrl.replace(/\/+$/, '');
+  baseUrl = baseUrl.replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
 
   const endpoint = `/api/v1/Account/${rawAuthId}/inventory/numbers?country=${country}&number_type=${numberType}`;
   const constructedUrl = `${baseUrl}${endpoint}`;
