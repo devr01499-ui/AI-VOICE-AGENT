@@ -204,22 +204,28 @@ router.get('/search', requireAuth, async (req, res, next) => {
  * Body: { baseCost, setupFee?, currency? }
  */
 router.post('/create-order', requireAuth, requireActivePlan, async (req, res, next) => {
+  const userId = (req as any).userId;
   try {
-    const userId = (req as any).userId;
-    const { baseCost = 1.5, setupFee = 0 } = req.body;
+    const { baseCost = 0, setupFee = 0, currency = 'INR' } = req.body;
 
-    const totalCost = baseCost + setupFee;
+    logger.info('[NUMBERS_CREATE_ORDER] Creating Razorpay order', { userId, baseCost, setupFee, currency });
+
     const billingService = new BillingService();
-    const order = await billingService.createNumberPurchaseOrder(userId, totalCost);
+    const order = await billingService.createNumberPurchaseOrder(userId, baseCost, setupFee, currency);
 
     res.json({ success: true, data: order });
   } catch (err: any) {
-    logger.error('Numbers: failed to create order', { error: String(err) });
-    if (err.message === 'Minimum amount must be at least 100 paise') {
-      res.status(400).json({ success: false, error: err.message });
-      return;
-    }
-    res.status(500).json({ success: false, error: 'Payment initialization failed. Please try again.' });
+    const errorMsg = err?.message || String(err);
+    logger.error('[NUMBERS_CREATE_ORDER_ERROR] Failed to create Razorpay order', {
+      userId,
+      error: errorMsg,
+      stack: err?.stack,
+    });
+    
+    res.status(500).json({
+      success: false,
+      error: errorMsg || 'Payment initialization failed. Please check Razorpay keys or configuration.',
+    });
   }
 });
 
@@ -241,6 +247,27 @@ router.post('/purchase', requireAuth, requireActivePlan, async (req, res, next) 
 
   if (!vobizNumberId || expectedPrice === undefined || !orderId || !paymentId || !signature) {
     res.status(400).json({ success: false, error: 'Missing required purchase fields.' });
+    return;
+  }
+
+  // Idempotency check: Return existing record if this vobiz number was already provisioned for this user
+  const existingNumber = await prisma.phoneNumber.findFirst({
+    where: { userId, vobizNumberId },
+  });
+  if (existingNumber) {
+    logger.info('[NUMBERS_PURCHASE] Idempotent request — number already provisioned', { userId, vobizNumberId, phoneNumber: existingNumber.phoneNumber });
+    res.json({
+      success: true,
+      data: {
+        message: 'Number already purchased and assigned.',
+        phoneNumberId: existingNumber.id,
+        number: existingNumber.phoneNumber,
+        status: existingNumber.aadhaarRequired ? 'KYC Required' : 'Active',
+        nextBillingDate: existingNumber.nextBillingDate,
+        monthlyCost: existingNumber.monthlyCost,
+        currency: existingNumber.currency,
+      }
+    });
     return;
   }
 

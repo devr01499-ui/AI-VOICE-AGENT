@@ -25,6 +25,20 @@ interface PhoneNumberRecord {
   purchasedAt: string;
 }
 
+function formatCurrency(amount: number | undefined | null, currencyCode: string = 'INR'): string {
+  const num = amount ?? 0;
+  const curr = (currencyCode || 'INR').toUpperCase();
+  try {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: curr,
+      maximumFractionDigits: 2,
+    }).format(num);
+  } catch {
+    return `${curr === 'INR' ? '₹' : '$'}${num.toFixed(2)}`;
+  }
+}
+
 function StatusBadge({ status, kycStatus, aadhaarRequired }: { status: string; kycStatus: string; aadhaarRequired: boolean }) {
   if (aadhaarRequired && kycStatus === 'pending') {
     return (
@@ -196,8 +210,8 @@ export default function MyNumbersPage() {
                     Next renewal: {formatDate(num.nextBillingDate)}
                   </span>
                   <span className="flex items-center gap-1.5 font-medium text-gray-600">
-                    {num.currency} {num.monthlyCost?.toFixed(2)}/mo
-                    {(num.setupFee || 0) > 0 && ` (+${num.currency} ${num.setupFee?.toFixed(2)} setup)`}
+                    {formatCurrency(num.monthlyCost, num.currency)}/mo
+                    {(num.setupFee || 0) > 0 && ` (+${formatCurrency(num.setupFee, num.currency)} setup)`}
                   </span>
                   <span className="capitalize">{num.telephonyProvider}</span>
                 </div>

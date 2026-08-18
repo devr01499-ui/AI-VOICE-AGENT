@@ -20,21 +20,24 @@ export class BillingService {
 
   /**
    * Creates a Razorpay order for purchasing a phone number.
-   * Calculates price based on base cost + Claritiy margin.
+   * Calculates total price based on base cost + setup fee.
    */
-  async createNumberPurchaseOrder(userId: string, baseMonthlyCost: number) {
-    const margin = 2.0; // 2 USD / equivalent margin
-    const totalAmount = baseMonthlyCost + margin; 
-    
-    // Amount in smallest currency unit (e.g., paise for INR)
-    const amountInPaise = Math.round(totalAmount * 100);
+  async createNumberPurchaseOrder(
+    userId: string,
+    baseMonthlyCost: number,
+    setupFee: number = 0,
+    currency: string = 'INR'
+  ) {
+    const totalCost = (baseMonthlyCost || 0) + (setupFee || 0);
+    const finalAmount = Math.max(totalCost, 1);
+    const amountInPaise = Math.round(finalAmount * 100);
 
     if (amountInPaise < 100) {
-      throw new Error('Minimum amount must be at least 100 paise');
+      throw new Error('Minimum amount must be at least 100 paise (₹1)');
     }
 
     if (!this.razorpay) {
-      // Mock order
+      logger.warn('BillingService: Razorpay keys not found, running in mock mode');
       return {
         id: `order_mock_${Date.now()}`,
         amount: amountInPaise,
@@ -46,13 +49,20 @@ export class BillingService {
     try {
       const order = await this.razorpay.orders.create({
         amount: amountInPaise,
-        currency: 'INR',
-        receipt: `receipt_${userId}_${Date.now()}`,
+        currency: 'INR', // Razorpay India account requires INR
+        receipt: `num_${userId.slice(0, 8)}_${Date.now()}`,
       });
       return order;
-    } catch (err) {
-      logger.error('BillingService: Failed to create order', { error: String(err) });
-      throw new Error('Payment initialization failed');
+    } catch (err: any) {
+      const errorMsg = err?.description || err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err));
+      logger.error('BillingService: Failed to create order in Razorpay', {
+        error: errorMsg,
+        amountInPaise,
+        currency: 'INR',
+        userId,
+        rawError: err,
+      });
+      throw new Error(`Razorpay Order Error: ${errorMsg}`);
     }
   }
 

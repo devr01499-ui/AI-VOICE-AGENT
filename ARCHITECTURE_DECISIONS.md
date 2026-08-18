@@ -25,5 +25,9 @@
 - **Status**: Accepted
 - **Context**: The application requires provisioning and assigning phone numbers. We initially explored the Vobiz Partner Program and Sub-Accounts to isolate billing per customer.
 - **Decision**: Use the standard Vobiz Phone Numbers API under the master account to search and purchase numbers. Do not use the Partner API for Sub-Account provisioning.
-- **Rejected Alternative**: Vobiz Partner Program & automated Sub-Account provisioning. Reason: Adds unnecessary complexity and is not currently required for the MVP.
-- **Consequences**: Simplifies the integration significantly. If per-customer KYC and isolated billing become legally required (e.g., for Indian numbers), we will migrate to standard Vobiz Sub-Accounts in the future.
+- **Rejected Alternative**: Vobiz Partner Program & automated Sub-Account provisioning. Reason: Adds unnecessary complexity and requires high monthly spend commitments.
+- **Consequences**: Simplifies the integration significantly. Tracking minutes/credits in our own database remains the correct architecture until Partner tier is reached.
+- **Verified Tier Evidence Note**:
+  - Sub-account creation (`POST /api/v1/accounts/{auth_id}/sub-accounts/`) is available on our standard account tier and can be leveraged if per-customer KYC/number isolation is required in the future.
+  - Sub-account balance funding (`POST /api/v1/partner/accounts/{customer_auth_id}/transfer-balance`) is confirmed Partner-tier only (path prefixed under `/partner/`), requiring a $100k/month minimum commitment. This validates ADR-004's decision to maintain internal credit ledgering in our database.
+

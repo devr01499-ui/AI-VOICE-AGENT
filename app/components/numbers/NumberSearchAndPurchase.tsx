@@ -28,6 +28,20 @@ interface VobizNumber {
   aadhaar_verification_required?: boolean;
 }
 
+function formatCurrency(amount: number | undefined | null, currencyCode: string = 'INR'): string {
+  const num = amount ?? 0;
+  const curr = (currencyCode || 'INR').toUpperCase();
+  try {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: curr,
+      maximumFractionDigits: 2,
+    }).format(num);
+  } catch {
+    return `${curr === 'INR' ? '₹' : '$'}${num.toFixed(2)}`;
+  }
+}
+
 interface ConfirmModalProps {
   number: VobizNumber;
   onConfirm: () => void;
@@ -37,7 +51,7 @@ interface ConfirmModalProps {
 
 function ConfirmModal({ number, onConfirm, onCancel, purchasing }: ConfirmModalProps) {
   const total = (number.setup_fee || 0) + (number.monthly_fee || 0);
-  const currency = number.currency || 'USD';
+  const currency = number.currency || 'INR';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
@@ -66,18 +80,18 @@ function ConfirmModal({ number, onConfirm, onCancel, purchasing }: ConfirmModalP
           <div className="grid grid-cols-2 gap-3 mt-4">
             <div className="bg-white rounded-xl p-3 border border-emerald-100">
               <p className="text-xs text-gray-400 mb-1">Monthly Fee</p>
-              <p className="font-bold text-gray-900">{currency} {number.monthly_fee?.toFixed(2) ?? '—'}/mo</p>
+              <p className="font-bold text-gray-900">{formatCurrency(number.monthly_fee, currency)}/mo</p>
             </div>
             <div className="bg-white rounded-xl p-3 border border-emerald-100">
               <p className="text-xs text-gray-400 mb-1">Setup Fee</p>
-              <p className="font-bold text-gray-900">{currency} {number.setup_fee?.toFixed(2) ?? '0.00'}</p>
+              <p className="font-bold text-gray-900">{formatCurrency(number.setup_fee, currency)}</p>
             </div>
           </div>
         </div>
 
         <div className="flex items-center justify-between mb-6 px-1">
           <span className="text-gray-500 text-sm">Charged today</span>
-          <span className="text-2xl font-extrabold text-gray-900">{currency} {total.toFixed(2)}</span>
+          <span className="text-2xl font-extrabold text-gray-900">{formatCurrency(total, currency)}</span>
         </div>
 
         {number.aadhaar_verification_required && (
@@ -199,7 +213,11 @@ export function NumberSearchAndPurchase() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
         },
-        body: JSON.stringify({ baseCost: num.monthly_fee || 2.0, setupFee: num.setup_fee || 0 }),
+        body: JSON.stringify({
+          baseCost: num.monthly_fee || 0,
+          setupFee: num.setup_fee || 0,
+          currency: num.currency || 'INR'
+        }),
       });
       const orderData = await orderRes.json();
       if (!orderData.success) {
@@ -469,9 +487,9 @@ export function NumberSearchAndPurchase() {
 
                     <div className="flex items-center gap-4 shrink-0 ml-3">
                       <div className="text-right">
-                        <p className="text-sm font-bold text-gray-900">{currency} {num.monthly_fee?.toFixed(2)}/mo</p>
+                        <p className="text-sm font-bold text-gray-900">{formatCurrency(num.monthly_fee, num.currency)}/mo</p>
                         {(num.setup_fee || 0) > 0 && (
-                          <p className="text-xs text-gray-400">+{currency} {num.setup_fee?.toFixed(2)} setup</p>
+                          <p className="text-xs text-gray-400">+{formatCurrency(num.setup_fee, num.currency)} setup</p>
                         )}
                       </div>
                       {isAadhaar ? (
