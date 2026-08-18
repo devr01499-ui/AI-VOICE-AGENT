@@ -69,6 +69,78 @@ router.get('/', requireAuth, async (req, res, next) => {
 });
 
 /**
+ * GET /api/v2/numbers/vobiz-probe
+ * Temporary diagnostic route to test raw Vobiz inventory request directly from Render runtime.
+ */
+router.get('/vobiz-probe', requireAuth, async (req, res) => {
+  const country = (req.query.country as string) || 'IN';
+  const numberType = (req.query.type as string) || 'local';
+
+  const rawAuthId = (env.VOBIZ_AUTH_ID || process.env.VOBIZ_AUTH_ID || '').trim();
+  const rawAuthToken = (env.VOBIZ_AUTH_TOKEN || process.env.VOBIZ_AUTH_TOKEN || '').trim();
+  let baseUrl = (env.VOBIZ_API_URL || process.env.VOBIZ_API_URL || 'https://api.vobiz.ai').trim();
+  baseUrl = baseUrl.replace(/\/+$/, '');
+
+  const endpoint = `/api/v1/Account/${rawAuthId}/inventory/numbers?country=${country}&number_type=${numberType}`;
+  const constructedUrl = `${baseUrl}${endpoint}`;
+
+  const start = Date.now();
+  let statusCode = 0;
+  let statusText = '';
+  let responseHeaders: Record<string, string> = {};
+  let rawResponseBody = '';
+  let errorPayload: any = null;
+
+  try {
+    const vobizRes = await fetch(constructedUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Auth-ID': rawAuthId,
+        'X-Auth-Token': rawAuthToken,
+      },
+    });
+
+    statusCode = vobizRes.status;
+    statusText = vobizRes.statusText;
+    vobizRes.headers.forEach((val, key) => {
+      responseHeaders[key] = val;
+    });
+    rawResponseBody = await vobizRes.text();
+  } catch (err: any) {
+    errorPayload = {
+      message: err.message,
+      code: err.code,
+      name: err.name,
+      stack: err.stack,
+    };
+  }
+
+  const durationMs = Date.now() - start;
+
+  res.json({
+    diagnosticTime: new Date().toISOString(),
+    durationMs,
+    envCheck: {
+      hasAuthId: !!rawAuthId,
+      authIdLength: rawAuthId.length,
+      authIdFirst3: rawAuthId.substring(0, 3),
+      hasAuthToken: !!rawAuthToken,
+      authTokenLength: rawAuthToken.length,
+      baseUrl,
+    },
+    constructedUrl,
+    response: {
+      statusCode,
+      statusText,
+      headers: responseHeaders,
+      body: rawResponseBody,
+    },
+    error: errorPayload,
+  });
+});
+
+/**
  * GET /api/v2/numbers/search?country=&type=&region=&page=&per_page=
  * Proxies Vobiz Inventory API. Auth required (no plan gate — users must be able to
  * browse numbers before purchasing a plan or with zero calling balance).
