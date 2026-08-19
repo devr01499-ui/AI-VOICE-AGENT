@@ -6,5 +6,12 @@
     "app/(pseo)/**/*.ts",
     "app/(pseo)/**/*.tsx"
   ],
-  "exclude": []
+  "exclude": [
+    "node_modules",
+    "server",
+    "Frontend",
+    "scratch",
+    ".next",
+    "dist"
+  ]
 }

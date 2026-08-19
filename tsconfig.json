@@ -24,11 +24,23 @@
   },
   "include": [
     "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "components/**/*.ts",
+    "components/**/*.tsx",
+    "lib/**/*.ts",
+    "scripts/**/*.ts",
+    "middleware.ts",
+    "prisma.config.ts"
   ],
-  "exclude": ["node_modules", "server", "server/scratch", "scratch", "Frontend"]
+  "exclude": [
+    "node_modules",
+    "server",
+    "Frontend",
+    "scratch",
+    ".next",
+    "dist",
+    "build",
+    "*.tsbuildinfo"
+  ]
 }
