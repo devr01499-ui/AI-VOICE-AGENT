@@ -31,7 +31,7 @@ import Navbar from "./components/layout/Navbar";
 import Footer from "./components/layout/Footer";
 import SchemaInjector from "./components/seo/SchemaInjector";
 import { DashCompanionCall } from "./DashCompanionCall";
-import { NumberSearchAndPurchase } from "../../../app/components/numbers/NumberSearchAndPurchase";
+import { NumberSearchAndPurchase } from "./components/numbers/NumberSearchAndPurchase";
 const Home = lazy(() => import("./pages/Home"));
 const Solutions = lazy(() => import("./pages/Solutions"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
