@@ -5,9 +5,14 @@
   "type": "module",
   "scripts": {
     "sitemap": "node scripts/generate-sitemap.js",
-    "prebuild": "npm run sitemap",
+    "prebuild": "node scripts/generate-sitemap.js",
     "build": "vite build",
     "dev": "vite"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "puppeteer"
+    ]
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
