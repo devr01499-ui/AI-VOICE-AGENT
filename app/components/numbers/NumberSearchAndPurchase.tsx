@@ -51,7 +51,11 @@ function CapabilityBadge({ label, active }: { label: string; active?: boolean })
   );
 }
 
-export function NumberSearchAndPurchase() {
+interface NumberSearchAndPurchaseProps {
+  onBack?: () => void;
+}
+
+export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps = {}) {
   const getRuntimeUrl = () => {
     const envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
     const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
@@ -304,7 +308,7 @@ export function NumberSearchAndPurchase() {
 
           <button
             id="go-to-numbers-btn"
-            onClick={() => window.location.href = '/dashboard/numbers'}
+            onClick={() => { if (onBack) onBack(); else window.location.href = '/dashboard/numbers'; }}
             className="w-full bg-emerald-600 text-white py-4 rounded-full font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/30"
           >
             View My Numbers
@@ -485,7 +489,7 @@ export function NumberSearchAndPurchase() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <button
-                onClick={() => window.location.href = '/dashboard/numbers'}
+                onClick={() => { if (onBack) onBack(); else window.location.href = '/dashboard/numbers'; }}
                 className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 transition-colors"
               >
                 <ArrowLeft className="w-3.5 h-3.5" /> My Numbers

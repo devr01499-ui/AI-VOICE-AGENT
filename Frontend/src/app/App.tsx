@@ -31,6 +31,7 @@ import Navbar from "./components/layout/Navbar";
 import Footer from "./components/layout/Footer";
 import SchemaInjector from "./components/seo/SchemaInjector";
 import { DashCompanionCall } from "./DashCompanionCall";
+import { NumberSearchAndPurchase } from "@/app/components/numbers";
 const Home = lazy(() => import("./pages/Home"));
 const Solutions = lazy(() => import("./pages/Solutions"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
@@ -2166,9 +2167,7 @@ function DashNumbers() {
   const [numbers, setNumbers] = useState<any[]>([]);
   const [liveAgents, setLiveAgents] = useState<ApiAgent[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  // Inventory Search State
-  const [showBuy, setShowBuy] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'buy'>('list');
   const [searchCountry, setSearchCountry] = useState("IN");
   const [searchType, setSearchType] = useState("local");
   const [searchRegion, setSearchRegion] = useState("");
@@ -2454,9 +2453,19 @@ function DashNumbers() {
         </div>
       </DModal>
 
+  if (viewMode === 'buy') {
+    return (
+      <div className="space-y-6">
+        <NumberSearchAndPurchase onBack={() => { setViewMode('list'); loadNumbers(); }} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{numbers.length} numbers provisioned</p>
-        <div className="flex gap-2"><DBtn variant="secondary" onClick={()=>setShowSip(true)}><Network className="w-4 h-4"/> SIP config</DBtn><DBtn onClick={() => window.location.href = '/dashboard/numbers/buy'}><Plus className="w-4 h-4"/> Buy number</DBtn></div>
+        <div className="flex gap-2"><DBtn variant="secondary" onClick={()=>setShowSip(true)}><Network className="w-4 h-4"/> SIP config</DBtn><DBtn onClick={() => setViewMode('buy')}><Plus className="w-4 h-4"/> Buy number</DBtn></div>
       </div>
       
       {loading && numbers.length === 0 ? (
@@ -2468,7 +2477,7 @@ function DashNumbers() {
           <p className="text-sm font-bold text-[var(--nm-text)] mt-2 mb-6" style={{fontFamily:"'Outfit', sans-serif"}}>Provision a local or toll-free number to route calls to your agents.</p>
           <div className="flex justify-center gap-3">
             <DBtn variant="secondary" onClick={()=>setShowSip(true)} size="sm"><Network className="w-4 h-4"/> SIP config</DBtn>
-            <DBtn onClick={() => window.location.href = '/dashboard/numbers/buy'} size="sm"><Plus className="w-4 h-4"/> Buy number</DBtn>
+            <DBtn onClick={() => setViewMode('buy')} size="sm"><Plus className="w-4 h-4"/> Buy number</DBtn>
           </div>
         </div>
       ) : (
