@@ -439,4 +439,35 @@ router.delete('/:id', requireAuth, async (req, res, next) => {
   }
 });
 
+/**
+ * PATCH /api/v2/numbers/:id/activate
+ * Admin/manual status toggle flipping status to "active" once founder manually tops up sub-account wallet in Vobiz console.
+ */
+router.patch('/:id/activate', requireAuth, async (req, res, next) => {
+  try {
+    const userId = (req as any).userId;
+    const id = req.params.id as string;
+
+    const phone = await prisma.phoneNumber.findFirst({
+      where: { id, userId },
+    });
+
+    if (!phone) {
+      res.status(404).json({ success: false, error: 'Phone number not found' });
+      return;
+    }
+
+    const updated = await prisma.phoneNumber.update({
+      where: { id },
+      data: { status: 'active' },
+    });
+
+    logger.info('Numbers: number status updated to active', { userId, phoneId: id });
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    logger.error('Numbers: failed to activate number', { error: String(err) });
+    next(err);
+  }
+});
+
 export default router;

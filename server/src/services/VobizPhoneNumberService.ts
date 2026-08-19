@@ -1,5 +1,6 @@
 import { VobizIntegrationService } from './VobizIntegrationService';
 import { VobizInventoryService } from './VobizInventoryService';
+import { VobizSubAccountService } from './VobizSubAccountService';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { ProviderError } from '../types/errors';
@@ -7,13 +8,9 @@ import { ProviderError } from '../types/errors';
 export class VobizPhoneNumberService extends VobizIntegrationService {
   
   /**
-   * Validates fresh price, creates order idempotently, purchases number, and assigns it.
-   * 
-   * Failure contract:
-   * - If Vobiz purchase fails AFTER payment, we throw ProviderError (tagged [VOBIZ_PURCHASE_FAILURE])
-   *   so the route layer can issue a refund and alert ops.
-   * - The order record is always left in a terminal state (success | failed).
-   * - No raw Vobiz error strings leave this service boundary.
+   * Validates fresh price, creates order idempotently, purchases number under master,
+   * provisions user sub-account with email naming, explicitly assigns number to sub-account,
+   * enforces ZERO auto-funding, and sets status to 'activation_pending'.
    */
   public async purchaseAndAssignNumber(params: {
     userId: string,
@@ -76,12 +73,25 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
         data: { orderStatus: 'purchase_pending', selectedNumber: numberDetails.e164 }
       });
 
-      // 3. Purchase into Master Account (ADR-004: standard API, master account purchase)
+      // 3. Provision / Retrieve Sub-Account set with user's email address as name
+      const subAccountService = new VobizSubAccountService();
+      const user = await prisma.user.findUnique({
+        where: { id: params.userId },
+        select: { email: true }
+      });
+      const subAccount = await subAccountService.getOrCreateSubAccount(params.userId, user?.email || undefined);
+
+      // 4. Purchase into Master Account & specify target sub-account
       const purchaseEndpoint = `/api/v1/Account/${this.authId}/numbers/purchase-from-inventory`;
       const purchaseRes = await this.request(
         'POST', 
         purchaseEndpoint, 
-        { e164: numberDetails.e164, currency: numberDetails.currency || 'INR' },
+        {
+          e164: numberDetails.e164,
+          currency: numberDetails.currency || 'INR',
+          sub_account_auth_id: subAccount.authId,
+          subaccount: subAccount.authId,
+        },
         { userId: params.userId }
       );
 
@@ -90,11 +100,15 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
         throw new ProviderError('vobiz', `[VOBIZ_PURCHASE_FAILURE] Provider rejected purchase for ${numberDetails.e164}. Operational error — user should not be blamed.`);
       }
 
-      // 4. Calculate next billing date (today + 1 month)
+      // 5. Explicitly assign the purchased number to that specific user's sub-account
+      await subAccountService.assignNumberToSubAccount(subAccount.authId, numberDetails.e164, numberDetails.id);
+
+      // 6. Calculate next billing date (today + 1 month)
       const nextBillingDate = new Date();
       nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
 
-      // 5. Record the purchased number in our database
+      // 7. Record the purchased number in our database with status "activation_pending"
+      // Sub-account has ₹0 balance until the founder manually tops it up via Vobiz console.
       const newPhone = await prisma.phoneNumber.create({
         data: {
           userId: params.userId,
@@ -104,7 +118,7 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
           region: numberDetails.region || null,
           type: 'local',
           telephonyProvider: 'vobiz',
-          status: 'active',
+          status: 'activation_pending', // Honesty in UI: activation pending manual founder top-up
           kycStatus: numberDetails.aadhaar_verification_required ? 'pending' : 'verified',
           monthlyCost: currentMonthlyFee,
           setupFee: currentSetupFee,
@@ -115,17 +129,18 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
         }
       });
 
-      // 6. Mark Order Success
+      // 8. Mark Order Success
       const successOrder = await prisma.phoneNumberOrder.update({
         where: { id: order.id },
         data: { orderStatus: 'success', providerStatus: 'success' }
       });
 
-      logger.info('[NUMBER_PURCHASE_SUCCESS] Number purchased and assigned', {
+      logger.info('[NUMBER_PURCHASE_SUCCESS] Number purchased and assigned to user sub-account', {
         userId: params.userId,
         e164: numberDetails.e164,
+        subAuthId: subAccount.authId,
         orderId: order.id,
-        nextBillingDate,
+        status: 'activation_pending',
       });
 
       return { order: successOrder, phoneNumber: newPhone };

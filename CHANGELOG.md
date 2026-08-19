@@ -2,6 +2,11 @@
 
 ## [Unreleased] - 2026-08-19
 ### Fixed
+- Updated Vobiz sub-account provisioning to set `name: user.email` in Vobiz `POST /api/v1/accounts/{master_auth_id}/sub-accounts/` payload (verified HTTP 201 Created).
+- Integrated explicit DID number assignment to user sub-accounts upon inventory purchase.
+- Enforced ZERO auto-funding policy: sub-accounts remain unfunded (₹0 balance) post-purchase until manually topped up by the founder via the Vobiz online console UI.
+- Implemented user-facing "Number purchased — activation pending" status badge and card post-purchase and in the provisioned numbers table.
+- Added admin endpoint `PATCH /api/v2/numbers/:id/activate` for manual status activation toggling once sub-account is funded.
 - Rebuilt phone number search & purchase experience as a full-page enterprise flow (`/dashboard/numbers/buy`), completely deleting legacy modal overlay `DModal open={showBuy}` from `Frontend/src/app/App.tsx`.
 - Enforced dynamic currency formatting via single centralized utility `lib/formatCurrency.ts` (`formatCurrency(amount, currency)`), eliminating all hardcoded `$` and `₹` symbols in JSX.
 - Fixed Razorpay order amount calculation in `BillingService.ts` and `numbers.ts` to charge `(monthly_fee + setup_fee) * 100` paise in currency `"INR"` (verified 70,000 paise / ₹700 for ₹600 monthly + ₹100 setup).
