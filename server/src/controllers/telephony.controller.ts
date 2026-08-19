@@ -38,7 +38,7 @@ export class TelephonyController {
         region: num.region || 'Unknown',
         setupFee: num.setup_fee || 0,
         monthlyFee: num.monthly_fee || 0,
-        currency: num.currency || 'USD',
+        currency: num.currency || 'INR',
         capabilities: num.capabilities || { voice: true, sms: false },
       }));
 

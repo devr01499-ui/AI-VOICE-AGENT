@@ -149,29 +149,32 @@ router.get('/search', requireAuth, async (req, res, next) => {
   try {
     const userId = (req as any).userId;
 
-    const { country = 'IN', type = 'local', region, per_page } = req.query;
+    const { country = 'IN', type = 'local', region, page = '1', per_page = '20' } = req.query;
 
-    logger.info('[NUMBERS_SEARCH] Fetching inventory', { userId, country, type, region });
+    const pageNum = parseInt(page as string, 10) || 1;
+    const perPageNum = parseInt(per_page as string, 10) || 20;
+
+    logger.info('[NUMBERS_SEARCH] Fetching inventory', { userId, country, type, region, page: pageNum, perPage: perPageNum });
 
     const inventoryService = new VobizInventoryService();
-    let numbers = await inventoryService.getAvailableNumbers(userId, {
+    const inventoryResult = await inventoryService.getAvailableNumbers(userId, {
       country: country as string,
       type: type as string,
       region: region as string,
+      page: pageNum,
+      per_page: perPageNum,
     });
 
-    // Apply per_page limit if requested
-    if (per_page) {
-      numbers = numbers.slice(0, parseInt(per_page as string, 10));
-    }
-
-    logger.info('[NUMBERS_SEARCH] Inventory fetched successfully', { userId, count: numbers.length });
+    logger.info('[NUMBERS_SEARCH] Inventory fetched successfully', { userId, count: inventoryResult.items.length, total: inventoryResult.total });
 
     res.json({
       success: true,
       data: {
-        results: numbers,
-        total: numbers.length,
+        results: inventoryResult.items,
+        total: inventoryResult.total,
+        page: inventoryResult.page,
+        per_page: inventoryResult.per_page,
+        hasMore: inventoryResult.hasMore,
       },
     });
   } catch (err) {
@@ -290,6 +293,17 @@ router.post('/purchase', requireAuth, requireActivePlan, async (req, res, next) 
       agentId,
     });
 
+    // Step 3: Non-blocking automatic sub-account creation for user if not exists
+    try {
+      const { VobizSubAccountService } = require('../services/VobizSubAccountService');
+      const subAccountService = new VobizSubAccountService();
+      subAccountService.getOrCreateSubAccount(userId).catch((subErr: any) => {
+        logger.warn('[SUB_ACCOUNT_AUTO_PROVISION_WARN] Non-blocking sub-account creation warning', { userId, error: String(subErr) });
+      });
+    } catch (subAccountErr) {
+      logger.warn('[SUB_ACCOUNT_INIT_WARN] Could not initialize VobizSubAccountService', { userId, error: String(subAccountErr) });
+    }
+
     res.json({
       success: true,
       data: {
@@ -306,9 +320,9 @@ router.post('/purchase', requireAuth, requireActivePlan, async (req, res, next) 
   } catch (err: any) {
     const errorMessage = err.message || '';
 
-    // Detect post-payment Vobiz failure — must refund user
+    // Detect post-payment Vobiz failure — must refund user and fire admin alert
     if (errorMessage.includes('[VOBIZ_PURCHASE_FAILURE]')) {
-      logger.error('[VOBIZ_PURCHASE_FAILURE] CRITICAL: Post-payment Vobiz failure — initiating refund', {
+      logger.error('[ADMIN_ALERT][VOBIZ_LOW_BALANCE] CRITICAL: Post-payment Vobiz purchase failure - Master Vobiz balance insufficient or provider error', {
         userId,
         paymentId,
         orderId,
@@ -316,8 +330,8 @@ router.post('/purchase', requireAuth, requireActivePlan, async (req, res, next) 
         errorMessage,
       });
 
-      // Attempt automatic refund
-      const amountInPaise = Math.round((expectedPrice + 2) * 100); // matches createNumberPurchaseOrder margin
+      // Attempt automatic refund for exact expected total amount
+      const amountInPaise = Math.round(expectedPrice * 100);
       const refundResult = await billingService.refundOrder(paymentId, amountInPaise);
 
       if (refundResult.success) {

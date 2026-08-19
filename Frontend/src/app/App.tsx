@@ -2235,8 +2235,14 @@ function DashNumbers() {
     setPurchaseLoading(num.e164);
     try {
       // 1. Create Order
-      const expectedPrice = num.monthly_fee || 2.0;
-      const orderRes = await apiClient.post('/api/v2/numbers/create-order', { baseCost: expectedPrice });
+      const baseCost = num.monthly_fee || 0;
+      const setupFee = num.setup_fee || 0;
+      const expectedPrice = baseCost + setupFee;
+      const orderRes = await apiClient.post('/api/v2/numbers/create-order', {
+        baseCost,
+        setupFee,
+        currency: num.currency || 'INR',
+      });
       if (!orderRes.data?.success) throw new Error(orderRes.data?.error || 'Order creation failed');
       
       const order = orderRes.data.data;
@@ -2450,7 +2456,7 @@ function DashNumbers() {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{numbers.length} numbers provisioned</p>
-        <div className="flex gap-2"><DBtn variant="secondary" onClick={()=>setShowSip(true)}><Network className="w-4 h-4"/> SIP config</DBtn><DBtn onClick={()=>{setShowBuy(true); handleSearch();}}><Plus className="w-4 h-4"/> Buy number</DBtn></div>
+        <div className="flex gap-2"><DBtn variant="secondary" onClick={()=>setShowSip(true)}><Network className="w-4 h-4"/> SIP config</DBtn><DBtn onClick={() => window.location.href = '/dashboard/numbers/buy'}><Plus className="w-4 h-4"/> Buy number</DBtn></div>
       </div>
       
       {loading && numbers.length === 0 ? (
@@ -2462,7 +2468,7 @@ function DashNumbers() {
           <p className="text-sm font-bold text-[var(--nm-text)] mt-2 mb-6" style={{fontFamily:"'Outfit', sans-serif"}}>Provision a local or toll-free number to route calls to your agents.</p>
           <div className="flex justify-center gap-3">
             <DBtn variant="secondary" onClick={()=>setShowSip(true)} size="sm"><Network className="w-4 h-4"/> SIP config</DBtn>
-            <DBtn onClick={()=>{setShowBuy(true); handleSearch();}} size="sm"><Plus className="w-4 h-4"/> Buy number</DBtn>
+            <DBtn onClick={() => window.location.href = '/dashboard/numbers/buy'} size="sm"><Plus className="w-4 h-4"/> Buy number</DBtn>
           </div>
         </div>
       ) : (
@@ -2497,65 +2503,7 @@ function DashNumbers() {
         </div>
       )}
 
-      <DModal open={showBuy} onClose={()=>setShowBuy(false)} title="Buy phone number" width="max-w-2xl">
-        <div className="space-y-6">
-          <div className="flex items-end gap-3">
-            <DField label="Country">
-              <DSelect value={searchCountry} onChange={e=>setSearchCountry(e.target.value)}>
-                <option value="IN">India</option>
-              </DSelect>
-            </DField>
-            <DField label="Type">
-              <DSelect value={searchType} onChange={e=>setSearchType(e.target.value)}>
-                <option value="local">Local</option>
-                <option value="tollfree">Toll-Free</option>
-                <option value="mobile">Mobile</option>
-              </DSelect>
-            </DField>
-            <DField label="Region / Code">
-              <DInput value={searchRegion} onChange={e=>setSearchRegion(e.target.value)} placeholder="e.g. 212, Austin" />
-            </DField>
-            <DBtn onClick={handleSearch} disabled={searchLoading}>{searchLoading ? 'Searching...' : 'Search'}</DBtn>
-          </div>
-          
-          <div className="flex items-end gap-3 pb-2 border-b border-border">
-            <DField label="Assign to Agent (Optional)">
-              <DSelect value={buyAgentId} onChange={(e: any)=>setBuyAgentId(e.target.value)}>
-                <option value="">Do not assign yet</option>
-                {liveAgents.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </DSelect>
-            </DField>
-          </div>
-          
-          <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
-            {searchLoading ? (
-              <div className="p-8 text-center text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>SEARCHING INVENTORY...</div>
-            ) : searchResults.length > 0 ? (
-              searchResults.map(r=>(
-                <div key={r.number_id} className="flex items-center justify-between p-4 border border-border rounded-xl hover:bg-muted/20 transition-colors">
-                  <div>
-                    <p className="text-base font-medium" style={{fontFamily:"'Outfit', sans-serif"}}>{r.e164}</p>
-                    <p className="text-xs text-muted-foreground mt-1" style={{fontFamily:"'Outfit', sans-serif"}}>{r.country} · {r.region || 'National'} · <DBadge>{r.type}</DBadge></p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <span className="text-base font-medium" style={{fontFamily:"'Outfit', sans-serif"}}>${r.monthly_fee}/mo</span>
-                      <p className="text-[10px] text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>+${r.setup_fee} setup</p>
-                    </div>
-                    <DBtn size="sm" disabled={purchaseLoading === r.e164} onClick={() => handlePurchase(r)}>
-                      {purchaseLoading === r.e164 ? <RefreshCw className="w-4 h-4 animate-spin"/> : 'Buy'}
-                    </DBtn>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="p-8 text-center text-sm text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>No numbers found matching your criteria. Try different filters.</div>
-            )}
-          </div>
-        </div>
-      </DModal>
+
 
       <DModal open={showSip} onClose={()=>setShowSip(false)} title="SIP trunk configuration" width="max-w-xl">
         <div className="space-y-4">

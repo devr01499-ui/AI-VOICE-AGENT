@@ -8,9 +8,9 @@ async function testInventory() {
         console.log("Success! Received numbers:");
         console.log(JSON.stringify(numbers, null, 2));
 
-        if (numbers.length > 0) {
+        if (numbers.items && numbers.items.length > 0) {
             console.log("\nFetching details for the first number...");
-            const details = await service.getNumberDetails('test-user-id', numbers[0].id);
+            const details = await service.getNumberDetails('test-user-id', numbers.items[0].id);
             console.log("Number details:");
             console.log(JSON.stringify(details, null, 2));
         } else {

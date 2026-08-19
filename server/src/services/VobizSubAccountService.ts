@@ -55,10 +55,11 @@ export class VobizSubAccountService {
       subAuthId = `SA_MOCK_${userId.replace(/-/g, '').substring(0, 16)}`;
       subAuthToken = `tok_mock_${Math.random().toString(36).substring(2, 15)}`;
     } else {
-      // Partner API endpoint for provisioning sub-accounts
-      const url = `${this.baseUrl}/partner/accounts`;
+      // Standard Vobiz API endpoint for creating sub-accounts
+      let cleanBaseUrl = this.baseUrl.replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
+      const url = `${cleanBaseUrl}/api/v1/accounts/${this.masterAuthId}/sub-accounts/`;
       const body = {
-        name: `Customer_${userId}`,
+        name: `User_${userId.replace(/-/g, '').substring(0, 12)}`,
         enabled: true,
       };
 
@@ -81,9 +82,13 @@ export class VobizSubAccountService {
           throw new ProviderError('vobiz', `Create subaccount failed (${response.status}): ${text}`);
         }
 
-        const data = (await response.json()) as VobizSubAccountResponse;
-        subAuthId = data.auth_id;
-        subAuthToken = data.auth_token;
+        const data = (await response.json()) as any;
+        subAuthId = data.sub_account?.auth_id || data.auth_credentials?.auth_id || data.auth_id;
+        subAuthToken = data.sub_account?.auth_token || data.auth_credentials?.auth_token || data.auth_token;
+
+        if (!subAuthId || !subAuthToken) {
+          throw new ProviderError('vobiz', `Vobiz returned success but missing sub-account credentials in payload`);
+        }
       } catch (err) {
         if (err instanceof ProviderError) throw err;
         const message = err instanceof Error ? err.message : 'Unknown error';
@@ -110,7 +115,7 @@ export class VobizSubAccountService {
   /**
    * Transfers balance from the partner master account to a sub-account's wallet.
    */
-  async transferBalance(subAuthId: string, amount: number, currency: string = 'USD') {
+  async transferBalance(subAuthId: string, amount: number, currency: string = 'INR') {
     logger.info('VobizSubAccountService: transferring balance', { subAuthId, amount, currency });
 
     if (this.isMock) {

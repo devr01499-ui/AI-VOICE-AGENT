@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../../server/src/lib/prisma';
 import { getServerSession } from 'next-auth';
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -15,7 +16,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   try {
     const batch = await prisma.batchCampaign.update({
-        where: { id: params.id },
+        where: { id },
         data: {
             status: body.status
         }
@@ -24,7 +25,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     // If canceled, also cancel pending scheduled calls
     if (body.status === 'canceled') {
         await prisma.scheduledCall.updateMany({
-            where: { batchId: params.id, status: 'scheduled' },
+            where: { batchId: id, status: 'scheduled' },
             data: { status: 'canceled' }
         });
     }
