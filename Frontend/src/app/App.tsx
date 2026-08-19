@@ -2492,7 +2492,12 @@ function DashNumbers() {
                   <td className="px-5 py-4">{n.agentId?<span className="text-xs font-bold text-[var(--nm-text)] nm-pressed rounded px-3 py-1" style={{fontFamily:"'Outfit', sans-serif"}}>{liveAgents.find(a=>a.id===n.agentId)?.name || 'Default Agent'}</span>:<span className="text-xs font-bold text-[var(--nm-text)]">Unassigned</span>}</td>
                   <td className="px-5 py-4">
                     <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2"><SDot status={n.status}/><span className="text-sm font-bold text-[var(--nm-text)] capitalize" style={{fontFamily:"'Outfit', sans-serif"}}>{n.status}</span></div>
+                      <div className="flex items-center gap-2">
+                        <SDot status={n.status === 'activation_pending' ? 'pending' : n.status}/>
+                        <span className="text-sm font-bold text-[var(--nm-text)] capitalize" style={{fontFamily:"'Outfit', sans-serif"}}>
+                          {n.status === 'activation_pending' ? 'Activation Pending' : n.status}
+                        </span>
+                      </div>
                       {n.kycStatus === 'pending' && <span className="text-[10px] text-amber-500 font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>KYC Pending</span>}
                       {n.kycStatus === 'failed' && <span className="text-[10px] text-red-500 font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>KYC Failed</span>}
                     </div>

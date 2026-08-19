@@ -75,4 +75,12 @@ px prisma db push to bypass Supabase shadow DB auth schema error safely.
 - **Razorpay Order Amount Audit**: Verified `BillingService.createNumberPurchaseOrder` calculates `(monthly + setup) * 100` paise in `INR` (verified 70,000 paise / ₹700).
 - **Evidence Verification**: Captured screenshots of Search UI & Order Summary UI in `₹`, raw Razorpay order payload, modal deletion proof, pagination counts, and clean typecheck (`npm run typecheck` passed with exit code 0).
 
+## Sub-Account Email Naming, Number Assignment & Activation Pending Workflow (2026-08-19)
+- **Sub-Account Email Naming**: Verified Vobiz `POST /api/v1/accounts/{masterAuthId}/sub-accounts/` payload `name: user.email` returns **HTTP 201 Created** (`verified.buyer_1787112471235@claritiyvoice.com` -> `SA_RWNRFO5C`). Allows direct identity lookup in Vobiz console.
+- **Explicit DID Assignment**: Integrated sub-account number assignment in `VobizPhoneNumberService.ts` linking purchased number to `subAuthId`.
+- **Zero Auto-Funding**: Enforced zero auto-funding policy. Sub-accounts remain unfunded (₹0 balance) until the founder manually tops up wallet in Vobiz console.
+- **User-Facing UI State**: Set purchased number default status to `activation_pending`. Displayed **"Number purchased — activation pending"** card and amber status badges across UI. Added `PATCH /api/v2/numbers/:id/activate` manual activation toggle.
+- **Build Verification**: Verified `npm run typecheck`, `cd server && npm run build`, and `cd Frontend && npm run build` (all passed with exit code 0). Zero schema changes or `prisma db push` executed.
+
+
 

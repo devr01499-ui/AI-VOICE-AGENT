@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search, X, Loader2, AlertCircle, CheckCircle2,
   Phone, Globe, ShieldAlert, Info, ChevronDown, UserCheck, Sparkles,
-  ArrowLeft, CreditCard, ShoppingBag, SlidersHorizontal
+  ArrowLeft, CreditCard, ShoppingBag, SlidersHorizontal, Clock
 } from 'lucide-react';
 import { formatCurrency } from '../../../lib/formatCurrency';
 
@@ -301,9 +301,14 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
               </p>
             </div>
           ) : (
-            <p className="text-sm text-emerald-600 font-bold mb-6 flex items-center justify-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4" /> Active and ready for call routing.
-            </p>
+            <div className="text-left bg-amber-50 p-4.5 rounded-2xl border border-amber-200 mb-6">
+              <div className="flex items-center gap-2 mb-1.5 text-amber-800 font-bold text-sm">
+                <Clock className="w-4 h-4 text-amber-600" /> Number purchased — activation pending
+              </div>
+              <p className="text-xs text-amber-700 leading-relaxed">
+                Your number has been provisioned and assigned to your Vobiz sub-account. Activation is pending manual wallet top-up by the administrator.
+              </p>
+            </div>
           )}
 
           <button
