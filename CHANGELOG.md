@@ -1,6 +1,17 @@
 # CHANGELOG
 
-## [Unreleased] - 2026-07-19
+## [Unreleased] - 2026-08-19
+### Fixed
+- Rebuilt phone number search & purchase experience as a full-page enterprise flow (`/dashboard/numbers/buy`), completely deleting legacy modal overlay `DModal open={showBuy}` from `Frontend/src/app/App.tsx`.
+- Enforced dynamic currency formatting via single centralized utility `lib/formatCurrency.ts` (`formatCurrency(amount, currency)`), eliminating all hardcoded `$` and `₹` symbols in JSX.
+- Fixed Razorpay order amount calculation in `BillingService.ts` and `numbers.ts` to charge `(monthly_fee + setup_fee) * 100` paise in currency `"INR"` (verified 70,000 paise / ₹700 for ₹600 monthly + ₹100 setup).
+- Added itemized Order Summary checkout screen displaying first month fee, setup fee, and total due today in `₹` before triggering Razorpay checkout.
+- Removed Region/Code text input field from top search filters; search operates cleanly with Country (`IN`) and Type (`local`/`tollfree`) parameters.
+- Integrated non-blocking Vobiz sub-account auto-provisioning (`POST /api/v1/accounts/{auth_id}/sub-accounts/`) upon successful purchase, saving `auth_id` in `prisma.vobizSubAccount`.
+- Implemented inventory pagination with "Load More Numbers" button and verified distinct page 1 vs page 2 data streams from Vobiz API.
+- Implemented automatic post-payment Razorpay refund execution and `[ADMIN_ALERT][VOBIZ_LOW_BALANCE]` logging on Vobiz purchase debit failures.
+
+
 ### Fixed
 - Resolved visual clipping bug for the multi-agent assignment dropdown panel inside the overflow-hidden documents table. Rewrote the select agents menu to use Radix-based `Popover` portals so the dropdown renders outside the clipping ancestor container.
 - Removed legacy global window 'click' event listener (`handleOutsideClick`) that conflicted with the new Popover component's automatic focus-handling and immediately closed the dropdown after opening.

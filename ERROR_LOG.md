@@ -57,3 +57,22 @@ px prisma db push to bypass Supabase shadow DB auth schema error safely.
 - Server typecheck: PASSED (exit code 0). No new regressions.
 - Aadhaar-required numbers: shown in results with disabled Buy button and tooltip directing user to support.
 - Payment path: one-off Razorpay charge via existing createNumberPurchaseOrder (ADR-004 compliant, no sub-accounts).
+
+## Phone Number Search & Purchase Flow Complete Audit & Verification (2026-08-19)
+- Audited codebase for literal `$` and hardcoded `USD` symbols across `Frontend/src/app/App.tsx` and `app/components/numbers/NumberSearchAndPurchase.tsx`. Replaced hardcoded `$` with dynamic `formatCurrency(amount, currency)` outputting `₹` for INR.
+- Fixed Razorpay order amount calculation bug in `Frontend/src/app/App.tsx` and `BillingService.ts`: order payload now explicitly totals `(setup_fee + monthly_fee) * 100` paise in currency `INR` (verified via `scratch/test_compiled_order.js`: 600 monthly + 100 setup = 70,000 paise / ₹700).
+- Redesigned purchase confirmation modal & search result cards with itemized pricing (First Month Service Fee, One-Time Activation / Setup Fee, Total Due Today), skeleton loading state, empty state, and responsive card padding.
+- Verified Vobiz standard-tier sub-account auto-provisioning (`POST /api/v1/accounts/{auth_id}/sub-accounts/`) via `scratch/test_subaccount.js` (HTTP 200 returned with sub-account auth_id `SA_17JFJPW4`). Integrated non-blocking call inside `/api/v2/numbers/purchase`.
+- Verified pagination: tested page 1 vs page 2 fetching on live Vobiz inventory (`scratch/test_pagination.js`), confirming distinct page results returned. Integrated "Load More Numbers" button in `NumberSearchAndPurchase.tsx`.
+- Verified automatic post-payment refund path on Vobiz debit failure (`scratch/test_refund_alert.js`), confirming `BillingService.refundOrder` handles refund IDs and logs `[ADMIN_ALERT][VOBIZ_LOW_BALANCE]`.
+- Verified root and server compilation & typecheck (`npm run typecheck && npm run build` passed with exit code 0). Zero schema changes or `prisma db push` executed.
+
+## Full-Page Phone Number Purchase Flow Rebuild & Modal Elimination (2026-08-19)
+- **Modal Deletion**: Deleted legacy modal `DModal open={showBuy}` from `Frontend/src/app/App.tsx`. Updated CTA buttons to navigate directly to `/dashboard/numbers/buy`.
+- **Currency Utility**: Created `lib/formatCurrency.ts` exporting `formatCurrency(amount, currencyCode)` using `Intl.NumberFormat('en-IN')`. Eliminates literal `$` or `₹` in JSX.
+- **Full-Page Redesign**: Rebuilt `NumberSearchAndPurchase.tsx` as a multi-step full-page experience (`/dashboard/numbers/buy`). Added explicit Order Summary checkout screen showing line-item setup fee + monthly fee + total due today before Razorpay payment.
+- **Region Filter Removal**: Removed Region/Code text input field from top filters per Section 7. Search operates cleanly with Country (`IN`) and Type (`local`/`tollfree`) parameters.
+- **Razorpay Order Amount Audit**: Verified `BillingService.createNumberPurchaseOrder` calculates `(monthly + setup) * 100` paise in `INR` (verified 70,000 paise / ₹700).
+- **Evidence Verification**: Captured screenshots of Search UI & Order Summary UI in `₹`, raw Razorpay order payload, modal deletion proof, pagination counts, and clean typecheck (`npm run typecheck` passed with exit code 0).
+
+

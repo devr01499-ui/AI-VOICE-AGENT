@@ -67,8 +67,8 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
       const currentTotalCost = currentMonthlyFee + currentSetupFee;
 
       // If price has changed by more than 0.01 (floating point tolerance), reject
-      if (Math.abs(currentMonthlyFee - params.expectedPrice) > 0.01) {
-        throw new Error(`Price changed from $${params.expectedPrice}/mo to $${currentMonthlyFee}/mo. Please refresh and try again.`);
+      if (Math.abs(currentMonthlyFee - params.expectedPrice) > 0.01 && Math.abs(currentTotalCost - params.expectedPrice) > 0.01) {
+        throw new Error(`Price changed from ₹${params.expectedPrice} to ₹${currentTotalCost}. Please refresh and try again.`);
       }
 
       await prisma.phoneNumberOrder.update({
@@ -76,12 +76,12 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
         data: { orderStatus: 'purchase_pending', selectedNumber: numberDetails.e164 }
       });
 
-      // 3. Purchase into Master Account (ADR-004: standard API, no sub-accounts)
+      // 3. Purchase into Master Account (ADR-004: standard API, master account purchase)
       const purchaseEndpoint = `/api/v1/Account/${this.authId}/numbers/purchase-from-inventory`;
       const purchaseRes = await this.request(
         'POST', 
         purchaseEndpoint, 
-        { e164: numberDetails.e164, currency: numberDetails.currency },
+        { e164: numberDetails.e164, currency: numberDetails.currency || 'INR' },
         { userId: params.userId }
       );
 
@@ -108,7 +108,7 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
           kycStatus: numberDetails.aadhaar_verification_required ? 'pending' : 'verified',
           monthlyCost: currentMonthlyFee,
           setupFee: currentSetupFee,
-          currency: numberDetails.currency || 'USD',
+          currency: numberDetails.currency || 'INR',
           aadhaarRequired: numberDetails.aadhaar_verification_required || false,
           vobizNumberId: numberDetails.id,
           nextBillingDate,

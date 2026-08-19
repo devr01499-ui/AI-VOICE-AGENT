@@ -14,26 +14,39 @@ export interface VobizInventoryNumber {
   aadhaar_verification_required?: boolean;
 }
 
+export interface VobizInventoryResult {
+  items: VobizInventoryNumber[];
+  total: number;
+  page: number;
+  per_page: number;
+  hasMore: boolean;
+}
+
 export class VobizInventoryService extends VobizIntegrationService {
   
   /**
-   * Fetches live available numbers from Vobiz inventory
+   * Fetches live available numbers from Vobiz inventory with pagination support.
    */
   public async getAvailableNumbers(
     userId: string,
-    filters: { country?: string, type?: string, region?: string }
-  ): Promise<VobizInventoryNumber[]> {
+    filters: { country?: string; type?: string; region?: string; page?: number; per_page?: number }
+  ): Promise<VobizInventoryResult> {
     const endpoint = `/api/v1/Account/${this.authId}/inventory/numbers`;
+
+    const page = Math.max(1, filters.page || 1);
+    const perPage = Math.max(1, filters.per_page || 20);
 
     const queryParams = new URLSearchParams();
     if (filters.country) queryParams.append('country', filters.country);
     if (filters.type) queryParams.append('number_type', filters.type);
     if (filters.region) queryParams.append('region', filters.region);
-    
-    const queryStr = queryParams.toString();
-    const finalEndpoint = queryStr ? `${endpoint}?${queryStr}` : endpoint;
+    queryParams.append('page', page.toString());
+    queryParams.append('per_page', perPage.toString());
 
-    const response = await this.request<{ numbers: VobizInventoryNumber[] }>(
+    const queryStr = queryParams.toString();
+    const finalEndpoint = `${endpoint}?${queryStr}`;
+
+    const response = await this.request<any>(
       'GET', 
       finalEndpoint, 
       undefined, 
@@ -44,13 +57,35 @@ export class VobizInventoryService extends VobizIntegrationService {
       throw new ProviderError('vobiz', `Failed to fetch inventory from Vobiz: ${response?.error || 'Unknown Error'}`);
     }
 
-    const responseData = response.data as { items?: VobizInventoryNumber[], numbers?: VobizInventoryNumber[] };
+    const responseData = response.data;
+    let items: VobizInventoryNumber[] = [];
+    let total = 0;
 
     if (Array.isArray(responseData)) {
-        return responseData;
+      items = responseData;
+      total = items.length;
+    } else if (responseData && typeof responseData === 'object') {
+      items = responseData.items || responseData.numbers || [];
+      total = typeof responseData.total === 'number'
+        ? responseData.total
+        : (responseData.meta?.total || items.length);
     }
 
-    return responseData.items || responseData.numbers || [];
+    // Ensure currency is correctly set on items if missing (default INR)
+    items = items.map(item => ({
+      ...item,
+      currency: item.currency || 'INR',
+    }));
+
+    const hasMore = (page * perPage) < total || (items.length === perPage);
+
+    return {
+      items,
+      total: Math.max(total, items.length),
+      page,
+      per_page: perPage,
+      hasMore,
+    };
   }
 
   /**
@@ -69,14 +104,18 @@ export class VobizInventoryService extends VobizIntegrationService {
     
     // If the direct endpoint returns 404 or fails, fallback to fetching the inventory and finding it
     if (!response?.success || !response?.data) {
-       const allNumbers = await this.getAvailableNumbers(userId, {});
-       const foundNumber = allNumbers.find(n => n.id === numberId);
+       const res = await this.getAvailableNumbers(userId, { per_page: 100 });
+       const foundNumber = res.items.find(n => n.id === numberId);
        if (!foundNumber) {
          throw new ProviderError('vobiz', `Failed to fetch number details: Number ${numberId} not found in inventory.`);
        }
        return foundNumber;
     }
 
-    return response.data;
+    const numberData = response.data as VobizInventoryNumber;
+    return {
+      ...numberData,
+      currency: numberData.currency || 'INR',
+    };
   }
 }
