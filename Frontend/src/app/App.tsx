@@ -31,7 +31,7 @@ import Navbar from "./components/layout/Navbar";
 import Footer from "./components/layout/Footer";
 import SchemaInjector from "./components/seo/SchemaInjector";
 import { DashCompanionCall } from "./DashCompanionCall";
-import { NumberSearchAndPurchase } from "@/app/components/numbers";
+import { NumberSearchAndPurchase } from "../../../app/components/numbers/NumberSearchAndPurchase";
 const Home = lazy(() => import("./pages/Home"));
 const Solutions = lazy(() => import("./pages/Solutions"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
@@ -2371,6 +2371,14 @@ function DashNumbers() {
     }
   }
 
+  if (viewMode === 'buy') {
+    return (
+      <div className="space-y-6">
+        <NumberSearchAndPurchase onBack={() => { setViewMode('list'); loadNumbers(); }} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <ConfirmDeleteModal 
@@ -2453,16 +2461,6 @@ function DashNumbers() {
         </div>
       </DModal>
 
-  if (viewMode === 'buy') {
-    return (
-      <div className="space-y-6">
-        <NumberSearchAndPurchase onBack={() => { setViewMode('list'); loadNumbers(); }} />
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{numbers.length} numbers provisioned</p>
         <div className="flex gap-2"><DBtn variant="secondary" onClick={()=>setShowSip(true)}><Network className="w-4 h-4"/> SIP config</DBtn><DBtn onClick={() => setViewMode('buy')}><Plus className="w-4 h-4"/> Buy number</DBtn></div>
