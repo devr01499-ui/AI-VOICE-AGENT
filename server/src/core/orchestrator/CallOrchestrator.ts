@@ -47,6 +47,7 @@ export class CallOrchestrator {
 
   private constructor() {
     this.subscribeToEventBus();
+    this.startMidCallEnforcementMonitor();
   }
 
   static get instance(): CallOrchestrator {
@@ -446,9 +447,61 @@ export class CallOrchestrator {
       stateMachine.transitionTo(mappedStatus);
       this.stateMachines.delete(callId);
 
-      await CallRepository.updateStatus(callId, mappedStatus, { endTime: new Date() });
+      const endTime = new Date();
+      const call = await prisma.call.findUnique({ where: { id: callId } });
+      let durationSeconds = 0;
+      if (call && call.startTime) {
+        durationSeconds = Math.max(1, Math.round((endTime.getTime() - call.startTime.getTime()) / 1000));
+      }
+
+      await CallRepository.updateStatus(callId, mappedStatus, { endTime, durationSeconds });
       await SessionLogger.logCallEnded(callId, reason, session?.providerSessionId || '');
+
+      // Trigger post-call deduction asynchronously
+      const { CallService } = await import('../../services/CallService');
+      CallService.deductCallMinutes(callId, durationSeconds).catch((deductErr: any) => {
+        logger.error('[CALL_DEDUCTION_ERROR] Failed during post-call deduction', { callId, error: String(deductErr) });
+      });
     }
+  }
+
+  private startMidCallEnforcementMonitor() {
+    setInterval(async () => {
+      if (this.activeCalls.size === 0) return;
+
+      for (const [callId] of this.activeCalls) {
+        try {
+          const call = await prisma.call.findUnique({
+            where: { id: callId },
+            include: { user: true }
+          });
+          if (!call || !call.startTime || call.user.email === ADMIN_EMAIL) continue;
+
+          const elapsedSeconds = Math.round((Date.now() - call.startTime.getTime()) / 1000);
+          const remainingSeconds = call.user.minutesRemainingSeconds > 0
+            ? call.user.minutesRemainingSeconds
+            : (call.user.callingBalanceMinutes * 60);
+
+          if (elapsedSeconds >= remainingSeconds) {
+            logger.warn('[MID_CALL_CUTOFF] Minutes remaining depleted during call. Force terminating session.', {
+              callId,
+              userId: call.userId,
+              elapsedSeconds,
+              remainingSeconds,
+            });
+            await this.endCallSession(callId, 'minutes_exhausted');
+            try {
+              const { VobizService } = await import('../telephony/VobizService');
+              await VobizService.terminateCall(callId);
+            } catch (vobizErr) {
+              logger.warn('[MID_CALL_CUTOFF] Vobiz termination call warning', { callId, error: String(vobizErr) });
+            }
+          }
+        } catch (monitorErr) {
+          logger.error('[MID_CALL_MONITOR_ERROR] Failed during mid-call check', { callId, error: String(monitorErr) });
+        }
+      }
+    }, 3000);
   }
 
   getSessionInfo(callId: string) {

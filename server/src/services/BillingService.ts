@@ -178,17 +178,19 @@ export class BillingService {
       const user = await prisma.user.findUnique({ where: { id: userId } });
       if (!user) throw new Error('User not found');
 
-      const newBalance = user.callingBalanceMinutes + addedMinutes;
+      const newBalanceMinutes = user.callingBalanceMinutes + addedMinutes;
+      const newMinutesRemainingSeconds = user.minutesRemainingSeconds + (addedMinutes * 60);
 
       await prisma.user.update({
         where: { id: userId },
         data: {
           accountType,
-          callingBalanceMinutes: newBalance,
+          callingBalanceMinutes: newBalanceMinutes,
+          minutesRemainingSeconds: newMinutesRemainingSeconds,
         },
       });
 
-      logger.info(`BillingService: Provisioned ${planName} for user ${userId}. Added ${addedMinutes} mins.`);
+      logger.info(`BillingService: Provisioned ${planName} for user ${userId}. Added ${addedMinutes} mins (${addedMinutes * 60} seconds).`);
       return true;
     } catch (err) {
       logger.error('BillingService: Failed to process plan purchase in DB', { error: String(err) });

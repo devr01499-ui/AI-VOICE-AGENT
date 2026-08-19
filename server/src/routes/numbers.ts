@@ -69,6 +69,45 @@ router.get('/', requireAuth, async (req, res, next) => {
 });
 
 /**
+  * GET /api/v2/numbers/status
+  * Checks if the user's phone number selection is locked and returns active number details.
+  */
+router.get('/status', requireAuth, async (req, res, next) => {
+  try {
+    const userId = (req as any).userId;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { numberLocked: true, email: true, accountType: true }
+    });
+
+    if (!user) {
+      res.status(404).json({ success: false, error: 'User not found' });
+      return;
+    }
+
+    const primaryNumber = await prisma.phoneNumber.findFirst({
+      where: { userId },
+      orderBy: { purchasedAt: 'desc' },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        numberLocked: user.numberLocked || false,
+        accountType: user.accountType,
+        hasNumber: !!primaryNumber,
+        number: primaryNumber ? primaryNumber.phoneNumber : null,
+        numberStatus: primaryNumber ? primaryNumber.status : null,
+        kycStatus: primaryNumber ? primaryNumber.kycStatus : null,
+      }
+    });
+  } catch (err) {
+    logger.error('Numbers: failed to fetch status', { error: String(err) });
+    next(err);
+  }
+});
+
+/**
  * GET /api/v2/numbers/vobiz-probe
  * Temporary diagnostic route to test raw Vobiz inventory request directly from Render runtime.
  */
@@ -248,6 +287,21 @@ router.post('/purchase', requireAuth, requireActivePlan, async (req, res, next) 
   const userId = (req as any).userId;
   const { vobizNumberId, expectedPrice, orderId, paymentId, signature, agentId } = req.body;
 
+  // Server-side number lock guard enforcement
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    res.status(401).json({ success: false, error: 'User not found' });
+    return;
+  }
+  if (user.numberLocked) {
+    res.status(403).json({
+      success: false,
+      error: 'Phone number selection is locked for your account. You have already claimed your 1 free bundled phone number.',
+      numberLocked: true,
+    });
+    return;
+  }
+
   if (!vobizNumberId || expectedPrice === undefined || !orderId || !paymentId || !signature) {
     res.status(400).json({ success: false, error: 'Missing required purchase fields.' });
     return;
@@ -269,6 +323,7 @@ router.post('/purchase', requireAuth, requireActivePlan, async (req, res, next) 
         nextBillingDate: existingNumber.nextBillingDate,
         monthlyCost: existingNumber.monthlyCost,
         currency: existingNumber.currency,
+        numberLocked: true,
       }
     });
     return;
@@ -304,6 +359,12 @@ router.post('/purchase', requireAuth, requireActivePlan, async (req, res, next) 
       logger.warn('[SUB_ACCOUNT_INIT_WARN] Could not initialize VobizSubAccountService', { userId, error: String(subAccountErr) });
     }
 
+    // Step 4: Lock number selection for user permanently
+    await prisma.user.update({
+      where: { id: userId },
+      data: { numberLocked: true },
+    });
+
     res.json({
       success: true,
       data: {
@@ -314,6 +375,7 @@ router.post('/purchase', requireAuth, requireActivePlan, async (req, res, next) 
         nextBillingDate: result.phoneNumber.nextBillingDate,
         monthlyCost: result.phoneNumber.monthlyCost,
         currency: result.phoneNumber.currency,
+        numberLocked: true,
       }
     });
 
@@ -374,6 +436,101 @@ router.post('/purchase', requireAuth, requireActivePlan, async (req, res, next) 
 
     logger.error('Numbers: purchase failed', { userId, error: errorMessage });
     res.status(500).json({ success: false, error: 'Purchase processing failed. Please contact support.' });
+  }
+});
+
+/**
+ * POST /api/v2/numbers/claim
+ * Claims the 1 free bundled phone number included with the user's plan payment.
+ * No second Razorpay charge required — billed against master account balance.
+ * Body: { vobizNumberId, agentId? }
+ */
+router.post('/claim', requireAuth, requireActivePlan, async (req, res, next) => {
+  const userId = (req as any).userId;
+  const { vobizNumberId, agentId } = req.body;
+
+  if (!vobizNumberId) {
+    res.status(400).json({ success: false, error: 'vobizNumberId is required.' });
+    return;
+  }
+
+  // Server-side number lock guard enforcement
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    res.status(401).json({ success: false, error: 'User not found' });
+    return;
+  }
+
+  if (user.numberLocked) {
+    res.status(403).json({
+      success: false,
+      error: 'Phone number selection is locked for your account. You have already claimed your 1 free bundled phone number.',
+      numberLocked: true,
+    });
+    return;
+  }
+
+  const claimIdempotencyKey = `claim_${userId}_${vobizNumberId}`;
+
+  // Idempotency check: Return existing record if already claimed
+  const existingNumber = await prisma.phoneNumber.findFirst({
+    where: { userId, vobizNumberId },
+  });
+  if (existingNumber) {
+    res.json({
+      success: true,
+      data: {
+        message: 'Number already claimed and assigned.',
+        phoneNumberId: existingNumber.id,
+        number: existingNumber.phoneNumber,
+        status: 'Active',
+        numberLocked: true,
+      }
+    });
+    return;
+  }
+
+  try {
+    const phoneService = new VobizPhoneNumberService();
+    const result = await phoneService.purchaseAndAssignNumber({
+      userId,
+      idempotencyKey: claimIdempotencyKey,
+      vobizNumberId,
+      expectedPrice: 0,
+      agentId,
+    });
+
+    // Auto-create/reuse Vobiz sub-account for user
+    try {
+      const { VobizSubAccountService } = require('../services/VobizSubAccountService');
+      const subAccountService = new VobizSubAccountService();
+      subAccountService.getOrCreateSubAccount(userId, user.email).catch((subErr: any) => {
+        logger.warn('[SUB_ACCOUNT_AUTO_PROVISION_WARN] Sub-account warning during claim', { userId, error: String(subErr) });
+      });
+    } catch (subAccountErr) {
+      logger.warn('[SUB_ACCOUNT_INIT_WARN] Could not initialize VobizSubAccountService during claim', { userId, error: String(subAccountErr) });
+    }
+
+    // Flip numberLocked to true server-side
+    await prisma.user.update({
+      where: { id: userId },
+      data: { numberLocked: true },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        message: 'Bundled phone number claimed and assigned successfully.',
+        phoneNumberId: result.phoneNumber.id,
+        number: result.phoneNumber.phoneNumber,
+        status: result.phoneNumber.aadhaarRequired ? 'KYC Required' : 'Active',
+        numberLocked: true,
+      }
+    });
+  } catch (err: any) {
+    const errorMsg = err?.message || String(err);
+    logger.error('[NUMBERS_CLAIM_ERROR] Failed to claim bundled number', { userId, vobizNumberId, error: errorMsg });
+    res.status(500).json({ success: false, error: 'Failed to claim phone number. Please contact support.' });
   }
 });
 

@@ -377,11 +377,12 @@ function PricingPage({ setPage }: { setPage: (p: Page) => void }) {
     },
     {
       name: "Startup Plan",
-      price: 2999,
+      price: 3799,
       desc: "Ideal for growing businesses testing automated call campaigns.",
       minutes: "750 Bundled Mins",
       features: [
         "750 Bundled Call Minutes (₹3.99/min after)",
+        "1 Free Phone Number Included",
         "26+ HD Voice Personas",
         "70+ Languages & Dialects",
         "Standard Webhooks & CRM Sync",
@@ -392,11 +393,12 @@ function PricingPage({ setPage }: { setPage: (p: Page) => void }) {
     },
     {
       name: "Growth Plan",
-      price: 9999,
+      price: 10799,
       desc: "For high-volume operations scaling outbound/inbound workflows.",
       minutes: "2,865 Bundled Mins",
       features: [
         "2,865 Bundled Call Minutes (₹3.49/min after)",
+        "1 Free Phone Number Included",
         "Everything in Startup",
         "Priority Telephony Routing",
         "1 Custom Voice Clone",
@@ -407,11 +409,12 @@ function PricingPage({ setPage }: { setPage: (p: Page) => void }) {
     },
     {
       name: "Enterprise Plan",
-      price: 29999,
+      price: 30799,
       desc: "For regulated enterprise contact centers requiring custom SLAs.",
       minutes: "10,000 Bundled Mins",
       features: [
         "10,000 Bundled Call Minutes (₹2.99/min after)",
+        "1 Free Phone Number Included",
         "Everything in Growth",
         "Dedicated SIP IP Addresses",
         "Custom Voice Personas & Cloning",

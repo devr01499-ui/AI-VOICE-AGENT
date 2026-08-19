@@ -2,15 +2,11 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Search, X, Loader2, AlertCircle, CheckCircle2,
+  Loader2, AlertCircle, CheckCircle2,
   Phone, Globe, ShieldAlert, Info, ChevronDown, UserCheck, Sparkles,
-  ArrowLeft, CreditCard, ShoppingBag, SlidersHorizontal, Clock
+  ArrowLeft, Check, SlidersHorizontal, Lock
 } from 'lucide-react';
 import { formatCurrency } from '../../../lib/formatCurrency';
-
-declare global {
-  interface Window { Razorpay: any; }
-}
 
 const COUNTRIES = [
   { code: 'IN', name: 'India', flag: '🇮🇳' },
@@ -62,7 +58,12 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
     return envUrl || (isLocal ? 'http://localhost:3001' : 'https://ai-voice-agent-backend-mv32.onrender.com');
   };
 
-  // Filters (Country & Type ONLY per Section 7 — Region/Code input removed)
+  // Locked State
+  const [checkingLocked, setCheckingLocked] = useState(true);
+  const [numberLocked, setNumberLocked] = useState(false);
+  const [userNumber, setUserNumber] = useState<string | null>(null);
+
+  // Filters
   const [selectedCountry, setSelectedCountry] = useState('IN');
   const [selectedType, setSelectedType] = useState('local');
   const [countryOpen, setCountryOpen] = useState(false);
@@ -76,18 +77,43 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
 
-  // Order Summary Checkout Step State (Section 2)
+  // Selection & Confirmation State
   const [selectedNumber, setSelectedNumber] = useState<VobizNumber | null>(null);
+  const [confirmedWarning, setConfirmedWarning] = useState(false);
 
   // Agent Assignment State
   const [agents, setAgents] = useState<AgentOption[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState('');
 
-  // Purchase Execution State
+  // Purchase/Claim Execution State
   const [purchasing, setPurchasing] = useState(false);
-  const [purchasedData, setPurchasedData] = useState<{ id: string; number: string; status: string; nextBillingDate?: string } | null>(null);
+  const [purchasedData, setPurchasedData] = useState<{ id: string; number: string; status: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [refunded, setRefunded] = useState(false);
+
+  // Initial status check for numberLocked
+  useEffect(() => {
+    const checkStatus = async () => {
+      setCheckingLocked(true);
+      try {
+        const apiBase = getRuntimeUrl();
+        const res = await fetch(`${apiBase}/api/v2/numbers/status`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+        });
+        const data = await res.json();
+        if (data.success && data.data) {
+          if (data.data.numberLocked) {
+            setNumberLocked(true);
+            setUserNumber(data.data.number);
+          }
+        }
+      } catch {
+        // Non-critical check failure fallback
+      } finally {
+        setCheckingLocked(false);
+      }
+    };
+    checkStatus();
+  }, []);
 
   // Load available agents for assignment dropdown
   useEffect(() => {
@@ -155,118 +181,103 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
   }, []);
 
   useEffect(() => {
-    handleSearch(selectedCountry, selectedType, 1, false);
-  }, [selectedCountry, selectedType]);
+    if (!numberLocked) {
+      handleSearch(selectedCountry, selectedType, 1, false);
+    }
+  }, [selectedCountry, selectedType, numberLocked]);
 
-  const loadRazorpay = () => new Promise<boolean>((resolve) => {
-    if (window.Razorpay) { resolve(true); return; }
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
+  const handleExecuteClaim = async () => {
+    if (!selectedNumber || !confirmedWarning) return;
 
-  const handleExecutePurchase = async () => {
-    if (!selectedNumber) return;
-
-    setRefunded(false);
     setError(null);
     setPurchasing(true);
 
-    const setupFee = selectedNumber.setup_fee || 0;
-    const monthlyFee = selectedNumber.monthly_fee || 0;
-    const totalExpectedCost = setupFee + monthlyFee;
-    const currency = selectedNumber.currency || 'INR';
-
     try {
-      const isLoaded = await loadRazorpay();
-      if (!isLoaded) throw new Error('Payment system failed to load. Please check your internet connection.');
-
       const apiBase = getRuntimeUrl();
-      const orderRes = await fetch(`${apiBase}/api/v2/numbers/create-order`, {
+      const res = await fetch(`${apiBase}/api/v2/numbers/claim`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
         },
         body: JSON.stringify({
-          baseCost: monthlyFee,
-          setupFee: setupFee,
-          currency: currency,
+          vobizNumberId: selectedNumber.id,
+          agentId: selectedAgentId || undefined,
         }),
       });
-      const orderData = await orderRes.json();
-      if (!orderData.success) {
-        throw new Error(typeof orderData.error === 'object' ? orderData.error?.message : orderData.error || 'Order creation failed');
-      }
-      if (orderData.data?.mock === true || String(orderData.data?.id).startsWith('order_mock_')) {
-        throw new Error('Payment system is running in mock mode. Please configure production Razorpay credentials.');
-      }
 
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: orderData.data.amount,
-        currency: 'INR',
-        name: 'Claritiy Voice',
-        description: `Phone Number Purchase: ${selectedNumber.e164}`,
-        order_id: orderData.data.id,
-        handler: async (response: any) => {
-          try {
-            const verifyRes = await fetch(`${getRuntimeUrl()}/api/v2/numbers/purchase`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-              },
-              body: JSON.stringify({
-                vobizNumberId: selectedNumber.id,
-                expectedPrice: totalExpectedCost,
-                orderId: response.razorpay_order_id,
-                paymentId: response.razorpay_payment_id,
-                signature: response.razorpay_signature || 'mock_signature',
-                agentId: selectedAgentId || undefined,
-              }),
-            });
-            const verifyData = await verifyRes.json();
-            setPurchasing(false);
-            if (!verifyData.success) {
-              setRefunded(verifyData.refunded === true);
-              setError(verifyData.error || 'Provisioning failed.');
-            } else {
-              setPurchasedData({
-                id: verifyData.data.phoneNumberId,
-                number: verifyData.data.number,
-                status: verifyData.data.status,
-                nextBillingDate: verifyData.data.nextBillingDate,
-              });
-              setSelectedNumber(null);
-            }
-          } catch {
-            setPurchasing(false);
-            setError('Verification failed. If you were charged, your payment will be automatically refunded.');
-          }
-        },
-        modal: {
-          ondismiss: () => {
-            setPurchasing(false);
-          },
-        },
-        theme: { color: '#059669' },
-      };
-
-      const paymentObj = new window.Razorpay(options);
-      paymentObj.on('payment.failed', (response: any) => {
-        setError(`Payment failed: ${response.error?.description || 'Unknown error'}. No charge was made.`);
-        setPurchasing(false);
-      });
-      paymentObj.open();
-
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred during payment processing.');
+      const data = await res.json();
       setPurchasing(false);
+
+      if (!data.success) {
+        setError(data.error || 'Failed to claim phone number.');
+        if (data.numberLocked) {
+          setNumberLocked(true);
+        }
+      } else {
+        setPurchasedData({
+          id: data.data.phoneNumberId || selectedNumber.id,
+          number: data.data.number || selectedNumber.e164,
+          status: data.data.status || 'Active',
+        });
+        setNumberLocked(true);
+        setUserNumber(data.data.number || selectedNumber.e164);
+        setSelectedNumber(null);
+      }
+    } catch (err) {
+      setPurchasing(false);
+      setError(err instanceof Error ? err.message : 'An error occurred during number claim.');
     }
   };
+
+  // ── Loading Locked Check Screen ──────────────────────────────────────────────
+  if (checkingLocked) {
+    return (
+      <div className="min-h-screen bg-gray-50/60 p-6 flex items-center justify-center font-sans">
+        <div className="flex items-center gap-3 text-emerald-700 font-bold">
+          <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+          <span>Verifying phone number account status…</span>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Permanent Locked State View (Section 4 & Section 6) ─────────────────────
+  if (numberLocked && !purchasedData) {
+    return (
+      <div className="min-h-screen bg-gray-50/60 p-6 md:p-12 flex items-center justify-center font-sans">
+        <div className="bg-white p-8 md:p-10 rounded-[36px] w-full max-w-[560px] shadow-xl border border-gray-100 text-center animate-in zoom-in-95 duration-200">
+          <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-emerald-100 shadow-inner">
+            <Lock className="w-10 h-10 text-emerald-600" />
+          </div>
+          <span className="text-xs font-bold uppercase tracking-wider px-3.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full mb-4 inline-block">
+            1 Free Bundled Line Active
+          </span>
+          <h2 className="text-3xl font-black text-gray-900 mb-2 tracking-tight">Phone Number Locked</h2>
+          <p className="text-gray-500 mb-4">Your permanent phone number for this account:</p>
+          <p className="mb-6">
+            <span className="font-mono font-black text-3xl text-emerald-600 tracking-tight">{userNumber || 'Active Phone Number'}</span>
+          </p>
+
+          <div className="bg-emerald-50/60 border border-emerald-100 p-5 rounded-2xl text-left mb-8 space-y-2">
+            <div className="flex items-center gap-2 text-emerald-900 font-bold text-sm">
+              <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600 shrink-0" /> Number Active & Verified
+            </div>
+            <p className="text-xs text-emerald-800 leading-relaxed">
+              This number is permanent for your workspace and is bundled into your active subscription. You will not be able to change or re-select this number. Any number updates require manual founder-handled exceptions.
+            </p>
+          </div>
+
+          <button
+            onClick={() => { if (onBack) onBack(); else window.location.href = '/dashboard'; }}
+            className="w-full bg-emerald-600 text-white py-4 rounded-full font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/30"
+          >
+            Return to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // ── Success Screen ────────────────────────────────────────────────────────────
   if (purchasedData) {
@@ -278,18 +289,9 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
           </div>
           <h2 className="text-3xl font-black text-gray-900 mb-2 tracking-tight">Number Secured!</h2>
           <p className="text-gray-500 mb-2">
-            <span className="font-mono font-bold text-gray-900 text-xl">{purchasedData.number}</span>
+            <span className="font-mono font-bold text-gray-900 text-2xl">{purchasedData.number}</span>
           </p>
-          <p className="text-xs text-gray-400 mb-6">Provisioned to your Claritiy Voice workspace.</p>
-
-          {purchasedData.nextBillingDate && (
-            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-6 text-sm text-gray-600 flex items-center justify-between">
-              <span className="text-xs text-gray-400 font-medium">Next Renewal Date</span>
-              <span className="font-semibold text-gray-800">
-                {new Date(purchasedData.nextBillingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-              </span>
-            </div>
-          )}
+          <p className="text-xs text-gray-400 mb-6">Provisioned to your Vobiz sub-account & Claritiy Voice workspace.</p>
 
           {purchasedData.status === 'KYC Required' ? (
             <div className="text-left bg-amber-50 p-4.5 rounded-2xl border border-amber-200 mb-6">
@@ -297,39 +299,34 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
                 <ShieldAlert className="w-4 h-4" /> Aadhaar Verification Required
               </div>
               <p className="text-xs text-amber-700 leading-relaxed">
-                This number requires mandatory KYC before outbound calls can be routed. Please contact support to submit document proof.
+                This number requires mandatory KYC before outbound calls can be routed. Support will contact you to confirm documentation.
               </p>
             </div>
           ) : (
-            <div className="text-left bg-amber-50 p-4.5 rounded-2xl border border-amber-200 mb-6">
-              <div className="flex items-center gap-2 mb-1.5 text-amber-800 font-bold text-sm">
-                <Clock className="w-4 h-4 text-amber-600" /> Number purchased — activation pending
+            <div className="text-left bg-emerald-50 p-4.5 rounded-2xl border border-emerald-200 mb-6">
+              <div className="flex items-center gap-2 mb-1.5 text-emerald-800 font-bold text-sm">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Number Active
               </div>
-              <p className="text-xs text-amber-700 leading-relaxed">
-                Your number has been provisioned and assigned to your Vobiz sub-account. Activation is pending manual wallet top-up by the administrator.
+              <p className="text-xs text-emerald-700 leading-relaxed">
+                Your 1 free bundled number is active and ready to make and receive calls.
               </p>
             </div>
           )}
 
           <button
             id="go-to-numbers-btn"
-            onClick={() => { if (onBack) onBack(); else window.location.href = '/dashboard/numbers'; }}
+            onClick={() => { if (onBack) onBack(); else window.location.href = '/dashboard'; }}
             className="w-full bg-emerald-600 text-white py-4 rounded-full font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/30"
           >
-            View My Numbers
+            Go to Dashboard
           </button>
         </div>
       </div>
     );
   }
 
-  // ── Step 2: Order Summary Checkout Screen (Section 2 & 4) ────────────────────
+  // ── Step 2: Explicit Confirmation Warning Modal/Screen (Section 3 Step 4) ─────
   if (selectedNumber) {
-    const setupFee = selectedNumber.setup_fee || 0;
-    const monthlyFee = selectedNumber.monthly_fee || 0;
-    const totalCost = setupFee + monthlyFee;
-    const currency = selectedNumber.currency || 'INR';
-
     return (
       <div className="min-h-screen bg-gray-50/60 p-4 md:p-10 font-sans">
         <div className="max-w-2xl mx-auto bg-white rounded-[36px] p-8 md:p-10 shadow-sm border border-gray-100">
@@ -337,36 +334,29 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
           {/* Header */}
           <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-100">
             <button
-              onClick={() => setSelectedNumber(null)}
+              onClick={() => { setSelectedNumber(null); setConfirmedWarning(false); }}
               disabled={purchasing}
               className="flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-gray-800 transition-colors disabled:opacity-50"
             >
               <ArrowLeft className="w-4 h-4" /> Back to Inventory
             </button>
             <span className="text-xs font-bold px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200 flex items-center gap-1.5">
-              <ShoppingBag className="w-3.5 h-3.5" /> Order Summary
+              <Sparkles className="w-3.5 h-3.5" /> 1 Free Bundled Number Selection
             </span>
           </div>
 
           {/* Error Banner */}
           {error && (
-            <div className={`mb-6 p-4 rounded-2xl flex items-start gap-3 border ${
-              refunded
-                ? 'bg-amber-50 text-amber-800 border-amber-200'
-                : 'bg-red-50 text-red-700 border-red-100'
-            }`}>
+            <div className="mb-6 p-4 rounded-2xl flex items-start gap-3 border bg-red-50 text-red-700 border-red-100">
               <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-red-500" />
               <div>
                 <p className="text-sm font-semibold">{error}</p>
-                {refunded && (
-                  <p className="text-xs mt-1 text-amber-700 font-medium">Your payment has been automatically refunded via Razorpay. It will reflect in 5-7 business days.</p>
-                )}
               </div>
             </div>
           )}
 
-          {/* Number Summary Card */}
-          <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-emerald-500/10 rounded-3xl p-6 mb-8 border border-emerald-500/20">
+          {/* Selected Number Card */}
+          <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-emerald-500/10 rounded-3xl p-6 mb-6 border border-emerald-500/20">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/20 shrink-0">
@@ -378,34 +368,22 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
                 </div>
               </div>
               <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 bg-white/80 text-emerald-700 rounded-full border border-emerald-200">
-                {selectedNumber.status || 'Available'}
+                Covered by Plan
               </span>
             </div>
           </div>
 
-          {/* Itemized Pricing Breakdown (Section 2 & 4) */}
-          <div className="mb-8 bg-gray-50 p-6 rounded-3xl border border-gray-100 space-y-4">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Itemized Billing Details</h3>
-            
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-600 font-medium">First Month Service Fee</span>
-              <span className="font-bold text-gray-900">{formatCurrency(monthlyFee, currency)}</span>
+          {/* Mandatory Permanent Lock Warning Box (Section 3 Step 4) */}
+          <div className="mb-8 p-6 rounded-3xl bg-amber-50 border-2 border-amber-200 text-amber-900 space-y-3">
+            <div className="flex items-center gap-2 font-black text-base text-amber-950">
+              <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0" /> Permanent Number Selection Warning
             </div>
-
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-600 font-medium">One-Time Activation / Setup Fee</span>
-              <span className="font-bold text-gray-900">
-                {setupFee > 0 ? formatCurrency(setupFee, currency) : <span className="text-emerald-600 font-bold">Free</span>}
-              </span>
-            </div>
-
-            <div className="border-t border-gray-200 pt-4 flex justify-between items-center">
-              <div>
-                <span className="text-gray-900 font-extrabold text-base block">Total Due Today</span>
-                <span className="text-[11px] text-gray-400 font-normal">Monthly renewal after 30 days</span>
-              </div>
-              <span className="text-3xl font-black text-emerald-600 tracking-tight">{formatCurrency(totalCost, currency)}</span>
-            </div>
+            <p className="text-xs text-amber-900 leading-relaxed font-medium">
+              "This number is permanent once selected — you will not be able to change it later. Choose carefully."
+            </p>
+            <p className="text-[11px] text-amber-800/80 leading-normal">
+              Your plan includes exactly 1 free bundled phone number. Selecting this number locks your choice permanently.
+            </p>
           </div>
 
           {/* Optional Agent Assignment */}
@@ -426,38 +404,45 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
             </select>
           </div>
 
-          {/* KYC Warning */}
-          {selectedNumber.aadhaar_verification_required && (
-            <div className="mb-8 flex items-start gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">
-              <ShieldAlert className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
-              <span>This number requires Aadhaar/KYC submission before outbound calls can be placed. Support will assist you post-purchase.</span>
-            </div>
-          )}
+          {/* Explicit Checkbox Requirement */}
+          <div className="mb-8 bg-gray-50 p-4 rounded-2xl border border-gray-200 flex items-start gap-3">
+            <input
+              type="checkbox"
+              id="confirm-permanent-checkbox"
+              checked={confirmedWarning}
+              onChange={(e) => setConfirmedWarning(e.target.checked)}
+              disabled={purchasing}
+              className="mt-1 w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-gray-300 cursor-pointer"
+            />
+            <label htmlFor="confirm-permanent-checkbox" className="text-xs text-gray-700 font-semibold cursor-pointer leading-snug">
+              I understand that this number selection is permanent and cannot be changed later.
+            </label>
+          </div>
 
           {/* Actions */}
           <div className="flex gap-4">
             <button
-              onClick={() => setSelectedNumber(null)}
+              onClick={() => { setSelectedNumber(null); setConfirmedWarning(false); }}
               disabled={purchasing}
               className="flex-1 py-4 rounded-full border-2 border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
-              id="confirm-checkout-btn"
-              onClick={handleExecutePurchase}
-              disabled={purchasing}
-              className="flex-1 py-4 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm transition-all shadow-lg shadow-emerald-600/30 disabled:opacity-70 flex items-center justify-center gap-2"
+              id="confirm-claim-btn"
+              onClick={handleExecuteClaim}
+              disabled={purchasing || !confirmedWarning}
+              className="flex-1 py-4 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm transition-all shadow-lg shadow-emerald-600/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {purchasing ? (
-                <><Loader2 className="w-5 h-5 animate-spin" /> Processing Payment…</>
+                <><Loader2 className="w-5 h-5 animate-spin" /> Provisioning Number…</>
               ) : (
-                <><CreditCard className="w-4 h-4" /> Pay {formatCurrency(totalCost, currency)}</>
+                <><Check className="w-4 h-4" /> Confirm & Claim My Bundled Number</>
               )}
             </button>
           </div>
           <p className="text-center text-[11px] text-gray-400 mt-4 font-medium">
-            Secured by Razorpay in INR. Immediate assignment upon payment confirmation.
+            Covered 100% by your active plan payment. Immediate assignment & locking.
           </p>
 
         </div>
@@ -494,19 +479,19 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
           <div>
             <div className="flex items-center gap-2 mb-1">
               <button
-                onClick={() => { if (onBack) onBack(); else window.location.href = '/dashboard/numbers'; }}
+                onClick={() => { if (onBack) onBack(); else window.location.href = '/dashboard'; }}
                 className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 transition-colors"
               >
-                <ArrowLeft className="w-3.5 h-3.5" /> My Numbers
+                <ArrowLeft className="w-3.5 h-3.5" /> Dashboard
               </button>
             </div>
-            <h1 className="text-3xl font-black text-gray-900 tracking-tight">Buy a Phone Number</h1>
-            <p className="text-sm text-gray-400 mt-0.5">Explore available numbers powered by Claritiy Voice. Instant setup in INR.</p>
+            <h1 className="text-3xl font-black text-gray-900 tracking-tight">Select Your Bundled Phone Number</h1>
+            <p className="text-sm text-gray-400 mt-0.5">Your plan includes 1 free phone number. Choose your number carefully below.</p>
           </div>
 
           <div className="flex items-center gap-2.5">
-            <span className="text-xs font-bold text-gray-500 bg-gray-100 px-4 py-2 rounded-full flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-600" /> Direct Vobiz Inventory
+            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-4 py-2 rounded-full flex items-center gap-1.5 border border-emerald-200">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-600" /> 1 Free Line Included
             </span>
           </div>
         </div>
@@ -519,7 +504,7 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
           </div>
         )}
 
-        {/* Filters Top Bar (Country & Type ONLY per Section 7 — Region/Code input REMOVED) */}
+        {/* Filters Top Bar */}
         <div className="bg-white p-4 md:p-6 rounded-[28px] border border-gray-100 shadow-sm flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider mr-2">
             <SlidersHorizontal className="w-4 h-4 text-emerald-600" /> Filters
@@ -601,9 +586,6 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
               {results.map((num, idx) => {
                 const isAadhaar = !!num.aadhaar_verification_required;
                 const caps = num.capabilities;
-                const currency = num.currency || 'INR';
-                const setupFee = num.setup_fee || 0;
-                const monthlyFee = num.monthly_fee || 0;
 
                 return (
                   <div
@@ -617,8 +599,8 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
                           <div className="font-mono text-xl font-black text-gray-900 tracking-tight">{num.e164}</div>
                           <div className="text-xs font-semibold text-gray-400 mt-0.5">{num.region || 'National'} · {num.country}</div>
                         </div>
-                        <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 bg-gray-100 text-gray-600 rounded-full">
-                          {num.status || 'Available'}
+                        <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">
+                          Bundled Free
                         </span>
                       </div>
 
@@ -638,18 +620,14 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
                       </div>
                     </div>
 
-                    {/* Bottom Row: Itemized Pricing & Select Button */}
+                    {/* Bottom Row: Bundled Plan Status & Select Button */}
                     <div className="pt-4 border-t border-gray-100 flex items-center justify-between gap-4">
                       <div>
-                        <div className="text-base font-extrabold text-gray-900">
-                          {formatCurrency(monthlyFee, currency)}<span className="text-xs text-gray-400 font-normal">/mo</span>
+                        <div className="text-sm font-black text-emerald-600">
+                          Included in Plan
                         </div>
                         <div className="text-xs font-medium text-gray-400">
-                          {setupFee > 0 ? (
-                            `+${formatCurrency(setupFee, currency)} setup`
-                          ) : (
-                            <span className="text-emerald-600 font-semibold">Free setup</span>
-                          )}
+                          ₹0 additional charge
                         </div>
                       </div>
 
@@ -668,7 +646,7 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
                       ) : (
                         <button
                           id={`select-btn-${num.id || idx}`}
-                          onClick={() => { setError(null); setSelectedNumber(num); }}
+                          onClick={() => { setError(null); setSelectedNumber(num); setConfirmedWarning(false); }}
                           className="px-6 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-all shadow-md shadow-emerald-600/20 hover:shadow-lg hover:shadow-emerald-600/30"
                         >
                           Select Number
@@ -682,7 +660,7 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
           )}
         </div>
 
-        {/* Pagination & Total Inventory Count (Section 6) */}
+        {/* Pagination & Total Inventory Count */}
         {results.length > 0 && !loading && (
           <div className="bg-white p-6 rounded-[28px] border border-gray-100 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-xs font-semibold text-gray-400">

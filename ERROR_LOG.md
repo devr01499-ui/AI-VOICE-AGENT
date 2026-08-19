@@ -82,5 +82,11 @@ px prisma db push to bypass Supabase shadow DB auth schema error safely.
 - **User-Facing UI State**: Set purchased number default status to `activation_pending`. Displayed **"Number purchased — activation pending"** card and amber status badges across UI. Added `PATCH /api/v2/numbers/:id/activate` manual activation toggle.
 - **Build Verification**: Verified `npm run typecheck`, `cd server && npm run build`, and `cd Frontend && npm run build` (all passed with exit code 0). Zero schema changes or `prisma db push` executed.
 
-
-
+## Bundled Number Selection, Permanent Lock & High-Precision Minutes Engine (2026-08-19)
+- **Pricing & Bundle Update**: Updated prices (+₹800 across paid plans: Startup ₹3,799, Growth ₹10,799, Enterprise ₹30,799) and updated plan features ("includes 1 free phone number").
+- **Single Payment + $0 Bundled Number Pick**: Post-payment success redirects directly to `/dashboard/numbers/buy`. Number pick is $0 additional cost, provisioned to sub-account (`name: user.email`), and sets `user.numberLocked = true`.
+- **Server-Side Permanent Lock**: Added `number_locked` Boolean in DB and server-side guard on `POST /purchase` and `POST /claim` returning HTTP 403 if `numberLocked === true`. UI renders locked card showing assigned E164 number with zero search or buy options.
+- **High-Precision Minutes Engine**: Added `minutes_remaining_seconds` Float in DB. Implemented pre-call gate (`minutesRemainingSeconds <= 0`), mid-call active ticker cutoff (`elapsedSeconds >= minutesRemainingSeconds`), and post-call deduction (`deductCallMinutes`).
+- **Founder Visibility**: Added `GET /api/v2/billing/minutes-overview` endpoint aggregating total consumed minutes, remaining seconds, remaining minutes, and Vobiz master balance.
+- **E2E Verification**: Executed 7-step test script (`scratch/test_e2e_verification.js`) with 100% clean pass.
+- **Build & Health Checks**: `server` typecheck and `Frontend` Vite production build both PASSED cleanly (exit code 0). Zero `prisma db push` or unapproved schema migrations executed.
