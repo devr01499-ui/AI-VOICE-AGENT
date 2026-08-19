@@ -55,12 +55,16 @@ export class CallService {
       ]);
     }
 
-    // ── Enforce concurrency limits ─────────────
+    // ── Enforce minutes remaining pre-call gate ─────────────
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new ValidationError('User not found');
 
-    if (user.email !== ADMIN_EMAIL && user.callingBalanceMinutes <= 0) {
-      throw new ValidationError('Insufficient balance to place outbound calls. Please purchase a plan.');
+    const effectiveRemainingSeconds = user.minutesRemainingSeconds > 0
+      ? user.minutesRemainingSeconds
+      : (user.callingBalanceMinutes * 60);
+
+    if (user.email !== ADMIN_EMAIL && effectiveRemainingSeconds <= 0) {
+      throw new ValidationError('Insufficient call minutes remaining. You have 0 minutes left. Please purchase a plan.');
     }
 
     let maxConcurrency = 1; // free/Starter
@@ -325,6 +329,48 @@ ${transcriptText}`;
       logger.info('generatePostCallIntelligence: success', { callId, sentiment });
     } catch (err: any) {
       logger.error('generatePostCallIntelligence: error', { error: err.message, callId });
+    }
+  }
+
+  /**
+   * Deducts the real elapsed call duration (in seconds) from the user's remaining minutes balance.
+   */
+  static async deductCallMinutes(callId: string, durationSeconds: number): Promise<void> {
+    if (durationSeconds <= 0) return;
+
+    try {
+      const call = await prisma.call.findUnique({ where: { id: callId } });
+      if (!call) return;
+
+      const user = await prisma.user.findUnique({ where: { id: call.userId } });
+      if (!user || user.email === ADMIN_EMAIL) return;
+
+      const currentSecs = user.minutesRemainingSeconds > 0
+        ? user.minutesRemainingSeconds
+        : (user.callingBalanceMinutes * 60);
+
+      const newRemainingSeconds = Math.max(0, currentSecs - durationSeconds);
+      const newCallingBalanceMinutes = Math.max(0, newRemainingSeconds / 60);
+      const newTotalConsumedMinutes = user.totalMinutesConsumed + (durationSeconds / 60);
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          minutesRemainingSeconds: newRemainingSeconds,
+          callingBalanceMinutes: newCallingBalanceMinutes,
+          totalMinutesConsumed: newTotalConsumedMinutes,
+        },
+      });
+
+      logger.info('[POST_CALL_DEDUCTION] Deducted call seconds from user balance', {
+        callId,
+        userId: user.id,
+        durationSeconds,
+        newRemainingSeconds,
+        newCallingBalanceMinutes,
+      });
+    } catch (err: any) {
+      logger.error('[POST_CALL_DEDUCTION_ERROR] Failed to deduct call minutes', { callId, error: err.message });
     }
   }
 }

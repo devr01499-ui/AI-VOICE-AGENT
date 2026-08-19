@@ -25,7 +25,9 @@ model User {
   geminiApiKey          String?  @map("gemini_api_key")
   googleCalendarTokens  String?  @map("google_calendar_tokens")
   callingBalanceMinutes Float    @default(0.0) @map("calling_balance_minutes")
+  minutesRemainingSeconds Float   @default(0.0) @map("minutes_remaining_seconds")
   totalMinutesConsumed  Float    @default(0.0) @map("total_minutes_consumed")
+  numberLocked          Boolean  @default(false) @map("number_locked")
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
 

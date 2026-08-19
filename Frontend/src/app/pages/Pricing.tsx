@@ -103,11 +103,11 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
             });
             const verifyData = await verifyRes.json();
             if (verifyData.success) {
-              alert(`Success! You have purchased the ${planName} Plan.`);
+              alert(`Success! You have purchased the ${planName} Plan. Let's select your 1 free bundled phone number now.`);
               if (setPage) {
-                setPage("dashboard");
+                setPage("numbers_buy");
               } else {
-                window.location.reload();
+                window.location.href = "/dashboard/numbers/buy";
               }
             } else {
               alert(verifyData.error || 'Verification failed.');
@@ -247,12 +247,12 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
               <h3 className="font-sora text-2xl font-bold text-ink mb-2">Startup Plan</h3>
               <p className="text-small text-ink-muted mb-8 font-plus-jakarta">Ideal for growing businesses testing automated call campaigns.</p>
               <div className="mb-8">
-                <span className="font-sora text-4xl font-extrabold text-ink">₹2,999</span>
+                <span className="font-sora text-4xl font-extrabold text-ink">₹3,799</span>
                 <span className="text-small text-ink-muted font-bold"> / month</span>
-                <p className="text-xs font-mono font-bold text-mint-primary mt-2">Includes 750 Bundled Mins (₹3.99/min)</p>
+                <p className="text-xs font-mono font-bold text-mint-primary mt-2">Includes 750 Bundled Mins + 1 Free Phone Number</p>
               </div>
               <ul className="space-y-4 mb-10 text-small text-ink font-semibold">
-                {['750 Bundled Call Minutes', '26+ HD Voice Personas', '70+ Languages & Dialects', 'Standard Webhooks & CRM Sync', 'Real-Time Transcripts', 'Community Support'].map(f => (
+                {['750 Bundled Call Minutes', '1 Free Phone Number Included', '26+ HD Voice Personas', '70+ Languages & Dialects', 'Standard Webhooks & CRM Sync', 'Real-Time Transcripts', 'Community Support'].map(f => (
                   <li key={f} className="flex items-center gap-3">
                     <Check className="w-5 h-5 text-mint-primary flex-shrink-0" /> <span>{f}</span>
                   </li>
@@ -260,7 +260,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
               </ul>
             </div>
             <button 
-              onClick={() => handlePurchase("Startup", 2999)} 
+              onClick={() => handlePurchase("Startup", 3799)} 
               disabled={purchasingPlan === "Startup"}
               className="btn-cta bg-surface-white text-ink border border-border-soft hover:bg-cream-bg w-full flex items-center justify-center gap-2"
             >
@@ -282,12 +282,12 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
               <h3 className="font-sora text-2xl font-bold text-ink mb-2">Growth Plan</h3>
               <p className="text-small text-ink-muted mb-8 font-plus-jakarta">For high-volume operations scaling outbound/inbound workflows.</p>
               <div className="mb-8">
-                <span className="font-sora text-4xl font-extrabold text-ink">₹9,999</span>
+                <span className="font-sora text-4xl font-extrabold text-ink">₹10,799</span>
                 <span className="text-small text-ink-muted font-bold"> / month</span>
-                <p className="text-xs font-mono font-bold text-mint-primary mt-2">Includes 2,865 Bundled Mins (₹3.49/min)</p>
+                <p className="text-xs font-mono font-bold text-mint-primary mt-2">Includes 2,865 Bundled Mins + 1 Free Phone Number</p>
               </div>
               <ul className="space-y-4 mb-10 text-small text-ink font-semibold">
-                {['2,865 Bundled Call Minutes', 'Everything in Startup', 'Priority Telephony Routing', '1 Custom Voice Clone', 'Sentiment Analytics & Scoring', 'Dedicated Phone Numbers', 'Priority Email & Chat Support'].map(f => (
+                {['2,865 Bundled Call Minutes', '1 Free Phone Number Included', 'Everything in Startup', 'Priority Telephony Routing', '1 Custom Voice Clone', 'Sentiment Analytics & Scoring', 'Priority Email & Chat Support'].map(f => (
                   <li key={f} className="flex items-center gap-3">
                     <Check className="w-5 h-5 text-mint-primary flex-shrink-0" /> <span>{f}</span>
                   </li>
@@ -295,7 +295,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
               </ul>
             </div>
             <button 
-              onClick={() => handlePurchase("Growth", 9999)} 
+              onClick={() => handlePurchase("Growth", 10799)} 
               disabled={purchasingPlan === "Growth"}
               className="btn-primary w-full bg-mint-primary text-forest-deep flex items-center justify-center"
             >
@@ -321,12 +321,12 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
               <h3 className="font-sora text-2xl font-bold text-ink mb-2">Enterprise Plan</h3>
               <p className="text-small text-ink-muted mb-8 font-plus-jakarta">For regulated enterprise contact centers requiring custom SLAs.</p>
               <div className="mb-8">
-                <span className="font-sora text-4xl font-extrabold text-ink">₹29,999</span>
+                <span className="font-sora text-4xl font-extrabold text-ink">₹30,799</span>
                 <span className="text-small text-ink-muted font-bold"> / month</span>
-                <p className="text-xs font-mono font-bold text-mint-primary mt-2">Includes 10,000 Bundled Mins (₹2.99/min)</p>
+                <p className="text-xs font-mono font-bold text-mint-primary mt-2">Includes 10,000 Bundled Mins + 1 Free Phone Number</p>
               </div>
               <ul className="space-y-4 mb-10 text-small text-ink font-semibold">
-                {['10,000 Bundled Call Minutes', 'Everything in Growth', 'Dedicated SIP IP Addresses', 'Custom Voice Personas & Cloning', 'HIPAA & SOC 2 BAA Agreement', '99.99% Uptime SLA', 'Dedicated 24/7 Account Manager'].map(f => (
+                {['10,000 Bundled Call Minutes', '1 Free Phone Number Included', 'Everything in Growth', 'Dedicated SIP IP Addresses', 'Custom Voice Personas & Cloning', 'HIPAA & SOC 2 BAA Agreement', '99.99% Uptime SLA', 'Dedicated 24/7 Account Manager'].map(f => (
                   <li key={f} className="flex items-center gap-3">
                     <Check className="w-5 h-5 text-mint-primary flex-shrink-0" /> <span>{f}</span>
                   </li>
@@ -334,7 +334,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
               </ul>
             </div>
             <button 
-              onClick={() => handlePurchase("Enterprise", 29999)} 
+              onClick={() => handlePurchase("Enterprise", 30799)} 
               disabled={purchasingPlan === "Enterprise"}
               className="btn-cta bg-surface-white text-ink border border-border-soft hover:bg-cream-bg w-full flex items-center justify-center gap-2"
             >
