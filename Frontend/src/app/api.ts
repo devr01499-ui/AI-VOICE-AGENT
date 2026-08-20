@@ -164,16 +164,28 @@ async function apiFetch<T>(
     ...(options.headers as Record<string, string> | undefined),
   };
 
-  const res = await fetch(url, { ...options, headers });
+  let res: Response;
+  try {
+    res = await fetch(url, { ...options, headers });
+  } catch (err: any) {
+    if (err?.name === 'TypeError' || err?.message === 'Failed to fetch') {
+      throw new Error(`Unable to connect to backend server at ${API_BASE}. The backend may be spinning up or temporarily rate-limited. Please retry in a few seconds.`);
+    }
+    throw err;
+  }
 
   if (res.status === 401 || res.status === 403) {
     await supabase.auth.signOut().catch(() => {});
     throw new Error("UNAUTHORIZED_ACCESS");
   }
 
+  if (res.status === 429) {
+    throw new Error(`Rate limit exceeded [429] from backend service. Please wait a moment before trying again.`);
+  }
+
   // ── Non-JSON fallback shield ──────────────────────────────────────────────
-  // If a Vercel routing rule or proxy returns HTML (e.g. 404 page),
-  // we catch it as text to prevent JSON.parse from throwing.
+  // If a Vercel/Render routing rule, proxy, or Cloudflare returns HTML (e.g. 404 page or bot challenge),
+  // we catch it as text to prevent JSON.parse from throwing opaque syntax errors.
   const contentType = res.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) {
     const text = await res.text();

@@ -67,11 +67,12 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow serverless tasks, white-listed origins, Vercel deployments, or custom domain variations
+    // Allow serverless tasks, white-listed origins, Vercel deployments, Render hosts, or custom domain variations
     if (
       !origin || 
       allowedOrigins.indexOf(origin) !== -1 || 
       origin.endsWith('.vercel.app') || 
+      origin.endsWith('.onrender.com') ||
       origin.includes('claritiy.com')
     ) {
       callback(null, true);
@@ -251,28 +252,20 @@ async function bootstrap(): Promise<void> {
     port: env.PORT,
   });
 
-  // Validate critical environment variables at startup
+  // Validate environment variables at startup — log warnings instead of hard-exiting on optional credentials
   if (!env.PUBLIC_URL || env.PUBLIC_URL.trim() === '') {
-    logger.error('Bolna Server: CRITICAL - PUBLIC_URL not configured');
-    logger.error('Bolna Server: Vobiz will not be able to call back to this server');
-    logger.error('Bolna Server: Set PUBLIC_URL environment variable (use ngrok for local dev)');
-    logger.error('Bolna Server: Example: ngrok http 3001, then set PUBLIC_URL=https://abc123.ngrok.io');
-    process.exit(1);
+    logger.warn('Bolna Server: PUBLIC_URL not configured — telephony callbacks will require ngrok or explicit host configuration');
   }
 
   if (!env.VOBIZ_AUTH_ID || !env.VOBIZ_AUTH_TOKEN) {
-    logger.error('Bolna Server: CRITICAL - Vobiz credentials missing');
-    logger.error('Bolna Server: Set VOBIZ_AUTH_ID and VOBIZ_AUTH_TOKEN in .env');
-    process.exit(1);
+    logger.warn('Bolna Server: Vobiz credentials missing — telephony features will degrade gracefully');
   }
 
   if (!env.GOOGLE_API_KEY && !env.OPENAI_API_KEY && !env.GEMINI_API_KEY) {
-    logger.error('Bolna Server: CRITICAL - No LLM provider configured');
-    logger.error('Bolna Server: Set either GOOGLE_API_KEY or OPENAI_API_KEY or GEMINI_API_KEY in .env');
-    process.exit(1);
+    logger.warn('Bolna Server: No LLM provider configured — runtime AI voice session initialization will require an API key');
   }
 
-  logger.info('Bolna Server: Critical environment variables validated ✓');
+  logger.info('Bolna Server: Environment variable check complete ✓');
 
   // Verify database connectivity
   try {
