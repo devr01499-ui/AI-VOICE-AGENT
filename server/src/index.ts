@@ -137,10 +137,11 @@ app.get('/health', async (_req, res) => {
       activeSessions: callOrchestrator.getActiveCallCount(),
     };
 
-    const allHealthy = dbHealthy && Array.from(providerHealth.values()).every((r) => r.healthy);
+    // Core platform health is true if database is connected
+    const isHealthy = dbHealthy;
 
-    res.status(allHealthy ? 200 : 503).json({
-      status: allHealthy ? 'ok' : 'degraded',
+    res.status(isHealthy ? 200 : 503).json({
+      status: isHealthy ? 'ok' : 'degraded',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       database: { healthy: dbHealthy },
