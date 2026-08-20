@@ -1,0 +1,29 @@
+name: Trigger Render Deployment
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'server/**'
+      - 'render.yaml'
+      - '.github/workflows/deploy-render.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Trigger Render Deploy Hook
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render Webhook
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -n "${RENDER_DEPLOY_HOOK_URL}" ]; then
+            echo "Triggering Render deploy hook..."
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${RENDER_DEPLOY_HOOK_URL}")
+            echo "Render Deploy Hook HTTP Status: ${HTTP_STATUS}"
+          else
+            echo "::notice::RENDER_DEPLOY_HOOK_URL secret not set in GitHub repository settings."
+            echo "To enable instant automated deployments on push, add RENDER_DEPLOY_HOOK_URL to GitHub Secrets."
+          fi
