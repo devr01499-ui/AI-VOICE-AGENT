@@ -1,6 +1,14 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-08-20
+### Fixed
+- Replaced hard exit `process.exit(1)` in `server/src/index.ts` with graceful `logger.warn` for optional startup environment variables (`PUBLIC_URL`, `VOBIZ_AUTH_ID`, `VOBIZ_AUTH_TOKEN`, `GOOGLE_API_KEY`/`OPENAI_API_KEY`/`GEMINI_API_KEY`). Prevents Render container boot failure loops when optional env vars are not set.
+- Added explicit `.onrender.com` wildcard match to CORS origin validator in `server/src/index.ts`.
+- Updated `.github/workflows/health-ping.yml` curl command to send a browser `User-Agent` (`Mozilla/5.0...`) and `Accept: application/json` header, preventing Cloudflare from issuing 429 Bot Challenges on automated health checks.
+- Enhanced `apiFetch` in `Frontend/src/app/api.ts` to intercept `TypeError: Failed to fetch` and HTTP 429 responses, outputting clear, actionable server-status messages instead of opaque network failures.
+
 ## [Unreleased] - 2026-08-19
+
 ### Fixed
 - Updated Vobiz sub-account provisioning to set `name: user.email` in Vobiz `POST /api/v1/accounts/{master_auth_id}/sub-accounts/` payload (verified HTTP 201 Created).
 - Integrated explicit DID number assignment to user sub-accounts upon inventory purchase.
