@@ -1,0 +1,24 @@
+name: Backend Health Ping
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    name: Ping Health Endpoint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend health endpoint
+        env:
+          HEALTH_CHECK_URL: ${{ secrets.HEALTH_CHECK_URL || 'https://ai-voice-agent-backend-mv32.onrender.com/health' }}
+        run: |
+          echo "Pinging backend health endpoint..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "${HEALTH_CHECK_URL}")
+          echo "HTTP Response Status Code: ${HTTP_STATUS}"
+          if [ "${HTTP_STATUS}" -ne 200 ]; then
+            echo "::error::Health check failed! Expected HTTP 200 OK, but received status code ${HTTP_STATUS}"
+            exit 1
+          fi
+          echo "Health check succeeded: HTTP 200 OK received from ${HEALTH_CHECK_URL}"
