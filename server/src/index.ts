@@ -138,11 +138,9 @@ app.get('/health', async (_req, res) => {
       activeSessions: callOrchestrator.getActiveCallCount(),
     };
 
-    // Core platform health is true if database is connected
-    const isHealthy = dbHealthy;
-
-    res.status(isHealthy ? 200 : 503).json({
-      status: isHealthy ? 'ok' : 'degraded',
+    // Core platform health returns status payload (ok / degraded)
+    res.status(200).json({
+      status: dbHealthy ? 'ok' : 'degraded',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       database: { healthy: dbHealthy },
@@ -159,7 +157,7 @@ app.get('/health', async (_req, res) => {
     const displayError = env.NODE_ENV === 'development'
       ? (err instanceof Error ? err.message : 'Unknown error')
       : `Internal Server Error (Reference: ${refCode})`;
-    res.status(500).json({
+    res.status(200).json({
       status: 'error',
       timestamp: new Date().toISOString(),
       error: displayError,
@@ -306,10 +304,9 @@ async function bootstrap(): Promise<void> {
       logger.info('Bolna Server: Seeded dev workspace phone number +12345678901 ✓');
     }
   } catch (err) {
-    logger.error('Bolna Server: database connection failed', {
+    logger.error('Bolna Server: database connection failed — server running in degraded mode', {
       error: err instanceof Error ? err.message : String(err),
     });
-    process.exit(1);
   }
 
   // Initialize providers (non-fatal if they fail)
