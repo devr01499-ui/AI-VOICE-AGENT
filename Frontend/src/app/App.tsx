@@ -4505,22 +4505,27 @@ export default function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: currentSession }, error: authError }) => {
       if (authError || !currentSession) {
-        console.log("[App Shell Interceptor]: Rendering protected dashboard grid via localized data structures.");
         localStorage.removeItem('token');
+        setSession(null);
       } else {
         localStorage.setItem('token', currentSession.access_token);
+        setSession(currentSession);
       }
-      setSession(currentSession);
     });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
       setSession(currentSession);
       if (currentSession) {
         localStorage.setItem('token', currentSession.access_token);
+        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+          handleNavigate("dashboard");
+        }
       } else {
         localStorage.removeItem('token');
+        if (event === 'SIGNED_OUT') {
+          handleNavigate("home");
+        }
       }
-      // Removed automatic handleNavigate("dashboard") on SIGNED_IN
-      // User must explicitly navigate to dashboard to see AuthGateway or DashboardPage.
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -4546,7 +4551,7 @@ export default function App() {
         .font-mono { font-family: 'JetBrains Mono', monospace; }
       `}</style>
 
-      <Navbar page={page} setPage={handleNavigate} />
+      <Navbar page={page} setPage={handleNavigate} session={session} />
 
       <AnimatePresence mode="wait">
         <motion.div
