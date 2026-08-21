@@ -4,7 +4,7 @@
 ### Added
 - Rebuilt homepage Hero section ([Hero.tsx](file:///c:/Users/Rohit%20Kumar%20Sha/OneDrive/Desktop/bOLNA/Frontend/src/app/components/hero/Hero.tsx)) with warm Pinterest-inspired editorial design (warm ivory/cream palette with deep emerald and terracotta accents; strictly zero blue, black, or purple hues).
 - Added explicit enterprise messaging explaining what Claritiy Voice does (human-like AI phone agents for outbound sales, support, lead qualification, and IVR replacement).
-- Integrated an interactive 6-node geometrical USP diagram animation with real-time SVG spoke beam lines, pulsing node rings, and live detail card overlays highlighting sub-180ms latency, 70+ languages, full-duplex barge-in, Vobiz/SIP telephony, 100% RAG, and SOC2/HIPAA compliance.
+- Upgraded the right-column Hero visual into a high-definition 3-stage architecture flow animation engine ([`HdGeometricalArchitectureDiagram`](file:///c:/Users/Rohit%20Kumar%20Sha/OneDrive/Desktop/bOLNA/Frontend/src/app/components/hero/Hero.tsx#L50-L375)) featuring live Audio Equalizer Waveform simulation, Stage 1 Gateway -> Stage 2 Core Hub -> Stage 3 Enterprise Outcomes vector beam connections, real-time millisecond telemetry (`174ms`), mode switcher, and zero-overflow card bounds.
 
 ### Removed
 - Removed legacy AWS ECS deployment workflow `.github/workflows/deploy-aws.yml` and associated `.aws/task-definition.json` (`.aws/` directory) as deployment target is exclusively Render.
