@@ -17,7 +17,7 @@ const NUMBER_TYPES = [
   { code: 'tollfree', name: 'Toll-Free' },
 ];
 
-interface VobizNumber {
+interface CarrierPhoneNumber {
   id: string;
   e164: string;
   country: string;
@@ -72,13 +72,13 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
   // Search & Pagination State
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [results, setResults] = useState<VobizNumber[]>([]);
+  const [results, setResults] = useState<CarrierPhoneNumber[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
 
   // Selection & Confirmation State
-  const [selectedNumber, setSelectedNumber] = useState<VobizNumber | null>(null);
+  const [selectedNumber, setSelectedNumber] = useState<CarrierPhoneNumber | null>(null);
   const [confirmedWarning, setConfirmedWarning] = useState(false);
 
   // Agent Assignment State
@@ -158,7 +158,7 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
 
       if (!data.success) throw new Error(data.error || 'Failed to fetch available numbers');
 
-      const items: VobizNumber[] = data.data.results || [];
+      const items: CarrierPhoneNumber[] = data.data.results || [];
       const total = data.data.total || items.length;
       const moreAvailable = data.data.hasMore ?? (items.length === 15);
 
@@ -291,7 +291,7 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
           <p className="text-gray-500 mb-2">
             <span className="font-mono font-bold text-gray-900 text-2xl">{purchasedData.number}</span>
           </p>
-          <p className="text-xs text-gray-400 mb-6">Provisioned to your Vobiz sub-account & Claritiy Voice workspace.</p>
+          <p className="text-xs text-gray-400 mb-6">Provisioned to your Claritiy Voice telephony workspace.</p>
 
           {purchasedData.status === 'KYC Required' ? (
             <div className="text-left bg-amber-50 p-4.5 rounded-2xl border border-amber-200 mb-6">

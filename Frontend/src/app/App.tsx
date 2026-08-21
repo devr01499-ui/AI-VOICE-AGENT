@@ -2440,7 +2440,7 @@ function DashNumbers() {
                 <>
                   <div className="w-12 h-12 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin mx-auto mb-4" />
                   <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Verification Pending</p>
-                  <p className="text-sm text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Vobiz is reviewing your documents. This usually takes a few minutes.</p>
+                  <p className="text-sm text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Our compliance team is reviewing your documents. This usually takes a few minutes.</p>
                 </>
               ) : kycStatus === 'verified' ? (
                 <>

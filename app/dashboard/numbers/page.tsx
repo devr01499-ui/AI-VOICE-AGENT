@@ -108,7 +108,7 @@ export default function MyNumbersPage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-1">My Numbers</h1>
-            <p className="text-sm text-gray-400">Phone numbers provisioned to your workspace via Vobiz.</p>
+            <p className="text-sm text-gray-400">Phone numbers provisioned to your workspace.</p>
           </div>
           <div className="flex items-center gap-3">
             <button
