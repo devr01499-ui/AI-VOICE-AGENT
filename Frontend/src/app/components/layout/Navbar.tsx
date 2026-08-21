@@ -2,6 +2,8 @@ import { useState } from "react";
 import { X, Menu, ArrowRight, ChevronDown, Zap, Users, Globe2, BookOpen, Layers } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from "motion/react";
 
+import { Session } from "@supabase/supabase-js";
+
 type Page =
   | "home" | "solutions" | "how-it-works" | "voices" | "pricing"
   | "blog" | "blog-rto" | "blog-healthcare" | "blog-fintech"
@@ -10,6 +12,7 @@ type Page =
 interface NavbarProps {
   page: Page;
   setPage: (p: Page) => void;
+  session?: Session | null;
 }
 
 const PLATFORM_ITEMS = [
@@ -23,7 +26,7 @@ const RESOURCE_ITEMS = [
   { icon: Users, label: "Blog & Research", desc: "Industry insights & case studies", id: "blog" as Page },
 ];
 
-export default function Navbar({ page, setPage }: NavbarProps) {
+export default function Navbar({ page, setPage, session }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -139,15 +142,25 @@ export default function Navbar({ page, setPage }: NavbarProps) {
 
           {/* Right CTAs */}
           <div className="hidden md:flex items-center gap-3">
-            <button onClick={() => navigate("dashboard")}
-              className="text-sm font-semibold text-[#4B5563] hover:text-[#059669] transition-colors px-3 py-2">
-              Sign In
-            </button>
-            <button onClick={() => navigate("dashboard")}
-              className="btn-primary text-sm py-2.5 px-5">
-              Get Started
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+            {session ? (
+              <button onClick={() => navigate("dashboard")}
+                className="btn-primary text-sm py-2.5 px-5">
+                Go to Dashboard
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <>
+                <button onClick={() => navigate("dashboard")}
+                  className="text-sm font-semibold text-[#4B5563] hover:text-[#059669] transition-colors px-3 py-2">
+                  Sign In
+                </button>
+                <button onClick={() => navigate("dashboard")}
+                  className="btn-primary text-sm py-2.5 px-5">
+                  Get Started
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </>
+            )}
           </div>
 
           {/* Mobile hamburger */}
