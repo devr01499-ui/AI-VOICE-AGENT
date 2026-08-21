@@ -61,7 +61,7 @@ export default function HomePage() {
           <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-[#059669]" /> SOC 2 TYPE II</span>
           <span className="flex items-center gap-1.5"><Lock className="w-4 h-4 text-[#059669]" /> HIPAA COMPLIANT</span>
           <span className="flex items-center gap-1.5"><Globe className="w-4 h-4 text-[#059669]" /> 70+ LANGUAGES</span>
-          <span className="flex items-center gap-1.5"><PhoneCall className="w-4 h-4 text-[#059669]" /> < 180MS LATENCY</span>
+          <span className="flex items-center gap-1.5"><PhoneCall className="w-4 h-4 text-[#059669]" /> &lt; 180MS LATENCY</span>
         </div>
       </main>
 
