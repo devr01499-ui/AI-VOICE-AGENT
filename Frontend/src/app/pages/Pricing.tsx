@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Check, ArrowRight, ShieldCheck, Zap, Loader2, Sparkles, Sliders, DollarSign } from "lucide-react";
+import { Check, ArrowRight, ShieldCheck, Zap, Loader2, Sparkles, Sliders, DollarSign, Eye, Code2, Lock } from "lucide-react";
 import RoiCalculator from "../components/calculator/RoiCalculator";
 import { API_BASE } from "../api";
 
@@ -17,18 +17,33 @@ interface PricingProps {
   isDashboard?: boolean;
 }
 
+// ── SVG Geometric Background Accent ─────────────────────────────────────────────
+function GeometricGridBackground() {
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-20 z-0">
+      <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+        <defs>
+          <pattern id="grid-pricing" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#059669" strokeWidth="0.5" strokeDasharray="2,2" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid-pricing)" />
+      </svg>
+    </div>
+  );
+}
+
 // ── Interactive Call Volume Cost Estimator Slider ──────────────────────────────
 function UsageCostEstimatorSlider() {
   const [minutes, setMinutes] = useState(1500);
 
-  const flatCost = Math.round(minutes * 3.99);
   const bundledRate = minutes >= 10000 ? 2.99 : minutes >= 2500 ? 3.49 : 3.99;
   const estimatedPlanCost = Math.round(minutes * bundledRate);
   const manualStaffCost = Math.round((minutes / 180) * 22000); // ~180 mins per agent/day
   const savings = Math.max(0, manualStaffCost - estimatedPlanCost);
 
   return (
-    <div className="bg-slate-900 text-white rounded-3xl p-8 md:p-12 shadow-2xl border border-slate-800 space-y-8">
+    <div className="bg-[#0B132B] text-white rounded-3xl p-8 md:p-12 shadow-2xl border border-slate-800 space-y-8 relative overflow-hidden">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
         <div>
           <div className="flex items-center gap-2 text-emerald-400 font-mono text-xs font-bold uppercase tracking-wider mb-1">
@@ -73,19 +88,19 @@ function UsageCostEstimatorSlider() {
         <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-2">
           <span className="text-slate-400 text-xs font-mono font-bold block uppercase">CLARITIY VOICE ESTIMATE</span>
           <p className="text-3xl font-extrabold text-emerald-400 font-mono">₹{estimatedPlanCost.toLocaleString()}</p>
-          <p className="text-slate-400 text-xs">All-inclusive audio, LLM & telephony</p>
+          <p className="text-slate-400 text-xs font-plus-jakarta">All-inclusive audio, LLM & telephony</p>
         </div>
 
         <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-2">
           <span className="text-slate-400 text-xs font-mono font-bold block uppercase">MANUAL CALL CENTER COST</span>
           <p className="text-3xl font-extrabold text-slate-300 font-mono">₹{manualStaffCost.toLocaleString()}</p>
-          <p className="text-slate-400 text-xs">Salary, seats, telephony & overhead</p>
+          <p className="text-slate-400 text-xs font-plus-jakarta">Salary, seats, telephony & overhead</p>
         </div>
 
         <div className="bg-emerald-950/80 p-6 rounded-2xl border border-emerald-500/50 space-y-2">
           <span className="text-emerald-400 text-xs font-mono font-bold block uppercase">YOUR NET SAVINGS</span>
           <p className="text-3xl font-extrabold text-emerald-300 font-mono">₹{savings.toLocaleString()}</p>
-          <p className="text-emerald-200 text-xs font-semibold">Saved monthly with Claritiy Voice</p>
+          <p className="text-emerald-200 text-xs font-semibold font-plus-jakarta">Saved monthly with Claritiy Voice</p>
         </div>
       </div>
     </div>
@@ -94,6 +109,7 @@ function UsageCostEstimatorSlider() {
 
 export default function Pricing({ setPage, isDashboard }: PricingProps) {
   const [purchasingPlan, setPurchasingPlan] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"non-tech" | "tech">("non-tech");
 
   const waitForRazorpay = () => {
     return new Promise((resolve) => {
@@ -206,14 +222,16 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
   };
 
   return (
-    <div className={`${isDashboard ? "space-y-12 pb-12 pt-4 bg-transparent" : "space-y-24 pb-32 pt-28 bg-[#FFFDF9] min-h-screen"}`}>
+    <div className={`${isDashboard ? "space-y-12 pb-12 pt-4 bg-transparent" : "space-y-24 pb-32 pt-28 bg-[#FFFDF9] min-h-screen relative"}`}>
+      {!isDashboard && <GeometricGridBackground />}
 
       {!isDashboard && (
-        <section className="px-6 max-w-5xl mx-auto text-center space-y-6">
+        <section className="px-6 max-w-5xl mx-auto text-center space-y-6 relative z-10">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-mono font-bold tracking-wider uppercase">
             <Sparkles className="w-3.5 h-3.5" />
             TRANSPARENT ENTERPRISE PRICING
           </div>
+
           <motion.h1 
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -222,6 +240,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
           >
             Predictable Bundled Plans & Flat-Rate Economics
           </motion.h1>
+
           <motion.p 
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -230,18 +249,44 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
           >
             One unified price per minute. No stacked line-item fees for speech recognition, LLM reasoning, or neural voice synthesis.
           </motion.p>
+
+          {/* View Perspective Switcher */}
+          <div className="pt-4 flex justify-center">
+            <div className="bg-slate-900 text-white p-1.5 rounded-2xl inline-flex items-center gap-2 border border-slate-800 shadow-xl">
+              <button
+                onClick={() => setViewMode("non-tech")}
+                className={`px-5 py-2.5 rounded-xl font-mono text-xs font-bold transition-all flex items-center gap-2 ${
+                  viewMode === "non-tech"
+                    ? "bg-emerald-500 text-black shadow-md"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <Eye className="w-4 h-4" /> Non-Tech Business View
+              </button>
+              <button
+                onClick={() => setViewMode("tech")}
+                className={`px-5 py-2.5 rounded-xl font-mono text-xs font-bold transition-all flex items-center gap-2 ${
+                  viewMode === "tech"
+                    ? "bg-emerald-500 text-black shadow-md"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <Code2 className="w-4 h-4" /> Tech Developer Specs
+              </button>
+            </div>
+          </div>
         </section>
       )}
 
       {/* Interactive Estimator Slider */}
       {!isDashboard && (
-        <section className="px-6 max-w-7xl mx-auto">
+        <section className="px-6 max-w-7xl mx-auto relative z-10">
           <UsageCostEstimatorSlider />
         </section>
       )}
 
       {/* 4 Tier Pricing Cards */}
-      <section className="px-6 max-w-7xl mx-auto">
+      <section className="px-6 max-w-7xl mx-auto relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 xl:gap-8">
           
           {/* Trial Plan */}
@@ -260,7 +305,17 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
                 <p className="text-xs font-mono font-bold text-emerald-600 mt-1">Includes 20 Bundled Mins</p>
               </div>
               <ul className="space-y-3 mb-8 text-xs text-slate-700 font-semibold font-plus-jakarta">
-                {['20 Bundled Call Minutes', 'All Core Features Included', 'Real-Time Transcripts', 'Instant Identity Verification'].map(f => (
+                {(viewMode === "non-tech" ? [
+                  '20 Bundled Call Minutes',
+                  'All Core Agent Features Included',
+                  'Real-Time Text Transcripts',
+                  'Instant Identity Verification'
+                ] : [
+                  '20 Bundled Call Minutes',
+                  'Max 2 Concurrent Channels',
+                  'Standard REST Webhooks',
+                  'E.164 Number Format Validation'
+                ]).map(f => (
                   <li key={f} className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" /> <span>{f}</span>
                   </li>
@@ -292,7 +347,21 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
                 <p className="text-xs font-mono font-bold text-emerald-600 mt-1">750 Mins + 1 Free Phone Number</p>
               </div>
               <ul className="space-y-3 mb-8 text-xs text-slate-700 font-semibold font-plus-jakarta">
-                {['750 Bundled Call Minutes', '1 Free Phone Number Included', '26+ HD Voice Personas', '70+ Languages & Dialects', 'Standard Webhooks & CRM Sync', 'Real-Time Transcripts'].map(f => (
+                {(viewMode === "non-tech" ? [
+                  '750 Bundled Call Minutes (₹3.99/min after)',
+                  '1 Free Phone Number Included',
+                  '26+ HD Voice Personas',
+                  '70+ Languages & Dialects',
+                  'Standard Webhooks & CRM Sync',
+                  'Real-Time Transcripts'
+                ] : [
+                  '750 Bundled Call Mins (₹3.99/min overage)',
+                  '1 Dedicated Virtual Number',
+                  '10 Concurrent Call Channels',
+                  'REST Webhook Emitters (HMAC Signed)',
+                  'Custom RAG Knowledge Vectors (Up to 50MB)',
+                  'Full-Duplex VAD Interruption DSP'
+                ]).map(f => (
                   <li key={f} className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" /> <span>{f}</span>
                   </li>
@@ -327,7 +396,21 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
                 <p className="text-xs font-mono font-bold text-emerald-400 mt-1">2,865 Mins + 1 Free Phone Number</p>
               </div>
               <ul className="space-y-3 mb-8 text-xs text-slate-200 font-semibold font-plus-jakarta">
-                {['2,865 Bundled Call Minutes', '1 Free Phone Number Included', 'Everything in Startup', 'Priority Telephony Routing', '1 Custom Voice Clone', 'Sentiment Analytics & Scoring'].map(f => (
+                {(viewMode === "non-tech" ? [
+                  '2,865 Bundled Call Minutes (₹3.49/min after)',
+                  '1 Free Phone Number Included',
+                  'Everything in Startup',
+                  'Priority Telephony Routing',
+                  '1 Custom Voice Clone',
+                  'Sentiment Analytics & Scoring'
+                ] : [
+                  '2,865 Bundled Mins (₹3.49/min overage)',
+                  '50 Concurrent Call Channels',
+                  'Zero-Shot 5-Second Voice Cloning',
+                  'Priority Carrier SIP Routing',
+                  'Custom Dynamic Function Schemas',
+                  'Edge PII/PHI Redaction Pipeline'
+                ]).map(f => (
                   <li key={f} className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" /> <span>{f}</span>
                   </li>
@@ -365,7 +448,21 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
                 <p className="text-xs font-mono font-bold text-emerald-600 mt-1">10,000 Mins + 1 Free Phone Number</p>
               </div>
               <ul className="space-y-3 mb-8 text-xs text-slate-700 font-semibold font-plus-jakarta">
-                {['10,000 Bundled Call Minutes', '1 Free Phone Number Included', 'Everything in Growth', 'Dedicated SIP IP Addresses', 'HIPAA & SOC 2 BAA Agreement', '99.99% Uptime SLA'].map(f => (
+                {(viewMode === "non-tech" ? [
+                  '10,000 Bundled Call Minutes (₹2.99/min after)',
+                  '1 Free Phone Number Included',
+                  'Everything in Growth',
+                  'Dedicated SIP IP Addresses',
+                  'HIPAA & SOC 2 BAA Agreement',
+                  '99.99% Uptime SLA'
+                ] : [
+                  '10,000 Bundled Mins (₹2.99/min overage)',
+                  '200+ Unlimited Concurrent Channels',
+                  'Dedicated SIP IP Trunking & IP Whitelisting',
+                  'HIPAA BAA & SOC 2 Type II Agreement',
+                  'Custom On-Prem / VPC Proxy Egress',
+                  '99.99% Guaranteed SLA Uptime'
+                ]).map(f => (
                   <li key={f} className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" /> <span>{f}</span>
                   </li>
@@ -384,7 +481,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
         </div>
 
         {/* Custom Enterprise Banner */}
-        <div className="mt-12 bg-slate-900 text-white rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between shadow-xl border border-slate-800">
+        <div className="mt-12 bg-[#0B132B] text-white rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between shadow-xl border border-slate-800">
           <div className="mb-6 md:mb-0 md:mr-8 text-center md:text-left">
             <h3 className="text-2xl font-bold mb-2" style={{ fontFamily: "'Clash Display', sans-serif" }}>
               Need a Custom Enterprise Deal or On-Premise Deployment?
@@ -411,7 +508,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
 
       {/* Flat-Rate Philosophy */}
       {!isDashboard && (
-        <section className="px-6 max-w-5xl mx-auto">
+        <section className="px-6 max-w-5xl mx-auto relative z-10">
           <div className="bg-white border border-[#EADEC9] rounded-3xl p-8 md:p-12 shadow-lg space-y-6">
             <h2 className="text-3xl font-bold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
               Pay-As-You-Go Base Rate: Flat ₹3.99 / Minute
@@ -431,4 +528,3 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
     </div>
   );
 }
-
