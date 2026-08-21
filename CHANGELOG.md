@@ -1,6 +1,11 @@
 # CHANGELOG
 
 ## [Unreleased] - 2026-08-21
+### Added
+- Rebuilt homepage Hero section ([Hero.tsx](file:///c:/Users/Rohit%20Kumar%20Sha/OneDrive/Desktop/bOLNA/Frontend/src/app/components/hero/Hero.tsx)) with warm Pinterest-inspired editorial design (warm ivory/cream palette with deep emerald and terracotta accents; strictly zero blue, black, or purple hues).
+- Added explicit enterprise messaging explaining what Claritiy Voice does (human-like AI phone agents for outbound sales, support, lead qualification, and IVR replacement).
+- Integrated an interactive 6-node geometrical USP diagram animation with real-time SVG spoke beam lines, pulsing node rings, and live detail card overlays highlighting sub-180ms latency, 70+ languages, full-duplex barge-in, Vobiz/SIP telephony, 100% RAG, and SOC2/HIPAA compliance.
+
 ### Removed
 - Removed legacy AWS ECS deployment workflow `.github/workflows/deploy-aws.yml` and associated `.aws/task-definition.json` (`.aws/` directory) as deployment target is exclusively Render.
 - Confirmed health ping workflow was never generated; retained core server `/health` route in `server/src/index.ts` for Render dashboard health monitoring.
