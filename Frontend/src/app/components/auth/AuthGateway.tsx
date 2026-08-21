@@ -209,8 +209,11 @@ function LeftPanel() {
   );
 }
 
-// ── Main Auth Gateway ─────────────────────────────────────────────────────────
-export default function AuthGateway() {
+interface AuthGatewayProps {
+  onSuccess?: () => void;
+}
+
+export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -231,6 +234,7 @@ export default function AuthGateway() {
       if (mode === 'signin') {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) throw signInError;
+        if (onSuccess) onSuccess();
       } else {
         const { error: signUpError } = await supabase.auth.signUp({
           email,
@@ -242,6 +246,7 @@ export default function AuthGateway() {
         });
         if (signUpError) throw signUpError;
         setMessage('A verification link has been sent to your email. Please confirm to activate your workspace.');
+        if (onSuccess) onSuccess();
       }
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred.');
