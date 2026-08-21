@@ -346,13 +346,13 @@ function ComparisonSection({ setPage }: { setPage: (p: Page) => void }) {
   return (
     <section className="py-24 px-6 max-w-7xl mx-auto">
       <div className="text-center max-w-3xl mx-auto mb-14 space-y-4">
-        <SectionLabel text="AI Voice Agents vs Competitors" color="orange" />
+        <SectionLabel text="Enterprise Architecture Comparison" color="orange" />
         <h2 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A]"
           style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
-          Claritiy Voice vs Vapi, Retell AI,<br />Bland AI & Legacy Call Centers
+          Claritiy Voice vs Chained Multi-Vendor Stacks<br />& Legacy Call Centers
         </h2>
         <p className="text-slate-500 leading-relaxed">
-          See exactly why Claritiy Voice is the best AI calling platform for enterprises who need speed, scale, and compliance.
+          See why enterprise teams choose Claritiy Voice for low-latency, unified pricing, and instant compliance.
         </p>
       </div>
 
@@ -369,7 +369,7 @@ function ComparisonSection({ setPage }: { setPage: (p: Page) => void }) {
           <div className="p-5 font-mono text-[#34D399] border-l border-white/10">
             ✦ Claritiy Voice
           </div>
-          <div className="p-5 font-mono text-white/60 border-l border-white/10">Vapi / Retell</div>
+          <div className="p-5 font-mono text-white/60 border-l border-white/10">Chained APIs</div>
           <div className="p-5 font-mono text-white/60 border-l border-white/10">Human Centers</div>
         </div>
         {/* Rows */}

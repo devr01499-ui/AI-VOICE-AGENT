@@ -37,7 +37,6 @@ const Solutions = lazy(() => import("./pages/Solutions"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
 const Voices = lazy(() => import("./pages/Voices"));
 const Pricing = lazy(() => import("./pages/Pricing"));
-const Compare = lazy(() => import("./pages/Compare"));
 const BlogIndex = lazy(() => import("./pages/BlogIndex"));
 const BlogRTO = lazy(() => import("./pages/BlogRTO"));
 const BlogHealthcare = lazy(() => import("./pages/BlogHealthcare"));
@@ -57,7 +56,6 @@ type Page =
   | "how-it-works" 
   | "voices" 
   | "pricing" 
-  | "compare" 
   | "blog" 
   | "blog-rto" 
   | "blog-healthcare" 
@@ -559,8 +557,8 @@ function PricingPage({ setPage }: { setPage: (p: Page) => void }) {
             a: "Claritiy Voice costs ₹3.99 per minute pay-as-you-go, or from ₹1,799 per month on a plan with bundled minutes included at a lower effective rate.",
           },
           {
-            q: "How is Claritiy Voice different from Bolna, Retell, or Vapi?",
-            a: "Claritiy Voice is built specifically around COD order confirmation and RTO reduction, with the workflow ready out of the box — general voice AI platforms require building that flow yourself, and typically charge separately for speech-to-text, the language model, and text-to-speech rather than one transparent per-minute price.",
+            q: "How is Claritiy Voice different from multi-vendor chained API stacks?",
+            a: "Claritiy Voice is built specifically around end-to-end voice automation with all-inclusive pricing. Multi-vendor chained APIs charge separately for speech-to-text, LLMs, and text-to-speech, requiring complex integrations and incurring unpredictable costs.",
           },
         ].map((faq, i) => (
           <FAQItem key={i} q={faq.q} a={faq.a} />
@@ -4169,7 +4167,6 @@ export default function App() {
         "/pricing": "pricing",
         "/how-it-works": "how-it-works",
         "/industries": "industries",
-        "/compare/bolna-retell-vapi": "compare",
         "/dashboard": "dashboard",
         "/faq": "faq",
         "/contact": "contact",
@@ -4188,7 +4185,6 @@ export default function App() {
       
       if (pathMap[path]) return pathMap[path];
       if (path.startsWith("/blog/how-to-reduce-cod-rto")) return "blog-rto";
-      if (path.startsWith("/compare")) return "compare";
       if (path.startsWith("/voice-ai-index")) return "voice-ai-index";
     }
     return "home";
@@ -4213,7 +4209,6 @@ export default function App() {
         "/pricing": "pricing",
         "/how-it-works": "how-it-works",
         "/industries": "industries",
-        "/compare/bolna-retell-vapi": "compare",
         "/dashboard": "dashboard",
         "/faq": "faq",
         "/contact": "contact",
@@ -4234,8 +4229,6 @@ export default function App() {
         setPage(pathMap[path]);
       } else if (path.startsWith("/blog/how-to-reduce-cod-rto")) {
         setPage("blog-rto");
-      } else if (path.startsWith("/compare")) {
-        setPage("compare");
       } else if (path.startsWith("/voice-ai-index")) {
         setPage("voice-ai-index");
         if (path.startsWith("/voice-ai-index/")) {
@@ -4260,7 +4253,6 @@ export default function App() {
       pricing: "/pricing",
       "how-it-works": "/how-it-works",
       "blog-rto": "/blog/how-to-reduce-cod-rto",
-      compare: "/compare/bolna-retell-vapi",
       dashboard: "/dashboard",
       faq: "/faq",
       contact: "/contact",
@@ -4292,7 +4284,6 @@ export default function App() {
       pricing: "Claritiy Voice Pricing — ₹3.99/min, No Hidden Fees",
       "how-it-works": "How Claritiy Voice Confirms COD Orders Automatically",
       "blog-rto": "How to Reduce COD RTO for D2C Brands in India",
-      compare: "Claritiy Voice vs Bolna vs Retell vs Vapi",
       dashboard: "Dashboard — Claritiy Voice",
       faq: "FAQ — Claritiy Voice",
       contact: "Contact Us — Claritiy Voice",
@@ -4314,7 +4305,6 @@ export default function App() {
       pricing: "Transparent, per-minute AI voice agent pricing. No stacked STT, LLM, or TTS fees like other platforms.",
       "how-it-works": "See exactly how Claritiy Voice calls, confirms, and logs every cash-on-delivery order before it ships.",
       "blog-rto": "A practical guide to cutting cash-on-delivery returns and reverse logistics costs using automated AI confirmation calls.",
-      compare: "Compare Claritiy Voice against Bolna, Retell AI, and Vapi for automated Indian COD order confirmations.",
       dashboard: "Manage your AI voice agents and view call analytics.",
       faq: "Frequently asked questions about Claritiy Voice.",
       contact: "Get in touch with the Claritiy Voice team.",
@@ -4336,7 +4326,6 @@ export default function App() {
       pricing: "pricing",
       "how-it-works": "how-it-works",
       "blog-rto": "blog/how-to-reduce-cod-rto",
-      compare: "compare/bolna-retell-vapi",
       dashboard: "dashboard",
       faq: "faq",
       contact: "contact",
@@ -4578,7 +4567,6 @@ export default function App() {
             {page === "blog-healthcare" && <BlogHealthcare />}
             {page === "blog-fintech" && <BlogFintech />}
             {page === "voices" && <Voices setPage={handleNavigate} />}
-            {page === "compare" && <Compare setPage={handleNavigate} />}
             {page === "docs" && <Docs />}
             {page === "privacy" && <Privacy />}
             {page === "terms" && <Terms />}

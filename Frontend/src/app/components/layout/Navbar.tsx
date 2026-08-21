@@ -1,29 +1,26 @@
-import { useState, useEffect } from "react";
-import { X, Menu, ArrowRight, ChevronDown, Zap, Users, Globe2, Phone, BookOpen, BarChart3 } from "lucide-react";
+import { useState } from "react";
+import { X, Menu, ArrowRight, ChevronDown, Zap, Users, Globe2, BookOpen, Layers } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from "motion/react";
 
 type Page =
   | "home" | "solutions" | "how-it-works" | "voices" | "pricing"
-  | "compare" | "blog" | "blog-rto" | "blog-healthcare" | "blog-fintech"
-  | "docs" | "privacy" | "terms" | "security" | "dashboard" | "industries" | "voice-ai-index";
+  | "blog" | "blog-rto" | "blog-healthcare" | "blog-fintech"
+  | "docs" | "privacy" | "terms" | "security" | "dashboard" | "industries" | "voice-ai-index" | "faq" | "contact";
 
 interface NavbarProps {
   page: Page;
   setPage: (p: Page) => void;
 }
 
-// Mega-menu panel for "Platform"
 const PLATFORM_ITEMS = [
-  { icon: Zap, label: "Voice AI Platform", desc: "Sub-180ms real-time engine", id: "how-it-works" as Page },
-  { icon: Phone, label: "Inbound Calling", desc: "AI receptionist & IVR deflection", id: "solutions" as Page },
-  { icon: BarChart3, label: "Outbound Campaigns", desc: "10K+ concurrent AI calls", id: "solutions" as Page },
-  { icon: Globe2, label: "HD Voice Gallery", desc: "70+ languages & accents", id: "voices" as Page },
+  { icon: Zap, label: "How Claritiy Works", desc: "Sub-180ms real-time audio engine", id: "how-it-works" as Page },
+  { icon: Layers, label: "Enterprise Solutions", desc: "COD confirmation & clinic intake", id: "solutions" as Page },
+  { icon: Globe2, label: "HD Voice Gallery", desc: "70+ languages & regional accents", id: "voices" as Page },
 ];
 
 const RESOURCE_ITEMS = [
   { icon: BookOpen, label: "Developer Docs", desc: "API, SDK & integrations", id: "docs" as Page },
-  { icon: Users, label: "Industry Blog", desc: "Use cases & benchmarks", id: "blog" as Page },
-  { icon: BarChart3, label: "Competitor Compare", desc: "vs Vapi, Retell, Bland AI", id: "compare" as Page },
+  { icon: Users, label: "Blog & Research", desc: "Industry insights & case studies", id: "blog" as Page },
 ];
 
 export default function Navbar({ page, setPage }: NavbarProps) {
@@ -78,48 +75,22 @@ export default function Navbar({ page, setPage }: NavbarProps) {
 
           {/* Desktop Nav */}
           <div className="hidden lg:flex items-center gap-1">
-            {/* Platform dropdown */}
-            <div className="relative"
-              onMouseEnter={() => setActiveDropdown("platform")}
-              onMouseLeave={() => setActiveDropdown(null)}>
-              <button className={`flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${activeDropdown === "platform" ? "bg-[#D1FAE5] text-[#059669]" : "text-[#4B5563] hover:text-[#0D1117] hover:bg-black/[0.04]"}`}>
-                Platform <ChevronDown className="w-3.5 h-3.5" />
-              </button>
+            {/* How It Works */}
+            <button onClick={() => navigate("how-it-works")}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${page === "how-it-works" ? "bg-[#D1FAE5] text-[#059669]" : "text-[#4B5563] hover:text-[#0D1117] hover:bg-black/[0.04]"}`}>
+              How It Works
+            </button>
 
-              <AnimatePresence>
-                {activeDropdown === "platform" && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 6, scale: 0.97 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 6, scale: 0.97 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute top-full left-0 mt-2 w-72 rounded-2xl bg-white border border-[#E8E2D9] p-3 z-50"
-                    style={{ boxShadow: "0 20px 60px rgba(13,17,23,0.12), 0 4px 16px rgba(13,17,23,0.07)" }}
-                  >
-                    {PLATFORM_ITEMS.map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <button key={item.label} onClick={() => navigate(item.id)}
-                          className="w-full flex items-start gap-3 p-3 rounded-xl hover:bg-[#F0FDF4] transition-colors text-left group">
-                          <div className="w-9 h-9 rounded-xl bg-[#D1FAE5] flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:bg-[#059669] transition-colors">
-                            <Icon className="w-4 h-4 text-[#059669] group-hover:text-white transition-colors" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-[#0D1117]">{item.label}</p>
-                            <p className="text-xs text-[#9CA3AF] mt-0.5">{item.desc}</p>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Industries */}
+            {/* Solutions */}
             <button onClick={() => navigate("solutions")}
               className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${page === "solutions" ? "bg-[#D1FAE5] text-[#059669]" : "text-[#4B5563] hover:text-[#0D1117] hover:bg-black/[0.04]"}`}>
-              Industries
+              Solutions
+            </button>
+
+            {/* Voices */}
+            <button onClick={() => navigate("voices")}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${page === "voices" ? "bg-[#D1FAE5] text-[#059669]" : "text-[#4B5563] hover:text-[#0D1117] hover:bg-black/[0.04]"}`}>
+              Voices
             </button>
 
             {/* Pricing */}
@@ -132,7 +103,7 @@ export default function Navbar({ page, setPage }: NavbarProps) {
             <div className="relative"
               onMouseEnter={() => setActiveDropdown("resources")}
               onMouseLeave={() => setActiveDropdown(null)}>
-              <button className={`flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${activeDropdown === "resources" ? "bg-[#D1FAE5] text-[#059669]" : "text-[#4B5563] hover:text-[#0D1117] hover:bg-black/[0.04]"}`}>
+              <button className={`flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${activeDropdown === "resources" || page === "blog" || page === "docs" ? "bg-[#D1FAE5] text-[#059669]" : "text-[#4B5563] hover:text-[#0D1117] hover:bg-black/[0.04]"}`}>
                 Resources <ChevronDown className="w-3.5 h-3.5" />
               </button>
               <AnimatePresence>
@@ -150,8 +121,8 @@ export default function Navbar({ page, setPage }: NavbarProps) {
                       return (
                         <button key={item.label} onClick={() => navigate(item.id)}
                           className="w-full flex items-start gap-3 p-3 rounded-xl hover:bg-[#F0FDF4] transition-colors text-left group">
-                          <div className="w-9 h-9 rounded-xl bg-[#FEF3C7] flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:bg-[#E8630A] transition-colors">
-                            <Icon className="w-4 h-4 text-[#E8630A] group-hover:text-white transition-colors" />
+                          <div className="w-9 h-9 rounded-xl bg-[#FEF3C7] flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:bg-[#059669] transition-colors">
+                            <Icon className="w-4 h-4 text-[#059669] group-hover:text-white transition-colors" />
                           </div>
                           <div>
                             <p className="text-sm font-bold text-[#0D1117]">{item.label}</p>
@@ -223,12 +194,11 @@ export default function Navbar({ page, setPage }: NavbarProps) {
               </div>
               <div className="flex-1 overflow-y-auto p-5 space-y-1">
                 {[
-                  { label: "Platform & Features", id: "how-it-works" as Page },
-                  { label: "Industry Solutions", id: "solutions" as Page },
+                  { label: "How It Works", id: "how-it-works" as Page },
+                  { label: "Solutions", id: "solutions" as Page },
                   { label: "HD Voice Gallery", id: "voices" as Page },
                   { label: "Pricing Plans", id: "pricing" as Page },
-                  { label: "Compare Competitors", id: "compare" as Page },
-                  { label: "Blog & Resources", id: "blog" as Page },
+                  { label: "Blog & Insights", id: "blog" as Page },
                   { label: "Developer Docs", id: "docs" as Page },
                 ].map((l) => (
                   <button key={l.id} onClick={() => navigate(l.id)}
@@ -252,3 +222,4 @@ export default function Navbar({ page, setPage }: NavbarProps) {
     </>
   );
 }
+

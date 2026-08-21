@@ -6,7 +6,6 @@ type Page =
   | "how-it-works" 
   | "voices" 
   | "pricing" 
-  | "compare" 
   | "blog" 
   | "blog-rto" 
   | "blog-healthcare" 
@@ -59,10 +58,9 @@ export default function Footer({ setPage }: FooterProps) {
             {
               heading: "Platform",
               links: [
-                { label: "Features", action: () => setPage("how-it-works") },
+                { label: "How It Works", action: () => setPage("how-it-works") },
                 { label: "HD Voices Gallery", action: () => setPage("voices") },
-                { label: "Pricing & ROI Calculator", action: () => setPage("pricing") },
-                { label: "Comparison", action: () => setPage("compare") },
+                { label: "Pricing & Plans", action: () => setPage("pricing") },
               ]
             },
             {

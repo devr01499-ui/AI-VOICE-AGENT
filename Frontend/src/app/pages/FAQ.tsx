@@ -25,8 +25,8 @@ const FAQS = [
     a: "Claritiy Voice supports 70+ languages and regional dialects natively — including English, Hindi, Bengali, Kannada, Malayalam, Gujarati, Marathi, Tamil, Mandarin, Arabic, and more. Native accent support is built into the speech models, requiring no intermediate translation APIs.",
   },
   {
-    q: "How is Claritiy Voice priced compared to Vapi, Retell AI, or Bland AI?",
-    a: "Claritiy Voice offers transparent, flat-rate pricing: ₹3.99/minute pay-as-you-go or bundled plans starting at ₹1,799/month. Competitors like Vapi and Retell charge separately for STT, LLM, and TTS providers — which adds up. Our pricing includes everything in one bundled rate with no hidden costs.",
+    q: "How is Claritiy Voice priced compared to multi-vendor API stacks?",
+    a: "Claritiy Voice offers transparent, flat-rate pricing: ₹3.99/minute pay-as-you-go or bundled plans with lower per-minute rates. Multi-vendor stacks charge separately for STT, LLM tokens, and TTS providers — which causes unexpected price spikes. Our pricing unifies the entire voice stack into one predictable rate with zero hidden fees.",
   },
   {
     q: "Can I integrate Claritiy Voice with my CRM, Shopify, or HubSpot?",
