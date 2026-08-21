@@ -1,384 +1,429 @@
-import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "motion/react";
-import { ArrowRight, Mic, Globe, Zap, Shield, Phone, Star, CheckCircle2, Play } from "lucide-react";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { 
+  ArrowRight, Zap, Shield, Globe, Phone, Play, 
+  CheckCircle2, Cpu, Activity, Sparkles, Layers, 
+  RefreshCw, MessageSquare, Lock, ArrowUpRight, Volume2, Database
+} from "lucide-react";
 
 type Page = any;
-interface HeroProps { setPage: (p: Page) => void; }
+interface HeroProps {
+  setPage: (p: Page) => void;
+}
 
-// ── Animated Waveform (requestAnimationFrame sine bars) ──────────────────────
-function LiveWaveform({ active, color = "#34D399", barCount = 36 }: {
-  active: boolean; color?: string; barCount?: number;
-}) {
-  const [bars, setBars] = useState<number[]>(Array.from({ length: barCount }, () => 0.1));
-  const animRef = useRef<number | null>(null);
-  const tRef = useRef(0);
+// ── Interactive Geometrical USP Diagram Component ─────────────────────────────
+function GeometricalUspDiagram() {
+  const [activeNode, setActiveNode] = useState<number>(0);
+  const [isPlaying, setIsPlaying] = useState<boolean>(true);
 
-  useEffect(() => {
-    if (!active) {
-      setBars(Array.from({ length: barCount }, () => 0.08));
-      return;
+  // 6 Core USPs mapped into geometric diagram positions
+  const usps = [
+    {
+      id: 0,
+      title: "Sub-180ms Latency",
+      subtitle: "Native Audio Stream",
+      detail: "Vertically integrated ASR + LLM + TTS engine eliminate 800ms API lag for real human response times.",
+      icon: Zap,
+      color: "#059669",
+      accentBg: "#ECFDF5",
+      x: 50, // % from center
+      y: 16,
+      angle: -90,
+      badge: "<180ms"
+    },
+    {
+      id: 1,
+      title: "70+ Languages & Accents",
+      subtitle: "Native Speech Models",
+      detail: "Direct Hindi, English, Spanish, Arabic, Bengali & regional dialect recognition without translation loss.",
+      icon: Globe,
+      color: "#D97706",
+      accentBg: "#FEF3C7",
+      x: 82,
+      y: 35,
+      angle: -30,
+      badge: "70+ Languages"
+    },
+    {
+      id: 2,
+      title: "Full-Duplex Barge-In",
+      subtitle: "99.9% Human Parity",
+      detail: "Callers interrupt naturally mid-sentence. VAD flushes target queues instantly for realistic turn-taking.",
+      icon: Activity,
+      color: "#047857",
+      accentBg: "#D1FAE5",
+      x: 82,
+      y: 72,
+      angle: 30,
+      badge: "Real-Time Interruption"
+    },
+    {
+      id: 3,
+      title: "Instant Telephony Sync",
+      subtitle: "Vobiz & SIP Trunking",
+      detail: "Provision PSTN local/tollfree phone numbers in 1 click or connect existing enterprise SIP infrastructure.",
+      icon: Phone,
+      color: "#D97706",
+      accentBg: "#FFF7ED",
+      x: 50,
+      y: 88,
+      angle: 90,
+      badge: "Vobiz PSTN / SIP"
+    },
+    {
+      id: 4,
+      title: "100% Fact-Checked RAG",
+      subtitle: "Zero Hallucination",
+      detail: "Ground your AI agent with PDFs, FAQs, and CRM databases for instant factual retrieval live on phone calls.",
+      icon: Database,
+      color: "#059669",
+      accentBg: "#F0FDF4",
+      x: 18,
+      y: 72,
+      angle: 150,
+      badge: "CRM & Document RAG"
+    },
+    {
+      id: 5,
+      title: "SOC 2 & HIPAA Security",
+      subtitle: "Enterprise Grade",
+      detail: "Edge-level PII/PHI redaction, TLS encryption, PCI-DSS compliance, and automated call audit trails.",
+      icon: Lock,
+      color: "#B45309",
+      accentBg: "#FEF3C7",
+      x: 18,
+      y: 35,
+      angle: 210,
+      badge: "SOC2 & HIPAA Ready"
     }
-    const animate = () => {
-      tRef.current += 0.055;
-      const t = tRef.current;
-      setBars(Array.from({ length: barCount }, (_, i) => {
-        const base = Math.sin(t + i * 0.28) * 0.45 + 0.5;
-        const harmonic = Math.sin(t * 2.1 + i * 0.6) * 0.2;
-        const micro = Math.sin(t * 3.7 + i * 1.1) * 0.08;
-        return Math.max(0.06, Math.min(1, base + harmonic + micro));
-      }));
-      animRef.current = requestAnimationFrame(animate);
-    };
-    animRef.current = requestAnimationFrame(animate);
-    return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
-  }, [active, barCount]);
+  ];
+
+  // Auto rotate active node highlight every 3 seconds
+  useEffect(() => {
+    if (!isPlaying) return;
+    const interval = setInterval(() => {
+      setActiveNode((prev) => (prev + 1) % usps.length);
+    }, 3200);
+    return () => clearInterval(interval);
+  }, [isPlaying, usps.length]);
+
+  const CurrentIcon = usps[activeNode].icon;
 
   return (
-    <div className="flex items-center justify-center gap-[2.5px]" style={{ height: 48 }}>
-      {bars.map((h, i) => (
-        <div
-          key={i}
-          style={{
-            width: 3,
-            height: `${h * 100}%`,
-            borderRadius: 999,
-            background: color,
-            opacity: 0.55 + h * 0.45,
-            transition: active ? "none" : "height 0.3s ease",
-          }}
+    <div className="relative w-full max-w-[540px] aspect-square mx-auto flex items-center justify-center p-2 sm:p-4 select-none">
+      
+      {/* Subtle Background Glow */}
+      <div 
+        className="absolute inset-4 rounded-full opacity-30 blur-[60px] pointer-events-none"
+        style={{
+          background: "radial-gradient(circle, rgba(5,150,105,0.25) 0%, rgba(217,119,6,0.15) 50%, transparent 70%)"
+        }}
+      />
+
+      {/* SVG Geometric Lattice & Beam Lines */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" viewBox="0 0 500 500">
+        <defs>
+          <linearGradient id="emeraldBeam" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#059669" stopOpacity="0.8" />
+            <stop offset="100%" stopColor="#D97706" stopOpacity="0.4" />
+          </linearGradient>
+          <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
+
+        {/* Outer Hexagonal Ring */}
+        <polygon
+          points="250,50 423,150 423,350 250,450 77,350 77,150"
+          fill="none"
+          stroke="#E2E8F0"
+          strokeWidth="1.5"
+          strokeDasharray="6 6"
         />
-      ))}
-    </div>
-  );
-}
 
-// ── Orbiting Node ────────────────────────────────────────────────────────────
-function OrbitNode({ label, icon: Icon, angle, radius, delay }: {
-  label: string; icon: React.ElementType; angle: number; radius: number; delay: number;
-}) {
-  const rad = (angle * Math.PI) / 180;
-  const x = Math.cos(rad) * radius;
-  const y = Math.sin(rad) * radius;
+        {/* Inner Orbital Circle */}
+        <circle
+          cx="250"
+          cy="250"
+          r="135"
+          fill="none"
+          stroke="rgba(5, 150, 105, 0.15)"
+          strokeWidth="1.5"
+        />
 
-  return (
-    <motion.div
-      className="absolute"
-      style={{ left: `calc(50% + ${x}px)`, top: `calc(50% + ${y}px)`, transform: "translate(-50%, -50%)" }}
-      initial={{ opacity: 0, scale: 0.5 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay, duration: 0.5, type: "spring", stiffness: 200 }}
-    >
-      <div
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-white/90 select-none"
-        style={{
-          background: "rgba(17,43,28,0.85)",
-          backdropFilter: "blur(12px)",
-          border: "1px solid rgba(52,211,153,0.25)",
-          boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
-          fontSize: 10,
-          fontWeight: 700,
-          fontFamily: "'IBM Plex Mono', monospace",
-          letterSpacing: "0.06em",
-          whiteSpace: "nowrap",
-        }}
+        {/* Rotating Concentric Ring */}
+        <g style={{ transformOrigin: "250px 250px", animation: "spin 40s linear infinite" }}>
+          <circle
+            cx="250"
+            cy="250"
+            r="175"
+            fill="none"
+            stroke="rgba(217, 119, 6, 0.2)"
+            strokeWidth="1"
+            strokeDasharray="12 12"
+          />
+        </g>
+
+        {/* Connection Spoke Lines to Hub */}
+        {usps.map((u, i) => {
+          const isActive = activeNode === i;
+          const px = (u.x / 100) * 500;
+          const py = (u.y / 100) * 500;
+          return (
+            <g key={i}>
+              <line
+                x1="250"
+                y1="250"
+                x2={px}
+                y2={py}
+                stroke={isActive ? "url(#emeraldBeam)" : "rgba(226, 232, 240, 0.7)"}
+                strokeWidth={isActive ? "2.5" : "1.2"}
+                strokeDasharray={isActive ? "none" : "3 3"}
+              />
+              {/* Pulse particle along spoke line */}
+              {isActive && (
+                <circle cx={px} cy={py} r="5" fill="#059669" filter="url(#glow)">
+                  <animate
+                    attributeName="r"
+                    values="3;7;3"
+                    dur="1.5s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+
+      {/* Central Hub Node: Claritiy Voice Core AI Engine */}
+      <motion.div
+        className="absolute z-20 w-32 h-32 rounded-3xl bg-white p-3 flex flex-col items-center justify-center text-center shadow-[0_16px_40px_rgba(5,150,105,0.18)] border-2 border-[#059669]/20 cursor-pointer"
+        whileHover={{ scale: 1.05 }}
+        onClick={() => setIsPlaying(!isPlaying)}
       >
-        <Icon className="w-3 h-3 text-[#34D399]" />
-        {label}
-      </div>
-    </motion.div>
-  );
-}
-
-// ── The Hero Visual: Live Call Preview Card + Orb ────────────────────────────
-function HeroVisual() {
-  const [playing, setPlaying] = useState(true);
-  const [transcript, setTranscript] = useState("");
-  const [transcriptIdx, setTranscriptIdx] = useState(0);
-  const [callTime, setCallTime] = useState(47);
-
-  const TRANSCRIPT_LINES = [
-    "नमस्ते! मैं क्लेरिटी वॉयस AI से बोल रही हूँ।",
-    "Hello! I'm calling to confirm your order #45821.",
-    "Your appointment is confirmed for Friday, 3 PM.",
-    "I can transfer you to our specialist right now.",
-  ];
-
-  useEffect(() => {
-    let pos = 0;
-    const line = TRANSCRIPT_LINES[transcriptIdx];
-    setTranscript("");
-    const t = setInterval(() => {
-      pos++;
-      setTranscript(line.slice(0, pos));
-      if (pos >= line.length) {
-        clearInterval(t);
-        setTimeout(() => {
-          setTranscriptIdx(p => (p + 1) % TRANSCRIPT_LINES.length);
-        }, 1800);
-      }
-    }, 38);
-    return () => clearInterval(t);
-  }, [transcriptIdx]);
-
-  useEffect(() => {
-    const t = setInterval(() => setCallTime(p => p + 1), 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
-
-  const orbitNodes = [
-    { label: "< 180ms", icon: Zap, angle: -65, radius: 200, delay: 0.8 },
-    { label: "SOC 2 CERT", icon: Shield, angle: -15, radius: 210, delay: 1.0 },
-    { label: "Hindi · EN · AR", icon: Globe, angle: 38, radius: 200, delay: 1.2 },
-    { label: "10M+ CALLS/MO", icon: Phone, angle: 95, radius: 215, delay: 1.4 },
-    { label: "99.9% UPTIME", icon: Star, angle: 150, radius: 205, delay: 1.6 },
-    { label: "HIPAA READY", icon: CheckCircle2, angle: 205, radius: 208, delay: 1.8 },
-  ];
-
-  return (
-    <div className="relative w-full flex items-center justify-center" style={{ height: 560 }}>
-      {/* Outer glow */}
-      <div
-        className="absolute inset-0 rounded-full opacity-30 blur-[80px]"
-        style={{ background: "radial-gradient(circle, rgba(5,150,105,0.4) 0%, rgba(17,43,28,0.2) 50%, transparent 70%)" }}
-      />
-
-      {/* Orbit rings */}
-      <motion.div
-        className="absolute w-[420px] h-[420px] rounded-full"
-        style={{ border: "1px dashed rgba(52,211,153,0.12)" }}
-        animate={{ rotate: 360 }}
-        transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
-      />
-      <motion.div
-        className="absolute w-[320px] h-[320px] rounded-full"
-        style={{ border: "1px dashed rgba(52,211,153,0.18)" }}
-        animate={{ rotate: -360 }}
-        transition={{ duration: 45, repeat: Infinity, ease: "linear" }}
-      />
-
-      {/* Orbit nodes */}
-      {orbitNodes.map((n, i) => <OrbitNode key={i} {...n} />)}
-
-      {/* Main card: Live Call UI */}
-      <motion.div
-        className="relative z-10 w-[340px] float-bob"
-        initial={{ opacity: 0, y: 30, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.8, delay: 0.3, type: "spring", stiffness: 100 }}
-        style={{
-          borderRadius: 28,
-          background: "linear-gradient(145deg, #0D2B1C 0%, #112B1C 50%, #0A1F14 100%)",
-          border: "1px solid rgba(52,211,153,0.20)",
-          boxShadow: "0 32px 80px rgba(0,0,0,0.45), 0 0 0 1px rgba(52,211,153,0.1), inset 0 1px 0 rgba(255,255,255,0.07)",
-        }}
-      >
-        {/* Card top-edge shine */}
-        <div className="absolute top-0 left-4 right-4 h-[1px] rounded-full"
-          style={{ background: "linear-gradient(90deg, transparent, rgba(52,211,153,0.5), transparent)" }} />
-
-        <div className="p-6 space-y-5">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-[#34D399] live-dot" />
-              <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#34D399] font-mono">
-                LIVE CALL IN PROGRESS
-              </span>
-            </div>
-            <span className="text-[10px] text-white/40 font-mono">{fmt(callTime)}</span>
-          </div>
-
-          {/* Caller info */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center flex-shrink-0">
-              <span className="text-sm font-bold text-white">AR</span>
-            </div>
-            <div>
-              <p className="text-sm font-bold text-white">Arjun Rao</p>
-              <p className="text-xs text-white/45 font-mono">+91 98765 43210 · COD Verification</p>
-            </div>
-            <div className="ml-auto flex items-center gap-1.5 bg-[#34D399]/10 border border-[#34D399]/20 rounded-full px-2.5 py-1">
-              <Globe className="w-3 h-3 text-[#34D399]" />
-              <span className="text-[9px] font-bold text-[#34D399] font-mono">HINDI</span>
-            </div>
-          </div>
-
-          {/* Waveform */}
-          <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4">
-            <LiveWaveform active={playing} color="#34D399" barCount={44} />
-          </div>
-
-          {/* Transcript */}
-          <div className="space-y-1.5">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-white/25 font-mono">AI AGENT → LIVE TRANSCRIPT</p>
-            <div className="bg-white/[0.04] rounded-xl px-3.5 py-3 border border-white/[0.06] min-h-[48px]">
-              <p className="text-xs text-white/75 leading-relaxed">
-                {transcript}<span className="animate-pulse">▌</span>
-              </p>
-            </div>
-          </div>
-
-          {/* Bottom row */}
-          <div className="flex items-center justify-between pt-1">
-            <div className="flex items-center gap-3">
-              <div className="text-center">
-                <p className="text-[10px] font-bold text-[#34D399] font-mono">Intent</p>
-                <p className="text-[9px] text-white/40">Order Confirm 96%</p>
-              </div>
-              <div className="w-px h-7 bg-white/10" />
-              <div className="text-center">
-                <p className="text-[10px] font-bold text-[#34D399] font-mono">Sentiment</p>
-                <p className="text-[9px] text-white/40">Positive 😊</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setPlaying(p => !p)}
-              className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
-            >
-              {playing
-                ? <div className="flex gap-0.5"><div className="w-1 h-3 rounded-sm bg-white/80" /><div className="w-1 h-3 rounded-sm bg-white/80" /></div>
-                : <Play className="w-3.5 h-3.5 text-white/80 ml-0.5" />
-              }
-            </button>
-          </div>
+        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#059669] to-[#047857] flex items-center justify-center shadow-md mb-1.5">
+          <Cpu className="w-6 h-6 text-white" />
         </div>
+        <span className="text-[11px] font-black text-[#0F172A] uppercase tracking-wider font-mono">
+          Claritiy AI
+        </span>
+        <span className="text-[9px] font-semibold text-[#059669] bg-[#ECFDF5] px-2 py-0.5 rounded-full mt-0.5">
+          Native Engine
+        </span>
       </motion.div>
-    </div>
-  );
-}
 
-// ── Rotating headline words ──────────────────────────────────────────────────
-const ROTATE_WORDS = ["Human.", "Instant.", "Scalable.", "Compliant.", "Intelligent."];
+      {/* 6 Peripheral Geometrical USP Nodes */}
+      {usps.map((u, i) => {
+        const isActive = activeNode === i;
+        const Icon = u.icon;
+        const px = u.x;
+        const py = u.y;
 
-// ── Main Hero ────────────────────────────────────────────────────────────────
-export default function Hero({ setPage }: HeroProps) {
-  const [wordIdx, setWordIdx] = useState(0);
-
-  useEffect(() => {
-    const t = setInterval(() => setWordIdx(p => (p + 1) % ROTATE_WORDS.length), 2200);
-    return () => clearInterval(t);
-  }, []);
-
-  const containerVariants = {
-    hidden: {},
-    visible: { transition: { staggerChildren: 0.12 } },
-  };
-  const itemVariants = {
-    hidden: { opacity: 0, y: 28 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
-  };
-
-  return (
-    <section
-      className="relative overflow-hidden pt-12 pb-4 bg-cover bg-center bg-no-repeat"
-      style={{ backgroundImage: "url('/hero-bg.png')", backgroundColor: "#F7F5F2" }}
-    >
-      <div className="max-w-7xl mx-auto px-6 relative z-10">
-        <div className="flex flex-col items-center justify-center text-center py-4 lg:py-6">
-
-          {/* ── Text content ─────────────────────────────────────── */}
+        return (
           <motion.div
-            className="space-y-8 max-w-[850px] mx-auto flex flex-col items-center bg-white/40 backdrop-blur-xl rounded-[40px] p-8 md:p-14 border border-white/50 shadow-[0_8px_32px_rgba(0,0,0,0.05)]"
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
+            key={u.id}
+            className="absolute z-30 transform -translate-x-1/2 -translate-y-1/2 cursor-pointer"
+            style={{ left: `${px}%`, top: `${py}%` }}
+            onClick={() => {
+              setActiveNode(i);
+              setIsPlaying(false);
+            }}
+            whileHover={{ scale: 1.12 }}
+            animate={{ scale: isActive ? 1.15 : 1.0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
           >
-            {/* Live badge */}
-            <motion.div variants={itemVariants}>
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border"
-                style={{
-                  background: "rgba(5,150,105,0.06)",
-                  border: "1px solid rgba(5,150,105,0.2)",
-                  backdropFilter: "blur(8px)",
-                }}>
-                <span className="w-2 h-2 rounded-full bg-[#059669] live-dot" />
-                <span className="text-[11px] font-bold text-[#059669] uppercase tracking-[0.15em] font-mono">
-                  #1 Enterprise AI Voice Platform · Live Now
+            <div 
+              className={`flex items-center gap-2 px-3 py-2 rounded-2xl border transition-all ${
+                isActive 
+                  ? "bg-white shadow-[0_12px_28px_rgba(0,0,0,0.12)] border-[#059669] ring-2 ring-[#059669]/20" 
+                  : "bg-white/90 shadow-md border-slate-200 hover:border-slate-300"
+              }`}
+            >
+              <div 
+                className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: u.accentBg, color: u.color }}
+              >
+                <Icon className="w-4 h-4" strokeWidth={2.2} />
+              </div>
+              <div className="hidden sm:block text-left pr-1">
+                <p className="text-[11px] font-bold text-[#0F172A] leading-none whitespace-nowrap">
+                  {u.title}
+                </p>
+                <p className="text-[9px] font-medium text-slate-500 mt-0.5 whitespace-nowrap">
+                  {u.subtitle}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        );
+      })}
+
+      {/* Dynamic Floating USP Highlight Card (Bottom Overlay) */}
+      <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-[92%] sm:w-[86%] z-40">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeNode}
+            initial={{ opacity: 0, y: 12, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.96 }}
+            transition={{ duration: 0.3 }}
+            className="bg-white/95 backdrop-blur-md rounded-2xl p-4 border border-emerald-100 shadow-[0_14px_36px_rgba(0,0,0,0.08)] flex items-start gap-3.5"
+          >
+            <div 
+              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
+              style={{ backgroundColor: usps[activeNode].accentBg, color: usps[activeNode].color }}
+            >
+              <CurrentIcon className="w-5 h-5" strokeWidth={2.2} />
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="text-sm font-extrabold text-[#0F172A]">
+                  {usps[activeNode].title}
+                </h4>
+                <span 
+                  className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full uppercase"
+                  style={{ backgroundColor: usps[activeNode].accentBg, color: usps[activeNode].color }}
+                >
+                  {usps[activeNode].badge}
                 </span>
               </div>
-            </motion.div>
+              <p className="text-xs text-slate-600 font-medium leading-relaxed mt-1">
+                {usps[activeNode].detail}
+              </p>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+    </div>
+  );
+}
+
+// ── Main Hero Section ─────────────────────────────────────────────────────────
+export default function Hero({ setPage }: HeroProps) {
+  return (
+    <section className="relative overflow-hidden pt-8 pb-16 lg:pt-12 lg:pb-24 bg-[#FBF9F4]">
+      
+      {/* Background Architectural Pattern */}
+      <div 
+        className="absolute inset-0 pointer-events-none opacity-[0.03]" 
+        style={{ 
+          backgroundImage: "radial-gradient(circle, #0F172A 1px, transparent 1px)", 
+          backgroundSize: "28px 28px" 
+        }} 
+      />
+
+      {/* Decorative Organic Ambient Shapes (No blue, no black, no purple!) */}
+      <div className="absolute top-12 left-8 w-72 h-72 bg-[#D1FAE5]/40 rounded-full blur-[90px] pointer-events-none" />
+      <div className="absolute bottom-10 right-12 w-96 h-96 bg-[#FEF3C7]/40 rounded-full blur-[100px] pointer-events-none" />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+          
+          {/* ── LEFT COLUMN: Clear Enterprise Messaging & CTAs (7 Cols) ─────── */}
+          <motion.div 
+            className="lg:col-span-7 space-y-6 text-left"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {/* Live Status Pill */}
+            <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full border border-emerald-800/10 bg-emerald-500/10 backdrop-blur-md">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#059669] animate-pulse" />
+              <span className="text-xs font-extrabold text-[#059669] uppercase tracking-wider font-mono">
+                #1 Enterprise AI Voice Platform · Claritiy Voice
+              </span>
+            </div>
 
             {/* Headline */}
-            <motion.div variants={itemVariants} className="space-y-2">
-              <h1
-                className="text-[#0D1117] leading-[0.97]"
-                style={{
-                  fontFamily: "'Clash Display', sans-serif",
-                  fontSize: "clamp(48px, 6.5vw, 84px)",
-                  fontWeight: 700,
-                  letterSpacing: "-0.035em",
-                }}
-              >
-                AI Voice Agents<br />
-                That Sound&nbsp;
-              </h1>
-              {/* Rotating word */}
-              <div className="overflow-hidden" style={{ height: "clamp(52px, 7vw, 92px)" }}>
-                <AnimatePresence mode="wait">
-                  <motion.span
-                    key={wordIdx}
-                    initial={{ y: "100%", opacity: 0 }}
-                    animate={{ y: "0%", opacity: 1 }}
-                    exit={{ y: "-100%", opacity: 0 }}
-                    transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-                    className="block gradient-text-green"
-                    style={{
-                      fontFamily: "'Clash Display', sans-serif",
-                      fontSize: "clamp(48px, 6.5vw, 84px)",
-                      fontWeight: 700,
-                      letterSpacing: "-0.035em",
-                      lineHeight: 1.0,
-                    }}
-                  >
-                    {ROTATE_WORDS[wordIdx]}
-                  </motion.span>
-                </AnimatePresence>
-              </div>
-            </motion.div>
-
-            {/* Body */}
-            <motion.p
-              variants={itemVariants}
-              className="text-[#4B5563] leading-[1.65] max-w-[550px] mx-auto"
-              style={{ fontSize: 17 }}
+            <h1 
+              className="text-[#0F172A] text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.08]"
+              style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}
             >
-              The world's fastest AI voice calling platform — ultra-low latency, 70+ languages, zero setup overhead. Replace your IVR, qualify leads, and handle collections automatically.
-            </motion.p>
+              Human-Like AI Voice Agents for Outbound Sales, Support & IVR
+            </h1>
 
-            {/* CTAs */}
-            <motion.div variants={itemVariants} className="flex flex-wrap gap-4 items-center justify-center">
-              <button onClick={() => setPage("dashboard")} className="btn-primary text-[15px] px-7 py-3.5">
-                Build Your First AI Agent
-                <ArrowRight className="w-4 h-4" />
+            {/* Clear Explanation of What We Do */}
+            <p className="text-slate-600 text-base sm:text-lg leading-relaxed max-w-2xl font-medium">
+              Claritiy Voice builds sub-second (<span className="text-[#059669] font-bold">180ms</span>) conversational AI phone agents that place outbound sales calls, handle inbound customer support, qualify leads, and automate payment reminders across <span className="text-[#D97706] font-bold">70+ languages</span> with zero setup overhead.
+            </p>
+
+            {/* Primary & Secondary Call to Actions */}
+            <div className="flex flex-wrap items-center gap-4 pt-2">
+              <button
+                onClick={() => setPage("dashboard")}
+                className="inline-flex items-center gap-2.5 text-white font-extrabold text-base px-8 py-4 rounded-2xl shadow-[0_10px_25px_rgba(5,150,105,0.3)] transition-all hover:scale-[1.02] active:scale-[0.98]"
+                style={{ background: "linear-gradient(135deg, #059669 0%, #047857 100%)" }}
+              >
+                Build Your AI Agent
+                <ArrowRight className="w-5 h-5" />
               </button>
-              <button onClick={() => setPage("how-it-works")}
-                className="flex items-center gap-2 text-[15px] font-semibold text-[#0D1117] hover:text-[#059669] transition-colors">
-                <div className="w-9 h-9 rounded-xl bg-white border border-[#E8E2D9] flex items-center justify-center shadow-sm">
+
+              <button
+                onClick={() => setPage("how-it-works")}
+                className="inline-flex items-center gap-2.5 text-[#0F172A] font-bold text-base px-7 py-4 rounded-2xl bg-white border border-slate-200 shadow-sm hover:bg-slate-50 transition-all"
+              >
+                <div className="w-7 h-7 rounded-xl bg-emerald-50 flex items-center justify-center">
                   <Play className="w-3.5 h-3.5 text-[#059669] ml-0.5" />
                 </div>
-                Watch Platform Demo
+                Hear Sample AI Call
               </button>
-            </motion.div>
+            </div>
+
+            {/* Key Platform Proof Metrics Bar */}
+            <div className="pt-6 border-t border-slate-200/80 grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {[
+                { label: "Sub-Second Latency", value: "< 180ms" },
+                { label: "Supported Languages", value: "70+ Dialects" },
+                { label: "Human Voice Parity", value: "99.9%" },
+                { label: "Security & PII", value: "SOC2 / HIPAA" }
+              ].map((stat, idx) => (
+                <div key={idx} className="space-y-0.5">
+                  <p className="text-lg sm:text-xl font-extrabold text-[#0F172A] font-mono">
+                    {stat.value}
+                  </p>
+                  <p className="text-xs text-slate-500 font-semibold">
+                    {stat.label}
+                  </p>
+                </div>
+              ))}
+            </div>
 
           </motion.div>
+
+          {/* ── RIGHT COLUMN: Geometrical Lottie / SVG USP Diagram (5 Cols) ─── */}
+          <motion.div 
+            className="lg:col-span-5 relative"
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.7, delay: 0.2 }}
+          >
+            <div className="bg-white/80 backdrop-blur-xl rounded-[36px] p-4 sm:p-6 border border-slate-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.06)] relative overflow-hidden">
+              
+              {/* Header Label inside Diagram Card */}
+              <div className="flex items-center justify-between px-3 pt-2 pb-1 mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#059669]" />
+                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#0F172A]">
+                    Platform Architecture & USPs
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                  Interactive Diagram
+                </span>
+              </div>
+
+              {/* The Geometrical Diagram Component */}
+              <GeometricalUspDiagram />
+
+            </div>
+          </motion.div>
+
         </div>
       </div>
 
-      {/* Scroll indicator */}
-      <div className="flex justify-center mt-16">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 2 }}
-          className="flex flex-col items-center gap-2 text-[#9CA3AF]"
-          style={{ animation: "scrollBounce 2s ease-in-out infinite" }}
-        >
-          <span className="text-[10px] font-bold uppercase tracking-[0.15em] font-mono">Scroll to explore</span>
-          <div className="w-px h-8 rounded-full bg-gradient-to-b from-[#9CA3AF] to-transparent" />
-        </motion.div>
-      </div>
     </section>
   );
 }
