@@ -405,7 +405,7 @@ export default function HomePage() {
           <div className="mt-10 pt-6 shadow-[inset_0_2px_4px_-2px_#b8bec7] flex justify-between items-center text-left rounded-b-xl px-2">
             <div>
               <span className="block text-xs font-extrabold text-gray-700 mb-1 drop-shadow-[1px_1px_1px_white]">Outbound Calling Engine</span>
-              <span className="block text-[10px] font-bold text-gray-500 drop-shadow-[1px_1px_1px_white]">Default: Vobiz Carrier</span>
+              <span className="block text-[10px] font-bold text-gray-500 drop-shadow-[1px_1px_1px_white]">Default: Enterprise PSTN Carrier</span>
             </div>
             
             <button

@@ -24,7 +24,7 @@ export function KycVerificationBanner({ status, reason }: KycVerificationBannerP
     return (
       <div className="flex items-center p-4 mb-4 text-yellow-800 rounded-lg bg-yellow-50">
         <Clock className="w-5 h-5 mr-3" />
-        <span className="font-medium">Verification pending. Our telecom partner (Vobiz) is reviewing your documents.</span>
+        <span className="font-medium">Verification pending. Our compliance team is reviewing your documents.</span>
       </div>
     );
   }
