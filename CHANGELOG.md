@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-08-21
+### Removed
+- Removed legacy AWS ECS deployment workflow `.github/workflows/deploy-aws.yml` and associated `.aws/task-definition.json` (`.aws/` directory) as deployment target is exclusively Render.
+- Confirmed health ping workflow was never generated; retained core server `/health` route in `server/src/index.ts` for Render dashboard health monitoring.
+
 ## [Unreleased] - 2026-08-20
 ### Fixed
 - Replaced hard exit `process.exit(1)` in `server/src/index.ts` with graceful `logger.warn` for optional startup environment variables (`PUBLIC_URL`, `VOBIZ_AUTH_ID`, `VOBIZ_AUTH_TOKEN`, `GOOGLE_API_KEY`/`OPENAI_API_KEY`/`GEMINI_API_KEY`). Prevents Render container boot failure loops when optional env vars are not set.
