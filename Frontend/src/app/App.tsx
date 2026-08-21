@@ -4517,9 +4517,8 @@ export default function App() {
       setSession(currentSession);
       if (currentSession) {
         localStorage.setItem('token', currentSession.access_token);
-        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-          handleNavigate("dashboard");
-        }
+        // Do NOT automatically navigate to dashboard on page load / INITIAL_SESSION.
+        // User must explicitly click Sign In or access /dashboard.
       } else {
         localStorage.removeItem('token');
         if (event === 'SIGNED_OUT') {
@@ -4578,7 +4577,7 @@ export default function App() {
             {page === "security" && <Security />}
             {page === "faq" && <FAQ setPage={handleNavigate} />}
             {page === "contact" && <ContactUs />}
-            {page === "dashboard" && <AuthGateway />}
+            {page === "dashboard" && <AuthGateway onSuccess={() => handleNavigate("dashboard")} />}
             {page === "voice-ai-index" && <VoiceAIIndex setPage={setPage} initialTopicId={currentTopicId} />}
           </Suspense>
         </motion.div>
