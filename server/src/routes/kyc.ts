@@ -3,20 +3,17 @@ import { requireAuth } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { VobizSubAccountService } from '../services/VobizSubAccountService';
-import { ProviderError } from '../types/errors';
-import crypto from 'crypto';
-import { env } from '../config/env';
 import { verifyVobizWebhook } from '../middleware/vobizWebhook';
 
 const router = Router();
 
 /**
- * POST /api/v2/kyc/submit
+ * POST /api/v2/kyc/initiate-session
  * 
- * Submits KYC documents (PAN, GST, CIN, etc.) to Vobiz API via the user's Sub-Account.
- * Marks the phone number's KYC status as 'pending' for async verification.
+ * Initiates Vobiz's Hosted KYC Session for the user's sub-account.
+ * Strictly ZERO raw document upload/storage on our servers (Aadhaar Act compliant).
  */
-router.post('/submit', requireAuth, async (req, res, next) => {
+router.post('/initiate-session', requireAuth, async (req, res, next) => {
   try {
     const userId = (req as any).userId;
     if (!userId) {
@@ -24,122 +21,107 @@ router.post('/submit', requireAuth, async (req, res, next) => {
       return;
     }
 
-    const { phoneNumberId, documentType, documentData } = req.body;
-    
-    if (!phoneNumberId || !documentType || !documentData) {
-      res.status(400).json({ success: false, error: 'Missing required fields' });
-      return;
-    }
-
-    logger.info('KYC: Submitting KYC documents', { userId, phoneNumberId, documentType });
-
-    // Validate phone number belongs to user
-    const phoneNumber = await prisma.phoneNumber.findFirst({
-      where: { id: phoneNumberId, userId },
-    });
-
-    if (!phoneNumber) {
-      res.status(404).json({ success: false, error: 'Phone number not found' });
-      return;
-    }
-
-    // Retrieve sub-account to call Vobiz API (Phase 1 integration)
     const subAccountService = new VobizSubAccountService();
-    const subAccount = await subAccountService.getOrCreateSubAccount(userId);
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    const subAccount = await subAccountService.getOrCreateSubAccount(userId, user?.email || undefined);
 
-    // Call Vobiz KYC API wrapper (Mocking for now as per instructions since we don't have the exact per-document Vobiz endpoint yet)
-    // We would pass subAccount.authId and subAccount.authToken to the Vobiz SDK/fetch call
-    logger.info('KYC: Mocking call to Vobiz per-document KYC API', { authId: subAccount.authId, documentType });
-    
-    // Simulate Vobiz accepting the documents for review
-    const vobizResponseStatus = 'pending'; 
+    // Build Vobiz Hosted KYC Redirect URL for sub-account
+    const hostedKycUrl = `https://console.vobiz.ai/kyc?sub_account_auth_id=${subAccount.authId}`;
 
-    // Update phone number status
-    await prisma.phoneNumber.update({
-      where: { id: phoneNumber.id },
-      data: {
-        kycStatus: vobizResponseStatus, // "pending"
-      }
-    });
+    logger.info('KYC: Initiated Vobiz Hosted KYC Session', { userId, subAuthId: subAccount.authId });
 
     res.json({
       success: true,
       data: {
-        message: 'KYC documents submitted successfully. Verification pending.',
-        status: vobizResponseStatus,
+        redirectUrl: hostedKycUrl,
+        subAccountAuthId: subAccount.authId,
+        confirmationMessage: "Your KYC verification is being processed and typically takes up to 24 hours. We'll notify you once it's complete.",
+        status: "pending"
       }
     });
   } catch (err) {
-    logger.error('KYC: failed to submit documents', { error: String(err) });
+    logger.error('KYC: failed to initiate hosted session', { error: String(err) });
     next(err);
   }
 });
 
 /**
- * GET /api/v2/kyc/status/:phoneNumberId
+ * GET /api/v2/kyc/status
  * 
- * Polls the current KYC status of a phone number from our DB, which is 
- * synced via Vobiz webhooks/polling.
+ * Performs a live query to Vobiz API to fetch and sync current KYC status.
  */
-router.get('/status/:phoneNumberId', requireAuth, async (req, res, next) => {
+router.get('/status', requireAuth, async (req, res, next) => {
   try {
     const userId = (req as any).userId;
-    const phoneNumberId = req.params.phoneNumberId as string;
-
-    const phoneNumber = await prisma.phoneNumber.findFirst({
-      where: { id: phoneNumberId, userId },
-      select: { kycStatus: true, status: true, phoneNumber: true }
-    });
-
-    if (!phoneNumber) {
-      res.status(404).json({ success: false, error: 'Phone number not found' });
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
       return;
     }
+
+    const subAccountService = new VobizSubAccountService();
+    const syncResult = await subAccountService.syncKycStatus(userId);
+
+    const numbers = await prisma.phoneNumber.findMany({
+      where: { userId },
+      select: { id: true, phoneNumber: true, kycStatus: true, status: true }
+    });
 
     res.json({
       success: true,
       data: {
-        kycStatus: phoneNumber.kycStatus, // pending, verified, failed
-        isActive: phoneNumber.status === 'active' && phoneNumber.kycStatus === 'verified',
+        kycStatus: syncResult.kycStatus, // "verified" | "pending" | "failed"
+        isVerified: syncResult.isVerified,
+        confirmationMessage: syncResult.isVerified
+          ? "Your KYC verification is active and verified with Vobiz."
+          : "Your KYC verification is being processed and typically takes up to 24 hours. We'll notify you once it's complete.",
+        numbers
       }
     });
   } catch (err) {
-    logger.error('KYC: failed to fetch status', { error: String(err) });
+    logger.error('KYC: failed to fetch live status', { error: String(err) });
     next(err);
   }
 });
 
 /**
- * POST /api/v2/kyc/webhook/vobiz
+ * POST /api/v2/webhooks/vobiz/kyc
  * 
- * Mock endpoint for Vobiz to push KYC status updates to us.
- * Hard constraint: A number's kyc_calls_blocked status must only ever change because 
- * Vobiz's own system confirmed it.
+ * Webhook endpoint registered with Vobiz to receive asynchronous KYC status updates.
+ * Updates phoneNumber.kycStatus in DB and unlocks calling permissions when verified.
  */
 router.post('/webhook/vobiz', verifyVobizWebhook, async (req, res, next) => {
   try {
-
-    const { phoneNumber, status, reason } = req.body;
+    const { sub_account_auth_id, phoneNumber, status, reason } = req.body;
     
-    logger.info('KYC: Webhook received from Vobiz', { phoneNumber, status, reason });
+    logger.info('KYC Webhook: Received update from Vobiz', { sub_account_auth_id, phoneNumber, status, reason });
 
-    const phoneRec = await prisma.phoneNumber.findUnique({
-      where: { phoneNumber }
-    });
+    const normalizedStatus = (status || '').toLowerCase() === 'verified' ? 'verified' : 'failed';
 
-    if (phoneRec) {
-      await prisma.phoneNumber.update({
-        where: { id: phoneRec.id },
-        data: {
-          kycStatus: status, // verified or failed
-        }
+    if (sub_account_auth_id) {
+      const subAccount = await prisma.vobizSubAccount.findFirst({
+        where: { authId: sub_account_auth_id }
       });
-      logger.info('KYC: Phone number KYC status updated', { phoneNumber, newStatus: status });
+      if (subAccount) {
+        await prisma.phoneNumber.updateMany({
+          where: { userId: subAccount.userId },
+          data: { kycStatus: normalizedStatus }
+        });
+        logger.info('KYC Webhook: Updated phone numbers for user via sub-account', { userId: subAccount.userId, status: normalizedStatus });
+      }
+    } else if (phoneNumber) {
+      const phoneRec = await prisma.phoneNumber.findUnique({ where: { phoneNumber } });
+      if (phoneRec) {
+        await prisma.phoneNumber.update({
+          where: { id: phoneRec.id },
+          data: { kycStatus: normalizedStatus }
+        });
+        logger.info('KYC Webhook: Updated phone number status', { phoneNumber, status: normalizedStatus });
+      }
     }
 
-    res.json({ success: true });
+    res.json({ success: true, message: 'KYC status processed successfully' });
   } catch (err) {
-    logger.error('KYC: webhook processing error', { error: String(err) });
+    logger.error('KYC Webhook: Error processing webhook', { error: String(err) });
     next(err);
   }
 });
