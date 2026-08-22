@@ -33,6 +33,7 @@ import SchemaInjector from "./components/seo/SchemaInjector";
 import { DashCompanionCall } from "./DashCompanionCall";
 import { NumberSearchAndPurchase } from "./components/numbers/NumberSearchAndPurchase";
 import { DashCallingConfig } from "./components/calling/DashCallingConfig";
+import AuthGateway from "./components/auth/AuthGateway";
 const Home = lazy(() => import("./pages/Home"));
 const Solutions = lazy(() => import("./pages/Solutions"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
@@ -4597,7 +4598,10 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  if (page === "dashboard" && session) {
+  if (page === "dashboard") {
+    if (!session) {
+      return <AuthGateway onSuccess={() => handleNavigate("dashboard")} />;
+    }
     return <DashboardPage session={session} />;
   }
 
