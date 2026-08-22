@@ -733,16 +733,15 @@ const VOICES_SEED = [
 function DashOverview() {
   const [apiAgents, setApiAgents] = useState<ApiAgent[]>([]);
   const [apiCalls, setApiCalls] = useState<ApiCall[]>([]);
-  const [campaigns] = useState<any[]>([]);
+  const [campaigns, setCampaigns] = useState<any[]>([]);
 
   useEffect(() => {
     fetchAgents().then(setApiAgents).catch(() => {});
     fetchCalls({ limit: 100 }).then(setApiCalls).catch(() => {});
+    fetchCalendarBatches().then(setCampaigns).catch(() => {});
   }, []);
 
-  const activeAgentCount = apiAgents.filter(a => a.status === 'active').length;
   const totalCallCount = apiCalls.length;
-
   const activeCalls = apiCalls.filter(c => c.status === 'ringing' || c.status === 'in_progress');
   const liveCalls = activeCalls.map(c => ({
     name: c.phoneNumber ?? 'Unknown caller',
@@ -770,93 +769,133 @@ function DashOverview() {
     : '0s';
 
   const stats = [
-    {label:"Calls today",value:totalCallCount.toLocaleString(),delta:`${totalCallCount} total calls`,icon:PhoneCall,live:false},
-    {label:"Active now",value:activeCalls.length.toString(),delta:"live calls",icon:CircleDot,live:activeCalls.length > 0},
-    {label:"Avg duration",value:formattedAvgDur,delta:"computed average",icon:Clock,live:false},
-    {label:"CSAT",value:apiCalls.length > 0 ? "5.0 / 5" : "—",delta:apiCalls.length > 0 ? "based on reviews" : "no reviews yet",icon:Star,live:false},
+    {label:"Calls Today",value:totalCallCount.toLocaleString(),delta:`${totalCallCount} total calls`,icon:PhoneCall,live:false, accent: "border-l-4 border-l-emerald-500"},
+    {label:"Active Now",value:activeCalls.length.toString(),delta:"live calls",icon:CircleDot,live:activeCalls.length > 0, accent: "border-l-4 border-l-amber-500"},
+    {label:"Avg Duration",value:formattedAvgDur,delta:"computed average",icon:Clock,live:false, accent: "border-l-4 border-l-blue-500"},
+    {label:"CSAT Score",value:apiCalls.length > 0 ? "5.0 / 5" : "—",delta:apiCalls.length > 0 ? "based on reviews" : "no reviews yet",icon:Star,live:false, accent: "border-l-4 border-l-purple-500"},
   ];
 
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        {stats.map(s=>{
-          const Icon=s.icon;
+    <div className="space-y-6 font-sans">
+      {/* Overview Top Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {stats.map(s => {
+          const Icon = s.icon;
           return (
-            <div key={s.label} className="nm-card p-5">
-              <div className="flex justify-between items-center mb-3"><span className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{s.label.toUpperCase()}</span><Icon className="w-4 h-4 text-[var(--nm-text)]" strokeWidth={1.5}/></div>
-              <p className="text-3xl font-bold text-[var(--nm-text)] mb-1" style={{fontFamily:"'Instrument Serif',serif"}}>{s.value}</p>
-              <p className={`text-xs flex items-center gap-2 ${s.live?"text-[var(--nm-accent)]":"text-[var(--nm-text)]"}`} style={{fontFamily:"'Outfit', sans-serif"}}>{s.live&&<span className="w-2 h-2 bg-[var(--nm-accent)] rounded-full animate-pulse"/>}{s.delta}</p>
+            <div key={s.label} className={`nm-card p-6 rounded-2xl ${s.accent} hover:-translate-y-0.5 transition-all duration-200 shadow-sm hover:shadow-md`}>
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500" style={{fontFamily:"'Outfit', sans-serif"}}>{s.label}</span>
+                <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                  <Icon className="w-4 h-4" strokeWidth={2}/>
+                </div>
+              </div>
+              <p className="text-4xl font-extrabold text-slate-900 mb-1 tracking-tight" style={{fontFamily:"'Clash Display', 'Instrument Serif', serif"}}>{s.value}</p>
+              <p className={`text-xs font-medium flex items-center gap-2 ${s.live ? "text-emerald-600 font-bold" : "text-slate-500"}`} style={{fontFamily:"'Outfit', sans-serif"}}>
+                {s.live && <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"/>}
+                {s.delta}
+              </p>
             </div>
           );
         })}
       </div>
 
-      <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">
-        {apiAgents.map(a=>(
-          <div key={a.id} className="nm-raised rounded-xl px-4 py-3 flex items-center gap-3">
-            <SDot status={a.status}/><div className="min-w-0"><p className="text-sm font-bold text-[var(--nm-text)] truncate" style={{fontFamily:"'Outfit', sans-serif"}}>{a.name}</p><p className="text-xs text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Active agent</p></div>
-          </div>
-        ))}
-        {apiAgents.length === 0 && (
-          <div className="col-span-full nm-pressed rounded-xl p-6 text-center text-sm text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>
-            You haven't created any agents yet. Go to the Agents tab to create one.
-          </div>
-        )}
+      {/* Agents Quick Strip */}
+      <div className="nm-raised rounded-2xl p-5 border border-slate-200/60 shadow-sm">
+        <div className="flex items-center justify-between mb-3 px-1">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500" style={{fontFamily:"'Outfit', sans-serif"}}>Active AI Agents ({apiAgents.length})</h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          {apiAgents.map(a => (
+            <div key={a.id} className="nm-raised rounded-xl px-4 py-3 flex items-center gap-3 hover:nm-pressed transition-all">
+              <SDot status={a.status}/>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-slate-900 truncate" style={{fontFamily:"'Outfit', sans-serif"}}>{a.name}</p>
+                <p className="text-[11px] text-slate-500 capitalize" style={{fontFamily:"'Outfit', sans-serif"}}>{a.agentType || 'Voice Agent'}</p>
+              </div>
+            </div>
+          ))}
+          {apiAgents.length === 0 && (
+            <div className="col-span-full nm-pressed rounded-xl p-6 text-center text-sm font-medium text-slate-500" style={{fontFamily:"'Outfit', sans-serif"}}>
+              You haven't created any agents yet. Go to the Agents tab to create one.
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="nm-raised rounded-2xl overflow-hidden mt-6">
-        <div className="px-5 py-4 border-b border-transparent flex items-center gap-3">
-          <SDot status={liveCalls.length > 0 ? "active" : "inactive"}/><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Live calls</p><DBadge>{liveCalls.length}</DBadge>
+      {/* Live Calls Section */}
+      <div className="nm-raised rounded-2xl overflow-hidden shadow-sm border border-slate-200/60">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div className="flex items-center gap-3">
+            <SDot status={liveCalls.length > 0 ? "active" : "inactive"}/>
+            <p className="text-sm font-bold text-slate-900 uppercase tracking-wider" style={{fontFamily:"'Outfit', sans-serif"}}>Live Calls</p>
+            <DBadge v={liveCalls.length > 0 ? "success" : "neutral"}>{liveCalls.length}</DBadge>
+          </div>
         </div>
-        <div className="divide-y divide-transparent">
-          {liveCalls.map(c=>(
-            <div className="px-5 py-4 flex items-center gap-4 hover:nm-pressed transition-all cursor-pointer border-b border-transparent">
-              <div className="w-10 h-10 nm-pressed rounded-full flex items-center justify-center flex-shrink-0"><span className="text-sm font-bold text-[var(--nm-accent)]">{c.name[0]}</span></div>
-              <div className="flex-1 min-w-0"><p className="text-base font-bold text-[var(--nm-text)] truncate" style={{fontFamily:"'Outfit', sans-serif"}}>{c.name}</p><p className="text-xs text-[var(--nm-text)] truncate" style={{fontFamily:"'Outfit', sans-serif"}}>{c.agent}</p></div>
-              <span className="hidden md:block text-xs nm-raised rounded-full px-3 py-1 font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.intent}</span>
-              <span className={`hidden lg:block text-xs font-bold ${c.sent==="Positive"?"text-[var(--nm-accent)]":c.sent==="Negative"?"nm-state-error":"text-[var(--nm-text)]"}`} style={{fontFamily:"'Outfit', sans-serif"}}>{c.sent}</span>
-              <span className="text-sm font-bold flex-shrink-0 text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.dur}</span>
-              <div className="w-12 hidden sm:flex text-[var(--nm-accent)]"><MiniWave bars={8}/></div>
+        <div className="divide-y divide-slate-100">
+          {liveCalls.map((c, idx) => (
+            <div key={idx} className="px-6 py-4 flex items-center gap-4 hover:bg-slate-50 transition-all cursor-pointer">
+              <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0">{c.name[0]}</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-slate-900 truncate" style={{fontFamily:"'Outfit', sans-serif"}}>{c.name}</p>
+                <p className="text-xs text-slate-500 truncate" style={{fontFamily:"'Outfit', sans-serif"}}>{c.agent}</p>
+              </div>
+              <span className="hidden md:block text-xs font-semibold text-slate-600 bg-slate-100 rounded-full px-3 py-1" style={{fontFamily:"'Outfit', sans-serif"}}>{c.intent}</span>
+              <span className="text-sm font-extrabold font-mono text-emerald-600 flex-shrink-0">{c.dur}</span>
+              <div className="w-12 hidden sm:flex text-emerald-500"><MiniWave bars={8}/></div>
             </div>
           ))}
           {liveCalls.length === 0 && (
-            <div className="p-8 text-center text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>
+            <div className="p-8 text-center text-sm font-medium text-slate-500" style={{fontFamily:"'Outfit', sans-serif"}}>
               No live calls active at the moment.
             </div>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
-        <div className="nm-raised rounded-2xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-transparent"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Recent completed</p></div>
-          <div className="divide-y divide-transparent">
-            {recent.map(c=>(
-              <div key={c.name} className="px-5 py-3.5 flex items-center gap-4 hover:nm-pressed transition-all cursor-pointer">
-                <div className="flex-1 min-w-0"><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.name}</p><p className="text-xs text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.intent} • {c.dur}</p></div>
-                <DBadge v={c.result==="Resolved"?"success":"error"}>{c.result}</DBadge>
-                <span className="text-xs font-bold text-[var(--nm-text)] hidden sm:block" style={{fontFamily:"'Outfit', sans-serif"}}>{c.ago}</span>
+      {/* Grid: Recent Completed & Active Batch Campaigns */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="nm-raised rounded-2xl overflow-hidden shadow-sm border border-slate-200/60">
+          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+            <p className="text-sm font-bold text-slate-900 uppercase tracking-wider" style={{fontFamily:"'Outfit', sans-serif"}}>Recent Completed</p>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {recent.map(c => (
+              <div key={c.name} className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-slate-50 transition-all cursor-pointer">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-slate-900 truncate" style={{fontFamily:"'Outfit', sans-serif"}}>{c.name}</p>
+                  <p className="text-xs text-slate-500 truncate" style={{fontFamily:"'Outfit', sans-serif"}}>{c.intent} • {c.dur}</p>
+                </div>
+                <DBadge v={c.result === "Resolved" ? "success" : "error"}>{c.result}</DBadge>
+                <span className="text-xs font-medium text-slate-400 hidden sm:block" style={{fontFamily:"'Outfit', sans-serif"}}>{c.ago}</span>
               </div>
             ))}
             {recent.length === 0 && (
-              <div className="p-8 text-center text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>
+              <div className="p-8 text-center text-sm font-medium text-slate-500" style={{fontFamily:"'Outfit', sans-serif"}}>
                 No recent calls completed yet.
               </div>
             )}
           </div>
         </div>
-        <div className="nm-raised rounded-2xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-transparent"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Active batch campaigns</p></div>
-          <div className="p-5 space-y-5">
-            {campaigns.filter(c=>c.status==="running"||c.status==="paused").map(c=>(
-              <div key={c.id}>
-                <div className="flex items-center justify-between mb-2.5"><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.name}</p><DBadge v={c.status==="running"?"success":"warning"}>{c.status}</DBadge></div>
-                <div className="nm-slider-track mb-2"><div className="nm-slider-fill" style={{width: `${(c.called/c.total)*100}%`}}></div></div>
-                <p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.called.toLocaleString()} / {c.total.toLocaleString()} called • {c.connected.toLocaleString()} connected</p>
+
+        <div className="nm-raised rounded-2xl overflow-hidden shadow-sm border border-slate-200/60">
+          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+            <p className="text-sm font-bold text-slate-900 uppercase tracking-wider" style={{fontFamily:"'Outfit', sans-serif"}}>Active Batch Campaigns</p>
+          </div>
+          <div className="p-6 space-y-5">
+            {campaigns.filter(c => c.status === "running" || c.status === "scheduled" || c.status === "completed").map(c => (
+              <div key={c.id} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-bold text-slate-900" style={{fontFamily:"'Outfit', sans-serif"}}>{c.name}</p>
+                  <DBadge v={c.status === "running" ? "success" : c.status === "completed" ? "info" : "warning"}>{c.status}</DBadge>
+                </div>
+                <DProg v={c.completedCount || c.called || 0} max={c.totalContacts || c.total || 1} />
+                <p className="text-xs font-medium text-slate-500" style={{fontFamily:"'Outfit', sans-serif"}}>
+                  {(c.completedCount || c.called || 0).toLocaleString()} / {(c.totalContacts || c.total || 0).toLocaleString()} recipients processed
+                </p>
               </div>
             ))}
-            {campaigns.filter(c=>c.status==="running"||c.status==="paused").length === 0 && (
-              <div className="text-center py-8 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>
+            {campaigns.length === 0 && (
+              <div className="text-center py-8 text-sm font-medium text-slate-500" style={{fontFamily:"'Outfit', sans-serif"}}>
                 No active campaigns. Go to the Batch Calls tab to launch one.
               </div>
             )}
@@ -3497,6 +3536,31 @@ Key Instructions:
   );
 }
 
+function NotificationBar() {
+  const [notifications, setNotifications] = useState<any[]>([]);
+
+  useEffect(() => {
+    apiClient.get('/api/v2/user/notifications')
+      .then(res => {
+        if (res.data?.data && Array.isArray(res.data.data)) {
+          setNotifications(res.data.data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  if (notifications.length === 0) return null;
+
+  const latest = notifications[0];
+
+  return (
+    <div className="hidden sm:flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-2 rounded-xl text-xs font-semibold max-w-md truncate shadow-sm">
+      <Bell className="w-4 h-4 text-emerald-600 flex-shrink-0 animate-pulse" />
+      <span className="truncate">{latest.message}</span>
+    </div>
+  );
+}
+
 // ── Main DashboardPage ──
 function DashboardPage({ session }: { session: Session }) {
   const [section, setSection] = useState<DashSection>("overview");
@@ -3568,7 +3632,7 @@ function DashboardPage({ session }: { session: Session }) {
         <div className="nm-raised px-8 h-16 flex items-center justify-between flex-shrink-0 m-4 rounded-2xl">
           <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{titles[section]}</p>
           <div className="flex items-center gap-4">
-            <div className="relative hidden md:flex items-center"><Search className="w-4 h-4 absolute left-3 text-[var(--nm-text)]"/><input className="nm-input pl-10 pr-4 py-2 text-sm w-64" placeholder="Search..." style={{fontFamily:"'Outfit', sans-serif"}}/></div>
+            <NotificationBar />
             <button className="relative nm-icon-btn"><Bell className="w-4 h-4"/><span className="absolute top-1 right-1 w-2.5 h-2.5 bg-[var(--nm-error)] rounded-full"/></button>
           </div>
         </div>
@@ -4517,8 +4581,10 @@ export default function App() {
       setSession(currentSession);
       if (currentSession) {
         localStorage.setItem('token', currentSession.access_token);
-        // Do NOT automatically navigate to dashboard on page load / INITIAL_SESSION.
-        // User must explicitly click Sign In or access /dashboard.
+        const pendingPlan = localStorage.getItem('pending_plan_purchase');
+        if (pendingPlan) {
+          handleNavigate("pricing");
+        }
       } else {
         localStorage.removeItem('token');
         if (event === 'SIGNED_OUT') {

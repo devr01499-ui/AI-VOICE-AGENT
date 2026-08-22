@@ -94,3 +94,45 @@ px prisma db push to bypass Supabase shadow DB auth schema error safely.
 - **Founder Visibility**: Added `GET /api/v2/billing/minutes-overview` endpoint aggregating total consumed minutes, remaining seconds, remaining minutes, and Vobiz master balance.
 - **E2E Verification**: Executed 7-step test script (`scratch/test_e2e_verification.js`) with 100% clean pass.
 - **Build & Health Checks**: `server` typecheck and `Frontend` Vite production build both PASSED cleanly (exit code 0). Zero `prisma db push` or unapproved schema migrations executed.
+
+## Phase 1 — Security-Critical: Dashboard Accessible Without Login (2026-08-22)
+- **Data Exposure Findings**: NO REAL USER DATA WAS EXPOSED. Backend APIs (`/api/v2/agents`, `/api/v2/numbers`, `/api/v2/user`, `/api/v2/knowledge-base`, `/api/v2/billing/*`) were already protected with `requireAuth` and returned 401 Unauthorized.
+- **Middleware Protection**: Enhanced `middleware.ts` to matcher routes `['/dashboard', '/dashboard/:path*', '/calendar/:path*', '/telephony/:path*']` and redirect unauthenticated requests to `/dashboard` (Auth Gateway).
+- **Verification Evidence**: Automated test script `scratch/test_phase1.js` verified API returns 401 Unauthorized for missing tokens, and unauthenticated navigation to `/dashboard` renders `<AuthGateway />`.
+
+## Phase 2 — Pricing Page Auth Guard & Session Attribution (2026-08-22)
+- **Logged-out Purchase Guard**: Clicking "Purchase" on pricing page saves `pending_plan_purchase` to `localStorage` and redirects to `/dashboard` (Auth Gateway). Upon login, `pending_plan_purchase` is automatically processed for the authenticated session.
+- **Session Attribution Security**: Backend `/api/v2/billing/verify-plan` strictly uses `req.userId` extracted from the authenticated session token to credit account benefits — client-submitted user IDs or emails are ignored.
+- **Immediate Benefit Activation**: Payment confirmation instantly credits plan minutes (`callingBalanceMinutes`) and updates `accountType` in DB without manual steps.
+- **Verification Evidence**: Executed `scratch/test_phase2.js` showing BEFORE state (`callingBalanceMinutes: 750`) and AFTER state (`callingBalanceMinutes: 1500`) on verified user ID.
+
+## Phase 3 — Dashboard Overview Cards Real Data Audit (2026-08-22)
+- **Zero Demo Data**: Replaced all hardcoded/placeholder metrics across all 7 dashboard overview cards with live database queries scoped strictly to `userId = req.user.id`.
+- **Honest Empty States**: Brand new accounts show honest zero/empty states (`0`, `0s`, `—`) rather than mock demo numbers.
+- **Verification Evidence**: Executed `scratch/test_phase3.js` comparing database query results directly against card displayed values (Calls Today: 0 | 0, Active Now: 0 | 0, Avg Duration: 0s | 0s, CSAT: — | —, Live Calls: 0 | 0, Recent Completed: 0 | 0, Active Batches: 0 | 0).
+
+## Phase 4 — Batch Calling Accuracy Audit (2026-08-22)
+- **Diagnostic Findings**: Unmasked root cause where `BatchService.ts` prematurely marked batch items completed before calls finished and never updated `completedCount` or `failedCount` on `Batch` table.
+- **Real-Time Pacing & Counting Fix**: Refactored `BatchService.processBatchOneAtATime` to update `BatchRecipient` status based on call outcome and dynamically recalculate `completedCount` and `failedCount` on the parent `Batch` record.
+- **Verification Evidence**: Executed `scratch/test_phase4.js` running a batch campaign end-to-end with 2 recipients. DB verification confirmed: `Reported Completed: 1 == Actual Completed: 1`, `Reported Failed: 1 == Actual Failed: 1`.
+
+## Phase 5 — Search Bar Removal & Notification Bar (2026-08-22)
+- **Search Bar Removal**: Completely removed search bar input from top dashboard header.
+- **Notification Bar System**: Added `<NotificationBar />` component displaying company-wide founder messages. Added `GET /api/v2/user/notifications` and `POST /api/v2/user/notifications` backend routes.
+- **Verification Evidence**: Executed `scratch/test_phase5.js` posting a founder announcement (`📢 FOUNDER ANNOUNCEMENT...`) and reading it back cleanly from notification store.
+
+## Phase 6 — Knowledge Base Delete Button Fix (2026-08-22)
+- **Diagnostic Findings**: Unmasked Foreign Key constraint error on `KnowledgeBase.delete` when child `agentKnowledgeBase` links or raw `kb_chunks` existed.
+- **Fix**: Updated `KnowledgeBaseController.delete` to clean up child `agentKnowledgeBase` links and `kb_chunks` rows before deleting the parent `KnowledgeBase` record.
+- **Verification Evidence**: Executed `scratch/test_phase6.js` creating a test document, linking agent, deleting, and verifying `prisma.knowledgeBase.findUnique` returned `null`.
+
+## Phase 7 — Calendar Error Audit & Fix (2026-08-22)
+- **Diagnostic Findings**: Unmasked crashes on `GET /api/v2/calendar/bookings` and `GET /api/v2/calendar/batches` caused by queries against non-existent Prisma models `scheduledCall` and `batchCampaign`.
+- **Fix**: Updated `server/src/routes/calendar.ts` to query valid Prisma models `call` and `batch` scoped strictly to `req.userId`.
+- **Verification Evidence**: Executed `scratch/test_phase7.js` verifying clean retrieval of scheduled calls (0) and active batches (1).
+
+## Phase 8 — Dashboard Visual Design Upgrade (2026-08-22)
+- **Visual Elevation**: Upgraded `DashOverview` cards with polished typography (`Clash Display`, `Outfit`, `Instrument Serif`), soft accent borders, hover micro-interactions, responsive grid layout, and live campaign status indicators matching Claritiy Voice design system.
+- **Health & Build Checks**: `server` typecheck (`tsc --noEmit`) PASSED cleanly (exit code 0). `Frontend` Vite production build PASSED cleanly (exit code 0). Zero `prisma db push` executed.
+
+

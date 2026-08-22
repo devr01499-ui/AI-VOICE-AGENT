@@ -31,8 +31,6 @@ export class BatchService {
           data: { status: 'in_progress', attempts: { increment: 1 }, lastAttemptAt: new Date() }
         });
 
-        // The CallService enforces the user concurrency limit (Starter: 1, Growth: 5, Scale: 15+)
-        // By awaiting here sequentially, we inherently guarantee one-at-a-time processing for this loop.
         const callResult = await CallService.createCall({
           phoneNumber: recipient.phoneNumber,
           agentId: batch.agentId,
@@ -55,15 +53,36 @@ export class BatchService {
         });
       }
 
+      // Update aggregate counts on the Batch record in real-time
+      const completedCount = await prisma.batchRecipient.count({ where: { batchId, status: 'completed' } });
+      const failedCount = await prisma.batchRecipient.count({ where: { batchId, status: 'failed' } });
+
+      await prisma.batch.update({
+        where: { id: batchId },
+        data: {
+          completedCount,
+          failedCount,
+        }
+      });
+
       // Wait a short delay before next call in batch to be defensive
-      await new Promise(res => setTimeout(res, 2000));
+      await new Promise(res => setTimeout(res, 1000));
     }
+
+    const finalCompleted = await prisma.batchRecipient.count({ where: { batchId, status: 'completed' } });
+    const finalFailed = await prisma.batchRecipient.count({ where: { batchId, status: 'failed' } });
 
     await prisma.batch.update({
       where: { id: batchId },
-      data: { status: 'completed', completedAt: new Date() }
+      data: {
+        completedCount: finalCompleted,
+        failedCount: finalFailed,
+        status: 'completed',
+        completedAt: new Date()
+      }
     });
 
     logger.info(`BatchService: Finished batch ${batchId}`);
   }
 }
+
