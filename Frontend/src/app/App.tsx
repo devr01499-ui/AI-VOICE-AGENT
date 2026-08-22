@@ -34,6 +34,8 @@ import { DashCompanionCall } from "./DashCompanionCall";
 import { NumberSearchAndPurchase } from "./components/numbers/NumberSearchAndPurchase";
 import { DashCallingConfig } from "./components/calling/DashCallingConfig";
 import AuthGateway from "./components/auth/AuthGateway";
+import { ErrorBoundary } from "./components/common/ErrorBoundary";
+import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 const Home = lazy(() => import("./pages/Home"));
 const Solutions = lazy(() => import("./pages/Solutions"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
@@ -4664,21 +4666,18 @@ export default function App() {
   }, []);
 
   if (page === "dashboard") {
-    if (authLoading) {
-      return (
-        <div className="min-h-screen bg-[#FAF8F5] flex flex-col items-center justify-center gap-3">
-          <div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
-          <p className="text-xs font-mono font-bold text-slate-500">Loading Claritiy Voice Workspace…</p>
-        </div>
-      );
-    }
-    if (!session) {
-      return <AuthGateway onSuccess={() => handleNavigate("dashboard")} />;
-    }
     return (
-      <DashboardErrorBoundary>
-        <DashboardPage session={session} />
-      </DashboardErrorBoundary>
+      <ErrorBoundary>
+        <ProtectedRoute
+          session={session}
+          authLoading={authLoading}
+          onSuccessRedirect={() => handleNavigate("dashboard")}
+        >
+          <DashboardErrorBoundary>
+            <DashboardPage session={session!} />
+          </DashboardErrorBoundary>
+        </ProtectedRoute>
+      </ErrorBoundary>
     );
   }
 
