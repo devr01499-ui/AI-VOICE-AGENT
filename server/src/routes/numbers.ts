@@ -639,6 +639,11 @@ router.get('/calling-config', requireAuth, async (req, res, next) => {
       return;
     }
 
+    // Live sync KYC status with Vobiz
+    const { VobizSubAccountService } = require('../services/VobizSubAccountService');
+    const subService = new VobizSubAccountService();
+    await subService.syncKycStatus(userId).catch(() => {});
+
     const numbers = await prisma.phoneNumber.findMany({
       where: { userId },
       include: {

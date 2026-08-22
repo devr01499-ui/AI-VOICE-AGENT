@@ -76,6 +76,18 @@ export function DashCallingConfig() {
     }
   };
 
+  const handleInitiateHostedKyc = async () => {
+    try {
+      const res = await apiClient.post('/api/v2/kyc/initiate-session', {});
+      if (res.data?.data?.redirectUrl) {
+        window.open(res.data.data.redirectUrl, '_blank');
+        alert(res.data.data.confirmationMessage || "Your KYC verification is being processed and typically takes up to 24 hours. We'll notify you once it's complete.");
+      }
+    } catch (err) {
+      alert("Failed to open Vobiz Hosted KYC Session: " + (err instanceof Error ? err.message : String(err)));
+    }
+  };
+
   if (loading) {
     return (
       <div className="h-96 flex flex-col items-center justify-center space-y-4">
@@ -136,10 +148,12 @@ export function DashCallingConfig() {
                     </div>
                     <div>
                       <h3 className="text-xl font-extrabold text-slate-900 font-mono tracking-tight">{item.phoneNumber}</h3>
-                      <p className="text-xs text-slate-500 flex items-center gap-2" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                      <p className="text-xs text-slate-500 flex items-center gap-2 mt-0.5" style={{ fontFamily: "'Outfit', sans-serif" }}>
                         <span>Dedicated Voice Channel</span>
                         <span>•</span>
-                        <span className="capitalize font-semibold text-slate-700">KYC Verified</span>
+                        <span className={`capitalize font-semibold ${item.kycStatus === 'verified' ? 'text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200' : 'text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200'}`}>
+                          {item.kycStatus === 'verified' ? '✓ KYC Verified (Vobiz)' : 'KYC Verification Pending'}
+                        </span>
                       </p>
                     </div>
                   </div>

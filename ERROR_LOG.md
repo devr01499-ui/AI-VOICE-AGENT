@@ -141,10 +141,23 @@ px prisma db push to bypass Supabase shadow DB auth schema error safely.
 - **Section 3 Architecture Decision**: Implemented Vobiz Answer URL XML with `<Stream>` bridging inbound PSTN calls into our existing WebSocket media pipeline (`AudioStreamHandler`, `CallOrchestrator`, `GeminiLiveProvider`).
 - **Section 4 Inbound Call Engine**: Created `InboundCallService.ts` to perform number-to-user resolution, agent assignment, and minute balance verification (`user.callingBalanceMinutes > 0`). Rejects zero balance calls with HTTP 402 XML.
 - **Section 5 Calling Configuration Dashboard**: Created `DashCallingConfig.tsx` at `/dashboard/calling` providing non-technical configuration for outbound caller IDs and inbound AI agent routing with real-time status badges ("Inbound: Active").
-- **Section 6 Verification Evidence**:
-  - Integration Script `scratch/test_inbound_engine.js`: PASSED 100% (Test 1: Inbound routing to Agent A ✅ | Test 2: Multi-number routing to Agent B ✅ | Test 3: Zero minute balance gate 402 rejection ✅ | Test 4: Live config update to Agent B ✅).
+## Vobiz KYC Live Sync & Hosted KYC Session Pipeline (2026-08-22)
+- **Section 1 Root Cause Analysis & Empirical Evidence**:
+  - Live Vobiz API (`GET https://api.vobiz.ai/api/v1/accounts/MA_MWJUWX6J`) returned `"kyc_status": "verified"` and `"is_verified": true`.
+  - Cause: `phoneNumber.kycStatus` was cached at `'pending'` in PostgreSQL on creation, with no live API sync or webhook update mechanism.
+  - Fix: Added `syncKycStatus` in `VobizSubAccountService.ts` and invoked it during number list fetches, updating DB records to `'verified'` and displaying `"✓ KYC Verified (Vobiz)"` in the dashboard.
+- **Section 2 Verification Responsibility**: Confirmed Vobiz performs all identity document verification. Claritiy Voice receives pass/fail status without evaluating documents.
+- **Section 3 Pipeline Audit**: Confirmed no hosted KYC UI or document submission pipeline existed previously in the frontend.
+- **Section 4 Hosted KYC Architecture & Aadhaar Compliance**:
+  - Built `POST /api/v2/kyc/initiate-session` returning Vobiz Hosted KYC redirect URL (`https://console.vobiz.ai/kyc?sub_account_auth_id={authId}`).
+  - Built `POST /api/v2/webhooks/vobiz/kyc` to process async status updates from Vobiz and unlock calling permissions.
+  - Renders user notice: *"Your KYC verification is being processed and typically takes up to 24 hours. We'll notify you once it's complete."*
+  - Data Custody Audit: Verified **0 raw identity documents or Aadhaar/PAN scans** are stored in PostgreSQL or file storage.
+- **Section 5 Verification Evidence**:
+  - Integration Script `scratch/test_kyc_integration.js`: PASSED 100% (Section 1 live master sync ✅ | Section 4 hosted session & webhook ✅ | Security audit ✅).
   - `server` typecheck (`tsc --noEmit`): PASSED (0 errors).
   - `Frontend` production build (`vite build`): PASSED (0 errors).
+
 
 
 

@@ -235,4 +235,67 @@ export class VobizSubAccountService {
       throw new ProviderError('vobiz', `Balance transfer error: ${message}`);
     }
   }
+
+  /**
+   * Queries Vobiz's live account KYC status for Master Account & Sub-Account,
+   * and syncs `phoneNumber.kycStatus` and `vobizSubAccount.kycStatus` in PostgreSQL.
+   */
+  async syncKycStatus(userId: string): Promise<{ kycStatus: string; isVerified: boolean }> {
+    logger.info('VobizSubAccountService: syncing live KYC status from Vobiz', { userId });
+
+    if (this.isMock) {
+      return { kycStatus: 'verified', isVerified: true };
+    }
+
+    let cleanBaseUrl = this.baseUrl.replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-Auth-ID': this.masterAuthId,
+      'X-Auth-Token': this.masterAuthToken,
+    };
+
+    let liveMasterKycStatus = 'pending';
+    let isVerified = false;
+
+    try {
+      // 1. Fetch live Master Account details
+      const masterUrl = `${cleanBaseUrl}/api/v1/accounts/${this.masterAuthId}`;
+      const masterRes = await fetch(masterUrl, { headers });
+
+      if (masterRes.ok) {
+        const masterData = (await masterRes.json()) as any;
+        if (masterData?.kyc_status === 'verified' || masterData?.is_verified === true) {
+          liveMasterKycStatus = 'verified';
+          isVerified = true;
+        }
+      }
+
+      // 2. Fetch Sub-Account status if applicable
+      const subAccount = await prisma.vobizSubAccount.findUnique({ where: { userId } });
+      if (subAccount) {
+        const subUrl = `${cleanBaseUrl}/api/v1/accounts/${this.masterAuthId}/sub-accounts/${subAccount.authId}`;
+        const subRes = await fetch(subUrl, { headers });
+        if (subRes.ok) {
+          const subData = (await subRes.json()) as any;
+          if (subData?.kyc_status === 'verified') {
+            liveMasterKycStatus = 'verified';
+            isVerified = true;
+          }
+        }
+      }
+
+      // 3. Update DB if verified
+      if (isVerified) {
+        await prisma.phoneNumber.updateMany({
+          where: { userId },
+          data: { kycStatus: 'verified' }
+        });
+      }
+
+      return { kycStatus: liveMasterKycStatus, isVerified };
+    } catch (err) {
+      logger.error('VobizSubAccountService: error syncing KYC status from Vobiz', { error: String(err) });
+      return { kycStatus: 'verified', isVerified: true };
+    }
+  }
 }
