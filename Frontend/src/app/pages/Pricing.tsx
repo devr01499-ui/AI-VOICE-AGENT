@@ -130,9 +130,12 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
   };
 
   const handlePurchase = async (planName: string, price: number) => {
-    const token = localStorage.getItem('token');
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     if (!token) {
-      localStorage.setItem('pending_plan_purchase', JSON.stringify({ planName, price }));
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('selected_plan_tier', planName);
+        localStorage.setItem('pending_plan_purchase', JSON.stringify({ planName, price }));
+      }
       alert(`Please sign in or create an account to complete your ${planName} Plan purchase. We'll return you straight to checkout.`);
       if (setPage) setPage('dashboard');
       return;
@@ -147,7 +150,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('token') : ''}`,
         },
         body: JSON.stringify({ price })
       });

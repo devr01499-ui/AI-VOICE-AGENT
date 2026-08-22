@@ -6,7 +6,7 @@
   "scripts": {
     "sitemap": "node scripts/generate-sitemap.js",
     "prebuild": "node scripts/generate-sitemap.js",
-    "build": "NODE_OPTIONS=--max-old-space-size=4096 vite build",
+    "build": "vite build",
     "dev": "vite"
   },
   "pnpm": {
