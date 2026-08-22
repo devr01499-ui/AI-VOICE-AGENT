@@ -153,16 +153,23 @@ router.get('/bookings', requireAuth, async (req, res) => {
     const userId = getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const userAgents = await prisma.agent.findMany({
-      where: { userId },
-      select: { id: true }
+    const calls = await prisma.call.findMany({
+      where: {
+        userId,
+      },
+      take: 20,
+      orderBy: { createdAt: 'desc' },
     });
-    const userAgentIds = userAgents.map(a => a.id);
 
-    const bookings = await prisma.scheduledCall.findMany({
-      where: { agentId: { in: userAgentIds } },
-      orderBy: { scheduledAtUtc: 'asc' },
-    });
+    const bookings = calls.map(c => ({
+      id: c.id,
+      source: 'ai_booked',
+      phoneNumber: c.recipientPhoneNumber,
+      scheduledAtUtc: c.createdAt.toISOString(),
+      timezone: 'Asia/Kolkata',
+      status: c.status === 'queued' ? 'scheduled' : c.status,
+      notes: `Call via agent ${c.agentId.slice(0, 8)}`,
+    }));
 
     res.json(bookings);
   } catch (error) {
@@ -179,18 +186,20 @@ router.get('/batches', requireAuth, async (req, res) => {
     const userId = getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const userAgents = await prisma.agent.findMany({
+    const batches = await prisma.batch.findMany({
       where: { userId },
-      select: { id: true }
-    });
-    const userAgentIds = userAgents.map(a => a.id);
-
-    const batches = await prisma.batchCampaign.findMany({
-      where: { agentId: { in: userAgentIds } },
       orderBy: { createdAt: 'desc' },
     });
 
-    res.json(batches);
+    const formatted = batches.map(b => ({
+      id: b.id,
+      name: b.name,
+      status: b.status,
+      completedCount: b.completedCount,
+      totalContacts: b.totalRecipients,
+    }));
+
+    res.json(formatted);
   } catch (error) {
     logger.error('Failed to get batches', { error: String(error) });
     res.status(500).json({ error: 'Failed to get batches' });

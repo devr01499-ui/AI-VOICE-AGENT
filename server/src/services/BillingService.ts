@@ -179,7 +179,7 @@ export class BillingService {
       if (!user) throw new Error('User not found');
 
       const newBalanceMinutes = user.callingBalanceMinutes + addedMinutes;
-      const newMinutesRemainingSeconds = user.minutesRemainingSeconds + (addedMinutes * 60);
+      const newMinutesRemainingSeconds = (user.minutesRemainingSeconds || 0) + (addedMinutes * 60);
 
       await prisma.user.update({
         where: { id: userId },

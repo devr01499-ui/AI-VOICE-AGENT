@@ -36,7 +36,7 @@ router.get(
     try {
       const userId = (req as any).userId || ((req as any).user && (req as any).user.id);
       if (!userId) {
-        res.status(200).json({ success: true, data: [] });
+        res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
       }
 

@@ -339,6 +339,17 @@ export class KnowledgeBaseController {
         return;
       }
 
+      // Clean up child agent-knowledge-base links and kb_chunks rows first to prevent FK constraint errors
+      await prisma.agentKnowledgeBase.deleteMany({
+        where: { kbId: id }
+      });
+
+      try {
+        await prisma.$executeRawUnsafe(`DELETE FROM "kb_chunks" WHERE "kb_id" = $1`, id);
+      } catch (chunkErr) {
+        logger.warn('KBController: delete chunks warning', { error: String(chunkErr) });
+      }
+
       await prisma.knowledgeBase.delete({
         where: { id }
       });

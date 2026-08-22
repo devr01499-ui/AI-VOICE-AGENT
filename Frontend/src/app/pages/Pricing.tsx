@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { Check, ArrowRight, ShieldCheck, Zap, Loader2, Sparkles, Sliders, DollarSign, Eye, Code2, Lock } from "lucide-react";
 import RoiCalculator from "../components/calculator/RoiCalculator";
@@ -132,7 +132,8 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
   const handlePurchase = async (planName: string, price: number) => {
     const token = localStorage.getItem('token');
     if (!token) {
-      alert('Please sign in or create an account to purchase a plan.');
+      localStorage.setItem('pending_plan_purchase', JSON.stringify({ planName, price }));
+      alert(`Please sign in or create an account to complete your ${planName} Plan purchase. We'll return you straight to checkout.`);
       if (setPage) setPage('dashboard');
       return;
     }
@@ -220,6 +221,20 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
       setPurchasingPlan(null);
     }
   };
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const pending = localStorage.getItem('pending_plan_purchase');
+    if (token && pending) {
+      try {
+        const { planName, price } = JSON.parse(pending);
+        localStorage.removeItem('pending_plan_purchase');
+        handlePurchase(planName, price);
+      } catch (err) {
+        localStorage.removeItem('pending_plan_purchase');
+      }
+    }
+  }, []);
 
   return (
     <div className={`${isDashboard ? "space-y-12 pb-12 pt-4 bg-transparent" : "space-y-24 pb-32 pt-28 bg-[#FFFDF9] min-h-screen relative"}`}>
