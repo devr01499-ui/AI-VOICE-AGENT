@@ -66,9 +66,18 @@ export class InboundCallService {
         return { success: false, errorMessage: 'User record missing', statusCode: 404 };
       }
 
+      // 1b. Check KYC Gate: Reject if number's KYC status is 'pending' or 'failed'
+      if (numberRecord.kycStatus === 'pending' || numberRecord.kycStatus === 'failed') {
+        logger.warn('InboundCallService: Inbound call blocked due to unverified KYC', { rawTo, kycStatus: numberRecord.kycStatus });
+        return {
+          success: false,
+          errorMessage: 'KYC verification is pending for this phone number. Please complete verification in your dashboard.',
+          statusCode: 403
+        };
+      }
+
       // 2. Check Minute Balance Gate (Billing Engine)
-      const { ADMIN_EMAIL } = require('../config/constants');
-      if (user.email !== ADMIN_EMAIL && user.callingBalanceMinutes <= 0) {
+      if (user.accountType !== 'admin' && user.callingBalanceMinutes <= 0) {
         logger.warn('InboundCallService: Insufficient minute balance for inbound call', {
           userId: user.id,
           balance: user.callingBalanceMinutes

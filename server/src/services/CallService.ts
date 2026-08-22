@@ -63,7 +63,7 @@ export class CallService {
       ? user.minutesRemainingSeconds
       : (user.callingBalanceMinutes * 60);
 
-    if (user.email !== ADMIN_EMAIL && effectiveRemainingSeconds <= 0) {
+    if (user.accountType !== 'admin' && effectiveRemainingSeconds <= 0) {
       throw new ValidationError('Insufficient call minutes remaining. You have 0 minutes left. Please purchase a plan.');
     }
 

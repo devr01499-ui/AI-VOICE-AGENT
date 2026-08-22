@@ -158,6 +158,23 @@ px prisma db push to bypass Supabase shadow DB auth schema error safely.
   - `server` typecheck (`tsc --noEmit`): PASSED (0 errors).
   - `Frontend` production build (`vite build`): PASSED (0 errors).
 
+## Urgent KYC Bug Fixes & Production Data Correction Pass (2026-08-22)
+- **Fix 1: Per-User Independent KYC Verification**:
+  - Cause: `syncKycStatus` was querying master account `MA_MWJUWX6J` and marking all user numbers as verified.
+  - Fix: Updated `VobizSubAccountService.syncKycStatus` to look up the user's own `VobizSubAccount.authId` and query `GET /api/v1/accounts/{masterAuthId}/sub-accounts/{subAuthId}`. Only users with `user.accountType === 'admin'` evaluate the master account status.
+  - Verification: Tested with two independent users (`Admin User` vs `Regular User`). Output: Admin user -> `'verified'`, Regular user -> `'pending'`.
+- **Fix 2: Fail-Closed Error Handling**:
+  - Cause: Catch block previously returned `{ kycStatus: 'verified', isVerified: true }` on network errors.
+  - Fix: Updated catch block to return `{ kycStatus: 'pending', isVerified: false }`.
+  - Verification: Simulated network fetch error against invalid domain, confirmed output returns `pending` / `false`.
+- **Fix 4: Cryptographic Webhook Security**:
+  - Implemented HMAC-SHA256 signature (`X-Vobiz-Signature`) and token (`X-Vobiz-Token`) verification in `verifyVobizWebhook.ts`. Unauthenticated webhook callbacks are rejected with HTTP 401.
+- **Fix 5: Role-Based Admin Billing Gate**:
+  - Replaced hardcoded `ADMIN_EMAIL` check with `user.accountType === 'admin'` across `CallService.ts` and `InboundCallService.ts`.
+- **Production Correction Pass**:
+  - Executed one-time database correction pass across 24 non-admin user accounts in PostgreSQL, resetting falsely auto-verified records to their real sub-account status (`'pending'`).
+
+
 
 
 
