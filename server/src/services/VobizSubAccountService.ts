@@ -237,14 +237,16 @@ export class VobizSubAccountService {
   }
 
   /**
-   * Queries Vobiz's live account KYC status for Master Account & Sub-Account,
-   * and syncs `phoneNumber.kycStatus` and `vobizSubAccount.kycStatus` in PostgreSQL.
+   * Queries Vobiz's live account KYC status for the specific user's sub-account
+   * (or master account ONLY if the user is an admin), and syncs `phoneNumber.kycStatus` in PostgreSQL.
+   *
+   * FAIL-CLOSED: Returns `{ kycStatus: 'pending', isVerified: false }` on any network failure or unverified status.
    */
   async syncKycStatus(userId: string): Promise<{ kycStatus: string; isVerified: boolean }> {
-    logger.info('VobizSubAccountService: syncing live KYC status from Vobiz', { userId });
+    logger.info('VobizSubAccountService: syncing live per-user KYC status from Vobiz', { userId });
 
     if (this.isMock) {
-      return { kycStatus: 'verified', isVerified: true };
+      return { kycStatus: 'pending', isVerified: false };
     }
 
     let cleanBaseUrl = this.baseUrl.replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
@@ -254,48 +256,67 @@ export class VobizSubAccountService {
       'X-Auth-Token': this.masterAuthToken,
     };
 
-    let liveMasterKycStatus = 'pending';
-    let isVerified = false;
-
     try {
-      // 1. Fetch live Master Account details
-      const masterUrl = `${cleanBaseUrl}/api/v1/accounts/${this.masterAuthId}`;
-      const masterRes = await fetch(masterUrl, { headers });
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true, accountType: true }
+      });
 
-      if (masterRes.ok) {
-        const masterData = (await masterRes.json()) as any;
-        if (masterData?.kyc_status === 'verified' || masterData?.is_verified === true) {
-          liveMasterKycStatus = 'verified';
-          isVerified = true;
-        }
+      if (!user) {
+        return { kycStatus: 'pending', isVerified: false };
       }
 
-      // 2. Fetch Sub-Account status if applicable
-      const subAccount = await prisma.vobizSubAccount.findUnique({ where: { userId } });
-      if (subAccount) {
-        const subUrl = `${cleanBaseUrl}/api/v1/accounts/${this.masterAuthId}/sub-accounts/${subAccount.authId}`;
-        const subRes = await fetch(subUrl, { headers });
-        if (subRes.ok) {
-          const subData = (await subRes.json()) as any;
-          if (subData?.kyc_status === 'verified') {
-            liveMasterKycStatus = 'verified';
+      let subKycStatus = 'pending';
+      let isVerified = false;
+
+      // 1. If user is Admin, query Master Account KYC status
+      if (user.accountType === 'admin') {
+        const masterUrl = `${cleanBaseUrl}/api/v1/accounts/${this.masterAuthId}`;
+        const masterRes = await fetch(masterUrl, { headers });
+
+        if (masterRes.ok) {
+          const masterData = (await masterRes.json()) as any;
+          if (masterData?.kyc_status === 'verified' || masterData?.is_verified === true) {
+            subKycStatus = 'verified';
             isVerified = true;
           }
         }
+      } else {
+        // 2. For non-admin users, query THEIR OWN sub-account KYC status from Vobiz
+        const subAccount = await this.getOrCreateSubAccount(userId, user.email);
+        const subUrl = `${cleanBaseUrl}/api/v1/accounts/${this.masterAuthId}/sub-accounts/${subAccount.authId}`;
+        const subRes = await fetch(subUrl, { headers });
+
+        if (subRes.ok) {
+          const subData = (await subRes.json()) as any;
+          const liveStatus = (subData?.kyc_status || '').toLowerCase();
+          if (liveStatus === 'verified') {
+            subKycStatus = 'verified';
+            isVerified = true;
+          } else if (liveStatus === 'failed' || liveStatus === 'rejected') {
+            subKycStatus = 'failed';
+            isVerified = false;
+          } else {
+            subKycStatus = 'pending';
+            isVerified = false;
+          }
+        } else {
+          // If Vobiz returned non-ok status, fail closed
+          subKycStatus = 'pending';
+          isVerified = false;
+        }
       }
 
-      // 3. Update DB if verified
-      if (isVerified) {
-        await prisma.phoneNumber.updateMany({
-          where: { userId },
-          data: { kycStatus: 'verified' }
-        });
-      }
+      // 3. Sync database records for this user strictly matching their own sub-account status
+      await prisma.phoneNumber.updateMany({
+        where: { userId },
+        data: { kycStatus: subKycStatus }
+      });
 
-      return { kycStatus: liveMasterKycStatus, isVerified };
+      return { kycStatus: subKycStatus, isVerified };
     } catch (err) {
-      logger.error('VobizSubAccountService: error syncing KYC status from Vobiz', { error: String(err) });
-      return { kycStatus: 'verified', isVerified: true };
+      logger.error('VobizSubAccountService: error syncing KYC status from Vobiz (failing closed to pending)', { error: String(err) });
+      return { kycStatus: 'pending', isVerified: false };
     }
   }
 }
