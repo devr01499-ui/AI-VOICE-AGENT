@@ -135,4 +135,16 @@ px prisma db push to bypass Supabase shadow DB auth schema error safely.
 - **Visual Elevation**: Upgraded `DashOverview` cards with polished typography (`Clash Display`, `Outfit`, `Instrument Serif`), soft accent borders, hover micro-interactions, responsive grid layout, and live campaign status indicators matching Claritiy Voice design system.
 - **Health & Build Checks**: `server` typecheck (`tsc --noEmit`) PASSED cleanly (exit code 0). `Frontend` Vite production build PASSED cleanly (exit code 0). Zero `prisma db push` executed.
 
+## Inbound Calling Engine & Calling Configuration Dashboard (2026-08-22)
+- **Section 1 Audit Findings**: Inbound PSTN calls arrive at Vobiz Answer URL (`POST /api/v2/webhooks/vobiz/answer`). Render outbound IP ranges (`74.220.48.0/24`, `74.220.56.0/24`) attached to Vobiz IP ACLs. No `prisma db push` required — reused existing `PhoneNumber` and `InboundConfig` PostgreSQL models.
+- **Section 2 Vobiz API Verification**: Verified Answer URL webhook payload (`Direction=inbound`, `From`, `To`, `CallUUID`) and XML response requirements (`<Response><Stream>wss://...</Stream></Response>`).
+- **Section 3 Architecture Decision**: Implemented Vobiz Answer URL XML with `<Stream>` bridging inbound PSTN calls into our existing WebSocket media pipeline (`AudioStreamHandler`, `CallOrchestrator`, `GeminiLiveProvider`).
+- **Section 4 Inbound Call Engine**: Created `InboundCallService.ts` to perform number-to-user resolution, agent assignment, and minute balance verification (`user.callingBalanceMinutes > 0`). Rejects zero balance calls with HTTP 402 XML.
+- **Section 5 Calling Configuration Dashboard**: Created `DashCallingConfig.tsx` at `/dashboard/calling` providing non-technical configuration for outbound caller IDs and inbound AI agent routing with real-time status badges ("Inbound: Active").
+- **Section 6 Verification Evidence**:
+  - Integration Script `scratch/test_inbound_engine.js`: PASSED 100% (Test 1: Inbound routing to Agent A ✅ | Test 2: Multi-number routing to Agent B ✅ | Test 3: Zero minute balance gate 402 rejection ✅ | Test 4: Live config update to Agent B ✅).
+  - `server` typecheck (`tsc --noEmit`): PASSED (0 errors).
+  - `Frontend` production build (`vite build`): PASSED (0 errors).
+
+
 

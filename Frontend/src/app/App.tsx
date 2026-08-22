@@ -32,6 +32,7 @@ import Footer from "./components/layout/Footer";
 import SchemaInjector from "./components/seo/SchemaInjector";
 import { DashCompanionCall } from "./DashCompanionCall";
 import { NumberSearchAndPurchase } from "./components/numbers/NumberSearchAndPurchase";
+import { DashCallingConfig } from "./components/calling/DashCallingConfig";
 const Home = lazy(() => import("./pages/Home"));
 const Solutions = lazy(() => import("./pages/Solutions"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
@@ -3585,12 +3586,12 @@ function DashboardPage({ session }: { session: Session }) {
   const isViewer = profile?.workspaceRole === 'viewer';
   const navGroups = [
     // {label:"B2C",items:[{id:"companion",icon:Users,label:"AI Companion"}]},
-    {label:"Workspace",items:[{id:"overview",icon:LayoutDashboard,label:"Overview"},{id:"agents",icon:Bot,label:"Agents"},{id:"batch",icon:Radio,label:"Batch Calls"},{id:"calls",icon:PhoneIncoming,label:"Call Logs"}]},
+    {label:"Workspace",items:[{id:"overview",icon:LayoutDashboard,label:"Overview"},{id:"agents",icon:Bot,label:"Agents"},{id:"calling",icon:PhoneCall,label:"Calling Config"},{id:"batch",icon:Radio,label:"Batch Calls"},{id:"calls",icon:PhoneIncoming,label:"Call Logs"}]},
     {label:"Resources",items:[...(isViewer ? [] : [{id:"numbers",icon:Phone,label:"Phone Numbers"},{id:"knowledge",icon:BookOpen,label:"Knowledge Base"},{id:"voices",icon:Mic2,label:"Voice Library"}] as any), {id:"calendar",icon:Calendar,label:"Calendar"}]},
     ...(isViewer ? [] : [{label:"Admin",items:[{id:"settings",icon:Settings,label:"Settings"}, {id:"billing",icon:CreditCard,label:"Billing & Plans"}]} as any]),
   ];
 
-  const titles: Record<DashSection,string> = {overview:"Overview",agents:"Agents",batch:"Batch Calls",calls:"Call Logs",numbers:"Phone Numbers",knowledge:"Knowledge Base",voices:"Voice Library",calendar:"Calendar & Schedule",settings:"Settings",billing:"Billing & Plans",companion:"AI Companion"};
+  const titles: Record<DashSection,string> = {overview:"Overview",agents:"Agents",calling:"Calling Configuration",batch:"Batch Calls",calls:"Call Logs",numbers:"Phone Numbers",knowledge:"Knowledge Base",voices:"Voice Library",calendar:"Calendar & Schedule",settings:"Settings",billing:"Billing & Plans",companion:"AI Companion"};
 
   return (
     <div className="flex h-screen nm-dashboard-container overflow-hidden">
@@ -3641,6 +3642,7 @@ function DashboardPage({ session }: { session: Session }) {
             <motion.div key={section} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0}} transition={{duration:0.18}}>
               {section==="overview"&&<DashOverview/>}
               {section==="agents"&&<DashAgents session={session} profile={profile} setApiAgents={setApiAgents} />}
+              {section==="calling"&&<DashCallingConfig/>}
               {section==="batch"&&<DashBatch/>}
               {section==="calls"&&<DashCallLogs/>}
               {section==="numbers"&&<DashNumbers/>}
