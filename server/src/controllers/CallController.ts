@@ -9,6 +9,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger';
 import { CallService } from '../services/CallService';
+import { InboundCallService } from '../services/InboundCallService';
 import { callOrchestrator } from '../core/orchestrator/CallOrchestrator';
 import { env } from '../config/env';
 import { prisma } from '../lib/prisma';
@@ -182,39 +183,68 @@ export class CallController {
       const queryCallId = req.query.callId as string;
       const requestUuid = req.body?.RequestUUID as string;
       const callUuid = req.body?.CallUUID as string;
+      const direction = req.body?.Direction as string;
 
-      // Search database records for an active call matching tracking token or query callId
-      const callSession = await prisma.call.findFirst({
-        where: {
-          OR: [
-            ...(queryCallId ? [{ id: queryCallId }] : []),
-            { id: requestUuid },
-            { id: callUuid },
-            { telemetryId: requestUuid }
-          ]
-        }
-      });
+      // Check if this is an explicit inbound call from Vobiz
+      const isInbound = direction === 'inbound' || (!queryCallId && !requestUuid && !callUuid);
 
+      let callId = '';
+      let callSession = null;
+
+      if (!isInbound) {
+        // Search database records for an active call matching tracking token or query callId
+        callSession = await prisma.call.findFirst({
+          where: {
+            OR: [
+              ...(queryCallId ? [{ id: queryCallId }] : []),
+              ...(requestUuid ? [{ id: requestUuid }] : []),
+              ...(callUuid ? [{ id: callUuid }] : []),
+              ...(requestUuid ? [{ telemetryId: requestUuid }] : [])
+            ]
+          }
+        });
+      }
+
+      // If no outbound session match or direction is inbound, process via InboundCallService
       if (!callSession) {
-        logger.error('handleVobizAnswer: Session mismatch', { queryCallId, requestUuid, callUuid });
-        res.status(200).send('<Response><Speak>Session mismatch</Speak></Response>');
-        return;
+        const inboundResult = await InboundCallService.handleInboundCall({
+          CallUUID: callUuid || requestUuid,
+          RequestUUID: requestUuid,
+          From: req.body?.From,
+          To: req.body?.To,
+          CallStatus: req.body?.CallStatus
+        });
+
+        if (!inboundResult.success) {
+          logger.warn('CallController: Inbound call handling failed', {
+            error: inboundResult.errorMessage,
+            to: req.body?.To,
+            from: req.body?.From
+          });
+
+          res.set('Content-Type', 'application/xml');
+          res.status(200).send(`<Response><Speak>${inboundResult.errorMessage || 'Unable to connect call.'}</Speak><Hangup/></Response>`);
+          return;
+        }
+
+        callId = inboundResult.callId!;
+      } else {
+        callId = callSession.id;
+
+        // Outbound balance alignment check block
+        const user = await prisma.user.findUnique({ where: { id: callSession.userId } });
+        if (user && user.email !== ADMIN_EMAIL && user.callingBalanceMinutes <= 0) {
+          logger.warn('CallController: Insufficient balance for webhook call connection', { callId, userId: user.id });
+          res.set('Content-Type', 'application/xml');
+          res.status(200).send('<Response><Speak>Insufficient balance to complete this call.</Speak><Hangup/></Response>');
+          return;
+        }
+
+        // Update status to connected
+        await CallService.handleStatusUpdate(callId, 'answered');
       }
-      const callId = callSession.id;
 
-      // Balance alignment check block
-      const user = await prisma.user.findUnique({ where: { id: callSession.userId } });
-      if (user && user.email !== ADMIN_EMAIL && user.callingBalanceMinutes <= 0) {
-        logger.warn('CallController: Insufficient balance for webhook call connection', { callId, userId: user.id });
-        res.set('Content-Type', 'application/xml');
-        res.status(200).send('<Response><Speak>Insufficient balance to complete this call.</Speak><Hangup/></Response>');
-        return;
-      }
-
-      logger.info('CallController: Vobiz answer webhook', { callId });
-
-      // Update status to connected
-      await CallService.handleStatusUpdate(callId, 'answered');
+      logger.info('CallController: Vobiz answer webhook sending Stream XML', { callId, isNewInbound: !callSession });
 
       // Return XML to tell Vobiz to stream audio to our WebSocket
       const publicUrl = env.PUBLIC_URL;

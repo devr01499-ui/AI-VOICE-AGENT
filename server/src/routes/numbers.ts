@@ -627,4 +627,86 @@ router.patch('/:id/activate', requireAuth, async (req, res, next) => {
   }
 });
 
+/**
+ * GET /api/v2/numbers/calling-config
+ * Returns inbound and outbound calling configuration for all numbers owned by user.
+ */
+router.get('/calling-config', requireAuth, async (req, res, next) => {
+  try {
+    const userId = (req as any).userId;
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+
+    const numbers = await prisma.phoneNumber.findMany({
+      where: { userId },
+      include: {
+        agent: true,
+        inboundConfigs: {
+          include: { agent: true }
+        }
+      },
+      orderBy: { purchasedAt: 'desc' }
+    });
+
+    const formatted = numbers.map(n => {
+      const inboundCfg = n.inboundConfigs[0];
+      const inboundAgentId = inboundCfg?.agentId || n.assignedAgentId || null;
+      const inboundAgentName = inboundCfg?.agent?.name || n.agent?.name || 'Unassigned';
+
+      return {
+        id: n.id,
+        phoneNumber: n.phoneNumber,
+        status: n.status,
+        kycStatus: n.kycStatus,
+        assignedAgentId: n.assignedAgentId,
+        outboundAgentName: n.agent?.name || 'Unassigned',
+        inboundEnabled: n.status === 'active',
+        inboundAgentId,
+        inboundAgentName,
+        businessHours: inboundCfg?.businessHours || '{}',
+        outsideHoursAction: inboundCfg?.outsideHoursAction || 'agent',
+      };
+    });
+
+    res.json({ success: true, data: formatted });
+  } catch (err) {
+    logger.error('Numbers: failed to fetch calling config', { error: String(err) });
+    next(err);
+  }
+});
+
+/**
+ * POST /api/v2/numbers/:id/calling-config
+ * Updates inbound and outbound calling configuration for a specific number.
+ * Body: { assignedAgentId?, inboundAgentId?, inboundEnabled?, businessHours? }
+ */
+router.post('/:id/calling-config', requireAuth, async (req, res, next) => {
+  try {
+    const userId = (req as any).userId;
+    const id = req.params.id as string;
+    const { assignedAgentId, inboundAgentId, inboundEnabled, businessHours } = req.body;
+
+    const { InboundCallService } = require('../services/InboundCallService');
+    const updatedNumber = await InboundCallService.updateCallingConfig({
+      userId,
+      phoneNumberId: id,
+      assignedAgentId,
+      inboundAgentId,
+      inboundEnabled,
+      businessHours,
+    });
+
+    res.json({
+      success: true,
+      message: 'Calling configuration updated successfully.',
+      data: updatedNumber
+    });
+  } catch (err: any) {
+    logger.error('Numbers: failed to update calling config', { error: String(err) });
+    res.status(400).json({ success: false, error: err.message || 'Failed to update calling configuration' });
+  }
+});
+
 export default router;
