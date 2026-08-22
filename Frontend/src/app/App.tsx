@@ -755,13 +755,24 @@ function DashOverview() {
   }));
 
   const completedCalls = apiCalls.filter(c => c.status !== 'ringing' && c.status !== 'in_progress');
-  const recent = completedCalls.slice(0, 5).map(c => ({
-    name: c.phoneNumber ?? 'Unknown caller',
-    intent: 'Voice Call',
-    dur: c.duration != null ? `${Math.floor(c.duration/60)}m ${c.duration%60}s` : '0s',
-    result: c.status === 'completed' ? 'Resolved' : 'Failed',
-    ago: new Date(c.createdAt).toLocaleDateString() + ' ' + new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-  }));
+  const recent = completedCalls.slice(0, 5).map(c => {
+    let ago = 'Recently';
+    if (c.createdAt) {
+      try {
+        const d = new Date(c.createdAt);
+        if (!isNaN(d.getTime())) {
+          ago = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+      } catch {}
+    }
+    return {
+      name: c.phoneNumber ?? 'Unknown caller',
+      intent: 'Voice Call',
+      dur: c.duration != null ? `${Math.floor(c.duration/60)}m ${c.duration%60}s` : '0s',
+      result: c.status === 'completed' ? 'Resolved' : 'Failed',
+      ago,
+    };
+  });
 
   const averageDuration = apiCalls.length > 0 
     ? Math.round(apiCalls.reduce((sum, c) => sum + (c.duration || 0), 0) / apiCalls.length)
@@ -3563,6 +3574,55 @@ function NotificationBar() {
   );
 }
 
+// ── Dashboard Error Boundary ──
+class DashboardErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("Dashboard Render Error Caught:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-[#FAF8F5] flex flex-col items-center justify-center p-6 text-center">
+          <div className="nm-card p-8 rounded-3xl max-w-md w-full border border-red-200 shadow-xl space-y-4">
+            <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto font-bold text-xl">⚠️</div>
+            <h2 className="text-xl font-extrabold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>Dashboard Unable to Load</h2>
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">An unexpected error occurred while rendering your workspace view.</p>
+            <div className="p-3 bg-red-50 rounded-xl text-left text-[11px] font-mono text-red-700 overflow-x-auto max-h-32">
+              {this.state.error?.message || "Unknown rendering exception"}
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button 
+                onClick={() => { this.setState({ hasError: false, error: null }); window.location.reload(); }}
+                className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all shadow-md"
+              >
+                Reload Dashboard
+              </button>
+              <button 
+                onClick={() => { localStorage.clear(); window.location.href = '/'; }}
+                className="px-4 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition-all"
+              >
+                Reset Session
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 // ── Main DashboardPage ──
 function DashboardPage({ session }: { session: Session }) {
   const [section, setSection] = useState<DashSection>("overview");
@@ -4225,6 +4285,7 @@ function ComparePage({ setPage }: { setPage: (p: Page) => void }) {
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   
   const [page, setPage] = useState<Page>(() => {
     if (typeof window !== "undefined") {
@@ -4578,10 +4639,14 @@ export default function App() {
         localStorage.setItem('token', currentSession.access_token);
         setSession(currentSession);
       }
+      setAuthLoading(false);
+    }).catch(() => {
+      setAuthLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
       setSession(currentSession);
+      setAuthLoading(false);
       if (currentSession) {
         localStorage.setItem('token', currentSession.access_token);
         const pendingPlan = localStorage.getItem('pending_plan_purchase');
@@ -4599,10 +4664,22 @@ export default function App() {
   }, []);
 
   if (page === "dashboard") {
+    if (authLoading) {
+      return (
+        <div className="min-h-screen bg-[#FAF8F5] flex flex-col items-center justify-center gap-3">
+          <div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+          <p className="text-xs font-mono font-bold text-slate-500">Loading Claritiy Voice Workspace…</p>
+        </div>
+      );
+    }
     if (!session) {
       return <AuthGateway onSuccess={() => handleNavigate("dashboard")} />;
     }
-    return <DashboardPage session={session} />;
+    return (
+      <DashboardErrorBoundary>
+        <DashboardPage session={session} />
+      </DashboardErrorBoundary>
+    );
   }
 
   return (
