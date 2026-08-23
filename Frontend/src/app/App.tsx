@@ -604,7 +604,7 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
-type DashSection = "overview"|"agents"|"batch"|"calls"|"numbers"|"knowledge"|"voices"|"calendar"|"settings"|"billing"|"companion";
+type DashSection = "overview"|"agents"|"calling"|"batch"|"calls"|"numbers"|"knowledge"|"voices"|"calendar"|"settings"|"billing"|"companion";
 
 // Shared tiny helpers
 function DBadge({ children, v="neutral" }: { children: React.ReactNode; v?: "neutral"|"success"|"warning"|"error"|"info"|"dark" }) {
@@ -4297,6 +4297,7 @@ export default function App() {
         "/how-it-works": "how-it-works",
         "/industries": "industries",
         "/dashboard": "dashboard",
+        "/login": "dashboard",
         "/faq": "faq",
         "/contact": "contact",
         "/solutions": "solutions",
@@ -4339,6 +4340,7 @@ export default function App() {
         "/how-it-works": "how-it-works",
         "/industries": "industries",
         "/dashboard": "dashboard",
+        "/login": "dashboard",
         "/faq": "faq",
         "/contact": "contact",
         "/solutions": "solutions",
@@ -4714,9 +4716,9 @@ export default function App() {
             {page === "pricing" && <Pricing setPage={handleNavigate} />}
             {page === "how-it-works" && <HowItWorks setPage={handleNavigate} />}
             {page === "blog" && <BlogIndex setPage={handleNavigate} />}
-            {page === "blog-rto" && <BlogRTO />}
-            {page === "blog-healthcare" && <BlogHealthcare />}
-            {page === "blog-fintech" && <BlogFintech />}
+            {page === "blog-rto" && <BlogRTO setPage={handleNavigate} />}
+            {page === "blog-healthcare" && <BlogHealthcare setPage={handleNavigate} />}
+            {page === "blog-fintech" && <BlogFintech setPage={handleNavigate} />}
             {page === "voices" && <Voices setPage={handleNavigate} />}
             {page === "docs" && <Docs />}
             {page === "privacy" && <Privacy />}

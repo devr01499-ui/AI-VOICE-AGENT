@@ -8,6 +8,7 @@
  */
 
 const http = require('http');
+const https = require('https');
 
 const BASE_URL = process.env.TEST_API_URL || 'http://localhost:3001';
 
@@ -29,7 +30,8 @@ const ENDPOINTS_TO_TEST = [
 function makeRequest(path, headers = {}) {
   return new Promise((resolve, reject) => {
     const url = new URL(path, BASE_URL);
-    const req = http.request(url, { method: 'GET', headers }, (res) => {
+    const transport = url.protocol === 'https:' ? https : http;
+    const req = transport.request(url, { method: 'GET', headers }, (res) => {
       let body = '';
       res.on('data', (chunk) => body += chunk);
       res.on('end', () => resolve({ statusCode: res.statusCode, body }));

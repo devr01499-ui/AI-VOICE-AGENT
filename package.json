@@ -4,14 +4,12 @@
   "private": true,
   "scripts": {
     "postinstall": "prisma generate --schema=server/prisma/schema.prisma",
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "npm run --prefix server dev",
+    "build": "npm run --prefix Frontend build && npm run --prefix server build",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "npm run --prefix Frontend typecheck && npm run --prefix server typecheck"
   },
   "dependencies": {
-    "@auth/supabase-adapter": "^1.11.2",
     "@google/generative-ai": "^0.24.1",
     "@notionhq/client": "^5.24.0",
     "@prisma/adapter-pg": "^7.8.0",
@@ -24,8 +22,6 @@
     "clsx": "^2.1.1",
     "googleapis": "^174.0.1",
     "lucide-react": "^1.16.0",
-    "next": "16.2.6",
-    "next-auth": "^4.24.14",
     "pg": "^8.21.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -35,13 +31,11 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.6",
     "prisma": "^7.8.0",
     "tailwindcss": "^4",
     "typescript": "^5"

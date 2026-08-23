@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-08-23
+### Fixed
+- Fixed unmapped `/login` route in `Frontend/src/app/App.tsx` by adding `"/login": "dashboard"` to `pathMap` dictionaries across `getInitialPage()`, `handleNavigate()`, and `popstate` event listeners. Ensures direct navigation to `/login` correctly renders `ProtectedRoute` -> `AuthGateway` login screen rather than falling through to the home landing page.
+- Confirmed live Vercel deployment (`https://www.claritiy.com/dashboard`) matches local commit `1180c36` and correctly redirects unauthenticated visitors to `/login`.
+
+### Removed
+- Purged dead, un-deployed Next.js application at repository root (`app/`, `middleware.ts`, `providers/AuthProvider.tsx`, `providers/QueryProvider.tsx`, `next.config.ts`, `next-env.d.ts`, root `components/`, root `lib/`, `tsconfig.pseo.json`).
+- Updated root `package.json` and `tsconfig.json` to purge Next.js 16 / `next-auth` dependencies and point root build/typecheck commands directly to `Frontend/` and `server/`.
+
 ## [Unreleased] - 2026-08-21
 ### Added
 - Rebuilt homepage Hero section ([Hero.tsx](file:///c:/Users/Rohit%20Kumar%20Sha/OneDrive/Desktop/bOLNA/Frontend/src/app/components/hero/Hero.tsx)) with warm Pinterest-inspired editorial design (warm ivory/cream palette with deep emerald and terracotta accents; strictly zero blue, black, or purple hues).
