@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "motion/react";
-import { useState } from "react";
+import React, { useState } from "react";
 import IndustryShowroomGrid from "../components/showroom/IndustryShowroomGrid";
 import RoiCalculator from "../components/calculator/RoiCalculator";
 import { 

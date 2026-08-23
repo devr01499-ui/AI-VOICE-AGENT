@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { motion } from "motion/react";
 import { Mail, MessageSquare, Send, CheckCircle2, AlertCircle } from "lucide-react";
 import { API_BASE } from "../api";

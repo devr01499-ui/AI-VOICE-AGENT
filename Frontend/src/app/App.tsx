@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import { supabase } from "./lib/supabaseClient";
 import AuthGateway from "./components/auth/AuthGateway";
 import { Session } from "@supabase/supabase-js";
@@ -33,7 +33,6 @@ import SchemaInjector from "./components/seo/SchemaInjector";
 import { DashCompanionCall } from "./DashCompanionCall";
 import { NumberSearchAndPurchase } from "./components/numbers/NumberSearchAndPurchase";
 import { DashCallingConfig } from "./components/calling/DashCallingConfig";
-import AuthGateway from "./components/auth/AuthGateway";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 const Home = lazy(() => import("./pages/Home"));

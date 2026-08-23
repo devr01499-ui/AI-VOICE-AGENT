@@ -28,25 +28,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // 2. Unauthenticated: Redirect to login / AuthGateway with session redirect memory
+  // 2. Unauthenticated: Render full-page AuthGateway
   if (!session) {
     return (
-      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center p-4 font-sans">
-        <div className="w-full max-w-md bg-white rounded-3xl p-8 border border-slate-200/80 shadow-xl space-y-6">
-          <div className="text-center space-y-2">
-            <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-              Authentication Required
-            </h2>
-            <p className="text-sm text-slate-500 font-medium">
-              Please sign in or create an account to access your dedicated Claritiy Voice workspace.
-            </p>
-          </div>
-
-          <AuthGateway onSuccess={() => {
-            if (onSuccessRedirect) onSuccessRedirect();
-          }} />
-        </div>
-      </div>
+      <AuthGateway onSuccess={() => {
+        if (onSuccessRedirect) onSuccessRedirect();
+      }} />
     );
   }
 

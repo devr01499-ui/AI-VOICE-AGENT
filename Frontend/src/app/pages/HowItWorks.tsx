@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "motion/react";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Zap, Cpu, Database, ShieldCheck, ArrowRight, Activity, 
   Layers, CheckCircle2, ChevronRight, Sparkles, RefreshCw, Lock, Terminal,

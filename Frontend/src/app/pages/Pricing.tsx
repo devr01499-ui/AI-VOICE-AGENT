@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { Check, ArrowRight, ShieldCheck, Zap, Loader2, Sparkles, Sliders, DollarSign, Eye, Code2, Lock } from "lucide-react";
 import RoiCalculator from "../components/calculator/RoiCalculator";
