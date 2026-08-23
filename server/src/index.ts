@@ -177,7 +177,7 @@ app.use('/api/v2/numbers', requireAuth, numbersRoutes);
 app.use('/api/v2/knowledge-base', requireAuth, kbRoutes);
 app.use('/api/v2/user', requireAuth, userRoutes);
 app.use('/api/v2/team', requireAuth, teamRoutes);
-app.use('/api/v2/apikeys', apikeysRoutes);
+app.use('/api/v2/apikeys', requireAuth, apikeysRoutes);
 app.use('/api/v2/webhooks', webhookRoutes);
 app.use('/api/v2/calendar', calendarRoutes);
 app.post('/api/v2/telephony/webhook', WebhookController.handleTelephonyWebhook);
