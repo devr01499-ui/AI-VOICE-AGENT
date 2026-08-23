@@ -47,37 +47,10 @@ export async function verifySupabaseToken(token: string): Promise<{ email: strin
  * to isolate multi-tenant operations.
  */
 export function getUserIdFromRequest(req: Request): string | null {
-  // If request has authenticated userId already parsed by requireAuth middleware, return it
-  const reqUserId = (req as any).userId || ((req as any).user && (req as any).user.id);
+  // Return authenticated userId parsed by requireAuth / requireAuthOrApiKey middleware
+  const reqUserId = (req as any).userId || ((req as any).user && (req as any).user.id) || ((req as any).auth && (req as any).auth.userId);
   if (reqUserId) {
     return reqUserId;
-  }
-
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.substring(7).trim();
-    if (token) {
-      return token;
-    }
-  }
-
-  const xUserId = req.headers['x-user-id'];
-  if (typeof xUserId === 'string' && xUserId.trim()) {
-    return xUserId.trim();
-  }
-
-  // Fallback to cookie checking if present
-  const cookies = req.headers.cookie;
-  if (cookies) {
-    const sessionTokenMatch = cookies.match(/next-auth\.session-token=([^;]+)/);
-    if (sessionTokenMatch && sessionTokenMatch[1]) {
-      if (process.env.NODE_ENV === 'production') {
-        logger.warn('getUserIdFromRequest: next-auth cookie bypassed fallback blocked in production');
-        return null;
-      }
-      // In local bypassed mode we map session cookie values directly
-      return null;
-    }
   }
 
   logger.warn('getUserIdFromRequest: Request lacked validated user session context');

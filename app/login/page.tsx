@@ -3,14 +3,17 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { AuthGateway } from '@/app/components/auth/AuthGateway';
-import { DashboardOverview } from '@/app/components/dashboard/DashboardOverview';
 
-export default function DashboardPage() {
+export default function LoginPage() {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      if (currentSession) {
+        window.location.href = '/dashboard';
+        return;
+      }
       setSession(currentSession);
       setLoading(false);
     });
@@ -19,6 +22,7 @@ export default function DashboardPage() {
       setSession(currentSession);
       if (currentSession) {
         localStorage.setItem('token', currentSession.access_token);
+        window.location.href = '/dashboard';
       } else {
         localStorage.removeItem('token');
       }
@@ -35,22 +39,9 @@ export default function DashboardPage() {
     );
   }
 
-  if (!session) {
-    if (typeof window !== 'undefined') {
-      window.location.href = '/login';
-    }
+  if (session) {
     return null;
   }
 
-  return (
-    <div className="min-h-screen bg-[#FAF8F5] p-6 md:p-10 font-sans">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-1">Workspace Dashboard</h1>
-          <p className="text-sm text-slate-500 font-medium">Manage voice AI agents, phone numbers, and call activity.</p>
-        </div>
-        <DashboardOverview />
-      </div>
-    </div>
-  );
+  return <AuthGateway onSuccess={() => { window.location.href = '/dashboard'; }} />;
 }

@@ -28,13 +28,14 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // 2. Unauthenticated: Render full-page AuthGateway
+  // 2. Unauthenticated: Redirect to login page
   if (!session) {
-    return (
-      <AuthGateway onSuccess={() => {
-        if (onSuccessRedirect) onSuccessRedirect();
-      }} />
-    );
+    if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+      window.location.href = '/login';
+    }
+    return <AuthGateway onSuccess={() => {
+      if (onSuccessRedirect) onSuccessRedirect();
+    }} />;
   }
 
   // 3. Authenticated: Render protected view

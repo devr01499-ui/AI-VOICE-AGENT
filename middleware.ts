@@ -4,10 +4,10 @@ export default function middleware(req: NextRequest) {
   const token = req.cookies.get('sb-access-token')?.value || req.cookies.get('next-auth.session-token')?.value || req.headers.get('authorization');
   const pathname = req.nextUrl.pathname;
 
-  // Protect sub-routes if unauthenticated: redirect to /dashboard (Auth Gateway)
-  if ((pathname.startsWith('/calendar') || pathname.startsWith('/telephony') || (pathname.startsWith('/dashboard/') && pathname !== '/dashboard')) && !token) {
+  // Enforce strict server-side authentication redirect for all dashboard routes and protected paths
+  if ((pathname === '/dashboard' || pathname.startsWith('/dashboard/') || pathname.startsWith('/calendar') || pathname.startsWith('/telephony')) && !token) {
     const url = req.nextUrl.clone();
-    url.pathname = '/dashboard';
+    url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 

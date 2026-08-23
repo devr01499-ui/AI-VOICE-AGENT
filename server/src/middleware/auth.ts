@@ -27,56 +27,47 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     let email = '';
     let userMetadata: any = {};
 
-    if (authHeader) {
-      if (!authHeader.startsWith('Bearer ')) {
-        res.status(401).json({ success: false, error: 'Missing or malformed authorization header context' });
-        return;
-      }
-
-      const token = authHeader.substring(7).trim();
-
-      // Defensive Validation Boundary: Instantly catch undefined or clear non-JWT footprints
-      if (!token || token === 'undefined' || token === 'null' || token.startsWith('{')) {
-        res.status(401).json({ success: false, error: 'Invalid authentication token structure' });
-        return;
-      }
-      
-      activePhase = 'supabase_getUser';
-      // Verify signature via official Supabase client SDK getUser call
-      const { data: { user }, error } = await supabaseClient.auth.getUser(token);
-
-      if (error || !user) {
-        res.status(401).json({ success: false, error: 'Unauthorized: Invalid Supabase signature token' });
-        return;
-      }
-
-      userId = user.id;
-      email = user.email || '';
-      userMetadata = user.user_metadata || {};
-
-
-      // 3. THE EXPLICIT IDENTITY BIND
-      if (email !== ADMIN_EMAIL) {
-        // Block unverified multi-tenant access
-        if (!user.email_confirmed_at && !userMetadata?.email_confirmed_at) {
-          res.status(403).json({ 
-            error: "Access Denied: Please verify your email address via the sent security link to activate this workspace environment." 
-          });
-          return;
-        }
-      }
-    } else {
-      activePhase = 'legacy_auth_fallback';
-      // Fallback to x-user-id for legacy/development compatibility
-      userId = getUserIdFromRequest(req);
-      if (userId) {
-        email = `user-${userId}@supabase.io`;
-      }
-    }
-
-    if (!userId) {
+    if (!authHeader) {
       res.status(401).json({ success: false, error: 'Unauthorized: Missing authenticated session context' });
       return;
+    }
+
+    if (!authHeader.startsWith('Bearer ')) {
+      res.status(401).json({ success: false, error: 'Missing or malformed authorization header context' });
+      return;
+    }
+
+    const token = authHeader.substring(7).trim();
+
+    // Defensive Validation Boundary: Instantly catch undefined or clear non-JWT footprints
+    if (!token || token === 'undefined' || token === 'null' || token.startsWith('{')) {
+      res.status(401).json({ success: false, error: 'Invalid authentication token structure' });
+      return;
+    }
+    
+    activePhase = 'supabase_getUser';
+    // Verify signature via official Supabase client SDK getUser call
+    const { data: { user }, error } = await supabaseClient.auth.getUser(token);
+
+    if (error || !user) {
+      res.status(401).json({ success: false, error: 'Unauthorized: Invalid Supabase signature token' });
+      return;
+    }
+
+    userId = user.id;
+    email = user.email || '';
+    userMetadata = user.user_metadata || {};
+
+
+    // 3. THE EXPLICIT IDENTITY BIND
+    if (email !== ADMIN_EMAIL) {
+      // Block unverified multi-tenant access
+      if (!user.email_confirmed_at && !userMetadata?.email_confirmed_at) {
+        res.status(403).json({ 
+          error: "Access Denied: Please verify your email address via the sent security link to activate this workspace environment." 
+        });
+        return;
+      }
     }
 
     // Extract metadata attributes directly
