@@ -1,5 +1,5 @@
 import { motion, useScroll, useTransform } from "motion/react";
-import { useRef } from "react";
+import React, { useRef } from "react";
 import Hero from "../components/hero/Hero";
 import IndustryShowroomGrid from "../components/showroom/IndustryShowroomGrid";
 import FeatureCapabilityGrid from "../components/showroom/FeatureCapabilityGrid";

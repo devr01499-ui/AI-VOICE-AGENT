@@ -285,7 +285,7 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-          className="w-full max-w-sm relative z-10"
+          className="w-full max-w-md relative z-10"
         >
           {/* Mobile: show mini visualizer */}
           <div className="lg:hidden mb-6 p-4 rounded-2xl text-center"
