@@ -9,7 +9,7 @@ import { DashCalendar } from "./components/calendar/CalendarOverview";
 import {
   fetchAgents, fetchAgent, fetchCalls, fetchProfile, createAgent, updateAgent, chatWithAgent,
   initiateCall, getCallTranscript, getLiveTranscriptWsUrl,
-  fetchKBList, uploadKBDocument, scrapeKBUrl, deleteKBDocument,
+  fetchKBList, uploadKBDocument, scrapeKBUrl, deleteKBDocument, fetchCalendarBatches,
   DEV_USER_ID, DEFAULT_AGENT_ID, API_BASE, apiClient,
   type ApiAgent, type ApiCall, type ApiProfile,
 } from "./api";
