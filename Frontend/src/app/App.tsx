@@ -6,6 +6,7 @@ import BillingGateway from './components/settings/BillingGateway';
 import { ApiKeyManagement } from './components/settings/ApiKeyManagement';
 import AgentConfigPanel from "./components/agents/AgentConfigPanel";
 import VisualFlowCanvas from "./components/agents/VisualFlowCanvas";
+import SinglePromptStudio from "./components/agents/SinglePromptStudio";
 import { DashCalendar } from "./components/calendar/CalendarOverview";
 import {
   fetchAgents, fetchAgent, fetchCalls, fetchProfile, createAgent, updateAgent, chatWithAgent,
@@ -959,7 +960,7 @@ function base64ToFloat32(base64: string): Float32Array {
 
 // ── Agents ──
 type AgentView = "list"|"create"|"detail";
-function DashAgents({ session, profile, setApiAgents, setStudioAgent }: { session: Session | null; profile: ApiProfile | null; setApiAgents?: React.Dispatch<React.SetStateAction<ApiAgent[]>>; setStudioAgent: React.Dispatch<React.SetStateAction<{ id?: string; name: string; systemPrompt?: string; flowGraph?: any } | null>> }) {
+function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSinglePromptStudioAgent }: { session: Session | null; profile: ApiProfile | null; setApiAgents?: React.Dispatch<React.SetStateAction<ApiAgent[]>>; setStudioAgent: React.Dispatch<React.SetStateAction<{ id?: string; name: string; systemPrompt?: string; flowGraph?: any } | null>>; setSinglePromptStudioAgent?: React.Dispatch<React.SetStateAction<{ id?: string; name: string; systemPrompt?: string; model?: string; voiceName?: string } | null>> }) {
   const [agents, setAgents] = useState<AgentRow[]>(() => {
     try {
       const cached = localStorage.getItem('cache_agent_rows');
@@ -1969,12 +1970,13 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent }: { sessio
                   <button
                     onClick={() => {
                       setShowCreateMenu(false);
-                      setCreateType('prompt');
-                      setView("create");
+                      if (setSinglePromptStudioAgent) {
+                        setSinglePromptStudioAgent({ name: "Single-Prompt Agent" });
+                      }
                     }}
                     className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold flex items-center gap-2"
                   >
-                    <MessageSquare className="w-4 h-4" /> Chat Agent
+                    <MessageSquare className="w-4 h-4" /> Single Prompt Agent
                   </button>
                 </div>
               )}
@@ -2030,16 +2032,26 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent }: { sessio
                       <button
                         onClick={async () => {
                           const fullAgent = await fetchAgent(a.id as string);
-                          setStudioAgent({
-                            id: a.id as string,
-                            name: a.name as string,
-                            systemPrompt: fullAgent.systemPrompt,
-                            flowGraph: fullAgent.flowGraph,
-                          });
+                          if (a.type === 'conversational' || fullAgent.flowGraph) {
+                            setStudioAgent({
+                              id: a.id as string,
+                              name: a.name as string,
+                              systemPrompt: fullAgent.systemPrompt,
+                              flowGraph: fullAgent.flowGraph,
+                            });
+                          } else if (setSinglePromptStudioAgent) {
+                            setSinglePromptStudioAgent({
+                              id: a.id as string,
+                              name: a.name as string,
+                              systemPrompt: fullAgent.systemPrompt,
+                              model: fullAgent.model,
+                              voiceName: fullAgent.voiceName,
+                            });
+                          }
                         }}
                         className="px-3 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-semibold rounded-md hover:bg-indigo-100 transition-colors"
                       >
-                        Edit Flow Studio
+                        Edit Studio
                       </button>
                       <button
                         onClick={() => handleDelete(a.id as string)}
@@ -3950,6 +3962,7 @@ function DashboardPage({ session }: { session: Session }) {
   const [section, setSection] = useState<DashSection>("agents");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [studioAgent, setStudioAgent] = useState<{ id?: string; name: string; systemPrompt?: string; flowGraph?: any } | null>(null);
+  const [singlePromptStudioAgent, setSinglePromptStudioAgent] = useState<{ id?: string; name: string; systemPrompt?: string; model?: string; voiceName?: string } | null>(null);
   const [profile, setProfile] = useState<ApiProfile | null>(() => {
     try {
       const cached = localStorage.getItem('cache_user_profile');
@@ -3975,6 +3988,30 @@ function DashboardPage({ session }: { session: Session }) {
       localStorage.setItem('cache_api_agents', JSON.stringify(data));
     }).catch(() => {});
   }, [session]);
+
+  if (singlePromptStudioAgent) {
+    return (
+      <SinglePromptStudio
+        initialAgent={singlePromptStudioAgent as any}
+        agentName={singlePromptStudioAgent.name}
+        onSave={async (agentData) => {
+          if (singlePromptStudioAgent.id && !singlePromptStudioAgent.id.startsWith('a')) {
+            await updateAgent(singlePromptStudioAgent.id, agentData as any);
+            alert("Single-prompt agent saved successfully!");
+          } else {
+            await createAgent({
+              ...agentData,
+              agentType: 'prompt',
+            } as any);
+            alert("New single-prompt agent published to database!");
+          }
+          setSinglePromptStudioAgent(null);
+          fetchAgents().then(setApiAgents).catch(() => {});
+        }}
+        onBack={() => setSinglePromptStudioAgent(null)}
+      />
+    );
+  }
 
   if (studioAgent) {
     return (
@@ -4124,7 +4161,7 @@ function DashboardPage({ session }: { session: Session }) {
           <AnimatePresence mode="wait">
             <motion.div key={section} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0}} transition={{duration:0.18}}>
               {section==="overview"&&<DashOverview/>}
-              {section==="agents"&&<DashAgents session={session} profile={profile} setApiAgents={setApiAgents} setStudioAgent={setStudioAgent} />}
+              {section==="agents"&&<DashAgents session={session} profile={profile} setApiAgents={setApiAgents} setStudioAgent={setStudioAgent} setSinglePromptStudioAgent={setSinglePromptStudioAgent} />}
               {section==="calling"&&<DashCallingConfig/>}
               {section==="batch"&&<DashBatch/>}
               {section==="calls"&&<DashCallLogs/>}
