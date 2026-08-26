@@ -37,7 +37,11 @@ export class BillingService {
     }
 
     if (!this.razorpay) {
-      logger.warn('BillingService: Razorpay keys not found, running in mock mode');
+      if (env.NODE_ENV === 'production') {
+        logger.error('BillingService: Attempted mock order creation in production environment without Razorpay keys');
+        throw new Error('Payment Gateway Error: Razorpay production credentials missing. Purchase cannot proceed.');
+      }
+      logger.warn('BillingService: Razorpay keys not found, running in development mock mode');
       return {
         id: `order_mock_${Date.now()}`,
         amount: amountInPaise,
@@ -78,6 +82,10 @@ export class BillingService {
     }
 
     if (!this.razorpay) {
+      if (env.NODE_ENV === 'production') {
+        logger.error('BillingService: Attempted mock plan order creation in production environment without Razorpay keys');
+        throw new Error('Payment Gateway Error: Razorpay production credentials missing. Plan purchase cannot proceed.');
+      }
       // Mock order
       return {
         id: `order_mock_plan_${Date.now()}`,
@@ -104,7 +112,13 @@ export class BillingService {
    * Verifies the Razorpay payment signature.
    */
   verifyPayment(orderId: string, paymentId: string, signature: string): boolean {
-    if (!this.razorpay) return true; // Accept all in mock mode
+    if (!this.razorpay) {
+      if (env.NODE_ENV === 'production') {
+        logger.error('BillingService: Mock payment verification rejected in production');
+        return false;
+      }
+      return true; // Accept all in development mock mode
+    }
 
     const crypto = require('crypto');
     const secret = env.RAZORPAY_KEY_SECRET;
