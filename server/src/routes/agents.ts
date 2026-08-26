@@ -89,7 +89,7 @@ router.post(
       }
 
       const genAI = new GoogleGenerativeAI(apiKey);
-      const modelName = process.env.GEMINI_BUILDER_MODEL || process.env.GEMINI_REALTIME_MODEL || 'gemini-2.0-flash';
+      const modelName = process.env.GEMINI_BUILDER_MODEL || 'gemini-2.0-flash';
       const model = genAI.getGenerativeModel({
         model: modelName,
         systemInstruction: `You are an expert AI Voice Agent Builder for 'Claritiy Voice'.
