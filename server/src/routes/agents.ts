@@ -89,10 +89,12 @@ router.post(
       }
 
       const genAI = new GoogleGenerativeAI(apiKey);
-      const modelName = process.env.GEMINI_BUILDER_MODEL || 'gemini-2.0-flash';
-      const model = genAI.getGenerativeModel({
-        model: modelName,
-        systemInstruction: `You are an expert AI Voice Agent Builder for 'Claritiy Voice'.
+      const primaryModel = process.env.GEMINI_BUILDER_MODEL || process.env.GEMINI_REALTIME_MODEL || 'gemini-2.5-flash';
+      const fallbackModel = 'gemini-2.0-flash';
+
+      let responseText = '';
+
+      const systemInstruction = `You are an expert AI Voice Agent Builder for 'Claritiy Voice'.
 Your goal is to gather requirements from the user and output a complete agent configuration JSON.
 To build a great voice agent, you need to know:
 1. The agent's core purpose or use case (e.g. outbound sales, inbound customer support).
@@ -109,23 +111,32 @@ If you have enough information, output ONLY a valid JSON object (no markdown for
 }
 
 Notes for systemVoice: choose one of Puck, Aoede, Charon, Fenrir, Kore, Leda, Orus, Zephyr, Callirhoe, Autonoe, Enceladus, Iapetus, Umbriel, Algieba, Despina, Erinome, Algenib, Rasalgethi, Laomedeia, Achernar, Alnilam, Schedar, Gacrux, Pulcherrima, Achird, Adara, Castor, Deneb, Eltanin, Mizar.
-DO NOT wrap the JSON in markdown blocks. Output the raw JSON object string when ready, otherwise output conversational text.`,
-      });
+DO NOT wrap the JSON in markdown blocks. Output the raw JSON object string when ready, otherwise output conversational text.`;
 
       const chatHistory = (history || []).map((msg: any) => ({
         role: msg.role === 'user' ? 'user' : 'model',
         parts: [{ text: msg.content }],
       }));
 
-      const chat = model.startChat({
-        history: chatHistory,
-        generationConfig: {
-          temperature: 0.2,
-        },
-      });
-
-      const result = await chat.sendMessage(message || "Hello, I want to build an agent.");
-      const responseText = result.response.text().trim();
+      try {
+        const model = genAI.getGenerativeModel({ model: primaryModel, systemInstruction });
+        const chat = model.startChat({ history: chatHistory, generationConfig: { temperature: 0.2 } });
+        const result = await chat.sendMessage(message || "Hello, I want to build an agent.");
+        responseText = result.response.text().trim();
+      } catch (primaryErr: any) {
+        logger.warn(`Conversational builder primary model (${primaryModel}) failed, retrying with fallback (${fallbackModel})`, { error: String(primaryErr) });
+        try {
+          const modelFallback = genAI.getGenerativeModel({ model: fallbackModel, systemInstruction });
+          const chatFallback = modelFallback.startChat({ history: chatHistory, generationConfig: { temperature: 0.2 } });
+          const resultFallback = await chatFallback.sendMessage(message || "Hello, I want to build an agent.");
+          responseText = resultFallback.response.text().trim();
+        } catch (fallbackErr: any) {
+          const detailedErr = fallbackErr?.message || primaryErr?.message || 'Failed to communicate with Gemini API.';
+          logger.error("Error in conversational builder on primary and fallback models", { error: detailedErr });
+          res.status(500).json({ success: false, error: `Gemini API Builder Error: ${detailedErr}` });
+          return;
+        }
+      }
 
       // Attempt to parse as JSON to see if it's a final configuration
       let isFinal = false;
