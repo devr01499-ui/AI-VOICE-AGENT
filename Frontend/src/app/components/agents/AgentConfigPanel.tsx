@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Sliders, Sparkles, MessageSquare, Bot, Settings2, Calendar } from "lucide-react";
-import { updateAgent, getCalendarStatus, API_BASE } from "../../api";
+import { updateAgent, getCalendarStatus, getAuthToken, API_BASE } from "../../api";
 import ConversationalBuilder from "./ConversationalBuilder";
 
 interface AgentConfigPanelProps {
@@ -288,7 +288,7 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
               <span className="text-sm font-bold text-green-500">Connected</span>
             ) : (
               <a 
-                href={`${API_BASE}/api/v2/calendar/auth?token=${localStorage.getItem('token')}`}
+                href={`${API_BASE}/api/v2/calendar/auth?token=${getAuthToken() || ''}`}
                 className="nm-button px-4 py-2 text-sm font-bold text-[var(--nm-text)] hover:text-[var(--nm-accent)]"
               >
                 Connect
