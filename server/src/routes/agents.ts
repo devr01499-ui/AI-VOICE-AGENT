@@ -351,6 +351,15 @@ router.get(
         // Return raw string if not valid JSON
       }
 
+      let parsedFlowGraph = null;
+      if (agent.flowGraph) {
+        try {
+          parsedFlowGraph = typeof agent.flowGraph === 'string' ? JSON.parse(agent.flowGraph) : agent.flowGraph;
+        } catch {
+          parsedFlowGraph = agent.flowGraph;
+        }
+      }
+
       res.json({
         success: true,
         data: {
@@ -367,7 +376,7 @@ router.get(
           languageMode: agent.languageMode,
           temperature: agent.temperature,
           systemPrompt: agent.systemPrompt,
-          flowGraph: agent.flowGraph,
+          flowGraph: parsedFlowGraph,
           agentConfig: parsedConfig,
           tags: JSON.parse(agent.tags || '[]'),
           createdAt: agent.createdAt.toISOString(),
@@ -409,7 +418,7 @@ router.post(
           systemVoice: systemVoice || 'Puck',
           temperature: temperature !== undefined ? Number(temperature) : 0.7,
           systemPrompt: systemPrompt || null,
-          flowGraph: flowGraph || null,
+          flowGraph: typeof flowGraph === 'string' ? flowGraph : flowGraph ? JSON.stringify(flowGraph) : null,
           languageMode: languageMode || 'auto',
         },
       });
@@ -470,7 +479,7 @@ router.put(
           ...(systemVoice !== undefined && { systemVoice, voiceName: systemVoice }),
           ...(temperature !== undefined && { temperature: temperature !== null ? Number(temperature) : 0.7 }),
           ...(systemPrompt !== undefined && { systemPrompt }),
-          ...(flowGraph !== undefined && { flowGraph }),
+          ...(flowGraph !== undefined && { flowGraph: typeof flowGraph === 'string' ? flowGraph : flowGraph ? JSON.stringify(flowGraph) : null }),
           ...(languageMode !== undefined && { languageMode }),
         },
       });
