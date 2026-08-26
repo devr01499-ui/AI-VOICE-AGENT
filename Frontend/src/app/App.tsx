@@ -1742,9 +1742,20 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
           <button key={t} onClick={()=>setCreateType(t)} className={`rounded-2xl p-6 text-left transition-all ${createType===t?"nm-pressed":"nm-raised hover:nm-pressed"}`}>
             <div className="flex items-center gap-4 mb-3">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${createType===t?"nm-pressed":"nm-raised"}`}>{t==="prompt"?<Cpu className={`w-5 h-5 ${createType===t?"text-[var(--nm-accent)]":"text-[var(--nm-text)]"}`}/>:<MessageSquare className={`w-5 h-5 ${createType===t?"text-[var(--nm-accent)]":"text-[var(--nm-text)]"}`}/>}</div>
-              <p className="font-bold text-[var(--nm-text)] text-lg" style={{fontFamily:"'Outfit', sans-serif"}}>{t==="prompt"?"Prompt-based":"Conversational Flow"}</p>
+              <div>
+                <p className="font-bold text-[var(--nm-text)] text-lg" style={{fontFamily:"'Outfit', sans-serif"}}>{t==="prompt"?"Prompt-based Agent":"Conversational Flow Agent"}</p>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--nm-accent)]">{t==="prompt"?"Single System Prompt":"Step-by-step visual canvas"}</span>
+              </div>
             </div>
-            <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{t==="prompt"?"Define behavior with a system prompt. Best for flexible open-ended conversations.":"Design a step-by-step flow with conditions. Best for structured, scripted calls."}</p>
+            <p className="text-xs font-semibold text-[var(--nm-text)] leading-relaxed mb-3" style={{fontFamily:"'Outfit', sans-serif"}}>
+              {t==="prompt"
+                ? "You write one instruction prompt describing how the agent should behave. Best for simple, single-purpose agents (FAQ bot, appointment reminder)."
+                : "You build a visual flow of conversation steps and branches. Best for agents that need to follow a specific multi-step process (qualifying a lead, booking with multiple options, troubleshooting)."}
+            </p>
+            <div className="text-[11px] font-bold text-muted-foreground flex items-center gap-2 pt-2 border-t border-border/40">
+              <Sparkles className="w-3.5 h-3.5 text-[var(--nm-accent)] flex-shrink-0"/>
+              <span>{t==="prompt" ? "Inline Example: Customer Support FAQ & Telemetry fallback" : "Inline Example: Lead Qualify → Slot Select → Confirmation"}</span>
+            </div>
           </button>
         ))}
       </div>
@@ -3625,7 +3636,7 @@ class DashboardErrorBoundary extends React.Component<{ children: React.ReactNode
 
 // ── Main DashboardPage ──
 function DashboardPage({ session }: { session: Session }) {
-  const [section, setSection] = useState<DashSection>("overview");
+  const [section, setSection] = useState<DashSection>("agents");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [profile, setProfile] = useState<ApiProfile | null>(null);
   const [apiAgents, setApiAgents] = useState<ApiAgent[]>(() => {
@@ -3647,7 +3658,7 @@ function DashboardPage({ session }: { session: Session }) {
   const isViewer = profile?.workspaceRole === 'viewer';
   const navGroups = [
     // {label:"B2C",items:[{id:"companion",icon:Users,label:"AI Companion"}]},
-    {label:"Workspace",items:[{id:"overview",icon:LayoutDashboard,label:"Overview"},{id:"agents",icon:Bot,label:"Agents"},{id:"calling",icon:PhoneCall,label:"Calling Config"},{id:"batch",icon:Radio,label:"Batch Calls"},{id:"calls",icon:PhoneIncoming,label:"Call Logs"}]},
+    {label:"Workspace",items:[{id:"agents",icon:Bot,label:"Agents"},{id:"overview",icon:LayoutDashboard,label:"Overview"},{id:"calling",icon:PhoneCall,label:"Calling Config"},{id:"batch",icon:Radio,label:"Batch Calls"},{id:"calls",icon:PhoneIncoming,label:"Call Logs"}]},
     {label:"Resources",items:[...(isViewer ? [] : [{id:"numbers",icon:Phone,label:"Phone Numbers"},{id:"knowledge",icon:BookOpen,label:"Knowledge Base"},{id:"voices",icon:Mic2,label:"Voice Library"}] as any), {id:"calendar",icon:Calendar,label:"Calendar"}]},
     ...(isViewer ? [] : [{label:"Admin",items:[{id:"settings",icon:Settings,label:"Settings"}, {id:"billing",icon:CreditCard,label:"Billing & Plans"}]} as any]),
   ];
