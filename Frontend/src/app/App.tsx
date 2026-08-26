@@ -3649,8 +3649,15 @@ function DashboardPage({ session }: { session: Session }) {
   const isViewer = profile?.workspaceRole === 'viewer';
   const navGroups = [
     // {label:"B2C",items:[{id:"companion",icon:Users,label:"AI Companion"}]},
-    {label:"Workspace",items:[{id:"agents",icon:Bot,label:"Agents"},{id:"overview",icon:LayoutDashboard,label:"Overview"},{id:"calling",icon:PhoneCall,label:"Calling Config"},{id:"batch",icon:Radio,label:"Batch Calls"},{id:"calls",icon:PhoneIncoming,label:"Call Logs"}]},
-    {label:"Resources",items:[...(isViewer ? [] : [{id:"numbers",icon:Phone,label:"Phone Numbers"},{id:"knowledge",icon:BookOpen,label:"Knowledge Base"},{id:"voices",icon:Mic2,label:"Voice Library"}] as any), {id:"calendar",icon:Calendar,label:"Calendar"}]},
+    {label:"Workspace",items:[
+      {id:"agents",icon:Bot,label:"Agents"},
+      ...(isViewer ? [] : [{id:"numbers",icon:Phone,label:"Phone Numbers"},{id:"knowledge",icon:BookOpen,label:"Knowledge Base"}] as any),
+      {id:"calendar",icon:Calendar,label:"Calendar"},
+      {id:"calls",icon:PhoneIncoming,label:"Call Logs"},
+      {id:"batch",icon:Radio,label:"Batch Calls"},
+      {id:"overview",icon:LayoutDashboard,label:"Overview"}
+    ]},
+    {label:"Resources",items:[{id:"calling",icon:PhoneCall,label:"Calling Config"},{id:"voices",icon:Mic2,label:"Voice Library"}]},
     ...(isViewer ? [] : [{label:"Admin",items:[{id:"settings",icon:Settings,label:"Settings"}, {id:"billing",icon:CreditCard,label:"Billing & Plans"}]} as any]),
   ];
 
