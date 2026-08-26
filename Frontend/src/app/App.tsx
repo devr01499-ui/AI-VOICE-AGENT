@@ -959,7 +959,7 @@ function base64ToFloat32(base64: string): Float32Array {
 
 // ── Agents ──
 type AgentView = "list"|"create"|"detail";
-function DashAgents({ session, profile, setApiAgents }: { session: Session | null; profile: ApiProfile | null; setApiAgents?: React.Dispatch<React.SetStateAction<ApiAgent[]>> }) {
+function DashAgents({ session, profile, setApiAgents, setStudioAgent }: { session: Session | null; profile: ApiProfile | null; setApiAgents?: React.Dispatch<React.SetStateAction<ApiAgent[]>>; setStudioAgent: React.Dispatch<React.SetStateAction<{ id?: string; name: string; systemPrompt?: string; flowGraph?: any } | null>> }) {
   const [agents, setAgents] = useState<AgentRow[]>(() => {
     try {
       const cached = localStorage.getItem('cache_agent_rows');
@@ -1748,40 +1748,8 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
     </div>
   );
 
-  // Full-screen Studio mode state
-  const [studioAgent, setStudioAgent] = useState<{ id?: string; name: string; systemPrompt?: string; flowGraph?: any } | null>(null);
   const [templateFilter, setTemplateFilter] = useState('All');
   const [showCreateMenu, setShowCreateMenu] = useState(false);
-
-  if (studioAgent) {
-    return (
-      <VisualFlowCanvas
-        agentName={studioAgent.name}
-        initialGraph={studioAgent.flowGraph}
-        legacySystemPrompt={studioAgent.systemPrompt}
-        onSave={async (compiledPrompt, flowGraph) => {
-          if (studioAgent.id && studioAgent.id.startsWith('a') === false) {
-            await updateAgent(studioAgent.id, {
-              systemPrompt: compiledPrompt,
-              flowGraph: flowGraph as any,
-            });
-            alert("Conversational flow graph published successfully!");
-          } else {
-            const created = await createAgent({
-              name: studioAgent.name,
-              agentType: 'conversational',
-              systemPrompt: compiledPrompt,
-              flowGraph: flowGraph as any,
-            });
-            alert("New conversational flow agent published to database!");
-          }
-          setStudioAgent(null);
-          loadAgents();
-        }}
-        onBack={() => setStudioAgent(null)}
-      />
-    );
-  }
 
   if (view==="create") return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -3981,6 +3949,7 @@ function DashConductor() {
 function DashboardPage({ session }: { session: Session }) {
   const [section, setSection] = useState<DashSection>("agents");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [studioAgent, setStudioAgent] = useState<{ id?: string; name: string; systemPrompt?: string; flowGraph?: any } | null>(null);
   const [profile, setProfile] = useState<ApiProfile | null>(() => {
     try {
       const cached = localStorage.getItem('cache_user_profile');
@@ -4006,6 +3975,36 @@ function DashboardPage({ session }: { session: Session }) {
       localStorage.setItem('cache_api_agents', JSON.stringify(data));
     }).catch(() => {});
   }, [session]);
+
+  if (studioAgent) {
+    return (
+      <VisualFlowCanvas
+        agentName={studioAgent.name}
+        initialGraph={studioAgent.flowGraph}
+        legacySystemPrompt={studioAgent.systemPrompt}
+        onSave={async (compiledPrompt, flowGraph) => {
+          if (studioAgent.id && !studioAgent.id.startsWith('a')) {
+            await updateAgent(studioAgent.id, {
+              systemPrompt: compiledPrompt,
+              flowGraph: flowGraph as any,
+            });
+            alert("Conversational flow graph published successfully!");
+          } else {
+            await createAgent({
+              name: studioAgent.name,
+              agentType: 'conversational',
+              systemPrompt: compiledPrompt,
+              flowGraph: flowGraph as any,
+            });
+            alert("New conversational flow agent published to database!");
+          }
+          setStudioAgent(null);
+          fetchAgents().then(setApiAgents).catch(() => {});
+        }}
+        onBack={() => setStudioAgent(null)}
+      />
+    );
+  }
 
   const isViewer = profile?.workspaceRole === 'viewer';
   const navGroups = [
@@ -4125,7 +4124,7 @@ function DashboardPage({ session }: { session: Session }) {
           <AnimatePresence mode="wait">
             <motion.div key={section} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0}} transition={{duration:0.18}}>
               {section==="overview"&&<DashOverview/>}
-              {section==="agents"&&<DashAgents session={session} profile={profile} setApiAgents={setApiAgents} />}
+              {section==="agents"&&<DashAgents session={session} profile={profile} setApiAgents={setApiAgents} setStudioAgent={setStudioAgent} />}
               {section==="calling"&&<DashCallingConfig/>}
               {section==="batch"&&<DashBatch/>}
               {section==="calls"&&<DashCallLogs/>}
