@@ -1748,93 +1748,189 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
     </div>
   );
 
+  // Full-screen Studio mode state
+  const [studioAgent, setStudioAgent] = useState<{ id?: string; name: string; systemPrompt?: string; flowGraph?: any } | null>(null);
+  const [templateFilter, setTemplateFilter] = useState('All');
+  const [showCreateMenu, setShowCreateMenu] = useState(false);
+
+  if (studioAgent) {
+    return (
+      <VisualFlowCanvas
+        agentName={studioAgent.name}
+        initialGraph={studioAgent.flowGraph}
+        legacySystemPrompt={studioAgent.systemPrompt}
+        onSave={async (compiledPrompt, flowGraph) => {
+          if (studioAgent.id && studioAgent.id.startsWith('a') === false) {
+            await updateAgent(studioAgent.id, {
+              systemPrompt: compiledPrompt,
+              flowGraph: flowGraph as any,
+            });
+            alert("Conversational flow graph published successfully!");
+          } else {
+            const created = await createAgent({
+              name: studioAgent.name,
+              agentType: 'conversational',
+              systemPrompt: compiledPrompt,
+              flowGraph: flowGraph as any,
+            });
+            alert("New conversational flow agent published to database!");
+          }
+          setStudioAgent(null);
+          loadAgents();
+        }}
+        onBack={() => setStudioAgent(null)}
+      />
+    );
+  }
+
   if (view==="create") return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <DBtn variant="ghost" size="sm" onClick={()=>setView("list")}><ChevronLeft className="w-4 h-4"/> Back</DBtn>
-        <p className="text-xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Create new agent</p>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {(["prompt","conversational"] as const).map(t=>(
-          <button key={t} onClick={()=>setCreateType(t)} className={`rounded-2xl p-6 text-left transition-all ${createType===t?"nm-pressed":"nm-raised hover:nm-pressed"}`}>
-            <div className="flex items-center gap-4 mb-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${createType===t?"nm-pressed":"nm-raised"}`}>{t==="prompt"?<Cpu className={`w-5 h-5 ${createType===t?"text-[var(--nm-accent)]":"text-[var(--nm-text)]"}`}/>:<MessageSquare className={`w-5 h-5 ${createType===t?"text-[var(--nm-accent)]":"text-[var(--nm-text)]"}`}/>}</div>
-              <div>
-                <p className="font-bold text-[var(--nm-text)] text-lg" style={{fontFamily:"'Outfit', sans-serif"}}>{t==="prompt"?"Prompt-based Agent":"Conversational Flow Agent"}</p>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--nm-accent)]">{t==="prompt"?"Single System Prompt":"Step-by-step visual canvas"}</span>
-              </div>
-            </div>
-            <p className="text-xs font-semibold text-[var(--nm-text)] leading-relaxed mb-3" style={{fontFamily:"'Outfit', sans-serif"}}>
-              {t==="prompt"
-                ? "You write one instruction prompt describing how the agent should behave. Best for simple, single-purpose agents (FAQ bot, appointment reminder)."
-                : "You build a visual flow of conversation steps and branches. Best for agents that need to follow a specific multi-step process (qualifying a lead, booking with multiple options, troubleshooting)."}
-            </p>
-            <div className="text-[11px] font-bold text-muted-foreground flex items-center gap-2 pt-2 border-t border-border/40">
-              <Sparkles className="w-3.5 h-3.5 text-[var(--nm-accent)] flex-shrink-0"/>
-              <span>{t==="prompt" ? "Inline Example: Customer Support FAQ & Telemetry fallback" : "Inline Example: Lead Qualify → Slot Select → Confirmation"}</span>
-            </div>
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-3xl w-full p-6 space-y-6 shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Create agent</h3>
+          <button onClick={() => setView("list")} className="p-1 text-slate-400 hover:text-slate-700">
+            <X className="w-5 h-5" />
           </button>
-        ))}
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="space-y-6">
-          <div className="nm-card space-y-5">
-            <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Basic configuration</p>
-            <DField label="Agent name"><DInput placeholder="e.g. Healthcare Scheduler" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></DField>
-            <DField label="Language"><DSelect value={form.lang} onChange={e=>setForm(f=>({...f,lang:e.target.value}))}><option>EN</option><option>EN, ES</option><option>EN, FR</option><option>EN, DE</option><option>ZH</option><option>HI</option><option>JA</option></DSelect></DField>
-            <DField label="Voice"><DSelect value={form.voice} onChange={e=>setForm(f=>({...f,voice:e.target.value}))}>{VOICES_SEED.map(v=><option key={v.id} value={v.id}>{v.name} ({v.accent}){v.provider==="clone"?" ★":""}</option>)}</DSelect></DField>
-            <DField label="Welcome message"><DInput placeholder="Hi! Thanks for calling. How can I help?" value={form.welcomeMsg} onChange={e=>setForm(f=>({...f,welcomeMsg:e.target.value}))}/></DField>
-            <DField label="End-call phrase" hint="Caller saying this gracefully ends the call."><DInput value={form.endPhrase} onChange={e=>setForm(f=>({...f,endPhrase:e.target.value}))}/></DField>
-          </div>
-          <div className="nm-card space-y-5">
-            <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>LLM parameters</p>
-            <DField label={`Temperature: ${form.temperature}`}><input type="range" min="0" max="1" step="0.1" value={form.temperature} onChange={e=>setForm(f=>({...f,temperature:e.target.value}))} className="w-full accent-[var(--nm-accent)]"/></DField>
-            <DField label={`Max turns: ${form.maxTurns}`}><input type="range" min="5" max="50" value={form.maxTurns} onChange={e=>setForm(f=>({...f,maxTurns:e.target.value}))} className="w-full accent-[var(--nm-accent)]"/></DField>
+        </div>
+
+        {/* Type Selection Cards (Snapshot 3) */}
+        <div className="space-y-2">
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type</p>
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              onClick={() => setCreateType('prompt')}
+              className={`p-4 rounded-xl border text-left transition-all ${
+                createType === 'prompt'
+                  ? 'border-indigo-500 bg-indigo-50/20 ring-2 ring-indigo-500/20'
+                  : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span className="p-1 rounded bg-emerald-100 text-emerald-700 font-bold text-xs">Prompt</span>
+                <span className="font-bold text-sm text-slate-800 dark:text-slate-200">Single prompt</span>
+              </div>
+              <p className="text-xs text-slate-500">Easy to start. Simple, free-form conversations.</p>
+            </button>
+
+            <button
+              onClick={() => setCreateType('conversational')}
+              className={`p-4 rounded-xl border text-left transition-all ${
+                createType === 'conversational'
+                  ? 'border-indigo-500 bg-indigo-50/20 ring-2 ring-indigo-500/20'
+                  : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span className="p-1 rounded bg-purple-100 text-purple-700 font-bold text-xs">Flow</span>
+                <span className="font-bold text-sm text-slate-800 dark:text-slate-200">Conversational flow</span>
+              </div>
+              <p className="text-xs text-slate-500">Production-ready, deterministic conversations.</p>
+            </button>
           </div>
         </div>
-        <div className="space-y-6">
-          {createType==="prompt" ? (
-            <div className="nm-card space-y-4">
-              <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>System prompt</p>
-              <DTextarea rows={14} placeholder={`You are a professional AI voice agent for Acme Corp.\n\nPersona:\n- Warm, clear, professional\n- Never rush the caller\n\nRules:\n- Verify identity before accessing account data\n- Escalate if caller is distressed\n- Keep responses concise\n\nEscalation triggers:\n"frustrated", "manager", "cancel" → offer transfer`} value={form.systemPrompt} onChange={e=>setForm(f=>({...f,systemPrompt:e.target.value}))}/>
-              <p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{form.systemPrompt.length} chars</p>
-            </div>
-          ) : (
-            <VisualFlowCanvas
-              agentName={form.name || "Conversational Flow Agent"}
-              legacySystemPrompt={form.systemPrompt}
-              onSave={(compiledPrompt, flowGraph) => {
-                setForm(f => ({
-                  ...f,
-                  systemPrompt: compiledPrompt,
-                  flowGraph,
-                }));
-                alert("Visual flow graph compiled and saved to agent draft!");
-              }}
-            />
-          )}
-          <div className="nm-card space-y-4">
-            <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Attach knowledge base</p>
-            <div className="space-y-3 max-h-40 overflow-y-auto">
-              {kbList.map(k=>(
-                <label key={k.id} className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={form.kb.includes(k.id)} onChange={e=>setForm(f=>({...f,kb:e.target.checked?[...f.kb,k.id]:f.kb.filter(id=>id!==k.id)}))} className="w-4 h-4"/>
-                  <span className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{k.name}</span><DBadge>{(k.sizeChars/1024).toFixed(1)} KB</DBadge>
-                </label>
+
+        {/* Template Filter Tabs (Snapshot 3) */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Templates</p>
+            <div className="flex gap-2 overflow-x-auto text-xs font-medium">
+              {['All', 'Receptionist', 'Outbound Sales & Reactivation', 'Appointment Booking', 'Lead Qualification', 'Customer Support'].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setTemplateFilter(cat)}
+                  className={`px-3 py-1 rounded-full transition-all ${
+                    templateFilter === cat ? 'bg-indigo-600 text-white font-bold' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  {cat}
+                </button>
               ))}
-              {kbList.length === 0 && (
-                <p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>No knowledge base documents uploaded yet.</p>
-              )}
             </div>
           </div>
+
+          {/* Template Cards Grid (Snapshot 3) */}
+          <div className="grid grid-cols-3 gap-3 max-h-64 overflow-y-auto p-1">
+            <button
+              onClick={() => {
+                if (createType === 'conversational') {
+                  setStudioAgent({ name: form.name || 'Conversation Flow Agent' });
+                } else {
+                  handleCreate();
+                }
+              }}
+              className="p-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 text-left transition-all bg-slate-50/50 dark:bg-slate-800/30 flex flex-col justify-between h-28"
+            >
+              <div className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold text-xs">+</div>
+              <div>
+                <p className="font-bold text-xs text-slate-800 dark:text-slate-200">Build from scratch</p>
+                <p className="text-[10px] text-slate-400">Start with a blank agent</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => {
+                const generatedPrompt = "You are an AI Sales Agent for Claritiy Voice. Qualify leads by asking for company size and budget.";
+                if (createType === 'conversational') {
+                  setStudioAgent({ name: 'Generated Sales Agent', systemPrompt: generatedPrompt });
+                } else {
+                  setForm(f => ({ ...f, name: 'Generated Sales Agent', systemPrompt: generatedPrompt }));
+                  handleCreate();
+                }
+              }}
+              className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-indigo-500 text-left transition-all bg-white dark:bg-slate-900 flex flex-col justify-between h-28"
+            >
+              <Sparkles className="w-5 h-5 text-purple-500" />
+              <div>
+                <p className="font-bold text-xs text-slate-800 dark:text-slate-200">Generate from prompt</p>
+                <p className="text-[10px] text-slate-400">Describe it, AI builds your agent</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => {
+                setStudioAgent({ name: 'Insurance Verification Caller' });
+              }}
+              className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-indigo-500 text-left transition-all bg-white dark:bg-slate-900 flex flex-col justify-between h-28"
+            >
+              <div className="flex gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+              </div>
+              <div>
+                <p className="font-bold text-xs text-slate-800 dark:text-slate-200 truncate">Insurance Verification Caller</p>
+                <p className="text-[10px] text-slate-400 line-clamp-2">Call to verify insurance details and coverage information.</p>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* Action Button */}
+        <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+          <button
+            onClick={() => setView("list")}
+            className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              if (createType === 'conversational') {
+                setStudioAgent({ name: form.name || 'Conversation Flow Agent' });
+              } else {
+                handleCreate();
+              }
+            }}
+            className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
+          >
+            Create agent
+          </button>
         </div>
       </div>
-      <div className="flex gap-3"><DBtn onClick={handleCreate}><Check className="w-4 h-4"/> Create agent</DBtn><DBtn variant="secondary" onClick={()=>setView("list")}>Cancel</DBtn></div>
     </div>
   );
 
   return (
-    <div className="space-y-4">
+    <div className="flex h-[calc(100vh-6rem)] overflow-hidden bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800">
       <ConfirmDeleteModal 
         open={deleteModal.open} 
         onClose={() => setDeleteModal({ open: false, id: '' })} 
@@ -1842,49 +1938,6 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
         title="Delete Agent" 
         message="Are you sure you want to delete this agent? It will be deleted forever." 
       />
-      {agentsLoading && <div className="text-xs text-muted-foreground py-2" style={{fontFamily:"'Outfit', sans-serif"}}>Loading agents…</div>}
-      {agentsError && <div className="text-xs text-red-500 py-2" style={{fontFamily:"'Outfit', sans-serif"}}>⚠ {agentsError}</div>}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex gap-3">
-          {(["all","prompt","conversational"] as const).map(f=>(
-            <button key={f} onClick={()=>setFilter(f)} className={`text-xs font-bold px-5 py-2.5 rounded-full transition-all ${filter===f?"nm-pressed text-[var(--nm-accent)]":"nm-raised text-[var(--nm-text)] hover:nm-pressed hover:text-[var(--nm-accent)]"}`} style={{fontFamily:"'Outfit', sans-serif"}}>{f==="all"?"All agents":f==="prompt"?"Prompt-based":"Conversational"}</button>
-          ))}
-        </div>
-        <DBtn onClick={()=>setView("create")}><Plus className="w-4 h-4"/> New agent</DBtn>
-      </div>
-      {filtered.length === 0 ? (
-        <div className="p-12 text-center nm-card">
-          <Bot className="w-10 h-10 text-[var(--nm-text)] mx-auto mb-4"/>
-          <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>You haven't created any agents yet</p>
-          <p className="text-sm font-bold text-[var(--nm-text)] mt-2 mb-6" style={{fontFamily:"'Outfit', sans-serif"}}>Create an agent to configure prompts, voice models, and start calling.</p>
-          <DBtn onClick={()=>setView("create")} size="sm"><Plus className="w-4 h-4"/> Create Agent</DBtn>
-        </div>
-      ) : (
-        <div className="nm-raised rounded-2xl overflow-hidden mt-6">
-          <table className="w-full">
-            <thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Agent","Type","Status","Calls","CSAT","Voice","Model",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>)}</tr></thead>
-            <tbody className="divide-y divide-transparent">
-              {filtered.map(a=>(
-              <tr key={a.id as string} className="hover:nm-pressed transition-all cursor-pointer">
-                <td className="px-5 py-4"><div className="flex items-center gap-4"><div className="w-10 h-10 nm-pressed rounded-full flex items-center justify-center flex-shrink-0">{a.type==="prompt"?<Cpu className="w-5 h-5 text-[var(--nm-accent)]"/>:<MessageSquare className="w-5 h-5 text-[var(--nm-accent)]"/>}</div><div><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{a.name as string}</p><p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{a.lang as string}</p></div></div></td>
-                <td className="px-5 py-4"><DBadge>{a.type==="prompt"?"Prompt":"Conversational"}</DBadge></td>
-                <td className="px-5 py-4"><div className="flex items-center gap-2"><SDot status={a.status as string}/><span className="text-sm font-bold text-[var(--nm-text)] capitalize" style={{fontFamily:"'Outfit', sans-serif"}}>{a.status as string}</span></div></td>
-                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{(a.calls as number).toLocaleString()}</td>
-                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{a.csat??"—"}</td>
-                <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{a.voice as string}</td>
-                <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{a.model as string}</td>
-                <td className="px-5 py-4">
-                  <div className="flex items-center gap-2">
-                    <DBtn size="sm" variant="ghost" onClick={async ()=>{
-                      try {
-                        const fullAgent = await fetchAgent(a.id as string);
-                        setSelected({
-                          ...a,
-                          systemPrompt: fullAgent.systemPrompt,
-                          systemVoice: fullAgent.systemVoice || fullAgent.voiceName,
-                          temperature: fullAgent.temperature,
-                        } as any);
-                        setView("detail");
                         setDetailTab("config");
                       } catch (err) {
                         console.error("Failed to load agent details", err);
@@ -3717,6 +3770,72 @@ class DashboardErrorBoundary extends React.Component<{ children: React.ReactNode
 }
 
 // ── Main DashboardPage ──
+// ── DashConductor AI Assistant (Retell Snapshot 1) ──
+function DashConductor() {
+  const [chatInput, setChatInput] = useState('');
+  return (
+    <div className="flex h-[calc(100vh-6rem)] overflow-hidden bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800">
+      {/* Sub-sidebar: Conductor History */}
+      <div className="w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex flex-col gap-4">
+        <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold text-sm">
+          <Sparkles className="w-4 h-4 text-purple-500" />
+          <span>Conductor History</span>
+        </div>
+        <div className="relative">
+          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input type="text" placeholder="Search chats" className="w-full pl-9 pr-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-xs focus:outline-none" />
+        </div>
+        <button className="w-full py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 text-slate-700 dark:text-slate-300">
+          <Plus className="w-3.5 h-3.5" /> New chat
+        </button>
+        <div className="flex-1 overflow-y-auto text-xs text-slate-400 p-2 text-center">
+          No past chat history
+        </div>
+      </div>
+
+      {/* Main Viewport: Good evening prompt box */}
+      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white dark:bg-slate-900 relative">
+        <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 font-semibold text-xs mb-4">
+          <Sparkles className="w-4 h-4" /> Conductor
+        </div>
+
+        <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-8">
+          Good evening, Rohit
+        </h2>
+
+        <div className="w-full max-w-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm space-y-4">
+          <textarea
+            rows={3}
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            placeholder="Ask Conductor to help you understand, build, debug, or improve anything in Retell."
+            className="w-full bg-transparent text-sm focus:outline-none resize-none text-slate-800 dark:text-slate-200"
+          />
+
+          <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700/60">
+            <div className="flex items-center gap-2">
+              <button className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500">
+                <Plus className="w-4 h-4" />
+              </button>
+              <button className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500">
+                <FileText className="w-4 h-4" />
+              </button>
+              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-md flex items-center gap-1">
+                ⚡ 3D
+              </span>
+            </div>
+
+            <button className="p-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700">
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main DashboardPage ──
 function DashboardPage({ session }: { session: Session }) {
   const [section, setSection] = useState<DashSection>("agents");
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -3748,36 +3867,89 @@ function DashboardPage({ session }: { session: Session }) {
 
   const isViewer = profile?.workspaceRole === 'viewer';
   const navGroups = [
-    // {label:"B2C",items:[{id:"companion",icon:Users,label:"AI Companion"}]},
-    {label:"Workspace",items:[
-      {id:"agents",icon:Bot,label:"Agents"},
-      ...(isViewer ? [] : [{id:"numbers",icon:Phone,label:"Phone Numbers"},{id:"knowledge",icon:BookOpen,label:"Knowledge Base"}] as any),
-      {id:"calendar",icon:Calendar,label:"Calendar"},
-      {id:"calls",icon:PhoneIncoming,label:"Call Logs"},
-      {id:"batch",icon:Radio,label:"Batch Calls"},
-      {id:"overview",icon:LayoutDashboard,label:"Overview"}
-    ]},
-    {label:"Resources",items:[{id:"calling",icon:PhoneCall,label:"Calling Config"},{id:"voices",icon:Mic2,label:"Voice Library"}]},
-    ...(isViewer ? [] : [{label:"Admin",items:[{id:"settings",icon:Settings,label:"Settings"}, {id:"billing",icon:CreditCard,label:"Billing & Plans"}]} as any]),
+    {
+      label: "BUILD",
+      items: [
+        { id: "agents", icon: Bot, label: "Agents" },
+        { id: "knowledge", icon: BookOpen, label: "Knowledge Base" },
+      ]
+    },
+    {
+      label: "DEPLOY",
+      items: [
+        { id: "numbers", icon: Phone, label: "Phone Numbers" },
+        { id: "batch", icon: Radio, label: "Batch Call" },
+      ]
+    },
+    {
+      label: "DATA",
+      items: [
+        { id: "calls", icon: PhoneIncoming, label: "Call History" },
+        { id: "chat_history", icon: MessageCircle, label: "Chat History" },
+        { id: "contacts", icon: Users, label: "Contacts" },
+      ]
+    },
+    {
+      label: "MONITOR",
+      items: [
+        { id: "overview", icon: LayoutDashboard, label: "Analytics" },
+        { id: "live_monitoring", icon: Radio, label: "Live Monitoring" },
+        { id: "qa", icon: ShieldCheck, label: "AI Quality Assurance" },
+        { id: "alerting", icon: Bell, label: "Alerting" },
+      ]
+    },
+    {
+      label: "SYSTEM",
+      items: [
+        { id: "calling", icon: Zap, label: "Integrations" },
+        { id: "billing", icon: CreditCard, label: "Billing" },
+        { id: "settings", icon: Settings, label: "Settings" },
+        { id: "conductor", icon: Sparkles, label: "Conductor AI" },
+      ]
+    }
   ];
 
-  const titles: Record<DashSection,string> = {overview:"Overview",agents:"Agents",calling:"Calling Configuration",batch:"Batch Calls",calls:"Call Logs",numbers:"Phone Numbers",knowledge:"Knowledge Base",voices:"Voice Library",calendar:"Calendar & Schedule",settings:"Settings",billing:"Billing & Plans",companion:"AI Companion"};
+  const titles: Record<string, string> = {
+    overview: "Analytics",
+    agents: "Agents",
+    calling: "Integrations",
+    batch: "Batch Calls",
+    calls: "Call History",
+    numbers: "Phone Numbers",
+    knowledge: "Knowledge Base",
+    voices: "Voice Library",
+    calendar: "Calendar & Schedule",
+    settings: "Settings",
+    billing: "Billing & Plans",
+    companion: "AI Companion",
+    chat_history: "Chat History",
+    contacts: "Contacts",
+    live_monitoring: "Live Monitoring",
+    qa: "AI Quality Assurance",
+    alerting: "Alerting",
+    conductor: "Conductor AI",
+  };
 
   return (
     <div className="flex h-screen nm-dashboard-container overflow-hidden">
       <div className={`${sidebarOpen?"w-52":"w-16"} flex-shrink-0 nm-raised flex flex-col transition-all duration-300 z-20`}>
         <div className="h-16 flex items-center px-4 justify-between">
-          {sidebarOpen&&<span className="text-xs font-bold tracking-widest text-[var(--nm-text)] ml-1" style={{fontFamily:"'Outfit', sans-serif"}}>DASHBOARD</span>}
+          {sidebarOpen && (
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded bg-indigo-600 text-white font-bold text-xs flex items-center justify-center">R</div>
+              <span className="text-xs font-bold text-[var(--nm-text)] truncate">Rohit's Workspace</span>
+            </div>
+          )}
           <button onClick={()=>setSidebarOpen(!sidebarOpen)} className="nm-icon-btn ml-auto"><Menu className="w-4 h-4"/></button>
         </div>
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-4">
           {navGroups.map(group=>(
             <div key={group.label}>
-              {sidebarOpen&&<p className="text-xs font-medium text-muted-foreground px-2 mb-1" style={{fontFamily:"'Outfit', sans-serif"}}>{group.label.toUpperCase()}</p>}
+              {sidebarOpen&&<p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 px-2 mb-1 tracking-wider">{group.label}</p>}
               <div className="space-y-0.5">
                 {group.items.map(item=>{
                   const Icon=item.icon; const active=section===item.id;
-                  return <button key={item.id} onClick={()=>setSection(item.id as DashSection)} title={!sidebarOpen?item.label:undefined} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all mb-2 ${active?"nm-pressed text-[var(--nm-accent)]":"hover:nm-raised text-[var(--nm-text)]"}`} style={{fontFamily:"'Outfit', sans-serif"}}><Icon className="w-4 h-4 flex-shrink-0" strokeWidth={active?2.5:2}/>{sidebarOpen&&<span className="truncate">{item.label}</span>}</button>;
+                  return <button key={item.id} onClick={()=>setSection(item.id as DashSection)} title={!sidebarOpen?item.label:undefined} className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all mb-1 ${active?"nm-pressed text-[var(--nm-accent)] font-bold":"hover:nm-raised text-[var(--nm-text)]"}`} style={{fontFamily:"'Outfit', sans-serif"}}><Icon className="w-4 h-4 flex-shrink-0" strokeWidth={active?2.5:2}/>{sidebarOpen&&<span className="truncate">{item.label}</span>}</button>;
                 })}
               </div>
             </div>
@@ -3787,7 +3959,7 @@ function DashboardPage({ session }: { session: Session }) {
           <div className="p-4 mt-auto flex flex-col gap-3">
             <div className="flex items-center gap-3 nm-raised p-2 rounded-xl">
               <div className="w-8 h-8 nm-pressed rounded-full flex items-center justify-center flex-shrink-0"><span className="text-sm text-[var(--nm-accent)] font-bold">{(profile?.fullName ?? profile?.email ?? 'U').charAt(0).toUpperCase()}</span></div>
-              <div className="min-w-0 flex-1"><p className="text-xs font-bold truncate" style={{fontFamily:"'Outfit', sans-serif"}}>{profile?.fullName ?? profile?.email ?? 'User'}</p><p className="text-xs font-medium text-[var(--nm-accent)]" style={{fontFamily:"'Outfit', sans-serif"}}>{profile?.billingBalance != null ? `$${profile.billingBalance}` : 'Growth'}</p></div>
+              <div className="min-w-0 flex-1"><p className="text-xs font-bold truncate" style={{fontFamily:"'Outfit', sans-serif"}}>{profile?.fullName ?? profile?.email ?? 'User'}</p><p className="text-[10px] font-medium text-[var(--nm-accent)] truncate">devr01499@gmail...</p></div>
             </div>
             <button 
               onClick={() => supabase.auth.signOut()} 
@@ -3801,7 +3973,7 @@ function DashboardPage({ session }: { session: Session }) {
       </div>
       <div className="flex-1 flex flex-col overflow-hidden relative z-0">
         <div className="nm-raised px-8 h-16 flex items-center justify-between flex-shrink-0 m-4 rounded-2xl">
-          <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{titles[section]}</p>
+          <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{titles[section] || "Dashboard"}</p>
           <div className="flex items-center gap-4">
             <NotificationBar />
             <button className="relative nm-icon-btn"><Bell className="w-4 h-4"/><span className="absolute top-1 right-1 w-2.5 h-2.5 bg-[var(--nm-error)] rounded-full"/></button>
@@ -3822,6 +3994,7 @@ function DashboardPage({ session }: { session: Session }) {
               {section==="settings"&&<DashSettings profile={profile} />}
               {section==="billing"&&<Pricing isDashboard />}
               {section==="companion"&&<DashCompanion session={session} setApiAgents={setApiAgents} />}
+              {section==="conductor"&&<DashConductor />}
             </motion.div>
           </AnimatePresence>
         </div>
