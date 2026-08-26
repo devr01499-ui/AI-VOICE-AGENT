@@ -1365,9 +1365,17 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
   async function performDelete(agentId: string) {
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(agentId);
     if (!isUuid) {
-      setAgents(prev => prev.filter(x => x.id !== agentId));
+      setAgents(prev => {
+        const updated = prev.filter(x => x.id !== agentId);
+        localStorage.setItem('cache_agent_rows', JSON.stringify(updated));
+        return updated;
+      });
       if (setApiAgents) {
-        setApiAgents(p => p.filter(a => a.id !== agentId));
+        setApiAgents(p => {
+          const updated = p.filter(a => a.id !== agentId);
+          localStorage.setItem('cache_api_agents', JSON.stringify(updated));
+          return updated;
+        });
       }
       return;
     }
@@ -1375,15 +1383,23 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
     try {
       const response = await apiClient.delete(`/api/v2/agents/${agentId}`);
       if (response.data?.success) {
-        setAgents(prev => prev.filter(x => x.id !== agentId));
+        setAgents(prev => {
+          const updated = prev.filter(x => x.id !== agentId);
+          localStorage.setItem('cache_agent_rows', JSON.stringify(updated));
+          return updated;
+        });
         if (setApiAgents) {
-          setApiAgents(p => p.filter(a => a.id !== agentId));
+          setApiAgents(p => {
+            const updated = p.filter(a => a.id !== agentId);
+            localStorage.setItem('cache_api_agents', JSON.stringify(updated));
+            return updated;
+          });
         }
       } else {
-        alert(`Failed to delete agent`);
+        alert(response.data?.error || `Failed to delete agent`);
       }
     } catch (err: any) {
-      alert(`Failed to delete agent: ${err.message}`);
+      alert(`Failed to delete agent: ${err?.response?.data?.error || err.message}`);
     }
   }
 
@@ -2155,8 +2171,34 @@ function DashCallLogs() {
   const totalPages = Math.ceil(calls.length / pageSize) || 1;
   const paginatedCalls = calls.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean, id: string }>({ open: false, id: '' });
+
+  async function performCallDelete(callId: string) {
+    try {
+      const response = await apiClient.delete(`/api/v2/calls/${callId}`);
+      if (response.data?.success) {
+        setLiveCalls(prev => {
+          const updated = prev.filter(c => c.id !== callId);
+          localStorage.setItem('cache_live_calls', JSON.stringify(updated));
+          return updated;
+        });
+      } else {
+        alert(response.data?.error || "Failed to delete call log");
+      }
+    } catch (err: any) {
+      alert("Failed to delete call log: " + (err?.response?.data?.error || err.message || String(err)));
+    }
+  }
+
   return (
     <div className="space-y-4">
+      <ConfirmDeleteModal 
+        open={deleteModal.open} 
+        onClose={() => setDeleteModal({ open: false, id: '' })} 
+        onConfirm={() => performCallDelete(deleteModal.id)} 
+        title="Delete Call Log" 
+        message="Are you sure you want to delete this call log? It will be removed permanently from the system." 
+      />
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--nm-text)]"/><DInput className="pl-10 w-56" placeholder="Search caller…"/></div>
@@ -2167,7 +2209,7 @@ function DashCallLogs() {
       </div>
       <div className="nm-raised rounded-2xl overflow-hidden mt-6">
         <table className="w-full">
-          <thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Caller","Agent","Duration","Result","Sentiment","Recording","Time",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>)}</tr></thead>
+          <thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Caller","Agent","Duration","Result","Sentiment","Recording","Time","Actions"].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>)}</tr></thead>
           <tbody className="divide-y divide-transparent">
             {paginatedCalls.map(c=>(
               <tr key={c.id} className="hover:nm-pressed transition-all">
@@ -2178,7 +2220,12 @@ function DashCallLogs() {
                 <td className="px-5 py-4 text-sm font-bold hidden lg:table-cell"><span className={c.sent==="Positive"?"text-emerald-500":c.sent==="Negative"?"text-[var(--nm-accent)]":"text-[var(--nm-text)]"} style={{fontFamily:"'Outfit', sans-serif"}}>{c.sent}</span></td>
                 <td className="px-5 py-4 hidden lg:table-cell">{c.rec?<DBtn size="sm" variant="ghost"><Play className="w-4 h-4"/></DBtn>:<span className="text-sm font-bold text-[var(--nm-text)]">—</span>}</td>
                 <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)] hidden md:table-cell" style={{fontFamily:"'Outfit', sans-serif"}}>{c.date}</td>
-                <td className="px-5 py-4"><DBtn size="sm" variant="ghost" onClick={()=>openTranscript(c.id)}><Eye className="w-4 h-4"/> Transcript</DBtn></td>
+                <td className="px-5 py-4">
+                  <div className="flex gap-2">
+                    <DBtn size="sm" variant="ghost" onClick={()=>openTranscript(c.id)}><Eye className="w-4 h-4"/> Transcript</DBtn>
+                    <DBtn size="sm" variant="ghost" onClick={() => setDeleteModal({ open: true, id: c.id })}><Trash2 className="w-4 h-4 text-red-400"/></DBtn>
+                  </div>
+                </td>
               </tr>
             ))}
             {paginatedCalls.length === 0 && (
@@ -2448,11 +2495,20 @@ function DashNumbers() {
 
   const [deleteModal, setDeleteModal] = useState<{ open: boolean, id: string }>({ open: false, id: '' });
   async function performDelete(id: string) {
-    setNumbers(prev => prev.filter(n => n.id !== id));
     try {
-      await apiClient.delete(`/api/v2/numbers/${id}`);
-    } catch (e) {
+      const response = await apiClient.delete(`/api/v2/numbers/${id}`);
+      if (response.data?.success) {
+        setNumbers(prev => {
+          const updated = prev.filter(n => n.id !== id);
+          localStorage.setItem('cache_user_numbers', JSON.stringify(updated));
+          return updated;
+        });
+      } else {
+        alert(response.data?.error || "Failed to delete phone number");
+      }
+    } catch (e: any) {
       console.error(e);
+      alert("Failed to delete phone number: " + (e?.response?.data?.error || e?.message || String(e)));
     }
   }
 
@@ -2709,11 +2765,16 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
   async function performDelete(id: string) {
     const previousDocs = [...docs];
     try {
-      setDocs(prev => prev.filter(d => d.id !== id));
+      setDocs(prev => {
+        const updated = prev.filter(d => d.id !== id);
+        localStorage.setItem('cache_kb_list', JSON.stringify(updated));
+        return updated;
+      });
       await deleteKBDocument(id);
     } catch (err) {
       console.error("Failed to delete document", err);
       setDocs(previousDocs);
+      localStorage.setItem('cache_kb_list', JSON.stringify(previousDocs));
       alert("Failed to delete document: " + (err instanceof Error ? err.message : String(err)));
     }
   }
