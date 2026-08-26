@@ -742,19 +742,103 @@ export default function VisualFlowCanvas({
                         </div>
                       )}
 
+                      {/* Conversation / SayMessage */}
+                      {(selectedNode.type === 'conversation' || selectedNode.type === 'sayMessage') && (
+                        <div>
+                          <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Speech Text Payload</label>
+                          <textarea
+                            rows={3}
+                            value={selectedNode.data.text || ''}
+                            onChange={(e) => updateSelectedNodeData({ text: e.target.value })}
+                            placeholder="What should the agent say?"
+                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none font-mono"
+                          />
+                        </div>
+                      )}
+
+                      {/* Ask Question */}
                       {selectedNode.type === 'askQuestion' && (
                         <div>
                           <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Question Prompt</label>
                           <textarea
                             rows={3}
                             value={selectedNode.data.question || selectedNode.data.text || ''}
-                            onChange={(e) => updateSelectedNodeData({ question: e.target.value })}
+                            onChange={(e) => updateSelectedNodeData({ question: e.target.value, text: e.target.value })}
                             placeholder="What should the agent ask the caller?"
                             className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none font-mono"
                           />
                         </div>
                       )}
 
+                      {/* Subagent */}
+                      {selectedNode.type === 'subagent' && (
+                        <div>
+                          <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Delegate Subagent Name</label>
+                          <input
+                            type="text"
+                            value={selectedNode.data.subagentName || ''}
+                            onChange={(e) => updateSelectedNodeData({ subagentName: e.target.value })}
+                            placeholder="e.g. Appointment Booking Subagent"
+                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                          />
+                        </div>
+                      )}
+
+                      {/* Function / Call Tool */}
+                      {(selectedNode.type === 'function' || selectedNode.type === 'callTool') && (
+                        <div className="space-y-3">
+                          <div>
+                            <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Tool / Function Name</label>
+                            <input
+                              type="text"
+                              value={selectedNode.data.toolName || ''}
+                              onChange={(e) => updateSelectedNodeData({ toolName: e.target.value })}
+                              placeholder="e.g. check_calendar_availability"
+                              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Webhook Endpoint URL</label>
+                            <input
+                              type="text"
+                              value={selectedNode.data.url || ''}
+                              onChange={(e) => updateSelectedNodeData({ url: e.target.value })}
+                              placeholder="https://api.yourdomain.com/webhook"
+                              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Call Transfer */}
+                      {selectedNode.type === 'transferCall' && (
+                        <div>
+                          <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Transfer Phone Number</label>
+                          <input
+                            type="text"
+                            value={selectedNode.data.targetNumber || ''}
+                            onChange={(e) => updateSelectedNodeData({ targetNumber: e.target.value })}
+                            placeholder="+18005550199"
+                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                          />
+                        </div>
+                      )}
+
+                      {/* Press Digit */}
+                      {selectedNode.type === 'pressDigit' && (
+                        <div>
+                          <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">DTMF Key Digit (0-9, *, #)</label>
+                          <input
+                            type="text"
+                            value={selectedNode.data.digit || ''}
+                            onChange={(e) => updateSelectedNodeData({ digit: e.target.value })}
+                            placeholder="e.g. 1"
+                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                          />
+                        </div>
+                      )}
+
+                      {/* Logic Split */}
                       {(selectedNode.type === 'logicSplit' || selectedNode.type === 'conditionBranch') && (
                         <div className="space-y-2">
                           <label className="font-semibold text-slate-600 dark:text-slate-400 block">Branching Variable</label>
@@ -768,28 +852,100 @@ export default function VisualFlowCanvas({
                         </div>
                       )}
 
-                      {selectedNode.type === 'transferCall' && (
+                      {/* Agent Transfer */}
+                      {selectedNode.type === 'agentTransfer' && (
                         <div>
-                          <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Target Phone Number</label>
+                          <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Specialist Agent Name</label>
                           <input
                             type="text"
-                            value={selectedNode.data.targetNumber || ''}
-                            onChange={(e) => updateSelectedNodeData({ targetNumber: e.target.value })}
-                            placeholder="+18005550199"
+                            value={selectedNode.data.agentName || ''}
+                            onChange={(e) => updateSelectedNodeData({ agentName: e.target.value })}
+                            placeholder="e.g. Tier-2 Technical Support"
                             className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
                           />
                         </div>
                       )}
 
-                      {(selectedNode.type === 'function' || selectedNode.type === 'callTool') && (
+                      {/* In-Call SMS */}
+                      {selectedNode.type === 'inCallSms' && (
                         <div>
-                          <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Tool / Function Name</label>
+                          <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">SMS Message Content</label>
+                          <textarea
+                            rows={3}
+                            value={selectedNode.data.smsBody || ''}
+                            onChange={(e) => updateSelectedNodeData({ smsBody: e.target.value })}
+                            placeholder="Here is your confirmation link: https://..."
+                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none font-mono"
+                          />
+                        </div>
+                      )}
+
+                      {/* Extract Variable */}
+                      {selectedNode.type === 'extractVariable' && (
+                        <div>
+                          <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Slot Variable Key</label>
                           <input
                             type="text"
-                            value={selectedNode.data.toolName || ''}
-                            onChange={(e) => updateSelectedNodeData({ toolName: e.target.value })}
-                            placeholder="e.g. check_calendar"
+                            value={selectedNode.data.variableKey || ''}
+                            onChange={(e) => updateSelectedNodeData({ variableKey: e.target.value })}
+                            placeholder="e.g. customer_date_of_birth"
                             className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                          />
+                        </div>
+                      )}
+
+                      {/* Code */}
+                      {selectedNode.type === 'code' && (
+                        <div>
+                          <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Inline Code Block</label>
+                          <textarea
+                            rows={4}
+                            value={selectedNode.data.codeSnippet || ''}
+                            onChange={(e) => updateSelectedNodeData({ codeSnippet: e.target.value })}
+                            placeholder="// return { next_node: 'node-3' }"
+                            className="w-full px-3 py-2 bg-slate-900 text-green-400 border border-slate-800 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none font-mono"
+                          />
+                        </div>
+                      )}
+
+                      {/* MCP */}
+                      {selectedNode.type === 'mcp' && (
+                        <div>
+                          <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">MCP Server Endpoint</label>
+                          <input
+                            type="text"
+                            value={selectedNode.data.mcpServer || ''}
+                            onChange={(e) => updateSelectedNodeData({ mcpServer: e.target.value })}
+                            placeholder="mcp://server.yourdomain.com"
+                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                          />
+                        </div>
+                      )}
+
+                      {/* Ending / EndCall */}
+                      {(selectedNode.type === 'ending' || selectedNode.type === 'endCall') && (
+                        <div>
+                          <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Goodbye Phrase</label>
+                          <input
+                            type="text"
+                            value={selectedNode.data.text || ''}
+                            onChange={(e) => updateSelectedNodeData({ text: e.target.value })}
+                            placeholder="Thank you for calling Claritiy Voice. Have a great day!"
+                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                          />
+                        </div>
+                      )}
+
+                      {/* Note */}
+                      {selectedNode.type === 'note' && (
+                        <div>
+                          <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Note Annotation Text</label>
+                          <textarea
+                            rows={3}
+                            value={selectedNode.data.noteText || ''}
+                            onChange={(e) => updateSelectedNodeData({ noteText: e.target.value })}
+                            placeholder="Annotation note for developers..."
+                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none font-mono"
                           />
                         </div>
                       )}
