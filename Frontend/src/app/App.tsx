@@ -5,6 +5,7 @@ import { Session } from "@supabase/supabase-js";
 import BillingGateway from './components/settings/BillingGateway';
 import { ApiKeyManagement } from './components/settings/ApiKeyManagement';
 import AgentConfigPanel from "./components/agents/AgentConfigPanel";
+import VisualFlowCanvas from "./components/agents/VisualFlowCanvas";
 import { DashCalendar } from "./components/calendar/CalendarOverview";
 import {
   fetchAgents, fetchAgent, fetchCalls, fetchProfile, createAgent, updateAgent, chatWithAgent,
@@ -1783,27 +1784,18 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
               <p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{form.systemPrompt.length} chars</p>
             </div>
           ) : (
-            <div className="nm-card space-y-5">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold" style={{fontFamily:"'Outfit', sans-serif"}}>Conversation flow</p>
-                <DBtn size="sm" variant="secondary" onClick={()=>setForm(f=>({...f,steps:[...f.steps,{id:`s${Date.now()}`,label:"New step",cond:""}]}))}><Plus className="w-3.5 h-3.5"/> Add step</DBtn>
-              </div>
-              <div className="space-y-2">
-                {form.steps.map((step,i)=>(
-                  <div key={step.id} className="flex items-start gap-2">
-                    <div className="flex flex-col items-center gap-0.5 mt-2 flex-shrink-0">
-                      <div className="w-5 h-5 rounded-full bg-foreground text-white flex items-center justify-center"><span className="text-xs" style={{fontFamily:"'Outfit', sans-serif"}}>{i+1}</span></div>
-                      {i<form.steps.length-1&&<div className="w-px h-4 bg-border"/>}
-                    </div>
-                    <div className="flex-1 space-y-1">
-                      <DInput placeholder="Step description" value={step.label} onChange={e=>setForm(f=>({...f,steps:f.steps.map(s=>s.id===step.id?{...s,label:e.target.value}:s)}))}/>
-                      <DInput placeholder="Condition (optional)" value={step.cond} onChange={e=>setForm(f=>({...f,steps:f.steps.map(s=>s.id===step.id?{...s,cond:e.target.value}:s)}))} className="text-xs"/>
-                    </div>
-                    <button onClick={()=>setForm(f=>({...f,steps:f.steps.filter(s=>s.id!==step.id)}))} className="p-1 text-muted-foreground hover:text-red-500 mt-1"><X className="w-3.5 h-3.5"/></button>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <VisualFlowCanvas
+              agentName={form.name || "Conversational Flow Agent"}
+              legacySystemPrompt={form.systemPrompt}
+              onSave={(compiledPrompt, flowGraph) => {
+                setForm(f => ({
+                  ...f,
+                  systemPrompt: compiledPrompt,
+                  flowGraph,
+                }));
+                alert("Visual flow graph compiled and saved to agent draft!");
+              }}
+            />
           )}
           <div className="nm-card space-y-4">
             <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Attach knowledge base</p>

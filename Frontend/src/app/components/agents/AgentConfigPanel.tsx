@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Sliders, Sparkles, MessageSquare, Bot, Settings2, Calendar } from "lucide-react";
 import { updateAgent, getCalendarStatus, getAuthToken, API_BASE } from "../../api";
 import ConversationalBuilder from "./ConversationalBuilder";
+import VisualFlowCanvas from "./VisualFlowCanvas";
 
 interface AgentConfigPanelProps {
   agent: any;
@@ -114,32 +115,44 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
         />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* CARD 1: Persona & Instructions */}
+      {/* CARD 1: Persona & Instructions or Visual Flow Canvas */}
       <div className="nm-card flex flex-col justify-between h-full">
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 nm-pressed rounded-xl flex items-center justify-center">
-              <MessageSquare className="w-5 h-5 text-[var(--nm-accent)]" />
-            </div>
-            <p className="text-base font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Figtree', sans-serif" }}>
-              Agent Instructions & Persona
-            </p>
-          </div>
-          <p className="text-sm font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Figtree', sans-serif" }}>
-            Define how the agent greets callers, answers questions, handles intent, and completes calls.
-          </p>
-          <textarea
-            rows={12}
-            value={prompt}
-            onChange={(e) => {
-              setPrompt(e.target.value);
-              triggerDebouncedSave({ systemPrompt: e.target.value });
+        {(agent.agentType === 'conversational' || agent.type === 'conversational') ? (
+          <VisualFlowCanvas
+            agentName={agent.name}
+            initialGraph={agent.flowGraph}
+            legacySystemPrompt={prompt}
+            onSave={(compiledPrompt, flowGraph) => {
+              setPrompt(compiledPrompt);
+              triggerDebouncedSave({ systemPrompt: compiledPrompt, flowGraph });
             }}
-            placeholder="You are a professional voice AI assistant..."
-            className="nm-input w-full p-5 text-sm resize-none h-64"
-            style={{ fontFamily: "'Figtree', sans-serif" }}
           />
-        </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 nm-pressed rounded-xl flex items-center justify-center">
+                <MessageSquare className="w-5 h-5 text-[var(--nm-accent)]" />
+              </div>
+              <p className="text-base font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Figtree', sans-serif" }}>
+                Agent Instructions & Persona
+              </p>
+            </div>
+            <p className="text-sm font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Figtree', sans-serif" }}>
+              Define how the agent greets callers, answers questions, handles intent, and completes calls.
+            </p>
+            <textarea
+              rows={12}
+              value={prompt}
+              onChange={(e) => {
+                setPrompt(e.target.value);
+                triggerDebouncedSave({ systemPrompt: e.target.value });
+              }}
+              placeholder="You are a professional voice AI assistant..."
+              className="nm-input w-full p-5 text-sm resize-none h-64"
+              style={{ fontFamily: "'Figtree', sans-serif" }}
+            />
+          </div>
+        )}
         <p className="text-[11px] font-bold text-[var(--nm-text)] italic mt-4" style={{ fontFamily: "'Figtree', sans-serif" }}>
           * Changes apply instantly to the next incoming/outbound call stream session.
         </p>
