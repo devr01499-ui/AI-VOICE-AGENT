@@ -2383,28 +2383,27 @@ function DashNumbers() {
 
   const submitKyc = async () => {
     try {
-      const res = await apiClient.post('/api/v2/kyc/submit', {
-        phoneNumberId: showKyc,
-        documentType: kycDocType,
-        documentData: 'base64_mock_data_here'
-      });
+      const res = await apiClient.post('/api/v2/kyc/initiate-session', {});
       if (res.data?.success) {
+        if (res.data.data?.redirectUrl) {
+          window.open(res.data.data.redirectUrl, '_blank');
+        }
         setKycStep(3);
         setKycStatus('pending');
-        pollKycStatus(showKyc!);
+        pollKycStatus();
       } else {
-        alert('KYC Submission failed');
+        alert(res.data?.error || 'KYC Session initiation failed');
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert('KYC Error');
+      alert(e?.response?.data?.error || e?.message || 'KYC Error');
     }
   };
 
-  const pollKycStatus = (id: string) => {
+  const pollKycStatus = () => {
     const interval = setInterval(async () => {
       try {
-        const res = await apiClient.get(`/api/v2/kyc/status/${id}`);
+        const res = await apiClient.get('/api/v2/kyc/status');
         if (res.data?.success) {
           const status = res.data.data.kycStatus;
           setKycStatus(status);

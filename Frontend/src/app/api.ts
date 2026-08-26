@@ -456,6 +456,6 @@ export const apiClient = {
 };
 
 export interface ApiTeamMember { id: string; ownerId: string; memberId: string; role: string; createdAt: string; member: { id: string; email: string; fullName: string; createdAt: string; }; }
-export async function fetchTeamMembers(): Promise<ApiTeamMember[]> { return await apiFetch('/team'); }
-export async function inviteTeamMember(email: string): Promise<ApiTeamMember> { return await apiFetch('/team/invite', { method: 'POST', body: JSON.stringify({ email }) }); }
-export async function removeTeamMember(memberId: string): Promise<void> { await apiFetch('/team/' + memberId, { method: 'DELETE' }); }
+export async function fetchTeamMembers(): Promise<ApiTeamMember[]> { return await apiFetch('/api/v2/team'); }
+export async function inviteTeamMember(email: string): Promise<ApiTeamMember> { return await apiFetch('/api/v2/team/invite', { method: 'POST', body: JSON.stringify({ email }) }); }
+export async function removeTeamMember(memberId: string): Promise<void> { await apiFetch('/api/v2/team/' + memberId, { method: 'DELETE' }); }
