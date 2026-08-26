@@ -25,7 +25,7 @@ import {
   Cpu, MessageSquare, Eye, EyeOff, Copy, RefreshCw, Trash2,
   Edit3, Download, Send, PlayCircle, PauseCircle, StopCircle,
   CheckCircle2, AlertCircle, Info, Star, Headphones, Wand2,
-  ChevronLeft, ChevronDown, Users, Key, Sliders, CreditCard, Calendar, Sparkles, ShieldCheck,
+  ChevronLeft, ChevronDown, Users, Key, Sliders, CreditCard, Calendar, Sparkles, ShieldCheck, MessageCircle,
 } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "./components/ui/popover";
 import Navbar from "./components/layout/Navbar";
