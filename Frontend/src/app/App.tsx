@@ -1000,7 +1000,7 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
               calls: 0,
               csat: null,
               lang: 'EN',
-              voice: a.voiceName ?? 'Nova',
+              voice: a.systemVoice || a.voiceName || 'Puck',
               model: a.model ?? 'gemini-2.5-flash',
               kb: assignedKbIds,
               numbers: [],
@@ -1032,7 +1032,7 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
   const [filter, setFilter] = useState<"all"|"prompt"|"conversational">("all");
   const [createType, setCreateType] = useState<"prompt"|"conversational">("prompt");
   const [detailTab, setDetailTab] = useState<"config"|"prompt"|"knowledge"|"calls">("config");
-  const [form, setForm] = useState({name:"",lang:"EN",voice:"Aoede",model:"claude-sonnet-4-6",systemPrompt:"",welcomeMsg:"",endPhrase:"goodbye",temperature:"0.7",maxTurns:"20",kb:[] as string[],steps:[{id:"s1",label:"Greet caller",cond:""},{id:"s2",label:"Verify identity",cond:"if account found"},{id:"s3",label:"Handle intent",cond:""}]});
+  const [form, setForm] = useState({name:"",lang:"EN",voice:"Aoede",model:"gemini-2.5-flash",systemPrompt:"",welcomeMsg:"",endPhrase:"goodbye",temperature:"0.7",maxTurns:"20",kb:[] as string[],steps:[{id:"s1",label:"Greet caller",cond:""},{id:"s2",label:"Verify identity",cond:"if account found"},{id:"s3",label:"Handle intent",cond:""}]});
   const [testCallStatus, setTestCallStatus] = useState<'idle'|'calling'|'done'|'error'>('idle');
   const [saveStatus, setSaveStatus] = useState<'idle'|'saving'|'done'|'error'>('idle');
 
@@ -2116,44 +2116,45 @@ function DashCallLogs() {
 
   function openTranscript(callId: string) {
     setTranscriptOpen(callId);
-    // Only fetch from API if it looks like a real UUID
     if (/^[0-9a-f-]{36}$/.test(callId)) {
       setTranscriptLoading(true);
       setTranscriptText([]);
       getCallTranscript(callId)
         .then((data) => {
           if (typeof data.transcript === 'string' && data.transcript.length > 0) {
-            // Parse the raw transcript string into turn objects
             const lines = data.transcript.split('\n').filter(Boolean);
             setTranscriptText(lines.map(l => ({ role: l.startsWith('Agent:') ? 'agent' : 'caller', text: l.replace(/^(Agent:|Caller:)\s*/, '') })));
           } else {
-            setTranscriptText(staticTranscript);
+            setTranscriptText([]);
           }
         })
-        .catch(() => setTranscriptText(staticTranscript))
+        .catch(() => setTranscriptText([]))
         .finally(() => setTranscriptLoading(false));
     } else {
-      setTranscriptText(staticTranscript);
+      setTranscriptText([]);
     }
   }
 
-  // Normalise live calls to the display shape; fall back to static if empty
-  const calls = liveCalls.length > 0
-    ? liveCalls.map(c => ({
-        id: c.id,
-        name: c.phoneNumber ?? 'Unknown caller',
-        number: c.phoneNumber ?? '—',
-        agent: c.agent?.name ?? '—',
-        dur: c.duration != null ? `${Math.floor(c.duration/60)}m ${c.duration%60}s` : '—',
-        result: c.status === 'completed' ? 'Resolved' : c.status === 'failed' ? 'Failed' : c.status === 'active' ? 'Active' : c.status,
-        sent: c.sentiment ?? 'N/A',
-        date: new Date(c.createdAt).toLocaleString(),
-        rec: !!c.recordingUrl,
-        recordingUrl: c.recordingUrl,
-        summary: c.summary,
-      }))
-    : STATIC_CALLS;
-  void callsLoading;
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
+  const calls = liveCalls.map(c => ({
+    id: c.id,
+    name: c.phoneNumber ?? 'Unknown caller',
+    number: c.phoneNumber ?? '—',
+    agent: c.agent?.name ?? '—',
+    dur: c.duration != null ? `${Math.floor(c.duration/60)}m ${c.duration%60}s` : '—',
+    result: c.status === 'completed' ? 'Resolved' : c.status === 'failed' ? 'Failed' : c.status === 'active' ? 'Active' : c.status,
+    sent: c.sentiment ?? 'N/A',
+    date: new Date(c.createdAt).toLocaleString(),
+    rec: !!c.recordingUrl,
+    recordingUrl: c.recordingUrl,
+    summary: c.summary,
+  }));
+
+  const totalPages = Math.ceil(calls.length / pageSize) || 1;
+  const paginatedCalls = calls.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -2168,7 +2169,7 @@ function DashCallLogs() {
         <table className="w-full">
           <thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Caller","Agent","Duration","Result","Sentiment","Recording","Time",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>)}</tr></thead>
           <tbody className="divide-y divide-transparent">
-            {calls.map(c=>(
+            {paginatedCalls.map(c=>(
               <tr key={c.id} className="hover:nm-pressed transition-all">
                 <td className="px-5 py-4"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.name}</p><p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.number}</p></td>
                 <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)] hidden md:table-cell" style={{fontFamily:"'Outfit', sans-serif"}}>{c.agent}</td>
@@ -2180,8 +2181,30 @@ function DashCallLogs() {
                 <td className="px-5 py-4"><DBtn size="sm" variant="ghost" onClick={()=>openTranscript(c.id)}><Eye className="w-4 h-4"/> Transcript</DBtn></td>
               </tr>
             ))}
+            {paginatedCalls.length === 0 && (
+              <tr>
+                <td colSpan={8} className="text-center py-12 text-sm text-[var(--nm-text)] font-bold">
+                  No call logs recorded yet.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
+        {calls.length > pageSize && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-transparent nm-pressed">
+            <span className="text-xs font-bold text-[var(--nm-text)]">
+              Showing Page {currentPage} of {totalPages} ({calls.length} total calls)
+            </span>
+            <div className="flex gap-2">
+              <DBtn size="sm" variant="secondary" disabled={currentPage === 1} onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}>
+                Previous
+              </DBtn>
+              <DBtn size="sm" variant="secondary" disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}>
+                Next
+              </DBtn>
+            </div>
+          </div>
+        )}
       </div>
       <DModal open={!!transcriptOpen} onClose={()=>{setTranscriptOpen(null);setTranscriptText([]);}} title={"Call transcript — " + calls.find(c=>c.id===transcriptOpen)?.name}>
         <div className="space-y-4">
@@ -2381,12 +2404,19 @@ function DashNumbers() {
     }
   };
 
+  const [kycRedirectUrl, setKycRedirectUrl] = useState<string | null>(null);
+
   const submitKyc = async () => {
     try {
       const res = await apiClient.post('/api/v2/kyc/initiate-session', {});
       if (res.data?.success) {
-        if (res.data.data?.redirectUrl) {
-          window.open(res.data.data.redirectUrl, '_blank');
+        const redirectUrl = res.data.data?.redirectUrl;
+        if (redirectUrl) {
+          setKycRedirectUrl(redirectUrl);
+          const win = window.open(redirectUrl, '_blank');
+          if (!win) {
+            console.warn("Popup blocked by browser. Direct fallback link displayed in modal.");
+          }
         }
         setKycStep(3);
         setKycStatus('pending');
@@ -3629,7 +3659,13 @@ class DashboardErrorBoundary extends React.Component<{ children: React.ReactNode
 function DashboardPage({ session }: { session: Session }) {
   const [section, setSection] = useState<DashSection>("agents");
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [profile, setProfile] = useState<ApiProfile | null>(null);
+  const [profile, setProfile] = useState<ApiProfile | null>(() => {
+    try {
+      const cached = localStorage.getItem('cache_user_profile');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return null;
+  });
   const [apiAgents, setApiAgents] = useState<ApiAgent[]>(() => {
     try {
       const cached = localStorage.getItem('cache_api_agents');
@@ -3639,7 +3675,10 @@ function DashboardPage({ session }: { session: Session }) {
   });
   
   useEffect(() => { 
-    fetchProfile().then(setProfile).catch(() => {}); 
+    fetchProfile().then(p => {
+      setProfile(p);
+      if (p) localStorage.setItem('cache_user_profile', JSON.stringify(p));
+    }).catch(() => {}); 
     fetchAgents().then(data => {
       setApiAgents(data);
       localStorage.setItem('cache_api_agents', JSON.stringify(data));

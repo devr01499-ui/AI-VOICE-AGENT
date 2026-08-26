@@ -36,8 +36,13 @@ export default function BillingGateway() {
     setSuccessMsg("");
     setErrorMsg("");
     try {
-      await updateBillingConfig(geminiKey || null);
-      setSuccessMsg("Gemini Live API Custom Key updated successfully.");
+      const trimmedKey = geminiKey.trim();
+      await updateBillingConfig(trimmedKey || null);
+      if (trimmedKey) {
+        setSuccessMsg("Gemini Live API Custom Key updated successfully.");
+      } else {
+        setSuccessMsg("Custom key removed. Workspace reverted to shared platform allowance.");
+      }
       setTimeout(() => setSuccessMsg(""), 4000);
     } catch (err) {
       setErrorMsg("Failed to write updated key to database. Confirm auth session.");
