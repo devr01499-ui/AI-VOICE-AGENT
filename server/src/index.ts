@@ -205,41 +205,18 @@ app.use(errorHandler);
 async function seedTestEnvironment() {
   const TEST_UUID = "1e69187e-82d5-4166-929f-4bbba90e5304";
   
-  console.log("CTO Audit: Running core system data rehydration checks...");
-  
   // Hydrate User Table
   await prisma.user.upsert({
     where: { id: TEST_UUID },
     update: {},
     create: {
       id: TEST_UUID,
-      email: "cto-test@claritiy.ai",
-      fullName: "Core Tester",
+      email: "devr01499@gmail.com",
+      fullName: "Rohit Kumar Sha",
       passwordHash: "secure_dev_password_hash",
       billingBalance: 1000.0
     }
   });
-
-  // Hydrate Agent Table
-  await prisma.agent.upsert({
-    where: { id: TEST_UUID },
-    update: {
-      name: "Claritiy HR Customer Support Screener",
-      systemPrompt: "You are Claritiy AI, a highly professional senior HR recruiter running a phone screening interview for a Customer Support role. Speak in a warm, friendly, smooth, and highly conversational tone, just like a supportive human interviewer. Pause naturally and wait for candidate responses. Never output markdown formatting or bullet points. Your screening flow consists of three distinct questions: 1. \"First, could you share a specific situation where you successfully resolved a conflict with a frustrated customer?\" 2. \"Second, how do you manage high call volumes while keeping a positive and warm tone throughout the day?\" 3. \"And finally, what are your expected salary bounds for this Customer Support position?\" Be polite, listen actively, and say \"uh-huh\" or \"got it\" when they finish speaking to show smooth, realistic turn-taking. If they talk over you, stop speaking immediately.",
-      voiceName: "Puck",
-      model: "models/gemini-2.5-flash-native-audio-latest"
-    },
-    create: {
-      id: TEST_UUID,
-      userId: TEST_UUID,
-      name: "Claritiy HR Customer Support Screener",
-      systemPrompt: "You are Claritiy AI, a highly professional senior HR recruiter running a phone screening interview for a Customer Support role. Speak in a warm, friendly, smooth, and highly conversational tone, just like a supportive human interviewer. Pause naturally and wait for candidate responses. Never output markdown formatting or bullet points. Your screening flow consists of three distinct questions: 1. \"First, could you share a specific situation where you successfully resolved a conflict with a frustrated customer?\" 2. \"Second, how do you manage high call volumes while keeping a positive and warm tone throughout the day?\" 3. \"And finally, what are your expected salary bounds for this Customer Support position?\" Be polite, listen actively, and say \"uh-huh\" or \"got it\" when they finish speaking to show smooth, realistic turn-taking. If they talk over you, stop speaking immediately.",
-      voiceName: "Puck",
-      model: "models/gemini-2.5-flash-native-audio-latest"
-    }
-  });
-  
-  console.log("CTO Audit: Test framework data entities seeded successfully.");
 }
 
 // ─── Server Bootstrap ────────────────────────────
@@ -283,25 +260,6 @@ async function bootstrap(): Promise<void> {
           billingBalance: 1000.0, // Seed 1000 credits
         }
       });
-      logger.info('Bolna Server: Seeded dev workspace user devr01499@gmail.com ✓');
-
-      // Seed default workspace phone number if missing
-      await prisma.phoneNumber.upsert({
-        where: { phoneNumber: '+12345678901' },
-        update: {},
-        create: {
-          id: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
-          phoneNumber: '+12345678901',
-          userId: '1e69187e-82d5-4166-929f-4bbba90e5304',
-          countryCode: 'US',
-          type: 'local',
-          telephonyProvider: 'vobiz',
-          capabilities: '["voice"]',
-          status: 'active',
-          monthlyCost: 1.0,
-        }
-      });
-      logger.info('Bolna Server: Seeded dev workspace phone number +12345678901 ✓');
     }
   } catch (err) {
     logger.error('Bolna Server: database connection failed — server running in degraded mode', {
