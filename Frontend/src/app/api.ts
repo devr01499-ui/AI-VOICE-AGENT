@@ -420,6 +420,10 @@ export async function fetchCalendarBatches(): Promise<any> {
   return apiFetch<any>('/api/v2/calendar/batches');
 }
 
+export async function getCalendarStatus(): Promise<{ connected?: boolean; email?: string }> {
+  return apiFetch<{ connected?: boolean; email?: string }>('/api/v2/calendar/status');
+}
+
 export async function fetchAnalyticsSummary(): Promise<any> {
   return apiFetch<any>('/api/v2/analytics/summary');
 }
