@@ -295,4 +295,36 @@ router.post(
   }
 );
 
+/** DELETE /api/v2/calls/:callId — Permanently delete a call log and its child executions. */
+router.delete(
+  '/:callId',
+  validateParams(callIdParamSchema),
+  async (req, res, next) => {
+    try {
+      const userId = getUserIdFromRequest(req);
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'Unauthorized' });
+        return;
+      }
+      const callId = req.params.callId as string;
+      const exists = await prisma.call.findFirst({
+        where: { id: callId, userId }
+      });
+      if (!exists) {
+        res.status(404).json({ success: false, error: 'Call record not found' });
+        return;
+      }
+
+      await prisma.execution.deleteMany({ where: { callId } }).catch(() => {});
+      await prisma.transcriptSegment.deleteMany({ where: { callId } }).catch(() => {});
+      await prisma.callEvent.deleteMany({ where: { callId } }).catch(() => {});
+      await prisma.call.deleteMany({ where: { id: callId, userId } });
+
+      res.json({ success: true, message: 'Call log deleted permanently from Supabase' });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 export default router;

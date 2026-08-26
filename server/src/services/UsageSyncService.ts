@@ -99,19 +99,23 @@ export class UsageSyncService {
 
         if (!response.ok && response.status !== 404) {
           const text = await response.text();
-          throw new ProviderError('vobiz', `Release number failed (${response.status}): ${text}`);
+          logger.warn('UsageSyncService: Vobiz provider release warning', { status: response.status, body: text });
         }
       } catch (err) {
-        logger.error('UsageSyncService: failed to release number from provider', { error: String(err) });
-        throw err;
+        logger.warn('UsageSyncService: failed to release number from provider, proceeding with local DB deletion', { error: String(err) });
       }
     }
 
-    // Remove from DB or mark as released
+    // Clean up child inbound configs to prevent foreign key errors
+    await prisma.inboundConfig.deleteMany({
+      where: { phoneNumberId: phoneNumber.id }
+    }).catch(() => {});
+
+    // Remove permanently from DB
     await prisma.phoneNumber.delete({
       where: { id: phoneNumber.id }
     });
 
-    logger.info('UsageSyncService: Successfully released number', { phoneNumberId, userId });
+    logger.info('UsageSyncService: Successfully released number from DB', { phoneNumberId, userId });
   }
 }

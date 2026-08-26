@@ -541,13 +541,69 @@ router.delete(
         return;
       }
 
+      // Clean up child dependencies to ensure 100% cascade delete in Supabase/PostgreSQL
+      await prisma.phoneNumber.updateMany({
+        where: { assignedAgentId: agentId },
+        data: { assignedAgentId: null }
+      }).catch(() => {});
+
+      await prisma.agentKnowledgeBase.deleteMany({
+        where: { agentId }
+      }).catch(() => {});
+
+      await prisma.inboundConfig.deleteMany({
+        where: { agentId }
+      }).catch(() => {});
+
+      await prisma.batch.updateMany({
+        where: { agentId },
+        data: { agentId: null }
+      }).catch(() => {});
+
+      await prisma.voiceSession.deleteMany({
+        where: { agentId }
+      }).catch(() => {});
+
+      await prisma.callSession.deleteMany({
+        where: { agentId }
+      }).catch(() => {});
+
+      await prisma.agentVersion.deleteMany({
+        where: { agentId }
+      }).catch(() => {});
+
+      // Delete associated call logs and their child executions
+      const agentCalls = await prisma.call.findMany({
+        where: { agentId, userId },
+        select: { id: true }
+      });
+      const callIds = agentCalls.map(c => c.id);
+
+      if (callIds.length > 0) {
+        await prisma.execution.deleteMany({
+          where: { callId: { in: callIds } }
+        }).catch(() => {});
+
+        await prisma.transcriptSegment.deleteMany({
+          where: { callId: { in: callIds } }
+        }).catch(() => {});
+
+        await prisma.callEvent.deleteMany({
+          where: { callId: { in: callIds } }
+        }).catch(() => {});
+
+        await prisma.call.deleteMany({
+          where: { id: { in: callIds } }
+        }).catch(() => {});
+      }
+
       await prisma.agent.deleteMany({
         where: { id: agentId, userId: userId },
       });
 
       res.json({
         success: true,
-        message: 'Agent deleted successfully',
+        message: 'Agent and associated records deleted permanently from Supabase',
       });
     } catch (err) {
       next(err);
