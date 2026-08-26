@@ -2383,28 +2383,27 @@ function DashNumbers() {
 
   const submitKyc = async () => {
     try {
-      const res = await apiClient.post('/api/v2/kyc/submit', {
-        phoneNumberId: showKyc,
-        documentType: kycDocType,
-        documentData: 'base64_mock_data_here'
-      });
+      const res = await apiClient.post('/api/v2/kyc/initiate-session', {});
       if (res.data?.success) {
+        if (res.data.data?.redirectUrl) {
+          window.open(res.data.data.redirectUrl, '_blank');
+        }
         setKycStep(3);
         setKycStatus('pending');
-        pollKycStatus(showKyc!);
+        pollKycStatus();
       } else {
-        alert('KYC Submission failed');
+        alert(res.data?.error || 'KYC Session initiation failed');
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert('KYC Error');
+      alert(e?.response?.data?.error || e?.message || 'KYC Error');
     }
   };
 
-  const pollKycStatus = (id: string) => {
+  const pollKycStatus = () => {
     const interval = setInterval(async () => {
       try {
-        const res = await apiClient.get(`/api/v2/kyc/status/${id}`);
+        const res = await apiClient.get('/api/v2/kyc/status');
         if (res.data?.success) {
           const status = res.data.data.kycStatus;
           setKycStatus(status);
@@ -3650,8 +3649,15 @@ function DashboardPage({ session }: { session: Session }) {
   const isViewer = profile?.workspaceRole === 'viewer';
   const navGroups = [
     // {label:"B2C",items:[{id:"companion",icon:Users,label:"AI Companion"}]},
-    {label:"Workspace",items:[{id:"agents",icon:Bot,label:"Agents"},{id:"overview",icon:LayoutDashboard,label:"Overview"},{id:"calling",icon:PhoneCall,label:"Calling Config"},{id:"batch",icon:Radio,label:"Batch Calls"},{id:"calls",icon:PhoneIncoming,label:"Call Logs"}]},
-    {label:"Resources",items:[...(isViewer ? [] : [{id:"numbers",icon:Phone,label:"Phone Numbers"},{id:"knowledge",icon:BookOpen,label:"Knowledge Base"},{id:"voices",icon:Mic2,label:"Voice Library"}] as any), {id:"calendar",icon:Calendar,label:"Calendar"}]},
+    {label:"Workspace",items:[
+      {id:"agents",icon:Bot,label:"Agents"},
+      ...(isViewer ? [] : [{id:"numbers",icon:Phone,label:"Phone Numbers"},{id:"knowledge",icon:BookOpen,label:"Knowledge Base"}] as any),
+      {id:"calendar",icon:Calendar,label:"Calendar"},
+      {id:"calls",icon:PhoneIncoming,label:"Call Logs"},
+      {id:"batch",icon:Radio,label:"Batch Calls"},
+      {id:"overview",icon:LayoutDashboard,label:"Overview"}
+    ]},
+    {label:"Resources",items:[{id:"calling",icon:PhoneCall,label:"Calling Config"},{id:"voices",icon:Mic2,label:"Voice Library"}]},
     ...(isViewer ? [] : [{label:"Admin",items:[{id:"settings",icon:Settings,label:"Settings"}, {id:"billing",icon:CreditCard,label:"Billing & Plans"}]} as any]),
   ];
 
