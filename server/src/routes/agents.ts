@@ -555,9 +555,8 @@ router.delete(
         where: { agentId }
       }).catch(() => {});
 
-      await prisma.batch.updateMany({
-        where: { agentId },
-        data: { agentId: null }
+      await prisma.batch.deleteMany({
+        where: { agentId }
       }).catch(() => {});
 
       await prisma.voiceSession.deleteMany({
