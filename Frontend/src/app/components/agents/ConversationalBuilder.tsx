@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, CheckCircle, ArrowRight } from "lucide-react";
+import { Send, Bot, User, CheckCircle, ArrowRight, AlertCircle } from "lucide-react";
 import { buildAgentConversation } from "../../api";
 
 interface ChatMessage {
@@ -89,25 +89,32 @@ export default function ConversationalBuilder({ onApply }: ConversationalBuilder
           </div>
         )}
 
-        {history.map((msg, i) => (
-          <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            {msg.role === 'model' && (
-              <div className="w-8 h-8 nm-pressed rounded-full flex-shrink-0 flex items-center justify-center mt-1">
-                <Bot className="w-4 h-4 text-[var(--nm-accent)]" />
+        {history.map((msg, i) => {
+          const isError = msg.role === 'model' && msg.content.startsWith('Error:');
+          return (
+            <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              {msg.role === 'model' && (
+                <div className={`w-8 h-8 nm-pressed rounded-full flex-shrink-0 flex items-center justify-center mt-1 ${isError ? 'bg-red-500/10' : ''}`}>
+                  {isError ? <AlertCircle className="w-4 h-4 text-red-500" /> : <Bot className="w-4 h-4 text-[var(--nm-accent)]" />}
+                </div>
+              )}
+              <div className={`p-4 rounded-2xl max-w-[80%] text-sm font-bold ${
+                isError 
+                  ? 'bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400' 
+                  : msg.role === 'user' 
+                  ? 'nm-raised text-[var(--nm-text)]' 
+                  : 'nm-pressed text-[var(--nm-text)]'
+              }`} style={{ fontFamily: "'Figtree', sans-serif" }}>
+                {msg.content}
               </div>
-            )}
-            <div className={`p-4 rounded-2xl max-w-[80%] text-sm font-bold ${
-              msg.role === 'user' ? 'nm-raised text-[var(--nm-text)]' : 'nm-pressed text-[var(--nm-text)]'
-            }`} style={{ fontFamily: "'Figtree', sans-serif" }}>
-              {msg.content}
+              {msg.role === 'user' && (
+                <div className="w-8 h-8 nm-pressed rounded-full flex-shrink-0 flex items-center justify-center mt-1">
+                  <User className="w-4 h-4 text-[var(--nm-text)]" />
+                </div>
+              )}
             </div>
-            {msg.role === 'user' && (
-              <div className="w-8 h-8 nm-pressed rounded-full flex-shrink-0 flex items-center justify-center mt-1">
-                <User className="w-4 h-4 text-[var(--nm-text)]" />
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
 
         {loading && (
           <div className="flex gap-3 justify-start">
