@@ -25,7 +25,7 @@ import {
   Cpu, MessageSquare, Eye, EyeOff, Copy, RefreshCw, Trash2,
   Edit3, Download, Send, PlayCircle, PauseCircle, StopCircle,
   CheckCircle2, AlertCircle, Info, Star, Headphones, Wand2,
-  ChevronLeft, ChevronDown, Users, Key, Sliders, CreditCard, Calendar,
+  ChevronLeft, ChevronDown, Users, Key, Sliders, CreditCard, Calendar, Sparkles, ShieldCheck,
 } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "./components/ui/popover";
 import Navbar from "./components/layout/Navbar";
@@ -1938,20 +1938,162 @@ function DashAgents({ session, profile, setApiAgents }: { session: Session | nul
         title="Delete Agent" 
         message="Are you sure you want to delete this agent? It will be deleted forever." 
       />
-                        setDetailTab("config");
-                      } catch (err) {
-                        console.error("Failed to load agent details", err);
-                      }
-                    }}><Edit3 className="w-3.5 h-3.5"/> Configure</DBtn>
-                    <DBtn size="sm" variant="danger" onClick={()=>handleDelete(a.id as string)}><Trash2 className="w-3.5 h-3.5"/> Delete</DBtn>
-                  </div>
-                </td>
+
+      {/* Sub-sidebar: All Agents / Folders (Snapshot 2) */}
+      <div className="w-56 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex flex-col gap-4">
+        <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold text-sm">
+          <Bot className="w-4 h-4 text-indigo-500" />
+          <span>All Agents</span>
+        </div>
+
+        <div className="space-y-1 pt-2 border-t border-slate-100 dark:border-slate-800">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">FOLDERS</p>
+          <button className="w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 flex items-center justify-between">
+            <span>Template Agents</span>
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content Area: Agents Table & Top Actions (Snapshot 2) */}
+      <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 overflow-hidden">
+        {/* Top Header Controls Bar */}
+        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <h3 className="font-bold text-base text-slate-800 dark:text-slate-100">All Agents</h3>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search..."
+                className="pl-9 pr-3 py-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none w-48"
+              />
+            </div>
+
+            <button className="px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+              Import
+            </button>
+
+            {/* Create an Agent Dropdown Button (Snapshot 2) */}
+            <div className="relative">
+              <button
+                onClick={() => setShowCreateMenu(!showCreateMenu)}
+                className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm flex items-center gap-1.5"
+              >
+                Create an Agent <ChevronDown className="w-3.5 h-3.5" />
+              </button>
+
+              {showCreateMenu && (
+                <div className="absolute right-0 mt-1 w-44 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-30 p-1 space-y-1 text-xs">
+                  <button
+                    onClick={() => {
+                      setShowCreateMenu(false);
+                      setCreateType('conversational');
+                      setView("create");
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-2"
+                  >
+                    <Bot className="w-4 h-4" /> Voice Agent
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowCreateMenu(false);
+                      setCreateType('prompt');
+                      setView("create");
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold flex items-center gap-2"
+                  >
+                    <MessageSquare className="w-4 h-4" /> Chat Agent
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Agents Table */}
+        <div className="flex-1 overflow-y-auto">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-semibold bg-slate-50/50 dark:bg-slate-900">
+                <th className="px-6 py-3 font-semibold">Agent Name</th>
+                <th className="px-6 py-3 font-semibold">Agent Type</th>
+                <th className="px-6 py-3 font-semibold">Voice</th>
+                <th className="px-6 py-3 font-semibold">Phone</th>
+                <th className="px-6 py-3 font-semibold">Edited by</th>
+                <th className="px-6 py-3 font-semibold text-right">Actions</th>
               </tr>
-            ))}
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+              {filtered.map((a) => (
+                <tr key={a.id as string} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                  <td className="px-6 py-4 font-bold text-slate-800 dark:text-slate-200">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-6 h-6 rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-600 flex items-center justify-center font-bold text-[10px]">
+                        {(a.name as string).charAt(0)}
+                      </div>
+                      <span>{a.name as string}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-[11px]">
+                      {a.type === 'conversational' ? 'Conversation Flow' : 'Single Prompt'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-slate-600 dark:text-slate-400 font-medium">
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-[10px] font-bold">
+                        {(a.voice as string || 'P').charAt(0)}
+                      </div>
+                      <span>{a.voice as string || 'Puck'}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-slate-500 font-mono text-[11px]">
+                    +91 (117) 136-8824
+                  </td>
+                  <td className="px-6 py-4 text-slate-400 text-[11px]">
+                    07/04/2026 • 15:08
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={async () => {
+                          const fullAgent = await fetchAgent(a.id as string);
+                          setStudioAgent({
+                            id: a.id as string,
+                            name: a.name as string,
+                            systemPrompt: fullAgent.systemPrompt,
+                            flowGraph: fullAgent.flowGraph,
+                          });
+                        }}
+                        className="px-3 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-semibold rounded-md hover:bg-indigo-100 transition-colors"
+                      >
+                        Edit Flow Studio
+                      </button>
+                      <button
+                        onClick={() => handleDelete(a.id as string)}
+                        className="p-1 text-slate-400 hover:text-rose-500 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="text-center py-12 text-slate-400 font-medium">
+                    No agents found in workspace. Click <strong>Create an Agent</strong> above to build one.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
-      )}
+      </div>
     </div>
   );
 }
