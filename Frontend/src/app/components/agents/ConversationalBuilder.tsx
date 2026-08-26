@@ -51,9 +51,10 @@ export default function ConversationalBuilder({ onApply }: ConversationalBuilder
       } else if (result.response) {
         setHistory([...newHistory, { role: "model" as const, content: result.response }]);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to build agent via AI", err);
-      setHistory([...newHistory, { role: "model" as const, content: "Sorry, I encountered an error. Please try again." }]);
+      const displayError = err?.message || "An unexpected error occurred. Please try again.";
+      setHistory([...newHistory, { role: "model" as const, content: `Error: ${displayError}` }]);
     } finally {
       setLoading(false);
     }

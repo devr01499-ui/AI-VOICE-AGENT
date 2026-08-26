@@ -82,14 +82,16 @@ router.post(
         return;
       }
 
-      if (!process.env.GEMINI_API_KEY) {
+      const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+      if (!apiKey) {
         res.status(500).json({ success: false, error: 'GEMINI_API_KEY is not configured on the server.' });
         return;
       }
 
-      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const modelName = process.env.GEMINI_BUILDER_MODEL || process.env.GEMINI_REALTIME_MODEL || 'gemini-2.0-flash';
       const model = genAI.getGenerativeModel({
-        model: "gemini-2.5-flash",
+        model: modelName,
         systemInstruction: `You are an expert AI Voice Agent Builder for 'Claritiy Voice'.
 Your goal is to gather requirements from the user and output a complete agent configuration JSON.
 To build a great voice agent, you need to know:
@@ -156,8 +158,8 @@ DO NOT wrap the JSON in markdown blocks. Output the raw JSON object string when 
       });
       return;
     } catch (error: any) {
-      logger.error("Error in conversational builder", { error: error?.message || String(error) });
-      res.status(500).json({ success: false, error: 'Failed to process request' });
+      logger.error("Error in conversational builder", { error: error?.message || String(error), stack: error?.stack });
+      res.status(500).json({ success: false, error: error?.message || 'Failed to process request' });
       return;
     }
   }
