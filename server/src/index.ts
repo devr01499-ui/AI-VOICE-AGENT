@@ -48,6 +48,7 @@ import calendarRoutes from './routes/calendar';
 import kycRoutes from './routes/kyc';
 import billingRoutes from './routes/billing';
 import telephonyRoutes from './routes/telephony';
+import conductorRoutes from './routes/conductor';
 import { requireAuthOrApiKey } from './middleware/authWrapper';
 
 // ─── Express App ─────────────────────────────────
@@ -185,6 +186,7 @@ app.use('/api/v2/contact', contactRoutes);
 app.use('/api/v2/kyc', kycRoutes);
 app.use('/api/v2/billing', requireAuth, billingRoutes);
 app.use('/api/v2/telephony', requireAuth, telephonyRoutes);
+app.use('/api/v2/conductor', requireAuth, conductorRoutes);
 
 // ─── 404 Handler ─────────────────────────────────
 

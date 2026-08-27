@@ -58,6 +58,7 @@ export interface ApiAgent {
   isRecordingEnabled?: boolean;
   isTranscriptionEnabled?: boolean;
   systemVoice?: string | null;
+  languageMode?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -85,7 +86,9 @@ export interface ApiProfile {
   geminiApiKey?: string | null;
   callingBalanceMinutes?: number | null;
   workspaceRole?: string;
+  accountType?: string;
 }
+
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -137,6 +140,18 @@ export function getAuthToken(): string | null {
     console.error("[getAuthToken Extraction Fault]:", error);
     return null;
   }
+}
+
+export async function getValidAuthToken(): Promise<string | null> {
+  let token: string | null = getAuthToken();
+  if (!token) {
+    const sessionResult = await supabase.auth.getSession().catch(() => null);
+    token = sessionResult?.data?.session?.access_token || null;
+  }
+  if (!token || token === 'undefined' || token === 'null' || token.startsWith('{')) {
+    return null;
+  }
+  return token;
 }
 
 async function apiFetch<T>(
@@ -368,6 +383,12 @@ export function getLiveTranscriptWsUrl(callId: string): string {
   return `${wsBase}/live-transcript?callId=${callId}`;
 }
 
+export function getSandboxTestWsUrl(agentId: string, token: string): string {
+  const wsBase = API_BASE.replace(/^http/, "ws");
+  return `${wsBase}/api/v2/sandbox/test-stream?agentId=${agentId}&token=${encodeURIComponent(token)}`;
+}
+
+
 export interface ApiKnowledgeBase {
   id: string;
   name: string;
@@ -408,10 +429,6 @@ export async function deleteKBDocument(id: string): Promise<void> {
   });
 }
 
-export async function fetchCompanionCalls(): Promise<any> {
-  return apiFetch<any>('/api/v2/calls/companion');
-}
-
 export async function fetchCalendarBookings(): Promise<any> {
   return apiFetch<any>('/api/v2/calendar/bookings');
 }
@@ -424,9 +441,6 @@ export async function getCalendarStatus(): Promise<{ connected?: boolean; email?
   return apiFetch<{ connected?: boolean; email?: string }>('/api/v2/calendar/status');
 }
 
-export async function fetchAnalyticsSummary(): Promise<any> {
-  return apiFetch<any>('/api/v2/analytics/summary');
-}
 
 export async function updateBillingConfig(geminiApiKey: string | null): Promise<any> {
   return apiFetch<any>('/api/v2/user/billing-config', {
@@ -459,3 +473,10 @@ export interface ApiTeamMember { id: string; ownerId: string; memberId: string; 
 export async function fetchTeamMembers(): Promise<ApiTeamMember[]> { return await apiFetch('/api/v2/team'); }
 export async function inviteTeamMember(email: string): Promise<ApiTeamMember> { return await apiFetch('/api/v2/team/invite', { method: 'POST', body: JSON.stringify({ email }) }); }
 export async function removeTeamMember(memberId: string): Promise<void> { await apiFetch('/api/v2/team/' + memberId, { method: 'DELETE' }); }
+
+export async function executeConductorPrompt(prompt: string, chatHistory?: any[]): Promise<{ reply: string; actionsExecuted?: any[]; error?: string; currentPlan?: string }> {
+  return apiFetch('/api/v2/conductor/execute', {
+    method: 'POST',
+    body: JSON.stringify({ prompt, chatHistory }),
+  });
+}
