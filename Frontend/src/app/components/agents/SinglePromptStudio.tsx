@@ -32,7 +32,7 @@ import {
   Layers,
   HelpCircle,
 } from 'lucide-react';
-import { apiClient, getLiveTranscriptWsUrl, fetchKBList, type ApiAgent, type ApiKnowledgeBase } from '../../api';
+import { apiClient, getSandboxTestWsUrl, getValidAuthToken, DEFAULT_AGENT_ID, fetchKBList, type ApiAgent, type ApiKnowledgeBase } from '../../api';
 
 interface SinglePromptStudioProps {
   initialAgent?: ApiAgent | null;
@@ -145,7 +145,12 @@ export default function SinglePromptStudio({
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       micStreamRef.current = stream;
 
-      const wsUrl = getLiveTranscriptWsUrl();
+      const token = await getValidAuthToken();
+      if (!token) {
+        throw new Error('Authentication token required for sandbox stream');
+      }
+      const targetAgentId = initialAgent?.id || DEFAULT_AGENT_ID;
+      const wsUrl = getSandboxTestWsUrl(targetAgentId, token);
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 

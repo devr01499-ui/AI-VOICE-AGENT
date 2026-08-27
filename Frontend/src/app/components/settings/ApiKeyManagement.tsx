@@ -46,7 +46,7 @@ export function ApiKeyManagement() {
         setNewKeyName('');
         await fetchKeys();
       } else {
-        alert(res.data?.error || 'Failed to generate API key');
+        alert((res.data as any)?.error || 'Failed to generate API key');
       }
     } catch (err: any) {
       alert(err?.response?.data?.error || 'Failed to generate API key');
@@ -63,8 +63,9 @@ export function ApiKeyManagement() {
       if (res.data?.success) {
         setKeys(keys.filter(k => k.id !== id));
       } else {
-        alert(res.data?.error || 'Failed to revoke API key');
+        alert((res.data as any)?.error || 'Failed to revoke API key');
       }
+
     } catch (err: any) {
       alert(err?.response?.data?.error || 'Failed to revoke API key');
     }

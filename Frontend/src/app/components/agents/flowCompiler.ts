@@ -2,7 +2,10 @@ export interface FlowNodeData {
   label: string;
   text?: string;
   question?: string;
+  prompt?: string;
   variable?: string;
+  variableName?: string;
+  instructions?: string;
   branches?: Array<{ condition: string; targetNodeId: string }>;
   targetNumber?: string;
   toolName?: string;
@@ -12,12 +15,15 @@ export interface FlowNodeData {
   mcpServer?: string;
   subagentName?: string;
   noteText?: string;
+  [key: string]: any;
 }
+
 
 export type FlowNodeType =
   | 'conversation'
   | 'sayMessage'
   | 'askQuestion'
+  | 'collectInput'
   | 'subagent'
   | 'callTool'
   | 'function'
@@ -34,6 +40,7 @@ export type FlowNodeType =
   | 'ending'
   | 'note'
   | 'checkCalendar';
+
 
 export interface FlowNode {
   id: string;
@@ -81,10 +88,15 @@ export function compileFlowToSystemPrompt(flow: FlowGraph, agentName: string = "
         break;
 
       case 'askQuestion':
-        prompt += `## STEP ${stepNum}: ${data.label || 'Collect Input'} [Type: Ask Question]\n`;
-        prompt += `- ACTION: Ask the caller:\n  "${data.question || data.text || ''}"\n`;
+      case 'collectInput':
+        prompt += `## STEP ${stepNum}: ${data.label || 'Collect Input'} [Type: Ask Question / Collect Input]\n`;
+        prompt += `- ACTION: Ask the caller:\n  "${data.question || data.prompt || data.text || ''}"\n`;
+        if (data.variable || data.variableName) {
+          prompt += `- VARIABLE: Store answer as '${data.variable || data.variableName}'\n`;
+        }
         prompt += `- WAIT: Listen to response, record intent/variables, and proceed.\n\n`;
         break;
+
 
       case 'subagent':
       case 'agentTransfer':

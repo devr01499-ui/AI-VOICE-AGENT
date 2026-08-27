@@ -606,7 +606,8 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
-type DashSection = "overview"|"agents"|"calling"|"batch"|"calls"|"numbers"|"knowledge"|"voices"|"calendar"|"settings"|"billing"|"companion";
+type DashSection = "overview"|"agents"|"calling"|"batch"|"calls"|"numbers"|"knowledge"|"voices"|"calendar"|"settings"|"billing"|"companion"|"chat_history"|"contacts"|"live_monitoring"|"qa"|"alerting"|"conductor";
+
 
 // Shared tiny helpers
 function DBadge({ children, v="neutral" }: { children: React.ReactNode; v?: "neutral"|"success"|"warning"|"error"|"info"|"dark" }) {
@@ -3892,9 +3893,113 @@ class DashboardErrorBoundary extends React.Component<{ children: React.ReactNode
 }
 
 // ── Main DashboardPage ──
-// ── DashConductor AI Assistant (Retell Snapshot 1) ──
-function DashConductor() {
+// ── DashConductor AI Autonomous Co-Worker (Retell Snapshot 1 + Enterprise Plan Gating) ──
+function DashConductor({ profile, setSection }: { profile?: ApiProfile | null; setSection?: (s: DashSection) => void }) {
   const [chatInput, setChatInput] = useState('');
+  const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; text: string; actions?: any[] }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [isEnterprise, setIsEnterprise] = useState(() => profile?.accountType === 'enterprise');
+
+  useEffect(() => {
+    if (profile) {
+      setIsEnterprise(profile.accountType === 'enterprise');
+    }
+  }, [profile]);
+
+  const handleSendPrompt = async () => {
+    if (!chatInput.trim() || loading) return;
+    const promptText = chatInput.trim();
+    setMessages(prev => [...prev, { role: 'user', text: promptText }]);
+    setChatInput('');
+    setLoading(true);
+
+    try {
+      const res = await executeConductorPrompt(promptText, messages);
+      if (res.error === 'ENTERPRISE_PLAN_REQUIRED') {
+        setIsEnterprise(false);
+        setMessages(prev => [
+          ...prev,
+          {
+            role: 'assistant',
+            text: '🔒 Conductor AI Autonomous Co-Worker is exclusively available on the Enterprise Plan.',
+          }
+        ]);
+      } else {
+        setMessages(prev => [
+          ...prev,
+          {
+            role: 'assistant',
+            text: res.reply || 'Conductor AI operation completed successfully.',
+            actions: res.actionsExecuted,
+          }
+        ]);
+      }
+    } catch (err: any) {
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          text: 'Conductor AI Execution Notice: To enable full autonomous workspace control, please upgrade to the Enterprise Plan.',
+        }
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Enterprise Access Lock Card (If not on Enterprise Plan) ──
+  if (!isEnterprise) {
+    return (
+      <div className="flex h-[calc(100vh-6rem)] overflow-hidden bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 items-center justify-center">
+        <div className="max-w-xl w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 text-center">
+          <div className="w-16 h-16 bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
+            <Sparkles className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-full">
+              👑 Enterprise Plan Exclusive
+            </div>
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+              Conductor AI Autonomous Co-Worker
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              Conductor AI takes complete root control of your voice workspace on your behalf.
+              It autonomously builds complex conversational flow agents, ingests Knowledge Base URLs, provisions SIP phone numbers, and runs analytics audits via natural language.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 text-left text-xs bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-300">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" /> Full Autonomous Dashboard Control
+            </div>
+            <div className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-300">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" /> Multi-Step Agent Auto-Builder
+            </div>
+            <div className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-300">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" /> Instant Document & URL Ingestion
+            </div>
+            <div className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-300">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" /> Unlimited SIP Trunk Provisioning
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <button
+              onClick={() => {
+                if (setSection) setSection('billing');
+              }}
+              className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-500/25 transition-all flex items-center justify-center gap-2"
+            >
+              <Sparkles className="w-4 h-4" /> Upgrade to Enterprise Plan ($2,999/mo)
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Full Enterprise Conductor AI Co-Worker View ──
   return (
     <div className="flex h-[calc(100vh-6rem)] overflow-hidden bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800">
       {/* Sub-sidebar: Conductor History */}
@@ -3907,49 +4012,136 @@ function DashConductor() {
           <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input type="text" placeholder="Search chats" className="w-full pl-9 pr-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-xs focus:outline-none" />
         </div>
-        <button className="w-full py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 text-slate-700 dark:text-slate-300">
+        <button
+          onClick={() => setMessages([])}
+          className="w-full py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 text-slate-700 dark:text-slate-300"
+        >
           <Plus className="w-3.5 h-3.5" /> New chat
         </button>
-        <div className="flex-1 overflow-y-auto text-xs text-slate-400 p-2 text-center">
-          No past chat history
+        <div className="flex-1 overflow-y-auto text-xs text-slate-400 p-2 space-y-2">
+          {messages.length === 0 ? (
+            <p className="text-center py-4">No past chat history</p>
+          ) : (
+            <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-lg font-medium text-slate-700 dark:text-slate-300 truncate">
+              Autonomous Session ({messages.length} msgs)
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Main Viewport: Good evening prompt box */}
-      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white dark:bg-slate-900 relative">
-        <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 font-semibold text-xs mb-4">
-          <Sparkles className="w-4 h-4" /> Conductor
+      {/* Main Viewport: Chat Feed or Hero Prompt */}
+      <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 relative overflow-hidden">
+        {/* Header */}
+        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 font-semibold text-xs">
+            <Sparkles className="w-4 h-4" /> Conductor AI Enterprise Co-Worker
+          </div>
+          <span className="px-2.5 py-1 bg-purple-100 text-purple-700 text-[10px] font-bold rounded-md flex items-center gap-1">
+            ⚡ 3D Active
+          </span>
         </div>
 
-        <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-8">
-          Good evening, Rohit
-        </h2>
-
-        <div className="w-full max-w-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm space-y-4">
-          <textarea
-            rows={3}
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            placeholder="Ask Conductor to help you understand, build, debug, or improve anything in Retell."
-            className="w-full bg-transparent text-sm focus:outline-none resize-none text-slate-800 dark:text-slate-200"
-          />
-
-          <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700/60">
-            <div className="flex items-center gap-2">
-              <button className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500">
-                <Plus className="w-4 h-4" />
-              </button>
-              <button className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500">
-                <FileText className="w-4 h-4" />
-              </button>
-              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-md flex items-center gap-1">
-                ⚡ 3D
-              </span>
+        {/* Message Feed / Hero View */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {messages.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto space-y-4">
+              <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center">
+                <Sparkles className="w-6 h-6" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                Good evening, {profile?.fullName || 'Rohit'}
+              </h2>
+              <p className="text-xs text-slate-400">
+                Ask Conductor AI to build voice agents, attach knowledge bases, or audit analytics on your behalf.
+              </p>
             </div>
+          ) : (
+            messages.map((m, idx) => (
+              <div
+                key={idx}
+                className={`flex gap-3 text-xs max-w-2xl ${
+                  m.role === 'user' ? 'ml-auto flex-row-reverse' : 'mr-auto'
+                }`}
+              >
+                <div
+                  className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[10px] flex-shrink-0 ${
+                    m.role === 'user'
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-purple-100 text-purple-700'
+                  }`}
+                >
+                  {m.role === 'user' ? 'U' : <Sparkles className="w-3.5 h-3.5" />}
+                </div>
+                <div className="space-y-2">
+                  <div
+                    className={`p-3 rounded-2xl leading-relaxed ${
+                      m.role === 'user'
+                        ? 'bg-indigo-600 text-white font-medium'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    {m.text}
+                  </div>
 
-            <button className="p-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700">
-              <ChevronRight className="w-4 h-4" />
-            </button>
+                  {m.actions && m.actions.length > 0 && (
+                    <div className="space-y-1">
+                      {m.actions.map((act: any, aIdx: number) => (
+                        <div
+                          key={aIdx}
+                          className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold rounded-lg flex items-center gap-2"
+                        >
+                          <Zap className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>Action Executed: {act.title}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+          {loading && (
+            <div className="flex items-center gap-2 text-xs text-purple-500 italic p-2">
+              <Sparkles className="w-4 h-4 animate-spin" /> Conductor AI executing dashboard actions...
+            </div>
+          )}
+        </div>
+
+        {/* Input Bar */}
+        <div className="p-4 border-t border-slate-100 dark:border-slate-800">
+          <div className="w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 space-y-2">
+            <textarea
+              rows={2}
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendPrompt();
+                }
+              }}
+              placeholder="Ask Conductor to build, edit, or manage anything in your dashboard..."
+              className="w-full bg-transparent text-xs focus:outline-none resize-none text-slate-800 dark:text-slate-200 font-medium"
+            />
+
+            <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700/60">
+              <div className="flex items-center gap-2">
+                <button className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500">
+                  <Plus className="w-4 h-4" />
+                </button>
+                <button className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500">
+                  <FileText className="w-4 h-4" />
+                </button>
+              </div>
+
+              <button
+                onClick={handleSendPrompt}
+                disabled={loading || !chatInput.trim()}
+                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all disabled:opacity-50"
+              >
+                Send <Send className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -3959,7 +4151,43 @@ function DashConductor() {
 
 // ── Main DashboardPage ──
 function DashboardPage({ session }: { session: Session }) {
-  const [section, setSection] = useState<DashSection>("agents");
+  const getInitialDashSection = (): DashSection => {
+    if (typeof window !== "undefined") {
+      const path = window.location.pathname;
+      if (path.startsWith("/dashboard/")) {
+        const sub = path.replace("/dashboard/", "").trim() as DashSection;
+        if (sub) return sub;
+      }
+    }
+    return "overview";
+  };
+
+  const [section, setSectionState] = useState<DashSection>(getInitialDashSection);
+
+  const setSection = (s: DashSection) => {
+    setSectionState(s);
+    if (typeof window !== "undefined") {
+      const targetPath = s === "overview" ? "/dashboard" : `/dashboard/${s}`;
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState(null, "", targetPath);
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (typeof window !== "undefined") {
+        const path = window.location.pathname;
+        if (path.startsWith("/dashboard")) {
+          const sub = path.replace(/^\/dashboard\/?/, "").trim() as DashSection;
+          setSectionState((sub as DashSection) || "overview");
+        }
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [studioAgent, setStudioAgent] = useState<{ id?: string; name: string; systemPrompt?: string; flowGraph?: any } | null>(null);
   const [singlePromptStudioAgent, setSinglePromptStudioAgent] = useState<{ id?: string; name: string; systemPrompt?: string; model?: string; voiceName?: string } | null>(null);
@@ -3988,6 +4216,7 @@ function DashboardPage({ session }: { session: Session }) {
       localStorage.setItem('cache_api_agents', JSON.stringify(data));
     }).catch(() => {});
   }, [session]);
+
 
   if (singlePromptStudioAgent) {
     return (
@@ -4172,7 +4401,7 @@ function DashboardPage({ session }: { session: Session }) {
               {section==="settings"&&<DashSettings profile={profile} />}
               {section==="billing"&&<Pricing isDashboard />}
               {section==="companion"&&<DashCompanion session={session} setApiAgents={setApiAgents} />}
-              {section==="conductor"&&<DashConductor />}
+              {section==="conductor"&&<DashConductor profile={profile} setSection={setSection} />}
             </motion.div>
           </AnimatePresence>
         </div>
