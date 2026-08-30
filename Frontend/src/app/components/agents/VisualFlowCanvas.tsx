@@ -84,9 +84,14 @@ const RetellNodeCard: React.FC<{
 );
 
 const nodeTypes = {
+  start: ({ data, selected }: any) => (
+    <RetellNodeCard title={data.label || 'Start Greeting'} icon={<MessageSquare className="w-3.5 h-3.5 text-blue-500" />} colorClass="bg-blue-50" selected={selected}>
+      <p className="line-clamp-2 italic">"{data.text || data.message || 'Call start greeting...'}"</p>
+    </RetellNodeCard>
+  ),
   conversation: ({ data, selected }: any) => (
     <RetellNodeCard title={data.label || 'Conversation'} icon={<MessageSquare className="w-3.5 h-3.5 text-blue-500" />} colorClass="bg-blue-50" selected={selected}>
-      <p className="line-clamp-2 italic">"{data.text || 'Welcome message speech payload...'}"</p>
+      <p className="line-clamp-2 italic">"{data.text || data.message || 'Welcome message speech payload...'}"</p>
     </RetellNodeCard>
   ),
   sayMessage: ({ data, selected }: any) => (
@@ -734,28 +739,14 @@ export default function VisualFlowCanvas({
                           />
                         </div>
 
-                        {(selectedNode.type === 'conversation' || selectedNode.type === 'sayMessage' || selectedNode.type === 'ending' || selectedNode.type === 'endCall') && (
+                        {(selectedNode.type === 'start' || selectedNode.type === 'conversation' || selectedNode.type === 'sayMessage' || selectedNode.type === 'ending' || selectedNode.type === 'endCall') && (
                           <div>
                             <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Speech Text Payload</label>
                             <textarea
                               rows={4}
-                              value={nodeData.text || ''}
-                              onChange={(e) => updateSelectedNodeData({ text: e.target.value })}
+                              value={nodeData.text || nodeData.message || ''}
+                              onChange={(e) => updateSelectedNodeData({ text: e.target.value, message: e.target.value })}
                               placeholder="Type what the agent should speak..."
-                              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none font-mono"
-                            />
-                          </div>
-                        )}
-
-                        {/* Conversation / SayMessage */}
-                        {(selectedNode.type === 'conversation' || selectedNode.type === 'sayMessage') && (
-                          <div>
-                            <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Speech Text Payload</label>
-                            <textarea
-                              rows={3}
-                              value={nodeData.text || ''}
-                              onChange={(e) => updateSelectedNodeData({ text: e.target.value })}
-                              placeholder="What should the agent say?"
                               className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none font-mono"
                             />
                           </div>

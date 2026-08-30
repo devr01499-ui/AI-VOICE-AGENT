@@ -757,9 +757,9 @@ const AGENT_TEMPLATES_SEED: AgentTemplate[] = [
     flowGraph: {
       schemaVersion: '1.0',
       nodes: [
-        { id: 'start-node', type: 'start', position: { x: 100, y: 100 }, data: { label: 'Call Start Greeting', message: 'Hello! Thank you for calling Claritiy Voice. How can I direct your call today?' } },
+        { id: 'start-node', type: 'conversation', position: { x: 100, y: 100 }, data: { label: 'Call Start Greeting', text: 'Hello! Thank you for calling Claritiy Voice. How can I direct your call today?' } },
         { id: 'collect-intent', type: 'collectInput', position: { x: 100, y: 250 }, data: { label: 'Route Intent', prompt: 'Are you calling for Sales, Support, or Billing?', variableName: 'department' } },
-        { id: 'end-node', type: 'endCall', position: { x: 100, y: 400 }, data: { label: 'Transfer & Wrap Up', message: 'Connecting you now. Please hold...' } }
+        { id: 'end-node', type: 'endCall', position: { x: 100, y: 400 }, data: { label: 'Transfer & Wrap Up', text: 'Connecting you now. Please hold...' } }
       ],
       edges: [
         { id: 'e1-2', source: 'start-node', target: 'collect-intent' },
@@ -785,9 +785,9 @@ const AGENT_TEMPLATES_SEED: AgentTemplate[] = [
     flowGraph: {
       schemaVersion: '1.0',
       nodes: [
-        { id: 'start-node', type: 'start', position: { x: 100, y: 100 }, data: { label: 'Sales Greeting', message: 'Hi! This is Alex from Claritiy Voice following up on your inquiry. Do you have 2 minutes?' } },
+        { id: 'start-node', type: 'conversation', position: { x: 100, y: 100 }, data: { label: 'Sales Greeting', text: 'Hi! This is Alex from Claritiy Voice following up on your inquiry. Do you have 2 minutes?' } },
         { id: 'qualify-node', type: 'collectInput', position: { x: 100, y: 250 }, data: { label: 'Ask Company Size', prompt: 'How many team members currently handle phone communications at your company?', variableName: 'teamSize' } },
-        { id: 'end-node', type: 'endCall', position: { x: 100, y: 400 }, data: { label: 'Book Demo & Goodbye', message: 'Great! I have reserved a demo spot for your team. Thank you!' } }
+        { id: 'end-node', type: 'endCall', position: { x: 100, y: 400 }, data: { label: 'Book Demo & Goodbye', text: 'Great! I have reserved a demo spot for your team. Thank you!' } }
       ],
       edges: [
         { id: 'e1-2', source: 'start-node', target: 'qualify-node' },
@@ -813,9 +813,9 @@ const AGENT_TEMPLATES_SEED: AgentTemplate[] = [
     flowGraph: {
       schemaVersion: '1.0',
       nodes: [
-        { id: 'start-node', type: 'start', position: { x: 100, y: 100 }, data: { label: 'Greeting', message: 'Hello! Thank you for calling Bright Dental. Would you like to book a dental checkup?' } },
+        { id: 'start-node', type: 'conversation', position: { x: 100, y: 100 }, data: { label: 'Greeting', text: 'Hello! Thank you for calling Bright Dental. Would you like to book a dental checkup?' } },
         { id: 'date-node', type: 'collectInput', position: { x: 100, y: 250 }, data: { label: 'Preferred Date', prompt: 'What date and preferred time works best for your appointment?', variableName: 'preferredDate' } },
-        { id: 'end-node', type: 'endCall', position: { x: 100, y: 400 }, data: { label: 'Confirm Booking', message: 'Your dental appointment is scheduled! You will receive an SMS reminder.' } }
+        { id: 'end-node', type: 'endCall', position: { x: 100, y: 400 }, data: { label: 'Confirm Booking', text: 'Your dental appointment is scheduled! You will receive an SMS reminder.' } }
       ],
       edges: [
         { id: 'e1-2', source: 'start-node', target: 'date-node' },
@@ -841,9 +841,9 @@ const AGENT_TEMPLATES_SEED: AgentTemplate[] = [
     flowGraph: {
       schemaVersion: '1.0',
       nodes: [
-        { id: 'start-node', type: 'start', position: { x: 100, y: 100 }, data: { label: 'Real Estate Greeting', message: 'Thanks for calling Premier Realty. Are you looking to buy or sell a property?' } },
+        { id: 'start-node', type: 'conversation', position: { x: 100, y: 100 }, data: { label: 'Real Estate Greeting', text: 'Thanks for calling Premier Realty. Are you looking to buy or sell a property?' } },
         { id: 'budget-node', type: 'collectInput', position: { x: 100, y: 250 }, data: { label: 'Ask Target Budget', prompt: 'What is your target budget range for your new home?', variableName: 'buyerBudget' } },
-        { id: 'end-node', type: 'endCall', position: { x: 100, y: 400 }, data: { label: 'Assign Agent', message: 'Thank you! A dedicated realtor will reach out with curated listings shortly.' } }
+        { id: 'end-node', type: 'endCall', position: { x: 100, y: 400 }, data: { label: 'Assign Agent', text: 'Thank you! A dedicated realtor will reach out with curated listings shortly.' } }
       ],
       edges: [
         { id: 'e1-2', source: 'start-node', target: 'budget-node' },
@@ -869,9 +869,9 @@ const AGENT_TEMPLATES_SEED: AgentTemplate[] = [
     flowGraph: {
       schemaVersion: '1.0',
       nodes: [
-        { id: 'start-node', type: 'start', position: { x: 100, y: 100 }, data: { label: 'Support Greeting', message: 'Welcome to Order Support! Please provide your 8-digit order number.' } },
+        { id: 'start-node', type: 'conversation', position: { x: 100, y: 100 }, data: { label: 'Support Greeting', text: 'Welcome to Order Support! Please provide your 8-digit order number.' } },
         { id: 'order-node', type: 'collectInput', position: { x: 100, y: 250 }, data: { label: 'Collect Order Number', prompt: 'What is your order number?', variableName: 'orderNumber' } },
-        { id: 'end-node', type: 'endCall', position: { x: 100, y: 400 }, data: { label: 'Status Update', message: 'Your package is currently in transit and scheduled for delivery tomorrow.' } }
+        { id: 'end-node', type: 'endCall', position: { x: 100, y: 400 }, data: { label: 'Status Update', text: 'Your package is currently in transit and scheduled for delivery tomorrow.' } }
       ],
       edges: [
         { id: 'e1-2', source: 'start-node', target: 'order-node' },
@@ -905,9 +905,9 @@ const AGENT_TEMPLATES_SEED: AgentTemplate[] = [
     flowGraph: {
       schemaVersion: '1.0',
       nodes: [
-        { id: 'start-node', type: 'start', position: { x: 100, y: 100 }, data: { label: 'Event Greeting', message: 'Welcome to the Claritiy Voice Summit Desk! Would you like to register for the upcoming keynote?' } },
+        { id: 'start-node', type: 'conversation', position: { x: 100, y: 100 }, data: { label: 'Event Greeting', text: 'Welcome to the Claritiy Voice Summit Desk! Would you like to register for the upcoming keynote?' } },
         { id: 'email-node', type: 'collectInput', position: { x: 100, y: 250 }, data: { label: 'Collect Email', prompt: 'Please speak your email address for ticket delivery.', variableName: 'attendeeEmail' } },
-        { id: 'end-node', type: 'endCall', position: { x: 100, y: 400 }, data: { label: 'Ticket Confirmed', message: 'Registration confirmed! Your pass has been sent to your inbox.' } }
+        { id: 'end-node', type: 'endCall', position: { x: 100, y: 400 }, data: { label: 'Ticket Confirmed', text: 'Registration confirmed! Your pass has been sent to your inbox.' } }
       ],
       edges: [
         { id: 'e1-2', source: 'start-node', target: 'email-node' },
