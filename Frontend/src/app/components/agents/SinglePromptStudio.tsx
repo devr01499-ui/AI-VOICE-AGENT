@@ -38,6 +38,7 @@ interface SinglePromptStudioProps {
   initialAgent?: ApiAgent | null;
   agentName?: string;
   onSave: (agentData: Record<string, any>) => void;
+  onEnsureSaved?: (agentData: Record<string, any>) => Promise<string>;
   onBack: () => void;
   kbList?: ApiKnowledgeBase[];
 }
@@ -46,9 +47,17 @@ export default function SinglePromptStudio({
   initialAgent,
   agentName: initialAgentName = 'Single-Prompt Agent',
   onSave,
+  onEnsureSaved,
   onBack,
   kbList: initialKbList = [],
 }: SinglePromptStudioProps) {
+  const [currentAgentId, setCurrentAgentId] = useState<string | undefined>(initialAgent?.id);
+
+  useEffect(() => {
+    if (initialAgent?.id) {
+      setCurrentAgentId(initialAgent.id);
+    }
+  }, [initialAgent?.id]);
   const [agentName, setAgentName] = useState(initialAgent?.name || initialAgentName);
   const [model, setModel] = useState(initialAgent?.model || 'gemini-2.5-flash');
   const [voice, setVoice] = useState(initialAgent?.voiceName || initialAgent?.systemVoice || 'Puck');
@@ -141,6 +150,43 @@ export default function SinglePromptStudio({
     setTestError(null);
     setTranscriptTurns([]);
 
+    const currentFormState = {
+      name: agentName,
+      agentType: 'prompt',
+      model,
+      voiceName: voice,
+      systemVoice: voice,
+      languageMode: language,
+      systemPrompt,
+      welcomeMessageMode,
+      customWelcomeText,
+      silenceStartEnabled,
+    };
+
+    let targetAgentId = currentAgentId || initialAgent?.id;
+    const isRealUuid = (id?: string) =>
+      Boolean(
+        id &&
+        !id.startsWith('a') &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+      );
+
+    if (!isRealUuid(targetAgentId)) {
+      if (!onEnsureSaved) {
+        setTestError("Couldn't prepare this agent for testing — please try again");
+        setTestStatus('error');
+        return;
+      }
+      try {
+        targetAgentId = await onEnsureSaved(currentFormState);
+        setCurrentAgentId(targetAgentId);
+      } catch (err: any) {
+        setTestError("Couldn't prepare this agent for testing — please try again");
+        setTestStatus('error');
+        return;
+      }
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       micStreamRef.current = stream;
@@ -149,7 +195,7 @@ export default function SinglePromptStudio({
       if (!token) {
         throw new Error('Authentication token required for sandbox stream');
       }
-      const targetAgentId = initialAgent?.id || DEFAULT_AGENT_ID;
+
       const wsUrl = getSandboxTestWsUrl(targetAgentId, token);
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
@@ -168,7 +214,7 @@ export default function SinglePromptStudio({
         ws.send(
           JSON.stringify({
             event: 'start',
-            agentId: initialAgent?.id || 'demo-single-prompt-agent',
+            agentId: targetAgentId,
             systemPrompt: systemPrompt,
             model: model,
             voiceName: voice,
