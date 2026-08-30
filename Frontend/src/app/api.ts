@@ -251,6 +251,66 @@ export async function createAgent(payload: CreateAgentPayload): Promise<ApiAgent
   });
 }
 
+export interface AgentExportEnvelope {
+  claritiyVoiceAgentExport: string;
+  exportedAt: string;
+  agent: {
+    name: string;
+    description?: string | null;
+    agentType?: string;
+    agentConfig?: any;
+    model?: string | null;
+    voiceName?: string | null;
+    systemVoice?: string | null;
+    languageMode?: string | null;
+    temperature?: number;
+    systemPrompt?: string | null;
+    tags?: string[];
+    flowGraph?: any;
+  };
+}
+
+/** Export an agent as a downloadable JSON file */
+export async function exportAgentAsJson(agentId: string): Promise<void> {
+  const agent = await fetchAgent(agentId);
+  const exportData: AgentExportEnvelope = {
+    claritiyVoiceAgentExport: "1.0",
+    exportedAt: new Date().toISOString(),
+    agent: {
+      name: agent.name,
+      description: agent.description ?? null,
+      agentType: agent.agentType || 'conversational',
+      agentConfig: agent.agentConfig || {},
+      model: agent.model ?? null,
+      voiceName: agent.voiceName ?? null,
+      systemVoice: agent.systemVoice ?? 'Puck',
+      languageMode: agent.languageMode ?? 'auto',
+      temperature: agent.temperature !== null && agent.temperature !== undefined ? Number(agent.temperature) : 0.7,
+      systemPrompt: agent.systemPrompt ?? null,
+      tags: Array.isArray(agent.tags) ? agent.tags : [],
+      flowGraph: agent.flowGraph ?? null,
+    },
+  };
+
+  const jsonStr = JSON.stringify(exportData, null, 2);
+  const blob = new Blob([jsonStr], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const sanitizedName = (agent.name || "agent").replace(/[^a-z0-9_-]/gi, "_").toLowerCase();
+  a.href = url;
+  a.download = `${sanitizedName}-export.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/** Import a sanitized agent payload to create a new draft agent */
+export async function importAgentFromJson(payload: Record<string, any>): Promise<ApiAgent> {
+  return createAgent(payload as any);
+}
+
+
 /** PUT /api/v2/agents/:agentId — Update an existing agent */
 export async function updateAgent(
   agentId: string,

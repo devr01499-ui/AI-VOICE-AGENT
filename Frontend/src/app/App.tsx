@@ -10,6 +10,7 @@ import SinglePromptStudio from "./components/agents/SinglePromptStudio";
 import { DashCalendar } from "./components/calendar/CalendarOverview";
 import {
   fetchAgents, fetchAgent, fetchCalls, fetchProfile, createAgent, updateAgent, chatWithAgent,
+  exportAgentAsJson, importAgentFromJson,
   initiateCall, getCallTranscript, getLiveTranscriptWsUrl,
   fetchKBList, uploadKBDocument, scrapeKBUrl, deleteKBDocument, fetchCalendarBatches,
   DEV_USER_ID, DEFAULT_AGENT_ID, API_BASE, apiClient,
@@ -1050,6 +1051,162 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
   const [sandboxError, setSandboxError] = useState<string | null>(null);
   const [sandboxLatency, setSandboxLatency] = useState<number | null>(null);
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [importStatus, setImportStatus] = useState<{ loading: boolean; error: string | null; success: string | null }>({ loading: false, error: null, success: null });
+  const [exportingId, setExportingId] = useState<string | null>(null);
+
+  const handleImportClick = () => {
+    setImportStatus({ loading: false, error: null, success: null });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportStatus({ loading: true, error: null, success: null });
+
+    // 1. File size limit check (2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      setImportStatus({
+        loading: false,
+        error: "File size exceeds 2MB limit. Please upload a valid Claritiy Voice export file.",
+        success: null,
+      });
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      let json: any;
+      try {
+        json = JSON.parse(text);
+      } catch {
+        setImportStatus({
+          loading: false,
+          error: "Failed to parse JSON file. Please ensure the file is valid JSON.",
+          success: null,
+        });
+        return;
+      }
+
+      // 2. Envelope validation check
+      if (!json || typeof json !== "object" || !json.claritiyVoiceAgentExport) {
+        setImportStatus({
+          loading: false,
+          error: "This doesn't look like a Claritiy Voice agent export file.",
+          success: null,
+        });
+        return;
+      }
+
+      // 3. Agent name validation check
+      const agent = json.agent;
+      if (!agent || typeof agent !== "object" || typeof agent.name !== "string" || !agent.name.trim()) {
+        setImportStatus({
+          loading: false,
+          error: "The file is missing a required agent name.",
+          success: null,
+        });
+        return;
+      }
+
+      // 4. Construct sanitized payload with allow-listed portable fields
+      const sanitizedPayload = {
+        name: agent.name.trim(),
+        description: typeof agent.description === 'string' ? agent.description : null,
+        agentType: agent.agentType === 'single-prompt' || agent.agentType === 'prompt' ? 'prompt' : 'conversational',
+        status: 'draft', // Always force draft status
+        agentConfig: typeof agent.agentConfig === 'object' && agent.agentConfig !== null ? agent.agentConfig : {},
+        model: typeof agent.model === 'string' ? agent.model : null,
+        voiceName: typeof agent.voiceName === 'string' ? agent.voiceName : null,
+        systemVoice: typeof agent.systemVoice === 'string' ? agent.systemVoice : 'Puck',
+        languageMode: typeof agent.languageMode === 'string' ? agent.languageMode : 'auto',
+        temperature: typeof agent.temperature === 'number' ? agent.temperature : (agent.temperature !== undefined ? Number(agent.temperature) : 0.7),
+        systemPrompt: typeof agent.systemPrompt === 'string' ? agent.systemPrompt : null,
+        tags: Array.isArray(agent.tags) ? agent.tags : [],
+        flowGraph: agent.flowGraph ? (typeof agent.flowGraph === 'string' ? agent.flowGraph : JSON.stringify(agent.flowGraph)) : null,
+      };
+
+      const newAgent = await importAgentFromJson(sanitizedPayload);
+
+      setImportStatus({
+        loading: false,
+        error: null,
+        success: `Successfully imported agent "${newAgent.name}"!`,
+      });
+
+      // Reload list and open newly created agent
+      loadAgents();
+
+      const newAgentRow: AgentRow = {
+        id: newAgent.id,
+        name: newAgent.name,
+        type: (newAgent.agentType === 'prompt' ? 'prompt' : 'conversational') as 'prompt' | 'conversational',
+        status: 'draft',
+        calls: 0,
+        csat: null,
+        lang: 'EN',
+        voice: newAgent.systemVoice || newAgent.voiceName || 'Puck',
+        model: newAgent.model ?? 'gemini-2.5-flash',
+        kb: [],
+        numbers: [],
+        created: newAgent.createdAt?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+      } as unknown as AgentRow;
+
+      if (newAgent.agentType === 'conversational' || newAgent.flowGraph) {
+        let parsedFlowGraph = null;
+        if (newAgent.flowGraph) {
+          try {
+            parsedFlowGraph = typeof newAgent.flowGraph === 'string' ? JSON.parse(newAgent.flowGraph) : newAgent.flowGraph;
+          } catch {
+            parsedFlowGraph = newAgent.flowGraph;
+          }
+        }
+        setStudioAgent({
+          id: newAgent.id,
+          name: newAgent.name,
+          systemPrompt: newAgent.systemPrompt ?? undefined,
+          flowGraph: parsedFlowGraph,
+        });
+      } else if (setSinglePromptStudioAgent) {
+        setSinglePromptStudioAgent({
+          id: newAgent.id,
+          name: newAgent.name,
+          systemPrompt: newAgent.systemPrompt ?? undefined,
+          model: newAgent.model ?? undefined,
+          voiceName: newAgent.voiceName ?? undefined,
+        });
+      }
+    } catch (err: any) {
+      console.error("[Agent Import Error]:", err);
+      setImportStatus({
+        loading: false,
+        error: err.message || "Failed to import agent. Please try again.",
+        success: null,
+      });
+    }
+  };
+
+  const handleExportAgent = async (agentId: string) => {
+    setExportingId(agentId);
+    try {
+      await exportAgentAsJson(agentId);
+    } catch (err: any) {
+      console.error("[Agent Export Error]:", err);
+      setImportStatus({
+        loading: false,
+        error: `Export failed: ${err.message || err}`,
+        success: null,
+      });
+    } finally {
+      setExportingId(null);
+    }
+  };
+
   const lastTestedAgentIdRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -1943,8 +2100,20 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
               />
             </div>
 
-            <button className="px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-              Import
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept="application/json"
+              className="hidden"
+            />
+            <button
+              onClick={handleImportClick}
+              disabled={importStatus.loading}
+              className="px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              {importStatus.loading ? "Importing..." : "Import"}
             </button>
 
             {/* Create an Agent Dropdown Button (Snapshot 2) */}
@@ -1984,6 +2153,30 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
             </div>
           </div>
         </div>
+
+        {/* Status Alerts for Agent Import/Export */}
+        {importStatus.error && (
+          <div className="mx-4 mt-3 p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg text-rose-700 dark:text-rose-300 text-xs flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+              <span>{importStatus.error}</span>
+            </div>
+            <button onClick={() => setImportStatus(prev => ({ ...prev, error: null }))} className="text-rose-500 hover:text-rose-700">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+        {importStatus.success && (
+          <div className="mx-4 mt-3 p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg text-emerald-700 dark:text-emerald-300 text-xs flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span>{importStatus.success}</span>
+            </div>
+            <button onClick={() => setImportStatus(prev => ({ ...prev, success: null }))} className="text-emerald-500 hover:text-emerald-700">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Agents Table */}
         <div className="flex-1 overflow-y-auto">
@@ -2053,6 +2246,15 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
                         className="px-3 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-semibold rounded-md hover:bg-indigo-100 transition-colors"
                       >
                         Edit Studio
+                      </button>
+                      <button
+                        onClick={() => handleExportAgent(a.id as string)}
+                        disabled={exportingId === a.id}
+                        title="Export Agent JSON"
+                        className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Export</span>
                       </button>
                       <button
                         onClick={() => handleDelete(a.id as string)}
