@@ -5186,7 +5186,7 @@ function DashboardPage({ session }: { session: Session }) {
         initialAgent={singlePromptStudioAgent as any}
         agentName={singlePromptStudioAgent.name}
         onSave={async (agentData) => {
-          if (singlePromptStudioAgent.id && !singlePromptStudioAgent.id.startsWith('a')) {
+          if (singlePromptStudioAgent.id && !singlePromptStudioAgent.id.startsWith('a') && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(singlePromptStudioAgent.id)) {
             await updateAgent(singlePromptStudioAgent.id, agentData as any);
             alert("Single-prompt agent saved successfully!");
           } else {
@@ -5198,6 +5198,18 @@ function DashboardPage({ session }: { session: Session }) {
           }
           setSinglePromptStudioAgent(null);
           fetchAgents().then(setApiAgents).catch(() => {});
+        }}
+        onEnsureSaved={async (agentData) => {
+          if (singlePromptStudioAgent.id && !singlePromptStudioAgent.id.startsWith('a') && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(singlePromptStudioAgent.id)) {
+            return singlePromptStudioAgent.id;
+          }
+          const created = await createAgent({
+            ...agentData,
+            agentType: 'prompt',
+          } as any);
+          setSinglePromptStudioAgent(prev => prev ? { ...prev, id: created.id } : prev);
+          fetchAgents().then(setApiAgents).catch(() => {});
+          return created.id;
         }}
         onBack={() => setSinglePromptStudioAgent(null)}
       />
