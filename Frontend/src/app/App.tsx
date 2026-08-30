@@ -736,6 +736,187 @@ const VOICES_SEED = [
   {id:"Mizar",name:"Mizar",gender:"Male",accent:"Warm, rich, professional",provider:"builtin",lang:"EN, HI"}
 ];
 
+export interface AgentTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: 'Receptionist' | 'Outbound Sales & Reactivation' | 'Appointment Booking' | 'Lead Qualification' | 'Customer Support';
+  type: 'prompt' | 'conversational';
+  systemPrompt: string;
+  flowGraph?: any;
+}
+
+const AGENT_TEMPLATES_SEED: AgentTemplate[] = [
+  {
+    id: 'tpl-1',
+    name: 'Front Desk Receptionist',
+    description: 'Greets callers, answers general inquiries, and routes calls to appropriate departments.',
+    category: 'Receptionist',
+    type: 'conversational',
+    systemPrompt: 'You are an AI Front Desk Receptionist for Claritiy Voice. Greet callers warmly, assist with common office questions, and route callers to sales, support, or billing.',
+    flowGraph: {
+      schemaVersion: '1.0',
+      nodes: [
+        { id: 'start-node', type: 'start', position: { x: 100, y: 100 }, data: { label: 'Call Start Greeting', message: 'Hello! Thank you for calling Claritiy Voice. How can I direct your call today?' } },
+        { id: 'collect-intent', type: 'collectInput', position: { x: 100, y: 250 }, data: { label: 'Route Intent', prompt: 'Are you calling for Sales, Support, or Billing?', variableName: 'department' } },
+        { id: 'end-node', type: 'endCall', position: { x: 100, y: 400 }, data: { label: 'Transfer & Wrap Up', message: 'Connecting you now. Please hold...' } }
+      ],
+      edges: [
+        { id: 'e1-2', source: 'start-node', target: 'collect-intent' },
+        { id: 'e2-3', source: 'collect-intent', target: 'end-node' }
+      ]
+    }
+  },
+  {
+    id: 'tpl-2',
+    name: 'Medical Clinic Receptionist',
+    description: 'Handles clinic caller greetings, patient inquiry intake, and clinic operating hours info.',
+    category: 'Receptionist',
+    type: 'prompt',
+    systemPrompt: 'You are a warm, professional Medical Clinic Assistant. Answer patient questions about office hours, location, accepted insurance, and direct urgent medical concerns to emergency services.'
+  },
+  {
+    id: 'tpl-3',
+    name: 'B2B Lead Qualifier & Setter',
+    description: 'Outbound sales agent that qualifies leads on team size and budget, then books demos.',
+    category: 'Outbound Sales & Reactivation',
+    type: 'conversational',
+    systemPrompt: 'You are an AI Sales Development Representative. Qualify prospects by asking for company size, current tech stack, and timeline before scheduling a live demo.',
+    flowGraph: {
+      schemaVersion: '1.0',
+      nodes: [
+        { id: 'start-node', type: 'start', position: { x: 100, y: 100 }, data: { label: 'Sales Greeting', message: 'Hi! This is Alex from Claritiy Voice following up on your inquiry. Do you have 2 minutes?' } },
+        { id: 'qualify-node', type: 'collectInput', position: { x: 100, y: 250 }, data: { label: 'Ask Company Size', prompt: 'How many team members currently handle phone communications at your company?', variableName: 'teamSize' } },
+        { id: 'end-node', type: 'endCall', position: { x: 100, y: 400 }, data: { label: 'Book Demo & Goodbye', message: 'Great! I have reserved a demo spot for your team. Thank you!' } }
+      ],
+      edges: [
+        { id: 'e1-2', source: 'start-node', target: 'qualify-node' },
+        { id: 'e2-3', source: 'qualify-node', target: 'end-node' }
+      ]
+    }
+  },
+  {
+    id: 'tpl-4',
+    name: 'Win-back & Churn Reactivation Agent',
+    description: 'Re-engages lapsed customers with special promotional offers to reactivate accounts.',
+    category: 'Outbound Sales & Reactivation',
+    type: 'prompt',
+    systemPrompt: 'You are a Customer Win-Back Specialist. Reach out to former subscribers, inquire about their past experience, and present a 20% discount offer to reactivate their subscription.'
+  },
+  {
+    id: 'tpl-5',
+    name: 'Dental Clinic Scheduler',
+    description: 'Schedules, reschedules, and sends reminders for routine dental checkups and cleanings.',
+    category: 'Appointment Booking',
+    type: 'conversational',
+    systemPrompt: 'You are a Dental Scheduler AI. Help patients select available appointment times for cleanings, consultations, or checkups.',
+    flowGraph: {
+      schemaVersion: '1.0',
+      nodes: [
+        { id: 'start-node', type: 'start', position: { x: 100, y: 100 }, data: { label: 'Greeting', message: 'Hello! Thank you for calling Bright Dental. Would you like to book a dental checkup?' } },
+        { id: 'date-node', type: 'collectInput', position: { x: 100, y: 250 }, data: { label: 'Preferred Date', prompt: 'What date and preferred time works best for your appointment?', variableName: 'preferredDate' } },
+        { id: 'end-node', type: 'endCall', position: { x: 100, y: 400 }, data: { label: 'Confirm Booking', message: 'Your dental appointment is scheduled! You will receive an SMS reminder.' } }
+      ],
+      edges: [
+        { id: 'e1-2', source: 'start-node', target: 'date-node' },
+        { id: 'e2-3', source: 'date-node', target: 'end-node' }
+      ]
+    }
+  },
+  {
+    id: 'tpl-6',
+    name: 'Home Services Booking Agent',
+    description: 'Schedules home inspection, HVAC repair, or plumbing service visits.',
+    category: 'Appointment Booking',
+    type: 'prompt',
+    systemPrompt: 'You are a Home Services Scheduling Assistant. Ask callers about their service needs (plumbing, HVAC, electrical), confirm their address, and schedule a technician visit.'
+  },
+  {
+    id: 'tpl-7',
+    name: 'Real Estate Inbound Qualifier',
+    description: 'Qualifies prospective home buyers on budget, desired location, and pre-approval status.',
+    category: 'Lead Qualification',
+    type: 'conversational',
+    systemPrompt: 'You are a Real Estate AI Assistant. Qualify property buyers on location preferences, target price range, and mortgage pre-approval status.',
+    flowGraph: {
+      schemaVersion: '1.0',
+      nodes: [
+        { id: 'start-node', type: 'start', position: { x: 100, y: 100 }, data: { label: 'Real Estate Greeting', message: 'Thanks for calling Premier Realty. Are you looking to buy or sell a property?' } },
+        { id: 'budget-node', type: 'collectInput', position: { x: 100, y: 250 }, data: { label: 'Ask Target Budget', prompt: 'What is your target budget range for your new home?', variableName: 'buyerBudget' } },
+        { id: 'end-node', type: 'endCall', position: { x: 100, y: 400 }, data: { label: 'Assign Agent', message: 'Thank you! A dedicated realtor will reach out with curated listings shortly.' } }
+      ],
+      edges: [
+        { id: 'e1-2', source: 'start-node', target: 'budget-node' },
+        { id: 'e2-3', source: 'budget-node', target: 'end-node' }
+      ]
+    }
+  },
+  {
+    id: 'tpl-8',
+    name: 'SaaS Free Trial Onboarding Agent',
+    description: 'Guides new trial users through key product features and identifies upgrade candidates.',
+    category: 'Lead Qualification',
+    type: 'prompt',
+    systemPrompt: 'You are a SaaS Product Onboarding Specialist. Welcome new trial users, ask about their primary use case, offer quick setup tips, and suggest premium plan features.'
+  },
+  {
+    id: 'tpl-9',
+    name: 'E-commerce Order Status & Returns',
+    description: 'Helps customers check order delivery status, tracking numbers, and initiate returns.',
+    category: 'Customer Support',
+    type: 'conversational',
+    systemPrompt: 'You are an E-commerce Customer Support Agent. Assist customers with order status lookups, tracking information, and return policy queries.',
+    flowGraph: {
+      schemaVersion: '1.0',
+      nodes: [
+        { id: 'start-node', type: 'start', position: { x: 100, y: 100 }, data: { label: 'Support Greeting', message: 'Welcome to Order Support! Please provide your 8-digit order number.' } },
+        { id: 'order-node', type: 'collectInput', position: { x: 100, y: 250 }, data: { label: 'Collect Order Number', prompt: 'What is your order number?', variableName: 'orderNumber' } },
+        { id: 'end-node', type: 'endCall', position: { x: 100, y: 400 }, data: { label: 'Status Update', message: 'Your package is currently in transit and scheduled for delivery tomorrow.' } }
+      ],
+      edges: [
+        { id: 'e1-2', source: 'start-node', target: 'order-node' },
+        { id: 'e2-3', source: 'order-node', target: 'end-node' }
+      ]
+    }
+  },
+  {
+    id: 'tpl-10',
+    name: 'Billing & Subscription Assistant',
+    description: 'Answers customer questions about monthly invoices, payment methods, and upgrades.',
+    category: 'Customer Support',
+    type: 'prompt',
+    systemPrompt: 'You are a Billing Support Specialist. Help users understand line items on their invoice, update payment methods, and explain billing cycle dates clearly and patiently.'
+  },
+  {
+    id: 'tpl-11',
+    name: 'After-Hours Urgent Support',
+    description: 'Provides 24/7 coverage for urgent technical issues and escalates critical tickets.',
+    category: 'Customer Support',
+    type: 'prompt',
+    systemPrompt: 'You are an After-Hours Technical Support Agent. Take down critical system outage details from callers and immediately log high-priority escalation tickets.'
+  },
+  {
+    id: 'tpl-12',
+    name: 'Event Registration Desk',
+    description: 'Registers attendees for upcoming conferences, webinars, or corporate workshops.',
+    category: 'Receptionist',
+    type: 'conversational',
+    systemPrompt: 'You are an Event Registration Assistant. Help callers register for upcoming events, verify ticket availability, and send confirmation emails.',
+    flowGraph: {
+      schemaVersion: '1.0',
+      nodes: [
+        { id: 'start-node', type: 'start', position: { x: 100, y: 100 }, data: { label: 'Event Greeting', message: 'Welcome to the Claritiy Voice Summit Desk! Would you like to register for the upcoming keynote?' } },
+        { id: 'email-node', type: 'collectInput', position: { x: 100, y: 250 }, data: { label: 'Collect Email', prompt: 'Please speak your email address for ticket delivery.', variableName: 'attendeeEmail' } },
+        { id: 'end-node', type: 'endCall', position: { x: 100, y: 400 }, data: { label: 'Ticket Confirmed', message: 'Registration confirmed! Your pass has been sent to your inbox.' } }
+      ],
+      edges: [
+        { id: 'e1-2', source: 'start-node', target: 'email-node' },
+        { id: 'e2-3', source: 'email-node', target: 'end-node' }
+      ]
+    }
+  }
+];
+
 // ── Overview ──
 function DashOverview() {
   const [apiAgents, setApiAgents] = useState<ApiAgent[]>([]);
@@ -1033,6 +1214,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
   const [view, setView] = useState<AgentView>("list");
   const [selected, setSelected] = useState<AgentRow|null>(null);
   const [filter, setFilter] = useState<"all"|"prompt"|"conversational">("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [createType, setCreateType] = useState<"prompt"|"conversational">("prompt");
   const [detailTab, setDetailTab] = useState<"config"|"prompt"|"knowledge"|"calls">("config");
   const [form, setForm] = useState({name:"",lang:"EN",voice:"Aoede",model:"gemini-2.5-flash",systemPrompt:"",welcomeMsg:"",endPhrase:"goodbye",temperature:"0.7",maxTurns:"20",kb:[] as string[],steps:[{id:"s1",label:"Greet caller",cond:""},{id:"s2",label:"Verify identity",cond:"if account found"},{id:"s3",label:"Handle intent",cond:""}]});
@@ -1610,7 +1792,14 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
     });
   }
 
-  const filtered = filter==="all" ? agents : agents.filter(a=>a.type===filter);
+  const filtered = useMemo(() => {
+    let list = filter === "all" ? agents : agents.filter(a => a.type === filter);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(a => ((a.name as string) || '').toLowerCase().includes(q));
+    }
+    return list;
+  }, [agents, filter, searchQuery]);
 
   if (view==="detail" && selected) return (
     <div className="space-y-6">
@@ -1908,153 +2097,173 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
   );
 
   const [templateFilter, setTemplateFilter] = useState('All');
-  const [showCreateMenu, setShowCreateMenu] = useState(false);
 
-  if (view==="create") return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-3xl w-full p-6 space-y-6 shadow-2xl animate-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Create agent</h3>
-          <button onClick={() => setView("list")} className="p-1 text-slate-400 hover:text-slate-700">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+  if (view === "create") {
+    const visibleTemplates = AGENT_TEMPLATES_SEED.filter(t => templateFilter === 'All' || t.category === templateFilter);
 
-        {/* Type Selection Cards (Snapshot 3) */}
-        <div className="space-y-2">
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type</p>
-          <div className="grid grid-cols-2 gap-4">
-            <button
-              onClick={() => setCreateType('prompt')}
-              className={`p-4 rounded-xl border text-left transition-all ${
-                createType === 'prompt'
-                  ? 'border-indigo-500 bg-indigo-50/20 ring-2 ring-indigo-500/20'
-                  : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
-              }`}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <span className="p-1 rounded bg-emerald-100 text-emerald-700 font-bold text-xs">Prompt</span>
-                <span className="font-bold text-sm text-slate-800 dark:text-slate-200">Single prompt</span>
-              </div>
-              <p className="text-xs text-slate-500">Easy to start. Simple, free-form conversations.</p>
-            </button>
-
-            <button
-              onClick={() => setCreateType('conversational')}
-              className={`p-4 rounded-xl border text-left transition-all ${
-                createType === 'conversational'
-                  ? 'border-indigo-500 bg-indigo-50/20 ring-2 ring-indigo-500/20'
-                  : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
-              }`}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <span className="p-1 rounded bg-purple-100 text-purple-700 font-bold text-xs">Flow</span>
-                <span className="font-bold text-sm text-slate-800 dark:text-slate-200">Conversational flow</span>
-              </div>
-              <p className="text-xs text-slate-500">Production-ready, deterministic conversations.</p>
+    return (
+      <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-3xl w-full p-6 space-y-6 shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Create agent</h3>
+            <button onClick={() => setView("list")} className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+              <X className="w-5 h-5" />
             </button>
           </div>
-        </div>
 
-        {/* Template Filter Tabs (Snapshot 3) */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Templates</p>
-            <div className="flex gap-2 overflow-x-auto text-xs font-medium">
-              {['All', 'Receptionist', 'Outbound Sales & Reactivation', 'Appointment Booking', 'Lead Qualification', 'Customer Support'].map((cat) => (
+          {/* Type Selection Cards */}
+          <div className="space-y-2">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type</p>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => setCreateType('prompt')}
+                className={`p-4 rounded-xl border text-left transition-all ${
+                  createType === 'prompt'
+                    ? 'border-indigo-500 bg-indigo-50/20 ring-2 ring-indigo-500/20'
+                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="p-1 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold text-xs">Prompt</span>
+                  <span className="font-bold text-sm text-slate-800 dark:text-slate-200">Single prompt</span>
+                </div>
+                <p className="text-xs text-slate-500">Easy to start. Simple, free-form conversations.</p>
+              </button>
+
+              <button
+                onClick={() => setCreateType('conversational')}
+                className={`p-4 rounded-xl border text-left transition-all ${
+                  createType === 'conversational'
+                    ? 'border-indigo-500 bg-indigo-50/20 ring-2 ring-indigo-500/20'
+                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="p-1 rounded bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-bold text-xs">Flow</span>
+                  <span className="font-bold text-sm text-slate-800 dark:text-slate-200">Conversational flow</span>
+                </div>
+                <p className="text-xs text-slate-500">Production-ready, deterministic conversations.</p>
+              </button>
+            </div>
+          </div>
+
+          {/* Template Filter Tabs */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Templates ({visibleTemplates.length})</p>
+              <div className="flex gap-2 overflow-x-auto text-xs font-medium">
+                {['All', 'Receptionist', 'Outbound Sales & Reactivation', 'Appointment Booking', 'Lead Qualification', 'Customer Support'].map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setTemplateFilter(cat)}
+                    className={`px-3 py-1 rounded-full transition-all shrink-0 ${
+                      templateFilter === cat ? 'bg-indigo-600 text-white font-bold' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Template Cards Grid */}
+            <div className="grid grid-cols-3 gap-3 max-h-64 overflow-y-auto p-1">
+              <button
+                onClick={() => {
+                  if (createType === 'conversational') {
+                    setStudioAgent({ name: form.name || 'Conversation Flow Agent' });
+                  } else if (setSinglePromptStudioAgent) {
+                    setSinglePromptStudioAgent({ name: form.name || 'Single-Prompt Agent' });
+                  }
+                }}
+                className="p-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 text-left transition-all bg-slate-50/50 dark:bg-slate-800/30 flex flex-col justify-between h-32"
+              >
+                <div className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold text-xs">+</div>
+                <div>
+                  <p className="font-bold text-xs text-slate-800 dark:text-slate-200">Build from scratch</p>
+                  <p className="text-[10px] text-slate-400">Start with a blank agent</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => {
+                  const generatedPrompt = "You are an AI Sales Agent for Claritiy Voice. Qualify leads by asking for company size and budget.";
+                  if (createType === 'conversational') {
+                    setStudioAgent({ name: 'Generated Sales Agent', systemPrompt: generatedPrompt });
+                  } else if (setSinglePromptStudioAgent) {
+                    setSinglePromptStudioAgent({ name: 'Generated Sales Agent', systemPrompt: generatedPrompt });
+                  }
+                }}
+                className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-indigo-500 text-left transition-all bg-white dark:bg-slate-900 flex flex-col justify-between h-32"
+              >
+                <Sparkles className="w-5 h-5 text-purple-500" />
+                <div>
+                  <p className="font-bold text-xs text-slate-800 dark:text-slate-200">Generate from prompt</p>
+                  <p className="text-[10px] text-slate-400">Describe it, AI builds your agent</p>
+                </div>
+              </button>
+
+              {visibleTemplates.map((tpl) => (
                 <button
-                  key={cat}
-                  onClick={() => setTemplateFilter(cat)}
-                  className={`px-3 py-1 rounded-full transition-all ${
-                    templateFilter === cat ? 'bg-indigo-600 text-white font-bold' : 'text-slate-500 hover:text-slate-800'
-                  }`}
+                  key={tpl.id}
+                  onClick={() => {
+                    if (tpl.type === 'conversational' || tpl.flowGraph) {
+                      setStudioAgent({
+                        name: tpl.name,
+                        systemPrompt: tpl.systemPrompt,
+                        flowGraph: tpl.flowGraph,
+                      });
+                    } else if (setSinglePromptStudioAgent) {
+                      setSinglePromptStudioAgent({
+                        name: tpl.name,
+                        systemPrompt: tpl.systemPrompt,
+                      });
+                    }
+                  }}
+                  className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-indigo-500 text-left transition-all bg-white dark:bg-slate-900 flex flex-col justify-between h-32"
                 >
-                  {cat}
+                  <div className="flex items-center justify-between gap-1">
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                      tpl.type === 'conversational' ? 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300' : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                    }`}>
+                      {tpl.type === 'conversational' ? 'Flow' : 'Prompt'}
+                    </span>
+                    <span className="text-[9px] text-slate-400 truncate max-w-[100px]">{tpl.category}</span>
+                  </div>
+                  <div>
+                    <p className="font-bold text-xs text-slate-800 dark:text-slate-200 truncate" title={tpl.name}>{tpl.name}</p>
+                    <p className="text-[10px] text-slate-400 line-clamp-2 mt-0.5" title={tpl.description}>{tpl.description}</p>
+                  </div>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Template Cards Grid (Snapshot 3) */}
-          <div className="grid grid-cols-3 gap-3 max-h-64 overflow-y-auto p-1">
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <button
+              onClick={() => setView("list")}
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 rounded-lg"
+            >
+              Cancel
+            </button>
             <button
               onClick={() => {
                 if (createType === 'conversational') {
                   setStudioAgent({ name: form.name || 'Conversation Flow Agent' });
-                } else {
-                  handleCreate();
+                } else if (setSinglePromptStudioAgent) {
+                  setSinglePromptStudioAgent({ name: form.name || 'Single-Prompt Agent' });
                 }
               }}
-              className="p-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 text-left transition-all bg-slate-50/50 dark:bg-slate-800/30 flex flex-col justify-between h-28"
+              className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
             >
-              <div className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold text-xs">+</div>
-              <div>
-                <p className="font-bold text-xs text-slate-800 dark:text-slate-200">Build from scratch</p>
-                <p className="text-[10px] text-slate-400">Start with a blank agent</p>
-              </div>
-            </button>
-
-            <button
-              onClick={() => {
-                const generatedPrompt = "You are an AI Sales Agent for Claritiy Voice. Qualify leads by asking for company size and budget.";
-                if (createType === 'conversational') {
-                  setStudioAgent({ name: 'Generated Sales Agent', systemPrompt: generatedPrompt });
-                } else {
-                  setForm(f => ({ ...f, name: 'Generated Sales Agent', systemPrompt: generatedPrompt }));
-                  handleCreate();
-                }
-              }}
-              className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-indigo-500 text-left transition-all bg-white dark:bg-slate-900 flex flex-col justify-between h-28"
-            >
-              <Sparkles className="w-5 h-5 text-purple-500" />
-              <div>
-                <p className="font-bold text-xs text-slate-800 dark:text-slate-200">Generate from prompt</p>
-                <p className="text-[10px] text-slate-400">Describe it, AI builds your agent</p>
-              </div>
-            </button>
-
-            <button
-              onClick={() => {
-                setStudioAgent({ name: 'Insurance Verification Caller' });
-              }}
-              className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-indigo-500 text-left transition-all bg-white dark:bg-slate-900 flex flex-col justify-between h-28"
-            >
-              <div className="flex gap-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                <span className="w-2 h-2 rounded-full bg-purple-500"></span>
-              </div>
-              <div>
-                <p className="font-bold text-xs text-slate-800 dark:text-slate-200 truncate">Insurance Verification Caller</p>
-                <p className="text-[10px] text-slate-400 line-clamp-2">Call to verify insurance details and coverage information.</p>
-              </div>
+              Create agent
             </button>
           </div>
         </div>
-
-        {/* Action Button */}
-        <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-          <button
-            onClick={() => setView("list")}
-            className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => {
-              if (createType === 'conversational') {
-                setStudioAgent({ name: form.name || 'Conversation Flow Agent' });
-              } else {
-                handleCreate();
-              }
-            }}
-            className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
-          >
-            Create agent
-          </button>
-        </div>
       </div>
-    </div>
-  );
+    );
+  }
 
   return (
     <div className="flex h-[calc(100vh-6rem)] overflow-hidden bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800">
@@ -2075,7 +2284,13 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
 
         <div className="space-y-1 pt-2 border-t border-slate-100 dark:border-slate-800">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">FOLDERS</p>
-          <button className="w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 flex items-center justify-between">
+          <button
+            onClick={() => {
+              setTemplateFilter("All");
+              setView("create");
+            }}
+            className="w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 flex items-center justify-between hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+          >
             <span>Template Agents</span>
             <Plus className="w-3.5 h-3.5" />
           </button>
@@ -2096,7 +2311,9 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
               <input
                 type="text"
                 placeholder="Search..."
-                className="pl-9 pr-3 py-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none w-48"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-3 py-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none w-48 text-slate-800 dark:text-slate-200"
               />
             </div>
 
@@ -2116,41 +2333,13 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
               {importStatus.loading ? "Importing..." : "Import"}
             </button>
 
-            {/* Create an Agent Dropdown Button (Snapshot 2) */}
-            <div className="relative">
-              <button
-                onClick={() => setShowCreateMenu(!showCreateMenu)}
-                className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm flex items-center gap-1.5"
-              >
-                Create an Agent <ChevronDown className="w-3.5 h-3.5" />
-              </button>
-
-              {showCreateMenu && (
-                <div className="absolute right-0 mt-1 w-44 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-30 p-1 space-y-1 text-xs">
-                  <button
-                    onClick={() => {
-                      setShowCreateMenu(false);
-                      setCreateType('conversational');
-                      setView("create");
-                    }}
-                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-2"
-                  >
-                    <Bot className="w-4 h-4" /> Voice Agent
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowCreateMenu(false);
-                      if (setSinglePromptStudioAgent) {
-                        setSinglePromptStudioAgent({ name: "Single-Prompt Agent" });
-                      }
-                    }}
-                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold flex items-center gap-2"
-                  >
-                    <MessageSquare className="w-4 h-4" /> Single Prompt Agent
-                  </button>
-                </div>
-              )}
-            </div>
+            {/* Direct Create an Agent Button */}
+            <button
+              onClick={() => setView("create")}
+              className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm flex items-center gap-1.5 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" /> Create an Agent
+            </button>
           </div>
         </div>
 
@@ -2269,7 +2458,16 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={6} className="text-center py-12 text-slate-400 font-medium">
-                    No agents found in workspace. Click <strong>Create an Agent</strong> above to build one.
+                    {searchQuery.trim() ? (
+                      <div>
+                        <p>No agents match your search "<strong>{searchQuery}</strong>".</p>
+                        <button onClick={() => setSearchQuery('')} className="mt-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+                          Clear search
+                        </button>
+                      </div>
+                    ) : (
+                      <span>No agents found in workspace. Click <strong>Create an Agent</strong> above to build one.</span>
+                    )}
                   </td>
                 </tr>
               )}
