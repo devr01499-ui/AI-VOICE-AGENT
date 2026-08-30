@@ -448,6 +448,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         kn: "Kannada",
         ml: "Malayalam",
         gu: "Gujarati",
+        ta: "Tamil",
         zh: "Mandarin Chinese",
         ar: "Arabic",
       };
