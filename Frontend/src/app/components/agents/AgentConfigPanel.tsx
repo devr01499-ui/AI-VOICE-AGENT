@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Sliders, Sparkles, MessageSquare, Bot, Settings2, Calendar } from "lucide-react";
-import { updateAgent, getCalendarStatus, getAuthToken, API_BASE } from "../../api";
+import { Sliders, Sparkles, MessageSquare, Bot, Settings2, Calendar, Download } from "lucide-react";
+import { updateAgent, getCalendarStatus, getAuthToken, API_BASE, exportAgentAsJson } from "../../api";
 import ConversationalBuilder from "./ConversationalBuilder";
 import VisualFlowCanvas from "./VisualFlowCanvas";
 
@@ -75,31 +75,44 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
   return (
     <div className="space-y-6">
       {/* Tab Switcher */}
-      <div className="flex gap-4 border-b border-[var(--nm-bg-dark)] pb-4">
-        <button
-          onClick={() => setActiveTab('manual')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-            activeTab === 'manual' 
-              ? 'nm-pressed text-[var(--nm-text)]' 
-              : 'text-[var(--nm-text)] opacity-70 hover:opacity-100 hover:nm-raised'
-          }`}
-          style={{ fontFamily: "'Figtree', sans-serif" }}
-        >
-          <Settings2 className="w-4 h-4" />
-          Manual Configuration
-        </button>
-        <button
-          onClick={() => setActiveTab('ai')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-            activeTab === 'ai' 
-              ? 'nm-pressed text-[var(--nm-accent)]' 
-              : 'text-[var(--nm-text)] opacity-70 hover:opacity-100 hover:nm-raised'
-          }`}
-          style={{ fontFamily: "'Figtree', sans-serif" }}
-        >
-          <Bot className="w-4 h-4" />
-          AI Builder
-        </button>
+      <div className="flex items-center justify-between border-b border-[var(--nm-bg-dark)] pb-4">
+        <div className="flex gap-4">
+          <button
+            onClick={() => setActiveTab('manual')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+              activeTab === 'manual' 
+                ? 'nm-pressed text-[var(--nm-text)]' 
+                : 'text-[var(--nm-text)] opacity-70 hover:opacity-100 hover:nm-raised'
+            }`}
+            style={{ fontFamily: "'Figtree', sans-serif" }}
+          >
+            <Settings2 className="w-4 h-4" />
+            Manual Configuration
+          </button>
+          <button
+            onClick={() => setActiveTab('ai')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+              activeTab === 'ai' 
+                ? 'nm-pressed text-[var(--nm-accent)]' 
+                : 'text-[var(--nm-text)] opacity-70 hover:opacity-100 hover:nm-raised'
+            }`}
+            style={{ fontFamily: "'Figtree', sans-serif" }}
+          >
+            <Bot className="w-4 h-4" />
+            AI Builder
+          </button>
+        </div>
+
+        {agent?.id && (
+          <button
+            onClick={() => exportAgentAsJson(agent.id).catch(err => alert(`Export failed: ${err.message || err}`))}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-700 transition-colors"
+            style={{ fontFamily: "'Figtree', sans-serif" }}
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Export JSON</span>
+          </button>
+        )}
       </div>
 
       {activeTab === 'ai' ? (
