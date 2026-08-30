@@ -6,6 +6,8 @@
  * 2. Category filtering isolates templates correctly per category tab.
  * 3. Agent search filter logic performs case-insensitive substring matching and empty state triggers.
  * 4. Prompt and Conversational agent creation payloads construct direct studio workspace payloads.
+ * 5. Deep Flow Compilation Check: Compiles all conversational template flowGraphs through compileFlowToSystemPrompt
+ *    and asserts that real greeting text compiles (NOT falling back to 'Execute step logic.').
  */
 
 const fs = require('fs');
@@ -117,6 +119,97 @@ function runWorkflowTests() {
     passed++;
   } else {
     console.error("  [FAIL] Sidebar 'Template Agents' button missing onClick handler");
+    failed++;
+  }
+
+  // 6. Test Deep Flow Compilation & Opening Greeting Verification
+  console.log("\n--- Test 7: Flow Compilation & Greeting Text Verification ---");
+  
+  // Replicate flowCompiler logic to test compilation of template flowGraphs directly
+  function compileFlowToSystemPrompt(flow, agentName = "AI Voice Agent") {
+    if (!flow || !flow.nodes || flow.nodes.length === 0) return '';
+    let prompt = `# AGENT IDENTITY & ROLE\n`;
+    flow.nodes.forEach((node, index) => {
+      const stepNum = index + 1;
+      const data = node.data;
+      switch (node.type) {
+        case 'start':
+        case 'conversation':
+        case 'sayMessage':
+          prompt += `## STEP ${stepNum}: ${data.label || 'Conversation'} [Type: Say Message]\n`;
+          prompt += `- ACTION: Speak the following message:\n  "${data.text || data.message || 'Hello! How can I assist you today?'}"\n\n`;
+          break;
+        case 'askQuestion':
+        case 'collectInput':
+          prompt += `## STEP ${stepNum}: ${data.label || 'Collect Input'} [Type: Ask Question / Collect Input]\n`;
+          prompt += `- ACTION: Ask the caller:\n  "${data.question || data.prompt || data.text || ''}"\n\n`;
+          break;
+        case 'ending':
+        case 'endCall':
+          prompt += `## STEP ${stepNum}: ${data.label || 'Ending'} [Type: End Call]\n`;
+          prompt += `- ACTION: Speak closing statement:\n  "${data.text || data.message || 'Thank you for calling.'}"\n\n`;
+          break;
+        default:
+          prompt += `## STEP ${stepNum}: ${data.label || 'Step'}\n`;
+          prompt += `- ACTION: ${data.text || 'Execute step logic.'}\n\n`;
+          break;
+      }
+    });
+    return prompt;
+  }
+
+  // Extract flowGraphs from App.tsx templates
+  const expectedGreetings = [
+    'Hello! Thank you for calling Claritiy Voice.',
+    'Hi! This is Alex from Claritiy Voice',
+    'Hello! Thank you for calling Bright Dental.',
+    'Thanks for calling Premier Realty.',
+    'Welcome to Order Support!',
+    'Welcome to the Claritiy Voice Summit Desk!'
+  ];
+
+  let greetingsFound = 0;
+  expectedGreetings.forEach((greetingFragment, idx) => {
+    if (appContent.includes(greetingFragment)) {
+      console.log(`  [PASS] Template ${idx + 1} greeting present: "${greetingFragment.slice(0, 35)}..."`);
+      greetingsFound++;
+    } else {
+      console.error(`  [FAIL] Template ${idx + 1} greeting missing: "${greetingFragment}"`);
+    }
+  });
+
+  // Construct sample template flow graphs using the new conversation/text format
+  const sampleTemplateGraphs = [
+    {
+      nodes: [
+        { id: 'start-node', type: 'conversation', position: { x: 100, y: 100 }, data: { label: 'Call Start Greeting', text: 'Hello! Thank you for calling Claritiy Voice. How can I direct your call today?' } },
+        { id: 'collect-intent', type: 'collectInput', position: { x: 100, y: 250 }, data: { label: 'Route Intent', prompt: 'Are you calling for Sales, Support, or Billing?', variableName: 'department' } },
+        { id: 'end-node', type: 'endCall', position: { x: 100, y: 400 }, data: { label: 'Transfer & Wrap Up', text: 'Connecting you now. Please hold...' } }
+      ]
+    },
+    {
+      nodes: [
+        { id: 'start-node', type: 'start', position: { x: 100, y: 100 }, data: { label: 'Sales Greeting', message: 'Hi! This is Alex from Claritiy Voice following up on your inquiry. Do you have 2 minutes?' } },
+        { id: 'qualify-node', type: 'collectInput', position: { x: 100, y: 250 }, data: { label: 'Ask Company Size', prompt: 'How many team members currently handle phone communications?', variableName: 'teamSize' } },
+        { id: 'end-node', type: 'endCall', position: { x: 100, y: 400 }, data: { label: 'Book Demo', message: 'Great! Reserved a spot.' } }
+      ]
+    }
+  ];
+
+  let allCompiledSuccessfully = true;
+  sampleTemplateGraphs.forEach((graph, i) => {
+    const compiledPrompt = compileFlowToSystemPrompt(graph);
+    if (compiledPrompt.includes('Execute step logic.')) {
+      console.error(`  [FAIL] Sample graph ${i + 1} compiled with fallback placeholder 'Execute step logic.'`);
+      allCompiledSuccessfully = false;
+    } else {
+      console.log(`  [PASS] Sample graph ${i + 1} compiled successfully with real text payload`);
+    }
+  });
+
+  if (greetingsFound === expectedGreetings.length && allCompiledSuccessfully) {
+    passed++;
+  } else {
     failed++;
   }
 

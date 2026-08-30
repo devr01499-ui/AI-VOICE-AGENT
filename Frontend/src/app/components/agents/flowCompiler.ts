@@ -20,6 +20,7 @@ export interface FlowNodeData {
 
 
 export type FlowNodeType =
+  | 'start'
   | 'conversation'
   | 'sayMessage'
   | 'askQuestion'
@@ -80,10 +81,11 @@ export function compileFlowToSystemPrompt(flow: FlowGraph, agentName: string = "
     const data = node.data;
 
     switch (node.type) {
+      case 'start':
       case 'conversation':
       case 'sayMessage':
         prompt += `## STEP ${stepNum}: ${data.label || 'Conversation'} [Type: Say Message]\n`;
-        prompt += `- ACTION: Speak the following message:\n  "${data.text || 'Hello! How can I assist you today?'}"\n`;
+        prompt += `- ACTION: Speak the following message:\n  "${data.text || data.message || 'Hello! How can I assist you today?'}"\n`;
         prompt += `- NEXT STEP: Proceed to the connected node in sequence.\n\n`;
         break;
 
@@ -157,7 +159,7 @@ export function compileFlowToSystemPrompt(flow: FlowGraph, agentName: string = "
       case 'ending':
       case 'endCall':
         prompt += `## STEP ${stepNum}: ${data.label || 'Ending'} [Type: End Call]\n`;
-        prompt += `- ACTION: Speak closing statement:\n  "${data.text || 'Thank you for calling. Have a great day!'}"\n`;
+        prompt += `- ACTION: Speak closing statement:\n  "${data.text || data.message || 'Thank you for calling. Have a great day!'}"\n`;
         prompt += `- TERMINATE: Gracefully end the call session.\n\n`;
         break;
 
