@@ -111,6 +111,7 @@ If you have enough information, output ONLY a valid JSON object (no markdown for
 }
 
 Notes for systemVoice: choose one of Puck, Aoede, Charon, Fenrir, Kore, Leda, Orus, Zephyr, Callirhoe, Autonoe, Enceladus, Iapetus, Umbriel, Algieba, Despina, Erinome, Algenib, Rasalgethi, Laomedeia, Achernar, Alnilam, Schedar, Gacrux, Pulcherrima, Achird, Adara, Castor, Deneb, Eltanin, Mizar.
+Notes for languageMode: choose one of auto, en, hi, bn, kn, ml, gu, ta, zh, ar matching the user's requested language (e.g. ta for Tamil, hi for Hindi, en for English).
 DO NOT wrap the JSON in markdown blocks. Output the raw JSON object string when ready, otherwise output conversational text.`;
 
       const chatHistory = (history || []).map((msg: any) => ({
@@ -143,20 +144,25 @@ DO NOT wrap the JSON in markdown blocks. Output the raw JSON object string when 
       let config = null;
       let cleanJson = responseText;
 
-      // Handle cases where Gemini might still add markdown blocks despite instructions
       if (cleanJson.startsWith('```json')) {
         cleanJson = cleanJson.replace(/^```json/, '').replace(/```$/, '').trim();
       } else if (cleanJson.startsWith('```')) {
         cleanJson = cleanJson.replace(/^```/, '').replace(/```$/, '').trim();
       }
 
-      try {
-        config = JSON.parse(cleanJson);
-        if (config && typeof config === 'object' && config.systemPrompt) {
-          isFinal = true;
+      if (cleanJson.includes('{') && cleanJson.includes('}')) {
+        const firstBrace = cleanJson.indexOf('{');
+        const lastBrace = cleanJson.lastIndexOf('}');
+        const candidateJson = cleanJson.substring(firstBrace, lastBrace + 1);
+        try {
+          const parsed = JSON.parse(candidateJson);
+          if (parsed && typeof parsed === 'object' && parsed.systemPrompt) {
+            config = parsed;
+            isFinal = true;
+          }
+        } catch (e) {
+          // Not valid JSON
         }
-      } catch (e) {
-        // Not JSON, which means it's a conversational follow-up
       }
 
       res.json({

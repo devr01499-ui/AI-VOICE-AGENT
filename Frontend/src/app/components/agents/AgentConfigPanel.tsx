@@ -254,6 +254,7 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
               <option value="kn">Kannada only</option>
               <option value="ml">Malayalam only</option>
               <option value="gu">Gujarati only</option>
+              <option value="ta">Tamil only</option>
               <option value="zh">Mandarin Chinese only</option>
               <option value="ar">Arabic only</option>
             </select>
@@ -289,15 +290,6 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
           </div>
         </div>
 
-        <div className="pt-6 border-t border-transparent space-y-4">
-          <p className="text-xs font-bold text-[var(--nm-text)]" style={{ fontFamily: "'DM Mono', monospace" }}>
-            ACTIVE MODEL
-          </p>
-          <div className="flex items-center gap-3 text-sm font-bold p-4 nm-pressed rounded-xl text-[var(--nm-text)]">
-            <Sparkles className="w-5 h-5 text-[var(--nm-accent)]" />
-            <span>Gemini 2.5 Flash Native Multimodal Audio</span>
-          </div>
-        </div>
         <div className="pt-6 border-t border-transparent space-y-4">
           <p className="text-xs font-bold text-[var(--nm-text)]" style={{ fontFamily: "'DM Mono', monospace" }}>
             INTEGRATIONS
