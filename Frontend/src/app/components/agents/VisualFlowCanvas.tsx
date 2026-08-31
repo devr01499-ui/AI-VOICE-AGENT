@@ -45,8 +45,15 @@ import {
   Sliders,
   Mic,
   X,
+  Check,
 } from 'lucide-react';
 import { FlowGraph, FlowNode, FlowNodeType, compileFlowToSystemPrompt } from './flowCompiler';
+import {
+  GEMINI_VOICES,
+  LANGUAGE_OPTIONS,
+  HANDBOOK_PRESETS,
+  compilePromptWithHandbook,
+} from './SinglePromptStudio';
 
 interface VisualFlowCanvasProps {
   initialGraph?: FlowGraph | null;
@@ -55,6 +62,7 @@ interface VisualFlowCanvasProps {
   onSave: (compiledPrompt: string, flowGraph: FlowGraph, extraConfig?: Record<string, any>) => void;
   onBack?: () => void;
 }
+
 
 // ── Custom Node Components for @xyflow/react ────────────────────────────
 
@@ -198,11 +206,19 @@ export default function VisualFlowCanvas({
   const [activeInspectorTab, setActiveInspectorTab] = useState<'global' | 'node'>('global');
   
   // Retell Global Settings state
-  const [language, setLanguage] = useState('English (US)');
+  const [language, setLanguage] = useState('auto');
   const [voice, setVoice] = useState('Puck');
-  const [model, setModel] = useState('gemini-2.5-flash');
+  const [model] = useState('gemini-2.5-flash');
   const [globalPrompt, setGlobalPrompt] = useState(legacySystemPrompt || 'Enter your global prompt here. Type {{ to add dynamic variables.');
   const [flexibilityMode, setFlexibilityMode] = useState<'flex' | 'rigid'>('rigid');
+  const [handbookPresets, setHandbookPresets] = useState<string[]>(['ai_disclosure']);
+  const [showHandbookPopover, setShowHandbookPopover] = useState(false);
+
+  const toggleHandbookPreset = (id: string) => {
+    setHandbookPresets((prev) =>
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
+    );
+  };
 
   // Collapsible accordion states
   const [kbAccordionOpen, setKbAccordionOpen] = useState(false);
@@ -300,8 +316,9 @@ export default function VisualFlowCanvas({
 
   const compiledPrompt = useMemo(() => {
     const base = compileFlowToSystemPrompt(currentFlowGraph, agentName);
-    return `${globalPrompt}\n\n${base}`;
-  }, [currentFlowGraph, agentName, globalPrompt]);
+    const fullBase = `${globalPrompt}\n\n${base}`;
+    return compilePromptWithHandbook(fullBase, handbookPresets);
+  }, [currentFlowGraph, agentName, globalPrompt, handbookPresets]);
 
   const handleAddNode = (type: FlowNodeType, label: string) => {
     const newId = `node-${Date.now()}`;
@@ -351,9 +368,12 @@ export default function VisualFlowCanvas({
   const handlePublish = () => {
     onSave(compiledPrompt, currentFlowGraph, {
       language,
+      languageMode: language,
       systemVoice: voice,
+      voiceName: voice,
       model,
       flexibilityMode,
+      handbookPresets,
     });
   };
 
@@ -419,7 +439,7 @@ export default function VisualFlowCanvas({
           </button>
 
           <button className="px-3 py-1.5 text-xs font-semibold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-lg flex items-center gap-1.5 hover:bg-purple-100 transition-all">
-            <Sparkles className="w-3.5 h-3.5" /> Conductor
+            <Sparkles className="w-3.5 h-3.5" /> AI Assistant
           </button>
 
           <button
@@ -484,25 +504,7 @@ export default function VisualFlowCanvas({
             )}
           </div>
 
-          {/* Bottom Left Info Badge Card */}
-          <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 text-[11px] space-y-1 text-slate-500">
-            <div className="flex justify-between font-mono">
-              <span>Agent details</span>
-              <span className="text-slate-400">ID</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Cost</span>
-              <span className="font-semibold text-slate-700 dark:text-slate-300">$0.115/min</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Latency</span>
-              <span className="font-semibold text-slate-700 dark:text-slate-300">710-1190ms</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Tokens</span>
-              <span className="font-semibold text-slate-700 dark:text-slate-300">834 - 834</span>
-            </div>
-          </div>
+
         </aside>
 
         {/* ── CENTER VIEWPORT CANVAS ──────────────────────────── */}
@@ -566,10 +568,11 @@ export default function VisualFlowCanvas({
                     onChange={(e) => setLanguage(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   >
-                    <option>English (US)</option>
-                    <option>English (UK)</option>
-                    <option>Hindi (India)</option>
-                    <option>Spanish (ES)</option>
+                    {LANGUAGE_OPTIONS.map((lang) => (
+                      <option key={lang.code} value={lang.code}>
+                        {lang.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -581,36 +584,63 @@ export default function VisualFlowCanvas({
                     onChange={(e) => setVoice(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   >
-                    <option value="Puck">Puck (Male • Warm, Professional)</option>
-                    <option value="Aoede">Aoede (Female • Smooth, Energetic)</option>
-                    <option value="Charon">Charon (Male • Deep, Executive)</option>
-                    <option value="Fenrir">Fenrir (Male • Direct, Clear)</option>
-                    <option value="Nova">Nova (Female • Friendly, Crisp)</option>
-                    <option value="Cimo">Cimo (Female • Natural, Expressive)</option>
-                  </select>
-                </div>
-
-                {/* Global Settings Model Dropdown */}
-                <div>
-                  <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Global LLM Model</label>
-                  <select
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  >
-                    <option value="gemini-2.5-flash">Gemini 2.5 Flash (Ultra Low Latency)</option>
-                    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-                    <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                    {GEMINI_VOICES.map((v) => (
+                      <option key={v.name} value={v.name}>
+                        {v.desc}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 {/* Agent Handbook */}
-                <div className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-700">
-                  <div className="flex items-center gap-2">
-                    <BookOpen className="w-4 h-4 text-indigo-500" />
-                    <span className="font-semibold text-slate-700 dark:text-slate-300">Agent Handbook</span>
+                <div className="relative">
+                  <div
+                    onClick={() => setShowHandbookPopover(!showHandbookPopover)}
+                    className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-100 transition-all"
+                  >
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-indigo-500" />
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">Agent Handbook</span>
+                    </div>
+                    <span className="px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full text-[10px] font-bold">
+                      {handbookPresets.length} Active
+                    </span>
                   </div>
-                  <span className="text-[10px] text-slate-400">History</span>
+
+                  {showHandbookPopover && (
+                    <div className="mt-2 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl space-y-2">
+                      <div className="flex justify-between items-center pb-1 border-b border-slate-100 dark:border-slate-800">
+                        <span className="font-bold text-xs">Handbook Presets</span>
+                        <button onClick={() => setShowHandbookPopover(false)} className="p-0.5 text-slate-400 hover:text-slate-600">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                        {HANDBOOK_PRESETS.map((preset) => {
+                          const active = handbookPresets.includes(preset.id);
+                          return (
+                            <div
+                              key={preset.id}
+                              onClick={() => toggleHandbookPreset(preset.id)}
+                              className={`p-2 rounded-md border text-[11px] cursor-pointer transition-all ${
+                                active
+                                  ? 'bg-indigo-50/60 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800'
+                                  : 'bg-slate-50/50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between font-medium">
+                                <span>{preset.label}</span>
+                                <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${active ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'}`}>
+                                  {active && <Check className="w-2.5 h-2.5" />}
+                                </div>
+                              </div>
+                              <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">{preset.instruction}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Global Prompt */}

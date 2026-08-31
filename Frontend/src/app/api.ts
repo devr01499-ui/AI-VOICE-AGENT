@@ -251,6 +251,13 @@ export async function createAgent(payload: CreateAgentPayload): Promise<ApiAgent
   });
 }
 
+/** DELETE /api/v2/agents/:agentId — Delete an agent */
+export async function deleteAgent(agentId: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/api/v2/agents/${agentId}`, {
+    method: "DELETE",
+  });
+}
+
 export interface AgentExportEnvelope {
   claritiyVoiceAgentExport: string;
   exportedAt: string;
@@ -366,6 +373,18 @@ export async function chatWithAgent(
     body: JSON.stringify({ message, history }),
   });
 }
+
+/** POST /api/v2/agents/test-prompt — Fast LLM text test for prompt preview */
+export async function testAgentPrompt(
+  systemPrompt: string,
+  userQuery: string
+): Promise<{ reply: string }> {
+  return apiFetch<{ reply: string }>("/api/v2/agents/test-prompt", {
+    method: "POST",
+    body: JSON.stringify({ systemPrompt, userQuery }),
+  });
+}
+
 
 /** GET /api/v2/agents/me/profile — Fetch current user profile */
 export async function fetchProfile(): Promise<ApiProfile> {

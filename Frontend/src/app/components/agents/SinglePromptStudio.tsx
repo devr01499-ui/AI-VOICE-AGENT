@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft,
-  Share2,
   Volume2,
   Sparkles,
   Settings,
@@ -10,8 +9,6 @@ import {
   Copy,
   ChevronRight,
   ChevronDown,
-  Mic,
-  MicOff,
   Play,
   Pause,
   Code,
@@ -21,18 +18,128 @@ import {
   PhoneCall,
   Shield,
   Globe,
-  Radio,
   Plus,
   Trash2,
   Check,
   X,
   Send,
   MoreHorizontal,
-  Info,
-  Layers,
   HelpCircle,
+  Download,
+  Mic,
+  Radio,
 } from 'lucide-react';
-import { apiClient, getSandboxTestWsUrl, getValidAuthToken, DEFAULT_AGENT_ID, fetchKBList, type ApiAgent, type ApiKnowledgeBase } from '../../api';
+import {
+  apiClient,
+  getSandboxTestWsUrl,
+  getValidAuthToken,
+  DEFAULT_AGENT_ID,
+  testAgentPrompt,
+  exportAgentAsJson,
+  type ApiAgent,
+  type ApiKnowledgeBase,
+} from '../../api';
+
+export const GEMINI_VOICES = [
+  { name: 'Puck', desc: 'Puck (Male • Warm, Professional)' },
+  { name: 'Aoede', desc: 'Aoede (Female • Smooth, Energetic)' },
+  { name: 'Charon', desc: 'Charon (Male • Deep, Executive)' },
+  { name: 'Fenrir', desc: 'Fenrir (Male • Direct, Clear)' },
+  { name: 'Kore', desc: 'Kore (Female • Calming, Focused)' },
+  { name: 'Leda', desc: 'Leda (Female • Clear, Authoritative)' },
+  { name: 'Orus', desc: 'Orus (Male • Resonant, Warm)' },
+  { name: 'Zephyr', desc: 'Zephyr (Female • Bright, Conversational)' },
+  { name: 'Callirhoe', desc: 'Callirhoe (Female • Gentle, Friendly)' },
+  { name: 'Autonoe', desc: 'Autonoe (Female • Crisp, Professional)' },
+  { name: 'Enceladus', desc: 'Enceladus (Male • Expressive, Dynamic)' },
+  { name: 'Iapetus', desc: 'Iapetus (Male • Confident, Grounded)' },
+  { name: 'Umbriel', desc: 'Umbriel (Male • Smooth, Technical)' },
+  { name: 'Algieba', desc: 'Algieba (Female • Warm, Natural)' },
+  { name: 'Despina', desc: 'Despina (Female • Cheerful, Clear)' },
+  { name: 'Erinome', desc: 'Erinome (Female • Precise, Friendly)' },
+  { name: 'Algenib', desc: 'Algenib (Male • Bold, Engaging)' },
+  { name: 'Rasalgethi', desc: 'Rasalgethi (Male • Calm, Thoughtful)' },
+  { name: 'Laomedeia', desc: 'Laomedeia (Female • Silky, Warm)' },
+  { name: 'Achernar', desc: 'Achernar (Male • Crisp, Articulate)' },
+  { name: 'Alnilam', desc: 'Alnilam (Male • Formal, Clear)' },
+  { name: 'Schedar', desc: 'Schedar (Female • Radiant, Energetic)' },
+  { name: 'Gacrux', desc: 'Gacrux (Male • Steady, Warm)' },
+  { name: 'Pulcherrima', desc: 'Pulcherrima (Female • Elegant, Melodious)' },
+  { name: 'Achird', desc: 'Achird (Male • Friendly, Conversational)' },
+  { name: 'Adara', desc: 'Adara (Female • Vibrant, Warm)' },
+  { name: 'Castor', desc: 'Castor (Male • Bright, Youthful)' },
+  { name: 'Deneb', desc: 'Deneb (Male • Authoritative, Crisp)' },
+  { name: 'Eltanin', desc: 'Eltanin (Male • Rich, Measured)' },
+  { name: 'Mizar', desc: 'Mizar (Male • Direct, Smooth)' },
+];
+
+export const LANGUAGE_OPTIONS = [
+  { code: 'auto', label: 'Automatic / Multilingual' },
+  { code: 'en', label: 'English' },
+  { code: 'hi', label: 'Hindi' },
+  { code: 'bn', label: 'Bengali' },
+  { code: 'kn', label: 'Kannada' },
+  { code: 'ml', label: 'Malayalam' },
+  { code: 'gu', label: 'Gujarati' },
+  { code: 'ta', label: 'Tamil' },
+];
+
+export const HANDBOOK_PRESETS = [
+  {
+    id: 'ai_disclosure',
+    label: 'AI Disclosure',
+    defaultOn: true,
+    instruction: "If asked whether you are an AI, respond honestly, e.g. 'Yes — I'm an AI assistant here to help.'",
+  },
+  {
+    id: 'restrict_kb',
+    label: 'Restrict to Knowledge Base',
+    defaultOn: false,
+    instruction: "Only answer using information in your prompt and knowledge base. If you don't know, say so rather than guessing, and offer to connect the caller to someone who can help.",
+  },
+  {
+    id: 'speech_norm',
+    label: 'Speech Normalization',
+    defaultOn: false,
+    instruction: "Read numbers, currency, dates, and times in natural spoken form, e.g. 'seventy dollars and eighty-four cents' rather than '$70.84'.",
+  },
+  {
+    id: 'echo_verify',
+    label: 'Echo Verification',
+    defaultOn: false,
+    instruction: "When the caller provides a phone number, email, or account number, repeat it back to confirm before proceeding.",
+  },
+  {
+    id: 'filler_words',
+    label: 'Natural Filler Words',
+    defaultOn: false,
+    instruction: "Use brief, natural filler words occasionally (e.g. 'okay', 'got it') to sound more conversational, without overusing them.",
+  },
+];
+
+export function compilePromptWithHandbook(prompt: string, enabledPresets: string[]): string {
+  const active = HANDBOOK_PRESETS.filter(p => enabledPresets.includes(p.id));
+  if (active.length === 0) return prompt;
+  return `${prompt}\n\n[AGENT HANDBOOK INSTRUCTIONS]\n` + active.map(p => `- ${p.instruction}`).join('\n');
+}
+
+const normalizeLangCode = (code?: string): string => {
+  if (!code) return 'auto';
+  const map: Record<string, string> = {
+    'English (US)': 'en',
+    'English (UK)': 'en',
+    'English': 'en',
+    'Hindi': 'hi',
+    'Hindi (India)': 'hi',
+    'Bengali': 'bn',
+    'Kannada': 'kn',
+    'Malayalam': 'ml',
+    'Gujarati': 'gu',
+    'Tamil': 'ta',
+    'Spanish': 'en',
+  };
+  return map[code] || (['auto', 'en', 'hi', 'bn', 'kn', 'ml', 'gu', 'ta', 'zh', 'ar'].includes(code) ? code : 'auto');
+};
 
 interface SinglePromptStudioProps {
   initialAgent?: ApiAgent | null;
@@ -40,6 +147,9 @@ interface SinglePromptStudioProps {
   onSave: (agentData: Record<string, any>) => void;
   onEnsureSaved?: (agentData: Record<string, any>) => Promise<string>;
   onBack: () => void;
+  onViewCallLogs?: (agentId?: string) => void;
+  onDeleteAgent?: (agentId?: string) => Promise<void>;
+  onDuplicateAgent?: (agent?: any) => void;
   kbList?: ApiKnowledgeBase[];
 }
 
@@ -49,6 +159,9 @@ export default function SinglePromptStudio({
   onSave,
   onEnsureSaved,
   onBack,
+  onViewCallLogs,
+  onDeleteAgent,
+  onDuplicateAgent,
   kbList: initialKbList = [],
 }: SinglePromptStudioProps) {
   const [currentAgentId, setCurrentAgentId] = useState<string | undefined>(initialAgent?.id);
@@ -59,9 +172,9 @@ export default function SinglePromptStudio({
     }
   }, [initialAgent?.id]);
   const [agentName, setAgentName] = useState(initialAgent?.name || initialAgentName);
-  const [model, setModel] = useState(initialAgent?.model || 'gemini-2.5-flash');
+  const [model] = useState('gemini-2.5-flash');
   const [voice, setVoice] = useState(initialAgent?.voiceName || initialAgent?.systemVoice || 'Puck');
-  const [language, setLanguage] = useState(initialAgent?.languageMode || 'English (US)');
+  const [language, setLanguage] = useState(normalizeLangCode(initialAgent?.languageMode || undefined));
   const [systemPrompt, setSystemPrompt] = useState(
     initialAgent?.systemPrompt ||
       'You are an energetic and friendly outbound sales agent for a dental clinic. Your primary goal is to engage potential new patients, inform them about the clinic\'s services, and schedule a consultation.'
@@ -70,10 +183,18 @@ export default function SinglePromptStudio({
   const [customWelcomeText, setCustomWelcomeText] = useState('Hello! Thank you for calling Claritiy Voice.');
   const [silenceStartEnabled, setSilenceStartEnabled] = useState(false);
 
-  // Playground Right Panel Mode
+  const [handbookPresets, setHandbookPresets] = useState<string[]>(
+    initialAgent?.agentConfig && Array.isArray((initialAgent.agentConfig as any).handbookPresets)
+      ? (initialAgent.agentConfig as any).handbookPresets
+      : ['ai_disclosure']
+  );
+  const [showHandbookPopover, setShowHandbookPopover] = useState(false);
+  const [showPromptHistoryPopover, setShowPromptHistoryPopover] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [copiedAgentId, setCopiedAgentId] = useState(false);
+
   const [testTab, setTestTab] = useState<'audio' | 'llm' | 'json'>('audio');
 
-  // Accordion Expand/Collapse States
   const [accordionState, setAccordionState] = useState<Record<string, boolean>>({
     functions: false,
     kb: false,
@@ -90,28 +211,23 @@ export default function SinglePromptStudio({
     setAccordionState((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // WebSockets Microphones Audio Sandbox Test Call State
   const [isTestActive, setIsTestActive] = useState(false);
   const [testStatus, setTestStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [testError, setTestError] = useState<string | null>(null);
   const [transcriptTurns, setTranscriptTurns] = useState<Array<{ speaker: 'user' | 'agent'; text: string }>>([]);
   const [latency, setLatency] = useState<number | null>(null);
 
-  // Text LLM Playground State
   const [llmQuery, setLlmQuery] = useState('');
   const [llmResponses, setLlmResponses] = useState<Array<{ sender: 'user' | 'agent'; text: string }>>([]);
   const [isLlmLoading, setIsLlmLoading] = useState(false);
 
-  // WebSockets Refs
   const wsRef = useRef<WebSocket | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const playbackContextRef = useRef<AudioContext | null>(null);
   const processorNodeRef = useRef<ScriptProcessorNode | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
   const nextPlaybackTimeRef = useRef<number>(0);
-  const lastEmitTimeRef = useRef<number>(0);
 
-  // Helpers for WebSockets Audio Conversion
   function floatTo16BitPCM(output: Float32Array): ArrayBuffer {
     const buffer = new ArrayBuffer(output.length * 2);
     const view = new DataView(buffer);
@@ -145,160 +261,151 @@ export default function SinglePromptStudio({
     return float32s;
   }
 
-  async function startAudioTest() {
-    setTestStatus('connecting');
-    setTestError(null);
-    setTranscriptTurns([]);
-
-    const currentFormState = {
-      name: agentName,
-      agentType: 'prompt',
-      model,
-      voiceName: voice,
-      systemVoice: voice,
-      languageMode: language,
-      systemPrompt,
-      welcomeMessageMode,
-      customWelcomeText,
-      silenceStartEnabled,
-    };
-
-    let targetAgentId = currentAgentId || initialAgent?.id;
-    const isRealUuid = (id?: string) =>
-      Boolean(
-        id &&
-        !id.startsWith('a') &&
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
-      );
-
-    if (!isRealUuid(targetAgentId)) {
-      if (!onEnsureSaved) {
-        setTestError("Couldn't prepare this agent for testing — please try again");
-        setTestStatus('error');
-        return;
-      }
-      try {
-        targetAgentId = await onEnsureSaved(currentFormState);
-        setCurrentAgentId(targetAgentId);
-      } catch (err: any) {
-        setTestError("Couldn't prepare this agent for testing — please try again");
-        setTestStatus('error');
-        return;
-      }
-    }
-
+  function playPcmAudioChunk(base64Pcm: string) {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      micStreamRef.current = stream;
-
-      const token = await getValidAuthToken();
-      if (!token) {
-        throw new Error('Authentication token required for sandbox stream');
+      if (!playbackContextRef.current) {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        playbackContextRef.current = new AudioCtx({ sampleRate: 24000 });
+      }
+      const ctx = playbackContextRef.current;
+      if (ctx.state === 'suspended') {
+        ctx.resume();
       }
 
-      const wsUrl = getSandboxTestWsUrl(targetAgentId, token);
+      const float32Data = base64ToFloat32(base64Pcm);
+      if (float32Data.length === 0) return;
+
+      const audioBuffer = ctx.createBuffer(1, float32Data.length, 24000);
+      audioBuffer.getChannelData(0).set(float32Data);
+
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(ctx.destination);
+
+      const currentTime = ctx.currentTime;
+      if (nextPlaybackTimeRef.current < currentTime) {
+        nextPlaybackTimeRef.current = currentTime;
+      }
+
+      source.start(nextPlaybackTimeRef.current);
+      nextPlaybackTimeRef.current += audioBuffer.duration;
+    } catch (err) {
+      console.error('PCM playback error:', err);
+    }
+  }
+
+  async function startWebsocketsTestCall() {
+    try {
+      setIsTestActive(true);
+      setTestStatus('connecting');
+      setTestError(null);
+      setTranscriptTurns([]);
+
+      let targetAgentId = currentAgentId;
+      if (!targetAgentId || targetAgentId.startsWith('a') || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetAgentId)) {
+        if (onEnsureSaved) {
+          targetAgentId = await onEnsureSaved({
+            name: agentName,
+            agentType: 'prompt',
+            model,
+            voiceName: voice,
+            systemVoice: voice,
+            languageMode: language,
+            systemPrompt: compilePromptWithHandbook(systemPrompt, handbookPresets),
+            welcomeMessageMode,
+            customWelcomeText,
+            silenceStartEnabled,
+            agentConfig: { handbookPresets },
+          });
+          setCurrentAgentId(targetAgentId);
+        } else {
+          targetAgentId = DEFAULT_AGENT_ID;
+        }
+      }
+
+      const rawToken = (await getValidAuthToken()) || undefined;
+      const wsUrl = getSandboxTestWsUrl(targetAgentId, rawToken);
+
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      const audioContext = new AudioCtx({ sampleRate: 16000 });
-      const playbackContext = new AudioCtx({ sampleRate: 24000 });
-      audioContextRef.current = audioContext;
-      playbackContextRef.current = playbackContext;
-
-      ws.onopen = () => {
+      ws.onopen = async () => {
         setTestStatus('connected');
-        setIsTestActive(true);
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          micStreamRef.current = stream;
 
-        // Send initial setup payload
-        ws.send(
-          JSON.stringify({
-            event: 'start',
-            agentId: targetAgentId,
-            systemPrompt: systemPrompt,
-            model: model,
-            voiceName: voice,
-          })
-        );
+          const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+          const audioCtx = new AudioCtx({ sampleRate: 16000 });
+          audioContextRef.current = audioCtx;
 
-        const source = audioContext.createMediaStreamSource(stream);
-        const processor = audioContext.createScriptProcessor(2048, 1, 1);
-        processorNodeRef.current = processor;
+          const sourceNode = audioCtx.createMediaStreamSource(stream);
+          const processorNode = audioCtx.createScriptProcessor(4096, 1, 1);
+          processorNodeRef.current = processorNode;
 
-        source.connect(processor);
-        processor.connect(audioContext.destination);
+          processorNode.onaudioprocess = (e) => {
+            const inputData = e.inputBuffer.getChannelData(0);
+            const pcm16Buffer = floatTo16BitPCM(inputData);
+            const base64Audio = arrayBufferToBase64(pcm16Buffer);
 
-        processor.onaudioprocess = (e) => {
-          const inputData = e.inputBuffer.getChannelData(0);
-          let isSpeaking = false;
-          for (let i = 0; i < inputData.length; i++) {
-            if (Math.abs(inputData[i]) > 0.01) {
-              isSpeaking = true;
-              break;
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+              wsRef.current.send(
+                JSON.stringify({
+                  event: 'media',
+                  media: { payload: base64Audio },
+                })
+              );
             }
-          }
-          if (isSpeaking) {
-            lastEmitTimeRef.current = Date.now();
-          }
+          };
 
-          const pcmBuffer = floatTo16BitPCM(inputData);
-          const base64 = arrayBufferToBase64(pcmBuffer);
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ event: 'audio', data: base64 }));
-          }
-        };
+          sourceNode.connect(processorNode);
+          processorNode.connect(audioCtx.destination);
+        } catch (micErr: any) {
+          setTestError('Microphone permission denied or audio device failure.');
+          stopWebsocketsTestCall();
+        }
       };
 
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
-          if (msg.event === 'audio' && msg.data) {
-            const floats = base64ToFloat32(msg.data);
-            const audioBuffer = playbackContext.createBuffer(1, floats.length, 24000);
-            audioBuffer.copyToChannel(floats, 0);
-
-            const sourceNode = playbackContext.createBufferSource();
-            sourceNode.buffer = audioBuffer;
-            sourceNode.connect(playbackContext.destination);
-
-            const currentTime = playbackContext.currentTime;
-            const startTime = Math.max(currentTime, nextPlaybackTimeRef.current);
-            sourceNode.start(startTime);
-            nextPlaybackTimeRef.current = startTime + audioBuffer.duration;
-          } else if (msg.event === 'transcript' && msg.text) {
-            if (lastEmitTimeRef.current > 0) {
-              setLatency(Date.now() - lastEmitTimeRef.current);
+          if (msg.event === 'media' && msg.media?.payload) {
+            playPcmAudioChunk(msg.media.payload);
+          } else if (msg.event === 'transcript' || msg.event === 'user_transcript') {
+            const text = msg.transcript || msg.text || '';
+            if (text) {
+              setTranscriptTurns((prev) => [...prev, { speaker: 'user', text }]);
             }
-            const speaker = msg.isUser ? 'user' : 'agent';
-            setTranscriptTurns((prev) => [...prev, { speaker, text: msg.text }]);
-          } else if (msg.event === 'error') {
-            setTestError(msg.message || 'WebSockets streaming error');
+          } else if (msg.event === 'agent_transcript') {
+            const text = msg.transcript || msg.text || '';
+            if (text) {
+              setTranscriptTurns((prev) => [...prev, { speaker: 'agent', text }]);
+            }
+          } else if (msg.event === 'latency' && typeof msg.latencyMs === 'number') {
+            setLatency(msg.latencyMs);
           }
         } catch (err) {
-          console.error('Failed to parse audio event', err);
+          console.error('Error parsing sandbox WS message', err);
         }
       };
 
       ws.onerror = () => {
-        setTestError('Failed to connect to real-time audio WebSocket server.');
         setTestStatus('error');
+        setTestError('WebSocket sandbox connection error.');
       };
 
       ws.onclose = () => {
-        setIsTestActive(false);
         setTestStatus('idle');
+        setIsTestActive(false);
       };
     } catch (err: any) {
-      setTestError(err.message || 'Microphone access denied');
       setTestStatus('error');
+      setTestError(err?.message || 'Failed to start sandbox test call.');
+      setIsTestActive(false);
     }
   }
 
-  function stopAudioTest() {
-    if (micStreamRef.current) {
-      micStreamRef.current.getTracks().forEach((t) => t.stop());
-      micStreamRef.current = null;
-    }
+  function stopWebsocketsTestCall() {
     if (processorNodeRef.current) {
       processorNodeRef.current.disconnect();
       processorNodeRef.current = null;
@@ -310,6 +417,10 @@ export default function SinglePromptStudio({
     if (playbackContextRef.current) {
       playbackContextRef.current.close().catch(() => {});
       playbackContextRef.current = null;
+    }
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach((track) => track.stop());
+      micStreamRef.current = null;
     }
     if (wsRef.current) {
       wsRef.current.close();
@@ -327,25 +438,28 @@ export default function SinglePromptStudio({
     setIsLlmLoading(true);
 
     try {
-      const response = await apiClient.post('/api/v2/agents/test-prompt', {
-        systemPrompt,
-        userQuery: userMsg,
-        model,
-      });
-      const agentReply = response.data?.reply || 'Thank you for reaching out! How can I assist you further today?';
+      const finalPrompt = compilePromptWithHandbook(systemPrompt, handbookPresets);
+      const res = await testAgentPrompt(finalPrompt, userMsg);
+      const agentReply = res?.reply || 'No response generated.';
       setLlmResponses((prev) => [...prev, { sender: 'agent', text: agentReply }]);
     } catch {
       setLlmResponses((prev) => [
         ...prev,
         {
           sender: 'agent',
-          text: `Thank you for your message! Based on your prompt, I am configured as an AI voice agent ready to assist you.`,
+          text: "Couldn't reach the test assistant — please try again.",
         },
       ]);
     } finally {
       setIsLlmLoading(false);
     }
   }
+
+  const toggleHandbookPreset = (id: string) => {
+    setHandbookPresets((prev) =>
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
+    );
+  };
 
   const handlePublish = () => {
     onSave({
@@ -355,10 +469,11 @@ export default function SinglePromptStudio({
       voiceName: voice,
       systemVoice: voice,
       languageMode: language,
-      systemPrompt,
+      systemPrompt: compilePromptWithHandbook(systemPrompt, handbookPresets),
       welcomeMessageMode,
       customWelcomeText,
       silenceStartEnabled,
+      agentConfig: { handbookPresets },
     });
   };
 
@@ -369,11 +484,10 @@ export default function SinglePromptStudio({
       model: model,
       voice_id: voice,
       language: language,
-      system_prompt: systemPrompt,
+      system_prompt: compilePromptWithHandbook(systemPrompt, handbookPresets),
+      handbook_presets: handbookPresets,
       welcome_message: welcomeMessageMode === 'user_first' ? 'User speaks first' : customWelcomeText,
       silence_start: silenceStartEnabled,
-      cost_per_min: 0.115,
-      latency_ms: '710-1190',
     },
     null,
     2
@@ -381,7 +495,6 @@ export default function SinglePromptStudio({
 
   return (
     <div className="fixed inset-0 z-[9999] bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden font-sans text-slate-900 dark:text-slate-100">
-      {/* ── 1. TOP NAVIGATION HEADER BAR (MATCHING SNAPSHOT) ──────────────────────────── */}
       <header className="h-14 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 flex items-center justify-between gap-4 z-20 flex-shrink-0">
         <div className="flex items-center gap-3">
           <button
@@ -391,35 +504,107 @@ export default function SinglePromptStudio({
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
-
           <input
             type="text"
             value={agentName}
             onChange={(e) => setAgentName(e.target.value)}
             className="font-bold text-sm bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none px-1 py-0.5"
           />
-
           <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[11px] font-semibold px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
             Environment
           </span>
         </div>
 
-        {/* Right Top Header Actions */}
-        <div className="flex items-center gap-2">
-          <button className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
-            <MoreHorizontal className="w-4 h-4" />
-          </button>
-
-          <button className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
-            <Share2 className="w-4 h-4" />
-          </button>
+        <div className="flex items-center gap-2 relative">
+          <div className="relative">
+            <button
+              onClick={() => setShowMoreMenu(!showMoreMenu)}
+              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors"
+              title="More Options"
+            >
+              <MoreHorizontal className="w-4 h-4" />
+            </button>
+            {showMoreMenu && (
+              <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 py-1 text-xs">
+                <button
+                  onClick={() => {
+                    setShowMoreMenu(false);
+                    if (onDuplicateAgent && initialAgent) {
+                      onDuplicateAgent(initialAgent);
+                    } else {
+                      onSave({
+                        name: `${agentName} (Copy)`,
+                        agentType: 'prompt',
+                        model,
+                        voiceName: voice,
+                        systemVoice: voice,
+                        languageMode: language,
+                        systemPrompt: compilePromptWithHandbook(systemPrompt, handbookPresets),
+                        welcomeMessageMode,
+                        customWelcomeText,
+                        silenceStartEnabled,
+                        agentConfig: { handbookPresets },
+                      });
+                    }
+                  }}
+                  className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 font-medium"
+                >
+                  <Copy className="w-3.5 h-3.5 text-indigo-500" /> Duplicate Agent
+                </button>
+                <button
+                  onClick={async () => {
+                    setShowMoreMenu(false);
+                    if (currentAgentId) {
+                      await exportAgentAsJson(currentAgentId);
+                    } else {
+                      const blob = new Blob([rawJsonConfig], { type: 'application/json' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `${agentName.toLowerCase().replace(/\s+/g, '_')}_config.json`;
+                      a.click();
+                    }
+                  }}
+                  className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 font-medium"
+                >
+                  <Download className="w-3.5 h-3.5 text-emerald-500" /> Export as JSON
+                </button>
+                {onViewCallLogs && (
+                  <button
+                    onClick={() => {
+                      setShowMoreMenu(false);
+                      onViewCallLogs(currentAgentId);
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 font-medium"
+                  >
+                    <PhoneCall className="w-3.5 h-3.5 text-sky-500" /> View Call Logs
+                  </button>
+                )}
+                <button
+                  onClick={async () => {
+                    setShowMoreMenu(false);
+                    if (currentAgentId && window.confirm('Are you sure you want to delete this agent?')) {
+                      if (onDeleteAgent) {
+                        await onDeleteAgent(currentAgentId);
+                        onBack();
+                      }
+                    }
+                  }}
+                  disabled={!currentAgentId}
+                  className="w-full text-left px-3 py-2 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-600 dark:text-rose-400 flex items-center gap-2 font-medium border-t border-slate-100 dark:border-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Delete Agent
+                </button>
+              </div>
+            )}
+          </div>
 
           <button className="px-2.5 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg flex items-center gap-1.5 border border-slate-200 dark:border-slate-700">
             <Volume2 className="w-3.5 h-3.5 text-indigo-500" /> VO
           </button>
 
           <button className="px-3 py-1.5 text-xs font-semibold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-lg flex items-center gap-1.5 hover:bg-purple-100 transition-all">
-            <Sparkles className="w-3.5 h-3.5" /> Conductor
+            <Sparkles className="w-3.5 h-3.5" /> AI Assistant
           </button>
 
           <button
@@ -431,47 +616,33 @@ export default function SinglePromptStudio({
         </div>
       </header>
 
-      {/* ── 2. MAIN 3-COLUMN SPLIT STUDIO LAYOUT (MATCHING SNAPSHOT) ──────────────────────────── */}
+      {/* ── 2. MAIN 3-COLUMN SPLIT STUDIO LAYOUT ──────────────────────────── */}
       <div className="flex-1 grid grid-cols-12 overflow-hidden relative bg-slate-100/40 dark:bg-slate-950">
         {/* ── COLUMN 1: UNIVERSAL PROMPT EDITOR (LEFT 6 COLS = 50%) ──────────────────────────── */}
         <div className="col-span-6 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col overflow-hidden">
-          {/* Metadata Ribbon Header */}
-          <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500">
-            <div className="flex items-center gap-3">
-              <span>
-                Cost <strong className="text-slate-700 dark:text-slate-300">$0.115/min</strong>
-              </span>
-              <span>
-                Latency <strong className="text-slate-700 dark:text-slate-300">710-1190ms</strong>
-              </span>
-              <span>
-                Tokens <strong className="text-slate-700 dark:text-slate-300">814 - 3k</strong>
-              </span>
-            </div>
-            <button className="p-1 text-slate-400 hover:text-slate-600" title="Copy Agent ID">
-              <Copy className="w-3.5 h-3.5" />
+          {/* Metadata Ribbon Header (Item 1: Cost/Latency/Tokens removed; Item 7: Copy Agent ID) */}
+          <div className="p-2.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-end text-[11px] text-slate-500 bg-slate-50/30 dark:bg-slate-900/30">
+            <button
+              onClick={() => {
+                if (currentAgentId) {
+                  navigator.clipboard.writeText(currentAgentId);
+                  setCopiedAgentId(true);
+                  setTimeout(() => setCopiedAgentId(false), 1500);
+                }
+              }}
+              disabled={!currentAgentId}
+              className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-50 flex items-center gap-1.5 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              title="Copy Agent ID"
+            >
+              {copiedAgentId ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+              {copiedAgentId ? 'Copied ID' : 'Copy Agent ID'}
             </button>
           </div>
 
-          {/* Model, Voice, Language & Handbook Toolbar */}
-          <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 flex-wrap bg-slate-50/50 dark:bg-slate-900">
+          {/* Voice, Language & Handbook Toolbar (Item 2: Model selector removed) */}
+          <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 flex-wrap bg-slate-50/50 dark:bg-slate-900 relative">
             <div className="flex items-center gap-2">
-              {/* LLM Model Dropdown + Gear */}
-              <div className="flex items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 gap-1">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-                <select
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  className="bg-transparent text-xs font-semibold focus:outline-none"
-                >
-                  <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                  <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-                  <option value="gpt-4.1">GPT 4.1</option>
-                </select>
-                <Settings className="w-3 h-3 text-slate-400 cursor-pointer" />
-              </div>
-
-              {/* Voice Selector */}
+              {/* Voice Selector (Item 4: All 30 canonical Gemini voices) */}
               <div className="flex items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 gap-1.5">
                 <div className="w-4 h-4 rounded-full bg-purple-100 text-purple-700 font-bold text-[9px] flex items-center justify-center">
                   {voice.charAt(0)}
@@ -479,44 +650,136 @@ export default function SinglePromptStudio({
                 <select
                   value={voice}
                   onChange={(e) => setVoice(e.target.value)}
-                  className="bg-transparent text-xs font-semibold focus:outline-none"
+                  className="bg-transparent text-xs font-semibold focus:outline-none max-w-[210px] truncate"
                 >
-                  <option value="Cimo">Cimo</option>
-                  <option value="Puck">Puck</option>
-                  <option value="Aoede">Aoede</option>
-                  <option value="Charon">Charon</option>
-                  <option value="Fenrir">Fenrir</option>
-                  <option value="Nova">Nova</option>
+                  {GEMINI_VOICES.map((v) => (
+                    <option key={v.name} value={v.name}>
+                      {v.desc}
+                    </option>
+                  ))}
                 </select>
               </div>
 
-              {/* Language Selector */}
+              {/* Language Selector (Item 3: 2-letter codes) */}
               <div className="flex items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 gap-1">
-                <span className="text-xs">🇺🇸</span>
+                <Globe className="w-3.5 h-3.5 text-slate-400" />
                 <select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
                   className="bg-transparent text-xs font-semibold focus:outline-none"
                 >
-                  <option value="English (US)">English (US)</option>
-                  <option value="English (UK)">English (UK)</option>
-                  <option value="Hindi">Hindi (India)</option>
-                  <option value="Spanish">Spanish (ES)</option>
+                  {LANGUAGE_OPTIONS.map((lang) => (
+                    <option key={lang.code} value={lang.code}>
+                      {lang.label}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
 
-            {/* Agent Handbook Button */}
-            <div className="flex items-center gap-1">
-              <button className="px-2.5 py-1 text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                <BookOpen className="w-3.5 h-3.5 text-indigo-500" /> Agent Handbook
+            {/* Agent Handbook Button & Prompt History */}
+            <div className="flex items-center gap-1 relative">
+              <button
+                onClick={() => setShowHandbookPopover(!showHandbookPopover)}
+                className={`px-2.5 py-1 text-xs font-semibold border rounded-lg flex items-center gap-1.5 transition-all ${
+                  handbookPresets.length > 0
+                    ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300'
+                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                }`}
+              >
+                <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
+                Agent Handbook
+                <span className="px-1.5 py-0.2 bg-indigo-200 dark:bg-indigo-800 text-indigo-900 dark:text-indigo-100 rounded-full text-[10px] font-bold">
+                  {handbookPresets.length}
+                </span>
               </button>
-              <button className="p-1 text-slate-400 hover:text-slate-600" title="Prompt History">
+
+              {/* Handbook Popover Panel (Item 5) */}
+              {showHandbookPopover && (
+                <div className="absolute right-0 top-9 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-50 p-4 space-y-3">
+                  <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-indigo-500" />
+                      <span className="font-bold text-xs">Agent Handbook Presets</span>
+                    </div>
+                    <button
+                      onClick={() => setShowHandbookPopover(false)}
+                      className="p-1 text-slate-400 hover:text-slate-600 rounded-md"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-tight">
+                    One-click best practice instructions appended to your system prompt at save time.
+                  </p>
+                  <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+                    {HANDBOOK_PRESETS.map((preset) => {
+                      const active = handbookPresets.includes(preset.id);
+                      return (
+                        <div
+                          key={preset.id}
+                          onClick={() => toggleHandbookPreset(preset.id)}
+                          className={`p-2.5 rounded-lg border cursor-pointer transition-all ${
+                            active
+                              ? 'bg-indigo-50/60 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800'
+                              : 'bg-slate-50/50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 hover:bg-slate-100'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-xs text-slate-800 dark:text-slate-200">
+                              {preset.label}
+                            </span>
+                            <div
+                              className={`w-4 h-4 rounded flex items-center justify-center border ${
+                                active
+                                  ? 'bg-indigo-600 border-indigo-600 text-white'
+                                  : 'border-slate-300 dark:border-slate-600'
+                              }`}
+                            >
+                              {active && <Check className="w-3 h-3" />}
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-slate-500 mt-1 leading-snug">
+                            {preset.instruction}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Prompt History Clock Button (Item 6) */}
+              <button
+                onClick={() => setShowPromptHistoryPopover(!showPromptHistoryPopover)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-md transition-colors relative"
+                title="Prompt History"
+              >
                 <Clock className="w-3.5 h-3.5" />
               </button>
+
+              {showPromptHistoryPopover && (
+                <div className="absolute right-0 top-9 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-50 p-3 space-y-2">
+                  <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-indigo-500" />
+                      <span className="font-bold text-xs">Prompt Version History</span>
+                    </div>
+                    <button
+                      onClick={() => setShowPromptHistoryPopover(false)}
+                      className="p-1 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <div className="text-[11px] text-slate-500 py-4 text-center space-y-1">
+                    <p className="font-medium text-slate-700 dark:text-slate-300">Version 1 (Current)</p>
+                    <p className="text-[10px]">No past snapshots saved in DB yet.</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-
           {/* Universal System Prompt Textarea */}
           <div className="flex-1 p-4 overflow-y-auto flex flex-col">
             <textarea
@@ -820,14 +1083,14 @@ export default function SinglePromptStudio({
                 {/* Run Test Action Button */}
                 {!isTestActive ? (
                   <button
-                    onClick={startAudioTest}
+                    onClick={startWebsocketsTestCall}
                     className="px-6 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-indigo-500 text-slate-800 dark:text-slate-200 font-semibold text-xs rounded-xl shadow-sm flex items-center gap-2 transition-all"
                   >
                     <Play className="w-4 h-4 text-indigo-600" /> Run Test
                   </button>
                 ) : (
                   <button
-                    onClick={stopAudioTest}
+                    onClick={stopWebsocketsTestCall}
                     className="px-6 py-2.5 bg-rose-600 text-white font-semibold text-xs rounded-xl shadow-sm flex items-center gap-2 hover:bg-rose-700 transition-all"
                   >
                     <Pause className="w-4 h-4" /> End Test Call

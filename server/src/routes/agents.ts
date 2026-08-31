@@ -698,4 +698,51 @@ router.post(
   }
 );
 
+/** POST /api/v2/agents/test-prompt — Fast LLM text test for studio prompt preview */
+router.post(
+  '/test-prompt',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'Unauthorized' });
+        return;
+      }
+
+      const { systemPrompt, userQuery } = req.body;
+      if (!userQuery || typeof userQuery !== 'string' || !userQuery.trim()) {
+        res.status(400).json({ success: false, error: 'userQuery is required' });
+        return;
+      }
+
+      const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+      if (!apiKey) {
+        res.status(500).json({ success: false, error: 'GEMINI_API_KEY is not configured on the server.' });
+        return;
+      }
+
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-2.5-flash',
+        systemInstruction: systemPrompt || undefined,
+      });
+
+      const result = await model.generateContent(userQuery.trim());
+      const replyText = result.response.text();
+
+      res.status(200).json({
+        success: true,
+        data: { reply: replyText },
+      });
+      return;
+    } catch (error: any) {
+      logger.error('Error in agent test-prompt endpoint', { error: error?.message || String(error) });
+      res.status(500).json({ success: false, error: 'Failed to generate test LLM response' });
+      return;
+    }
+  }
+);
+
 export default router;
+
