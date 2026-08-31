@@ -271,6 +271,7 @@ router.get(
             voiceName: true,
             systemVoice: true,
             languageMode: true,
+            direction: true,
             temperature: true,
             createdAt: true,
             updatedAt: true,
@@ -298,6 +299,7 @@ router.get(
           voiceName: agent?.voiceName,
           systemVoice: agent?.systemVoice,
           languageMode: agent?.languageMode,
+          direction: agent?.direction || 'outbound',
           temperature: agent?.temperature,
           createdAt: agent?.createdAt instanceof Date ? agent.createdAt.toISOString() : (agent?.createdAt ? new Date(agent.createdAt).toISOString() : new Date().toISOString()),
           updatedAt: agent?.updatedAt instanceof Date ? agent.updatedAt.toISOString() : (agent?.updatedAt ? new Date(agent.updatedAt).toISOString() : new Date().toISOString()),
@@ -380,6 +382,7 @@ router.get(
           voiceName: agent.voiceName,
           systemVoice: agent.systemVoice,
           languageMode: agent.languageMode,
+          direction: agent.direction || 'outbound',
           temperature: agent.temperature,
           systemPrompt: agent.systemPrompt,
           flowGraph: parsedFlowGraph,
@@ -407,7 +410,7 @@ router.post(
         return;
       }
 
-      const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, systemVoice, temperature, systemPrompt, flowGraph, languageMode } = req.body;
+      const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, systemVoice, temperature, systemPrompt, flowGraph, languageMode, direction } = req.body;
 
       const newAgent = await prisma.agent.create({
         data: {
@@ -426,6 +429,7 @@ router.post(
           systemPrompt: systemPrompt || null,
           flowGraph: typeof flowGraph === 'string' ? flowGraph : flowGraph ? JSON.stringify(flowGraph) : null,
           languageMode: languageMode || 'auto',
+          direction: direction || 'outbound',
         },
       });
 
@@ -453,7 +457,7 @@ router.put(
       }
 
       const agentId = req.params.agentId as string;
-      const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, systemVoice, temperature, systemPrompt, flowGraph, languageMode } = req.body;
+      const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, systemVoice, temperature, systemPrompt, flowGraph, languageMode, direction } = req.body;
 
       // Verify ownership before updating
       const exists = await prisma.agent.findFirst({
@@ -487,6 +491,7 @@ router.put(
           ...(systemPrompt !== undefined && { systemPrompt }),
           ...(flowGraph !== undefined && { flowGraph: typeof flowGraph === 'string' ? flowGraph : flowGraph ? JSON.stringify(flowGraph) : null }),
           ...(languageMode !== undefined && { languageMode }),
+          ...(direction !== undefined && { direction }),
         },
       });
 

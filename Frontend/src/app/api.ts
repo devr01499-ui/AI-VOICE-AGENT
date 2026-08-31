@@ -59,6 +59,7 @@ export interface ApiAgent {
   isTranscriptionEnabled?: boolean;
   systemVoice?: string | null;
   languageMode?: string | null;
+  direction?: string | null;
   createdAt: string;
   updatedAt: string;
 }

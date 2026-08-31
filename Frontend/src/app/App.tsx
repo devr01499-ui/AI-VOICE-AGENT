@@ -5228,6 +5228,7 @@ function DashboardPage({ session }: { session: Session }) {
             voiceName: source?.voiceName || source?.systemVoice || 'Puck',
             systemVoice: source?.systemVoice || source?.voiceName || 'Puck',
             languageMode: source?.languageMode || 'auto',
+            direction: source?.direction || 'outbound',
             temperature: source?.temperature !== undefined && source?.temperature !== null ? Number(source.temperature) : 0.7,
             systemPrompt: source?.systemPrompt || null,
             flowGraph: source?.flowGraph || null,
