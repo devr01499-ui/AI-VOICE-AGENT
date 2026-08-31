@@ -9,8 +9,8 @@ import VisualFlowCanvas from "./components/agents/VisualFlowCanvas";
 import SinglePromptStudio from "./components/agents/SinglePromptStudio";
 import { DashCalendar } from "./components/calendar/CalendarOverview";
 import {
-  fetchAgents, fetchAgent, fetchCalls, fetchProfile, createAgent, updateAgent, chatWithAgent,
-  exportAgentAsJson, importAgentFromJson,
+  fetchAgents, fetchAgent, fetchCalls, fetchProfile, createAgent, updateAgent, deleteAgent, chatWithAgent,
+  exportAgentAsJson, importAgentFromJson, executeConductorPrompt,
   initiateCall, getCallTranscript, getLiveTranscriptWsUrl,
   fetchKBList, uploadKBDocument, scrapeKBUrl, deleteKBDocument, fetchCalendarBatches,
   DEV_USER_ID, DEFAULT_AGENT_ID, API_BASE, apiClient,
@@ -5211,6 +5211,16 @@ function DashboardPage({ session }: { session: Session }) {
           fetchAgents().then(setApiAgents).catch(() => {});
           return created.id;
         }}
+        onViewCallLogs={() => {
+          setSinglePromptStudioAgent(null);
+          setSection("calls");
+        }}
+        onDeleteAgent={async (id) => {
+          if (id) {
+            await deleteAgent(id);
+            fetchAgents().then(setApiAgents).catch(() => {});
+          }
+        }}
         onBack={() => setSinglePromptStudioAgent(null)}
       />
     );
@@ -5222,20 +5232,23 @@ function DashboardPage({ session }: { session: Session }) {
         agentName={studioAgent.name}
         initialGraph={studioAgent.flowGraph}
         legacySystemPrompt={studioAgent.systemPrompt}
-        onSave={async (compiledPrompt, flowGraph) => {
+        onSave={async (compiledPrompt, flowGraph, extraConfig) => {
+          const payload = {
+            name: studioAgent.name,
+            agentType: 'conversational',
+            systemPrompt: compiledPrompt,
+            flowGraph: flowGraph as any,
+            languageMode: extraConfig?.languageMode || extraConfig?.language || 'auto',
+            systemVoice: extraConfig?.systemVoice || extraConfig?.voiceName || 'Puck',
+            voiceName: extraConfig?.voiceName || extraConfig?.systemVoice || 'Puck',
+            model: extraConfig?.model || 'gemini-2.5-flash',
+            agentConfig: extraConfig?.handbookPresets ? { handbookPresets: extraConfig.handbookPresets } : undefined,
+          };
           if (studioAgent.id && !studioAgent.id.startsWith('a')) {
-            await updateAgent(studioAgent.id, {
-              systemPrompt: compiledPrompt,
-              flowGraph: flowGraph as any,
-            });
+            await updateAgent(studioAgent.id, payload as any);
             alert("Conversational flow graph published successfully!");
           } else {
-            await createAgent({
-              name: studioAgent.name,
-              agentType: 'conversational',
-              systemPrompt: compiledPrompt,
-              flowGraph: flowGraph as any,
-            });
+            await createAgent(payload as any);
             alert("New conversational flow agent published to database!");
           }
           setStudioAgent(null);
