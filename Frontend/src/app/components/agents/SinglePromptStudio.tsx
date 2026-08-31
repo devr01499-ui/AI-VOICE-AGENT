@@ -193,7 +193,7 @@ export default function SinglePromptStudio({
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [copiedAgentId, setCopiedAgentId] = useState(false);
 
-  const [testTab, setTestTab] = useState<'audio' | 'llm' | 'json'>('audio');
+  const [testTab, setTestTab] = useState<'audio' | 'llm'>('audio');
 
   const [accordionState, setAccordionState] = useState<Record<string, boolean>>({
     functions: false,
@@ -214,7 +214,7 @@ export default function SinglePromptStudio({
   const [isTestActive, setIsTestActive] = useState(false);
   const [testStatus, setTestStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [testError, setTestError] = useState<string | null>(null);
-  const [transcriptTurns, setTranscriptTurns] = useState<Array<{ speaker: 'user' | 'agent'; text: string }>>([]);
+  const [transcriptTurns, setTranscriptTurns] = useState<Array<{ speaker: 'user' | 'agent'; text: string; finalized?: boolean }>>([]);
   const [latency, setLatency] = useState<number | null>(null);
 
   const [llmQuery, setLlmQuery] = useState('');
@@ -369,18 +369,53 @@ export default function SinglePromptStudio({
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
-          if (msg.event === 'media' && msg.media?.payload) {
-            playPcmAudioChunk(msg.media.payload);
-          } else if (msg.event === 'transcript' || msg.event === 'user_transcript') {
-            const text = msg.transcript || msg.text || '';
-            if (text) {
-              setTranscriptTurns((prev) => [...prev, { speaker: 'user', text }]);
+          if ((msg.event === 'audio' && msg.data) || (msg.event === 'media' && msg.media?.payload)) {
+            playPcmAudioChunk(msg.data || msg.media?.payload);
+          } else if (msg.event === 'transcript' || msg.event === 'user_transcript' || msg.event === 'agent_transcript') {
+            const deltaText = msg.text || msg.transcript || '';
+            if (deltaText) {
+              const isUserSpeaker = msg.isUser !== undefined ? msg.isUser : msg.event !== 'agent_transcript';
+              const speaker: 'user' | 'agent' = isUserSpeaker ? 'user' : 'agent';
+              const isFinal = Boolean(msg.isFinal);
+
+              setTranscriptTurns((prev) => {
+                if (prev.length === 0) {
+                  return [{ speaker, text: deltaText, finalized: isFinal }];
+                }
+                const lastIndex = prev.length - 1;
+                const lastTurn = prev[lastIndex];
+
+                if (lastTurn.speaker === speaker && !lastTurn.finalized) {
+                  const updatedTurns = [...prev];
+                  updatedTurns[lastIndex] = {
+                    ...lastTurn,
+                    text: lastTurn.text + deltaText,
+                    finalized: isFinal,
+                  };
+                  return updatedTurns;
+                } else {
+                  return [...prev, { speaker, text: deltaText, finalized: isFinal }];
+                }
+              });
             }
-          } else if (msg.event === 'agent_transcript') {
-            const text = msg.transcript || msg.text || '';
-            if (text) {
-              setTranscriptTurns((prev) => [...prev, { speaker: 'agent', text }]);
-            }
+          } else if (msg.event === 'interrupted') {
+            setTranscriptTurns((prev) => {
+              if (prev.length === 0) return prev;
+              const lastIndex = prev.length - 1;
+              const lastTurn = prev[lastIndex];
+              if (lastTurn.speaker === 'agent' && !lastTurn.finalized) {
+                const updatedTurns = [...prev];
+                updatedTurns[lastIndex] = {
+                  ...lastTurn,
+                  text: lastTurn.text + ' [interrupted]',
+                  finalized: true,
+                };
+                return updatedTurns;
+              }
+              return prev;
+            });
+          } else if (msg.event === 'error' && msg.message) {
+            setTestError(msg.message);
           } else if (msg.event === 'latency' && typeof msg.latencyMs === 'number') {
             setLatency(msg.latencyMs);
           }
@@ -433,13 +468,18 @@ export default function SinglePromptStudio({
   async function handleSendLlmTest() {
     if (!llmQuery.trim()) return;
     const userMsg = llmQuery.trim();
+    const history = llmResponses.map((r) => ({
+      role: r.sender === 'user' ? ('user' as const) : ('model' as const),
+      content: r.text,
+    }));
+
     setLlmResponses((prev) => [...prev, { sender: 'user', text: userMsg }]);
     setLlmQuery('');
     setIsLlmLoading(true);
 
     try {
       const finalPrompt = compilePromptWithHandbook(systemPrompt, handbookPresets);
-      const res = await testAgentPrompt(finalPrompt, userMsg);
+      const res = await testAgentPrompt(finalPrompt, userMsg, history);
       const agentReply = res?.reply || 'No response generated.';
       setLlmResponses((prev) => [...prev, { sender: 'agent', text: agentReply }]);
     } catch {
@@ -606,14 +646,6 @@ export default function SinglePromptStudio({
               </div>
             )}
           </div>
-
-          <button className="px-2.5 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg flex items-center gap-1.5 border border-slate-200 dark:border-slate-700">
-            <Volume2 className="w-3.5 h-3.5 text-indigo-500" /> VO
-          </button>
-
-          <button className="px-3 py-1.5 text-xs font-semibold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-lg flex items-center gap-1.5 hover:bg-purple-100 transition-all">
-            <Sparkles className="w-3.5 h-3.5" /> AI Assistant
-          </button>
 
           <button
             onClick={handlePublish}
@@ -1049,15 +1081,6 @@ export default function SinglePromptStudio({
                 Test LLM
               </button>
             </div>
-            <button
-              onClick={() => setTestTab('json')}
-              className={`p-1.5 rounded-md text-xs font-mono transition-all ${
-                testTab === 'json' ? 'bg-indigo-100 text-indigo-600 font-bold' : 'text-slate-400 hover:text-slate-700'
-              }`}
-              title="View JSON Snapshot"
-            >
-              {'{ }'}
-            </button>
           </div>
 
           {/* Playground Body Content */}
@@ -1157,12 +1180,6 @@ export default function SinglePromptStudio({
                     <Send className="w-4 h-4" />
                   </button>
                 </div>
-              </div>
-            )}
-
-            {testTab === 'json' && (
-              <div className="flex-1 overflow-y-auto font-mono text-[11px] bg-slate-900 text-slate-200 p-3 rounded-xl">
-                <pre>{rawJsonConfig}</pre>
               </div>
             )}
           </div>

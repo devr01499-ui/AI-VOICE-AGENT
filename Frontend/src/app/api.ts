@@ -377,11 +377,12 @@ export async function chatWithAgent(
 /** POST /api/v2/agents/test-prompt — Fast LLM text test for prompt preview */
 export async function testAgentPrompt(
   systemPrompt: string,
-  userQuery: string
+  userQuery: string,
+  history?: Array<{ role: 'user' | 'model'; content: string }>
 ): Promise<{ reply: string }> {
   return apiFetch<{ reply: string }>("/api/v2/agents/test-prompt", {
     method: "POST",
-    body: JSON.stringify({ systemPrompt, userQuery }),
+    body: JSON.stringify({ systemPrompt, userQuery, history }),
   });
 }
 

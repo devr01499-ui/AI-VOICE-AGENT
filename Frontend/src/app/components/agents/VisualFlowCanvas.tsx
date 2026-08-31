@@ -430,16 +430,8 @@ export default function VisualFlowCanvas({
             Feedback
           </button>
 
-          <button className="px-2.5 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg flex items-center gap-1.5 border border-slate-200 dark:border-slate-700">
-            <Volume2 className="w-3.5 h-3.5 text-indigo-500" /> VO
-          </button>
-
           <button className="px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-lg flex items-center gap-1.5 hover:bg-indigo-100 transition-all">
             <Play className="w-3.5 h-3.5" /> Test
-          </button>
-
-          <button className="px-3 py-1.5 text-xs font-semibold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-lg flex items-center gap-1.5 hover:bg-purple-100 transition-all">
-            <Sparkles className="w-3.5 h-3.5" /> AI Assistant
           </button>
 
           <button
