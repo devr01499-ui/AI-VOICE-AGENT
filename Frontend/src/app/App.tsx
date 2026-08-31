@@ -5211,6 +5211,41 @@ function DashboardPage({ session }: { session: Session }) {
           fetchAgents().then(setApiAgents).catch(() => {});
           return created.id;
         }}
+        onDuplicateAgent={async (agent) => {
+          const source = agent || singlePromptStudioAgent;
+          const baseName = source?.name || singlePromptStudioAgent?.name || 'Agent';
+          const newName = baseName.endsWith('(Copy)') ? baseName : `${baseName} (Copy)`;
+          const sourceConfig = typeof source?.agentConfig === 'object' && source?.agentConfig !== null
+            ? source.agentConfig
+            : (typeof source?.agentConfig === 'string' ? (() => { try { return JSON.parse(source.agentConfig); } catch { return {}; } })() : {});
+
+          await createAgent({
+            name: newName,
+            description: source?.description || null,
+            agentType: source?.agentType || 'prompt',
+            status: source?.status || 'draft',
+            model: source?.model || 'gemini-2.5-flash',
+            voiceName: source?.voiceName || source?.systemVoice || 'Puck',
+            systemVoice: source?.systemVoice || source?.voiceName || 'Puck',
+            languageMode: source?.languageMode || 'auto',
+            temperature: source?.temperature !== undefined && source?.temperature !== null ? Number(source.temperature) : 0.7,
+            systemPrompt: source?.systemPrompt || null,
+            flowGraph: source?.flowGraph || null,
+            tags: source?.tags || [],
+            welcomeMessageMode: source?.welcomeMessageMode,
+            customWelcomeText: source?.customWelcomeText,
+            silenceStartEnabled: source?.silenceStartEnabled,
+            agentConfig: {
+              ...sourceConfig,
+              ...(source?.handbookPresets ? { handbookPresets: source.handbookPresets } : {}),
+              ...(source?.welcomeMessageMode ? { welcomeMessageMode: source.welcomeMessageMode } : {}),
+              ...(source?.customWelcomeText ? { customWelcomeText: source.customWelcomeText } : {}),
+              ...(source?.silenceStartEnabled !== undefined ? { silenceStartEnabled: source.silenceStartEnabled } : {}),
+            },
+          } as any);
+          fetchAgents().then(setApiAgents).catch(() => {});
+          alert("Agent duplicated successfully!");
+        }}
         onViewCallLogs={() => {
           setSinglePromptStudioAgent(null);
           setSection("calls");

@@ -529,21 +529,29 @@ export default function SinglePromptStudio({
                 <button
                   onClick={() => {
                     setShowMoreMenu(false);
-                    if (onDuplicateAgent && initialAgent) {
-                      onDuplicateAgent(initialAgent);
+                    const studioPayload = {
+                      ...(initialAgent || {}),
+                      name: agentName,
+                      agentType: 'prompt',
+                      model,
+                      voiceName: voice,
+                      systemVoice: voice,
+                      languageMode: language,
+                      systemPrompt: compilePromptWithHandbook(systemPrompt, handbookPresets),
+                      welcomeMessageMode,
+                      customWelcomeText,
+                      silenceStartEnabled,
+                      agentConfig: {
+                        ...(typeof initialAgent?.agentConfig === 'object' && initialAgent?.agentConfig ? initialAgent.agentConfig : {}),
+                        handbookPresets,
+                      },
+                    };
+                    if (onDuplicateAgent) {
+                      onDuplicateAgent(studioPayload);
                     } else {
                       onSave({
+                        ...studioPayload,
                         name: `${agentName} (Copy)`,
-                        agentType: 'prompt',
-                        model,
-                        voiceName: voice,
-                        systemVoice: voice,
-                        languageMode: language,
-                        systemPrompt: compilePromptWithHandbook(systemPrompt, handbookPresets),
-                        welcomeMessageMode,
-                        customWelcomeText,
-                        silenceStartEnabled,
-                        agentConfig: { handbookPresets },
                       });
                     }
                   }}
