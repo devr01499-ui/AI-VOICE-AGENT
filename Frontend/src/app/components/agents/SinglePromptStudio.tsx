@@ -117,10 +117,30 @@ export const HANDBOOK_PRESETS = [
   },
 ];
 
-export function compilePromptWithHandbook(prompt: string, enabledPresets: string[]): string {
+export function compilePromptWithHandbook(
+  prompt: string,
+  enabledPresets: string[] = [],
+  direction: string = 'outbound'
+): string {
+  let directionText = '';
+  if (direction === 'inbound') {
+    directionText = "This is an inbound call — the caller reached out to you. Open with a warm greeting appropriate to being contacted, and ask how you can help, rather than introducing an unprompted reason for calling.";
+  } else if (direction === 'outbound') {
+    directionText = "This is an outbound call you are initiating — open by introducing yourself, stating who you're calling on behalf of, and the reason for the call.";
+  }
+
   const active = HANDBOOK_PRESETS.filter(p => enabledPresets.includes(p.id));
-  if (active.length === 0) return prompt;
-  return `${prompt}\n\n[AGENT HANDBOOK INSTRUCTIONS]\n` + active.map(p => `- ${p.instruction}`).join('\n');
+  let result = prompt;
+
+  if (directionText) {
+    result += `\n\n[CALL DIRECTION INSTRUCTION]\n${directionText}`;
+  }
+
+  if (active.length > 0) {
+    result += `\n\n[AGENT HANDBOOK INSTRUCTIONS]\n` + active.map(p => `- ${p.instruction}`).join('\n');
+  }
+
+  return result;
 }
 
 const normalizeLangCode = (code?: string): string => {
@@ -175,6 +195,9 @@ export default function SinglePromptStudio({
   const [model] = useState('gemini-2.5-flash');
   const [voice, setVoice] = useState(initialAgent?.voiceName || initialAgent?.systemVoice || 'Puck');
   const [language, setLanguage] = useState(normalizeLangCode(initialAgent?.languageMode || undefined));
+  const [direction, setDirection] = useState<'outbound' | 'inbound' | 'both'>(
+    initialAgent?.direction === 'inbound' || initialAgent?.direction === 'both' ? initialAgent.direction : 'outbound'
+  );
   const [systemPrompt, setSystemPrompt] = useState(
     initialAgent?.systemPrompt ||
       'You are an energetic and friendly outbound sales agent for a dental clinic. Your primary goal is to engage potential new patients, inform them about the clinic\'s services, and schedule a consultation.'
@@ -311,7 +334,8 @@ export default function SinglePromptStudio({
             voiceName: voice,
             systemVoice: voice,
             languageMode: language,
-            systemPrompt: compilePromptWithHandbook(systemPrompt, handbookPresets),
+            direction,
+            systemPrompt: compilePromptWithHandbook(systemPrompt, handbookPresets, direction),
             welcomeMessageMode,
             customWelcomeText,
             silenceStartEnabled,
@@ -340,26 +364,70 @@ export default function SinglePromptStudio({
           audioContextRef.current = audioCtx;
 
           const sourceNode = audioCtx.createMediaStreamSource(stream);
-          const processorNode = audioCtx.createScriptProcessor(4096, 1, 1);
-          processorNodeRef.current = processorNode;
 
-          processorNode.onaudioprocess = (e) => {
-            const inputData = e.inputBuffer.getChannelData(0);
-            const pcm16Buffer = floatTo16BitPCM(inputData);
-            const base64Audio = arrayBufferToBase64(pcm16Buffer);
-
-            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-              wsRef.current.send(
-                JSON.stringify({
-                  event: 'media',
-                  media: { payload: base64Audio },
-                })
-              );
+          let workletLoaded = false;
+          if (audioCtx.audioWorklet) {
+            try {
+              const workletCode = `
+                class PCMProcessor extends AudioWorkletProcessor {
+                  process(inputs) {
+                    const input = inputs[0];
+                    if (input && input.length > 0) {
+                      const channelData = input[0];
+                      if (channelData && channelData.length > 0) {
+                        this.port.postMessage(channelData);
+                      }
+                    }
+                    return true;
+                  }
+                }
+                registerProcessor('pcm-processor', PCMProcessor);
+              `;
+              const blob = new Blob([workletCode], { type: 'application/javascript' });
+              const workletUrl = URL.createObjectURL(blob);
+              await audioCtx.audioWorklet.addModule(workletUrl);
+              const workletNode = new AudioWorkletNode(audioCtx, 'pcm-processor');
+              workletNode.port.onmessage = (e) => {
+                const float32Data = e.data;
+                const pcm16Buffer = floatTo16BitPCM(float32Data);
+                const base64Audio = arrayBufferToBase64(pcm16Buffer);
+                if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                  wsRef.current.send(
+                    JSON.stringify({
+                      event: 'audio',
+                      data: base64Audio,
+                    })
+                  );
+                }
+              };
+              sourceNode.connect(workletNode);
+              workletNode.connect(audioCtx.destination);
+              workletLoaded = true;
+            } catch {
+              workletLoaded = false;
             }
-          };
+          }
 
-          sourceNode.connect(processorNode);
-          processorNode.connect(audioCtx.destination);
+          if (!workletLoaded) {
+            const processorNode = audioCtx.createScriptProcessor(4096, 1, 1);
+            processorNodeRef.current = processorNode;
+            processorNode.onaudioprocess = (e) => {
+              const inputData = e.inputBuffer.getChannelData(0);
+              const pcm16Buffer = floatTo16BitPCM(inputData);
+              const base64Audio = arrayBufferToBase64(pcm16Buffer);
+
+              if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                wsRef.current.send(
+                  JSON.stringify({
+                    event: 'audio',
+                    data: base64Audio,
+                  })
+                );
+              }
+            };
+            sourceNode.connect(processorNode);
+            processorNode.connect(audioCtx.destination);
+          }
         } catch (micErr: any) {
           setTestError('Microphone permission denied or audio device failure.');
           stopWebsocketsTestCall();
@@ -477,19 +545,32 @@ export default function SinglePromptStudio({
     setLlmQuery('');
     setIsLlmLoading(true);
 
+    let coldStartTimer: any = setTimeout(() => {
+      setLlmResponses((prev) => {
+        const last = prev[prev.length - 1];
+        if (last && last.sender === 'user') {
+          return [...prev, { sender: 'agent', text: "Waking up the test assistant — this can take up to a minute on cold start..." }];
+        }
+        return prev;
+      });
+    }, 3000);
+
     try {
-      const finalPrompt = compilePromptWithHandbook(systemPrompt, handbookPresets);
+      const finalPrompt = compilePromptWithHandbook(systemPrompt, handbookPresets, direction);
       const res = await testAgentPrompt(finalPrompt, userMsg, history);
+      clearTimeout(coldStartTimer);
       const agentReply = res?.reply || 'No response generated.';
-      setLlmResponses((prev) => [...prev, { sender: 'agent', text: agentReply }]);
-    } catch {
-      setLlmResponses((prev) => [
-        ...prev,
-        {
-          sender: 'agent',
-          text: "Couldn't reach the test assistant — please try again.",
-        },
-      ]);
+      setLlmResponses((prev) => {
+        const filtered = prev.filter(r => !r.text.startsWith("Waking up the test assistant"));
+        return [...filtered, { sender: 'agent', text: agentReply }];
+      });
+    } catch (err: any) {
+      clearTimeout(coldStartTimer);
+      const errorText = err?.message || "Couldn't reach the test assistant — please try again.";
+      setLlmResponses((prev) => {
+        const filtered = prev.filter(r => !r.text.startsWith("Waking up the test assistant"));
+        return [...filtered, { sender: 'agent', text: `Error: ${errorText}` }];
+      });
     } finally {
       setIsLlmLoading(false);
     }
@@ -509,7 +590,8 @@ export default function SinglePromptStudio({
       voiceName: voice,
       systemVoice: voice,
       languageMode: language,
-      systemPrompt: compilePromptWithHandbook(systemPrompt, handbookPresets),
+      direction,
+      systemPrompt: compilePromptWithHandbook(systemPrompt, handbookPresets, direction),
       welcomeMessageMode,
       customWelcomeText,
       silenceStartEnabled,
@@ -524,7 +606,8 @@ export default function SinglePromptStudio({
       model: model,
       voice_id: voice,
       language: language,
-      system_prompt: compilePromptWithHandbook(systemPrompt, handbookPresets),
+      direction: direction,
+      system_prompt: compilePromptWithHandbook(systemPrompt, handbookPresets, direction),
       handbook_presets: handbookPresets,
       welcome_message: welcomeMessageMode === 'user_first' ? 'User speaks first' : customWelcomeText,
       silence_start: silenceStartEnabled,
@@ -577,7 +660,8 @@ export default function SinglePromptStudio({
                       voiceName: voice,
                       systemVoice: voice,
                       languageMode: language,
-                      systemPrompt: compilePromptWithHandbook(systemPrompt, handbookPresets),
+                      direction,
+                      systemPrompt: compilePromptWithHandbook(systemPrompt, handbookPresets, direction),
                       welcomeMessageMode,
                       customWelcomeText,
                       silenceStartEnabled,
@@ -713,6 +797,21 @@ export default function SinglePromptStudio({
                       {lang.label}
                     </option>
                   ))}
+                </select>
+              </div>
+
+              {/* Call Direction Selector (Inbound / Outbound / Both) */}
+              <div className="flex items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 gap-1">
+                <PhoneCall className="w-3.5 h-3.5 text-indigo-500" />
+                <select
+                  value={direction}
+                  onChange={(e) => setDirection(e.target.value as 'outbound' | 'inbound' | 'both')}
+                  className="bg-transparent text-xs font-semibold focus:outline-none"
+                  title="Call Direction"
+                >
+                  <option value="outbound">Outbound Call</option>
+                  <option value="inbound">Inbound Call</option>
+                  <option value="both">Both Directions</option>
                 </select>
               </div>
             </div>

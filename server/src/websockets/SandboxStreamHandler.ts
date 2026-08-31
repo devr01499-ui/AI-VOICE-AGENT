@@ -151,6 +151,12 @@ export class SandboxStreamHandler {
           if (session.providerSessionId) {
             this.provider.sendAudio(session.providerSessionId, event.data);
           }
+        } else if (event.event === 'media' && event.media?.payload) {
+          if (session.providerSessionId) {
+            this.provider.sendAudio(session.providerSessionId, event.media.payload);
+          }
+        } else {
+          logger.warn('SandboxStreamHandler: Unrecognized inbound event', { connectionId, event: event?.event });
         }
       } catch (err: any) {
         logger.error('SandboxStreamHandler: Failed to process incoming socket message', { connectionId, error: err.message });

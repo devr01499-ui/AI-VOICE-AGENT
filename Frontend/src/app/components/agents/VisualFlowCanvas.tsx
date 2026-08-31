@@ -209,6 +209,7 @@ export default function VisualFlowCanvas({
   const [language, setLanguage] = useState('auto');
   const [voice, setVoice] = useState('Puck');
   const [model] = useState('gemini-2.5-flash');
+  const [direction, setDirection] = useState<'outbound' | 'inbound' | 'both'>('outbound');
   const [globalPrompt, setGlobalPrompt] = useState(legacySystemPrompt || 'Enter your global prompt here. Type {{ to add dynamic variables.');
   const [flexibilityMode, setFlexibilityMode] = useState<'flex' | 'rigid'>('rigid');
   const [handbookPresets, setHandbookPresets] = useState<string[]>(['ai_disclosure']);
@@ -317,8 +318,8 @@ export default function VisualFlowCanvas({
   const compiledPrompt = useMemo(() => {
     const base = compileFlowToSystemPrompt(currentFlowGraph, agentName);
     const fullBase = `${globalPrompt}\n\n${base}`;
-    return compilePromptWithHandbook(fullBase, handbookPresets);
-  }, [currentFlowGraph, agentName, globalPrompt, handbookPresets]);
+    return compilePromptWithHandbook(fullBase, handbookPresets, direction);
+  }, [currentFlowGraph, agentName, globalPrompt, handbookPresets, direction]);
 
   const handleAddNode = (type: FlowNodeType, label: string) => {
     const newId = `node-${Date.now()}`;
@@ -426,6 +427,20 @@ export default function VisualFlowCanvas({
 
         {/* Right Top Header Actions */}
         <div className="flex items-center gap-2">
+          {/* Call Direction Selector */}
+          <div className="flex items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 gap-1">
+            <select
+              value={direction}
+              onChange={(e) => setDirection(e.target.value as 'outbound' | 'inbound' | 'both')}
+              className="bg-transparent text-xs font-semibold focus:outline-none"
+              title="Call Direction"
+            >
+              <option value="outbound">Outbound Call</option>
+              <option value="inbound">Inbound Call</option>
+              <option value="both">Both Directions</option>
+            </select>
+          </div>
+
           <button className="px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all">
             Feedback
           </button>
