@@ -710,7 +710,7 @@ router.post(
         return;
       }
 
-      const { systemPrompt, userQuery } = req.body;
+      const { systemPrompt, userQuery, history } = req.body;
       if (!userQuery || typeof userQuery !== 'string' || !userQuery.trim()) {
         res.status(400).json({ success: false, error: 'userQuery is required' });
         return;
@@ -722,13 +722,27 @@ router.post(
         return;
       }
 
+      const testModeInstruction = `You are being tested in a live chat preview of a voice agent. Respond with ONLY the next natural spoken turn a real person would say next — one to three sentences, plain conversational language. Never output stage directions, asterisks, markdown formatting, or the entire script at once. If the configured prompt contains an unfilled placeholder like [Clinic Name], substitute a reasonable example value rather than reciting the placeholder literally. Wait for the other person's next message before continuing — this is a back-and-forth conversation, not a monologue.`;
+
+      const combinedSystemInstruction = `${systemPrompt ? `${systemPrompt}\n\n` : ''}TEST PREVIEW INSTRUCTIONS:\n${testModeInstruction}`;
+
+      const chatHistory = (history || []).map((msg: any) => ({
+        role: msg.role === 'user' ? 'user' : 'model',
+        parts: [{ text: String(msg.content || '') }],
+      }));
+
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({
         model: 'gemini-2.5-flash',
-        systemInstruction: systemPrompt || undefined,
+        systemInstruction: combinedSystemInstruction,
       });
 
-      const result = await model.generateContent(userQuery.trim());
+      const chat = model.startChat({
+        history: chatHistory,
+        generationConfig: { temperature: 0.7 },
+      });
+
+      const result = await chat.sendMessage(userQuery.trim());
       const replyText = result.response.text();
 
       res.status(200).json({
