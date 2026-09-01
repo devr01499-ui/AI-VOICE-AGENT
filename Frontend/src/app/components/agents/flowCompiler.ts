@@ -66,13 +66,31 @@ export interface FlowGraph {
 /**
  * Compiles a visual FlowGraph JSON into a structured, executable system prompt for Gemini Live engine.
  */
-export function compileFlowToSystemPrompt(flow: FlowGraph, agentName: string = "AI Voice Agent"): string {
+export function compileFlowToSystemPrompt(
+  flow: FlowGraph,
+  agentName: string = "AI Voice Agent",
+  direction: string = 'outbound'
+): string {
   if (!flow || !flow.nodes || flow.nodes.length === 0) {
     return `You are ${agentName}, a professional AI voice agent for Claritiy Voice. Answer user queries concisely and professionally.`;
   }
 
   let prompt = `# AGENT IDENTITY & ROLE\n`;
   prompt += `You are an autonomous AI voice agent (${agentName}) for Claritiy Voice operating under a visual multi-step conversational flow graph.\n\n`;
+
+  let directionText = '';
+  if (direction === 'inbound') {
+    directionText = "This is an inbound call — the caller reached out to you. Never introduce an unprompted sales pitch or reason for calling, as the caller already has a reason for reaching out. Open by identifying the business/agent and inviting them to share what they need. Listen for and directly address what they say before offering anything else. If they seem to be waiting or the greeting overlaps with hold time, keep the opening brief and get to 'how can I help' quickly.";
+  } else if (direction === 'outbound') {
+    directionText = "This is an outbound call you are initiating. Keep your opening brief and state who's calling and why within the first two sentences (people who didn't request the call have short patience). If the person sounds uninterested, busy, or asks to not be called again, acknowledge respectfully and offer to end the call or follow up later rather than pushing to continue. Never claim the person asked for this call. If asked 'how did you get my number', give an honest, direct answer if your context/prompt provides one, otherwise say a team member can follow up with that detail. Keep pitching proportionate — one clear value statement, not repeated re-pitching if the person has already responded neutrally or negatively.";
+  } else if (direction === 'both') {
+    directionText = "This agent handles both inbound and outbound calls. Rely on the agent's prompt and let context (how the call started) guide tone naturally without forced direction framing.";
+  }
+
+  if (directionText) {
+    prompt += `# CALL DIRECTION INSTRUCTIONS\n${directionText}\n\n`;
+  }
+
   prompt += `# CONVERSATIONAL EXECUTION INSTRUCTIONS\n`;
   prompt += `You MUST strictly execute the following step-by-step dialogue flow. Guide the caller through each step in sequence and evaluate branching conditions based on user responses.\n\n`;
 

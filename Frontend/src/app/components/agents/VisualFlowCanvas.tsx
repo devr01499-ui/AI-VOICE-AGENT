@@ -60,6 +60,7 @@ interface VisualFlowCanvasProps {
   legacySystemPrompt?: string;
   agentName?: string;
   onSave: (compiledPrompt: string, flowGraph: FlowGraph, extraConfig?: Record<string, any>) => void;
+  onEnsureSaved?: (compiledPrompt: string, flowGraph: FlowGraph, extraConfig?: Record<string, any>) => Promise<string>;
   onBack?: () => void;
 }
 
@@ -199,6 +200,7 @@ export default function VisualFlowCanvas({
   legacySystemPrompt,
   agentName: initialAgentName = 'Conversation Flow Agent',
   onSave,
+  onEnsureSaved,
   onBack,
 }: VisualFlowCanvasProps) {
   const [agentName, setAgentName] = useState(initialAgentName);
@@ -316,7 +318,7 @@ export default function VisualFlowCanvas({
   );
 
   const compiledPrompt = useMemo(() => {
-    const base = compileFlowToSystemPrompt(currentFlowGraph, agentName);
+    const base = compileFlowToSystemPrompt(currentFlowGraph, agentName, direction);
     const fullBase = `${globalPrompt}\n\n${base}`;
     return compilePromptWithHandbook(fullBase, handbookPresets, direction);
   }, [currentFlowGraph, agentName, globalPrompt, handbookPresets, direction]);
@@ -366,16 +368,40 @@ export default function VisualFlowCanvas({
     setActiveInspectorTab('global');
   };
 
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSavedToast, setShowSavedToast] = useState(false);
+
+  const getCanvasPayloadExtra = () => ({
+    direction,
+    language,
+    languageMode: language,
+    systemVoice: voice,
+    voiceName: voice,
+    model,
+    flexibilityMode,
+    handbookPresets,
+  });
+
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+      const extra = getCanvasPayloadExtra();
+      if (onEnsureSaved) {
+        await onEnsureSaved(compiledPrompt, currentFlowGraph, extra);
+      } else {
+        await onSave(compiledPrompt, currentFlowGraph, extra);
+      }
+      setShowSavedToast(true);
+      setTimeout(() => setShowSavedToast(false), 2000);
+    } catch (err) {
+      console.error('Failed to save canvas flow agent:', err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handlePublish = () => {
-    onSave(compiledPrompt, currentFlowGraph, {
-      language,
-      languageMode: language,
-      systemVoice: voice,
-      voiceName: voice,
-      model,
-      flexibilityMode,
-      handbookPresets,
-    });
+    onSave(compiledPrompt, currentFlowGraph, getCanvasPayloadExtra());
   };
 
   // 15 Node Building Blocks for Retell Left Palette
@@ -447,6 +473,19 @@ export default function VisualFlowCanvas({
 
           <button className="px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-lg flex items-center gap-1.5 hover:bg-indigo-100 transition-all">
             <Play className="w-3.5 h-3.5" /> Test
+          </button>
+
+          {showSavedToast && (
+            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-md transition-all animate-pulse">
+              Saved ✓
+            </span>
+          )}
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="px-3.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm transition-all disabled:opacity-50"
+          >
+            {isSaving ? 'Saving...' : 'Save'}
           </button>
 
           <button
