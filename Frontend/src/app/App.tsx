@@ -5201,6 +5201,8 @@ function DashboardPage({ session }: { session: Session }) {
         }}
         onEnsureSaved={async (agentData) => {
           if (singlePromptStudioAgent.id && !singlePromptStudioAgent.id.startsWith('a') && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(singlePromptStudioAgent.id)) {
+            await updateAgent(singlePromptStudioAgent.id, agentData as any);
+            fetchAgents().then(setApiAgents).catch(() => {});
             return singlePromptStudioAgent.id;
           }
           const created = await createAgent({
@@ -5274,13 +5276,14 @@ function DashboardPage({ session }: { session: Session }) {
             agentType: 'conversational',
             systemPrompt: compiledPrompt,
             flowGraph: flowGraph as any,
+            direction: extraConfig?.direction || 'outbound',
             languageMode: extraConfig?.languageMode || extraConfig?.language || 'auto',
             systemVoice: extraConfig?.systemVoice || extraConfig?.voiceName || 'Puck',
             voiceName: extraConfig?.voiceName || extraConfig?.systemVoice || 'Puck',
             model: extraConfig?.model || 'gemini-2.5-flash',
             agentConfig: extraConfig?.handbookPresets ? { handbookPresets: extraConfig.handbookPresets } : undefined,
           };
-          if (studioAgent.id && !studioAgent.id.startsWith('a')) {
+          if (studioAgent.id && !studioAgent.id.startsWith('a') && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(studioAgent.id)) {
             await updateAgent(studioAgent.id, payload as any);
             alert("Conversational flow graph published successfully!");
           } else {
@@ -5289,6 +5292,29 @@ function DashboardPage({ session }: { session: Session }) {
           }
           setStudioAgent(null);
           fetchAgents().then(setApiAgents).catch(() => {});
+        }}
+        onEnsureSaved={async (compiledPrompt, flowGraph, extraConfig) => {
+          const payload = {
+            name: studioAgent.name,
+            agentType: 'conversational',
+            systemPrompt: compiledPrompt,
+            flowGraph: flowGraph as any,
+            direction: extraConfig?.direction || 'outbound',
+            languageMode: extraConfig?.languageMode || extraConfig?.language || 'auto',
+            systemVoice: extraConfig?.systemVoice || extraConfig?.voiceName || 'Puck',
+            voiceName: extraConfig?.voiceName || extraConfig?.systemVoice || 'Puck',
+            model: extraConfig?.model || 'gemini-2.5-flash',
+            agentConfig: extraConfig?.handbookPresets ? { handbookPresets: extraConfig.handbookPresets } : undefined,
+          };
+          if (studioAgent.id && !studioAgent.id.startsWith('a') && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(studioAgent.id)) {
+            await updateAgent(studioAgent.id, payload as any);
+            fetchAgents().then(setApiAgents).catch(() => {});
+            return studioAgent.id;
+          }
+          const created = await createAgent(payload as any);
+          setStudioAgent(prev => prev ? { ...prev, id: created.id } : prev);
+          fetchAgents().then(setApiAgents).catch(() => {});
+          return created.id;
         }}
         onBack={() => setStudioAgent(null)}
       />

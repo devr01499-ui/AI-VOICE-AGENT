@@ -501,8 +501,16 @@ export class GeminiLiveProvider implements IRealtimeProvider {
           realtimeInputConfig: {
             automaticActivityDetection: {
               disabled: false,
+              startOfSpeechSensitivity: "START_SENSITIVITY_HIGH",
+              endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
+              prefixPaddingMs: 200,
               silenceDurationMs: 600
-            }
+            },
+            activityHandling: "START_OF_ACTIVITY_INTERRUPTS",
+            turnCoverage: "TURN_INCLUDES_ALL_INPUT"
+          },
+          proactivity: {
+            proactiveAudio: true
           },
           ...(functionDeclarations && functionDeclarations.length > 0 && {
             tools: [

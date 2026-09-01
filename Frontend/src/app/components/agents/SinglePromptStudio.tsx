@@ -124,9 +124,11 @@ export function compilePromptWithHandbook(
 ): string {
   let directionText = '';
   if (direction === 'inbound') {
-    directionText = "This is an inbound call — the caller reached out to you. Open with a warm greeting appropriate to being contacted, and ask how you can help, rather than introducing an unprompted reason for calling.";
+    directionText = "This is an inbound call — the caller reached out to you. Never introduce an unprompted sales pitch or reason for calling, as the caller already has a reason for reaching out. Open by identifying the business/agent and inviting them to share what they need. Listen for and directly address what they say before offering anything else. If they seem to be waiting or the greeting overlaps with hold time, keep the opening brief and get to 'how can I help' quickly.";
   } else if (direction === 'outbound') {
-    directionText = "This is an outbound call you are initiating — open by introducing yourself, stating who you're calling on behalf of, and the reason for the call.";
+    directionText = "This is an outbound call you are initiating. Keep your opening brief and state who's calling and why within the first two sentences (people who didn't request the call have short patience). If the person sounds uninterested, busy, or asks to not be called again, acknowledge respectfully and offer to end the call or follow up later rather than pushing to continue. Never claim the person asked for this call. If asked 'how did you get my number', give an honest, direct answer if your context/prompt provides one, otherwise say a team member can follow up with that detail. Keep pitching proportionate — one clear value statement, not repeated re-pitching if the person has already responded neutrally or negatively.";
+  } else if (direction === 'both') {
+    directionText = "This agent handles both inbound and outbound calls. Rely on the agent's prompt and let context (how the call started) guide tone naturally without forced direction framing.";
   }
 
   const active = HANDBOOK_PRESETS.filter(p => enabledPresets.includes(p.id));
@@ -347,8 +349,8 @@ export default function SinglePromptStudio({
         }
       }
 
-      const rawToken = (await getValidAuthToken()) || undefined;
-      const wsUrl = getSandboxTestWsUrl(targetAgentId, rawToken);
+      const rawToken = (await getValidAuthToken()) || '';
+      const wsUrl = getSandboxTestWsUrl(targetAgentId || DEFAULT_AGENT_ID, rawToken);
 
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
@@ -356,7 +358,9 @@ export default function SinglePromptStudio({
       ws.onopen = async () => {
         setTestStatus('connected');
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+          });
           micStreamRef.current = stream;
 
           const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -582,21 +586,45 @@ export default function SinglePromptStudio({
     );
   };
 
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSavedToast, setShowSavedToast] = useState(false);
+
+  const getStudioPayload = () => ({
+    name: agentName,
+    agentType: 'prompt',
+    model,
+    voiceName: voice,
+    systemVoice: voice,
+    languageMode: language,
+    direction,
+    systemPrompt: compilePromptWithHandbook(systemPrompt, handbookPresets, direction),
+    welcomeMessageMode,
+    customWelcomeText,
+    silenceStartEnabled,
+    agentConfig: { handbookPresets },
+  });
+
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+      const payload = getStudioPayload();
+      if (onEnsureSaved) {
+        const savedId = await onEnsureSaved(payload);
+        setCurrentAgentId(savedId);
+      } else {
+        await onSave(payload);
+      }
+      setShowSavedToast(true);
+      setTimeout(() => setShowSavedToast(false), 2000);
+    } catch (err) {
+      console.error('Failed to save agent state:', err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handlePublish = () => {
-    onSave({
-      name: agentName,
-      agentType: 'prompt',
-      model,
-      voiceName: voice,
-      systemVoice: voice,
-      languageMode: language,
-      direction,
-      systemPrompt: compilePromptWithHandbook(systemPrompt, handbookPresets, direction),
-      welcomeMessageMode,
-      customWelcomeText,
-      silenceStartEnabled,
-      agentConfig: { handbookPresets },
-    });
+    onSave(getStudioPayload());
   };
 
   const rawJsonConfig = JSON.stringify(
@@ -731,6 +759,18 @@ export default function SinglePromptStudio({
             )}
           </div>
 
+          {showSavedToast && (
+            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-md transition-all animate-pulse">
+              Saved ✓
+            </span>
+          )}
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="px-4 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm transition-all disabled:opacity-50"
+          >
+            {isSaving ? 'Saving...' : 'Save'}
+          </button>
           <button
             onClick={handlePublish}
             className="px-5 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-all"

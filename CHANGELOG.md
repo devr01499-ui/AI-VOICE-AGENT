@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-09-01
+### Added
+- Deepened call direction prompt compiler guidance across `SinglePromptStudio.tsx`, `VisualFlowCanvas.tsx`, and `flowCompiler.ts` with explicit operational rules for Inbound (no unprompted sales pitches, active listening, identification first), Outbound (brief opening state identity & reason in 2 sentences, respectful objection handling, direct source attribution, proportional pitch), and Both call modes.
+- Added non-closing **Save** button alongside **Publish** in both `SinglePromptStudio.tsx` and `VisualFlowCanvas.tsx` header with non-blocking inline "Saved ✓" toast confirmation, letting users persist configuration state while staying in studio to test with LLM/Audio.
+- Upgraded Gemini Live BidiGenerateContent setup payload in `GeminiLiveProvider.ts` with `START_OF_ACTIVITY_INTERRUPTS` for instant barge-in, `START_SENSITIVITY_HIGH` speech sensitivity, and `proactivity: { proactiveAudio: true }` for background noise immunity.
+- Enforced browser-level noise suppression, echo cancellation, and auto gain control in client microphone acquisition (`SinglePromptStudio.tsx`).
+
 ## [Unreleased] - 2026-08-23
 ### Fixed
 - Fixed unmapped `/login` route in `Frontend/src/app/App.tsx` by adding `"/login": "dashboard"` to `pathMap` dictionaries across `getInitialPage()`, `handleNavigate()`, and `popstate` event listeners. Ensures direct navigation to `/login` correctly renders `ProtectedRoute` -> `AuthGateway` login screen rather than falling through to the home landing page.
