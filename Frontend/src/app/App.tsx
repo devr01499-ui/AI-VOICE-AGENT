@@ -41,6 +41,7 @@ import { DashContacts } from "./components/contacts/DashContacts";
 import { DashAnalytics } from "./components/analytics/DashAnalytics";
 import { DashLiveMonitoring } from "./components/monitoring/DashLiveMonitoring";
 import { DashAIQualityAssurance } from "./components/qa/DashAIQualityAssurance";
+import { DashAlerting } from "./components/alerting/DashAlerting";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 const Home = lazy(() => import("./pages/Home"));
@@ -5465,6 +5466,7 @@ function DashboardPage({ session }: { session: Session }) {
               {section==="analytics"&&<DashAnalytics />}
               {section==="live_monitoring"&&<DashLiveMonitoring />}
               {section==="qa"&&<DashAIQualityAssurance />}
+              {section==="alerting"&&<DashAlerting />}
             </motion.div>
           </AnimatePresence>
         </div>

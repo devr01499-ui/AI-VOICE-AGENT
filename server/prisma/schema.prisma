@@ -45,6 +45,8 @@ model User {
   chatMessages         ChatMessage[]
   contacts             Contact[]
   qaCohorts            QaCohort[]
+  alertRules           AlertRule[]
+  alertIncidents       AlertIncident[]
   ownedTeamMembers     TeamMember[] @relation("WorkspaceOwner")
   memberOfTeams        TeamMember[] @relation("WorkspaceMember")
 
@@ -791,6 +793,55 @@ model CallQaResult {
   @@index([callId])
   @@map("call_qa_results")
 }
+
+// ─────────────────────────────────────────────
+// ALERTING ENGINE & INCIDENTS
+// ─────────────────────────────────────────────
+
+model AlertRule {
+  id                     String    @id @default(uuid())
+  userId                 String    @map("user_id")
+  name                   String
+  metric                 String    // call_volume | error_rate | success_rate | cost | sentiment_score
+  comparator             String    // greater_than | less_than | equals
+  thresholdValue         Float     @map("threshold_value")
+  evaluationWindowMins   Int       @default(60) @map("evaluation_window_mins")
+  checkFrequencyMins     Int       @default(5) @map("check_frequency_mins")
+  notificationEmail      String?   @map("notification_email")
+  notificationWebhookUrl  String?   @map("notification_webhook_url")
+  webhookSecret          String?   @map("webhook_secret")
+  enabled                Boolean   @default(true)
+  lastEvaluatedAt        DateTime? @map("last_evaluated_at")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incidents AlertIncident[]
+
+  @@index([userId])
+  @@index([enabled])
+  @@map("alert_rules")
+}
+
+model AlertIncident {
+  id           String    @id @default(uuid())
+  ruleId       String    @map("rule_id")
+  userId       String    @map("user_id")
+  status       String    @default("triggered") // triggered | active | resolved
+  triggerValue Float     @map("trigger_value")
+  summary      String
+  triggeredAt  DateTime  @default(now()) @map("triggered_at")
+  resolvedAt   DateTime? @map("resolved_at")
+
+  rule AlertRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([ruleId])
+  @@index([userId])
+  @@index([status])
+  @@map("alert_incidents")
+}
+
 
 
 

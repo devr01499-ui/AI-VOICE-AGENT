@@ -35,11 +35,11 @@ export class WebhookDispatcher {
             const webhookCfg = parsedCfg?.webhooks;
 
             if (webhookCfg && webhookCfg.url && (!webhookCfg.events || webhookCfg.events.includes(eventType))) {
-              await WebhookDispatcher.sendWebhook(
+              await WebhookDispatcher.sendSignedWebhook(
                 webhookCfg.url,
+                webhookCfg.secret,
                 eventType,
                 payload,
-                webhookCfg.secret,
                 webhookCfg.headers
               );
             }
@@ -60,7 +60,7 @@ export class WebhookDispatcher {
         });
 
         for (const wh of accountWebhooks) {
-          await WebhookDispatcher.sendWebhook(wh.url, eventType, payload, wh.secretKey);
+          await WebhookDispatcher.sendSignedWebhook(wh.url, wh.secretKey || undefined, eventType, payload);
         }
       }
     } catch (err) {
@@ -68,11 +68,11 @@ export class WebhookDispatcher {
     }
   }
 
-  private static async sendWebhook(
+  static async sendSignedWebhook(
     url: string,
+    secretKey: string | undefined,
     eventType: string,
     payload: Record<string, any>,
-    secretKey?: string,
     customHeaders?: Record<string, string>
   ): Promise<void> {
     try {
