@@ -38,6 +38,7 @@ import { NumberSearchAndPurchase } from "./components/numbers/NumberSearchAndPur
 import { DashCallingConfig } from "./components/calling/DashCallingConfig";
 import { DashChatHistory } from "./components/chat/DashChatHistory";
 import { DashContacts } from "./components/contacts/DashContacts";
+import { DashAnalytics } from "./components/analytics/DashAnalytics";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 const Home = lazy(() => import("./pages/Home"));
@@ -5459,6 +5460,7 @@ function DashboardPage({ session }: { session: Session }) {
               {section==="conductor"&&<DashConductor profile={profile} setSection={setSection} />}
               {section==="chat_history"&&<DashChatHistory />}
               {section==="contacts"&&<DashContacts />}
+              {section==="analytics"&&<DashAnalytics />}
             </motion.div>
           </AnimatePresence>
         </div>
