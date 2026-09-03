@@ -44,6 +44,7 @@ model User {
   callSessions         CallSession[]
   chatMessages         ChatMessage[]
   contacts             Contact[]
+  qaCohorts            QaCohort[]
   ownedTeamMembers     TeamMember[] @relation("WorkspaceOwner")
   memberOfTeams        TeamMember[] @relation("WorkspaceMember")
 
@@ -180,6 +181,7 @@ model Call {
   voiceSessions      VoiceSession[]
   transcriptSegments TranscriptSegment[]
   callEvents         CallEvent[]
+  qaResults          CallQaResult[]
 
   @@index([agentId])
   @@index([userId])
@@ -743,5 +745,52 @@ model Contact {
   @@index([lastContactedAt])
   @@map("contacts")
 }
+
+// ─────────────────────────────────────────────
+// AI QUALITY ASSURANCE (QA)
+// ─────────────────────────────────────────────
+
+model QaCohort {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  name         String
+  description  String?
+  filterConfig String   @default("{}") @map("filter_config") // JSON: agentId, startDate, endDate, minDuration
+  status       String   @default("idle") // idle | running | completed | failed
+  averageScore Float    @default(0.0) @map("average_score")
+  passRatePct  Float    @default(0.0) @map("pass_rate_pct")
+  totalScored  Int      @default(0) @map("total_scored")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  results CallQaResult[]
+
+  @@index([userId])
+  @@map("qa_cohorts")
+}
+
+model CallQaResult {
+  id                 String   @id @default(uuid())
+  cohortId           String   @map("cohort_id")
+  callId             String   @map("call_id")
+  overallScore       Int      @default(100) @map("overall_score") // 0 - 100
+  passed             Boolean  @default(true)
+  hallucinationFlag  Boolean  @default(false) @map("hallucination_flag")
+  resolutionFlag     Boolean  @default(true) @map("resolution_flag")
+  latencyGapMs       Int      @default(0) @map("latency_gap_ms")
+  flaggedIssues      String   @default("[]") @map("flagged_issues") // JSON array of string issue descriptions
+  evaluationSummary  String?  @map("evaluation_summary")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  cohort QaCohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  call   Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@unique([cohortId, callId])
+  @@index([cohortId])
+  @@index([callId])
+  @@map("call_qa_results")
+}
+
 
 
