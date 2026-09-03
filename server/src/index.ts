@@ -49,6 +49,12 @@ import kycRoutes from './routes/kyc';
 import billingRoutes from './routes/billing';
 import telephonyRoutes from './routes/telephony';
 import conductorRoutes from './routes/conductor';
+import chatHistoryRoutes from './routes/chatHistory';
+import contactsRoutes from './routes/contacts';
+import analyticsRoutes from './routes/analytics';
+import qaRoutes from './routes/qa';
+import alertingRoutes from './routes/alerting';
+import { AlertEvaluator } from './services/AlertEvaluator';
 import { requireAuthOrApiKey } from './middleware/authWrapper';
 
 // ─── Express App ─────────────────────────────────
@@ -187,6 +193,11 @@ app.use('/api/v2/kyc', kycRoutes);
 app.use('/api/v2/billing', requireAuth, billingRoutes);
 app.use('/api/v2/telephony', requireAuth, telephonyRoutes);
 app.use('/api/v2/conductor', requireAuth, conductorRoutes);
+app.use('/api/v2/chat-history', requireAuth, chatHistoryRoutes);
+app.use('/api/v2/contacts', requireAuth, contactsRoutes);
+app.use('/api/v2/analytics', requireAuth, analyticsRoutes);
+app.use('/api/v2/qa', requireAuth, qaRoutes);
+app.use('/api/v2/alerting', requireAuth, alertingRoutes);
 
 // ─── 404 Handler ─────────────────────────────────
 
@@ -271,6 +282,9 @@ async function bootstrap(): Promise<void> {
 
   // Initialize providers (non-fatal if they fail)
   await initializeProviders();
+
+  // Start background alerting evaluator worker
+  AlertEvaluator.startBackgroundWorker();
 
   // Create HTTP server
   const server = http.createServer(app);
