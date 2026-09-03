@@ -20,6 +20,24 @@ interface AddSegmentData {
   metadata?: string;
 }
 
+export function applyPiiRedaction(text: string, categories: string[] = []): string {
+  if (!text || !categories || categories.length === 0) return text;
+  let redacted = text;
+  if (categories.includes('credit_card')) {
+    redacted = redacted.replace(/\b(?:\d[ -]*?){13,16}\b/g, '[REDACTED CREDIT CARD]');
+  }
+  if (categories.includes('ssn')) {
+    redacted = redacted.replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[REDACTED SSN]');
+  }
+  if (categories.includes('phone')) {
+    redacted = redacted.replace(/\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, '[REDACTED PHONE]');
+  }
+  if (categories.includes('email')) {
+    redacted = redacted.replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '[REDACTED EMAIL]');
+  }
+  return redacted;
+}
+
 /**
  * Prisma-based repository for the TranscriptSegment model.
  *
@@ -36,19 +54,24 @@ export class TranscriptRepository {
    * segments for the same call and incrementing by one.
    *
    * @param data - Segment payload (callId, speaker, content, timing, etc.).
+   * @param piiCategories - Optional list of PII categories to redact before saving.
    * @returns The created TranscriptSegment record.
    */
-  static async addSegment(data: AddSegmentData) {
+  static async addSegment(data: AddSegmentData, piiCategories?: string[]) {
     try {
       const sequenceNumber = await TranscriptRepository.getNextSequenceNumber(
         data.callId
       );
 
+      const sanitizedContent = piiCategories && piiCategories.length > 0
+        ? applyPiiRedaction(data.content, piiCategories)
+        : data.content;
+
       const segment = await prisma.transcriptSegment.create({
         data: {
           callId: data.callId,
           speaker: data.speaker,
-          content: data.content,
+          content: sanitizedContent,
           startTime: data.startTime,
           endTime: data.endTime,
           sequenceNumber,
