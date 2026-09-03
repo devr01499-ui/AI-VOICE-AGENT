@@ -479,9 +479,71 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       };
       const geminiVoice = voiceNameMap[agentVoiceMapping.toLowerCase()] || agentVoiceMapping;
 
+      let speechSettings: any = {};
+      if (callData.agent && callData.agent.agentConfig) {
+        try {
+          const parsedCfg = typeof callData.agent.agentConfig === 'string'
+            ? JSON.parse(callData.agent.agentConfig)
+            : callData.agent.agentConfig;
+          if (parsedCfg?.speechSettings) {
+            speechSettings = parsedCfg.speechSettings;
+          }
+        } catch {}
+      }
+
+      const silenceDurationVal = typeof speechSettings.responsivenessMs === 'number'
+        ? Math.max(100, Math.min(2000, speechSettings.responsivenessMs))
+        : 600;
+
+      const isInterruptionLow = speechSettings.interruptionSensitivity === 'LOW';
+      const startSensitivity = isInterruptionLow ? "START_SENSITIVITY_LOW" : "START_SENSITIVITY_HIGH";
+      const endSensitivity = isInterruptionLow ? "END_SENSITIVITY_HIGH" : "END_SENSITIVITY_LOW";
+
+      if (speechSettings.backchanneling === true) {
+        systemInstructionString = `${systemInstructionString}\n\n[BACKCHANNELING INSTRUCTION]\nOccasionally use brief natural acknowledgments (mm-hmm, I see, got it) while the caller is speaking, without interrupting them.`;
+      }
+
+      let transcriptionSettings: any = {};
+      if (callData.agent && callData.agent.agentConfig) {
+        try {
+          const parsedCfg = typeof callData.agent.agentConfig === 'string'
+            ? JSON.parse(callData.agent.agentConfig)
+            : callData.agent.agentConfig;
+          if (parsedCfg?.transcriptionSettings) {
+            transcriptionSettings = parsedCfg.transcriptionSettings;
+          }
+        } catch {}
+      }
+
+      if (Array.isArray(transcriptionSettings.boostedKeywords) && transcriptionSettings.boostedKeywords.length > 0) {
+        systemInstructionString = `${systemInstructionString}\n\n[SPEECH TRANSCRIPTION KEYWORD BOOST]\nPay special attention to recognizing and accurately transcribing the following proper nouns and domain terms: ${transcriptionSettings.boostedKeywords.join(', ')}.`;
+      }
+
+      let callSettings: any = {};
+      if (callData.agent && callData.agent.agentConfig) {
+        try {
+          const parsedCfg = typeof callData.agent.agentConfig === 'string'
+            ? JSON.parse(callData.agent.agentConfig)
+            : callData.agent.agentConfig;
+          if (parsedCfg?.callSettings) {
+            callSettings = parsedCfg.callSettings;
+          }
+        } catch {}
+      }
+
+      if (callSettings.ambientNoise && callSettings.ambientNoise !== 'None') {
+        systemInstructionString = `${systemInstructionString}\n\n[AMBIENT ENVIRONMENT HINT]\nSimulate a natural ${callSettings.ambientNoise} background environment in your voice cadence and delivery style.`;
+      }
+
+      if (Array.isArray(callSettings.optOutKeywords) && callSettings.optOutKeywords.length > 0) {
+        systemInstructionString = `${systemInstructionString}\n\n[DNC / OPT-OUT SECURITY GATES]\nIf the caller uses any opt-out phrases such as (${callSettings.optOutKeywords.join(', ')}), acknowledge politely and invoke the end_call tool immediately to mark them as opted out. Do not attempt to negotiate or continue the call.`;
+      }
+
+      const targetModel = config.model || this.currentAgent?.model || "models/gemini-2.5-flash-native-audio-latest";
+
       const setupMessage = {
         setup: {
-          model: this.currentAgent?.model || "models/gemini-2.5-flash-native-audio-latest",
+          model: targetModel,
           generationConfig: {
             responseModalities: ["AUDIO"],
             speechConfig: {
@@ -501,10 +563,10 @@ export class GeminiLiveProvider implements IRealtimeProvider {
           realtimeInputConfig: {
             automaticActivityDetection: {
               disabled: false,
-              startOfSpeechSensitivity: "START_SENSITIVITY_HIGH",
-              endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
+              startOfSpeechSensitivity: startSensitivity,
+              endOfSpeechSensitivity: endSensitivity,
               prefixPaddingMs: 200,
-              silenceDurationMs: 600
+              silenceDurationMs: silenceDurationVal,
             },
             activityHandling: "START_OF_ACTIVITY_INTERRUPTS",
             turnCoverage: "TURN_INCLUDES_ALL_INPUT"
