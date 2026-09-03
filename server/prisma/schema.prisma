@@ -42,6 +42,7 @@ model User {
   webhooks             Webhook[]
   providerCredentials  ProviderCredential[]
   callSessions         CallSession[]
+  chatMessages         ChatMessage[]
   ownedTeamMembers     TeamMember[] @relation("WorkspaceOwner")
   memberOfTeams        TeamMember[] @relation("WorkspaceMember")
 
@@ -117,6 +118,7 @@ model Agent {
   inboundConfigs InboundConfig[]
   voiceSessions  VoiceSession[]
   callSessions   CallSession[]
+  chatMessages   ChatMessage[]
   kbLinks        AgentKnowledgeBase[]
 
   // Knowledge base relationships stored as JSON array of IDs in agentConfig
@@ -691,3 +693,30 @@ model BatchCampaign {
 
   @@index([status])
 }
+
+// ─────────────────────────────────────────────
+// CHAT MESSAGES & SMS LOGS
+// ─────────────────────────────────────────────
+
+model ChatMessage {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  agentId     String?  @map("agent_id")
+  callId      String?  @map("call_id")
+  phoneNumber String   @map("phone_number")
+  direction   String   @default("outbound") // inbound | outbound
+  body        String
+  status      String   @default("delivered") // sent | delivered | failed
+  metadata    String   @default("{}") // JSON
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent Agent? @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([agentId])
+  @@index([phoneNumber])
+  @@index([createdAt])
+  @@map("chat_messages")
+}
+
