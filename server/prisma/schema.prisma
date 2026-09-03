@@ -47,6 +47,7 @@ model User {
   qaCohorts            QaCohort[]
   alertRules           AlertRule[]
   alertIncidents       AlertIncident[]
+  integrations         UserIntegration[]
   ownedTeamMembers     TeamMember[] @relation("WorkspaceOwner")
   memberOfTeams        TeamMember[] @relation("WorkspaceMember")
 
@@ -841,6 +842,28 @@ model AlertIncident {
   @@index([status])
   @@map("alert_incidents")
 }
+
+// ─────────────────────────────────────────────
+// THIRD-PARTY INTEGRATIONS
+// ─────────────────────────────────────────────
+
+model UserIntegration {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  type      String   // slack | generic_webhook | google_sheets | zapier
+  name      String
+  config    String   @default("{}") // JSON: webhookUrl, channel, secret, headers, events
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+  @@index([userId])
+  @@map("user_integrations")
+}
+
 
 
 
