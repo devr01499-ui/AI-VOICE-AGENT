@@ -175,6 +175,16 @@ export class CallOrchestrator {
       const isRecordingEnabled = rawConfig.isRecordingEnabled ?? rawConfig.settings?.isRecordingEnabled ?? false;
       const isTranscriptionEnabled = rawConfig.isTranscriptionEnabled ?? rawConfig.settings?.isTranscriptionEnabled ?? false;
 
+      let compiledFunctionsTools: any[] = [];
+      if (Array.isArray(rawConfig.functions)) {
+        compiledFunctionsTools = rawConfig.functions.map((fn: any) => ({
+          type: 'function',
+          name: fn.name,
+          description: fn.description || '',
+          parameters: fn.parameters || { type: 'OBJECT', properties: {} },
+        }));
+      }
+
       agentConfig = {
         prompt: systemInstructions,
         voice: finalVoice,
@@ -184,7 +194,7 @@ export class CallOrchestrator {
             (llmProvider === 'gemini' ? 'models/gemini-2.5-flash-native-audio-latest' : 'gpt-4o-realtime-preview'),
           temperature: agent.temperature !== null && agent.temperature !== undefined ? Number(agent.temperature) : (rawConfig.temperature !== undefined ? Number(rawConfig.temperature) : (rawConfig.llm_config?.temperature !== undefined ? Number(rawConfig.llm_config.temperature) : undefined)),
         },
-        tools: rawConfig.tools,
+        tools: rawConfig.tools || (compiledFunctionsTools.length > 0 ? compiledFunctionsTools : undefined),
         knowledgeBaseIds: rawConfig.knowledgeBaseIds,
         settings: {
           isRecordingEnabled,
