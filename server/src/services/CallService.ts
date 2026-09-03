@@ -20,6 +20,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { prisma } from '../lib/prisma';
 import { ADMIN_EMAIL } from '../config/constants';
 import { WebhookDispatcher } from '../utils/WebhookDispatcher';
+import { ContactsController } from '../controllers/ContactsController';
 
 // ─── Input Shapes ─────────────────────────────────
 
@@ -109,6 +110,8 @@ export class CallService {
       );
 
       const call = await CallRepository.findById(callId);
+
+      ContactsController.upsertContactOnCall(userId, phoneNumber).catch(() => {});
 
       return {
         callId: call.id,
