@@ -457,6 +457,7 @@ export default function SinglePromptStudio({
       : typeof initialTranscription.boostedKeywords === 'string'
       ? initialTranscription.boostedKeywords
       : ''
+  );
   // ── Accordion 5: Call Settings State ─────────────────────────────────────
   const initialCallSettings = (() => {
     const raw = initialAgent?.agentConfig;
