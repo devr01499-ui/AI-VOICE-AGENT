@@ -607,7 +607,7 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
-type DashSection = "overview"|"agents"|"calling"|"batch"|"calls"|"numbers"|"knowledge"|"voices"|"calendar"|"settings"|"billing"|"companion"|"chat_history"|"contacts"|"live_monitoring"|"qa"|"alerting"|"conductor";
+type DashSection = "overview"|"agents"|"calling"|"batch"|"calls"|"numbers"|"knowledge"|"voices"|"calendar"|"settings"|"billing"|"companion"|"chat_history"|"contacts"|"analytics"|"live_monitoring"|"qa"|"alerting"|"integrations"|"conductor";
 
 
 // Shared tiny helpers
@@ -5324,8 +5324,9 @@ function DashboardPage({ session }: { session: Session }) {
   const isViewer = profile?.workspaceRole === 'viewer';
   const navGroups = [
     {
-      label: "BUILD",
+      label: "WORKSPACE",
       items: [
+        { id: "overview", icon: LayoutDashboard, label: "Overview" },
         { id: "agents", icon: Bot, label: "Agents" },
         { id: "knowledge", icon: BookOpen, label: "Knowledge Base" },
       ]
@@ -5335,6 +5336,7 @@ function DashboardPage({ session }: { session: Session }) {
       items: [
         { id: "numbers", icon: Phone, label: "Phone Numbers" },
         { id: "batch", icon: Radio, label: "Batch Call" },
+        { id: "calling", icon: Zap, label: "Calling Config" },
       ]
     },
     {
@@ -5346,9 +5348,9 @@ function DashboardPage({ session }: { session: Session }) {
       ]
     },
     {
-      label: "MONITOR",
+      label: "MONITOR & ANALYTICS",
       items: [
-        { id: "overview", icon: LayoutDashboard, label: "Analytics" },
+        { id: "analytics", icon: BarChart3, label: "Analytics" },
         { id: "live_monitoring", icon: Radio, label: "Live Monitoring" },
         { id: "qa", icon: ShieldCheck, label: "AI Quality Assurance" },
         { id: "alerting", icon: Bell, label: "Alerting" },
@@ -5357,7 +5359,7 @@ function DashboardPage({ session }: { session: Session }) {
     {
       label: "SYSTEM",
       items: [
-        { id: "calling", icon: Zap, label: "Integrations" },
+        { id: "integrations", icon: Sliders, label: "Integrations" },
         { id: "billing", icon: CreditCard, label: "Billing" },
         { id: "settings", icon: Settings, label: "Settings" },
         { id: "conductor", icon: Sparkles, label: "Conductor AI" },
@@ -5366,9 +5368,9 @@ function DashboardPage({ session }: { session: Session }) {
   ];
 
   const titles: Record<string, string> = {
-    overview: "Analytics",
+    overview: "Overview",
     agents: "Agents",
-    calling: "Integrations",
+    calling: "Calling Config",
     batch: "Batch Calls",
     calls: "Call History",
     numbers: "Phone Numbers",
@@ -5380,9 +5382,11 @@ function DashboardPage({ session }: { session: Session }) {
     companion: "AI Companion",
     chat_history: "Chat History",
     contacts: "Contacts",
+    analytics: "Analytics",
     live_monitoring: "Live Monitoring",
     qa: "AI Quality Assurance",
     alerting: "Alerting",
+    integrations: "Integrations",
     conductor: "Conductor AI",
   };
 
