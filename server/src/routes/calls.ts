@@ -327,4 +327,10 @@ router.delete(
   }
 );
 
+/** POST /api/v2/calls/:id/end — Supervisor intervention: Terminate live active call. */
+router.post('/:id/end', CallController.endActiveCall);
+
+/** POST /api/v2/calls/:id/transfer — Supervisor intervention: Force call transfer. */
+router.post('/:id/transfer', CallController.transferActiveCall);
+
 export default router;

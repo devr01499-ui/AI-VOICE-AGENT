@@ -355,4 +355,74 @@ export class CallController {
       next(err);
     }
   }
+
+  static async endActiveCall(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
+      const callId = String(req.params.id);
+
+      const call = await prisma.call.findFirst({
+        where: { id: callId, userId },
+      });
+
+      if (!call) {
+        res.status(404).json({ success: false, error: 'Call not found' });
+        return;
+      }
+
+      await prisma.call.update({
+        where: { id: callId },
+        data: {
+          status: 'canceled',
+          endTime: new Date(),
+        },
+      });
+
+      try {
+        await callOrchestrator.endCallSession(callId, 'supervisor_intervention');
+      } catch {}
+
+      res.json({ success: true, message: 'Call terminated successfully' });
+    } catch (err: any) {
+      logger.error('CallController: Error ending call', { error: err.message });
+      res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+  }
+
+  static async transferActiveCall(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
+      const callId = String(req.params.id);
+      const { targetNumber } = req.body;
+
+      const call = await prisma.call.findFirst({
+        where: { id: callId, userId },
+      });
+
+      if (!call) {
+        res.status(404).json({ success: false, error: 'Call not found' });
+        return;
+      }
+
+      const existingData = call.userData ? JSON.parse(call.userData) : {};
+      await prisma.call.update({
+        where: { id: callId },
+        data: {
+          userData: JSON.stringify({
+            ...existingData,
+            transferredTo: targetNumber || 'human_operator',
+            transferredAt: new Date().toISOString(),
+          }),
+        },
+      });
+
+      res.json({
+        success: true,
+        message: `Call transfer to ${targetNumber || 'human operator'} initiated`,
+      });
+    } catch (err: any) {
+      logger.error('CallController: Error transferring call', { error: err.message });
+      res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+  }
 }
