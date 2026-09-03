@@ -19,6 +19,7 @@ import { Call, Execution, TranscriptSegment } from '@prisma/client';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { prisma } from '../lib/prisma';
 import { ADMIN_EMAIL } from '../config/constants';
+import { WebhookDispatcher } from '../utils/WebhookDispatcher';
 
 // ─── Input Shapes ─────────────────────────────────
 
@@ -288,7 +289,7 @@ export class CallService {
     try {
       const call = await prisma.call.findUnique({
         where: { id: callId },
-        include: { user: true }
+        include: { user: true, agent: true }
       });
       if (!call) return;
 
@@ -303,30 +304,99 @@ export class CallService {
         return;
       }
 
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      // Extract agent's postCallAnalysis config
+      let postCallConfig: any = {};
+      if (call.agent && call.agent.agentConfig) {
+        try {
+          const parsed = typeof call.agent.agentConfig === 'string'
+            ? JSON.parse(call.agent.agentConfig)
+            : call.agent.agentConfig;
+          if (parsed?.postCallAnalysis) {
+            postCallConfig = parsed.postCallAnalysis;
+          }
+        } catch {}
+      }
 
-      const prompt = `You are an expert call analyst. Analyze the following transcript.
-Provide exactly two lines of output:
-Line 1: A one-word sentiment analysis of the caller (Positive, Neutral, or Negative).
-Line 2: A concise, two-sentence summary of the call.
+      const customSummaryPrompt = postCallConfig.summaryPrompt || 'Concise two-sentence summary of the call.';
+      const customFields: Array<{ name: string; type: string; description: string; options?: string[] }> = postCallConfig.fields || [];
+
+      let fieldInstructions = '';
+      if (customFields.length > 0) {
+        fieldInstructions = `\nExtract the following custom data fields:\n` +
+          customFields.map(f => `- "${f.name}" (${f.type}): ${f.description}${f.options ? ' Choices: [' + f.options.join(', ') + ']' : ''}`).join('\n');
+      }
+
+      const prompt = `You are an expert AI call intelligence analyst. Analyze the following transcript.
+
+Summary Instructions: ${customSummaryPrompt}
+${fieldInstructions}
+
+Return a single raw JSON object with no markdown formatting or backticks, formatted as:
+{
+  "summary": "...",
+  "sentiment": "Positive|Neutral|Negative",
+  "extractedFields": {
+    <field_name>: <extracted_value>
+  }
+}
 
 Transcript:
 ${transcriptText}`;
 
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
       const result = await model.generateContent(prompt);
-      const text = result.response.text().trim();
-      const lines = text.split('\n').filter((l: string) => l.trim().length > 0);
-      
-      const sentiment = lines.length > 0 ? lines[0].replace(/[^a-zA-Z]/g, '').trim() : 'Neutral';
-      const summary = lines.length > 1 ? lines.slice(1).join(' ').trim() : text;
+      let responseText = result.response.text().trim();
+      responseText = responseText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+
+      let parsedResult: any = {};
+      try {
+        parsedResult = JSON.parse(responseText);
+      } catch {
+        parsedResult = { summary: responseText, sentiment: 'Neutral', extractedFields: {} };
+      }
+
+      const sentiment = parsedResult.sentiment || 'Neutral';
+      const summary = parsedResult.summary || responseText;
+      const extractedFields = parsedResult.extractedFields || {};
+
+      // Merge extracted fields into call.userData JSON
+      let existingUserData: Record<string, any> = {};
+      try {
+        existingUserData = typeof call.userData === 'string' ? JSON.parse(call.userData) : (call.userData || {});
+      } catch {}
+
+      const updatedUserData = JSON.stringify({
+        ...existingUserData,
+        postCallAnalysis: {
+          extractedFields,
+          processedAt: new Date().toISOString(),
+        }
+      });
 
       await prisma.call.update({
         where: { id: callId },
-        data: { sentiment, summary }
+        data: {
+          sentiment,
+          summary,
+          userData: updatedUserData,
+        }
       });
 
-      logger.info('generatePostCallIntelligence: success', { callId, sentiment });
+      WebhookDispatcher.dispatch({
+        agentId: call.agentId,
+        userId: call.userId,
+        eventType: 'call_analyzed',
+        payload: {
+          callId,
+          sentiment,
+          summary,
+          extractedFields,
+        },
+      });
+
+      logger.info('generatePostCallIntelligence: success', { callId, sentiment, extractedFieldsCount: Object.keys(extractedFields).length });
     } catch (err: any) {
       logger.error('generatePostCallIntelligence: error', { error: err.message, callId });
     }
