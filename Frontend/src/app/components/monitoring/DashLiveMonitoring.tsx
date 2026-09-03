@@ -43,7 +43,7 @@ export function DashLiveMonitoring() {
       }
     } catch {
       setActiveCalls([]);
-    } flex {
+    } finally {
       setLoading(false);
     }
   };
