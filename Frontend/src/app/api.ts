@@ -504,6 +504,20 @@ export async function updateKBAgents(id: string, agentIds: string[]): Promise<vo
   });
 }
 
+export async function assignKBAgent(kbId: string, agentId: string): Promise<void> {
+  return apiFetch<void>(`/api/v2/knowledge-base/${kbId}/assign`, {
+    method: 'POST',
+    body: JSON.stringify({ agentId }),
+  });
+}
+
+export async function unassignKBAgent(kbId: string, agentId: string): Promise<void> {
+  return apiFetch<void>(`/api/v2/knowledge-base/${kbId}/unassign`, {
+    method: 'POST',
+    body: JSON.stringify({ agentId }),
+  });
+}
+
 export async function deleteKBDocument(id: string): Promise<void> {
   return apiFetch<void>(`/api/v2/knowledge-base/${id}`, {
     method: 'DELETE',
