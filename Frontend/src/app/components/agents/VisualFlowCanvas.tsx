@@ -46,7 +46,6 @@ import {
   Mic,
   X,
   Check,
-  AlertTriangle,
 } from 'lucide-react';
 import { FlowGraph, FlowNode, FlowNodeType, compileFlowToSystemPrompt } from './flowCompiler';
 import {
