@@ -6,7 +6,7 @@ services:
     branch: main
     autoDeploy: true
     rootDir: server
-    buildCommand: npm install --include=dev && npm run build
+    buildCommand: npm install --include=dev && npx prisma migrate deploy && npm run build
     startCommand: npm start
     envVars:
       - key: PORT
