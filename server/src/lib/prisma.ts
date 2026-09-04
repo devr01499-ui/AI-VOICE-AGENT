@@ -8,9 +8,8 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
 import { logger } from '../utils/logger';
 
-// Allow Supabase pooler TLS certificates through in all envs.
+// Allow Supabase pooler TLS certificates through in pg.Pool configuration.
 // Supabase connection pooler uses self-signed intermediate CAs.
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
 

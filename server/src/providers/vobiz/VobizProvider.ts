@@ -44,13 +44,19 @@ export class VobizProvider implements ITelephonyProvider {
   private readonly authToken: string;
 
   constructor() {
-    this.baseUrl = env.VOBIZ_API_URL;
-    this.authId = env.VOBIZ_AUTH_ID;
-    this.authToken = env.VOBIZ_AUTH_TOKEN;
+    this.baseUrl = (env.VOBIZ_API_URL || 'https://api.vobiz.ai').trim();
+    this.authId = (env.VOBIZ_AUTH_ID || 'MA_PLACEHOLDER').trim();
+    this.authToken = (env.VOBIZ_AUTH_TOKEN || 'placeholder').trim();
   }
 
   private get isMock(): boolean {
-    return this.authId === 'MA_PLACEHOLDER' || this.authId.includes('placeholder');
+    return (
+      !this.authId ||
+      this.authId === 'MA_PLACEHOLDER' ||
+      this.authId.includes('placeholder') ||
+      !this.authToken ||
+      this.authToken.includes('placeholder')
+    );
   }
 
   /** Validates API credentials on startup. */
