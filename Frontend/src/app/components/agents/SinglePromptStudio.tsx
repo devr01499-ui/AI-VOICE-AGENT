@@ -375,6 +375,22 @@ export default function SinglePromptStudio({
     setFunctions((prev) => prev.filter((f) => f.id !== id));
   };
 
+  const [accordionState, setAccordionState] = useState<Record<string, boolean>>({
+    functions: false,
+    kb: false,
+    speech: false,
+    transcription: false,
+    callSettings: false,
+    postCall: false,
+    security: false,
+    webhooks: false,
+    mcps: false,
+  });
+
+  const toggleAccordion = (key: string) => {
+    setAccordionState((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   // ── Accordion 2: Knowledge Base State & Assign Handlers ──────────────────
   const [kbList, setKbList] = useState<ApiKnowledgeBase[]>(initialKbList);
   const [isLoadingKb, setIsLoadingKb] = useState(false);
@@ -708,22 +724,6 @@ export default function SinglePromptStudio({
   const [copiedAgentId, setCopiedAgentId] = useState(false);
 
   const [testTab, setTestTab] = useState<'audio' | 'llm'>('audio');
-
-  const [accordionState, setAccordionState] = useState<Record<string, boolean>>({
-    functions: false,
-    kb: false,
-    speech: false,
-    transcription: false,
-    callSettings: false,
-    postCall: false,
-    security: false,
-    webhooks: false,
-    mcps: false,
-  });
-
-  const toggleAccordion = (key: string) => {
-    setAccordionState((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
 
   const [isTestActive, setIsTestActive] = useState(false);
   const [testStatus, setTestStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
