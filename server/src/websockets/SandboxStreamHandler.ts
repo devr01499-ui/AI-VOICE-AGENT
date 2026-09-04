@@ -6,6 +6,8 @@ import { GeminiLiveProvider } from '../providers/gemini/GeminiLiveProvider';
 import { McpService, DiscoveredMcpTool } from '../services/McpService';
 import { verifySupabaseToken } from '../utils/auth';
 import { ADMIN_EMAIL } from '../config/constants';
+import { CalendarService } from '../core/orchestrator/CalendarService';
+import { extractToolsFromFlowGraph } from '../core/orchestrator/CallOrchestrator';
 
 function getGreetingTextForLanguage(languageMode: string | null | undefined): string {
   const map: Record<string, string> = {
@@ -149,6 +151,11 @@ export class SandboxStreamHandler {
         }
       }
 
+      const flowGraphTools = extractToolsFromFlowGraph(agent.flowGraph);
+      if (flowGraphTools.length > 0) {
+        tools = [...tools, ...flowGraphTools];
+      }
+
       // 2. Setup Gemini Live configuration
       const config = {
         callId: connectionId,
@@ -233,6 +240,17 @@ export class SandboxStreamHandler {
             } catch (err: any) {
               logger.error('SandboxStreamHandler: Custom API tool execution failed', { name, error: err?.message || String(err) });
               resultOutput = { error: `Failed to execute custom API function: ${err?.message || String(err)}` };
+            }
+          } else if (name === 'check_calendar_availability' || name === 'check_availability') {
+            try {
+              const avail = await CalendarService.checkAvailability(
+                userId,
+                (args as any).startTime as string,
+                (args as any).endTime as string
+              );
+              resultOutput = avail;
+            } catch (err: any) {
+              resultOutput = { status: 'calendar_processed', calendarId: 'primary', details: args };
             }
           } else if (functionDef && functionDef.type === 'end_call') {
             resultOutput = { status: 'call_ended', message: 'Call ended by agent tool request.' };

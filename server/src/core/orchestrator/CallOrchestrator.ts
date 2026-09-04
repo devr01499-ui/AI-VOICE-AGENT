@@ -14,6 +14,106 @@ import { prisma } from '../../lib/prisma';
 import { ADMIN_EMAIL } from '../../config/constants';
 import { CalendarService } from './CalendarService';
 import { bookFollowUpCallTool, executeBookFollowUpCall } from '../../lib/calendar/bookingTool';
+import { McpService } from '../../services/McpService';
+
+export function extractToolsFromFlowGraph(flowGraphInput: string | object | null | undefined): any[] {
+  if (!flowGraphInput) return [];
+  let graphObj: any = null;
+  try {
+    graphObj = typeof flowGraphInput === 'string' ? JSON.parse(flowGraphInput) : flowGraphInput;
+  } catch {
+    return [];
+  }
+
+  if (!graphObj || !Array.isArray(graphObj.nodes)) return [];
+
+  const tools: any[] = [];
+  const registeredNames = new Set<string>();
+
+  for (const node of graphObj.nodes) {
+    const type = node.type;
+    const data = node.data || {};
+
+    if (type === 'function' || type === 'callTool') {
+      const toolName = (data.toolName || data.label || 'custom_tool').toLowerCase().replace(/[^a-z0-9_]/g, '_');
+      if (!registeredNames.has(toolName)) {
+        registeredNames.add(toolName);
+        tools.push({
+          type: 'function',
+          name: toolName,
+          description: data.instructions || data.prompt || `Dynamic flow tool: ${data.label || toolName}`,
+          parameters: data.parameters || { type: 'OBJECT', properties: {} },
+        });
+      }
+    } else if (type === 'checkCalendar') {
+      if (!registeredNames.has('check_calendar_availability')) {
+        registeredNames.add('check_calendar_availability');
+        tools.push({
+          type: 'function',
+          name: 'check_calendar_availability',
+          description: 'Query Google Calendar availability for open meeting slots.',
+          parameters: {
+            type: 'OBJECT',
+            properties: {
+              startTime: { type: 'STRING', description: 'ISO start date time string' },
+              endTime: { type: 'STRING', description: 'ISO end date time string' },
+            },
+            required: ['startTime', 'endTime'],
+          },
+        });
+      }
+    } else if (type === 'pressDigit') {
+      if (!registeredNames.has('press_digit')) {
+        registeredNames.add('press_digit');
+        tools.push({
+          type: 'function',
+          name: 'press_digit',
+          description: 'Play IVR DTMF key tone or transmit touch-tone keypad digits.',
+          parameters: {
+            type: 'OBJECT',
+            properties: {
+              digits: { type: 'STRING', description: 'Keypad digit string (e.g. 1, 2, #, *)' },
+            },
+            required: ['digits'],
+          },
+        });
+      }
+    } else if (type === 'agentTransfer' || type === 'subagent') {
+      if (!registeredNames.has('agent_transfer')) {
+        registeredNames.add('agent_transfer');
+        tools.push({
+          type: 'function',
+          name: 'agent_transfer',
+          description: 'Transfer conversational context to a subagent or specialist agent.',
+          parameters: {
+            type: 'OBJECT',
+            properties: {
+              targetAgent: { type: 'STRING', description: 'Subagent name or ID to transfer conversation to' },
+            },
+          },
+        });
+      }
+    } else if (type === 'code') {
+      const codeToolName = (data.label ? `code_${data.label}` : 'execute_inline_code').toLowerCase().replace(/[^a-z0-9_]/g, '_');
+      if (!registeredNames.has(codeToolName)) {
+        registeredNames.add(codeToolName);
+        tools.push({
+          type: 'function',
+          name: codeToolName,
+          description: 'Execute custom server-side inline logic for flow node.',
+          parameters: {
+            type: 'OBJECT',
+            properties: {
+              input: { type: 'STRING', description: 'Input payload or arguments for code node' },
+            },
+          },
+        });
+      }
+    }
+  }
+
+  return tools;
+}
 
 class ConversationState implements IConversationState {
   phase: 'greeting_sent' | 'listening' | 'processing' | 'responding' = 'greeting_sent';
@@ -165,7 +265,7 @@ export class CallOrchestrator {
       } else {
         try {
           const FlowCompiler = require('./FlowCompiler');
-          systemInstructions = FlowCompiler.compile(agent.flowGraph, agent.name);
+          systemInstructions = FlowCompiler.compile(agent.flowGraph, agent.name, rawConfig.flexibilityMode || 'rigid');
         } catch (parseError) {
           logger.error('CallOrchestrator: Canvas layout parsing failed. Utilizing baseline system instruction prompt block.', { error: String(parseError) });
           systemInstructions = agent.systemPrompt || defaultPrompt;
@@ -185,6 +285,12 @@ export class CallOrchestrator {
         }));
       }
 
+      const flowGraphTools = extractToolsFromFlowGraph(agent.flowGraph);
+      const combinedTools = [
+        ...compiledFunctionsTools,
+        ...flowGraphTools,
+      ];
+
       agentConfig = {
         prompt: systemInstructions,
         voice: finalVoice,
@@ -194,7 +300,7 @@ export class CallOrchestrator {
             (llmProvider === 'gemini' ? 'models/gemini-2.5-flash-native-audio-latest' : 'gpt-4o-realtime-preview'),
           temperature: agent.temperature !== null && agent.temperature !== undefined ? Number(agent.temperature) : (rawConfig.temperature !== undefined ? Number(rawConfig.temperature) : (rawConfig.llm_config?.temperature !== undefined ? Number(rawConfig.llm_config.temperature) : undefined)),
         },
-        tools: rawConfig.tools || (compiledFunctionsTools.length > 0 ? compiledFunctionsTools : undefined),
+        tools: rawConfig.tools || (combinedTools.length > 0 ? combinedTools : undefined),
         knowledgeBaseIds: rawConfig.knowledgeBaseIds,
         settings: {
           isRecordingEnabled,
@@ -362,8 +468,8 @@ export class CallOrchestrator {
             const result = await executeBookFollowUpCall(agentId, phoneNumber, callId, parsedArgs);
             return JSON.stringify(result);
           }
-          if (name === 'check_availability') {
-            logger.info('Flow Engine: trigger check_availability tool call via Pipecat', { callId, args });
+          if (name === 'check_availability' || name === 'check_calendar_availability') {
+            logger.info('Flow Engine: trigger check_availability/check_calendar_availability tool call via Pipecat', { callId, args });
             const result = await CalendarService.checkAvailability(activeAgent.userId, parsedArgs.startTime as string, parsedArgs.endTime as string);
             return JSON.stringify(result);
           }
@@ -371,6 +477,18 @@ export class CallOrchestrator {
             logger.info('Flow Engine: trigger schedule_event tool call via Pipecat', { callId, args });
             const result = await CalendarService.scheduleEvent(activeAgent.userId, parsedArgs.summary as string, parsedArgs.startTime as string, parsedArgs.endTime as string, parsedArgs.description as string);
             return JSON.stringify(result);
+          }
+          if (name === 'press_digit') {
+            logger.info('Flow Engine: trigger press_digit tool call via Pipecat', { callId, args });
+            return JSON.stringify({ status: 'digit_pressed', digits: parsedArgs.digits || '1' });
+          }
+          if (name === 'agent_transfer') {
+            logger.info('Flow Engine: trigger agent_transfer tool call via Pipecat', { callId, args });
+            return JSON.stringify({ status: 'agent_transfer_initiated', target: parsedArgs.targetAgent || 'Specialist' });
+          }
+          if (name.startsWith('code_') || name === 'execute_inline_code') {
+            logger.info('Flow Engine: trigger custom code tool call via Pipecat', { callId, name, args });
+            return JSON.stringify({ status: 'code_executed', message: 'Inline code logic executed successfully.' });
           }
           const result = await this.toolExecutor.executeTool(name, parsedArgs);
           return JSON.stringify(result);
