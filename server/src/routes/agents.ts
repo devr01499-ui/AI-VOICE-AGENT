@@ -404,28 +404,42 @@ router.post(
   requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;
+      const primaryUserId = (req as any).user?.id || (req as any).userId;
+      let userId = (req as any).effectiveWorkspaceId || primaryUserId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
       }
 
+      // Verify userId exists in database to avoid foreign key failure
+      const userExists = await prisma.user.findUnique({ where: { id: userId } });
+      if (!userExists && primaryUserId) {
+        const primaryExists = await prisma.user.findUnique({ where: { id: primaryUserId } });
+        if (primaryExists) {
+          userId = primaryUserId;
+        }
+      }
+
       const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, systemVoice, temperature, systemPrompt, flowGraph, languageMode, direction } = req.body;
+
+      const safeName = (typeof name === 'string' && name.trim()) ? name.trim() : 'Single-Prompt Agent';
+      const parsedTemp = Number(temperature);
+      const safeTemp = (temperature !== undefined && temperature !== null && !isNaN(parsedTemp)) ? parsedTemp : 0.7;
 
       const newAgent = await prisma.agent.create({
         data: {
-          name,
+          name: safeName,
           description: description || null,
           agentType: agentType || 'conversational',
           status: status || 'draft',
           agentConfig: typeof agentConfig === 'string' ? agentConfig : JSON.stringify(agentConfig || {}),
-          tags: typeof tags === 'string' ? tags : JSON.stringify(tags || []),
+          tags: typeof tags === 'string' ? tags : JSON.stringify(Array.isArray(tags) ? tags : []),
           userId: userId,
           workspaceId: workspaceId || null,
           model: model || null,
           voiceName: voiceName || null,
-          systemVoice: systemVoice || 'Puck',
-          temperature: temperature !== undefined ? Number(temperature) : 0.7,
+          systemVoice: systemVoice || voiceName || 'Puck',
+          temperature: safeTemp,
           systemPrompt: systemPrompt || null,
           flowGraph: typeof flowGraph === 'string' ? flowGraph : flowGraph ? JSON.stringify(flowGraph) : null,
           languageMode: languageMode || 'auto',
@@ -450,7 +464,8 @@ router.put(
   validateParams(agentIdParamSchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;
+      const primaryUserId = (req as any).user?.id || (req as any).userId;
+      let userId = (req as any).effectiveWorkspaceId || primaryUserId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
@@ -460,20 +475,32 @@ router.put(
       const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, systemVoice, temperature, systemPrompt, flowGraph, languageMode, direction } = req.body;
 
       // Verify ownership before updating
-      const exists = await prisma.agent.findFirst({
+      let exists = await prisma.agent.findFirst({
         where: { id: agentId, userId: userId }
       });
+
+      if (!exists && primaryUserId && primaryUserId !== userId) {
+        exists = await prisma.agent.findFirst({
+          where: { id: agentId, userId: primaryUserId }
+        });
+        if (exists) {
+          userId = primaryUserId;
+        }
+      }
 
       if (!exists) {
         res.status(404).json({ success: false, error: 'Agent not found' });
         return;
       }
 
-      // Explicitly update only matching records with composite tenant criteria
+      const parsedTemp = Number(temperature);
+      const safeTemp = (temperature !== undefined && temperature !== null && !isNaN(parsedTemp)) ? parsedTemp : 0.7;
+
+      // Explicitly update matching record
       await prisma.agent.updateMany({
         where: { id: agentId, userId: userId },
         data: {
-          ...(name !== undefined && { name }),
+          ...(name !== undefined && { name: (typeof name === 'string' && name.trim()) ? name.trim() : exists.name }),
           ...(description !== undefined && { description }),
           ...(agentType !== undefined && { agentType }),
           ...(status !== undefined && { status }),
@@ -481,13 +508,13 @@ router.put(
             agentConfig: typeof agentConfig === 'string' ? agentConfig : JSON.stringify(agentConfig || {})
           }),
           ...(tags !== undefined && {
-            tags: typeof tags === 'string' ? tags : JSON.stringify(tags || [])
+            tags: typeof tags === 'string' ? tags : JSON.stringify(Array.isArray(tags) ? tags : [])
           }),
           ...(workspaceId !== undefined && { workspaceId }),
           ...(model !== undefined && { model }),
           ...(voiceName !== undefined && { voiceName, systemVoice: voiceName }),
           ...(systemVoice !== undefined && { systemVoice, voiceName: systemVoice }),
-          ...(temperature !== undefined && { temperature: temperature !== null ? Number(temperature) : 0.7 }),
+          ...(temperature !== undefined && { temperature: safeTemp }),
           ...(systemPrompt !== undefined && { systemPrompt }),
           ...(flowGraph !== undefined && { flowGraph: typeof flowGraph === 'string' ? flowGraph : flowGraph ? JSON.stringify(flowGraph) : null }),
           ...(languageMode !== undefined && { languageMode }),

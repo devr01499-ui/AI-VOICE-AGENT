@@ -110,9 +110,7 @@ export function errorHandler(
     refCode,
   });
 
-  const displayMessage = env.NODE_ENV === 'development'
-    ? `An unexpected error occurred: ${err.message}`
-    : `An unexpected error occurred (Reference: ${refCode})`;
+  const displayMessage = `An unexpected error occurred: ${err.message || 'Internal server error'} (Reference: ${refCode})`;
 
   const body: ErrorResponseBody = {
     success: false,
