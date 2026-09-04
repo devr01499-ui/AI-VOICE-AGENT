@@ -29,6 +29,7 @@ import {
   Mic,
   Radio,
   Pencil,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   apiClient,
@@ -1067,6 +1068,8 @@ export default function SinglePromptStudio({
   };
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
   const [showSavedToast, setShowSavedToast] = useState(false);
 
   const getStudioPayload = () => {
@@ -1148,6 +1151,7 @@ export default function SinglePromptStudio({
   const handleSave = async () => {
     try {
       setIsSaving(true);
+      setPublishError(null);
       const payload = getStudioPayload();
       if (onEnsureSaved) {
         const savedId = await onEnsureSaved(payload);
@@ -1157,15 +1161,25 @@ export default function SinglePromptStudio({
       }
       setShowSavedToast(true);
       setTimeout(() => setShowSavedToast(false), 2000);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to save agent state:', err);
+      setPublishError(err?.message || 'Failed to save agent configuration.');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handlePublish = () => {
-    onSave(getStudioPayload());
+  const handlePublish = async () => {
+    try {
+      setIsPublishing(true);
+      setPublishError(null);
+      await onSave(getStudioPayload());
+    } catch (err: any) {
+      console.error('Failed to publish agent:', err);
+      setPublishError(err?.message || 'Failed to publish agent.');
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
   const rawJsonConfig = JSON.stringify(
@@ -1314,12 +1328,30 @@ export default function SinglePromptStudio({
           </button>
           <button
             onClick={handlePublish}
-            className="px-5 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-all"
+            disabled={isPublishing || isSaving}
+            className="px-5 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-all disabled:opacity-50 flex items-center gap-1.5"
           >
-            Publish
+            {isPublishing ? 'Publishing...' : 'Publish'}
           </button>
         </div>
       </header>
+
+      {publishError && (
+        <div className="bg-rose-500/10 border-b border-rose-500/20 px-4 py-2.5 flex items-center justify-between text-xs text-rose-600 dark:text-rose-400 z-30 flex-shrink-0">
+          <div className="flex items-center gap-2 font-medium">
+            <AlertTriangle className="w-4 h-4 text-rose-500 flex-shrink-0" />
+            <span className="font-semibold">Save/Publish Error:</span>
+            <span>{publishError}</span>
+          </div>
+          <button
+            onClick={() => setPublishError(null)}
+            className="p-1 hover:bg-rose-500/20 rounded text-rose-500 transition-colors flex items-center gap-1 text-[11px] font-medium"
+            title="Dismiss error"
+          >
+            <X className="w-3.5 h-3.5" /> Dismiss
+          </button>
+        </div>
+      )}
 
       {/* ── 2. MAIN 3-COLUMN SPLIT STUDIO LAYOUT ──────────────────────────── */}
       <div className="flex-1 grid grid-cols-12 overflow-hidden relative bg-slate-100/40 dark:bg-slate-950">
