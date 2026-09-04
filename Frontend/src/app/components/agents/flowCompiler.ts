@@ -69,7 +69,8 @@ export interface FlowGraph {
 export function compileFlowToSystemPrompt(
   flow: FlowGraph,
   agentName: string = "AI Voice Agent",
-  direction: string = 'outbound'
+  direction: string = 'outbound',
+  flexibilityMode: 'flex' | 'rigid' = 'rigid'
 ): string {
   if (!flow || !flow.nodes || flow.nodes.length === 0) {
     return `You are ${agentName}, a professional AI voice agent for Claritiy Voice. Answer user queries concisely and professionally.`;
@@ -92,7 +93,11 @@ export function compileFlowToSystemPrompt(
   }
 
   prompt += `# CONVERSATIONAL EXECUTION INSTRUCTIONS\n`;
-  prompt += `You MUST strictly execute the following step-by-step dialogue flow. Guide the caller through each step in sequence and evaluate branching conditions based on user responses.\n\n`;
+  if (flexibilityMode === 'flex') {
+    prompt += `Use this dialogue flow as a flexible guide. Adapt naturally to what the caller says — if the caller naturally covers a later step early, skip ahead rather than re-asking, and handle off-script questions gracefully while steering back to the goal.\n\n`;
+  } else {
+    prompt += `You MUST strictly execute the following step-by-step dialogue flow. Guide the caller through each step in sequence and evaluate branching conditions based on user responses.\n\n`;
+  }
 
   flow.nodes.forEach((node, index) => {
     const stepNum = index + 1;

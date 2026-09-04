@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -54,6 +54,7 @@ import {
   HANDBOOK_PRESETS,
   compilePromptWithHandbook,
 } from './SinglePromptStudio';
+import { fetchKBList, assignKBAgent, unassignKBAgent, ApiKnowledgeBase } from '../../api';
 
 interface VisualFlowCanvasProps {
   initialGraph?: FlowGraph | null;
@@ -228,6 +229,44 @@ export default function VisualFlowCanvas({
   const [speechAccordionOpen, setSpeechAccordionOpen] = useState(false);
   const [transcriptionAccordionOpen, setTranscriptionAccordionOpen] = useState(false);
 
+  // KB state & assign handlers
+  const [kbList, setKbList] = useState<ApiKnowledgeBase[]>([]);
+  const [isLoadingKb, setIsLoadingKb] = useState(false);
+  const [assignedKbIds, setAssignedKbIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    async function loadKBs() {
+      try {
+        setIsLoadingKb(true);
+        const fetched = await fetchKBList();
+        setKbList(fetched);
+      } catch (err) {
+        console.error('Failed to load KB list in flow canvas:', err);
+      } finally {
+        setIsLoadingKb(false);
+      }
+    }
+    if (kbAccordionOpen) {
+      loadKBs();
+    }
+  }, [kbAccordionOpen]);
+
+  const toggleKbAssignment = (kbId: string) => {
+    setAssignedKbIds((prev) =>
+      prev.includes(kbId) ? prev.filter((id) => id !== kbId) : [...prev, kbId]
+    );
+  };
+
+  // Speech settings state
+  const [speechSpeed, setSpeechSpeed] = useState<number>(1.0);
+  const [responsivenessMs, setResponsivenessMs] = useState<number>(600);
+  const [interruptionSensitivity, setInterruptionSensitivity] = useState<'HIGH' | 'LOW'>('HIGH');
+  const [backchannelingEnabled, setBackchannelingEnabled] = useState<boolean>(false);
+  const [speechVolume, setSpeechVolume] = useState<number>(1.0);
+
+  // Realtime Transcription settings state
+  const [boostedKeywords, setBoostedKeywords] = useState<string>('');
+
   // Default Node Seeding
   const defaultNodes: Node[] = [
     {
@@ -318,10 +357,10 @@ export default function VisualFlowCanvas({
   );
 
   const compiledPrompt = useMemo(() => {
-    const base = compileFlowToSystemPrompt(currentFlowGraph, agentName, direction);
+    const base = compileFlowToSystemPrompt(currentFlowGraph, agentName, direction, flexibilityMode);
     const fullBase = `${globalPrompt}\n\n${base}`;
     return compilePromptWithHandbook(fullBase, handbookPresets, direction);
-  }, [currentFlowGraph, agentName, globalPrompt, handbookPresets, direction]);
+  }, [currentFlowGraph, agentName, globalPrompt, handbookPresets, direction, flexibilityMode]);
 
   const handleAddNode = (type: FlowNodeType, label: string) => {
     const newId = `node-${Date.now()}`;
@@ -382,6 +421,17 @@ export default function VisualFlowCanvas({
     model,
     flexibilityMode,
     handbookPresets,
+    knowledgeBaseIds: assignedKbIds,
+    speechSettings: {
+      speed: speechSpeed,
+      responsivenessMs,
+      interruptionSensitivity,
+      backchanneling: backchannelingEnabled,
+      volume: speechVolume,
+    },
+    transcriptionSettings: {
+      boostedKeywords: boostedKeywords ? boostedKeywords.split(',').map((s) => s.trim()).filter(Boolean) : [],
+    },
   });
 
   const handleSave = async () => {
@@ -766,12 +816,14 @@ export default function VisualFlowCanvas({
 
                 {/* Accordions: Knowledge Base, Speech, Realtime Transcription */}
                 <div className="space-y-2 border-t border-slate-200 dark:border-slate-800 pt-3">
+                  {/* KB Accordion */}
                   <button
+                    type="button"
                     onClick={() => setKbAccordionOpen(!kbAccordionOpen)}
                     className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold"
                   >
                     <span className="flex items-center gap-2">
-                      <BookOpen className="w-4 h-4 text-teal-500" /> Knowledge Base
+                      <BookOpen className="w-4 h-4 text-teal-500" /> Knowledge Base ({assignedKbIds.length})
                     </span>
                     {kbAccordionOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                   </button>
@@ -779,13 +831,39 @@ export default function VisualFlowCanvas({
                   {kbAccordionOpen && (
                     <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-lg text-slate-500 text-[11px] space-y-2">
                       <p>Attach documents or scraped URLs to augment LLM reasoning during calls.</p>
-                      <button className="w-full py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-xs font-semibold text-indigo-600">
-                        + Assign Knowledge Base
-                      </button>
+                      {isLoadingKb ? (
+                        <p className="text-slate-400 italic">Loading knowledge bases...</p>
+                      ) : kbList.length === 0 ? (
+                        <p className="text-slate-400 italic">No Knowledge Bases created yet.</p>
+                      ) : (
+                        <div className="space-y-1 max-h-36 overflow-y-auto">
+                          {kbList.map((kb) => {
+                            const isAssigned = assignedKbIds.includes(kb.id);
+                            return (
+                              <div
+                                key={kb.id}
+                                onClick={() => toggleKbAssignment(kb.id)}
+                                className={`flex items-center justify-between p-2 rounded border cursor-pointer transition-colors ${
+                                  isAssigned
+                                    ? 'bg-teal-50/60 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800 text-teal-900 dark:text-teal-200 font-medium'
+                                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600'
+                                }`}
+                              >
+                                <span className="truncate">{kb.name}</span>
+                                <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${isAssigned ? 'bg-teal-600 border-teal-600 text-white' : 'border-slate-300'}`}>
+                                  {isAssigned && <Check className="w-2.5 h-2.5" />}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
 
+                  {/* Speech Settings Accordion */}
                   <button
+                    type="button"
                     onClick={() => setSpeechAccordionOpen(!speechAccordionOpen)}
                     className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold"
                   >
@@ -796,15 +874,54 @@ export default function VisualFlowCanvas({
                   </button>
 
                   {speechAccordionOpen && (
-                    <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-lg text-slate-500 text-[11px] space-y-2">
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-lg text-slate-500 text-[11px] space-y-3">
                       <div>
-                        <span>Speech Rate (Speed)</span>
-                        <input type="range" min="0.8" max="1.4" step="0.1" defaultValue="1.0" className="w-full mt-1" />
+                        <div className="flex justify-between mb-1">
+                          <span className="font-semibold text-slate-600 dark:text-slate-400">Speech Rate (Speed)</span>
+                          <span className="font-mono">{speechSpeed.toFixed(1)}x</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0.8"
+                          max="1.4"
+                          step="0.1"
+                          value={speechSpeed}
+                          onChange={(e) => setSpeechSpeed(parseFloat(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="font-semibold text-slate-600 dark:text-slate-400">Responsiveness (Pause Window)</span>
+                          <span className="font-mono">{responsivenessMs}ms</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="200"
+                          max="1200"
+                          step="50"
+                          value={responsivenessMs}
+                          onChange={(e) => setResponsivenessMs(parseInt(e.target.value, 10))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1 border-t border-slate-200 dark:border-slate-700">
+                        <span className="font-semibold text-slate-600 dark:text-slate-400">Backchanneling ('mhm', 'uh-huh')</span>
+                        <input
+                          type="checkbox"
+                          checked={backchannelingEnabled}
+                          onChange={(e) => setBackchannelingEnabled(e.target.checked)}
+                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        />
                       </div>
                     </div>
                   )}
 
+                  {/* Realtime Transcription Settings Accordion */}
                   <button
+                    type="button"
                     onClick={() => setTranscriptionAccordionOpen(!transcriptionAccordionOpen)}
                     className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold"
                   >
@@ -813,6 +930,22 @@ export default function VisualFlowCanvas({
                     </span>
                     {transcriptionAccordionOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                   </button>
+
+                  {transcriptionAccordionOpen && (
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-lg text-slate-500 text-[11px] space-y-2">
+                      <div>
+                        <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Boosted Custom Keywords</label>
+                        <input
+                          type="text"
+                          value={boostedKeywords}
+                          onChange={(e) => setBoostedKeywords(e.target.value)}
+                          placeholder="Claritiy, product_sku, jargon (comma-separated)"
+                          className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">Improves speech-to-text accuracy for specialized terminology.</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
