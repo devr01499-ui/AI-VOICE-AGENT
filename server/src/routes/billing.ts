@@ -3,6 +3,7 @@ import { BillingService } from '../services/BillingService';
 import { logger } from '../utils/logger';
 import { AuthenticatedRequest, requireAuth } from '../middleware/auth';
 import { env } from '../config/env';
+import { ADMIN_EMAIL } from '../config/constants';
 
 const router = Router();
 
@@ -71,10 +72,16 @@ router.post('/verify-plan', requireAuth, async (req: any, res: any) => {
  * GET /api/v2/billing/minutes-overview
  * Founder visibility endpoint showing total minutes consumed across all users,
  * total remaining minutes balance, user count, and Vobiz master wallet stats.
+ * Restricted exclusively to admin accounts.
  */
-router.get('/minutes-overview', requireAuth, async (req, res) => {
+router.get('/minutes-overview', requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const { prisma } = await import('../lib/prisma');
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user || (user.accountType !== 'admin' && user.email !== ADMIN_EMAIL)) {
+      res.status(403).json({ success: false, error: 'Access Denied: Founder admin privilege required.' });
+      return;
+    }
     const aggregate = await prisma.user.aggregate({
       _sum: {
         totalMinutesConsumed: true,
