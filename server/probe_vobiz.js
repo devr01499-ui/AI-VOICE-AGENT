@@ -1,8 +1,8 @@
 // Direct Vobiz inventory probe — run with node to see real API response
 // Usage: node server/probe_vobiz.js
 
-const VOBIZ_AUTH_ID = 'REDACTED_VOBIZ_AUTH_ID';
-const VOBIZ_AUTH_TOKEN = 'REDACTED_VOBIZ_TOKEN';
+const VOBIZ_AUTH_ID = process.env.VOBIZ_AUTH_ID || 'MA_PLACEHOLDER';
+const VOBIZ_AUTH_TOKEN = process.env.VOBIZ_AUTH_TOKEN || '';
 const VOBIZ_API_URL = 'https://api.vobiz.ai';
 
 async function probe() {

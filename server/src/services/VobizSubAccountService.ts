@@ -11,8 +11,8 @@ export class VobizSubAccountService {
 
   constructor() {
     this.baseUrl = env.VOBIZ_API_URL || 'https://api.vobiz.ai';
-    this.masterAuthId = env.VOBIZ_AUTH_ID || 'REDACTED_VOBIZ_AUTH_ID';
-    this.masterAuthToken = env.VOBIZ_AUTH_TOKEN || 'REDACTED_VOBIZ_TOKEN';
+    this.masterAuthId = (env.VOBIZ_AUTH_ID || 'MA_PLACEHOLDER').trim();
+    this.masterAuthToken = (env.VOBIZ_AUTH_TOKEN || '').trim();
   }
 
   private get isMock(): boolean {
