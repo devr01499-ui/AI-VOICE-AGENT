@@ -30,6 +30,7 @@ import {
   Radio,
   Pencil,
   AlertTriangle,
+  AlertCircle,
 } from 'lucide-react';
 import {
   apiClient,
@@ -2604,12 +2605,12 @@ export default function SinglePromptStudio({
                 >
                   <option value="custom_api">Custom API (HTTP Request)</option>
                   <option value="end_call">End Call</option>
-                  <option value="transfer_call">Transfer Call (PSTN)</option>
-                  <option value="send_sms">Send SMS</option>
+                  <option value="transfer_call">Transfer Call (PSTN) (Coming Soon)</option>
+                  <option value="send_sms">Send SMS (Coming Soon)</option>
                   <option value="check_calendar">Check Calendar Availability</option>
                   <option value="book_calendar">Book Calendar Appointment</option>
-                  <option value="press_digit">Press Digit / IVR Navigation</option>
-                  <option value="agent_transfer">Transfer to Another Agent</option>
+                  <option value="press_digit">Press Digit / IVR Navigation (Coming Soon)</option>
+                  <option value="agent_transfer">Transfer to Another Agent (Coming Soon)</option>
                 </select>
               </div>
 
@@ -2697,32 +2698,58 @@ export default function SinglePromptStudio({
               )}
 
               {fnType === 'transfer_call' && (
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Target Phone Number
-                  </label>
-                  <input
-                    type="text"
-                    value={fnTargetNumber}
-                    onChange={(e) => setFnTargetNumber(e.target.value)}
-                    placeholder="+1234567890"
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-bold text-amber-800 dark:text-amber-300" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                        Call Transfer is Coming Soon
+                      </p>
+                      <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                        This function type is currently disabled. PSTN call bridging via Vobiz is undergoing maintenance and cannot be executed during live calls.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="opacity-50 pointer-events-none">
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Target Phone Number
+                    </label>
+                    <input
+                      disabled
+                      type="text"
+                      value={fnTargetNumber}
+                      placeholder="+1234567890"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-slate-800 dark:text-slate-200 cursor-not-allowed"
+                    />
+                  </div>
                 </div>
               )}
 
               {fnType === 'send_sms' && (
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Message Template
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={fnMessageTemplate}
-                    onChange={(e) => setFnMessageTemplate(e.target.value)}
-                    placeholder="Hi! Here is your requested information: {details}"
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-bold text-amber-800 dark:text-amber-300" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                        SMS/WhatsApp Messaging is Coming Soon
+                      </p>
+                      <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                        This function type is currently disabled. In-call text messaging via SMS or WhatsApp is undergoing maintenance and cannot be executed during live calls.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="opacity-50 pointer-events-none">
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Message Template
+                    </label>
+                    <textarea
+                      disabled
+                      rows={3}
+                      value={fnMessageTemplate}
+                      placeholder="Hi! Here is your requested information: {details}"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 cursor-not-allowed"
+                    />
+                  </div>
                 </div>
               )}
 
@@ -2742,32 +2769,58 @@ export default function SinglePromptStudio({
               )}
 
               {fnType === 'press_digit' && (
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    DTMF Digits to Press
-                  </label>
-                  <input
-                    type="text"
-                    value={fnDigits}
-                    onChange={(e) => setFnDigits(e.target.value)}
-                    placeholder="e.g. 1 or 123#"
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-bold text-amber-800 dark:text-amber-300" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                        Press Digit / DTMF is Coming Soon
+                      </p>
+                      <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                        This function type is currently disabled. DTMF key tone transmission via Vobiz is undergoing maintenance and cannot be executed during live calls.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="opacity-50 pointer-events-none">
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      DTMF Digits to Press
+                    </label>
+                    <input
+                      disabled
+                      type="text"
+                      value={fnDigits}
+                      placeholder="e.g. 1 or 123#"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-slate-800 dark:text-slate-200 cursor-not-allowed"
+                    />
+                  </div>
                 </div>
               )}
 
               {fnType === 'agent_transfer' && (
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Target Agent ID
-                  </label>
-                  <input
-                    type="text"
-                    value={fnTargetAgentId}
-                    onChange={(e) => setFnTargetAgentId(e.target.value)}
-                    placeholder="UUID of target agent"
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-bold text-amber-800 dark:text-amber-300" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                        Agent Transfer is Coming Soon
+                      </p>
+                      <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                        This function type is currently disabled. Context handoff to specialist agents is undergoing maintenance and cannot be executed during live calls.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="opacity-50 pointer-events-none">
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Target Agent ID
+                    </label>
+                    <input
+                      disabled
+                      type="text"
+                      value={fnTargetAgentId}
+                      placeholder="UUID of target agent"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-slate-800 dark:text-slate-200 cursor-not-allowed"
+                    />
+                  </div>
                 </div>
               )}
             </div>

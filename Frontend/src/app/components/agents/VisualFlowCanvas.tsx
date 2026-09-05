@@ -27,6 +27,7 @@ import {
   Sparkles,
   Code,
   AlertTriangle,
+  AlertCircle,
   FileText,
   Layers,
   ArrowLeft,
@@ -474,11 +475,11 @@ export default function VisualFlowCanvas({
     { type: 'checkCalendar' as FlowNodeType, label: 'Check Calendar Availability', desc: 'Query open calendar slots', icon: <Calendar className="w-4 h-4 text-emerald-500" /> },
     { type: 'subagent' as FlowNodeType, label: 'Subagent', desc: 'Delegate flow to subagent', icon: <Bot className="w-4 h-4 text-indigo-500" /> },
     { type: 'function' as FlowNodeType, label: 'Function', desc: 'Call external tool/webhook', icon: <Wrench className="w-4 h-4 text-purple-500" /> },
-    { type: 'transferCall' as FlowNodeType, label: 'Call Transfer', desc: 'Transfer call to number', icon: <PhoneForwarded className="w-4 h-4 text-green-500" /> },
-    { type: 'pressDigit' as FlowNodeType, label: 'Press Digit', desc: 'IVR DTMF key press', icon: <Hash className="w-4 h-4 text-cyan-500" /> },
+    { type: 'transferCall' as FlowNodeType, label: 'Call Transfer', desc: 'Transfer call to number', icon: <PhoneForwarded className="w-4 h-4 text-green-500" />, comingSoon: true },
+    { type: 'pressDigit' as FlowNodeType, label: 'Press Digit', desc: 'IVR DTMF key press', icon: <Hash className="w-4 h-4 text-cyan-500" />, comingSoon: true },
     { type: 'logicSplit' as FlowNodeType, label: 'Logic Split', desc: 'Conditional intent branch', icon: <GitBranch className="w-4 h-4 text-orange-500" /> },
-    { type: 'agentTransfer' as FlowNodeType, label: 'Agent Transfer', desc: 'Hand over to specialist', icon: <UserCheck className="w-4 h-4 text-emerald-500" /> },
-    { type: 'inCallSms' as FlowNodeType, label: 'In-Call SMS', desc: 'Send text during call', icon: <MessageCircle className="w-4 h-4 text-teal-500" /> },
+    { type: 'agentTransfer' as FlowNodeType, label: 'Agent Transfer', desc: 'Hand over to specialist', icon: <UserCheck className="w-4 h-4 text-emerald-500" />, comingSoon: true },
+    { type: 'inCallSms' as FlowNodeType, label: 'In-Call SMS', desc: 'Send text during call', icon: <MessageCircle className="w-4 h-4 text-teal-500" />, comingSoon: true },
     { type: 'extractVariable' as FlowNodeType, label: 'Extract Variable', desc: 'Capture response slots', icon: <Binary className="w-4 h-4 text-pink-500" /> },
     { type: 'code' as FlowNodeType, label: 'Code', desc: 'Execute inline code logic', icon: <Code className="w-4 h-4 text-slate-600" /> },
     { type: 'mcp' as FlowNodeType, label: 'MCP', desc: 'Model Context Protocol', icon: <Globe className="w-4 h-4 text-sky-500" /> },
@@ -615,11 +616,18 @@ export default function VisualFlowCanvas({
                   onClick={() => handleAddNode(item.type, item.label)}
                   className="w-full text-left p-2 rounded-lg border border-slate-100 dark:border-slate-800/80 hover:border-indigo-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all flex items-center gap-2.5 group"
                 >
-                  <div className="w-7 h-7 rounded-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <div className="w-7 h-7 rounded-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:scale-105 transition-transform flex-shrink-0">
                     {item.icon}
                   </div>
-                  <div>
-                    <p className="font-semibold text-xs text-slate-800 dark:text-slate-200">{item.label}</p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="font-semibold text-xs text-slate-800 dark:text-slate-200 truncate">{item.label}</p>
+                      {(item as any).comingSoon && (
+                        <span className="bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase flex-shrink-0" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                          Soon
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[10px] text-slate-400 truncate">{item.desc}</p>
                   </div>
                 </button>
@@ -1076,29 +1084,55 @@ export default function VisualFlowCanvas({
 
                         {/* Call Transfer */}
                         {selectedNode.type === 'transferCall' && (
-                          <div>
-                            <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Transfer Phone Number</label>
-                            <input
-                              type="text"
-                              value={nodeData.targetNumber || ''}
-                              onChange={(e) => updateSelectedNodeData({ targetNumber: e.target.value })}
-                              placeholder="+18005550199"
-                              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
-                            />
+                          <div className="space-y-3">
+                            <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+                              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                              <div>
+                                <p className="text-sm font-bold text-amber-800 dark:text-amber-300" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                  Call Transfer is Coming Soon
+                                </p>
+                                <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                  This node type is currently disabled while Vobiz PSTN call bridging integration is being finalized.
+                                </p>
+                              </div>
+                            </div>
+                            <div className="opacity-50 pointer-events-none space-y-2">
+                              <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Transfer Phone Number</label>
+                              <input
+                                disabled
+                                type="text"
+                                value={nodeData.targetNumber || ''}
+                                placeholder="+18005550199"
+                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono cursor-not-allowed"
+                              />
+                            </div>
                           </div>
                         )}
 
                         {/* Press Digit */}
                         {selectedNode.type === 'pressDigit' && (
-                          <div>
-                            <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">DTMF Key Digit (0-9, *, #)</label>
-                            <input
-                              type="text"
-                              value={nodeData.digit || ''}
-                              onChange={(e) => updateSelectedNodeData({ digit: e.target.value })}
-                              placeholder="e.g. 1"
-                              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
-                            />
+                          <div className="space-y-3">
+                            <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+                              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                              <div>
+                                <p className="text-sm font-bold text-amber-800 dark:text-amber-300" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                  Press Digit / DTMF is Coming Soon
+                                </p>
+                                <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                  This node type is currently disabled while Vobiz DTMF tone transmission integration is being finalized.
+                                </p>
+                              </div>
+                            </div>
+                            <div className="opacity-50 pointer-events-none space-y-2">
+                              <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">DTMF Key Digit (0-9, *, #)</label>
+                              <input
+                                disabled
+                                type="text"
+                                value={nodeData.digit || ''}
+                                placeholder="e.g. 1"
+                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono cursor-not-allowed"
+                              />
+                            </div>
                           </div>
                         )}
 
@@ -1118,29 +1152,55 @@ export default function VisualFlowCanvas({
 
                         {/* Agent Transfer */}
                         {selectedNode.type === 'agentTransfer' && (
-                          <div>
-                            <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Specialist Agent Name</label>
-                            <input
-                              type="text"
-                              value={nodeData.agentName || ''}
-                              onChange={(e) => updateSelectedNodeData({ agentName: e.target.value })}
-                              placeholder="e.g. Tier-2 Technical Support"
-                              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
-                            />
+                          <div className="space-y-3">
+                            <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+                              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                              <div>
+                                <p className="text-sm font-bold text-amber-800 dark:text-amber-300" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                  Agent Transfer is Coming Soon
+                                </p>
+                                <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                  This node type is currently disabled while specialist agent context switching is being integrated.
+                                </p>
+                              </div>
+                            </div>
+                            <div className="opacity-50 pointer-events-none space-y-2">
+                              <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Specialist Agent Name</label>
+                              <input
+                                disabled
+                                type="text"
+                                value={nodeData.agentName || ''}
+                                placeholder="e.g. Tier-2 Technical Support"
+                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono cursor-not-allowed"
+                              />
+                            </div>
                           </div>
                         )}
 
                         {/* In-Call SMS */}
                         {selectedNode.type === 'inCallSms' && (
-                          <div>
-                            <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">SMS Message Content</label>
-                            <textarea
-                              rows={3}
-                              value={nodeData.smsBody || ''}
-                              onChange={(e) => updateSelectedNodeData({ smsBody: e.target.value })}
-                              placeholder="Here is your confirmation link: https://..."
-                              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none font-mono"
-                            />
+                          <div className="space-y-3">
+                            <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+                              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                              <div>
+                                <p className="text-sm font-bold text-amber-800 dark:text-amber-300" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                  SMS/WhatsApp Messaging is Coming Soon
+                                </p>
+                                <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                  This node type is currently disabled. In-call text messaging via SMS or WhatsApp is undergoing maintenance and cannot be executed on live calls.
+                                </p>
+                              </div>
+                            </div>
+                            <div className="opacity-50 pointer-events-none space-y-2">
+                              <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">SMS Message Content</label>
+                              <textarea
+                                disabled
+                                rows={3}
+                                value={nodeData.smsBody || ''}
+                                placeholder="Here is your confirmation link: https://..."
+                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none resize-none font-mono cursor-not-allowed"
+                              />
+                            </div>
                           </div>
                         )}
 
