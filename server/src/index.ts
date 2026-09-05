@@ -74,17 +74,21 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow serverless tasks, white-listed origins, Vercel deployments, Render hosts, or custom domain variations
-    if (
-      !origin || 
-      allowedOrigins.indexOf(origin) !== -1 || 
-      origin.endsWith('.vercel.app') || 
-      origin.endsWith('.onrender.com') ||
-      origin.includes('claritiy.com')
-    ) {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    const frontendOrigin = env.FRONTEND_URL ? (() => { try { return new URL(env.FRONTEND_URL).origin; } catch { return null; } })() : null;
+    const isAllowedList = allowedOrigins.includes(origin) || (frontendOrigin !== null && origin === frontendOrigin);
+    const isAnchoredDomain = /^https:\/\/(www\.)?claritiy\.com$/.test(origin) ||
+                             /^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/.test(origin) ||
+                             /^https:\/\/[a-zA-Z0-9-]+\.onrender\.com$/.test(origin);
+
+    if (isAllowedList || isAnchoredDomain) {
       callback(null, true);
     } else {
-      callback(new Error('Cross-Origin Request Blocked by CTO CORS Security Policy'));
+      callback(new Error('Cross-Origin Request Blocked by Security Policy'));
     }
   },
   credentials: true,
