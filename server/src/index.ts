@@ -176,13 +176,34 @@ app.get('/health', async (_req, res) => {
   }
 });
 
+import rateLimit from 'express-rate-limit';
 import { CallController } from './controllers/CallController';
+
+// ─── Rate Limiting ───────────────────────────────
+
+const generalApiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many requests, please try again later.' },
+});
+
+const sensitiveOperationsLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Rate limit exceeded for sensitive operation. Please wait before retrying.' },
+});
+
+app.use('/api/v2/', generalApiLimiter);
 
 // ─── API Routes ──────────────────────────────────
 
-app.use('/api/v2/calls', requireAuthOrApiKey, callRoutes);
-app.post('/api/calls/outbound', requireAuthOrApiKey, CallController.initiateCall);
-app.post('/api/v2/calls/outbound', requireAuthOrApiKey, CallController.initiateCall);
+app.use('/api/v2/calls', sensitiveOperationsLimiter, requireAuthOrApiKey, callRoutes);
+app.post('/api/calls/outbound', sensitiveOperationsLimiter, requireAuthOrApiKey, CallController.initiateCall);
+app.post('/api/v2/calls/outbound', sensitiveOperationsLimiter, requireAuthOrApiKey, CallController.initiateCall);
 app.use('/api/v2/agents', requireAuth, agentRoutes);
 app.use('/api/v2/numbers', requireAuth, numbersRoutes);
 app.use('/api/v2/knowledge-base', requireAuth, kbRoutes);
@@ -192,9 +213,9 @@ app.use('/api/v2/apikeys', requireAuth, apikeysRoutes);
 app.use('/api/v2/webhooks', webhookRoutes);
 app.use('/api/v2/calendar', calendarRoutes);
 app.post('/api/v2/telephony/webhook', WebhookController.handleTelephonyWebhook);
-app.use('/api/v2/contact', contactRoutes);
-app.use('/api/v2/kyc', kycRoutes);
-app.use('/api/v2/billing', requireAuth, billingRoutes);
+app.use('/api/v2/contact', sensitiveOperationsLimiter, contactRoutes);
+app.use('/api/v2/kyc', sensitiveOperationsLimiter, kycRoutes);
+app.use('/api/v2/billing', sensitiveOperationsLimiter, requireAuth, billingRoutes);
 app.use('/api/v2/telephony', requireAuth, telephonyRoutes);
 app.use('/api/v2/conductor', requireAuth, conductorRoutes);
 app.use('/api/v2/chat-history', requireAuth, chatHistoryRoutes);

@@ -32,6 +32,7 @@
     "dotenv": "^16.5.0",
     "drachtio-srf": "^5.0.27",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.7.0",
     "googleapis": "^173.0.0",
     "helmet": "^8.1.0",
     "jsdom": "^29.1.1",
@@ -41,11 +42,11 @@
     "razorpay": "^2.9.8",
     "resend": "^6.18.0",
     "sip.js": "^0.21.2",
+    "tsx": "^4.19.0",
     "typescript": "^5.8.0",
     "uuid": "^11.1.0",
     "ws": "^8.18.0",
-    "zod": "^3.25.0",
-    "tsx": "^4.19.0"
+    "zod": "^3.25.0"
   },
   "optionalDependencies": {
     "@ngrok/ngrok": "^1.4.0"
