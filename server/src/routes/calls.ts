@@ -116,6 +116,13 @@ router.get(
       return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
 
+    const { prisma } = await import('../lib/prisma');
+    const { ADMIN_EMAIL } = await import('../config/constants');
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || (user.accountType !== 'admin' && user.email !== ADMIN_EMAIL)) {
+      return res.status(403).json({ success: false, error: 'Access Denied: Admin privileges required for diagnostic endpoint.' });
+    }
+
     let geo: any = {};
     try {
       // Query server public IP geo-location

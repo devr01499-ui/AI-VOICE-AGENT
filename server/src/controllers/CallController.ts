@@ -246,12 +246,13 @@ export class CallController {
 
       logger.info('CallController: Vobiz answer webhook sending Stream XML', { callId, isNewInbound: !callSession });
 
-      // Return XML to tell Vobiz to stream audio to our WebSocket
+      // Return XML to tell Vobiz to stream audio to our WebSocket with signed timestamped token
       const publicUrl = env.PUBLIC_URL;
       const wsUrl = publicUrl.replace(/^http/, 'ws');
       const secret = env.VOBIZ_WEBHOOK_SECRET || env.SIP_ENCRYPTION_KEY;
-      const token = crypto.createHmac('sha256', secret).update(callId).digest('hex');
-      const streamUrl = `${wsUrl}/audio-stream?callId=${callId}&amp;token=${token}`;
+      const ts = Date.now();
+      const token = crypto.createHmac('sha256', secret).update(`${callId}:${ts}`).digest('hex');
+      const streamUrl = `${wsUrl}/audio-stream?callId=${callId}&amp;token=${token}&amp;ts=${ts}`;
 
       const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>

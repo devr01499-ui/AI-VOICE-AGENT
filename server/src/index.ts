@@ -62,7 +62,21 @@ import { requireAuthOrApiKey } from './middleware/authWrapper';
 const app = express();
 
 // ── Security ──────────────────────────────────────
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+        connectSrc: ["'self'", 'wss:', 'ws:', 'https://api.vobiz.ai', 'https://*.supabase.co'],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        objectSrc: ["'none'"],
+      },
+    },
+  })
+);
 const allowedOrigins = [
   'https://www.claritiy.com',
   'https://claritiy.com',

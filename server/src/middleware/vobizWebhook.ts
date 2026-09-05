@@ -37,7 +37,7 @@ export const verifyVobizWebhook = (req: Request, res: Response, next: NextFuncti
   }
 
   // 3. Vobiz Header / Auth ID Verification
-  if (secret && (req.header('X-Vobiz-Auth-ID') === env.VOBIZ_AUTH_ID || req.query.secret === secret)) {
+  if (secret && req.header('X-Vobiz-Auth-ID') === env.VOBIZ_AUTH_ID) {
     next();
     return;
   }

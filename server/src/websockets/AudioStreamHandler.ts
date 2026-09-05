@@ -89,10 +89,11 @@ export class AudioStreamHandler {
   // ─── Private: Connection Handling ───────────────
 
   private handleConnection(ws: WebSocket, req: IncomingMessage): void {
-    // Parse callId and token from the URL query string
+    // Parse callId, token, and timestamp from the URL query string
     const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
     const callId = url.searchParams.get('callId');
     const token = url.searchParams.get('token');
+    const tsStr = url.searchParams.get('ts');
 
     if (!callId) {
       logger.warn('AudioStreamHandler: connection rejected — missing callId');
@@ -101,11 +102,13 @@ export class AudioStreamHandler {
     }
 
     const secret = env.VOBIZ_WEBHOOK_SECRET || env.SIP_ENCRYPTION_KEY;
-    const expectedToken = crypto.createHmac('sha256', secret).update(callId).digest('hex');
+    const expectedToken = crypto.createHmac('sha256', secret).update(`${callId}:${tsStr || ''}`).digest('hex');
+    const timestamp = tsStr ? parseInt(tsStr, 10) : 0;
+    const isExpired = !timestamp || (Date.now() - timestamp > 15 * 60 * 1000);
 
-    if (!token || token !== expectedToken) {
-      logger.warn('AudioStreamHandler: connection rejected — invalid or missing authentication token', { callId });
-      ws.close(1008, 'Invalid authentication token');
+    if (!token || token !== expectedToken || isExpired) {
+      logger.warn('AudioStreamHandler: connection rejected — invalid or expired authentication token', { callId, isExpired });
+      ws.close(1008, 'Invalid or expired authentication token');
       return;
     }
 
