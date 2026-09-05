@@ -160,10 +160,20 @@ export class BillingService {
   }
 
 
+  private static redeemedPayments = new Set<string>();
+
   /**
    * Provisions a user's account after a successful plan purchase.
    */
-  async processPlanPurchase(userId: string, planName: string) {
+  async processPlanPurchase(userId: string, planName: string, paymentId?: string, orderId?: string) {
+    if (paymentId && BillingService.redeemedPayments.has(paymentId)) {
+      logger.warn('BillingService: Duplicate payment replay attempt detected', { paymentId, userId });
+      throw new Error('Payment has already been redeemed.');
+    }
+    if (orderId && BillingService.redeemedPayments.has(orderId)) {
+      logger.warn('BillingService: Duplicate order replay attempt detected', { orderId, userId });
+      throw new Error('Order has already been redeemed.');
+    }
     let accountType = 'free';
     let addedMinutes = 0;
 
@@ -203,6 +213,9 @@ export class BillingService {
           minutesRemainingSeconds: newMinutesRemainingSeconds,
         },
       });
+
+      if (paymentId) BillingService.redeemedPayments.add(paymentId);
+      if (orderId) BillingService.redeemedPayments.add(orderId);
 
       logger.info(`BillingService: Provisioned ${planName} for user ${userId}. Added ${addedMinutes} mins (${addedMinutes * 60} seconds).`);
       return true;

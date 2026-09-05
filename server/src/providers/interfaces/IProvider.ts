@@ -25,6 +25,7 @@ export interface InitiateCallParams {
   ringUrl?: string;
   hangupUrl?: string;
   userId?: string;
+  record?: boolean;
 }
 
 export interface InitiateCallResult {
@@ -93,8 +94,8 @@ export interface IBaseProvider {
 
 export interface ITelephonyProvider extends IBaseProvider {
   initiateCall(params: InitiateCallParams): Promise<InitiateCallResult>;
-  terminateCall(callUuid: string): Promise<void>;
-  getCallStatus(callUuid: string): Promise<CallStatusResult>;
+  terminateCall(callUuid: string, userId?: string): Promise<void>;
+  getCallStatus(callUuid: string, userId?: string): Promise<CallStatusResult>;
 }
 
 // ─── Realtime AI Provider ─────────────────────────────

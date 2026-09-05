@@ -5,11 +5,10 @@ import { logger } from '../utils/logger';
 export class BatchService {
   /**
    * Processes a batch of calls strictly one-at-a-time per user.
-   * This ensures we do not exceed real total concurrency needs regardless
-   * of Vobiz account limits, as requested by Phase 3 architecture.
+   * Ensures previous call completes before initiating the next.
    */
   static async processBatchOneAtATime(batchId: string, userId: string) {
-    const batch = await prisma.batch.findUnique({
+    const batch = await prisma.batch.findFirst({
       where: { id: batchId, userId }
     });
 
@@ -17,18 +16,43 @@ export class BatchService {
       throw new Error('Batch not found');
     }
 
-    const recipients = await prisma.batchRecipient.findMany({
-      where: { batchId, status: 'pending' },
-    });
+    const maxAttempts = 3;
 
-    logger.info(`BatchService: Starting batch ${batchId} for user ${userId} with ${recipients.length} recipients. Processing one-at-a-time.`);
+    logger.info(`BatchService: Starting batch ${batchId} for user ${userId}. Processing one-at-a-time.`);
 
-    for (const recipient of recipients) {
+    while (true) {
+      // Check mid-batch pause or cancel status
+      const currentBatch = await prisma.batch.findUnique({
+        where: { id: batchId },
+        select: { status: true }
+      });
+
+      if (!currentBatch || currentBatch.status === 'cancelled' || currentBatch.status === 'paused') {
+        logger.info(`BatchService: Batch ${batchId} stopped due to status change: ${currentBatch?.status}`);
+        return;
+      }
+
+      // Fetch next pending or eligible retry recipient
+      const recipient = await prisma.batchRecipient.findFirst({
+        where: {
+          batchId,
+          OR: [
+            { status: 'pending' },
+            { status: 'failed', attempts: { lt: maxAttempts } }
+          ]
+        },
+        orderBy: { id: 'asc' }
+      });
+
+      if (!recipient) {
+        break; // All recipients processed
+      }
+
       try {
-        // Mark recipient as in_progress
+        const attemptCount = recipient.attempts + 1;
         await prisma.batchRecipient.update({
           where: { id: recipient.id },
-          data: { status: 'in_progress', attempts: { increment: 1 }, lastAttemptAt: new Date() }
+          data: { status: 'in_progress', attempts: attemptCount, lastAttemptAt: new Date() }
         });
 
         const callResult = await CallService.createCall({
@@ -40,13 +64,38 @@ export class BatchService {
 
         await prisma.batchRecipient.update({
           where: { id: recipient.id },
-          data: { status: 'completed', callId: callResult.callId }
+          data: { callId: callResult.callId }
         });
 
-        logger.info(`BatchService: Completed batch item ${recipient.id}`);
+        logger.info(`BatchService: Placed call for recipient ${recipient.id}, waiting for call completion`, { callId: callResult.callId });
+
+        // Wait for call resolution (terminal status or 5-min timeout)
+        const terminalStatuses = ['completed', 'failed', 'busy', 'no_answer', 'cancelled'];
+        const pollInterval = 2000;
+        const maxWaitMs = 5 * 60 * 1000;
+        const startTime = Date.now();
+
+        while (Date.now() - startTime < maxWaitMs) {
+          const callRecord = await prisma.call.findUnique({
+            where: { id: callResult.callId },
+            select: { status: true }
+          });
+
+          if (callRecord && terminalStatuses.includes(callRecord.status)) {
+            const finalRecipientStatus = callRecord.status === 'completed' ? 'completed' : 'failed';
+            await prisma.batchRecipient.update({
+              where: { id: recipient.id },
+              data: { status: finalRecipientStatus }
+            });
+            logger.info(`BatchService: Call ${callResult.callId} finished with status ${callRecord.status}`);
+            break;
+          }
+
+          await new Promise(res => setTimeout(res, pollInterval));
+        }
+
       } catch (err) {
-        logger.error(`BatchService: Failed batch item ${recipient.id}`, { error: String(err) });
-        
+        logger.error(`BatchService: Failed placement for recipient ${recipient.id}`, { error: String(err) });
         await prisma.batchRecipient.update({
           where: { id: recipient.id },
           data: { status: 'failed' }
@@ -65,7 +114,7 @@ export class BatchService {
         }
       });
 
-      // Wait a short delay before next call in batch to be defensive
+      // Brief grace delay before starting next call
       await new Promise(res => setTimeout(res, 1000));
     }
 

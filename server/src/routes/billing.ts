@@ -51,7 +51,7 @@ router.post('/verify-plan', requireAuth, async (req: any, res: any) => {
       return;
     }
 
-    await billingService.processPlanPurchase(req.userId, plan);
+    await billingService.processPlanPurchase(req.userId, plan, paymentId, orderId);
     
     logger.info(`Plan purchased: ${plan}, OrderId: ${orderId}, UserId: ${req.userId}`);
 

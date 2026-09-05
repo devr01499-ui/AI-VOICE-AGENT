@@ -191,9 +191,18 @@ export class CallOrchestrator {
         throw new Error('env.PUBLIC_URL not configured');
       }
 
-      const user = await prisma.user.findUnique({ where: { id: userId } });
-      const isAdmin = user?.email === ADMIN_EMAIL;
-      const providerName = isAdmin ? 'vobiz' : 'generic-sip';
+      const agent = await AgentRepository.findById(agentId);
+      let record = true;
+      if (agent && agent.agentConfig) {
+        try {
+          const parsedConfig = JSON.parse(agent.agentConfig);
+          if (typeof parsedConfig.isRecordingEnabled === 'boolean') {
+            record = parsedConfig.isRecordingEnabled;
+          }
+        } catch {}
+      }
+
+      const providerName = 'vobiz';
       const telephonyProvider = ProviderManager.instance.getProvider<any>(providerName);
 
       const result = await telephonyProvider.initiateCall({
@@ -203,6 +212,7 @@ export class CallOrchestrator {
         ringUrl: `${publicUrl}/api/v2/webhooks/vobiz/status?callId=${call.id}`,
         hangupUrl: `${publicUrl}/api/v2/webhooks/vobiz/hangup?callId=${call.id}`,
         userId,
+        record,
       });
 
       if (result && result.requestUuid) {
@@ -246,10 +256,9 @@ export class CallOrchestrator {
       const rawConfig = JSON.parse(agent.agentConfig || '{}') as any;
 
       const defaultPrompt = 
-        "You are Claritiy AI, a highly professional, senior executive talent acquisition manager for Claritiy. Your sole mission is to execute a brief, high-signal preliminary phone screening with the candidate on the line. " +
-        "- Personality: Articulate, warm, objective, professional, and conversational. " +
-        "- Constraints: Keep your utterances concise and tightly focused. Never output multi-paragraph answers or text formatting characters. Do not use markdown blocks. Speak naturally, allowing comfortable pauses, and avoid talking over the candidate. " +
-        "- Flow: First, greet them and confirm you are speaking with the applicant. Second, ask them to briefly detail their hands-on engineering experiences deploying large language models or low-latency system components. Third, inquire about their expected salary bounds. Finally, thank them for their time and state that our executive operations board will follow up with next steps.";
+        "You are Claritiy AI, a helpful and professional AI voice assistant. " +
+        "- Personality: Articulate, warm, helpful, and conversational. " +
+        "- Constraints: Keep your utterances concise and natural. Speak clearly and politely.";
 
       const voiceName = agent.voiceName || rawConfig.voice || rawConfig.voice_config?.voice || 'Puck';
       const validVoices = ['alloy', 'echo', 'fable', 'onyx', 'shimmer', 'puck', 'charon', 'fenrir', 'kore', 'aoede'];

@@ -107,29 +107,36 @@ export class VobizProvider implements ITelephonyProvider {
     }
   }
 
+  private async getAuthCredentials(userId?: string): Promise<{ authId: string; authToken: string }> {
+    if (!userId) {
+      return { authId: this.authId, authToken: this.authToken };
+    }
+    try {
+      const subAccount = await prisma.vobizSubAccount.findUnique({
+        where: { userId },
+      });
+      if (subAccount) {
+        return {
+          authId: subAccount.authId,
+          authToken: EncryptionService.decrypt(subAccount.authToken),
+        };
+      }
+    } catch (err) {
+      logger.warn('VobizProvider: failed to lookup sub-account credentials', {
+        userId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return { authId: this.authId, authToken: this.authToken };
+  }
+
   /** Places an outbound call via Vobiz REST API. */
   async initiateCall(params: InitiateCallParams): Promise<InitiateCallResult> {
     if (!params.userId) {
       throw new ProviderError('vobiz', 'Access Denied: userId is required to authorize Vobiz calls.');
     }
-    const user = await prisma.user.findUnique({ where: { id: params.userId } });
-    if (!user || user.email !== ADMIN_EMAIL) {
-      throw new ProviderError('vobiz', `Access Denied: Vobiz calling is restricted to the admin account (${ADMIN_EMAIL}). User ${user?.email || 'unknown'} is not authorized.`);
-    }
 
-    let activeAuthId = this.authId;
-    let activeAuthToken = this.authToken;
-
-    const userTrunk = await prisma.sipTrunk.findFirst({
-      where: { userId: params.userId, sipUri: this.baseUrl }
-    });
-
-    if (userTrunk) {
-      activeAuthId = userTrunk.username || this.authId;
-      if (userTrunk.password) {
-        activeAuthToken = EncryptionService.decrypt(userTrunk.password);
-      }
-    }
+    const { authId: activeAuthId, authToken: activeAuthToken } = await this.getAuthCredentials(params.userId);
 
     if (this.isMock) {
       const mockUuid = `mock-call-${uuidv4()}`;
@@ -186,7 +193,7 @@ export class VobizProvider implements ITelephonyProvider {
       answer_method: 'POST',
       ...(params.ringUrl && { ring_url: params.ringUrl, ring_method: 'POST' }),
       ...(params.hangupUrl && { hangup_url: params.hangupUrl, hangup_method: 'POST' }),
-      record: true,
+      record: params.record !== undefined ? params.record : true,
     };
 
     const dynamicHeaders = {
@@ -200,6 +207,8 @@ export class VobizProvider implements ITelephonyProvider {
       to: params.to,
       from: params.from,
       answerUrl: params.answerUrl,
+      authId: activeAuthId,
+      record: body.record,
     });
 
     try {
@@ -235,20 +244,26 @@ export class VobizProvider implements ITelephonyProvider {
   }
 
   /** Hangs up an active call. */
-  async terminateCall(callUuid: string): Promise<void> {
+  async terminateCall(callUuid: string, userId?: string): Promise<void> {
     if (this.isMock) {
       logger.info('VobizProvider: terminating mock call', { callUuid });
       return;
     }
 
-    const url = `${this.baseUrl}/Account/${this.authId}/Call/${callUuid}/`;
+    const { authId, authToken } = await this.getAuthCredentials(userId);
+    const url = `${this.baseUrl}/Account/${authId}/Call/${callUuid}/`;
 
-    logger.info('VobizProvider: terminating call', { callUuid });
+    logger.info('VobizProvider: terminating call', { callUuid, authId });
 
     try {
       const response = await fetch(url, {
         method: 'DELETE',
-        headers: this.buildHeaders(),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-Auth-ID': authId,
+          'X-Auth-Token': authToken,
+        },
       });
 
       if (!response.ok && response.status !== 404) {
@@ -268,7 +283,7 @@ export class VobizProvider implements ITelephonyProvider {
   }
 
   /** Queries the status of a specific call. */
-  async getCallStatus(callUuid: string): Promise<CallStatusResult> {
+  async getCallStatus(callUuid: string, userId?: string): Promise<CallStatusResult> {
     if (this.isMock) {
       return {
         status: 'completed',
@@ -277,12 +292,18 @@ export class VobizProvider implements ITelephonyProvider {
       };
     }
 
-    const url = `${this.baseUrl}/Account/${this.authId}/Call/${callUuid}/`;
+    const { authId, authToken } = await this.getAuthCredentials(userId);
+    const url = `${this.baseUrl}/Account/${authId}/Call/${callUuid}/`;
 
     try {
       const response = await fetch(url, {
         method: 'GET',
-        headers: this.buildHeaders(),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-Auth-ID': authId,
+          'X-Auth-Token': authToken,
+        },
       });
 
       if (!response.ok) {
