@@ -111,6 +111,11 @@ export class VobizProvider implements ITelephonyProvider {
     if (!userId) {
       return { authId: this.authId, authToken: this.authToken };
     }
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (user && (user.accountType === 'admin' || user.email === ADMIN_EMAIL)) {
+      return { authId: this.authId, authToken: this.authToken };
+    }
+
     try {
       const subAccount = await prisma.vobizSubAccount.findUnique({
         where: { userId },
@@ -122,12 +127,17 @@ export class VobizProvider implements ITelephonyProvider {
         };
       }
     } catch (err) {
-      logger.warn('VobizProvider: failed to lookup sub-account credentials', {
+      if (err instanceof ProviderError) throw err;
+      logger.warn('VobizProvider: sub-account query exception', {
         userId,
         error: err instanceof Error ? err.message : String(err),
       });
     }
-    return { authId: this.authId, authToken: this.authToken };
+
+    throw new ProviderError(
+      'vobiz',
+      'Vobiz account not provisioned for this user — complete setup first.'
+    );
   }
 
   /** Places an outbound call via Vobiz REST API. */
