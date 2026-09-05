@@ -4,9 +4,11 @@
  * Refactored to utilize the decoupled Provider SDK & CallOrchestrator.
  */
 
+import crypto from 'crypto';
 import { IncomingMessage } from 'http';
 import WebSocket, { WebSocketServer } from 'ws';
 import { logger } from '../utils/logger';
+import { env } from '../config/env';
 import { callOrchestrator } from '../core/orchestrator/CallOrchestrator';
 import { providerManagerSDK } from '../core/provider-sdk/provider.manager';
 import { eventBus, PROVIDER_EVENTS } from '../core/provider-sdk/provider.events';
@@ -16,14 +18,14 @@ import type { VobizStreamEvent } from '../types';
 
 function getGreetingTextForLanguage(languageMode: string | null | undefined): string {
   const map: Record<string, string> = {
-    en: 'Please greet me, confirm my name, and begin the screening interview.',
-    hi: 'कृपया मेरा अभिवादन करें, मेरे नाम की पुष्टि करें और साक्षात्कार शुरू करें।',
-    bn: 'অনুগ্রহ করে আমাকে অভিবাদন জানান, আমার নাম নিশ্চিত করুন এবং ইন্টারভিউ শুরু করুন।',
-    kn: 'ದಯವಿಟ್ಟು ನನ್ನನ್ನು ಅಭಿನಂದಿಸಿ, ನನ್ನ ಹೆಸರನ್ನು ಖಚಿತಪಡಿಸಿ ಮತ್ತು ಸಂದರ್ಶನವನ್ನು ಪ್ರಾರಂಭಿಸಿ।',
-    ml: 'ദയവായി എന്നെ അഭിവാദ്യം ചെയ്യുക, എന്റെ പേര് സ്ഥിരീകരിക്കുക, കൂടാതെ അഭിമുഖം ആരംഭിക്കുക।',
-    gu: 'કૃપા કરીને મારું અભિવાદન કરો, મારા નામની પુષ્ટિ કરો અને ઇન્ટરવ્યુ શરૂ કરો।',
-    zh: '请向我打招呼，确认我的姓名，并开始面试。',
-    ar: 'يرجى الترحيب بي، وتأكيد اسمي، وبدء المقابلة.',
+    en: 'Please greet me warmly and ask how you can help me today.',
+    hi: 'कृपया मेरा गर्मजोशी से स्वागत करें और पूछें कि आज आप मेरी क्या मदद कर सकते हैं।',
+    bn: 'অনুগ্রহ করে আমাকে উষ্ণ অভিনন্দন জানান এবং জিজ্ঞাসা করুন আজ আমি আপনাকে কীভাবে সাহায্য করতে পারি।',
+    kn: 'ದಯವಿಟ್ಟು ನನ್ನನ್ನು ಶ್ರದ್ಧೆಯಿಂದ ಅಭಿನಂದಿಸಿ ಮತ್ತು ಇಂದು ನಾನು ನಿಮಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು ಎಂದು ಕೇಳಿ।',
+    ml: 'ദയവായി എന്നെ സ്നേഹത്തോടെ സ്വീകരിക്കുക, ഇന്ന് എനിക്ക് എങ്ങനെ സഹായിക്കാനാകുമെന്ന് ചോദിക്കുക।',
+    gu: 'કૃપા કરીને મારું ઉષ્માભર્યું સ્વાગત કરો અને પૂછો કે આજે હું તમને કેવી રીતે મદદ કરી શકું।',
+    zh: '请热情地向我打招呼，并问我今天能为您提供什么帮助。',
+    ar: 'يرجى الترحيب بي بحرارة وسؤالي كيف يمكنني مساعدتك اليوم.',
   };
   return (languageMode && map[languageMode]) || map.en;
 }
@@ -87,9 +89,10 @@ export class AudioStreamHandler {
   // ─── Private: Connection Handling ───────────────
 
   private handleConnection(ws: WebSocket, req: IncomingMessage): void {
-    // Parse callId from the URL query string
+    // Parse callId and token from the URL query string
     const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
     const callId = url.searchParams.get('callId');
+    const token = url.searchParams.get('token');
 
     if (!callId) {
       logger.warn('AudioStreamHandler: connection rejected — missing callId');
@@ -97,7 +100,16 @@ export class AudioStreamHandler {
       return;
     }
 
-    logger.info('AudioStreamHandler: new connection', { callId });
+    const secret = env.VOBIZ_WEBHOOK_SECRET || env.SIP_ENCRYPTION_KEY || 'default-secret';
+    const expectedToken = crypto.createHmac('sha256', secret).update(callId).digest('hex');
+
+    if (!token || token !== expectedToken) {
+      logger.warn('AudioStreamHandler: connection rejected — invalid or missing authentication token', { callId });
+      ws.close(1008, 'Invalid authentication token');
+      return;
+    }
+
+    logger.info('AudioStreamHandler: new connection authorized', { callId });
 
     const conn: ActiveConnection = {
       ws,

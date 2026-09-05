@@ -258,6 +258,29 @@ export class CallService {
       vobizStatus,
       mappedStatus,
     });
+
+    // Sync linked BatchRecipient status if call reached a terminal state
+    const terminalStatuses = ['completed', 'failed', 'busy', 'no_answer', 'cancelled'];
+    if (terminalStatuses.includes(mappedStatus)) {
+      try {
+        const recipient = await prisma.batchRecipient.findFirst({ where: { callId } });
+        if (recipient) {
+          const recipientStatus = mappedStatus === 'completed' ? 'completed' : 'failed';
+          await prisma.batchRecipient.update({
+            where: { id: recipient.id },
+            data: { status: recipientStatus }
+          });
+          const completedCount = await prisma.batchRecipient.count({ where: { batchId: recipient.batchId, status: 'completed' } });
+          const failedCount = await prisma.batchRecipient.count({ where: { batchId: recipient.batchId, status: 'failed' } });
+          await prisma.batch.update({
+            where: { id: recipient.batchId },
+            data: { completedCount, failedCount }
+          });
+        }
+      } catch (batchSyncErr) {
+        logger.warn('CallService: failed to sync BatchRecipient status', { callId, error: String(batchSyncErr) });
+      }
+    }
   }
 
   /**

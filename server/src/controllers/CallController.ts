@@ -6,6 +6,7 @@
  * and response formatting.
  */
 
+import crypto from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger';
 import { CallService } from '../services/CallService';
@@ -197,9 +198,8 @@ export class CallController {
           where: {
             OR: [
               ...(queryCallId ? [{ id: queryCallId }] : []),
-              ...(requestUuid ? [{ id: requestUuid }] : []),
-              ...(callUuid ? [{ id: callUuid }] : []),
-              ...(requestUuid ? [{ telemetryId: requestUuid }] : [])
+              ...(requestUuid ? [{ telemetryId: requestUuid }] : []),
+              ...(callUuid ? [{ telemetryId: callUuid }] : [])
             ]
           }
         });
@@ -233,7 +233,7 @@ export class CallController {
 
         // Outbound balance alignment check block
         const user = await prisma.user.findUnique({ where: { id: callSession.userId } });
-        if (user && user.email !== ADMIN_EMAIL && user.callingBalanceMinutes <= 0) {
+        if (user && user.accountType !== 'admin' && user.email !== ADMIN_EMAIL && user.callingBalanceMinutes <= 0) {
           logger.warn('CallController: Insufficient balance for webhook call connection', { callId, userId: user.id });
           res.set('Content-Type', 'application/xml');
           res.status(200).send('<Response><Speak>Insufficient balance to complete this call.</Speak><Hangup/></Response>');
@@ -249,7 +249,9 @@ export class CallController {
       // Return XML to tell Vobiz to stream audio to our WebSocket
       const publicUrl = env.PUBLIC_URL;
       const wsUrl = publicUrl.replace(/^http/, 'ws');
-      const streamUrl = `${wsUrl}/audio-stream?callId=${callId}`;
+      const secret = env.VOBIZ_WEBHOOK_SECRET || env.SIP_ENCRYPTION_KEY || 'default-secret';
+      const token = crypto.createHmac('sha256', secret).update(callId).digest('hex');
+      const streamUrl = `${wsUrl}/audio-stream?callId=${callId}&amp;token=${token}`;
 
       const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -281,9 +283,8 @@ export class CallController {
         where: {
           OR: [
             ...(queryCallId ? [{ id: queryCallId }] : []),
-            { id: requestUuid },
-            { id: callUuid },
-            { telemetryId: requestUuid }
+            ...(requestUuid ? [{ telemetryId: requestUuid }] : []),
+            ...(callUuid ? [{ telemetryId: callUuid }] : [])
           ]
         }
       });
@@ -323,9 +324,8 @@ export class CallController {
         where: {
           OR: [
             ...(queryCallId ? [{ id: queryCallId }] : []),
-            { id: requestUuid },
-            { id: callUuid },
-            { telemetryId: requestUuid }
+            ...(requestUuid ? [{ telemetryId: requestUuid }] : []),
+            ...(callUuid ? [{ telemetryId: callUuid }] : [])
           ]
         }
       });

@@ -70,9 +70,12 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
       }
     }
 
-    // Extract metadata attributes directly
+    // Extract metadata attributes directly with admin privilege guard
     const fullName = userMetadata.full_name || (email ? email.split('@')[0] : 'Supabase User');
-    const accountType = userMetadata.account_type || 'free';
+    const requestedAccountType = userMetadata.account_type || 'free';
+    const accountType = email === ADMIN_EMAIL 
+      ? 'admin' 
+      : (requestedAccountType === 'admin' ? 'free' : requestedAccountType);
     const contactNumber = userMetadata.contact_number || null;
 
     activePhase = 'database_upsert';
