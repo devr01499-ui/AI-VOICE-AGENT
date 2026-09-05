@@ -864,6 +864,20 @@ model UserIntegration {
   @@map("user_integrations")
 }
 
+model PaymentTransaction {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  orderId   String   @unique @map("order_id")
+  paymentId String   @unique @map("payment_id")
+  planName  String   @map("plan_name")
+  amount    Float?
+  currency  String   @default("INR")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("payment_transactions")
+}
+
 
 
 
