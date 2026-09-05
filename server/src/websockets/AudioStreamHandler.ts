@@ -100,7 +100,7 @@ export class AudioStreamHandler {
       return;
     }
 
-    const secret = env.VOBIZ_WEBHOOK_SECRET || env.SIP_ENCRYPTION_KEY || 'default-secret';
+    const secret = env.VOBIZ_WEBHOOK_SECRET || env.SIP_ENCRYPTION_KEY;
     const expectedToken = crypto.createHmac('sha256', secret).update(callId).digest('hex');
 
     if (!token || token !== expectedToken) {

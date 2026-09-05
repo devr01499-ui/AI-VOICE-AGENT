@@ -6,8 +6,13 @@ import { logger } from './logger';
  */
 export async function verifySupabaseToken(token: string): Promise<{ email: string; sub: string; email_verified?: boolean; user_metadata?: any } | null> {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://elbgdgahyoyfbtuwsktx.supabase.co';
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl) {
+      logger.error('verifySupabaseToken: Missing SUPABASE_URL / NEXT_PUBLIC_SUPABASE_URL env variable');
+      return null;
+    }
 
     if (!supabaseAnonKey) {
       logger.error('verifySupabaseToken: Missing SUPABASE_ANON_KEY env variable');

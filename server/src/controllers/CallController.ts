@@ -249,7 +249,7 @@ export class CallController {
       // Return XML to tell Vobiz to stream audio to our WebSocket
       const publicUrl = env.PUBLIC_URL;
       const wsUrl = publicUrl.replace(/^http/, 'ws');
-      const secret = env.VOBIZ_WEBHOOK_SECRET || env.SIP_ENCRYPTION_KEY || 'default-secret';
+      const secret = env.VOBIZ_WEBHOOK_SECRET || env.SIP_ENCRYPTION_KEY;
       const token = crypto.createHmac('sha256', secret).update(callId).digest('hex');
       const streamUrl = `${wsUrl}/audio-stream?callId=${callId}&amp;token=${token}`;
 
