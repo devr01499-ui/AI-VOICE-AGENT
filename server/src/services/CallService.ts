@@ -99,6 +99,29 @@ export class CallService {
 
     const effectiveFromNumber = fromPhoneNumber || env.VOBIZ_FROM_NUMBER;
 
+    // ── Enforce KYC verification gate on outbound caller ID ─────────────
+    if (user.accountType !== 'admin' && user.email !== ADMIN_EMAIL) {
+      const cleanFromDigits = effectiveFromNumber.replace(/\D/g, '');
+      const fromVariants = Array.from(new Set([
+        effectiveFromNumber,
+        `+${cleanFromDigits}`,
+        cleanFromDigits,
+      ]));
+
+      const numberRecord = await prisma.phoneNumber.findFirst({
+        where: {
+          userId,
+          phoneNumber: { in: fromVariants }
+        }
+      });
+
+      if (numberRecord && (numberRecord.kycStatus === 'pending' || numberRecord.kycStatus === 'failed')) {
+        throw new ValidationError('Outbound call blocked due to unverified KYC', [
+          { field: 'fromPhoneNumber', message: `KYC verification is ${numberRecord.kycStatus} for caller ID ${effectiveFromNumber}. Please complete KYC verification in your dashboard before placing outbound calls.` }
+        ]);
+      }
+    }
+
     // ── Initiate via CallOrchestrator ──────────
     try {
       const callId = await callOrchestrator.initiateOutboundCall(
