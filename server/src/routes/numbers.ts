@@ -603,6 +603,11 @@ router.delete('/:id', requireAuth, async (req, res, next) => {
 router.patch('/:id/activate', requireAuth, async (req, res, next) => {
   try {
     const userId = (req as any).userId;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || (user.accountType !== 'admin' && user.email !== ADMIN_EMAIL)) {
+      res.status(403).json({ success: false, error: 'Access Denied: Manual activation requires founder admin confirmation.' });
+      return;
+    }
     const id = req.params.id as string;
 
     const phone = await prisma.phoneNumber.findFirst({
