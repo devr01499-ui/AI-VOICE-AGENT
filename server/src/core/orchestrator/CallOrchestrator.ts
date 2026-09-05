@@ -455,13 +455,12 @@ export class CallOrchestrator {
             return JSON.stringify({ success: true });
           }
           if (name === 'transfer_call') {
-            logger.info('Flow Engine: trigger transfer_call tool call via Pipecat', { callId, args });
-            await this.endCallSession(callId, 'completed');
-            return JSON.stringify({ success: true });
+            logger.warn('Flow Engine: trigger transfer_call tool call via Pipecat - capability unavailable', { callId, args });
+            return JSON.stringify({ success: false, error: 'Call transfer capability is currently unavailable on this system.' });
           }
           if (name === 'send_sms') {
-            logger.info('Flow Engine: trigger send_sms tool call via Pipecat', { callId, args });
-            return JSON.stringify({ success: true, messageSent: true });
+            logger.warn('Flow Engine: trigger send_sms tool call via Pipecat - capability unavailable', { callId, args });
+            return JSON.stringify({ success: false, error: 'SMS sending capability is currently unavailable on this system.' });
           }
           if (name === 'book_follow_up_call') {
             logger.info('Flow Engine: trigger book_follow_up_call tool call via Pipecat', { callId, args });
@@ -479,16 +478,16 @@ export class CallOrchestrator {
             return JSON.stringify(result);
           }
           if (name === 'press_digit') {
-            logger.info('Flow Engine: trigger press_digit tool call via Pipecat', { callId, args });
-            return JSON.stringify({ status: 'digit_pressed', digits: parsedArgs.digits || '1' });
+            logger.warn('Flow Engine: trigger press_digit tool call via Pipecat - capability unavailable', { callId, args });
+            return JSON.stringify({ success: false, error: 'DTMF digit pressing capability is currently unavailable on this system.' });
           }
           if (name === 'agent_transfer') {
-            logger.info('Flow Engine: trigger agent_transfer tool call via Pipecat', { callId, args });
-            return JSON.stringify({ status: 'agent_transfer_initiated', target: parsedArgs.targetAgent || 'Specialist' });
+            logger.warn('Flow Engine: trigger agent_transfer tool call via Pipecat - capability unavailable', { callId, args });
+            return JSON.stringify({ success: false, error: 'Agent transfer capability is currently unavailable on this system.' });
           }
           if (name.startsWith('code_') || name === 'execute_inline_code') {
-            logger.info('Flow Engine: trigger custom code tool call via Pipecat', { callId, name, args });
-            return JSON.stringify({ status: 'code_executed', message: 'Inline code logic executed successfully.' });
+            logger.warn('Flow Engine: trigger custom code tool call via Pipecat - capability unavailable', { callId, name, args });
+            return JSON.stringify({ success: false, error: 'Inline code execution capability is currently unavailable on this system.' });
           }
           const result = await this.toolExecutor.executeTool(name, parsedArgs);
           return JSON.stringify(result);

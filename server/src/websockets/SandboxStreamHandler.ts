@@ -258,15 +258,15 @@ export class SandboxStreamHandler {
               ws.send(JSON.stringify({ event: 'transcript', text: '[Agent triggered End Call tool]', isFinal: true }));
             }
           } else if (functionDef && functionDef.type === 'transfer_call') {
-            resultOutput = { status: 'transfer_initiated', targetNumber: functionDef.targetNumber || args.phoneNumber || 'human_support' };
+            resultOutput = { success: false, error: 'Call transfer capability is currently unavailable on this system.' };
           } else if (functionDef && functionDef.type === 'send_sms') {
-            resultOutput = { status: 'sms_sent', messageTemplate: functionDef.messageTemplate, sentTo: 'caller' };
+            resultOutput = { success: false, error: 'SMS sending capability is currently unavailable on this system.' };
           } else if (functionDef && (functionDef.type === 'check_calendar' || functionDef.type === 'book_calendar')) {
             resultOutput = { status: 'calendar_processed', calendarId: functionDef.calendarId || 'primary', details: args };
           } else if (functionDef && functionDef.type === 'press_digit') {
-            resultOutput = { status: 'digit_pressed', digits: functionDef.digits || args.digits || '1' };
+            resultOutput = { success: false, error: 'DTMF digit pressing capability is currently unavailable on this system.' };
           } else if (functionDef && functionDef.type === 'agent_transfer') {
-            resultOutput = { status: 'agent_transferred', targetAgentId: functionDef.targetAgentId || args.targetAgentId };
+            resultOutput = { success: false, error: 'Agent transfer capability is currently unavailable on this system.' };
           }
 
           const targetSessionId = session.providerSessionId || connectionId;
