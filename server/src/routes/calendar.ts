@@ -1,9 +1,11 @@
+import crypto from 'crypto';
 import { Router } from 'express';
 import { google } from 'googleapis';
 import { requireAuth } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
 import { getUserIdFromRequest } from '../utils/auth';
 import { logger } from '../utils/logger';
+import { env } from '../config/env';
 import { scheduleCall, cancelBooking, rescheduleBooking } from '../lib/calendar/scheduler';
 
 const router = Router();
@@ -29,9 +31,12 @@ router.get('/auth', requireAuth, (req, res) => {
       'https://www.googleapis.com/auth/calendar.readonly'
     ];
 
-    // Use state to pass the user ID safely through the OAuth flow
+    // Use HMAC-signed state with timestamp to pass user ID securely through OAuth flow
     const userId = getUserIdFromRequest(req);
-    const state = Buffer.from(JSON.stringify({ userId })).toString('base64');
+    const secret = env.SIP_ENCRYPTION_KEY;
+    const payload = JSON.stringify({ userId, timestamp: Date.now() });
+    const signature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+    const state = Buffer.from(JSON.stringify({ payload, signature })).toString('base64');
 
     const url = oauth2Client.generateAuthUrl({
       access_type: 'offline',
@@ -50,8 +55,7 @@ router.get('/auth', requireAuth, (req, res) => {
 /**
  * GET /api/v2/calendar/callback
  * Handles the OAuth callback from Google.
- * NOTE: This endpoint may not have the standard Auth header since it's a browser redirect, 
- * so we decode the state parameter to get the userId.
+ * Verifies HMAC state signature and timestamp to prevent CSRF.
  */
 router.get('/callback', async (req, res) => {
   const { code, state, error } = req.query;
@@ -66,11 +70,19 @@ router.get('/callback', async (req, res) => {
   }
 
   try {
-    const decodedState = JSON.parse(Buffer.from(state as string, 'base64').toString('utf-8'));
-    const userId = decodedState.userId;
+    const secret = env.SIP_ENCRYPTION_KEY;
+    const { payload, signature } = JSON.parse(Buffer.from(state as string, 'base64').toString('utf-8'));
+    const expectedSignature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
 
-    if (!userId) {
-      return res.status(400).send('Invalid state parameter');
+    if (signature !== expectedSignature) {
+      logger.warn('Google Calendar OAuth callback: invalid state signature');
+      return res.status(403).send('Invalid or tampered OAuth state parameter');
+    }
+
+    const { userId, timestamp } = JSON.parse(payload);
+    if (!userId || !timestamp || (Date.now() - timestamp > 15 * 60 * 1000)) {
+      logger.warn('Google Calendar OAuth callback: expired or invalid state payload');
+      return res.status(403).send('OAuth state expired or invalid');
     }
 
     const oauth2Client = getOauth2Client();
