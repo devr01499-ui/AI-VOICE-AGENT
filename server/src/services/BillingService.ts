@@ -160,20 +160,11 @@ export class BillingService {
   }
 
 
-  private static redeemedPayments = new Set<string>();
-
   /**
    * Provisions a user's account after a successful plan purchase.
+   * Atomically enforces payment replay protection via DB unique constraints.
    */
   async processPlanPurchase(userId: string, planName: string, paymentId?: string, orderId?: string) {
-    if (paymentId && BillingService.redeemedPayments.has(paymentId)) {
-      logger.warn('BillingService: Duplicate payment replay attempt detected', { paymentId, userId });
-      throw new Error('Payment has already been redeemed.');
-    }
-    if (orderId && BillingService.redeemedPayments.has(orderId)) {
-      logger.warn('BillingService: Duplicate order replay attempt detected', { orderId, userId });
-      throw new Error('Order has already been redeemed.');
-    }
     let accountType = 'free';
     let addedMinutes = 0;
 
@@ -202,24 +193,44 @@ export class BillingService {
       const user = await prisma.user.findUnique({ where: { id: userId } });
       if (!user) throw new Error('User not found');
 
-      const newBalanceMinutes = user.callingBalanceMinutes + addedMinutes;
-      const newMinutesRemainingSeconds = (user.minutesRemainingSeconds || 0) + (addedMinutes * 60);
+      // Atomic DB Transaction: Insert payment transaction record first to enforce unique constraint
+      await prisma.$transaction(async (tx) => {
+        if (paymentId || orderId) {
+          try {
+            await tx.paymentTransaction.create({
+              data: {
+                userId,
+                orderId: orderId || `ord_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+                paymentId: paymentId || `pay_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+                planName,
+              }
+            });
+          } catch (dbErr: any) {
+            if (dbErr.code === 'P2002' || String(dbErr).includes('Unique constraint') || String(dbErr).includes('unique')) {
+              logger.warn('BillingService: Duplicate payment transaction blocked by DB unique constraint', { paymentId, orderId, userId });
+              throw new Error('Payment has already been redeemed.');
+            }
+            throw dbErr;
+          }
+        }
 
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          accountType,
-          callingBalanceMinutes: newBalanceMinutes,
-          minutesRemainingSeconds: newMinutesRemainingSeconds,
-        },
+        const newBalanceMinutes = user.callingBalanceMinutes + addedMinutes;
+        const newMinutesRemainingSeconds = (user.minutesRemainingSeconds || 0) + (addedMinutes * 60);
+
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            accountType,
+            callingBalanceMinutes: newBalanceMinutes,
+            minutesRemainingSeconds: newMinutesRemainingSeconds,
+          },
+        });
       });
-
-      if (paymentId) BillingService.redeemedPayments.add(paymentId);
-      if (orderId) BillingService.redeemedPayments.add(orderId);
 
       logger.info(`BillingService: Provisioned ${planName} for user ${userId}. Added ${addedMinutes} mins (${addedMinutes * 60} seconds).`);
       return true;
-    } catch (err) {
+    } catch (err: any) {
+      if (err.message === 'Payment has already been redeemed.') throw err;
       logger.error('BillingService: Failed to process plan purchase in DB', { error: String(err) });
       throw new Error('Failed to provision account');
     }
