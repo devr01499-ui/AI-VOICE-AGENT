@@ -55,8 +55,12 @@ export class CallController {
         return;
       }
 
-      // Default userId for development (auth is bypassed)
-      const effectiveUserId = userId ?? '1e69187e-82d5-4166-929f-4bbba90e5304';
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'Unauthorized: User authentication context required' });
+        return;
+      }
+
+      const effectiveUserId = userId;
 
       // Seed/upsert MVP User dynamically if they do not exist to prevent foreign key errors
       const prisma = (await import('../lib/prisma')).prisma;
