@@ -462,7 +462,7 @@ ${transcriptText}`;
       if (!call) return;
 
       const user = await prisma.user.findUnique({ where: { id: call.userId } });
-      if (!user || user.email === ADMIN_EMAIL) return;
+      if (!user || user.accountType === 'admin' || user.email === ADMIN_EMAIL) return;
 
       const currentSecs = user.minutesRemainingSeconds > 0
         ? user.minutesRemainingSeconds

@@ -59,8 +59,11 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     userMetadata = user.user_metadata || {};
 
 
+    const existingUser = await prisma.user.findUnique({ where: { id: userId }, select: { accountType: true } });
+    const isExistingAdmin = existingUser?.accountType === 'admin';
+
     // 3. THE EXPLICIT IDENTITY BIND
-    if (email !== ADMIN_EMAIL) {
+    if (!isExistingAdmin && email !== ADMIN_EMAIL) {
       // Block unverified multi-tenant access
       if (!user.email_confirmed_at && !userMetadata?.email_confirmed_at) {
         res.status(403).json({ 
@@ -73,7 +76,7 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     // Extract metadata attributes directly with admin privilege guard
     const fullName = userMetadata.full_name || (email ? email.split('@')[0] : 'Supabase User');
     const requestedAccountType = userMetadata.account_type || 'free';
-    const accountType = email === ADMIN_EMAIL 
+    const accountType = (isExistingAdmin || email === ADMIN_EMAIL) 
       ? 'admin' 
       : (requestedAccountType === 'admin' ? 'free' : requestedAccountType);
     const contactNumber = userMetadata.contact_number || null;

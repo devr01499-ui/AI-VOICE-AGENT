@@ -91,7 +91,10 @@ export class SandboxStreamHandler {
       }
 
       if (agent.userId !== userId) {
-        throw new Error('Access denied: Agent is not associated with this workspace session context');
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user || (user.accountType !== 'admin' && user.email !== ADMIN_EMAIL)) {
+          throw new Error('Access denied: Agent is not associated with this workspace session context');
+        }
       }
 
       // Extract tools from agentConfig.functions & agentConfig.mcpServers

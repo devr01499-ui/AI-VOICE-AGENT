@@ -51,7 +51,7 @@ router.get(
         success: true,
         data: user ? {
           ...user,
-          isAdmin: user.email === ADMIN_EMAIL,
+          isAdmin: user.accountType === 'admin' || user.email === ADMIN_EMAIL,
           workspaceRole: (req as any).workspaceRole || 'owner',
         } : null,
       });
