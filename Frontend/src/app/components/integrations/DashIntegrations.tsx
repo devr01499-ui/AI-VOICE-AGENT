@@ -143,9 +143,9 @@ export function DashIntegrations() {
     if (!selectedApp) return;
     try {
       setTestResult(null);
-      const res = await apiClient.post(`/api/v2/integrations/${selectedApp.type}/test`);
+      const res: any = await apiClient.post(`/api/v2/integrations/${selectedApp.type}/test`);
       if (res.data?.success) {
-        setTestResult({ success: true, message: res.data.message || 'Test delivery succeeded!' });
+        setTestResult({ success: true, message: res.data.message || res.data.data?.message || 'Test delivery succeeded!' });
       }
     } catch (err: any) {
       setTestResult({ success: false, message: err.response?.data?.error || 'Test webhook delivery failed' });

@@ -51,10 +51,10 @@ export function DashAnalytics() {
       const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
       const params: any = { startDate };
       if (selectedAgent !== 'all') params.agentId = selectedAgent;
-
-      const res = await apiClient.get('/api/v2/analytics/summary', { params });
-      if (res.data?.success && res.data?.summary) {
-        setSummary(res.data.summary);
+      const query = new URLSearchParams(params).toString();
+      const res: any = await apiClient.get(`/api/v2/analytics/summary?${query}`);
+      if (res.data?.success && res.data?.data) {
+        setSummary(res.data.data.summary || res.data.data);
       }
     } catch {
       setSummary(null);
