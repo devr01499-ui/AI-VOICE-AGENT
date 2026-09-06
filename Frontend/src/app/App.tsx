@@ -4718,7 +4718,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
   const handleInvite = async () => {
     if (!inviteEmail) return;
     try {
-      const res = await apiClient.post('/api/v2/team/invite', { email: inviteEmail });
+      const res: any = await apiClient.post('/api/v2/team/invite', { email: inviteEmail });
       if (res.data?.success) {
         setTeam(p => [...p, res.data.data]);
         setInviteEmail('');
@@ -4732,7 +4732,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
 
   const handleRemove = async (memberId: string) => {
     try {
-      const res = await apiClient.delete(`/api/v2/team/${memberId}`);
+      const res: any = await apiClient.delete(`/api/v2/team/${memberId}`);
       if (res.data?.success) {
         setTeam(p => p.filter(m => m.memberId !== memberId));
       } else {
