@@ -15,6 +15,7 @@ import { callOrchestrator } from '../core/orchestrator/CallOrchestrator';
 import { env } from '../config/env';
 import { prisma } from '../lib/prisma';
 import { ADMIN_EMAIL } from '../config/constants';
+import { getWebhookSigningSecret } from '../utils/security';
 
 /**
  * Handles all call-related HTTP endpoints.
@@ -253,7 +254,7 @@ export class CallController {
       // Return XML to tell Vobiz to stream audio to our WebSocket with signed timestamped token
       const publicUrl = env.PUBLIC_URL;
       const wsUrl = publicUrl.replace(/^http/, 'ws');
-      const secret = env.VOBIZ_WEBHOOK_SECRET || env.SIP_ENCRYPTION_KEY;
+      const secret = getWebhookSigningSecret();
       const ts = Date.now();
       const token = crypto.createHmac('sha256', secret).update(`${callId}:${ts}`).digest('hex');
       const streamUrl = `${wsUrl}/audio-stream?callId=${callId}&amp;token=${token}&amp;ts=${ts}`;

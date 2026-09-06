@@ -28,8 +28,7 @@ const envSchema = z.object({
   SIP_ENCRYPTION_KEY: z
     .string()
     .trim()
-    .length(64, 'SIP_ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes)')
-    .default('a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90'),
+    .optional(),
 
   NODE_ENV: z
     .enum(['development', 'production', 'test'])

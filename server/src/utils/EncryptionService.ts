@@ -1,9 +1,9 @@
-import * as crypto from 'crypto';
-import { env } from '../config/env';
+import crypto from 'crypto';
+import { getWebhookSigningSecret } from './security';
 
 /**
  * Service to handle at-rest encryption and decryption using AES-256-GCM.
- * The key is provided securely via the environment variables.
+ * The key is provided securely via environment variables or runtime security module.
  */
 export class EncryptionService {
   private static readonly ALGORITHM = 'aes-256-gcm';
@@ -11,9 +11,8 @@ export class EncryptionService {
   private static readonly AUTH_TAG_LENGTH = 16;
 
   private static getKey(): Buffer {
-    // Key must be exactly 32 bytes (256 bits).
-    // The environment validates this as a 64-character hex string.
-    return Buffer.from(env.SIP_ENCRYPTION_KEY, 'hex');
+    const secret = getWebhookSigningSecret();
+    return crypto.createHash('sha256').update(secret).digest();
   }
 
   /**

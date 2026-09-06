@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
+import { getWebhookSigningSecret } from '../utils/security';
 
 /**
  * Middleware enforcing cryptographic HMAC-SHA256 signature verification or Token authentication
@@ -10,7 +11,7 @@ import { logger } from '../utils/logger';
 export const verifyVobizWebhook = (req: Request, res: Response, next: NextFunction): void => {
   const sig = req.header('X-Vobiz-Signature');
   const token = req.header('X-Vobiz-Token') || req.header('Authorization');
-  const secret = env.VOBIZ_WEBHOOK_SECRET || env.VOBIZ_AUTH_TOKEN;
+  const secret = getWebhookSigningSecret();
 
   // 1. Cryptographic HMAC-SHA256 Signature Verification
   if (sig && secret) {

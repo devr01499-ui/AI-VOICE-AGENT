@@ -17,8 +17,8 @@ export class VobizService {
   /**
    * Terminates active telephony call.
    */
-  static async terminateCall(callUuid: string): Promise<void> {
+  static async terminateCall(callUuid: string, userId?: string): Promise<void> {
     const telephony = ProviderManager.instance.getTelephonyProvider();
-    await telephony.terminateCall(callUuid);
+    await telephony.terminateCall(callUuid, userId);
   }
 }

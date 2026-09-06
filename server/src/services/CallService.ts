@@ -89,6 +89,16 @@ export class CallService {
       ]);
     }
 
+    // ── Enforce Vobiz sub-account provisioning check ─────────────
+    if (user.accountType !== 'admin' && user.email !== ADMIN_EMAIL) {
+      const subAccount = await prisma.vobizSubAccount.findUnique({ where: { userId } });
+      if (!subAccount) {
+        throw new ValidationError('Vobiz account not provisioned — complete setup first.', [
+          { field: 'vobizSubAccount', message: 'Vobiz account is not provisioned for this user. Complete setup/KYC first.' }
+        ]);
+      }
+    }
+
     // ── Validate agent exists ──────────────────
     const agent = await AgentRepository.findById(agentId);
     if (agent.status !== 'active' && agent.status !== 'draft') {
@@ -223,7 +233,7 @@ export class CallService {
 
     // Terminate via telephony provider
     try {
-      await VobizService.terminateCall(callId);
+      await VobizService.terminateCall(call.telemetryId || call.id, call.userId);
     } catch (err) {
       logger.warn('CallService: Vobiz termination failed (call may already be ended)', {
         callId,

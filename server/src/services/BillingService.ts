@@ -196,12 +196,14 @@ export class BillingService {
       // Atomic DB Transaction: Insert payment transaction record first to enforce unique constraint
       await prisma.$transaction(async (tx) => {
         if (paymentId || orderId) {
+          const effectiveOrderId = orderId || paymentId!;
+          const effectivePaymentId = paymentId || orderId!;
           try {
             await tx.paymentTransaction.create({
               data: {
                 userId,
-                orderId: orderId || `ord_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-                paymentId: paymentId || `pay_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+                orderId: effectiveOrderId,
+                paymentId: effectivePaymentId,
                 planName,
               }
             });

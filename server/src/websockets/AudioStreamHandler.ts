@@ -9,6 +9,7 @@ import { IncomingMessage } from 'http';
 import WebSocket, { WebSocketServer } from 'ws';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
+import { getWebhookSigningSecret } from '../utils/security';
 import { callOrchestrator } from '../core/orchestrator/CallOrchestrator';
 import { providerManagerSDK } from '../core/provider-sdk/provider.manager';
 import { eventBus, PROVIDER_EVENTS } from '../core/provider-sdk/provider.events';
@@ -101,7 +102,7 @@ export class AudioStreamHandler {
       return;
     }
 
-    const secret = env.VOBIZ_WEBHOOK_SECRET || env.SIP_ENCRYPTION_KEY;
+    const secret = getWebhookSigningSecret();
     const expectedToken = crypto.createHmac('sha256', secret).update(`${callId}:${tsStr || ''}`).digest('hex');
     const timestamp = tsStr ? parseInt(tsStr, 10) : 0;
     const isExpired = !timestamp || (Date.now() - timestamp > 15 * 60 * 1000);
