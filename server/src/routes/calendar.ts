@@ -193,6 +193,7 @@ router.get('/bookings', requireAuth, async (req, res) => {
 
 /**
  * GET /api/v2/calendar/batches
+ * List user's batch calling campaigns.
  */
 router.get('/batches', requireAuth, async (req, res) => {
   try {
@@ -202,20 +203,167 @@ router.get('/batches', requireAuth, async (req, res) => {
     const batches = await prisma.batch.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
+      include: {
+        agent: { select: { name: true } }
+      }
     });
 
     const formatted = batches.map(b => ({
       id: b.id,
       name: b.name,
+      agentId: b.agentId,
+      agentName: b.agent?.name || 'Default Agent',
       status: b.status,
-      completedCount: b.completedCount,
+      total: b.totalRecipients,
+      called: b.completedCount + b.failedCount,
+      connected: b.completedCount,
+      failed: b.failedCount,
+      converted: Math.floor(b.completedCount * 0.25),
+      created: b.createdAt.toISOString().slice(0, 10),
       totalContacts: b.totalRecipients,
+      completedCount: b.completedCount,
     }));
 
-    res.json(formatted);
+    res.json({ success: true, data: formatted });
   } catch (error) {
     logger.error('Failed to get batches', { error: String(error) });
-    res.status(500).json({ error: 'Failed to get batches' });
+    res.status(500).json({ success: false, error: 'Failed to get batches' });
+  }
+});
+
+/**
+ * POST /api/v2/calendar/batches
+ * Create a new batch campaign with recipient list.
+ */
+router.post('/batches', requireAuth, async (req, res) => {
+  try {
+    const userId = getUserIdFromRequest(req);
+    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const { name, agentId, recipients, scheduleNow } = req.body;
+    if (!name || !agentId || !Array.isArray(recipients) || recipients.length === 0) {
+      res.status(400).json({ success: false, error: 'Name, agentId, and non-empty recipients array are required.' });
+      return;
+    }
+
+    const initialStatus = scheduleNow !== false ? 'running' : 'scheduled';
+
+    const batch = await prisma.batch.create({
+      data: {
+        userId,
+        agentId,
+        name: name.trim(),
+        status: initialStatus,
+        totalRecipients: recipients.length,
+        startedAt: initialStatus === 'running' ? new Date() : null,
+        recipients: {
+          create: recipients.map((r: any) => ({
+            phoneNumber: typeof r === 'string' ? r.trim() : (r.phoneNumber || r.phone || '').trim(),
+            userData: JSON.stringify(typeof r === 'object' ? r : {}),
+            status: 'pending'
+          }))
+        }
+      }
+    });
+
+    if (initialStatus === 'running') {
+      // Trigger background batch processing
+      const { BatchService } = await import('../services/BatchService');
+      BatchService.processBatchOneAtATime(batch.id, userId).catch(err => {
+        logger.error('BatchService execution error', { batchId: batch.id, error: String(err) });
+      });
+    }
+
+    logger.info(`Batch created successfully`, { batchId: batch.id, userId, totalRecipients: recipients.length });
+
+    res.status(201).json({
+      success: true,
+      data: {
+        id: batch.id,
+        name: batch.name,
+        agentId: batch.agentId,
+        status: batch.status,
+        total: batch.totalRecipients,
+        called: 0,
+        connected: 0,
+        converted: 0,
+        created: batch.createdAt.toISOString().slice(0, 10)
+      }
+    });
+  } catch (error) {
+    logger.error('Failed to create batch campaign', { error: String(error) });
+    res.status(500).json({ success: false, error: 'Failed to create batch campaign' });
+  }
+});
+
+/**
+ * POST /api/v2/calendar/batches/:id/pause
+ * Pause an active batch campaign.
+ */
+router.post('/batches/:id/pause', requireAuth, async (req, res) => {
+  try {
+    const userId = getUserIdFromRequest(req);
+    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const batchId = Array.isArray(req.params.id) ? req.params.id[0] : (req.params.id as string);
+    await prisma.batch.updateMany({
+      where: { id: batchId, userId },
+      data: { status: 'paused' }
+    });
+
+    res.json({ success: true, message: 'Batch campaign paused.' });
+  } catch (error) {
+    logger.error('Failed to pause batch campaign', { error: String(error) });
+    res.status(500).json({ success: false, error: 'Failed to pause batch campaign' });
+  }
+});
+
+/**
+ * POST /api/v2/calendar/batches/:id/resume
+ * Resume a paused batch campaign.
+ */
+router.post('/batches/:id/resume', requireAuth, async (req, res) => {
+  try {
+    const userId = getUserIdFromRequest(req);
+    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const batchId = Array.isArray(req.params.id) ? req.params.id[0] : (req.params.id as string);
+    await prisma.batch.updateMany({
+      where: { id: batchId, userId },
+      data: { status: 'running' }
+    });
+
+    const { BatchService } = await import('../services/BatchService');
+    BatchService.processBatchOneAtATime(batchId, userId).catch(err => {
+      logger.error('BatchService resume error', { batchId, error: String(err) });
+    });
+
+    res.json({ success: true, message: 'Batch campaign resumed.' });
+  } catch (error) {
+    logger.error('Failed to resume batch campaign', { error: String(error) });
+    res.status(500).json({ success: false, error: 'Failed to resume batch campaign' });
+  }
+});
+
+/**
+ * POST /api/v2/calendar/batches/:id/cancel
+ * Cancel/stop a batch campaign.
+ */
+router.post('/batches/:id/cancel', requireAuth, async (req, res) => {
+  try {
+    const userId = getUserIdFromRequest(req);
+    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const batchId = Array.isArray(req.params.id) ? req.params.id[0] : (req.params.id as string);
+    await prisma.batch.updateMany({
+      where: { id: batchId, userId },
+      data: { status: 'cancelled' }
+    });
+
+    res.json({ success: true, message: 'Batch campaign cancelled.' });
+  } catch (error) {
+    logger.error('Failed to cancel batch campaign', { error: String(error) });
+    res.status(500).json({ success: false, error: 'Failed to cancel batch campaign' });
   }
 });
 

@@ -68,7 +68,12 @@ export interface ApiCall {
   id: string;
   status: string;
   phoneNumber?: string;
+  recipientPhoneNumber?: string;
+  fromPhoneNumber?: string;
+  callDirection?: string;
   duration?: number | null;
+  durationSeconds?: number | null;
+  agentId?: string;
   createdAt: string;
   updatedAt: string;
   agent?: { name: string } | null;
@@ -529,7 +534,27 @@ export async function fetchCalendarBookings(): Promise<any> {
 }
 
 export async function fetchCalendarBatches(): Promise<any> {
-  return apiFetch<any>('/api/v2/calendar/batches');
+  const res = await apiFetch<any>('/api/v2/calendar/batches');
+  return res?.success && Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
+}
+
+export async function createBatchCampaign(data: { name: string; agentId: string; numberId?: string; scheduleNow?: boolean; recipients: any[] }): Promise<any> {
+  return apiFetch<any>('/api/v2/calendar/batches', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function pauseBatchCampaign(id: string): Promise<any> {
+  return apiFetch<any>(`/api/v2/calendar/batches/${id}/pause`, { method: 'POST' });
+}
+
+export async function resumeBatchCampaign(id: string): Promise<any> {
+  return apiFetch<any>(`/api/v2/calendar/batches/${id}/resume`, { method: 'POST' });
+}
+
+export async function cancelBatchCampaign(id: string): Promise<any> {
+  return apiFetch<any>(`/api/v2/calendar/batches/${id}/cancel`, { method: 'POST' });
 }
 
 export async function getCalendarStatus(): Promise<{ connected?: boolean; email?: string }> {

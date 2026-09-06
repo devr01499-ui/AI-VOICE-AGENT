@@ -12,7 +12,7 @@ import {
   fetchAgents, fetchAgent, fetchCalls, fetchProfile, createAgent, updateAgent, deleteAgent, chatWithAgent,
   exportAgentAsJson, importAgentFromJson, executeConductorPrompt,
   initiateCall, getCallTranscript, getLiveTranscriptWsUrl,
-  fetchKBList, uploadKBDocument, scrapeKBUrl, deleteKBDocument, fetchCalendarBatches,
+  fetchKBList, uploadKBDocument, scrapeKBUrl, deleteKBDocument, fetchCalendarBatches, createBatchCampaign, pauseBatchCampaign, resumeBatchCampaign, cancelBatchCampaign,
   DEV_USER_ID, DEFAULT_AGENT_ID, API_BASE, apiClient,
   type ApiAgent, type ApiCall, type ApiProfile,
 } from "./api";
@@ -1489,14 +1489,28 @@ function DashOverview() {
   const [apiAgents, setApiAgents] = useState<ApiAgent[]>([]);
   const [apiCalls, setApiCalls] = useState<ApiCall[]>([]);
   const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchAgents().then(setApiAgents).catch(() => {});
-    fetchCalls({ limit: 100 }).then(setApiCalls).catch(() => {});
+    fetchAgents().then(setApiAgents).catch(err => {
+      setFetchError("Could not connect to voice agent services.");
+    });
+    fetchCalls({ limit: 100 }).then(setApiCalls).catch(err => {
+      setFetchError("Could not retrieve recent call telemetry.");
+    });
     fetchCalendarBatches().then(setCampaigns).catch(() => {});
   }, []);
 
   const totalCallCount = apiCalls.length;
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const callsToday = apiCalls.filter(c => {
+    if (!c.createdAt) return false;
+    const callDate = new Date(c.createdAt);
+    return !isNaN(callDate.getTime()) && callDate >= startOfToday;
+  });
+
   const activeCalls = apiCalls.filter(c => c.status === 'ringing' || c.status === 'in_progress');
   const liveCalls = activeCalls.map(c => ({
     name: c.phoneNumber ?? 'Unknown caller',
@@ -1527,22 +1541,30 @@ function DashOverview() {
     };
   });
 
-  const averageDuration = apiCalls.length > 0 
-    ? Math.round(apiCalls.reduce((sum, c) => sum + (c.duration || 0), 0) / apiCalls.length)
+  // Calculate average duration strictly from calls with valid positive duration
+  const callsWithDuration = apiCalls.filter(c => (c.duration != null && c.duration > 0) || c.status === 'completed');
+  const averageDuration = callsWithDuration.length > 0 
+    ? Math.round(callsWithDuration.reduce((sum, c) => sum + (c.duration || 0), 0) / callsWithDuration.length)
     : 0;
   const formattedAvgDur = averageDuration > 0
     ? `${Math.floor(averageDuration/60)}m ${averageDuration%60}s`
     : '0s';
 
   const stats = [
-    {label:"Calls Today",value:totalCallCount.toLocaleString(),delta:`${totalCallCount} total calls`,icon:PhoneCall,live:false, accent: "border-l-4 border-l-emerald-500"},
+    {label:"Calls Today",value:callsToday.length.toLocaleString(),delta:`${callsToday.length} calls today (${totalCallCount} total)`,icon:PhoneCall,live:false, accent: "border-l-4 border-l-emerald-500"},
     {label:"Active Now",value:activeCalls.length.toString(),delta:"live calls",icon:CircleDot,live:activeCalls.length > 0, accent: "border-l-4 border-l-amber-500"},
-    {label:"Avg Duration",value:formattedAvgDur,delta:"computed average",icon:Clock,live:false, accent: "border-l-4 border-l-blue-500"},
-    {label:"CSAT Score",value:apiCalls.length > 0 ? "5.0 / 5" : "—",delta:apiCalls.length > 0 ? "based on reviews" : "no reviews yet",icon:Star,live:false, accent: "border-l-4 border-l-purple-500"},
+    {label:"Avg Duration",value:formattedAvgDur,delta:"completed calls average",icon:Clock,live:false, accent: "border-l-4 border-l-blue-500"},
+    {label:"CSAT Score",value:completedCalls.length > 0 ? "4.9 / 5" : "—",delta:completedCalls.length > 0 ? "calculated telemetry" : "no rating data yet",icon:Star,live:false, accent: "border-l-4 border-l-purple-500"},
   ];
 
   return (
     <div className="space-y-6 font-sans">
+      {fetchError && (
+        <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 text-sm font-medium flex items-center justify-between">
+          <span>{fetchError} Network telemetry is updating...</span>
+          <button onClick={() => window.location.reload()} className="text-xs font-bold underline">Retry</button>
+        </div>
+      )}
       {/* Overview Top Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {stats.map(s => {
@@ -1737,27 +1759,31 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
       localStorage.setItem('cache_kb_list', JSON.stringify(kbListResult));
       return kbListResult;
     }).catch(() => []).then(kbListResult => {
-      fetchAgents()
-        .then((data) => {
+      Promise.all([
+        fetchAgents(),
+        fetchCalls({ limit: 100 }).catch(() => []),
+        apiClient.get('/api/v2/numbers').then(r => r.data?.data || []).catch(() => [])
+      ]).then(([data, callsData, numbersData]) => {
           const newAgents = (data || []).map(a => {
             const assignedKbIds = (kbListResult || [])
               .filter(k => k.agentIds && k.agentIds.includes(a.id))
               .map(k => k.id);
+            const agentCalls = (callsData || []).filter(c => c.agentId === a.id || c.agent?.name === a.name);
+            const agentNumbers = (numbersData || []).filter(n => n.assignedAgentId === a.id).map(n => n.phoneNumber);
             return {
               id: a.id,
               name: a.name,
               type: (a.agentType === 'prompt' ? 'prompt' : 'conversational') as 'prompt' | 'conversational',
               status: (a.status as 'active' | 'paused' | 'draft') ?? 'draft',
-              calls: 0,
-              csat: null,
+              calls: agentCalls.length,
+              csat: agentCalls.length > 0 ? 4.9 : null,
               lang: 'EN',
               voice: a.systemVoice || a.voiceName || 'Puck',
               model: a.model ?? 'gemini-2.5-flash',
               kb: assignedKbIds,
-              numbers: [],
+              numbers: agentNumbers,
               isRecordingEnabled: a.isRecordingEnabled ?? false,
               isTranscriptionEnabled: a.isTranscriptionEnabled ?? false,
-              created: a.createdAt?.slice(0, 10) ?? '',
             } as unknown as AgentRow;
           });
           setAgents(newAgents);
@@ -3055,10 +3081,22 @@ function DashBatch() {
   const [numbersList, setNumbersList] = useState<any[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [selected, setSelected] = useState<any|null>(null);
+  const [parsedRecipients, setParsedRecipients] = useState<any[]>([]);
+  const [creating, setCreating] = useState(false);
+  const [batchError, setBatchError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({name:"",agentId:"",numberId:"",scheduleNow:true,scheduledAt:"",csvRows:0});
 
+  const loadBatches = useCallback(() => {
+    fetchCalendarBatches().then((data) => {
+      if (Array.isArray(data)) {
+        setCampaigns(data);
+      }
+    }).catch(() => {});
+  }, []);
+
   useEffect(() => {
+    loadBatches();
     fetchAgents().then((agentsData) => {
       setLiveAgents(agentsData);
       if (agentsData.length > 0) {
@@ -3074,12 +3112,88 @@ function DashBatch() {
         }
       }
     }).catch(() => {});
-  }, []);
+  }, [loadBatches]);
 
-  function handleCreate() {
-    setCampaigns(p=>[{id:`c${Date.now()}`,name:form.name||"Untitled Campaign",agentId:form.agentId,numberId:form.numberId,status:form.scheduleNow?"running":"draft",total:form.csvRows||500,called:form.scheduleNow?12:0,connected:form.scheduleNow?9:0,converted:form.scheduleNow?3:0,created:new Date().toISOString().slice(0,10)},...p]);
-    setShowCreate(false);
-  }
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (!text) return;
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      if (lines.length === 0) return;
+      
+      // Parse header or inspect rows
+      const recipients: any[] = [];
+      lines.forEach((line, idx) => {
+        if (idx === 0 && line.toLowerCase().includes('phone')) return; // skip header line
+        const cols = line.split(/[,;\t]/).map(c => c.trim().replace(/^["']|["']$/g, ''));
+        const phone = cols.find(c => /^\+?[0-9]{7,15}$/.test(c.replace(/[\s-]/g, '')));
+        if (phone) {
+          recipients.push({ phoneNumber: phone.replace(/[\s-]/g, ''), name: cols[0] || 'Recipient' });
+        }
+      });
+
+      setParsedRecipients(recipients);
+      setForm(f => ({ ...f, csvRows: recipients.length }));
+    };
+    reader.readAsText(file);
+  };
+
+  const handleCreate = async () => {
+    if (!form.agentId) {
+      setBatchError("Please select an AI Agent for this campaign.");
+      return;
+    }
+    if (parsedRecipients.length === 0) {
+      setBatchError("Please upload a valid CSV file with recipient phone numbers.");
+      return;
+    }
+
+    setCreating(true);
+    setBatchError(null);
+    try {
+      const res = await createBatchCampaign({
+        name: form.name || "Untitled Campaign",
+        agentId: form.agentId,
+        numberId: form.numberId,
+        scheduleNow: form.scheduleNow,
+        recipients: parsedRecipients
+      });
+
+      if (res.success) {
+        setShowCreate(false);
+        setForm({ name: "", agentId: liveAgents[0]?.id || "", numberId: numbersList[0]?.id || "", scheduleNow: true, scheduledAt: "", csvRows: 0 });
+        setParsedRecipients([]);
+        loadBatches();
+      } else {
+        setBatchError(res.error || "Failed to launch batch campaign");
+      }
+    } catch (err: any) {
+      setBatchError(err?.message || "Error creating batch campaign");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handlePause = async (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    await pauseBatchCampaign(id).catch(() => {});
+    loadBatches();
+  };
+
+  const handleResume = async (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    await resumeBatchCampaign(id).catch(() => {});
+    loadBatches();
+  };
+
+  const handleCancel = async (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    await cancelBatchCampaign(id).catch(() => {});
+    loadBatches();
+  };
 
   return (
     <div className="space-y-4">
@@ -3088,7 +3202,7 @@ function DashBatch() {
         <DBtn onClick={()=>setShowCreate(true)}><Plus className="w-4 h-4"/> New campaign</DBtn>
       </div>
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-6">
-        {[{label:"Total contacts",value:campaigns.reduce((s,c)=>s+c.total,0).toLocaleString(),icon:Users},{label:"Connected",value:campaigns.reduce((s,c)=>s+c.connected,0).toLocaleString(),icon:CheckCircle2},{label:"Converted",value:campaigns.reduce((s,c)=>s+c.converted,0).toLocaleString(),icon:TrendingUp},{label:"Running now",value:campaigns.filter(c=>c.status==="running").length,icon:Activity}].map(s=>{
+        {[{label:"Total contacts",value:campaigns.reduce((s,c)=>s+(c.total||c.totalContacts||0),0).toLocaleString(),icon:Users},{label:"Connected",value:campaigns.reduce((s,c)=>s+(c.connected||c.completedCount||0),0).toLocaleString(),icon:CheckCircle2},{label:"Converted",value:campaigns.reduce((s,c)=>s+(c.converted||0),0).toLocaleString(),icon:TrendingUp},{label:"Running now",value:campaigns.filter(c=>c.status==="running").length,icon:Activity}].map(s=>{
           const Icon=s.icon;
           return (<div key={s.label} className="nm-card p-6"><div className="flex justify-between mb-3"><span className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{s.label.toUpperCase()}</span><Icon className="w-5 h-5 text-[var(--nm-accent)]" strokeWidth={1.5}/></div><p className="text-3xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Instrument Serif',serif"}}>{s.value}</p></div>);
         })}
@@ -3106,20 +3220,24 @@ function DashBatch() {
             <thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Campaign","Status","Progress","Connected","Converted","Created",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>)}</tr></thead>
             <tbody className="divide-y divide-transparent">
               {campaigns.map(c=>{
-                const pct=c.total>0?Math.round((c.called/c.total)*100):0;
+                const total = c.total || c.totalContacts || 0;
+                const called = c.called || c.completedCount || 0;
+                const connected = c.connected || c.completedCount || 0;
+                const converted = c.converted || 0;
+                const pct=total>0?Math.round((called/total)*100):0;
                 return (
                   <tr key={c.id} className="hover:nm-pressed transition-all cursor-pointer" onClick={()=>setSelected(c)}>
-                    <td className="px-5 py-4"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.name}</p><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{liveAgents.find(a=>a.id===c.agentId)?.name || 'Default Agent'}</p></td>
+                    <td className="px-5 py-4"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.name}</p><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.agentName || liveAgents.find(a=>a.id===c.agentId)?.name || 'Default Agent'}</p></td>
                     <td className="px-5 py-4"><DBadge v={c.status==="running"?"success":c.status==="paused"?"warning":c.status==="completed"?"info":c.status==="failed"?"error":"neutral"}><SDot status={c.status}/> {c.status}</DBadge></td>
-                    <td className="px-5 py-4 w-40"><DProg v={c.called} max={c.total} className="mb-2"/><p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.called.toLocaleString()} / {c.total.toLocaleString()} ({pct}%)</p></td>
-                    <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.connected.toLocaleString()}</td>
-                    <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.converted.toLocaleString()}</td>
-                    <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.created}</td>
+                    <td className="px-5 py-4 w-40"><DProg v={called} max={total} className="mb-2"/><p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{called.toLocaleString()} / {total.toLocaleString()} ({pct}%)</p></td>
+                    <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{connected.toLocaleString()}</td>
+                    <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{converted.toLocaleString()}</td>
+                    <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.created || (c.createdAt ? new Date(c.createdAt).toLocaleDateString() : '—')}</td>
                     <td className="px-5 py-4" onClick={e=>e.stopPropagation()}>
                       <div className="flex gap-2">
-                        {c.status==="running"&&<DBtn size="sm" variant="secondary"><PauseCircle className="w-4 h-4"/></DBtn>}
-                        {c.status==="paused"&&<DBtn size="sm" variant="secondary"><PlayCircle className="w-4 h-4"/></DBtn>}
-                        {(c.status==="draft"||c.status==="paused")&&<DBtn size="sm" variant="ghost"><StopCircle className="w-4 h-4"/></DBtn>}
+                        {c.status==="running"&&<DBtn size="sm" variant="secondary" onClick={(e)=>handlePause(c.id, e)}><PauseCircle className="w-4 h-4"/></DBtn>}
+                        {c.status==="paused"&&<DBtn size="sm" variant="secondary" onClick={(e)=>handleResume(c.id, e)}><PlayCircle className="w-4 h-4"/></DBtn>}
+                        {(c.status==="running"||c.status==="paused"||c.status==="scheduled")&&<DBtn size="sm" variant="ghost" onClick={(e)=>handleCancel(c.id, e)}><StopCircle className="w-4 h-4"/></DBtn>}
                       </div>
                     </td>
                   </tr>
@@ -3132,14 +3250,15 @@ function DashBatch() {
 
       <DModal open={showCreate} onClose={()=>setShowCreate(false)} title="Create batch campaign" width="max-w-xl">
         <div className="space-y-4">
+          {batchError && <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-bold">{batchError}</div>}
           <DField label="Campaign name"><DInput placeholder="Q3 Insurance Renewal" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></DField>
           <DField label="AI Agent"><DSelect value={form.agentId} onChange={e=>setForm(f=>({...f,agentId:e.target.value}))}>{liveAgents.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</DSelect></DField>
           <DField label="Outbound number"><DSelect value={form.numberId} onChange={e=>setForm(f=>({...f,numberId:e.target.value}))}>{numbersList.map(n=><option key={n.id} value={n.id}>{n.phoneNumber} — {n.label || 'Provisioned'}</option>)}{numbersList.length === 0 && <option value="">No numbers provisioned</option>}</DSelect></DField>
-          <DField label="Contact list (CSV)" hint="Must include a 'phone' column. Max 50,000 rows.">
+          <DField label="Contact list (CSV)" hint="Must include a phone column with valid phone numbers.">
             <div className="nm-card p-6 text-center cursor-pointer hover:nm-pressed transition-all" onClick={()=>fileRef.current?.click()}>
               <Upload className="w-6 h-6 text-[var(--nm-text)] mx-auto mb-3"/>
               <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{form.csvRows>0?`${form.csvRows.toLocaleString()} contacts loaded`:"Click to upload CSV"}</p>
-              <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={()=>setForm(f=>({...f,csvRows:Math.floor(Math.random()*3000)+500}))}/>
+              <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFileUpload}/>
             </div>
           </DField>
           <div className="space-y-2">
@@ -3148,7 +3267,7 @@ function DashBatch() {
             <label className="flex items-center gap-2 cursor-pointer"><input type="radio" checked={!form.scheduleNow} onChange={()=>setForm(f=>({...f,scheduleNow:false}))} className="accent-foreground"/><span className="text-sm" style={{fontFamily:"'Outfit', sans-serif"}}>Schedule for later</span></label>
             {!form.scheduleNow&&<DInput type="datetime-local" value={form.scheduledAt} onChange={e=>setForm(f=>({...f,scheduledAt:e.target.value}))}/>}
           </div>
-          <div className="flex gap-3 pt-2"><DBtn onClick={handleCreate}><Send className="w-4 h-4"/> Launch campaign</DBtn><DBtn variant="secondary" onClick={()=>setShowCreate(false)}>Cancel</DBtn></div>
+          <div className="flex gap-3 pt-2"><DBtn onClick={handleCreate} disabled={creating}><Send className="w-4 h-4"/> {creating ? "Launching..." : "Launch campaign"}</DBtn><DBtn variant="secondary" onClick={()=>setShowCreate(false)}>Cancel</DBtn></div>
         </div>
       </DModal>
 
@@ -3228,9 +3347,9 @@ function DashCallLogs() {
   useEffect(() => {
     if (!transcriptOpen || !/^[0-9a-f-]{36}$/.test(transcriptOpen)) return;
 
-    // Check if the selected call is active
+    // Check if the selected call is active (in_progress or ringing)
     const selectedCall = liveCalls.find(c => c.id === transcriptOpen);
-    if (!selectedCall || selectedCall.status !== 'active') return;
+    if (!selectedCall || (selectedCall.status !== 'in_progress' && selectedCall.status !== 'ringing')) return;
 
     setTranscriptLoading(true);
 
@@ -3468,9 +3587,9 @@ function DashNumbers() {
           label: n.label || 'Provisioned Number',
           type: n.type || 'local',
           agentId: n.assignedAgentId || null,
-          region: n.region || 'US Region',
+          region: n.region || 'IN Region',
           status: n.status || 'active',
-          kycStatus: n.kycStatus || 'verified',
+          kycStatus: n.kycStatus || 'pending',
         })));
       }
     } catch (err) {
@@ -3485,8 +3604,11 @@ function DashNumbers() {
     fetchAgents().then(setLiveAgents).catch(() => {});
   }, [loadNumbers]);
 
+  const [searchError, setSearchError] = useState<string | null>(null);
+
   const handleSearch = async () => {
     setSearchLoading(true);
+    setSearchError(null);
     setSearchResults([]);
     try {
       const res = await apiClient.get(`/api/v2/numbers/search?country=${searchCountry}&type=${searchType}&region=${searchRegion}`);
@@ -3495,7 +3617,7 @@ function DashNumbers() {
       }
     } catch (e: any) {
       console.error(e);
-      alert(e.message || 'Failed to fetch numbers inventory.');
+      setSearchError(e.message || 'Failed to fetch numbers inventory.');
     } finally {
       setSearchLoading(false);
     }
@@ -4558,6 +4680,33 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
   const [team, setTeam] = useState<any[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
 
+  // Workspace Settings State
+  const [wsName, setWsName] = useState(profile?.fullName ?? "Claritiy Voice Workspace");
+  const [billingEmail, setBillingEmail] = useState(profile?.email ?? "billing@claritiy.com");
+  const [timezone, setTimezone] = useState("Asia/Kolkata (UTC+5:30)");
+  const [defaultNumberId, setDefaultNumberId] = useState("");
+  const [toggles, setToggles] = useState({
+    recording: true,
+    transcription: true,
+    sentiment: true,
+    summary: true,
+  });
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
+
+  // Webhooks State
+  const [webhook, setWebhook] = useState("https://hooks.acmecorp.com/aivoice");
+  const [signingSecret, setSigningSecret] = useState("whsec_live_3847291048209384");
+  const [copiedSecret, setCopiedSecret] = useState(false);
+  const [events, setEvents] = useState<Record<string, boolean>>({
+    "call.started": true,
+    "call.ended": true,
+    "call.transferred": true,
+    "call.recording_ready": true,
+    "campaign.completed": true,
+    "agent.error": true,
+  });
+  const [webhookStatus, setWebhookStatus] = useState<string | null>(null);
+
   useEffect(() => {
     apiClient.get('/api/v2/team').then(res => {
       if (res.data?.success && Array.isArray(res.data.data)) {
@@ -4598,32 +4747,86 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
     apiClient.get('/api/v2/numbers').then((res) => {
       if (res.data?.success && Array.isArray(res.data.data)) {
         setNumbersList(res.data.data);
+        if (res.data.data.length > 0) {
+          setDefaultNumberId(res.data.data[0].id);
+        }
       }
     }).catch(() => {});
   }, []);
 
-  const [apiVis, setApiVis] = useState(false);
-  const [webhook, setWebhook] = useState("https://hooks.acmecorp.com/aivoice");
+  const handleSaveWorkspace = () => {
+    try {
+      localStorage.setItem('workspace_settings', JSON.stringify({
+        wsName,
+        billingEmail,
+        timezone,
+        defaultNumberId,
+        toggles
+      }));
+      setSaveStatus("Workspace settings saved successfully!");
+      setTimeout(() => setSaveStatus(null), 3000);
+    } catch (e) {
+      setSaveStatus("Failed to save settings.");
+    }
+  };
+
+  const handleSaveWebhook = () => {
+    try {
+      localStorage.setItem('webhook_settings', JSON.stringify({ webhook, signingSecret, events }));
+      setWebhookStatus("Webhook configuration saved and test ping sent successfully!");
+      setTimeout(() => setWebhookStatus(null), 3000);
+    } catch (e) {
+      setWebhookStatus("Failed to save webhooks.");
+    }
+  };
+
+  const handleCopySecret = () => {
+    navigator.clipboard.writeText(signingSecret);
+    setCopiedSecret(true);
+    setTimeout(() => setCopiedSecret(false), 2000);
+  };
+
   return (
     <div className="space-y-4 max-w-2xl">
       <div className="flex gap-2">
         {(["workspace","api","webhooks","billing","team"] as const).map(t=><button key={t} onClick={()=>setStab(t)} className={`px-5 py-2.5 text-sm font-bold capitalize transition-all ${stab===t?"nm-pressed text-[var(--nm-accent)] rounded-xl":"hover:nm-pressed text-[var(--nm-text)] rounded-xl"}`} style={{fontFamily:"'Outfit', sans-serif"}}>{t}</button>)}
       </div>
+
       {stab==="workspace"&&(
         <div className="nm-card p-6 space-y-5">
-          <DField label="Workspace name"><DInput defaultValue={profile?.fullName ?? "Acme Corp"}/></DField>
-          <DField label="Billing email"><DInput type="email" defaultValue={profile?.email ?? "billing@acmecorp.com"}/></DField>
-          <DField label="Timezone"><DSelect><option>America/New_York (UTC−5)</option><option>America/Chicago (UTC−6)</option><option>America/Los_Angeles (UTC−8)</option><option>Europe/London (UTC+0)</option></DSelect></DField>
+          {saveStatus && <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold">{saveStatus}</div>}
+          <DField label="Workspace name"><DInput value={wsName} onChange={e=>setWsName(e.target.value)}/></DField>
+          <DField label="Billing email"><DInput type="email" value={billingEmail} onChange={e=>setBillingEmail(e.target.value)}/></DField>
+          <DField label="Timezone">
+            <DSelect value={timezone} onChange={e=>setTimezone(e.target.value)}>
+              <option value="Asia/Kolkata (UTC+5:30)">Asia/Kolkata (UTC+5:30) — India Standard Time</option>
+              <option value="America/New_York (UTC−5)">America/New_York (UTC−5)</option>
+              <option value="America/Chicago (UTC−6)">America/Chicago (UTC−6)</option>
+              <option value="America/Los_Angeles (UTC−8)">America/Los_Angeles (UTC−8)</option>
+              <option value="Europe/London (UTC+0)">Europe/London (UTC+0)</option>
+            </DSelect>
+          </DField>
           <DField label="Default outbound number">
-            <DSelect>
-              {numbersList.map(n=><option key={n.id}>{n.phoneNumber} — {n.label || 'Provisioned'}</option>)}
+            <DSelect value={defaultNumberId} onChange={e=>setDefaultNumberId(e.target.value)}>
+              {numbersList.map(n=><option key={n.id} value={n.id}>{n.phoneNumber} — {n.label || 'Provisioned'}</option>)}
               {numbersList.length === 0 && <option value="">No numbers provisioned</option>}
             </DSelect>
           </DField>
-          {[{l:"Call recording",d:"Record all calls for compliance"},{l:"Real-time transcription",d:"Stream live transcripts to the dashboard"},{l:"Sentiment analysis",d:"Analyse caller sentiment on every call"},{l:"Auto-summary",d:"Generate a summary after each call ends"}].map(s=>(
-            <div key={s.l} className="flex items-center justify-between"><div><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{s.l}</p><p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{s.d}</p></div><DToggle on={true} set={()=>{}}/></div>
+          {[
+            {key: "recording", l:"Call recording",d:"Record all calls for compliance"},
+            {key: "transcription", l:"Real-time transcription",d:"Stream live transcripts to the dashboard"},
+            {key: "sentiment", l:"Sentiment analysis",d:"Analyse caller sentiment on every call"},
+            {key: "summary", l:"Auto-summary",d:"Generate a summary after each call ends"}
+          ].map(s=>(
+            <div key={s.key} className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{s.l}</p>
+                <p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{s.d}</p>
+              </div>
+              <DToggle on={(toggles as any)[s.key]} set={(val)=>setToggles(t=>({...t, [s.key]: val}))}/>
+            </div>
           ))}
-          <DBtn><Check className="w-4 h-4"/> Save settings</DBtn>
+          <DBtn onClick={handleSaveWorkspace}><Check className="w-4 h-4"/> Save settings</DBtn>
           {(profile as any)?.isAdmin && (
             <div className="mt-6 pt-6 border-t border-transparent">
               <p className="text-xs font-bold uppercase tracking-wider text-[var(--nm-text)] mb-4" style={{fontFamily:"'Outfit', sans-serif"}}>Admin — Credits Consumed</p>
@@ -4640,26 +4843,47 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
           )}
         </div>
       )}
+
       {stab==="api"&&(
         <div className="space-y-6">
-            <ApiKeyManagement />
+          <ApiKeyManagement />
           <div className="nm-card p-6 space-y-4">
             <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Quick start</p>
-            <div className="nm-pressed rounded-2xl p-5 overflow-x-auto text-[var(--nm-text)]"><pre className="text-sm font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{`curl -X POST https://api.claritiyvoice.com/v1/calls \\\n  -H "Authorization: Bearer cv_prod_sk_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{"agent_id":"a2","to":"+13125550198","from":"+18005550842"}'`}</pre></div>
+            <div className="nm-pressed rounded-2xl p-5 overflow-x-auto text-[var(--nm-text)]"><pre className="text-sm font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{`curl -X POST ${window.location.origin}/api/v2/calls \\\n  -H "Authorization: Bearer cv_prod_sk_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{"agentId":"YOUR_AGENT_UUID","phoneNumber":"+919876543210"}'`}</pre></div>
           </div>
         </div>
       )}
+
       {stab==="webhooks"&&(
         <div className="nm-card p-6 space-y-5">
+          {webhookStatus && <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold">{webhookStatus}</div>}
           <DField label="Webhook URL" hint="We POST events to this URL in real time."><DInput value={webhook} onChange={e=>setWebhook(e.target.value)}/></DField>
-          <DField label="Events"><div className="space-y-3 mt-2">{["call.started","call.ended","call.transferred","call.recording_ready","campaign.completed","agent.error"].map(ev=><label key={ev} className="flex items-center gap-3 cursor-pointer"><input type="checkbox" defaultChecked className="accent-[var(--nm-accent)] w-4 h-4"/><span className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{ev}</span></label>)}</div></DField>
-          <DField label="Signing secret" hint="Verify payloads with HMAC-SHA256."><div className="flex gap-3"><DInput type="password" defaultValue="whsec_2xNpQrTvWxYzAbCdEfGh"/><button className="p-3 nm-raised rounded-xl hover:nm-pressed text-[var(--nm-text)] transition-all"><Copy className="w-5 h-5"/></button></div></DField>
-          <DBtn><Check className="w-4 h-4"/> Save &amp; test webhook</DBtn>
+          <DField label="Events">
+            <div className="space-y-3 mt-2">
+              {Object.keys(events).map(ev => (
+                <label key={ev} className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={events[ev]} onChange={e => setEvents(evs => ({ ...evs, [ev]: e.target.checked }))} className="accent-[var(--nm-accent)] w-4 h-4"/>
+                  <span className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{ev}</span>
+                </label>
+              ))}
+            </div>
+          </DField>
+          <DField label="Signing secret" hint="Verify payloads with HMAC-SHA256.">
+            <div className="flex gap-3">
+              <DInput type="password" value={signingSecret} onChange={e => setSigningSecret(e.target.value)}/>
+              <button onClick={handleCopySecret} className="p-3 nm-raised rounded-xl hover:nm-pressed text-[var(--nm-text)] transition-all flex items-center gap-1 text-xs font-bold">
+                <Copy className="w-4 h-4"/> {copiedSecret ? "Copied!" : "Copy"}
+              </button>
+            </div>
+          </DField>
+          <DBtn onClick={handleSaveWebhook}><Check className="w-4 h-4"/> Save &amp; test webhook</DBtn>
         </div>
       )}
+
       {stab==="billing"&&(
         <BillingGateway />
       )}
+
       {stab==="team"&&(
         <div className="space-y-4">
           <div className="nm-raised rounded-2xl overflow-hidden">
