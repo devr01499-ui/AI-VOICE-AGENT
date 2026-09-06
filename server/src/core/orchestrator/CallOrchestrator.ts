@@ -611,7 +611,7 @@ export class CallOrchestrator {
             where: { id: callId },
             include: { user: true }
           });
-          if (!call || !call.startTime || call.user.email === ADMIN_EMAIL) continue;
+          if (!call || !call.startTime || call.user.accountType === 'admin' || call.user.email === ADMIN_EMAIL) continue;
 
           const elapsedSeconds = Math.round((Date.now() - call.startTime.getTime()) / 1000);
           const remainingSeconds = call.user.minutesRemainingSeconds > 0

@@ -113,8 +113,8 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
       try {
         const prismaInstance = (await import('../../lib/prisma')).prisma;
-        const userRecord = await prismaInstance.user.findUnique({ where: { id: userId }, select: { email: true } });
-        const isAdmin = userRecord?.email === ADMIN_EMAIL;
+        const userRecord = await prismaInstance.user.findUnique({ where: { id: userId }, select: { email: true, accountType: true } });
+        const isAdmin = userRecord?.accountType === 'admin' || userRecord?.email === ADMIN_EMAIL;
 
         if (isAdmin) {
           // Admin: only track total consumption, never decrement callingBalanceMinutes
