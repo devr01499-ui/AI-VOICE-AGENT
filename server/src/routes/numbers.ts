@@ -112,6 +112,12 @@ router.get('/status', requireAuth, async (req, res, next) => {
  * Temporary diagnostic route to test raw Vobiz inventory request directly from Render runtime.
  */
 router.get('/vobiz-probe', requireAuth, async (req, res) => {
+  const userId = (req as any).userId;
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || (user.accountType !== 'admin' && user.email !== ADMIN_EMAIL)) {
+    res.status(403).json({ success: false, error: 'Access Denied: Founder admin privilege required for diagnostic probe.' });
+    return;
+  }
   const country = (req.query.country as string) || 'IN';
   const numberType = (req.query.type as string) || 'local';
 
