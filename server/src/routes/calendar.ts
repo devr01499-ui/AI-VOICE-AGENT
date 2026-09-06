@@ -6,6 +6,7 @@ import { prisma } from '../lib/prisma';
 import { getUserIdFromRequest } from '../utils/auth';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
+import { getWebhookSigningSecret } from '../utils/security';
 import { scheduleCall, cancelBooking, rescheduleBooking } from '../lib/calendar/scheduler';
 
 const router = Router();
@@ -33,7 +34,7 @@ router.get('/auth', requireAuth, (req, res) => {
 
     // Use HMAC-signed state with timestamp to pass user ID securely through OAuth flow
     const userId = getUserIdFromRequest(req);
-    const secret = env.SIP_ENCRYPTION_KEY;
+    const secret = getWebhookSigningSecret();
     const payload = JSON.stringify({ userId, timestamp: Date.now() });
     const signature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
     const state = Buffer.from(JSON.stringify({ payload, signature })).toString('base64');
@@ -70,7 +71,7 @@ router.get('/callback', async (req, res) => {
   }
 
   try {
-    const secret = env.SIP_ENCRYPTION_KEY;
+    const secret = getWebhookSigningSecret();
     const { payload, signature } = JSON.parse(Buffer.from(state as string, 'base64').toString('utf-8'));
     const expectedSignature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
 

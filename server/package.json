@@ -5,7 +5,7 @@
   "scripts": {
     "prebuild": "prisma generate",
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "node --max-old-space-size=4096 node_modules/typescript/bin/tsc",
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
     "prisma:check-drift": "prisma migrate status",

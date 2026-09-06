@@ -109,7 +109,10 @@ export class VobizProvider implements ITelephonyProvider {
 
   private async getAuthCredentials(userId?: string): Promise<{ authId: string; authToken: string }> {
     if (!userId) {
-      return { authId: this.authId, authToken: this.authToken };
+      throw new ProviderError(
+        'vobiz',
+        'Access Denied: userId is required to authorize Vobiz account credentials.'
+      );
     }
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (user && (user.accountType === 'admin' || user.email === ADMIN_EMAIL)) {

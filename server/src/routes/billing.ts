@@ -64,6 +64,10 @@ router.post('/verify-plan', requireAuth, async (req: any, res: any) => {
     });
   } catch (err: any) {
     logger.error('Billing: failed to verify plan', { error: String(err) });
+    if (err.message === 'Payment has already been redeemed.') {
+      res.status(400).json({ success: false, error: 'Payment has already been redeemed.' });
+      return;
+    }
     res.status(500).json({ success: false, error: err.message || 'Verification failed' });
   }
 });
