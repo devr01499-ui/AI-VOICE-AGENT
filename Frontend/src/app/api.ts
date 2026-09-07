@@ -60,6 +60,7 @@ export interface ApiAgent {
   systemVoice?: string | null;
   languageMode?: string | null;
   direction?: string | null;
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
 }

@@ -7,7 +7,7 @@ import { Session } from "@supabase/supabase-js";
 type Page =
   | "home" | "solutions" | "how-it-works" | "voices" | "pricing"
   | "blog" | "blog-rto" | "blog-healthcare" | "blog-fintech"
-  | "docs" | "privacy" | "terms" | "security" | "dashboard" | "industries" | "voice-ai-index" | "faq" | "contact";
+  | "docs" | "privacy" | "terms" | "security" | "dashboard" | "industries" | "voice-ai-index" | "faq" | "contact" | "compare" | "numbers_buy";
 
 interface NavbarProps {
   page: Page;

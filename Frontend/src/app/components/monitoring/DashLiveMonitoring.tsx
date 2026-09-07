@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Radio, PhoneOff, PhoneForwarded, Volume2, Mic, Activity, Clock, ShieldAlert, RefreshCw, User, CheckCircle2, ChevronRight, X, AlertTriangle } from 'lucide-react';
-import { apiClient, fetchCalls, fetchAgents, type ApiCall, type ApiAgent } from '../../api';
+import { apiClient, fetchCalls, fetchAgents, getLiveTranscriptWsUrl, type ApiCall, type ApiAgent } from '../../api';
 
 interface LiveTranscriptMessage {
   speaker: string;
@@ -72,12 +72,7 @@ export function DashLiveMonitoring() {
     setTranscripts([]);
     setWsConnected(false);
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = process.env.REACT_APP_API_URL
-      ? process.env.REACT_APP_API_URL.replace(/^http/, 'ws')
-      : `${protocol}//${window.location.hostname}:3001`;
-
-    const wsUrl = `${host}/live-transcript?callId=${selectedCall.id}`;
+    const wsUrl = getLiveTranscriptWsUrl(selectedCall.id);
 
     try {
       const ws = new WebSocket(wsUrl);
@@ -167,7 +162,8 @@ export function DashLiveMonitoring() {
     }
   };
 
-  const getAgentName = (agentId: string) => {
+  const getAgentName = (agentId?: string) => {
+    if (!agentId) return 'AI Voice Agent';
     const found = agents.find((a) => a.id === agentId);
     return found ? found.name : 'AI Voice Agent';
   };
