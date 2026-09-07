@@ -1,5 +1,5 @@
 /**
- * Bolna Server — Google Gemini Live Provider
+ * Claritiy Voice — Google Gemini Live Provider
  * ✅ FIXED VERSION
  * 
  * Changes:

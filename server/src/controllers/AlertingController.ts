@@ -14,7 +14,7 @@ import crypto from 'crypto';
 export class AlertingController {
   static async listRules(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.id || (req as any).user?.userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
@@ -40,7 +40,7 @@ export class AlertingController {
 
   static async createRule(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.id || (req as any).user?.userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
@@ -88,7 +88,7 @@ export class AlertingController {
 
   static async updateRule(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.id || (req as any).user?.userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
       const ruleId = String(req.params.id);
 
       const existing = await prisma.alertRule.findFirst({
@@ -136,7 +136,7 @@ export class AlertingController {
 
   static async deleteRule(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.id || (req as any).user?.userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
       const ruleId = String(req.params.id);
 
       const existing = await prisma.alertRule.findFirst({
@@ -161,7 +161,7 @@ export class AlertingController {
 
   static async listIncidents(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.id || (req as any).user?.userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;

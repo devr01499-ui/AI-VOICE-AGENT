@@ -13,7 +13,7 @@ import { WebhookDispatcher } from '../utils/WebhookDispatcher';
 export class IntegrationsController {
   static async listIntegrations(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.id || (req as any).user?.userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
@@ -32,7 +32,7 @@ export class IntegrationsController {
 
   static async saveIntegration(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.id || (req as any).user?.userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
       const type = String(req.params.type).toLowerCase();
 
       if (!['slack', 'generic_webhook', 'google_sheets', 'zapier'].includes(type)) {
@@ -73,7 +73,7 @@ export class IntegrationsController {
 
   static async testIntegration(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.id || (req as any).user?.userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
       const type = String(req.params.type).toLowerCase();
 
       const integration = await prisma.userIntegration.findFirst({
@@ -121,7 +121,7 @@ export class IntegrationsController {
 
   static async deleteIntegration(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.id || (req as any).user?.userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
       const type = String(req.params.type).toLowerCase();
 
       const existing = await prisma.userIntegration.findFirst({
