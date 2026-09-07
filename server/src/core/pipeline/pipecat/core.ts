@@ -7,6 +7,7 @@ export class Pipeline {
   private readonly service: GeminiLiveLLMService;
   private readonly provider: GeminiLiveProvider;
   private sessionId: string | null = null;
+  private sessionStartTime: number = Date.now();
   private onAudioOutputCallback: ((frame: { type: string; data: Buffer }) => void) | null = null;
   private onVadSpeechStartedCallback: ((speechStarted: boolean) => void) | null = null;
 
@@ -86,7 +87,7 @@ export class Pipeline {
             this.callId,
             isUser ? 'user' : 'agent',
             text,
-            0 // startTime
+            Math.max(0, Math.floor((Date.now() - this.sessionStartTime) / 1000))
           ).catch(err => {
             logger.error('Pipeline: Failed to create transcript segment', { callId: this.callId, error: err.message });
           });

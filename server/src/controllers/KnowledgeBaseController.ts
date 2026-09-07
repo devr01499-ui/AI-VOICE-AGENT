@@ -28,7 +28,7 @@ export class KnowledgeBaseController {
    */
   static async upload(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = (req as any).effectiveWorkspaceId || req.userId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
@@ -133,7 +133,7 @@ export class KnowledgeBaseController {
    */
   static async scrape(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = (req as any).effectiveWorkspaceId || req.userId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
@@ -275,7 +275,7 @@ export class KnowledgeBaseController {
    */
   static async list(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = (req as any).effectiveWorkspaceId || req.userId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
@@ -323,7 +323,7 @@ export class KnowledgeBaseController {
    */
   static async delete(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = (req as any).effectiveWorkspaceId || req.userId;
       const id = req.params.id as string;
       if (!userId || !id) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
@@ -368,7 +368,7 @@ export class KnowledgeBaseController {
    */
   static async assignToAgent(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = (req as any).effectiveWorkspaceId || req.userId;
       const kbId = req.params.id as string;
       const { agentId } = req.body;
 
@@ -424,7 +424,7 @@ export class KnowledgeBaseController {
    */
   static async unassignFromAgent(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = (req as any).effectiveWorkspaceId || req.userId;
       const kbId = req.params.id as string;
       const { agentId } = req.body;
 
@@ -464,7 +464,7 @@ export class KnowledgeBaseController {
    */
   static async updateAgentAssignments(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = req.userId;
+      const userId = (req as any).effectiveWorkspaceId || req.userId;
       const kbId = req.params.id as string;
       const { agentIds } = req.body;
 

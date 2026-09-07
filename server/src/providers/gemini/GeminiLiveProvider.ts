@@ -779,7 +779,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
     logger.info('GeminiLiveProvider: triggering greeting response', { sessionId });
 
-    const textPrompt = greetingText || 'Hi, please start the interview.';
+    const textPrompt = greetingText || 'Hello! How can I assist you today?';
 
     session.ws.send(
       JSON.stringify({

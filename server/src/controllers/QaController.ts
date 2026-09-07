@@ -13,7 +13,7 @@ import { env } from '../config/env';
 export class QaController {
   static async listCohorts(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.id || (req as any).user?.userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
@@ -36,7 +36,7 @@ export class QaController {
 
   static async createCohort(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.id || (req as any).user?.userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
@@ -71,7 +71,7 @@ export class QaController {
 
   static async getCohortDetails(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.id || (req as any).user?.userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
       const cohortId = String(req.params.id);
 
       const cohort = await prisma.qaCohort.findFirst({
@@ -109,7 +109,7 @@ export class QaController {
 
   static async evaluateCohort(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.id || (req as any).user?.userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
       const cohortId = String(req.params.id);
 
       const cohort = await prisma.qaCohort.findFirst({
@@ -243,7 +243,7 @@ export class QaController {
 
   static async deleteCohort(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.id || (req as any).user?.userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
       const cohortId = String(req.params.id);
 
       const cohort = await prisma.qaCohort.findFirst({

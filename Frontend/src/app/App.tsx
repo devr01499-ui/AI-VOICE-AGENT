@@ -2226,7 +2226,6 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
       const response = await apiClient.post('/api/v2/calls', {
         phoneNumber: destinationPhone,
         agentId: selected.id,
-        userId: profile?.id || "1e69187e-82d5-4166-929f-4bbba90e5304",
         fromPhoneNumber: selectedNumber || undefined,
       });
       if (response.data?.success) {
@@ -3203,6 +3202,18 @@ function DashBatch() {
     loadBatches();
   };
 
+  const handleExport = (campaign: any) => {
+    const content = "data:text/csv;charset=utf-8,Name,Status,Total,Completed,Failed\n" +
+      `"${campaign.name}","${campaign.status}",${campaign.total||campaign.totalContacts||0},${campaign.completedCount||campaign.called||0},${campaign.failedCount||0}\n`;
+    const encodedUri = encodeURI(content);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `campaign_${campaign.id || 'export'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -3283,16 +3294,16 @@ function DashBatch() {
         {selected&&(
           <div className="space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[{label:"Total",value:selected.total.toLocaleString()},{label:"Called",value:selected.called.toLocaleString()},{label:"Connected",value:selected.connected.toLocaleString()},{label:"Converted",value:selected.converted.toLocaleString()}].map(s=>(
+              {[{label:"Total",value:(selected.total||selected.totalContacts||0).toLocaleString()},{label:"Called",value:(selected.called||selected.completedCount||0).toLocaleString()},{label:"Connected",value:(selected.connected||selected.completedCount||0).toLocaleString()},{label:"Converted",value:(selected.converted||0).toLocaleString()}].map(s=>(
                 <div key={s.label} className="nm-card p-4 text-center"><p className="text-xs font-bold text-[var(--nm-text)] mb-2" style={{fontFamily:"'Outfit', sans-serif"}}>{s.label.toUpperCase()}</p><p className="text-2xl font-bold" style={{fontFamily:"'Instrument Serif',serif"}}>{s.value}</p></div>
               ))}
             </div>
-            <div className="nm-card"><p className="text-xs font-bold text-[var(--nm-text)] mb-3" style={{fontFamily:"'Outfit', sans-serif"}}>PROGRESS — {Math.round((selected.called/selected.total)*100)}%</p><DProg v={selected.called} max={selected.total}/></div>
+            <div className="nm-card"><p className="text-xs font-bold text-[var(--nm-text)] mb-3" style={{fontFamily:"'Outfit', sans-serif"}}>PROGRESS — {Math.round(((selected.called||selected.completedCount||0)/(selected.total||selected.totalContacts||1))*100)}%</p><DProg v={selected.called||selected.completedCount||0} max={selected.total||selected.totalContacts||1}/></div>
             <div className="flex gap-2">
-              {selected.status==="running"&&<DBtn variant="secondary"><PauseCircle className="w-4 h-4"/> Pause</DBtn>}
-              {selected.status==="paused"&&<DBtn><PlayCircle className="w-4 h-4"/> Resume</DBtn>}
-              <DBtn variant="secondary"><Download className="w-4 h-4"/> Export results</DBtn>
-              {selected.status!=="completed"&&<DBtn variant="danger"><StopCircle className="w-4 h-4"/> Stop</DBtn>}
+              {selected.status==="running"&&<DBtn variant="secondary" onClick={() => { handlePause(selected.id); setSelected(null); }}><PauseCircle className="w-4 h-4"/> Pause</DBtn>}
+              {selected.status==="paused"&&<DBtn onClick={() => { handleResume(selected.id); setSelected(null); }}><PlayCircle className="w-4 h-4"/> Resume</DBtn>}
+              <DBtn variant="secondary" onClick={() => handleExport(selected)}><Download className="w-4 h-4"/> Export results</DBtn>
+              {selected.status!=="completed"&&<DBtn variant="danger" onClick={() => { handleCancel(selected.id); setSelected(null); }}><StopCircle className="w-4 h-4"/> Stop</DBtn>}
             </div>
           </div>
         )}
@@ -3302,17 +3313,6 @@ function DashBatch() {
 }
 
 // ── Call Logs ──
-const STATIC_CALLS = [
-  {id:"cl1",name:"Marcus Johnson",number:"+1 (312) 555-0198",agent:"Finance Support Bot",dur:"4m 12s",result:"Resolved",sent:"Positive",date:"Today 2:14 PM",rec:true},
-  {id:"cl2",name:"Elena Vasquez",number:"+1 (213) 555-0847",agent:"Healthcare Scheduler",dur:"2m 38s",result:"Scheduled",sent:"Positive",date:"Today 1:58 PM",rec:true},
-  {id:"cl3",name:"David Kim",number:"+1 (415) 555-1234",agent:"E-Commerce Support",dur:"7m 55s",result:"Transferred",sent:"Neutral",date:"Today 1:41 PM",rec:true},
-  {id:"cl4",name:"Aisha Okafor",number:"+1 (404) 555-9876",agent:"Insurance Claims Rep",dur:"3m 20s",result:"Resolved",sent:"Positive",date:"Today 1:22 PM",rec:false},
-  {id:"cl5",name:"Thomas Reed",number:"+1 (617) 555-2847",agent:"Finance Support Bot",dur:"6m 01s",result:"Voicemail",sent:"N/A",date:"Today 12:58 PM",rec:false},
-  {id:"cl6",name:"Sophia Hernandez",number:"+1 (702) 555-0391",agent:"Insurance Claims Rep",dur:"5m 44s",result:"Resolved",sent:"Positive",date:"Today 12:33 PM",rec:true},
-  {id:"cl7",name:"James Liu",number:"+1 (206) 555-7412",agent:"E-Commerce Support",dur:"1m 52s",result:"Resolved",sent:"Neutral",date:"Today 11:47 AM",rec:true},
-  {id:"cl8",name:"Amara Diallo",number:"+1 (917) 555-8823",agent:"Finance Support Bot",dur:"8m 03s",result:"Transferred",sent:"Neutral",date:"Today 11:22 AM",rec:true},
-];
-
 function DashCallLogs() {
   const [transcriptOpen, setTranscriptOpen] = useState<string|null>(null);
   const [transcriptText, setTranscriptText] = useState<{role:string;text:string}[]>([]);
@@ -5140,7 +5140,7 @@ function DashConductor({ profile, setSection }: { profile?: ApiProfile | null; s
         ...prev,
         {
           role: 'assistant',
-          text: 'Conductor AI Execution Notice: To enable full autonomous workspace control, please upgrade to the Enterprise Plan.',
+          text: `Conductor AI Execution Notice: ${err?.message || 'Execution failed due to a network or system error. Please try again.'}`,
         }
       ]);
     } finally {
