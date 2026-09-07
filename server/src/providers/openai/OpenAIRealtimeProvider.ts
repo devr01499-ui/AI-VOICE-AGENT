@@ -278,7 +278,7 @@ export class OpenAIRealtimeProvider implements IRealtimeProvider {
 
     logger.info('OpenAIRealtimeProvider: triggering greeting response', { sessionId });
 
-    const textPrompt = greetingText || 'Hi, please start the interview.';
+    const textPrompt = greetingText || 'Hello! How can I assist you today?';
 
     // Send conversation item representing the user prompt
     session.ws.send(

@@ -61,7 +61,7 @@ export class TelephonyController {
    */
   public static async getSubAccount(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id || 'anonymous';
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId || 'anonymous';
       if (userId === 'anonymous') {
          return res.status(401).json({ success: false, error: 'Unauthorized' });
       }
@@ -95,7 +95,7 @@ export class TelephonyController {
    */
   public static async provisionSubAccount(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id || 'anonymous';
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId || 'anonymous';
       
       // Safety check: if they already have one, just return it
       if (userId !== 'anonymous') {

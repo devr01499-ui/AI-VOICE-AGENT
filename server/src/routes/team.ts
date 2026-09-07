@@ -40,7 +40,7 @@ router.post('/invite', requireAuth, validateBody(inviteSchema), async (req: Auth
     if (req.workspaceRole !== 'owner') { res.status(403).json({ success: false, error: 'Only workspace owners can invite members' }); return; }
 
     const userToInvite = await prisma.user.findUnique({ where: { email } });
-    if (!userToInvite) { res.status(404).json({ success: false, error: 'User not found. They must sign up to Bolna first.' }); return; }
+    if (!userToInvite) { res.status(404).json({ success: false, error: 'User not found. They must sign up to Claritiy Voice first.' }); return; }
     if (userToInvite.id === ownerId) { res.status(400).json({ success: false, error: 'You cannot invite yourself' }); return; }
 
     const existing = await prisma.teamMember.findUnique({ where: { ownerId_memberId: { ownerId, memberId: userToInvite.id } } });

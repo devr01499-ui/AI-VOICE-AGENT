@@ -410,6 +410,10 @@ router.post(
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
       }
+      if ((req as any).workspaceRole === 'viewer') {
+        res.status(403).json({ success: false, error: 'Team members cannot create or modify agents' });
+        return;
+      }
 
       // Verify userId exists in database to avoid foreign key failure
       const userExists = await prisma.user.findUnique({ where: { id: userId } });
@@ -468,6 +472,10 @@ router.put(
       let userId = (req as any).effectiveWorkspaceId || primaryUserId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
+        return;
+      }
+      if ((req as any).workspaceRole === 'viewer') {
+        res.status(403).json({ success: false, error: 'Team members cannot create or modify agents' });
         return;
       }
 

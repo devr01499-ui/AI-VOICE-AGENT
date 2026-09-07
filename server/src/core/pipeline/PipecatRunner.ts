@@ -109,7 +109,7 @@ export class PipecatRunner {
    */
   triggerGreeting(greetingText?: string): void {
     logger.info('PipecatRunner: triggering greeting turn', { callId: this.callId });
-    const textPrompt = greetingText || 'Hi, please start the interview.';
+    const textPrompt = greetingText || 'Hello! How can I assist you today?';
     this.pipeline.pushInputFrame({
       type: 'text',
       data: Buffer.from(textPrompt)
