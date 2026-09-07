@@ -14,7 +14,7 @@ import {
   initiateCall, getCallTranscript, getLiveTranscriptWsUrl,
   fetchKBList, uploadKBDocument, scrapeKBUrl, deleteKBDocument, fetchCalendarBatches, createBatchCampaign, pauseBatchCampaign, resumeBatchCampaign, cancelBatchCampaign,
   DEV_USER_ID, DEFAULT_AGENT_ID, API_BASE, apiClient,
-  type ApiAgent, type ApiCall, type ApiProfile,
+  type ApiAgent, type ApiCall, type ApiProfile, type ApiKnowledgeBase,
 } from "./api";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -81,6 +81,8 @@ type Page =
   | "industries"
   | "faq"
   | "contact"
+  | "compare"
+  | "numbers_buy"
   | "voice-ai-index";
 
 // ─── Sound Wave Component ─────────────────────────────────────────────────────
@@ -1554,7 +1556,7 @@ function DashOverview() {
     {label:"Calls Today",value:callsToday.length.toLocaleString(),delta:`${callsToday.length} calls today (${totalCallCount} total)`,icon:PhoneCall,live:false, accent: "border-l-4 border-l-emerald-500"},
     {label:"Active Now",value:activeCalls.length.toString(),delta:"live calls",icon:CircleDot,live:activeCalls.length > 0, accent: "border-l-4 border-l-amber-500"},
     {label:"Avg Duration",value:formattedAvgDur,delta:"completed calls average",icon:Clock,live:false, accent: "border-l-4 border-l-blue-500"},
-    {label:"CSAT Score",value:completedCalls.length > 0 ? "4.9 / 5" : "—",delta:completedCalls.length > 0 ? "calculated telemetry" : "no rating data yet",icon:Star,live:false, accent: "border-l-4 border-l-purple-500"},
+    {label:"Completion Rate",value:completedCalls.length > 0 ? `${Math.round((completedCalls.filter(c=>c.status==='completed').length / completedCalls.length)*100)}%` : "—",delta:completedCalls.length > 0 ? `${completedCalls.filter(c=>c.status==='completed').length} / ${completedCalls.length} calls completed` : "no telemetry yet",icon:Star,live:false, accent: "border-l-4 border-l-purple-500"},
   ];
 
   return (
@@ -1769,7 +1771,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
               .filter(k => k.agentIds && k.agentIds.includes(a.id))
               .map(k => k.id);
             const agentCalls = (callsData || []).filter(c => c.agentId === a.id || c.agent?.name === a.name);
-            const agentNumbers = (numbersData || []).filter(n => n.assignedAgentId === a.id).map(n => n.phoneNumber);
+            const agentNumbers = (numbersData || []).filter((n: any) => n.assignedAgentId === a.id).map((n: any) => n.phoneNumber);
             return {
               id: a.id,
               name: a.name,
@@ -2143,7 +2145,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
           if (msg.event === 'audio' && msg.data) {
             const floats = base64ToFloat32(msg.data);
             const audioBuffer = playbackContext.createBuffer(1, floats.length, 24000);
-            audioBuffer.copyToChannel(floats, 0);
+            audioBuffer.copyToChannel(floats as any, 0);
 
             const sourceNode = playbackContext.createBufferSource();
             sourceNode.buffer = audioBuffer;
@@ -2330,14 +2332,14 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
           });
         }
       } else {
-        alert(response.data?.error || `Failed to delete agent`);
+        alert((response.data as any)?.error || `Failed to delete agent`);
       }
     } catch (err: any) {
       alert(`Failed to delete agent: ${err?.response?.data?.error || err.message}`);
     }
   }
 
-  async function handleDelete(agentId: string) {
+  function handleDelete(agentId: string) {
     setDeleteModal({ open: true, id: agentId });
   }
 
@@ -2350,6 +2352,11 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
     const localApiAgent: ApiAgent = {
       id: localAgent.id,
       name: localAgent.name,
+      description: null,
+      workspaceId: null,
+      systemPrompt: null,
+      flowGraph: null,
+      agentConfig: {},
       agentType: createType,
       status: 'draft',
       version: 1,
@@ -2357,6 +2364,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
       voiceName: VOICES_SEED.find(v=>v.id===form.voice)?.name??"Nova",
       temperature: parseFloat(form.temperature),
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
     if (setApiAgents) {
       setApiAgents(p => [...p, localApiAgent]);
@@ -3014,16 +3022,16 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
                             setStudioAgent({
                               id: a.id as string,
                               name: a.name as string,
-                              systemPrompt: fullAgent.systemPrompt,
-                              flowGraph: fullAgent.flowGraph,
+                              systemPrompt: fullAgent.systemPrompt ?? undefined,
+                              flowGraph: fullAgent.flowGraph ?? undefined,
                             });
                           } else if (setSinglePromptStudioAgent) {
                             setSinglePromptStudioAgent({
                               id: a.id as string,
                               name: a.name as string,
-                              systemPrompt: fullAgent.systemPrompt,
-                              model: fullAgent.model,
-                              voiceName: fullAgent.voiceName,
+                              systemPrompt: fullAgent.systemPrompt ?? undefined,
+                              model: fullAgent.model ?? undefined,
+                              voiceName: fullAgent.voiceName ?? undefined,
                             });
                           }
                         }}
@@ -3235,9 +3243,9 @@ function DashBatch() {
                     <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.created || (c.createdAt ? new Date(c.createdAt).toLocaleDateString() : '—')}</td>
                     <td className="px-5 py-4" onClick={e=>e.stopPropagation()}>
                       <div className="flex gap-2">
-                        {c.status==="running"&&<DBtn size="sm" variant="secondary" onClick={(e)=>handlePause(c.id, e)}><PauseCircle className="w-4 h-4"/></DBtn>}
-                        {c.status==="paused"&&<DBtn size="sm" variant="secondary" onClick={(e)=>handleResume(c.id, e)}><PlayCircle className="w-4 h-4"/></DBtn>}
-                        {(c.status==="running"||c.status==="paused"||c.status==="scheduled")&&<DBtn size="sm" variant="ghost" onClick={(e)=>handleCancel(c.id, e)}><StopCircle className="w-4 h-4"/></DBtn>}
+                        {c.status==="running"&&<DBtn size="sm" variant="secondary" onClick={() => handlePause(c.id)}><PauseCircle className="w-4 h-4"/></DBtn>}
+                        {c.status==="paused"&&<DBtn size="sm" variant="secondary" onClick={() => handleResume(c.id)}><PlayCircle className="w-4 h-4"/></DBtn>}
+                        {(c.status==="running"||c.status==="paused"||c.status==="scheduled")&&<DBtn size="sm" variant="ghost" onClick={() => handleCancel(c.id)}><StopCircle className="w-4 h-4"/></DBtn>}
                       </div>
                     </td>
                   </tr>
@@ -3365,7 +3373,7 @@ function DashCallLogs() {
         const message = JSON.parse(event.data);
         if (message && typeof message.transcript === 'string') {
           const lines = message.transcript.split('\n').filter(Boolean);
-          setTranscriptText(lines.map(l => ({
+          setTranscriptText(lines.map((l: string) => ({
             role: l.startsWith('Agent:') ? 'agent' : 'caller',
             text: l.replace(/^(Agent:|Caller:)\s*/, '')
           })));
@@ -3447,7 +3455,7 @@ function DashCallLogs() {
           return updated;
         });
       } else {
-        alert(response.data?.error || "Failed to delete call log");
+        alert((response.data as any)?.error || "Failed to delete call log");
       }
     } catch (err: any) {
       alert("Failed to delete call log: " + (err?.response?.data?.error || err.message || String(err)));
@@ -3635,7 +3643,7 @@ function DashNumbers() {
         setupFee,
         currency: num.currency || 'INR',
       });
-      if (!orderRes.data?.success) throw new Error(orderRes.data?.error || 'Order creation failed');
+      if (!orderRes.data?.success) throw new Error((orderRes.data as any)?.error || 'Order creation failed');
       
       const order = orderRes.data.data;
 
@@ -3697,7 +3705,7 @@ function DashNumbers() {
       });
 
       if (purchaseRes.data?.success) {
-        setShowBuy(false);
+        setViewMode('list');
         await loadNumbers();
         // Check if onboarding/KYC is required
         if (purchaseRes.data.data.status === 'KYC Required' || purchaseRes.data.data.kycStatus === 'pending') {
@@ -3708,7 +3716,7 @@ function DashNumbers() {
           alert('Phone number purchased and assigned successfully!');
         }
       } else {
-        throw new Error(purchaseRes.data?.error || 'Purchase failed');
+        throw new Error((purchaseRes.data as any)?.error || 'Purchase failed');
       }
     } catch (e: any) {
       console.error(e);
@@ -3736,7 +3744,7 @@ function DashNumbers() {
         setKycStatus('pending');
         pollKycStatus();
       } else {
-        alert(res.data?.error || 'KYC Session initiation failed');
+        alert((res.data as any)?.error || 'KYC Session initiation failed');
       }
     } catch (e: any) {
       console.error(e);
@@ -3771,7 +3779,7 @@ function DashNumbers() {
           return updated;
         });
       } else {
-        alert(response.data?.error || "Failed to delete phone number");
+        alert((response.data as any)?.error || "Failed to delete phone number");
       }
     } catch (e: any) {
       console.error(e);
@@ -3911,7 +3919,7 @@ function DashNumbers() {
                     </div>
                   </td>
                   <td className="px-5 py-4"><div className="flex gap-2">
-                    {n.kycStatus === 'pending' && <DBtn size="sm" variant="secondary" onClick={() => {setShowKyc(n.id); setKycStep(3); setKycStatus('pending'); pollKycStatus(n.id);}}>Check KYC</DBtn>}
+                    {n.kycStatus === 'pending' && <DBtn size="sm" variant="secondary" onClick={() => {setShowKyc(n.id); setKycStep(3); setKycStatus('pending'); pollKycStatus();}}>Check KYC</DBtn>}
                     {n.kycStatus === 'failed' && <DBtn size="sm" variant="secondary" onClick={() => {setShowKyc(n.id); setKycStep(3); setKycStatus('failed');}}>Retry KYC</DBtn>}
                     {n.kycStatus === 'verified' && <DBtn size="sm" variant="ghost"><Edit3 className="w-4 h-4"/></DBtn>}
                     <DBtn size="sm" variant="ghost" onClick={() => setDeleteModal({ open: true, id: n.id })}><Trash2 className="w-4 h-4 text-red-400"/></DBtn>
@@ -4080,7 +4088,7 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
                   <td className="px-5 py-4 max-w-[240px]"><div className="flex items-center gap-3"><FileText className="w-5 h-5 text-[var(--nm-text)] flex-shrink-0"/><p className="text-base text-[var(--nm-text)] truncate font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{d.name}</p></div></td>
                   <td className="px-5 py-4 relative">
                     <div className="flex items-center gap-2 flex-wrap max-w-[300px]">
-                      {d.agentIds && d.agentIds.map(aId => {
+                      {d.agentIds && d.agentIds.map((aId: string) => {
                         const agName = apiAgents.find(a => a.id === aId)?.name || aId;
                         return (
                           <span key={aId} className="text-[10px] font-bold text-[var(--nm-text)] nm-pressed rounded px-2 py-1 flex items-center gap-1">
@@ -4091,7 +4099,7 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
                               try {
                                 setDocs(prev => prev.map(doc => {
                                   if (doc.id === d.id) {
-                                    return { ...doc, agentIds: (doc.agentIds || []).filter(id => id !== aId) };
+                                    return { ...doc, agentIds: (doc.agentIds || []).filter((id: string) => id !== aId) };
                                   }
                                   return doc;
                                 }));
@@ -4170,7 +4178,7 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
                   </td>
                   <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{(d.sizeChars / 1024).toFixed(1)} KB</td>
                   <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{new Date(d.createdAt).toLocaleDateString()}</td>
-                  <td className="px-4 py-3 text-right"><DBadge size="sm" variant="ghost" className="cursor-pointer" onClick={() => handleDelete(d.id)}><Trash2 className="w-3.5 h-3.5 text-red-400"/></DBadge></td>
+                  <td className="px-4 py-3 text-right"><DBtn size="sm" variant="ghost" className="cursor-pointer" onClick={() => handleDelete(d.id)}><Trash2 className="w-3.5 h-3.5 text-red-400"/></DBtn></td>
                 </tr>
               ))}
               {docs.length === 0 && (
@@ -4496,7 +4504,7 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex gap-3">{(["all","builtin","clone"] as const).map(f=><button key={f} onClick={()=>setVoiceFilter(f)} className={`text-sm font-bold px-4 py-2 rounded-xl transition-all ${voiceFilter===f?"nm-pressed text-[var(--nm-accent)]":"nm-raised text-[var(--nm-text)] hover:nm-pressed"}`} style={{fontFamily:"'Outfit', sans-serif"}}>{f==="all"?"All voices":f==="builtin"?"Built-in":"Cloned"}</button>)}</div>
-        <DBtn disabled title="Voice cloning coming soon"><Mic2 className="w-4 h-4"/> Clone a voice (Coming soon)</DBtn>
+        <div title="Voice cloning coming soon"><DBtn disabled><Mic2 className="w-4 h-4"/> Clone a voice (Coming soon)</DBtn></div>
       </div>
 
       {/* Nation and Language UI Filters */}
@@ -6376,6 +6384,8 @@ export default function App() {
       terms: "/terms",
       security: "/security",
       "voice-ai-index": "/voice-ai-index",
+      compare: "/compare",
+      numbers_buy: "/dashboard",
     };
     const targetPath = pathMap[p] || "/";
     if (window.location.pathname !== targetPath) {
@@ -6407,6 +6417,8 @@ export default function App() {
       terms: "Terms of Service — Claritiy Voice",
       security: "Security — Claritiy Voice",
       "voice-ai-index": "Voice AI Index — Claritiy Voice",
+      compare: "Compare — Claritiy Voice",
+      numbers_buy: "Buy Numbers — Claritiy Voice",
     };
 
     const descMap: Record<Page, string> = {
@@ -6428,9 +6440,11 @@ export default function App() {
       terms: "Terms of service for using the Claritiy Voice platform.",
       security: "Learn about our enterprise-grade security and compliance measures.",
       "voice-ai-index": "The complete index of voice AI capabilities and benchmarks.",
+      compare: "Compare Claritiy Voice against other platforms.",
+      numbers_buy: "Purchase phone numbers for your AI voice agents.",
     };
 
-    const pathMap: Record<Page, string> = {
+    const navPathMap: Record<Page, string> = {
       home: "",
       industries: "industries",
       pricing: "pricing",
@@ -6449,6 +6463,8 @@ export default function App() {
       terms: "terms",
       security: "security",
       "voice-ai-index": "voice-ai-index",
+      compare: "compare",
+      numbers_buy: "dashboard",
     };
 
     document.title = titleMap[page] || "Claritiy Voice";
@@ -6469,7 +6485,7 @@ export default function App() {
       canonical.setAttribute("rel", "canonical");
       document.head.appendChild(canonical);
     }
-    const path = pathMap[page] ?? "";
+    const path = navPathMap[page] ?? "";
     canonical.setAttribute("href", `https://www.claritiy.com/${path}`);
 
     // Update Robots tag
@@ -6705,7 +6721,7 @@ export default function App() {
             {page === "security" && <Security />}
             {page === "faq" && <FAQ setPage={handleNavigate} />}
             {page === "contact" && <ContactUs />}
-            {page === "dashboard" && <AuthGateway onSuccess={() => handleNavigate("dashboard")} />}
+            {(page as string) === "dashboard" && <AuthGateway onSuccess={() => handleNavigate("dashboard")} />}
             {page === "voice-ai-index" && <VoiceAIIndex setPage={setPage} initialTopicId={currentTopicId} />}
           </Suspense>
         </motion.div>

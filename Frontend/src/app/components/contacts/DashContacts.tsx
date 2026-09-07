@@ -61,7 +61,7 @@ export function DashContacts() {
         .then((allCalls) => {
           const filtered = allCalls.filter(
             (c) =>
-              c.recipientPhoneNumber.includes(activeContact.phoneNumber) ||
+              (c.recipientPhoneNumber && c.recipientPhoneNumber.includes(activeContact.phoneNumber)) ||
               (c.fromPhoneNumber && c.fromPhoneNumber.includes(activeContact.phoneNumber))
           );
           setContactCalls(filtered);

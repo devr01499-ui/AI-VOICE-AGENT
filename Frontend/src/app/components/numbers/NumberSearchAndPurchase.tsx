@@ -7,6 +7,7 @@ import {
   ArrowLeft, Check, SlidersHorizontal, Lock
 } from 'lucide-react';
 import { formatCurrency } from '../../../lib/formatCurrency';
+import { API_BASE } from '../../api';
 
 const COUNTRIES = [
   { code: 'IN', name: 'India', flag: '🇮🇳' },
@@ -52,11 +53,7 @@ interface NumberSearchAndPurchaseProps {
 }
 
 export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps = {}) {
-  const getRuntimeUrl = () => {
-    const envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
-    const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
-    return envUrl || (isLocal ? 'http://localhost:3001' : 'https://ai-voice-agent-backend-mv32.onrender.com');
-  };
+  const getRuntimeUrl = () => API_BASE;
 
   // Locked State
   const [checkingLocked, setCheckingLocked] = useState(true);
