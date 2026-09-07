@@ -12,7 +12,7 @@ import { logger } from '../utils/logger';
 export class AnalyticsController {
   static async getAnalyticsSummary(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.id || (req as any).user?.userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
