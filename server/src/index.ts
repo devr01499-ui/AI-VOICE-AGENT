@@ -460,12 +460,15 @@ async function bootstrap(): Promise<void> {
       ws: `ws://localhost:${PORT}/audio-stream`,
     });
 
+    // Start background rule evaluation worker
+    AlertEvaluator.startBackgroundWorker(60000);
+
     // Call this method within the server listen block
     if (process.env.SEED_TEST_DATA === 'true') {
       seedTestEnvironment().catch(err => console.error("Database seed failure:", err));
     }
 
-    logger.info('Bolna Server: ready ✓');
+    logger.info('Claritiy Voice Server: ready ✓');
   });
 
   // ─── Graceful Shutdown ───────────────────────

@@ -364,6 +364,12 @@ export default function VisualFlowCanvas({
   }, [currentFlowGraph, agentName, globalPrompt, handbookPresets, direction, flexibilityMode]);
 
   const handleAddNode = (type: FlowNodeType, label: string) => {
+    const paletteItem = nodePaletteList.find((p) => p.type === type);
+    if ((paletteItem as any)?.comingSoon) {
+      setPublishError(`"${label}" feature is coming soon and cannot be added to active conversational flows yet.`);
+      return;
+    }
+
     const newId = `node-${Date.now()}`;
     const newNode: Node = {
       id: newId,
@@ -413,6 +419,18 @@ export default function VisualFlowCanvas({
   const [publishError, setPublishError] = useState<string | null>(null);
   const [showSavedToast, setShowSavedToast] = useState(false);
 
+  const validateFlowGraph = (): void => {
+    const comingSoonTypes = new Set(['transferCall', 'pressDigit', 'agentTransfer', 'inCallSms']);
+    for (const node of nodes) {
+      if (node.type && comingSoonTypes.has(node.type)) {
+        throw new Error(`Node "${node.data?.label || node.type}" uses a Coming Soon feature that is not yet supported for live call execution.`);
+      }
+      if (node.type === 'askQuestion' && !node.data?.question && !node.data?.prompt && !node.data?.text) {
+        throw new Error(`Node "${node.data?.label || 'Ask Question'}" requires a question prompt.`);
+      }
+    }
+  };
+
   const getCanvasPayloadExtra = () => ({
     direction,
     language,
@@ -439,6 +457,7 @@ export default function VisualFlowCanvas({
     try {
       setIsSaving(true);
       setPublishError(null);
+      validateFlowGraph();
       const extra = getCanvasPayloadExtra();
       if (onEnsureSaved) {
         await onEnsureSaved(compiledPrompt, currentFlowGraph, extra);
@@ -459,6 +478,7 @@ export default function VisualFlowCanvas({
     try {
       setIsPublishing(true);
       setPublishError(null);
+      validateFlowGraph();
       await onSave(compiledPrompt, currentFlowGraph, getCanvasPayloadExtra());
     } catch (err: any) {
       console.error('Failed to publish canvas flow agent:', err);
@@ -613,8 +633,13 @@ export default function VisualFlowCanvas({
               nodePaletteList.map((item) => (
                 <button
                   key={item.type}
+                  disabled={(item as any).comingSoon}
                   onClick={() => handleAddNode(item.type, item.label)}
-                  className="w-full text-left p-2 rounded-lg border border-slate-100 dark:border-slate-800/80 hover:border-indigo-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all flex items-center gap-2.5 group"
+                  className={`w-full text-left p-2 rounded-lg border transition-all flex items-center gap-2.5 group ${
+                    (item as any).comingSoon
+                      ? 'border-slate-100 dark:border-slate-800 opacity-60 cursor-not-allowed'
+                      : 'border-slate-100 dark:border-slate-800/80 hover:border-indigo-200 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                  }`}
                 >
                   <div className="w-7 h-7 rounded-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:scale-105 transition-transform flex-shrink-0">
                     {item.icon}

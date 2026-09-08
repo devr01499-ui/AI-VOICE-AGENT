@@ -75,6 +75,7 @@ interface ActiveSession {
   balanceInterval?: NodeJS.Timeout;
   agentId?: string;
   userId?: string;
+  resumptionHandle?: string;
 }
 
 export class GeminiLiveProvider implements IRealtimeProvider {
@@ -975,6 +976,9 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     // 6. Server GoAway Event (Session expiration warning)
     if (event.goAway) {
       const timeLeftSeconds = event.goAway.timeLeftMs ? Math.round(event.goAway.timeLeftMs / 1000) : 10;
+      if (event.goAway.resumptionHandle) {
+        session.resumptionHandle = event.goAway.resumptionHandle;
+      }
       logger.warn('GeminiLiveProvider: Received GoAway notice from Google', {
         sessionId,
         timeLeftMs: event.goAway.timeLeftMs,
