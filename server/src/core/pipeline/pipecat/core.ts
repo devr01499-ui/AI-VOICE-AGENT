@@ -52,6 +52,7 @@ export class Pipeline {
   }
 
   async run(): Promise<void> {
+    this.sessionStartTime = Date.now();
     const config = {
       callId: this.callId,
       model: this.service.config.model,
@@ -112,6 +113,10 @@ export class Pipeline {
       },
       onError: (sessId: string, error: Error) => {
         logger.error('Pipeline Runtime Error:', { message: error.message, stack: error.stack });
+        eventBus.publish(PROVIDER_EVENTS.ERROR_OCCURRED, {
+          callId: this.callId,
+          reason: error.message,
+        });
       },
     };
 

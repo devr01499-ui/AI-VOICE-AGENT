@@ -47,7 +47,7 @@ export class CallController {
       const phoneNumber = targetNumber;
 
       const body = req.body as any;
-      const userId = (req as any).auth?.userId || body.userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).auth?.userId || body.userId;
       const userData = body.userData;
       const maxDuration = body.maxDuration;
       const fromPhoneNumber = body.fromPhoneNumber;
@@ -61,7 +61,7 @@ export class CallController {
         return;
       }
 
-      const effectiveUserId = userId;
+      const effectiveUserId = (req as any).effectiveWorkspaceId || userId;
 
       // Seed/upsert MVP User dynamically if they do not exist to prevent foreign key errors
       const prisma = (await import('../lib/prisma')).prisma;
@@ -364,7 +364,7 @@ export class CallController {
 
   static async endActiveCall(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
       const callId = String(req.params.id);
 
       const call = await prisma.call.findFirst({
@@ -397,7 +397,7 @@ export class CallController {
 
   static async transferActiveCall(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
       const callId = String(req.params.id);
       const { targetNumber } = req.body;
 

@@ -32,7 +32,7 @@ const requireActivePlan = async (req: any, res: any, next: any) => {
  */
 router.get('/', requireAuth, async (req, res, next) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
     if (!userId) {
       res.status(401).json({ success: false, error: 'Unauthorized' });
       return;
@@ -74,7 +74,7 @@ router.get('/', requireAuth, async (req, res, next) => {
   */
 router.get('/status', requireAuth, async (req, res, next) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { numberLocked: true, email: true, accountType: true }

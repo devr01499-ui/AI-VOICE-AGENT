@@ -65,6 +65,7 @@ export interface FlowGraph {
 
 /**
  * Compiles a visual FlowGraph JSON into a structured, executable system prompt for Gemini Live engine.
+ * Implements topological traversal following graph edges and resolves node target IDs into step labels.
  */
 export function compileFlowToSystemPrompt(
   flow: FlowGraph,
@@ -75,6 +76,75 @@ export function compileFlowToSystemPrompt(
   if (!flow || !flow.nodes || flow.nodes.length === 0) {
     return `You are ${agentName}, a professional AI voice agent for Claritiy Voice. Answer user queries concisely and professionally.`;
   }
+
+  // 1. Filter out non-execution nodes (notes)
+  const executableNodes = flow.nodes.filter(n => n.type !== 'note');
+  if (executableNodes.length === 0) {
+    return `You are ${agentName}, a professional AI voice agent for Claritiy Voice. Answer user queries concisely and professionally.`;
+  }
+
+  const nodeMap = new Map<string, FlowNode>();
+  const inDegree = new Map<string, number>();
+  const outgoingMap = new Map<string, FlowEdge[]>();
+
+  executableNodes.forEach(n => {
+    nodeMap.set(n.id, n);
+    inDegree.set(n.id, 0);
+    outgoingMap.set(n.id, []);
+  });
+
+  const validEdges = (flow.edges || []).filter(e => nodeMap.has(e.source) && nodeMap.has(e.target));
+
+  validEdges.forEach(e => {
+    inDegree.set(e.target, (inDegree.get(e.target) || 0) + 1);
+    const existing = outgoingMap.get(e.source) || [];
+    existing.push(e);
+    outgoingMap.set(e.source, existing);
+  });
+
+  // Determine traversal order starting from 'start' nodes or in-degree 0 nodes
+  const orderedNodes: FlowNode[] = [];
+  const visited = new Set<string>();
+
+  // Roots: start nodes first, then other 0 in-degree nodes
+  const rootNodes = executableNodes.filter(n => n.type === 'start' || (inDegree.get(n.id) === 0));
+  const queue: FlowNode[] = [...rootNodes];
+
+  while (queue.length > 0) {
+    const curr = queue.shift()!;
+    if (visited.has(curr.id)) continue;
+    visited.add(curr.id);
+    orderedNodes.push(curr);
+
+    const edges = outgoingMap.get(curr.id) || [];
+    for (const edge of edges) {
+      const targetNode = nodeMap.get(edge.target);
+      if (targetNode && !visited.has(targetNode.id)) {
+        queue.push(targetNode);
+      }
+    }
+  }
+
+  // Append any disconnected nodes not reached in main traversal
+  executableNodes.forEach(n => {
+    if (!visited.has(n.id)) {
+      visited.add(n.id);
+      orderedNodes.push(n);
+    }
+  });
+
+  // Map each node ID to its 1-indexed step number
+  const nodeStepMap = new Map<string, number>();
+  orderedNodes.forEach((n, idx) => {
+    nodeStepMap.set(n.id, idx + 1);
+  });
+
+  const getStepRef = (targetId: string): string => {
+    const targetNode = nodeMap.get(targetId);
+    const stepNum = nodeStepMap.get(targetId);
+    if (!targetNode || !stepNum) return `node ${targetId}`;
+    return `STEP ${stepNum} ("${targetNode.data.label || targetNode.id}")`;
+  };
 
   let prompt = `# AGENT IDENTITY & ROLE\n`;
   prompt += `You are an autonomous AI voice agent (${agentName}) for Claritiy Voice operating under a visual multi-step conversational flow graph.\n\n`;
@@ -99,9 +169,11 @@ export function compileFlowToSystemPrompt(
     prompt += `You MUST strictly execute the following step-by-step dialogue flow. Guide the caller through each step in sequence and evaluate branching conditions based on user responses.\n\n`;
   }
 
-  flow.nodes.forEach((node, index) => {
+  orderedNodes.forEach((node, index) => {
     const stepNum = index + 1;
     const data = node.data;
+    const outgoing = outgoingMap.get(node.id) || [];
+    const defaultNextTarget = outgoing[0]?.target;
 
     switch (node.type) {
       case 'start':
@@ -109,7 +181,11 @@ export function compileFlowToSystemPrompt(
       case 'sayMessage':
         prompt += `## STEP ${stepNum}: ${data.label || 'Conversation'} [Type: Say Message]\n`;
         prompt += `- ACTION: Speak the following message:\n  "${data.text || data.message || 'Hello! How can I assist you today?'}"\n`;
-        prompt += `- NEXT STEP: Proceed to the connected node in sequence.\n\n`;
+        if (defaultNextTarget) {
+          prompt += `- NEXT STEP: Proceed to ${getStepRef(defaultNextTarget)}.\n\n`;
+        } else {
+          prompt += `- NEXT STEP: Proceed to the next step in sequence.\n\n`;
+        }
         break;
 
       case 'askQuestion':
@@ -119,9 +195,12 @@ export function compileFlowToSystemPrompt(
         if (data.variable || data.variableName) {
           prompt += `- VARIABLE: Store answer as '${data.variable || data.variableName}'\n`;
         }
-        prompt += `- WAIT: Listen to response, record intent/variables, and proceed.\n\n`;
+        if (defaultNextTarget) {
+          prompt += `- WAIT: Listen to response, record intent/variables, then proceed to ${getStepRef(defaultNextTarget)}.\n\n`;
+        } else {
+          prompt += `- WAIT: Listen to response, record intent/variables, and proceed.\n\n`;
+        }
         break;
-
 
       case 'subagent':
       case 'agentTransfer':
@@ -132,7 +211,12 @@ export function compileFlowToSystemPrompt(
       case 'function':
       case 'callTool':
         prompt += `## STEP ${stepNum}: ${data.label || 'Execute Tool'} [Type: Function Call]\n`;
-        prompt += `- ACTION: Execute dynamic tool operation (${data.toolName || 'webhook_handler'}).\n\n`;
+        prompt += `- ACTION: Execute dynamic tool operation (${data.toolName || 'webhook_handler'}).\n`;
+        if (defaultNextTarget) {
+          prompt += `- NEXT STEP: After tool execution, proceed to ${getStepRef(defaultNextTarget)}.\n\n`;
+        } else {
+          prompt += `\n`;
+        }
         break;
 
       case 'transferCall':
@@ -151,7 +235,13 @@ export function compileFlowToSystemPrompt(
         prompt += `- ACTION: Evaluate caller response against branching criteria:\n`;
         if (data.branches && data.branches.length > 0) {
           data.branches.forEach((b, bIdx) => {
-            prompt += `  * BRANCH ${String.fromCharCode(65 + bIdx)} (If ${b.condition}): Proceed to node ${b.targetNodeId}.\n`;
+            const targetRef = getStepRef(b.targetNodeId);
+            prompt += `  * BRANCH ${String.fromCharCode(65 + bIdx)} (If ${b.condition}): Proceed to ${targetRef}.\n`;
+          });
+        } else if (outgoing.length > 0) {
+          outgoing.forEach((edge, eIdx) => {
+            const label = edge.label || `Condition ${eIdx + 1}`;
+            prompt += `  * BRANCH ${String.fromCharCode(65 + eIdx)} (If ${label}): Proceed to ${getStepRef(edge.target)}.\n`;
           });
         } else {
           prompt += `  * Evaluate intent and transition to the appropriate branch.\n`;
@@ -191,10 +281,6 @@ export function compileFlowToSystemPrompt(
         prompt += `- ACTION: Query availability and offer open slots to caller.\n\n`;
         break;
 
-      case 'note':
-        // Notes are design annotations, omitted from live LLM execution prompt
-        break;
-
       default:
         prompt += `## STEP ${stepNum}: ${data.label || 'Step'}\n`;
         prompt += `- ACTION: ${data.text || 'Execute step logic.'}\n\n`;
@@ -209,3 +295,4 @@ export function compileFlowToSystemPrompt(
 
   return prompt;
 }
+

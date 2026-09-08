@@ -74,11 +74,17 @@ export class PipecatRunner {
 
     // 4. REAL-TIME RETURN AUDIO ROUTING
     // Catch Gemini's returned native audio frames and stream the binary buffers directly down the Vobiz socket
+    const MAX_RECORDING_CHUNKS = 5000; // ~100MB safety boundary per call session
     this.pipeline.addOutputSink((frame: { type: string; data: Buffer }) => {
       if (frame && frame.type === 'audio' && frame.data) {
         // Record output audio stream if active
         if (this.isRecordingEnabled) {
-          this.audioChunks.push(frame.data);
+          if (this.audioChunks.length < MAX_RECORDING_CHUNKS) {
+            this.audioChunks.push(frame.data);
+          } else if (this.audioChunks.length === MAX_RECORDING_CHUNKS) {
+            logger.warn('PipecatRunner: Call recording buffer safety limit reached (5000 chunks). Buffer capped to prevent OOM.', { callId: this.callId });
+            this.audioChunks.push(frame.data); // Final boundary chunk
+          }
         }
 
         const telephonyCompressed = convertOutboundAudio(frame.data);
@@ -92,7 +98,7 @@ export class PipecatRunner {
     const buffer = Buffer.from(base64Str, 'base64');
 
     // Record input audio stream if active
-    if (this.isRecordingEnabled) {
+    if (this.isRecordingEnabled && this.audioChunks.length < 5000) {
       this.audioChunks.push(buffer);
     }
 
