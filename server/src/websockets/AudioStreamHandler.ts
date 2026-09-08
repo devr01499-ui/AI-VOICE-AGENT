@@ -380,7 +380,11 @@ export class AudioStreamHandler {
     const nextChunkBase64 = conn.playbackQueue.shift()!;
     this.sendAudioToVobizDirect(callId, nextChunkBase64);
 
-    setTimeout(() => this.flushNextAudioChunk(callId), 30);
+    // Compute duration from base64 PCM16 16kHz audio length (32 bytes per millisecond)
+    const pcmBytes = Math.floor((nextChunkBase64.length * 3) / 4);
+    const durationMs = Math.max(10, Math.min(200, Math.round(pcmBytes / 32)));
+
+    setTimeout(() => this.flushNextAudioChunk(callId), durationMs || 30);
   }
 
   /**
@@ -409,7 +413,7 @@ export class AudioStreamHandler {
       },
     });
 
-    logger.info('AudioStreamHandler: sending audio to Vobiz', {
+    logger.debug('AudioStreamHandler: sending audio to Vobiz', {
       callId,
       bytes: audioBase64.length,
     });

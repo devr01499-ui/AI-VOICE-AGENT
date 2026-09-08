@@ -154,6 +154,14 @@ export function DashCallingConfig() {
                         <span className={`capitalize font-semibold ${item.kycStatus === 'verified' ? 'text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200' : 'text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200'}`}>
                           {item.kycStatus === 'verified' ? '✓ KYC Verified (Vobiz)' : 'KYC Verification Pending'}
                         </span>
+                        {item.kycStatus !== 'verified' && (
+                          <button
+                            onClick={handleInitiateHostedKyc}
+                            className="px-2.5 py-1 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-sm transition-all flex items-center gap-1 cursor-pointer"
+                          >
+                            <ShieldCheck className="w-3.5 h-3.5" /> Start KYC Verification
+                          </button>
+                        )}
                       </p>
                     </div>
                   </div>
