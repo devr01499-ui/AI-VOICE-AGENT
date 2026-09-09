@@ -136,3 +136,15 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     res.status(500).json({ success: false, error: displayError });
   }
 }
+
+export function requireEditor(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+  if (req.workspaceRole === 'viewer') {
+    res.status(403).json({
+      success: false,
+      error: 'Forbidden: Viewers are read-only members and are not authorized to perform modifications in this workspace.'
+    });
+    return;
+  }
+  next();
+}
+

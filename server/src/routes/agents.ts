@@ -12,7 +12,7 @@ import { AgentRepository } from '../repositories/AgentRepository';
 import { validateParams, validateQuery } from '../middleware/validation';
 import { prisma } from '../lib/prisma';
 import { getUserIdFromRequest } from '../utils/auth';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, requireEditor } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { ADMIN_EMAIL } from '../config/constants';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
@@ -68,6 +68,7 @@ router.get(
 router.post(
   '/conversational-builder',
   requireAuth,
+  requireEditor,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;
@@ -186,6 +187,7 @@ DO NOT wrap the JSON in markdown blocks. Output the raw JSON object string when 
 router.post(
   '/optimize',
   requireAuth,
+  requireEditor,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;
@@ -402,6 +404,7 @@ router.get(
 router.post(
   '/',
   requireAuth,
+  requireEditor,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const primaryUserId = (req as any).user?.id || (req as any).userId;
@@ -465,6 +468,7 @@ router.post(
 router.put(
   '/:agentId',
   requireAuth,
+  requireEditor,
   validateParams(agentIdParamSchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -571,6 +575,7 @@ router.put(
 router.delete(
   '/:agentId',
   requireAuth,
+  requireEditor,
   validateParams(agentIdParamSchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -669,6 +674,7 @@ router.delete(
 router.post(
   '/:agentId/chat',
   requireAuth,
+  requireEditor,
   validateParams(agentIdParamSchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -742,6 +748,7 @@ router.post(
 router.post(
   '/test-prompt',
   requireAuth,
+  requireEditor,
   async (req: Request, res: Response): Promise<void> => {
     try {
       const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;

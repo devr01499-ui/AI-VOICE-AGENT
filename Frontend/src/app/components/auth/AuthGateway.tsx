@@ -94,12 +94,12 @@ function PulsingCore() {
 
 // ── Social proof ticker ──────────────────────────────────────────────────────
 const FEATURES = [
-  '< 180ms Voice Latency',
-  'SOC 2 Type II Certified',
-  '70+ Languages Supported',
-  'HIPAA BAA Available',
-  'Real-Time Transcription',
+  'Sub-Second AI Response',
   'Enterprise Grade Security',
+  '70+ Languages Supported',
+  'Aadhaar Act Compliant',
+  'Real-Time Transcription',
+  'Inbound + Outbound Voice',
 ];
 
 // ── Left panel — the AI showcase ─────────────────────────────────────────────
@@ -112,9 +112,9 @@ function LeftPanel() {
   }, []);
 
   const pills = [
-    { icon: Zap, label: '<180ms Latency', angle: -70 },
+    { icon: Zap, label: 'Sub-Second Latency', angle: -70 },
     { icon: Globe, label: '70+ Languages', angle: -10 },
-    { icon: Shield, label: 'SOC 2 / HIPAA', angle: 50 },
+    { icon: Shield, label: '256-Bit TLS', angle: 50 },
     { icon: Phone, label: 'Inbound + Outbound', angle: 115 },
     { icon: Cpu, label: 'Native Multimodal', angle: 175 },
     { icon: Radio, label: 'Real-Time ASR/TTS', angle: 235 },
@@ -198,7 +198,7 @@ function LeftPanel() {
           </AnimatePresence>
         </div>
         <div className="flex items-center justify-between mt-4">
-          {['SOC 2', 'HIPAA', 'ISO 27001', 'GDPR', 'PCI'].map(b => (
+          {['256-BIT TLS', 'ENCRYPTED', '24/7 ONLINE', 'AADHAAR COMPLIANT'].map(b => (
             <span key={b} className="text-[9px] font-bold text-white/40 font-mono uppercase tracking-wider flex items-center gap-1">
               <Check className="w-2.5 h-2.5 text-[#34D399]" /> {b}
             </span>
@@ -546,7 +546,7 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
 
           {/* Trust strip below card */}
           <div className="flex items-center justify-center gap-4 mt-5">
-            {['SOC 2', 'HIPAA', 'GDPR', 'ISO 27001'].map(b => (
+            {['256-BIT TLS', 'AADHAAR COMPLIANT', 'ZERO RAW LOGS'].map(b => (
               <span key={b} className="text-[9px] font-bold text-slate-400 font-mono uppercase tracking-wider flex items-center gap-1">
                 <Check className="w-2.5 h-2.5 text-[#059669]" /> {b}
               </span>
