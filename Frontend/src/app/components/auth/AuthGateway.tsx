@@ -214,7 +214,7 @@ interface AuthGatewayProps {
 }
 
 export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot' | 'reset'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -224,6 +224,27 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    // Check if redirect contains password reset token / recovery type
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash;
+      const search = window.location.search;
+      if (hash.includes('type=recovery') || hash.includes('access_token') || search.includes('type=recovery')) {
+        setMode('reset');
+      }
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setMode('reset');
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -235,8 +256,8 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) throw signInError;
         if (onSuccess) onSuccess();
-      } else {
-        const { error: signUpError } = await supabase.auth.signUp({
+      } else if (mode === 'signup') {
+        const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -245,8 +266,23 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
           },
         });
         if (signUpError) throw signUpError;
-        setMessage('A verification link has been sent to your email. Please confirm to activate your workspace.');
-        if (onSuccess) onSuccess();
+        if (data?.session) {
+          if (onSuccess) onSuccess();
+        } else {
+          setMessage('A verification link has been sent to your email. Please confirm to activate your workspace.');
+          setMode('signin');
+        }
+      } else if (mode === 'forgot') {
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}`,
+        });
+        if (resetError) throw resetError;
+        setMessage('A password reset link has been sent to your email address. Please check your inbox.');
+      } else if (mode === 'reset') {
+        const { error: updateError } = await supabase.auth.updateUser({ password });
+        if (updateError) throw updateError;
+        setMessage('Password updated successfully! Please sign in with your new password.');
+        setMode('signin');
       }
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred.');
@@ -305,32 +341,38 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
               style={{ background: 'linear-gradient(135deg, #F0FDF4 0%, #ECFDF5 100%)', borderBottom: '1px solid #D1FAE5' }}
             >
               <h2 className="text-xl font-extrabold text-[#0F172A] tracking-tight" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-                {mode === 'signin' ? 'Welcome Back' : 'Create Workspace'}
+                {mode === 'signin' ? 'Welcome Back' : mode === 'signup' ? 'Create Workspace' : mode === 'forgot' ? 'Reset Password' : 'Set New Password'}
               </h2>
               <p className="text-xs text-slate-500 mt-1 font-medium">
                 {mode === 'signin'
                   ? 'Sign in to your AI voice agent dashboard'
-                  : 'Start building AI calling agents'}
+                  : mode === 'signup'
+                  ? 'Start building AI calling agents'
+                  : mode === 'forgot'
+                  ? 'Enter your email to receive a reset link'
+                  : 'Choose a strong new password'}
               </p>
             </div>
 
             <div className="p-7 space-y-5">
               {/* Tab switcher */}
-              <div className="flex bg-[#FAF8F5] p-1 rounded-2xl border border-[#EADEC9]">
-                {(['signin', 'signup'] as const).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => { setMode(m); setError(''); setMessage(''); }}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold rounded-xl transition-all ${mode === m
-                      ? 'bg-white text-[#059669] shadow-sm border border-[#EADEC9]'
-                      : 'text-slate-400 hover:text-slate-700'
-                      }`}
-                  >
-                    {m === 'signin' ? <LogIn className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
-                    {m === 'signin' ? 'Sign In' : 'Sign Up'}
-                  </button>
-                ))}
-              </div>
+              {(mode === 'signin' || mode === 'signup') && (
+                <div className="flex bg-[#FAF8F5] p-1 rounded-2xl border border-[#EADEC9]">
+                  {(['signin', 'signup'] as const).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => { setMode(m); setError(''); setMessage(''); }}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold rounded-xl transition-all ${mode === m
+                        ? 'bg-white text-[#059669] shadow-sm border border-[#EADEC9]'
+                        : 'text-slate-400 hover:text-slate-700'
+                        }`}
+                    >
+                      {m === 'signin' ? <LogIn className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
+                      {m === 'signin' ? 'Sign In' : 'Sign Up'}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Error/success banners */}
               <AnimatePresence>
@@ -389,37 +431,54 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
                   )}
                 </AnimatePresence>
 
-                <div>
-                  <label className={labelClass}>Email Address</label>
-                  <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                    <input type="email" required placeholder="you@company.com" value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      className={`${inputClass} pl-10`} />
+                {mode !== 'reset' && (
+                  <div>
+                    <label className={labelClass}>Email Address</label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                      <input type="email" required placeholder="you@company.com" value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        className={`${inputClass} pl-10`} />
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div>
-                  <label className={labelClass}>Password</label>
-                  <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      placeholder="••••••••••"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      className={`${inputClass} pl-10 pr-11`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(v => !v)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
+                {(mode === 'signin' || mode === 'signup' || mode === 'reset') && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className={labelClass} style={{ marginBottom: 0 }}>
+                        {mode === 'reset' ? 'New Password' : 'Password'}
+                      </label>
+                      {mode === 'signin' && (
+                        <button
+                          type="button"
+                          onClick={() => { setMode('forgot'); setError(''); setMessage(''); }}
+                          className="text-xs font-semibold text-[#059669] hover:underline"
+                        >
+                          Forgot password?
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        placeholder="••••••••••"
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        className={`${inputClass} pl-10 pr-11`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(v => !v)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <button
                   type="submit"
@@ -431,10 +490,28 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
                   }}
                 >
                   {loading
-                    ? '⏳ Authenticating…'
-                    : mode === 'signin' ? '🔐 Sign In to Dashboard' : '🚀 Create Account'}
+                    ? '⏳ Processing…'
+                    : mode === 'signin'
+                    ? '🔐 Sign In to Dashboard'
+                    : mode === 'signup'
+                    ? '🚀 Create Account'
+                    : mode === 'forgot'
+                    ? '📩 Send Reset Link'
+                    : '🔒 Update Password'}
                 </button>
               </form>
+
+              {(mode === 'forgot' || mode === 'reset') && (
+                <div className="text-center pt-2">
+                  <button
+                    type="button"
+                    onClick={() => { setMode('signin'); setError(''); setMessage(''); }}
+                    className="text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors"
+                  >
+                    ← Back to Sign In
+                  </button>
+                </div>
+              )}
 
               {/* Divider */}
               <div className="flex items-center gap-3">
