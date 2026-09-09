@@ -125,6 +125,31 @@ export function DashCallingConfig() {
         </div>
       )}
 
+      {/* KYC Action Banner */}
+      {(numbers.length === 0 || numbers.some(n => n.kycStatus !== 'verified')) && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold shrink-0">
+              <ShieldCheck className="w-5 h-5 text-amber-700" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-amber-900" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                Identity & KYC Verification Required
+              </h4>
+              <p className="text-xs text-amber-700 mt-0.5" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                Telephony regulations require identity verification before active call routing.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleInitiateHostedKyc}
+            className="px-4 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+          >
+            <ShieldCheck className="w-4 h-4" /> Start KYC Verification Now
+          </button>
+        </div>
+      )}
+
       {numbers.length === 0 ? (
         <div className="nm-pressed rounded-3xl p-12 text-center text-slate-500 space-y-4 max-w-2xl mx-auto my-8">
           <PhoneCall className="w-12 h-12 mx-auto text-slate-400 opacity-40" />

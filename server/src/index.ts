@@ -274,30 +274,30 @@ async function seedTestEnvironment() {
 // ─── Server Bootstrap ────────────────────────────
 
 async function bootstrap(): Promise<void> {
-  logger.info('Bolna Server: starting...', {
+  logger.info('Claritiy Voice Server: starting...', {
     nodeEnv: env.NODE_ENV,
     port: env.PORT,
   });
 
   // Validate environment variables at startup — log warnings instead of hard-exiting on optional credentials
   if (!env.PUBLIC_URL || env.PUBLIC_URL.trim() === '') {
-    logger.warn('Bolna Server: PUBLIC_URL not configured — telephony callbacks will require ngrok or explicit host configuration');
+    logger.warn('Claritiy Voice Server: PUBLIC_URL not configured — telephony callbacks will require ngrok or explicit host configuration');
   }
 
   if (!env.VOBIZ_AUTH_ID || !env.VOBIZ_AUTH_TOKEN) {
-    logger.warn('Bolna Server: Vobiz credentials missing — telephony features will degrade gracefully');
+    logger.warn('Claritiy Voice Server: Vobiz credentials missing — telephony features will degrade gracefully');
   }
 
   if (!env.GOOGLE_API_KEY && !env.OPENAI_API_KEY && !env.GEMINI_API_KEY) {
-    logger.warn('Bolna Server: No LLM provider configured — runtime AI voice session initialization will require an API key');
+    logger.warn('Claritiy Voice Server: No LLM provider configured — runtime AI voice session initialization will require an API key');
   }
 
-  logger.info('Bolna Server: Environment variable check complete ✓');
+  logger.info('Claritiy Voice Server: Environment variable check complete ✓');
 
   // Verify database connectivity
   try {
     await prisma.$connect();
-    logger.info('Bolna Server: database connected');
+    logger.info('Claritiy Voice Server: database connected');
     
     if (env.NODE_ENV !== 'production') {
       // Seed default workspace user to prevent multi-tenant lookups failing
@@ -314,7 +314,7 @@ async function bootstrap(): Promise<void> {
       });
     }
   } catch (err) {
-    logger.error('Bolna Server: database connection failed — server running in degraded mode', {
+    logger.error('Claritiy Voice Server: database connection failed — server running in degraded mode', {
       error: err instanceof Error ? err.message : String(err),
     });
   }
@@ -454,7 +454,7 @@ async function bootstrap(): Promise<void> {
   // Start listening
   server.listen(PORT, HOST, () => {
     logger.info(`Claritiy Backend Server running natively on port ${PORT}`);
-    logger.info(`Bolna Server: listening on port ${PORT}`, {
+    logger.info(`Claritiy Voice Server: listening on port ${PORT}`, {
       health: `http://localhost:${PORT}/health`,
       api: `http://localhost:${PORT}/api/v2`,
       ws: `ws://localhost:${PORT}/audio-stream`,
@@ -474,7 +474,7 @@ async function bootstrap(): Promise<void> {
   // ─── Graceful Shutdown ───────────────────────
 
   const shutdown = async (signal: string): Promise<void> => {
-    logger.info(`Bolna Server: ${signal} received, shutting down...`);
+    logger.info(`Claritiy Voice Server: ${signal} received, shutting down...`);
 
     // Stop accepting new connections
     server.close();
@@ -483,7 +483,7 @@ async function bootstrap(): Promise<void> {
     try {
       await callOrchestrator.shutdownAll();
     } catch (err) {
-      logger.error('Bolna Server: runtime shutdown error', {
+      logger.error('Claritiy Voice Server: runtime shutdown error', {
         error: err instanceof Error ? err.message : String(err),
       });
     }
@@ -503,7 +503,7 @@ async function bootstrap(): Promise<void> {
       // Ignore
     }
 
-    logger.info('Bolna Server: shutdown complete');
+    logger.info('Claritiy Voice Server: shutdown complete');
     process.exit(0);
   };
 
@@ -512,7 +512,7 @@ async function bootstrap(): Promise<void> {
 
   // Handle uncaught exceptions
   process.on('uncaughtException', (err) => {
-    logger.error('Bolna Server: uncaught exception', {
+    logger.error('Claritiy Voice Server: uncaught exception', {
       error: err.message,
       stack: err.stack,
     });
@@ -520,7 +520,7 @@ async function bootstrap(): Promise<void> {
   });
 
   process.on('unhandledRejection', (reason) => {
-    logger.error('Bolna Server: unhandled rejection', {
+    logger.error('Claritiy Voice Server: unhandled rejection', {
       reason: reason instanceof Error ? reason.message : String(reason),
     });
   });

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, requireEditor } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { BillingService } from '../services/BillingService';
@@ -251,7 +251,7 @@ router.get('/search', requireAuth, async (req, res, next) => {
  * Creates a Razorpay order for purchasing a number.
  * Body: { baseCost, setupFee?, currency? }
  */
-router.post('/create-order', requireAuth, requireActivePlan, async (req, res, next) => {
+router.post('/create-order', requireAuth, requireEditor, requireActivePlan, async (req, res, next) => {
   const userId = (req as any).userId;
   try {
     const { baseCost = 0, setupFee = 0, currency = 'INR' } = req.body;
@@ -289,7 +289,7 @@ router.post('/create-order', requireAuth, requireActivePlan, async (req, res, ne
  *     and log a [VOBIZ_PURCHASE_FAILURE] alert for ops.
  *   - Raw error strings from Vobiz are never returned to the client.
  */
-router.post('/purchase', requireAuth, requireActivePlan, async (req, res, next) => {
+router.post('/purchase', requireAuth, requireEditor, requireActivePlan, async (req, res, next) => {
   const userId = (req as any).userId;
   const { vobizNumberId, expectedPrice, orderId, paymentId, signature, agentId } = req.body;
 
@@ -451,7 +451,7 @@ router.post('/purchase', requireAuth, requireActivePlan, async (req, res, next) 
  * No second Razorpay charge required — billed against master account balance.
  * Body: { vobizNumberId, agentId? }
  */
-router.post('/claim', requireAuth, requireActivePlan, async (req, res, next) => {
+router.post('/claim', requireAuth, requireEditor, requireActivePlan, async (req, res, next) => {
   const userId = (req as any).userId;
   const { vobizNumberId, agentId } = req.body;
 
@@ -583,7 +583,7 @@ router.get('/mine', requireAuth, async (req, res, next) => {
  * DELETE /api/v2/numbers/:id
  * Releases a phone number from the user's workspace
  */
-router.delete('/:id', requireAuth, async (req, res, next) => {
+router.delete('/:id', requireAuth, requireEditor, async (req, res, next) => {
   try {
     const userId = (req as any).userId;
     const id = req.params.id as string;
@@ -606,7 +606,7 @@ router.delete('/:id', requireAuth, async (req, res, next) => {
  * PATCH /api/v2/numbers/:id/activate
  * Admin/manual status toggle flipping status to "active" once founder manually tops up sub-account wallet in Vobiz console.
  */
-router.patch('/:id/activate', requireAuth, async (req, res, next) => {
+router.patch('/:id/activate', requireAuth, requireEditor, async (req, res, next) => {
   try {
     const userId = (req as any).userId;
     const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -698,7 +698,7 @@ router.get('/calling-config', requireAuth, async (req, res, next) => {
  * Updates inbound and outbound calling configuration for a specific number.
  * Body: { assignedAgentId?, inboundAgentId?, inboundEnabled?, businessHours? }
  */
-router.post('/:id/calling-config', requireAuth, async (req, res, next) => {
+router.post('/:id/calling-config', requireAuth, requireEditor, async (req, res, next) => {
   try {
     const userId = (req as any).userId;
     const id = req.params.id as string;

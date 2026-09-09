@@ -482,5 +482,12 @@ export class AudioStreamHandler {
       callId,
       error: err.message,
     });
+    const conn = this.connections.get(callId);
+    if (conn && conn.ws.readyState === WebSocket.OPEN) {
+      try {
+        conn.ws.send(JSON.stringify({ event: 'clearAudio' }));
+        conn.ws.close(1011, 'Voice pipeline network error');
+      } catch {}
+    }
   }
 }
