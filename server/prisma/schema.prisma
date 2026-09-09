@@ -366,13 +366,15 @@ model SubAccount {
 }
 
 model VobizSubAccount {
-  id            String   @id @default(uuid())
-  userId        String   @unique @map("user_id")
-  authId        String   @map("auth_id")
-  authToken     String   @map("auth_token") // Encrypted
-  kycMode       String   @default("customer_use") @map("kyc_mode")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id            String    @id @default(uuid())
+  userId        String    @unique @map("user_id")
+  authId        String    @map("auth_id")
+  authToken     String    @map("auth_token") // Encrypted
+  kycMode       String    @default("customer_use") @map("kyc_mode")
+  kycStatus     String    @default("pending") @map("kyc_status") // pending | verified | failed
+  kycVerifiedAt DateTime? @map("kyc_verified_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
