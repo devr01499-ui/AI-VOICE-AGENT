@@ -60,6 +60,13 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
   const [numberLocked, setNumberLocked] = useState(false);
   const [userNumber, setUserNumber] = useState<string | null>(null);
 
+  // KYC Verification State
+  const [accountKycStatus, setAccountKycStatus] = useState<string>('none');
+  const [isKycVerified, setIsKycVerified] = useState<boolean>(false);
+  const [showKycModal, setShowKycModal] = useState<boolean>(false);
+  const [kycInitiating, setKycInitiating] = useState<boolean>(false);
+  const [kycRedirectUrl, setKycRedirectUrl] = useState<string | null>(null);
+
   // Filters
   const [selectedCountry, setSelectedCountry] = useState('IN');
   const [selectedType, setSelectedType] = useState('local');
@@ -87,7 +94,24 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
   const [purchasedData, setPurchasedData] = useState<{ id: string; number: string; status: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Initial status check for numberLocked
+  // Fetch account-level KYC status
+  const fetchKycStatus = useCallback(async () => {
+    try {
+      const apiBase = getRuntimeUrl();
+      const res = await fetch(`${apiBase}/api/v2/kyc/status`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        setAccountKycStatus(data.data.kycStatus || 'none');
+        setIsKycVerified(data.data.isVerified === true || data.data.kycStatus === 'verified');
+      }
+    } catch {
+      // Non-critical check fallback
+    }
+  }, []);
+
+  // Initial status check for numberLocked and KYC status
   useEffect(() => {
     const checkStatus = async () => {
       setCheckingLocked(true);
@@ -110,7 +134,8 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
       }
     };
     checkStatus();
-  }, []);
+    fetchKycStatus();
+  }, [fetchKycStatus]);
 
   // Load available agents for assignment dropdown
   useEffect(() => {
@@ -181,7 +206,34 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
     if (!numberLocked) {
       handleSearch(selectedCountry, selectedType, 1, false);
     }
-  }, [selectedCountry, selectedType, numberLocked]);
+  }, [selectedCountry, selectedType, numberLocked, handleSearch]);
+
+  const handleTriggerKyc = async () => {
+    setKycInitiating(true);
+    try {
+      const apiBase = getRuntimeUrl();
+      const res = await fetch(`${apiBase}/api/v2/kyc/initiate-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+        },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (data.success && data.data?.redirectUrl) {
+        setKycRedirectUrl(data.data.redirectUrl);
+        window.open(data.data.redirectUrl, '_blank');
+        setShowKycModal(true);
+      } else {
+        alert(data.error || 'Failed to initiate KYC session.');
+      }
+    } catch (err: any) {
+      alert(err.message || 'KYC Error');
+    } finally {
+      setKycInitiating(false);
+    }
+  };
 
   const handleExecuteClaim = async () => {
     if (!selectedNumber || !confirmedWarning) return;
@@ -239,7 +291,7 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
     );
   }
 
-  // ── Permanent Locked State View (Section 4 & Section 6) ─────────────────────
+  // ── Permanent Locked State View ─────────────────────────────────────────────
   if (numberLocked && !purchasedData) {
     return (
       <div className="min-h-screen bg-gray-50/60 p-6 md:p-12 flex items-center justify-center font-sans">
@@ -290,25 +342,14 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
           </p>
           <p className="text-xs text-gray-400 mb-6">Provisioned to your Claritiy Voice telephony workspace.</p>
 
-          {purchasedData.status === 'KYC Required' ? (
-            <div className="text-left bg-amber-50 p-4.5 rounded-2xl border border-amber-200 mb-6">
-              <div className="flex items-center gap-2 mb-1.5 text-amber-800 font-bold text-sm">
-                <ShieldAlert className="w-4 h-4" /> Aadhaar Verification Required
-              </div>
-              <p className="text-xs text-amber-700 leading-relaxed">
-                This number requires mandatory KYC before outbound calls can be routed. Support will contact you to confirm documentation.
-              </p>
+          <div className="text-left bg-emerald-50 p-4.5 rounded-2xl border border-emerald-200 mb-6">
+            <div className="flex items-center gap-2 mb-1.5 text-emerald-800 font-bold text-sm">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Number Active
             </div>
-          ) : (
-            <div className="text-left bg-emerald-50 p-4.5 rounded-2xl border border-emerald-200 mb-6">
-              <div className="flex items-center gap-2 mb-1.5 text-emerald-800 font-bold text-sm">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Number Active
-              </div>
-              <p className="text-xs text-emerald-700 leading-relaxed">
-                Your 1 free bundled number is active and ready to make and receive calls.
-              </p>
-            </div>
-          )}
+            <p className="text-xs text-emerald-700 leading-relaxed">
+              Your 1 free bundled number is active and ready to make and receive calls.
+            </p>
+          </div>
 
           <button
             id="go-to-numbers-btn"
@@ -322,7 +363,7 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
     );
   }
 
-  // ── Step 2: Explicit Confirmation Warning Modal/Screen (Section 3 Step 4) ─────
+  // ── Step 2: Confirmation Warning Screen ─────────────────────
   if (selectedNumber) {
     return (
       <div className="min-h-screen bg-gray-50/60 p-4 md:p-10 font-sans">
@@ -370,7 +411,7 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
             </div>
           </div>
 
-          {/* Mandatory Permanent Lock Warning Box (Section 3 Step 4) */}
+          {/* Mandatory Permanent Lock Warning Box */}
           <div className="mb-8 p-6 rounded-3xl bg-amber-50 border-2 border-amber-200 text-amber-900 space-y-3">
             <div className="flex items-center gap-2 font-black text-base text-amber-950">
               <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0" /> Permanent Number Selection Warning
@@ -449,16 +490,9 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
 
   // ── Skeleton Loader Component ────────────────────────────────────────────────
   const Skeletons = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {[1, 2, 3, 4].map((i) => (
-        <div key={i} className="p-6 rounded-3xl border border-gray-100 bg-white animate-pulse space-y-4">
-          <div className="w-48 h-6 bg-gray-200 rounded-lg" />
-          <div className="w-32 h-4 bg-gray-100 rounded-md" />
-          <div className="pt-4 border-t border-gray-100 flex justify-between items-center">
-            <div className="w-28 h-6 bg-gray-200 rounded-lg" />
-            <div className="w-24 h-10 bg-gray-200 rounded-full" />
-          </div>
-        </div>
+    <div className="bg-white rounded-[28px] border border-gray-100 overflow-hidden shadow-sm p-6 space-y-3">
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div key={i} className="h-10 bg-gray-100 rounded-xl animate-pulse w-full" />
       ))}
     </div>
   );
@@ -466,10 +500,10 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
   const currentCountry = COUNTRIES.find((c) => c.code === selectedCountry) || COUNTRIES[0];
   const currentType = NUMBER_TYPES.find((t) => t.code === selectedType) || NUMBER_TYPES[0];
 
-  // ── Step 1: Full-Page Search & Inventory Grid ─────────────────────────────────
+  // ── Step 1: Full-Page Search & Inventory List View ─────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50/60 p-4 md:p-10 font-sans">
-      <div className="max-w-5xl mx-auto space-y-8">
+      <div className="max-w-5xl mx-auto space-y-6">
 
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-8 rounded-[36px] border border-gray-100 shadow-sm">
@@ -492,6 +526,66 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
             </span>
           </div>
         </div>
+
+        {/* KYC Account Verification Prompt Banner */}
+        {!isKycVerified && (
+          <div className="bg-amber-50 border border-amber-200 rounded-3xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold shrink-0">
+                <ShieldAlert className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-amber-900">
+                  Account KYC Verification Required
+                </h4>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  Complete account KYC verification once to claim phone numbers requiring identity verification.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleTriggerKyc}
+              disabled={kycInitiating}
+              className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+            >
+              {kycInitiating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldAlert className="w-4 h-4" />}
+              Complete KYC Verification
+            </button>
+          </div>
+        )}
+
+        {/* KYC Verification Pending Modal */}
+        {showKycModal && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-6 text-center">
+              <div className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+                <ShieldAlert className="w-8 h-8 text-emerald-600" />
+              </div>
+              <div>
+                <h3 className="text-xl font-extrabold text-gray-900">Vobiz Hosted KYC Session Initiated</h3>
+                <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                  Complete document verification in the opened Vobiz window. Once verified, you can self-serve claim any phone number requiring KYC.
+                </p>
+              </div>
+              {kycRedirectUrl && (
+                <a
+                  href={kycRedirectUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-2xl transition-all shadow-md text-center"
+                >
+                  Open Verification Portal →
+                </a>
+              )}
+              <button
+                onClick={() => { setShowKycModal(false); fetchKycStatus(); }}
+                className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-xs rounded-xl transition-all"
+              >
+                I've Completed Verification / Close
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Error Banner */}
         {error && (
@@ -564,7 +658,7 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
           </div>
         </div>
 
-        {/* Results Card Grid */}
+        {/* Results Compact Table Layout */}
         <div>
           {loading ? (
             <Skeletons />
@@ -578,81 +672,83 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
               </p>
             </div>
           ) : (
-            /* Number Cards Grid */
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {results.map((num, idx) => {
-                const isAadhaar = !!num.aadhaar_verification_required;
-                const caps = num.capabilities;
+            /* Compact Table Layout (Fits 15+ numbers without scrolling) */
+            <div className="bg-white rounded-[28px] border border-gray-100 overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50/50 text-gray-400 font-mono text-[11px] uppercase tracking-wider">
+                      <th className="text-left px-6 py-4 font-bold">Phone Number</th>
+                      <th className="text-left px-5 py-4 font-bold">Region & Country</th>
+                      <th className="text-left px-5 py-4 font-bold">Capabilities</th>
+                      <th className="text-left px-5 py-4 font-bold">Rate / Plan</th>
+                      <th className="text-left px-5 py-4 font-bold">Requirements</th>
+                      <th className="text-right px-6 py-4 font-bold">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {results.map((num, idx) => {
+                      const isAadhaar = !!num.aadhaar_verification_required;
+                      const caps = num.capabilities;
 
-                return (
-                  <div
-                    key={num.id || idx}
-                    className="bg-white rounded-3xl p-6 border border-gray-100 hover:border-emerald-300 transition-all shadow-sm hover:shadow-md flex flex-col justify-between group"
-                  >
-                    <div>
-                      {/* Top Row: E.164 and Region/Country */}
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <div className="font-mono text-xl font-black text-gray-900 tracking-tight">{num.e164}</div>
-                          <div className="text-xs font-semibold text-gray-400 mt-0.5">{num.region || 'National'} · {num.country}</div>
-                        </div>
-                        <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">
-                          Bundled Free
-                        </span>
-                      </div>
-
-                      {/* Badges */}
-                      <div className="flex items-center gap-2 flex-wrap mb-4">
-                        {caps && (
-                          <>
-                            <CapabilityBadge label="Voice" active={caps.voice !== false} />
-                            <CapabilityBadge label="SMS" active={caps.sms === true} />
-                          </>
-                        )}
-                        {isAadhaar && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                            <ShieldAlert className="w-3 h-3 text-amber-600" /> Aadhaar KYC
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Bottom Row: Bundled Plan Status & Select Button */}
-                    <div className="pt-4 border-t border-gray-100 flex items-center justify-between gap-4">
-                      <div>
-                        <div className="text-sm font-black text-emerald-600">
-                          Included in Plan
-                        </div>
-                        <div className="text-xs font-medium text-gray-400">
-                          ₹0 additional charge
-                        </div>
-                      </div>
-
-                      {isAadhaar ? (
-                        <div className="relative group/aadhaar">
-                          <button
-                            disabled
-                            className="px-4 py-2.5 rounded-full bg-gray-100 text-gray-400 font-semibold text-xs cursor-not-allowed flex items-center gap-1.5"
-                          >
-                            <Info className="w-3.5 h-3.5" /> Verification required
-                          </button>
-                          <div className="absolute bottom-full right-0 mb-2 w-60 bg-gray-900 text-white text-xs rounded-xl p-3 opacity-0 group-hover/aadhaar:opacity-100 pointer-events-none transition-opacity z-20 shadow-xl">
-                            This number requires Aadhaar/KYC submission. Contact support to purchase.
-                          </div>
-                        </div>
-                      ) : (
-                        <button
-                          id={`select-btn-${num.id || idx}`}
-                          onClick={() => { setError(null); setSelectedNumber(num); setConfirmedWarning(false); }}
-                          className="px-6 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-all shadow-md shadow-emerald-600/20 hover:shadow-lg hover:shadow-emerald-600/30"
-                        >
-                          Select Number
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+                      return (
+                        <tr key={num.id || idx} className="hover:bg-emerald-50/30 transition-all">
+                          <td className="px-6 py-3.5 whitespace-nowrap">
+                            <div className="font-mono text-base font-black text-gray-900 tracking-tight">{num.e164}</div>
+                          </td>
+                          <td className="px-5 py-3.5 whitespace-nowrap">
+                            <div className="text-xs font-semibold text-gray-700">{num.region || 'National'}</div>
+                            <div className="text-[10px] text-gray-400 font-mono">{num.country}</div>
+                          </td>
+                          <td className="px-5 py-3.5 whitespace-nowrap">
+                            <div className="flex items-center gap-1.5">
+                              {caps && (
+                                <>
+                                  <CapabilityBadge label="Voice" active={caps.voice !== false} />
+                                  <CapabilityBadge label="SMS" active={caps.sms === true} />
+                                </>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-5 py-3.5 whitespace-nowrap">
+                            <div className="text-xs font-extrabold text-emerald-600">Included in Plan</div>
+                            <div className="text-[10px] text-gray-400">₹0 additional charge</div>
+                          </td>
+                          <td className="px-5 py-3.5 whitespace-nowrap">
+                            {isAadhaar ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                                <ShieldAlert className="w-3 h-3 text-amber-600" /> Aadhaar KYC
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                Bundled Free
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-3.5 whitespace-nowrap text-right">
+                            {isAadhaar && !isKycVerified ? (
+                              <button
+                                onClick={handleTriggerKyc}
+                                className="px-4 py-2 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition-all shadow-sm flex items-center gap-1 ml-auto cursor-pointer"
+                              >
+                                <ShieldAlert className="w-3.5 h-3.5" /> Complete KYC to Claim
+                              </button>
+                            ) : (
+                              <button
+                                id={`select-btn-${num.id || idx}`}
+                                onClick={() => { setError(null); setSelectedNumber(num); setConfirmedWarning(false); }}
+                                className="px-5 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all shadow-sm hover:shadow-md ml-auto cursor-pointer"
+                              >
+                                Select Number
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
@@ -669,7 +765,7 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
                 id="load-more-numbers-btn"
                 onClick={() => handleSearch(selectedCountry, selectedType, page + 1, true)}
                 disabled={loadingMore}
-                className="px-6 py-3 rounded-full border-2 border-emerald-600 text-emerald-700 font-bold text-xs hover:bg-emerald-50 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-6 py-3 rounded-full border-2 border-emerald-600 text-emerald-700 font-bold text-xs hover:bg-emerald-50 transition-colors disabled:opacity-50 flex items-center gap-2 cursor-pointer"
               >
                 {loadingMore ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Loading Numbers…</>

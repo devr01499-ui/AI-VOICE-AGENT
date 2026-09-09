@@ -313,6 +313,14 @@ export class VobizSubAccountService {
         data: { kycStatus: subKycStatus }
       });
 
+      await prisma.vobizSubAccount.updateMany({
+        where: { userId },
+        data: {
+          kycStatus: subKycStatus,
+          kycVerifiedAt: isVerified ? new Date() : null,
+        }
+      });
+
       return { kycStatus: subKycStatus, isVerified };
     } catch (err) {
       logger.error('VobizSubAccountService: error syncing KYC status from Vobiz (failing closed to pending)', { error: String(err) });

@@ -3566,18 +3566,12 @@ function DashNumbers() {
   const [liveAgents, setLiveAgents] = useState<ApiAgent[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'list' | 'buy'>('list');
-  const [searchCountry, setSearchCountry] = useState("IN");
-  const [searchType, setSearchType] = useState("local");
-  const [searchRegion, setSearchRegion] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
   const [purchaseLoading, setPurchaseLoading] = useState<string | null>(null);
   const [buyAgentId, setBuyAgentId] = useState<string>("");
 
   // KYC Flow State
   const [showKyc, setShowKyc] = useState<string | null>(null); // phoneNumberId
-  const [kycStep, setKycStep] = useState(1);
-  const [kycDocType, setKycDocType] = useState("PAN");
+  const [kycStep, setKycStep] = useState(3);
   const [kycStatus, setKycStatus] = useState<string | null>(null);
 
   const [showSip, setShowSip] = useState(false);
@@ -3611,25 +3605,6 @@ function DashNumbers() {
     loadNumbers();
     fetchAgents().then(setLiveAgents).catch(() => {});
   }, [loadNumbers]);
-
-  const [searchError, setSearchError] = useState<string | null>(null);
-
-  const handleSearch = async () => {
-    setSearchLoading(true);
-    setSearchError(null);
-    setSearchResults([]);
-    try {
-      const res = await apiClient.get(`/api/v2/numbers/search?country=${searchCountry}&type=${searchType}&region=${searchRegion}`);
-      if (res.data?.success) {
-        setSearchResults(res.data.data.results || []);
-      }
-    } catch (e: any) {
-      console.error(e);
-      setSearchError(e.message || 'Failed to fetch numbers inventory.');
-    } finally {
-      setSearchLoading(false);
-    }
-  };
 
   const handlePurchase = async (num: any) => {
     setPurchaseLoading(num.e164);
@@ -3710,8 +3685,9 @@ function DashNumbers() {
         // Check if onboarding/KYC is required
         if (purchaseRes.data.data.status === 'KYC Required' || purchaseRes.data.data.kycStatus === 'pending') {
           setShowKyc(purchaseRes.data.data.phoneNumberId || purchaseRes.data.data.id);
-          setKycStep(1);
-          setKycStatus(null);
+          setKycStep(3);
+          setKycStatus('pending');
+          submitKyc();
         } else {
           alert('Phone number purchased and assigned successfully!');
         }
@@ -3805,75 +3781,44 @@ function DashNumbers() {
         message="Are you sure you want to delete this phone number? It will be removed permanently." 
       />
       
-      {/* KYC Wizard Modal */}
-      <DModal open={!!showKyc} onClose={() => { if(kycStep === 3) setShowKyc(null); else setShowKyc(null); }} title="Complete KYC Verification" width="max-w-xl">
+      {/* KYC Status Modal */}
+      <DModal open={!!showKyc} onClose={() => setShowKyc(null)} title="Vobiz Hosted KYC Verification" width="max-w-xl">
         <div className="space-y-6">
-          <div className="flex items-center gap-2 mb-6">
-            <div className={`flex-1 h-1.5 rounded-full ${kycStep >= 1 ? 'bg-foreground' : 'bg-muted'}`} />
-            <div className={`flex-1 h-1.5 rounded-full ${kycStep >= 2 ? 'bg-foreground' : 'bg-muted'}`} />
-            <div className={`flex-1 h-1.5 rounded-full ${kycStep >= 3 ? 'bg-foreground' : 'bg-muted'}`} />
+          <div className="space-y-4 text-center py-6">
+            {kycStatus === 'pending' ? (
+              <>
+                <div className="w-12 h-12 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin mx-auto mb-4" />
+                <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Verification Pending</p>
+                <p className="text-sm text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Vobiz is processing your document verification. This typically completes within a few minutes.</p>
+                {kycRedirectUrl && (
+                  <div className="pt-3">
+                    <a
+                      href={kycRedirectUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all shadow-sm"
+                    >
+                      Re-open Vobiz Verification Portal →
+                    </a>
+                  </div>
+                )}
+              </>
+            ) : kycStatus === 'verified' ? (
+              <>
+                <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-4" />
+                <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>KYC Approved!</p>
+                <p className="text-sm text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Your account is now verified. All phone numbers requiring verification can now be claimed.</p>
+                <DBtn onClick={() => setShowKyc(null)} className="mt-4">Close</DBtn>
+              </>
+            ) : (
+              <>
+                <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Verification Failed</p>
+                <p className="text-sm text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Please try initiating hosted KYC verification again.</p>
+                <DBtn onClick={submitKyc} className="mt-4">Retry KYC Verification</DBtn>
+              </>
+            )}
           </div>
-
-          {kycStep === 1 && (
-            <div className="space-y-4">
-              <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Step 1: Business Type</p>
-              <DField label="Select your entity type">
-                <DSelect>
-                  <option>Individual / Sole Proprietorship</option>
-                  <option>Private Limited Company</option>
-                  <option>Partnership</option>
-                </DSelect>
-              </DField>
-              <div className="flex justify-end pt-4"><DBtn onClick={() => setKycStep(2)}>Continue <ArrowRight className="w-4 h-4"/></DBtn></div>
-            </div>
-          )}
-
-          {kycStep === 2 && (
-            <div className="space-y-4">
-              <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Step 2: Document Upload</p>
-              <DField label="Document Type">
-                <DSelect value={kycDocType} onChange={e => setKycDocType(e.target.value)}>
-                  <option value="PAN">PAN Card</option>
-                  <option value="GST">GST Certificate</option>
-                  <option value="CIN">Certificate of Incorporation (CIN)</option>
-                </DSelect>
-              </DField>
-              <div className="nm-card p-8 text-center cursor-pointer hover:nm-pressed border-dashed border-2 border-border transition-all">
-                <Upload className="w-6 h-6 text-[var(--nm-text)] mx-auto mb-3"/>
-                <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Click to upload {kycDocType}</p>
-              </div>
-              <div className="flex justify-between pt-4">
-                <DBtn variant="secondary" onClick={() => setKycStep(1)}>Back</DBtn>
-                <DBtn onClick={submitKyc}>Submit KYC <Check className="w-4 h-4"/></DBtn>
-              </div>
-            </div>
-          )}
-
-          {kycStep === 3 && (
-            <div className="space-y-4 text-center py-6">
-              {kycStatus === 'pending' ? (
-                <>
-                  <div className="w-12 h-12 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin mx-auto mb-4" />
-                  <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Verification Pending</p>
-                  <p className="text-sm text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Our compliance team is reviewing your documents. This usually takes a few minutes.</p>
-                </>
-              ) : kycStatus === 'verified' ? (
-                <>
-                  <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-4" />
-                  <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>KYC Approved!</p>
-                  <p className="text-sm text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Your phone number is now active and ready to use.</p>
-                  <DBtn onClick={() => setShowKyc(null)} className="mt-4">Close</DBtn>
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                  <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Verification Failed</p>
-                  <p className="text-sm text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Please try submitting your documents again.</p>
-                  <DBtn onClick={() => setKycStep(1)} className="mt-4">Retry KYC</DBtn>
-                </>
-              )}
-            </div>
-          )}
         </div>
       </DModal>
 
