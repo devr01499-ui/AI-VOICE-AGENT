@@ -84,6 +84,7 @@ export class AnalyticsController {
 
       const averageDurationSeconds = durationCount > 0 ? Math.round(totalDurationSeconds / durationCount) : 0;
       const estimatedCostUsd = Math.round((totalDurationSeconds / 60) * 0.05 * 100) / 100; // $0.05 / min estimate
+      const estimatedCostInr = Math.round((totalDurationSeconds / 60) * 5 * 100) / 100; // ₹5.00 / min estimate
 
       // 3. Sentiment Breakdown
       let positive = 0;
@@ -147,6 +148,7 @@ export class AnalyticsController {
           averageDurationSeconds,
           totalDurationMinutes: Math.round(totalDurationSeconds / 60),
           estimatedCostUsd,
+          estimatedCostInr,
           statusBreakdown: {
             completed,
             failed,

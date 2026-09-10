@@ -112,10 +112,17 @@ export class Pipeline {
         }
       },
       onError: (sessId: string, error: Error) => {
-        logger.error('Pipeline Runtime Error:', { message: error.message, stack: error.stack });
+        logger.error('Pipeline Runtime Error:', { callId: this.callId, message: error.message, stack: error.stack });
         eventBus.publish(PROVIDER_EVENTS.ERROR_OCCURRED, {
           callId: this.callId,
           reason: error.message,
+        });
+
+        // Trigger AI stopped speaking event to prevent dead air and inform socket handlers to close or play fallback
+        eventBus.publish(PROVIDER_EVENTS.AI_STOPPED_SPEAKING, {
+          callId: this.callId,
+          interrupted: false,
+          error: error.message,
         });
       },
     };

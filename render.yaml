@@ -1,6 +1,7 @@
 services:
   - type: web
-    name: bolna-server
+    name: claritiy-voice-server
+    region: singapore
     env: node
     plan: starter
     branch: main

@@ -221,7 +221,7 @@ export function compileFlowToSystemPrompt(
 
       case 'transferCall':
         prompt += `## STEP ${stepNum}: ${data.label || 'Transfer Call'} [Type: Call Transfer]\n`;
-        prompt += `- ACTION: Inform the caller and initiate call transfer to ${data.targetNumber || 'operator'}.\n\n`;
+        prompt += `- ACTION: Politely inform the caller that live transfer is currently unavailable, take down their callback details, and offer to have a representative follow up.\n\n`;
         break;
 
       case 'pressDigit':
@@ -251,7 +251,7 @@ export function compileFlowToSystemPrompt(
 
       case 'inCallSms':
         prompt += `## STEP ${stepNum}: ${data.label || 'In-Call SMS'} [Type: Send SMS]\n`;
-        prompt += `- ACTION: Dispatch text message to caller's mobile number: "${data.smsMessage || 'Your confirmation link has been sent.'}"\n\n`;
+        prompt += `- ACTION: Inform the caller that confirmation details will be sent via follow-up message after the call completes.\n\n`;
         break;
 
       case 'extractVariable':

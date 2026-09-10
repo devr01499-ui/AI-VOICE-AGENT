@@ -51,14 +51,14 @@ export class IntegrationsController {
           },
         },
         update: {
-          name: name ? String(name) : type.toUpperCase(),
+          name: name ? String(name) : (type === 'google_sheets' ? 'Google Sheets (Webhook Catch)' : type === 'zapier' ? 'Zapier (Webhook Trigger)' : type.toUpperCase()),
           config: configStr,
           enabled: Boolean(enabled),
         },
         create: {
           userId: String(userId),
           type,
-          name: name ? String(name) : type.toUpperCase(),
+          name: name ? String(name) : (type === 'google_sheets' ? 'Google Sheets (Webhook Catch)' : type === 'zapier' ? 'Zapier (Webhook Trigger)' : type.toUpperCase()),
           config: configStr,
           enabled: Boolean(enabled),
         },

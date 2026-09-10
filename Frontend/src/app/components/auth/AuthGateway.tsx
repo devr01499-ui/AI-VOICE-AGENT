@@ -537,9 +537,9 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
               {/* Footer note */}
               <p className="text-center text-[10px] text-slate-400 leading-relaxed">
                 By continuing, you agree to our{' '}
-                <span className="text-[#059669] font-semibold cursor-pointer hover:underline">Terms of Service</span>{' '}
+                <a href="/terms" onClick={(e) => { e.preventDefault(); window.history.pushState({}, '', '/terms'); window.dispatchEvent(new Event('popstate')); }} className="text-[#059669] font-semibold cursor-pointer hover:underline">Terms of Service</a>{' '}
                 and{' '}
-                <span className="text-[#059669] font-semibold cursor-pointer hover:underline">Privacy Policy</span>
+                <a href="/privacy" onClick={(e) => { e.preventDefault(); window.history.pushState({}, '', '/privacy'); window.dispatchEvent(new Event('popstate')); }} className="text-[#059669] font-semibold cursor-pointer hover:underline">Privacy Policy</a>
               </p>
             </div>
           </div>

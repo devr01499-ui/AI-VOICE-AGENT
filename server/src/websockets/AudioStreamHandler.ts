@@ -323,7 +323,7 @@ export class AudioStreamHandler {
       callOrchestrator.processAudioStream(callId, audioPayload);
 
       if (conn.sessionId) {
-        logger.info('AudioStreamHandler: audio sent to Gemini', {
+        logger.debug('AudioStreamHandler: audio sent to Gemini', {
           callId,
           sessionId: conn.sessionId,
           bytes: audioPayload.length,
