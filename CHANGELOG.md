@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-09-10
+### Fixed
+- Updated Vobiz sub-account live KYC status parsing in `VobizSubAccountService.ts` to check `kyc_calls_blocked` boolean indicator with fail-closed default handling.
+- Enhanced Pipecat pipeline `onError` handling in `core.ts` to publish fallback speech interruption events and prevent line silence on connection errors.
+- Declared explicit hosting region `region: singapore` in `render.yaml` for optimal round-trip latency to Indian telephony carriers.
+- Wired Terms of Service and Privacy Policy links in `AuthGateway.tsx` to active SPA routes `/terms` and `/privacy`.
+- Refactored flow graph compiler node handling for `transferCall` and `inCallSms` in `flowCompiler.ts` to collect callback/follow-up details cleanly.
+- Downgraded per-chunk WebSocket audio streaming logs in `AudioStreamHandler.ts` to `debug` level.
+- Added INR cost estimation `estimatedCostInr` in `AnalyticsController.ts` for Indian currency alignment.
+- Relabeled default integration names in `IntegrationsController.ts` to "Google Sheets (Webhook Catch)" and "Zapier (Webhook Trigger)".
+
 ## [Unreleased] - 2026-09-01
 ### Added
 - Deepened call direction prompt compiler guidance across `SinglePromptStudio.tsx`, `VisualFlowCanvas.tsx`, and `flowCompiler.ts` with explicit operational rules for Inbound (no unprompted sales pitches, active listening, identification first), Outbound (brief opening state identity & reason in 2 sentences, respectful objection handling, direct source attribution, proportional pitch), and Both call modes.

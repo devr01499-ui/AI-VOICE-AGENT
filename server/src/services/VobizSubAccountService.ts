@@ -276,7 +276,7 @@ export class VobizSubAccountService {
 
         if (masterRes.ok) {
           const masterData = (await masterRes.json()) as any;
-          if (masterData?.kyc_status === 'verified' || masterData?.is_verified === true) {
+          if (masterData?.kyc_calls_blocked === false || masterData?.kyc_status === 'verified' || masterData?.is_verified === true) {
             subKycStatus = 'verified';
             isVerified = true;
           }
@@ -290,7 +290,9 @@ export class VobizSubAccountService {
         if (subRes.ok) {
           const subData = (await subRes.json()) as any;
           const liveStatus = (subData?.kyc_status || '').toLowerCase();
-          if (liveStatus === 'verified') {
+          const callsBlocked = subData?.kyc_calls_blocked;
+
+          if (callsBlocked === false || liveStatus === 'verified') {
             subKycStatus = 'verified';
             isVerified = true;
           } else if (liveStatus === 'failed' || liveStatus === 'rejected') {
