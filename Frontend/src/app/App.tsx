@@ -6222,7 +6222,7 @@ export default function App() {
   
   const [page, setPage] = useState<Page>(() => {
     if (typeof window !== "undefined") {
-      const path = window.location.pathname;
+      const path = window.location.pathname.replace(/\/+$/, '') || '/';
       const pathMap: Record<string, Page> = {
         "/": "home",
         "/pricing": "pricing",
@@ -6230,6 +6230,11 @@ export default function App() {
         "/industries": "industries",
         "/dashboard": "dashboard",
         "/login": "dashboard",
+        "/signup": "dashboard",
+        "/register": "dashboard",
+        "/auth": "dashboard",
+        "/auth/callback": "dashboard",
+        "/confirm": "dashboard",
         "/faq": "faq",
         "/contact": "contact",
         "/solutions": "solutions",
@@ -6246,6 +6251,7 @@ export default function App() {
       };
       
       if (pathMap[path]) return pathMap[path];
+      if (path.startsWith("/dashboard") || path.startsWith("/login") || path.startsWith("/signup") || path.startsWith("/register") || path.startsWith("/auth") || path.startsWith("/confirm")) return "dashboard";
       if (path.startsWith("/blog/how-to-reduce-cod-rto")) return "blog-rto";
       if (path.startsWith("/voice-ai-index")) return "voice-ai-index";
     }
@@ -6265,7 +6271,7 @@ export default function App() {
   // Sync state with browser back/forward buttons
   useEffect(() => {
     const handlePopState = () => {
-      const path = window.location.pathname;
+      const path = window.location.pathname.replace(/\/+$/, '') || '/';
       const pathMap: Record<string, Page> = {
         "/": "home",
         "/pricing": "pricing",
@@ -6273,6 +6279,11 @@ export default function App() {
         "/industries": "industries",
         "/dashboard": "dashboard",
         "/login": "dashboard",
+        "/signup": "dashboard",
+        "/register": "dashboard",
+        "/auth": "dashboard",
+        "/auth/callback": "dashboard",
+        "/confirm": "dashboard",
         "/faq": "faq",
         "/contact": "contact",
         "/solutions": "solutions",
@@ -6290,6 +6301,8 @@ export default function App() {
       
       if (pathMap[path]) {
         setPage(pathMap[path]);
+      } else if (path.startsWith("/dashboard") || path.startsWith("/login") || path.startsWith("/signup") || path.startsWith("/register") || path.startsWith("/auth") || path.startsWith("/confirm")) {
+        setPage("dashboard");
       } else if (path.startsWith("/blog/how-to-reduce-cod-rto")) {
         setPage("blog-rto");
       } else if (path.startsWith("/voice-ai-index")) {

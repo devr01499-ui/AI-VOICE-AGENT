@@ -2,6 +2,7 @@
 
 ## [Unreleased] - 2026-09-10
 ### Fixed
+- Fixed Vercel 404 NOT_FOUND error on dashboard signup/auth navigation by updating `vercel.json` rewrites to wildcard `/:path*` pattern and registering `/signup`, `/register`, `/auth`, `/confirm` routes in `Frontend/src/app/App.tsx`.
 - Updated Vobiz sub-account live KYC status parsing in `VobizSubAccountService.ts` to check `kyc_calls_blocked` boolean indicator with fail-closed default handling.
 - Enhanced Pipecat pipeline `onError` handling in `core.ts` to publish fallback speech interruption events and prevent line silence on connection errors.
 - Declared explicit hosting region `region: singapore` in `render.yaml` for optimal round-trip latency to Indian telephony carriers.

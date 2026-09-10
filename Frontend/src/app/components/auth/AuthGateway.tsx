@@ -214,7 +214,16 @@ interface AuthGatewayProps {
 }
 
 export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
-  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot' | 'reset'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot' | 'reset'>(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.toLowerCase();
+      const search = window.location.search.toLowerCase();
+      if (path.includes('signup') || path.includes('register') || search.includes('mode=signup')) {
+        return 'signup';
+      }
+    }
+    return 'signin';
+  });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -230,8 +239,11 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
     if (typeof window !== 'undefined') {
       const hash = window.location.hash;
       const search = window.location.search;
+      const path = window.location.pathname.toLowerCase();
       if (hash.includes('type=recovery') || hash.includes('access_token') || search.includes('type=recovery')) {
         setMode('reset');
+      } else if (path.includes('signup') || path.includes('register') || search.includes('mode=signup')) {
+        setMode('signup');
       }
     }
 
@@ -257,11 +269,12 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
         if (signInError) throw signInError;
         if (onSuccess) onSuccess();
       } else if (mode === 'signup') {
+        const redirectUrl = `${window.location.origin}/dashboard`;
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: redirectUrl,
             data: { full_name: fullName, account_type: accountType, contact_number: contactNumber },
           },
         });
@@ -274,7 +287,7 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
         }
       } else if (mode === 'forgot') {
         const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}`,
+          redirectTo: `${window.location.origin}/dashboard`,
         });
         if (resetError) throw resetError;
         setMessage('A password reset link has been sent to your email address. Please check your inbox.');
@@ -294,7 +307,12 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
   const handleGoogleOAuth = async () => {
     setError('');
     try {
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`
+        }
+      });
       if (oauthError) throw oauthError;
     } catch (err: any) {
       setError(err.message || 'Google sign-in failed.');
