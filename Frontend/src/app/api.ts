@@ -1,5 +1,5 @@
 /**
- * api.ts — Centralized typed API client for bOLNA Frontend
+ * api.ts — Centralized typed API client for Claritiy Voice Frontend
  *
  * SIGNALING DESTINATION: https://ai-voice-agent-backend-mv32.onrender.com
  * All requests include `x-user-id` header for dev-mode auth bypass.

@@ -241,13 +241,13 @@ const PILLARS = [
   {
     id: "security",
     title: "Compliance & Secure Voice AI",
-    subtitle: "HIPAA & SOC 2 Ready",
-    desc: "Rigorous compliance logging and audit logs. Built-in edge PII protection, GDPR compliance, PCI-DSS compliance, and secure ISO 27001 data redaction.",
+    subtitle: "MSME Registered & DPDP Aligned",
+    desc: "Rigorous compliance logging and audit logs. Built-in edge PII protection, DPDP Act compliance, and secure TLS 1.3 data encryption.",
     icon: ShieldCheck,
     accent: "#059669",
     bg: "#D1FAE5",
     visual: ComplianceVisual,
-    keywords: ["compliance logging", "audit logs", "PII protection", "GDPR voice AI", "PCI compliant voice AI", "HIPAA compliant voice AI", "SOC 2 voice AI", "ISO 27001 voice AI", "data privacy voice automation"]
+    keywords: ["compliance logging", "audit logs", "PII protection", "MSME voice AI", "DPDP Act voice AI", "TLS 1.3 voice AI", "data privacy voice automation"]
   },
   {
     id: "campaigns",

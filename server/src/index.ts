@@ -1,5 +1,5 @@
 /**
- * Bolna Server — Express Application Entrypoint
+ * Claritiy Voice Server — Express Application Entrypoint
  *
  * Production-grade Express 5 server with:
  *   - Structured JSON request logging

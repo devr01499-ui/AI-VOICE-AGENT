@@ -1,5 +1,5 @@
 /**
- * Bolna Voice Runtime Engine — Tool Executor
+ * Claritiy Voice Runtime Engine — Tool Executor
  *
  * Registry-based tool execution framework. Tools are registered by
  * {@link ToolDefinition} and dispatched to the appropriate handler

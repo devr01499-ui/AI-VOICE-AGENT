@@ -4,7 +4,7 @@
 This charter defines the scope, objectives, and stakeholders for the **Voice AI Agent Dashboard**—a production-grade, no-code visual dashboard that enables enterprises to build, configure, and monitor conversational voice agents.
 
 ## 2. Strategic Alignment & Goals
-- **Objective**: Deliver a seamless visual editor that rivals platform.bolna.ai.
+- **Objective**: Deliver a seamless visual editor that rivals leading visual voice platforms.
 - **Key Metrics**:
   - High perceived performance (Lighthouse > 90)
   - Accessibility compliance (WCAG 2.1 AA)

@@ -1,4 +1,4 @@
-// Bolna Voice Runtime Engine — Error Classes
+// Claritiy Voice Runtime Engine — Error Classes
 
 /**
  * Base application error with HTTP status code and operational flag.

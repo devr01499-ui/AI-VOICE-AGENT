@@ -209,7 +209,7 @@ function UseCaseSection({ setPage }: { setPage: (p: Page) => void }) {
     { step: "FIRST USE CASE", num: "01", title: "APPOINTMENTS", desc: "Automate booking, demo scheduling, and calendar integration. Reduce no-shows by 89%.", icon: Clock },
     { step: "SECOND USE CASE", num: "02", title: "QUALIFICATION", desc: "Contact leads within 3s of form submission. Qualify budgets and score intent.", icon: TrendingUp },
     { step: "THIRD USE CASE", num: "03", title: "INBOUND", desc: "Handle inbound calls, answer FAQs, and intelligently route to human agents.", icon: PhoneCall },
-    { step: "FOURTH USE CASE", num: "04", title: "COLLECTIONS", desc: "Automate EMI reminders and debt outreach with PCI-DSS compliance.", icon: Activity },
+    { step: "FOURTH USE CASE", num: "04", title: "COLLECTIONS", desc: "Automate EMI reminders and debt outreach with secure data handling.", icon: Activity },
   ];
 
   // Colors from the design: Teal, Orange, Beige, Brown
@@ -338,7 +338,7 @@ function ComparisonSection({ setPage }: { setPage: (p: Page) => void }) {
     { feature: "Multilingual Support", claritiy: "✅ 70+ Languages", vapi: "✅ Limited", legacy: "⚠️ Per hire" },
     { feature: "Concurrent Calls", claritiy: "✅ Unlimited", vapi: "⚠️ Rate limited", legacy: "❌ Team capacity" },
     { feature: "RAG Knowledge Base", claritiy: "✅ Built-in", vapi: "⚠️ Manual setup", legacy: "❌ Scripts only" },
-    { feature: "HIPAA / SOC 2", claritiy: "✅ Full Compliance", vapi: "⚠️ Partial", legacy: "⚠️ Varies" },
+    { feature: "MSME Registered", claritiy: "✅ Ministry Registered", vapi: "❌ N/A (US Only)", legacy: "⚠️ N/A" },
     { feature: "Pricing Model", claritiy: "✅ Flat ₹3.99/min", vapi: "❌ STT+LLM+TTS billed separately", legacy: "❌ ₹25K+/agent/mo" },
     { feature: "Setup Time", claritiy: "✅ < 10 minutes", vapi: "⚠️ Days of engineering", legacy: "❌ Weeks of hiring" },
   ];
@@ -462,7 +462,7 @@ function FinalCTA({ setPage }: { setPage: (p: Page) => void }) {
                 "Payment reminders",
                 "Warm call transfer",
                 "Multilingual voice AI",
-                "HIPAA & SOC 2",
+                "MSME Certified Enterprise",
                 "CRM integration",
                 "Real-time analytics",
               ].map((f, i) => (
@@ -614,7 +614,7 @@ export default function Home({ setPage }: HomeProps) {
               {[
                 { icon: Zap, title: "Sub-180ms End-to-End Latency", desc: "No REST overhead — direct audio streaming", color: "#059669" },
                 { icon: Globe2, title: "70+ Regional Dialects, Zero Translation", desc: "Native speech models, no lossy intermediate API", color: "#EA580C" },
-                { icon: ShieldCheck, title: "Edge-Level PII/PHI Redaction", desc: "HIPAA, SOC 2, PCI-DSS compliance built-in", color: "#059669" },
+                { icon: ShieldCheck, title: "Edge-Level PII Redaction", desc: "MSME Certified, DPDP Act & TLS 1.3 encryption", color: "#059669" },
                 { icon: Network, title: "Function Calling & Tool Calling", desc: "Real-time API execution while live on the call", color: "#EA580C" },
               ].map(({ icon: Icon, title, desc, color }, i) => (
                 <motion.div
@@ -659,13 +659,13 @@ export default function Home({ setPage }: HomeProps) {
               </div>
               <h2 className="text-3xl lg:text-5xl font-extrabold text-white"
                 style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
-                Enterprise-Grade Compliance & Secure Voice AI
+                Enterprise Security & MSME Certification
               </h2>
               <p className="text-white/55 max-w-2xl mx-auto text-base leading-relaxed">
-                Claritiy Voice is the most compliance-ready AI voice platform available. Edge-level PII/PHI redaction, consent-based calling, audit logs, and escalation logic — built for regulated industries including healthcare, banking, insurance, and finance.
+                Claritiy Voice is an officially registered MSME enterprise. Edge-level PII redaction, consent-based calling, audit logs, and escalation logic — built for performance and compliance.
               </p>
               <div className="flex flex-wrap justify-center gap-3">
-                {["🔒 SOC 2 TYPE II", "🏥 HIPAA BAA READY", "🛡️ ISO 27001", "⚖️ GDPR & DPDP ACT", "💳 PCI-DSS COMPLIANT", "📋 CONSENT-BASED CALLS"].map((b, i) => (
+                {["📜 MSME REGISTERED", "🔒 256-BIT TLS 1.3", "🛡️ AES-256 ENCRYPTION", "⚖️ DPDP ACT ALIGNED", "📋 CONSENT-BASED CALLS"].map((b, i) => (
                   <span key={i} className="text-xs font-bold font-mono px-4 py-2 rounded-full"
                     style={{ background: "rgba(255,255,255,0.08)", color: "#A7F3D0", border: "1px solid rgba(167,243,208,0.2)" }}>
                     {b}

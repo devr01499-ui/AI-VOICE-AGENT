@@ -471,13 +471,13 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
                   '1 Free Phone Number Included',
                   'Everything in Growth',
                   'Dedicated SIP IP Addresses',
-                  'HIPAA & SOC 2 BAA Agreement',
+                  'MSME Registered Enterprise Verification',
                   '99.99% Uptime SLA'
                 ] : [
                   '10,000 Bundled Mins (₹2.99/min overage)',
                   '200+ Unlimited Concurrent Channels',
                   'Dedicated SIP IP Trunking & IP Whitelisting',
-                  'HIPAA BAA & SOC 2 Type II Agreement',
+                  'MSME Enterprise Certification & Audit Trail',
                   'Custom On-Prem / VPC Proxy Egress',
                   '99.99% Guaranteed SLA Uptime'
                 ]).map(f => (

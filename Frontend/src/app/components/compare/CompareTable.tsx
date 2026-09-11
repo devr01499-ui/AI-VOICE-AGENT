@@ -6,43 +6,37 @@ export default function CompareTable() {
       feature: "Per-Minute Cost (India)",
       claritiy: "₹3.99/min (Flat Rate)",
       vapi: "~₹26.50/min (Stacked provider fees)",
-      retell: "~₹31.00/min (Higher for India PSTN)",
-      bolna: "~₹15.00/min (Variable STT/TTS Surcharges)"
+      retell: "~₹31.00/min (Higher for India PSTN)"
     },
     {
       feature: "End-to-End Latency",
       claritiy: "< 180ms (Native Multimodal)",
       vapi: "800ms - 1,500ms (API pipeline lag)",
-      retell: "800ms - 1,200ms (API pipeline lag)",
-      bolna: "900ms - 1,800ms (API pipeline lag)"
+      retell: "800ms - 1,200ms (API pipeline lag)"
     },
     {
       feature: "Native Indian Languages",
       claritiy: "✅ Native (Hindi, Marathi, Bengali, Tamil, Telugu, Gujarati, Malayalam, English-IN)",
       vapi: "⚠️ Limited / English-focused",
-      retell: "⚠️ Limited / English-focused",
-      bolna: "⚠️ Restricted regional capability"
+      retell: "⚠️ Limited / English-focused"
     },
     {
       feature: "Pre-Built Workflows",
       claritiy: "✅ Yes (Shopify, Healthcare, Real Estate ready)",
       vapi: "❌ Requires building from scratch",
-      retell: "❌ Requires building from scratch",
-      bolna: "❌ Requires building from scratch"
+      retell: "❌ Requires building from scratch"
     },
     {
       feature: "Full-Duplex Interruption",
       claritiy: "✅ Instant Pauses (<120ms response)",
       vapi: "⚠️ Lagged interruption threshold",
-      retell: "⚠️ Configurable but latency-prone",
-      bolna: "⚠️ Prone to voice collision overlaps"
+      retell: "⚠️ Configurable but latency-prone"
     },
     {
       feature: "Transparent Billing",
       claritiy: "✅ Single Invoice in INR (₹)",
       vapi: "❌ Stacked keys (OpenAI + ElevenLabs + Deepgram)",
-      retell: "❌ Stacked keys (OpenAI + ElevenLabs + Deepgram)",
-      bolna: "❌ Stacked keys (OpenAI + ElevenLabs + Deepgram)"
+      retell: "❌ Stacked keys (OpenAI + ElevenLabs + Deepgram)"
     }
   ];
 
@@ -56,7 +50,6 @@ export default function CompareTable() {
               <th className="p-5 font-bold text-[#059669]">Claritiy Voice</th>
               <th className="p-5 font-semibold text-slate-500">Vapi</th>
               <th className="p-5 font-semibold text-slate-500">Retell AI</th>
-              <th className="p-5 font-semibold text-slate-500">Bolna</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#EADEC9]/55 text-slate-700">
@@ -66,7 +59,6 @@ export default function CompareTable() {
                 <td className="p-5 text-[#059669] bg-emerald-50/20 font-bold">{row.claritiy}</td>
                 <td className="p-5 text-slate-600 font-semibold">{row.vapi}</td>
                 <td className="p-5 text-slate-600 font-semibold">{row.retell}</td>
-                <td className="p-5 text-slate-600 font-semibold">{row.bolna}</td>
               </tr>
             ))}
           </tbody>
@@ -79,7 +71,7 @@ export default function CompareTable() {
         <div className="space-y-1">
           <h4 className="font-sora text-sm font-bold text-[#D97706]">Understanding "Stacked API Pricing"</h4>
           <p className="text-xs text-slate-600 leading-relaxed font-plus-jakarta">
-            Standard voice agents (Vapi, Retell, Bolna) charge a platform orchestration fee (usually $0.15/min) and require you to connect your own API keys. You pay separately for Speech-to-Text (Deepgram), LLM reasoning (OpenAI), and Text-to-Speech (ElevenLabs). This often inflates costs above ₹25.00/min. Claritiy Voice provides a flat, all-inclusive rate of ₹3.99/min out of the box.
+            Standard voice agents (Vapi, Retell) charge a platform orchestration fee (usually $0.15/min) and require you to connect your own API keys. You pay separately for Speech-to-Text (Deepgram), LLM reasoning (OpenAI), and Text-to-Speech (ElevenLabs). This often inflates costs above ₹25.00/min. Claritiy Voice provides a flat, all-inclusive rate of ₹3.99/min out of the box.
           </p>
         </div>
       </div>

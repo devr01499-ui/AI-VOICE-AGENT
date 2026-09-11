@@ -1,5 +1,5 @@
 /**
- * Bolna Voice Runtime Engine — Conversation State Manager
+ * Claritiy Voice Runtime Engine — Conversation State Manager
  *
  * Maintains in-memory conversation state for each active call session.
  * Tracks turns (capped at {@link MAX_TURNS}), context variables, user data,

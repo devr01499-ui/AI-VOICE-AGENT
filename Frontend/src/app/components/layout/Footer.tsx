@@ -39,9 +39,9 @@ export default function Footer({ setPage }: FooterProps) {
             Enterprise-grade conversational voice AI automation. Built for high-volume order confirmation, customer qualification, and appointment scheduling.
           </p>
           <div className="flex flex-wrap items-center gap-2 mt-4">
-            <span className="text-[10px] font-bold text-slate-500 border border-[#EADEC9] rounded px-2 py-0.5 bg-white font-mono">HIPAA COMPLIANT</span>
-            <span className="text-[10px] font-bold text-slate-500 border border-[#EADEC9] rounded px-2 py-0.5 bg-white font-mono">SOC 2 TYPE II</span>
-            <span className="text-[10px] font-bold text-slate-500 border border-[#EADEC9] rounded px-2 py-0.5 bg-white font-mono">GDPR AUDITED</span>
+            <span className="text-[10px] font-bold text-slate-500 border border-[#EADEC9] rounded px-2 py-0.5 bg-white font-mono">MSME REGISTERED</span>
+            <span className="text-[10px] font-bold text-slate-500 border border-[#EADEC9] rounded px-2 py-0.5 bg-white font-mono">TLS 1.3 ENCRYPTED</span>
+            <span className="text-[10px] font-bold text-slate-500 border border-[#EADEC9] rounded px-2 py-0.5 bg-white font-mono">DPDP ALIGNED</span>
           </div>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-12 w-full md:w-auto">

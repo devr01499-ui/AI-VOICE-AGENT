@@ -109,7 +109,7 @@ This deep technical guide explains how native WebRTC zero-copy audio pipelines e
   },
   {
     id: "clinic-patient-intake",
-    title: "Automating Clinic Patient Intake: A HIPAA-Compliant Guide to AI Voice Receptionists",
+    title: "Automating Clinic Patient Intake: A Secure Guide to AI Voice Receptionists",
     date: "July 12, 2026",
     author: "Dr. Elena Rostova",
     category: "Healthcare",
@@ -117,10 +117,10 @@ This deep technical guide explains how native WebRTC zero-copy audio pipelines e
     featured: false,
     excerpt: "Healthcare clinic reception desks face constant phone call queues for scheduling, pre-procedure prep, and intake.",
     nonTechSummary: "Clinics can answer every patient call on the first ring, schedule appointments automatically, and remind patients about clinic prep rules without hiring extra front-desk staff.",
-    techSummary: "Zero-retention audio buffer architecture, HIPAA BAA compliance, FHIR R4 API contracts, and real-time PII/PHI edge redaction.",
+    techSummary: "Zero-retention audio buffer architecture, encrypted data transport, FHIR R4 API contracts, and real-time PII edge redaction.",
     content: `Healthcare clinic reception desks face constant phone call queues for scheduling, pre-procedure prep, and intake.
 
-AI voice receptionists answer calls on the first ring, schedule appointments directly into EHR software (Epic, Cerner), and enforce strict HIPAA Data Redaction at Edge.`
+AI voice receptionists answer calls on the first ring, schedule appointments directly into EHR software (Epic, Cerner), and enforce strict Data Redaction at Edge.`
   },
   {
     id: "real-estate-lead-qualification",
@@ -147,25 +147,25 @@ AI voice agents place immediate qualification calls, check buyer budget criteria
     featured: false,
     excerpt: "Traditional debt recovery outreach causes high customer friction and regulatory risk.",
     nonTechSummary: "Polite, respectful automated calls guide borrowers through payment schedules and send direct UPI/Razorpay payment links during the call without rude pressure.",
-    techSummary: "PCI-DSS payment webhook triggers, core banking integration (Finacle/T24), and regulatory audit logging.",
+    techSummary: "Secure payment webhook triggers, core banking integration (Finacle/T24), and regulatory audit logging.",
     content: `Traditional debt recovery outreach causes high customer friction and regulatory risk.
 
 Conversational AI voice agents maintain polite, non-judgmental dialogue, negotiate pre-approved EMI payment schedules, and send secure SMS payment links in real time.`
   },
   {
     id: "voice-ai-compliance-guide",
-    title: "AI Voice Agent Compliance Guide: SOC 2, HIPAA, GDPR, and DPDP Act Standards Explained",
+    title: "AI Voice Agent Compliance Guide: DPDP Act, MSME Certification & Data Privacy Explained",
     date: "July 01, 2026",
     author: "Security & Legal Counsel",
     category: "Compliance",
     readTime: "13 min read",
     featured: false,
-    excerpt: "Deploying AI voice agents in regulated industries demands robust data protection.",
-    nonTechSummary: "A simple guide to how voice AI keeps customer conversations private, protects financial data, and complies with international privacy laws.",
-    techSummary: "AES-256 resting data encryption, TLS 1.3/SRTP transport, edge regex PII scrubber, and ISO 27001 audit logging.",
-    content: `Deploying AI voice agents in regulated industries demands robust data protection.
+    excerpt: "Deploying AI voice agents in enterprise environments demands robust data protection.",
+    nonTechSummary: "A simple guide to how voice AI keeps customer conversations private, protects financial data, and complies with Indian privacy laws.",
+    techSummary: "AES-256 resting data encryption, TLS 1.3/SRTP transport, edge regex PII scrubber, and audit logging.",
+    content: `Deploying AI voice agents in enterprise environments demands robust data protection.
 
-Learn how edge-based PII/PHI redaction, ISO 27001 protocols, and DPDP Act 2023 compliance safeguard customer audio logs.`
+Learn how edge-based PII redaction, MSME registration, and DPDP Act 2023 compliance safeguard customer audio logs.`
   }
 ];
 

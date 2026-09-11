@@ -17,8 +17,8 @@ const FAQS = [
     a: "Yes. Claritiy Voice's outbound voice AI platform can launch 10,000+ simultaneous outbound calls with smart retry logic for busy lines. Use cases include lead qualification, COD order verification, appointment reminders, payment collections, and reactivation campaigns — all automated without human agents.",
   },
   {
-    q: "Is Claritiy Voice HIPAA and PCI-DSS compliant?",
-    a: "Yes. Claritiy Voice implements edge-level PII/PHI data redaction before any log or transcript is stored. We are SOC 2 Type II audited, HIPAA BAA available on enterprise plans, and PCI-DSS compliant. Our compliance logging and audit trails meet GDPR, ISO 27001, and India's DPDP Act requirements.",
+    q: "Is Claritiy Voice an MSME certified enterprise?",
+    a: "Yes. Claritiy Voice is an officially registered Micro, Small & Medium Enterprise (MSME) under the Ministry of MSME, Government of India. We implement edge-level PII data redaction, TLS 1.3/AES-256 encryption, and consent-based calling in full alignment with India's DPDP Act.",
   },
   {
     q: "What languages does Claritiy Voice AI phone agents support?",

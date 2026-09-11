@@ -1,5 +1,5 @@
 /**
- * Bolna Server — Vobiz Telephony Provider
+ * Claritiy Voice Server — Vobiz Telephony Provider
  *
  * REST client for the Vobiz voice API. Handles outbound call placement,
  * termination, and status polling. All failures are wrapped in ProviderError

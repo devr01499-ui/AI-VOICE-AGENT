@@ -57,7 +57,7 @@ function generateArticleContent(topicId: string, title: string, category: string
       subtitle: "Compliance, Security & Audit Logs",
       paragraphs: [
         `Regulated industries such as healthcare clinics, financial banking, and insurance carriers require absolute adherence to strict compliance guidelines. Deploying "${cleanTitle}" necessitates a security-first posture that integrates edge-based data redaction. Before any audio transcript or call recording is saved to a persistent database, the PII protection engine scrubs credit card numbers, personal health identifiers (PHI), and contact numbers.`,
-        `This workflow maintains compatibility with SOC 2 Type II, HIPAA BAA, PCI-DSS compliance, and GDPR audit logging. Additionally, the system enforces consent-based calling protocols, matching contact records against National Do Not Call (DNC) registers and logging verified user consent signatures in real time, neutralizing legal risks before the call even initializes.`
+        `This workflow maintains full alignment with India's DPDP Act, MSME enterprise standards, TLS 1.3/AES-256 encryption, and audit logging. Additionally, the system enforces consent-based calling protocols, matching contact records against National Do Not Call (DNC) registers and logging verified user consent signatures in real time, neutralizing legal risks before the call even initializes.`
       ]
     },
     {

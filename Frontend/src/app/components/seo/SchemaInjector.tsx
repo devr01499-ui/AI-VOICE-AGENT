@@ -67,7 +67,7 @@ export default function SchemaInjector({ page }: SchemaInjectorProps) {
           },
           {
             "@type": "Question",
-            "name": "How is Claritiy Voice different from Bolna, Retell, or Vapi?",
+            "name": "How is Claritiy Voice different from Retell or Vapi?",
             "acceptedAnswer": {
               "@type": "Answer",
               "text": "Claritiy Voice is built specifically around COD order confirmation and RTO reduction, with the workflow ready out of the box — general voice AI platforms require building that flow yourself, and typically charge separately for speech-to-text, the language model, and text-to-speech rather than one transparent per-minute price."
