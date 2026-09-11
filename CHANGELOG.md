@@ -4,6 +4,7 @@
 ### Fixed
 - Replaced all unverified compliance claims (SOC 2 Type II, HIPAA BAA, ISO 27001, GDPR, PCI-DSS) across marketing and application pages with **MSME Certified Enterprise (Govt. of India MSME Registered)**, **256-Bit TLS 1.3 Encryption**, **AES-256 Data Protection**, and **DPDP Act Alignment**.
 - Purged all occurrences of competitor name "Bolna" repo-wide across package manifests (`package.json`, `server/package.json`), Docker configs (`docker-compose.yml`), seed files (`scripts/seed-supabase.ts`), env examples (`server/.env.example`), comparison tables (`CompareTable.tsx`, `App.tsx`), SEO schema injectors (`SchemaInjector.tsx`), and server module headers.
+- Consolidated complete Vercel routing rules (`cleanUrls`, `trailingSlash`, canonical domain redirects for `insightclaritiysolution.com`, and SPA wildcard rewrite `/(.*)` -> `/index.html`) into `Frontend/vercel.json` and deleted unread root `vercel.json` to fix 404 routing errors on direct URL hits and auth callbacks when Root Directory is set to `Frontend`.
 
 ## [Unreleased] - 2026-09-10
 ### Fixed
