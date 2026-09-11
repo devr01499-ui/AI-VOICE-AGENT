@@ -1,5 +1,5 @@
 /**
- * Bolna Server — Provider Manager
+ * Claritiy Voice Server — Provider Manager
  *
  * Singleton registry for all external service providers. Components request
  * providers by name or role (telephony/realtime) rather than constructing

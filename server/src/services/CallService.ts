@@ -1,5 +1,5 @@
 /**
- * Bolna Server — Call Service
+ * Claritiy Voice Server — Call Service
  *
  * Business logic layer for call operations. Validates inputs, coordinates
  * between repositories and the VoiceRuntimeEngine, and enforces business

@@ -1,5 +1,5 @@
 /**
- * Bolna Server — Provider Interfaces
+ * Claritiy Voice Server — Provider Interfaces
  *
  * Abstract contracts for all external service integrations.
  * Implementations must handle connection lifecycle, health monitoring,

@@ -3,7 +3,7 @@ version: '3.8'
 services:
   drachtio:
     image: drachtio/drachtio-server:latest
-    container_name: bolna-drachtio
+    container_name: claritiy-voice-drachtio
     restart: unless-stopped
     ports:
       - "${SIP_PORT:-5060}:5060/udp"
@@ -18,13 +18,13 @@ services:
       --port 9022 
       --loglevel info
     networks:
-      - bolna-network
+      - claritiy-voice-network
 
   server:
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: bolna-server
+    container_name: claritiy-voice-server
     restart: unless-stopped
     ports:
       - "${PORT:-3001}:${PORT:-3001}"
@@ -41,8 +41,8 @@ services:
     depends_on:
       - drachtio
     networks:
-      - bolna-network
+      - claritiy-voice-network
 
 networks:
-  bolna-network:
+  claritiy-voice-network:
     driver: bridge

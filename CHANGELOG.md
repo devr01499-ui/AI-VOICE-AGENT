@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-09-11
+### Fixed
+- Replaced all unverified compliance claims (SOC 2 Type II, HIPAA BAA, ISO 27001, GDPR, PCI-DSS) across marketing and application pages with **MSME Certified Enterprise (Govt. of India MSME Registered)**, **256-Bit TLS 1.3 Encryption**, **AES-256 Data Protection**, and **DPDP Act Alignment**.
+- Purged all occurrences of competitor name "Bolna" repo-wide across package manifests (`package.json`, `server/package.json`), Docker configs (`docker-compose.yml`), seed files (`scripts/seed-supabase.ts`), env examples (`server/.env.example`), comparison tables (`CompareTable.tsx`, `App.tsx`), SEO schema injectors (`SchemaInjector.tsx`), and server module headers.
+
 ## [Unreleased] - 2026-09-10
 ### Fixed
 - Fixed Vercel 404 NOT_FOUND error on dashboard signup/auth navigation by updating `vercel.json` rewrites to wildcard `/:path*` pattern and registering `/signup`, `/register`, `/auth`, `/confirm` routes in `Frontend/src/app/App.tsx`.

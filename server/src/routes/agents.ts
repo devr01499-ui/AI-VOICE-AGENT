@@ -1,5 +1,5 @@
 /**
- * Bolna Server — Agent Routes
+ * Claritiy Voice Server — Agent Routes
  *
  * Enforces strict user-wise database isolation gates.
  */

@@ -1,4 +1,4 @@
-// Bolna Voice Runtime Engine — Type Definitions
+// Claritiy Voice Runtime Engine — Type Definitions
 
 // ─────────────────────────────────────────────
 // Core Enums (as union types)

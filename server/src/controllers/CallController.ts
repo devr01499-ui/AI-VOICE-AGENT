@@ -1,5 +1,5 @@
 /**
- * Bolna Server — Call Controller
+ * Claritiy Voice Server — Call Controller
  *
  * Thin HTTP translation layer between Express routes and the CallService.
  * No business logic here — only request parsing, service delegation,

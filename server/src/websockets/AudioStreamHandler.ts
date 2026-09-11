@@ -1,5 +1,5 @@
 /**
- * Bolna Server — WebSocket Audio Stream Handler
+ * Claritiy Voice Server — WebSocket Audio Stream Handler
  * 
  * Refactored to utilize the decoupled Provider SDK & CallOrchestrator.
  */

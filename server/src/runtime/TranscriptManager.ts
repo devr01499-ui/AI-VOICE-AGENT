@@ -1,5 +1,5 @@
 /**
- * Bolna Server — Transcript Manager
+ * Claritiy Voice Server — Transcript Manager
  *
  * Real-time transcript persistence layer. Receives utterance events from
  * the RealtimeSessionManager, assigns sequence numbers, and writes to

@@ -1,5 +1,5 @@
 /**
- * Bolna Server — Webhook Routes
+ * Claritiy Voice Server — Webhook Routes
  *
  * Endpoints that Vobiz hits during call lifecycle events.
  * These are registered as answer_url, ring_url, and hangup_url

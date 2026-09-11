@@ -1,5 +1,5 @@
 /**
- * Bolna Server — Prisma Configuration (v7+)
+ * Claritiy Voice Server — Prisma Configuration (v7+)
  *
  * Prisma 7 moved the datasource URL out of schema.prisma and into
  * this TypeScript configuration file.

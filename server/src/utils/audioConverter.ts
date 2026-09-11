@@ -1,5 +1,5 @@
 /**
- * Bolna Server — Audio Codec Converter
+ * Claritiy Voice Server — Audio Codec Converter
  * 
  * Converts mu-law (μ-law) encoded audio from Vobiz to PCM16 format
  * expected by Gemini and OpenAI Realtime APIs.

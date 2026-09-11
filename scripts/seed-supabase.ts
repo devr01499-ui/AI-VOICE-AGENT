@@ -49,11 +49,11 @@ async function main() {
   // Create user
   const userId = '1e69187e-82d5-4166-929f-4bbba90e5304';
   const user = await prisma.user.upsert({
-    where: { email: 'dev@bolna.ai' },
+    where: { email: 'dev@claritiy.com' },
     update: {},
     create: {
       id: userId,
-      email: 'dev@bolna.ai',
+      email: 'dev@claritiy.com',
       passwordHash: 'dummy-hash',
       fullName: 'Developer User',
       accountType: 'developer',

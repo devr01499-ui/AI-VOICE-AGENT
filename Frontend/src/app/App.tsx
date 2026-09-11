@@ -163,7 +163,7 @@ function IndustriesPage({ setPage }: { setPage: (p: Page) => void }) {
       name: "Financial Services",
       tagline: "Secure, compliant conversations at scale.",
       description:
-        "Handle fraud alerts, loan inquiries, account servicing, and collections with voice agents that are PCI-DSS compliant, always consistent, and never rude — even on the toughest calls.",
+        "Handle fraud alerts, loan inquiries, account servicing, and collections with voice agents that are secure and encrypted, always consistent, and never rude — even on the toughest calls.",
       useCases: ["Fraud alert outreach", "Loan application follow-up", "Collections & payment plans", "KYC verification", "Card activation"],
       stat: "3.4\u00d7",
       statLabel: "collection rate improvement",
@@ -431,7 +431,7 @@ function PricingPage({ setPage }: { setPage: (p: Page) => void }) {
         "Everything in Growth",
         "Dedicated SIP IP Addresses",
         "Custom Voice Personas & Cloning",
-        "HIPAA & SOC 2 BAA Agreement"
+        "MSME Registered Enterprise Verification"
       ],
       cta: "Purchase Enterprise Plan",
       highlight: false,
@@ -6115,43 +6115,37 @@ function ComparePage({ setPage }: { setPage: (p: Page) => void }) {
       feature: "Flat Per-Minute Rate",
       claritiy: "₹3.99/min (Flat pay-as-you-go)",
       vapi: "~₹26.50/min (Stacked fees)",
-      retell: "~₹31.00/min (Stacked fees)",
-      bolna: "~₹15.00/min (Inconsistent charges)"
+      retell: "~₹31.00/min (Stacked fees)"
     },
     {
       feature: "Shopify & Woo Integrations",
       claritiy: "✅ Native (1-click plugin setup)",
       vapi: "❌ Developer custom code required",
-      retell: "❌ Developer custom code required",
-      bolna: "❌ Custom webhook integration only"
+      retell: "❌ Developer custom code required"
     },
     {
       feature: "Regional Indian Dialects",
       claritiy: "✅ Mapped & optimized (Hi, Bn, Kn, Ml, Gu)",
       vapi: "⚠️ Global model support (high latency)",
-      retell: "⚠️ Global model support (high latency)",
-      bolna: "⚠️ Restricted regional capability"
+      retell: "⚠️ Global model support (high latency)"
     },
     {
       feature: "RTO Address Landmarks",
       claritiy: "✅ Auto-parses pincodes & landmarks",
       vapi: "❌ Build custom prompt maps manually",
-      retell: "❌ Build custom prompt maps manually",
-      bolna: "❌ Build custom prompt maps manually"
+      retell: "❌ Build custom prompt maps manually"
     },
     {
       feature: "Duplex Barge-In Latency",
       claritiy: "✅ < 180ms response speed",
       vapi: "⚠️ ~240ms to 320ms latency",
-      retell: "⚠️ ~200ms to 280ms latency",
-      bolna: "⚠️ ~350ms latency"
+      retell: "⚠️ ~200ms to 280ms latency"
     },
     {
       feature: "Compliance Standards",
-      claritiy: "✅ HIPAA, SOC 2, GDPR, PCI-DSS",
-      vapi: "✅ HIPAA, SOC 2, GDPR, PCI-DSS",
-      retell: "✅ HIPAA, SOC 2, GDPR, PCI-DSS",
-      bolna: "⚠️ Varies by custom server deployment"
+      claritiy: "✅ MSME Registered, DPDP Act, TLS 1.3",
+      vapi: "⚠️ Standard US compliance",
+      retell: "⚠️ Standard US compliance"
     }
   ];
 
@@ -6183,7 +6177,6 @@ function ComparePage({ setPage }: { setPage: (p: Page) => void }) {
                 <th className="p-5 font-bold text-cyan-400">Claritiy Voice</th>
                 <th className="p-5 font-semibold text-slate-400">Vapi</th>
                 <th className="p-5 font-semibold text-slate-400">Retell AI</th>
-                <th className="p-5 font-semibold text-slate-400">Bolna</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-850 text-slate-300 font-plus-jakarta">
@@ -6193,7 +6186,6 @@ function ComparePage({ setPage }: { setPage: (p: Page) => void }) {
                   <td className="p-5 text-cyan-300 bg-cyan-950/10 font-semibold">{row.claritiy}</td>
                   <td className="p-5 text-slate-400">{row.vapi}</td>
                   <td className="p-5 text-slate-400">{row.retell}</td>
-                  <td className="p-5 text-slate-400">{row.bolna}</td>
                 </tr>
               ))}
             </tbody>
@@ -6206,7 +6198,7 @@ function ComparePage({ setPage }: { setPage: (p: Page) => void }) {
           <div className="space-y-1">
             <h4 className="font-sora text-sm font-bold text-amber-300">Understanding "Stacked API Pricing"</h4>
             <p className="text-xs text-slate-400 leading-relaxed font-plus-jakarta">
-              Standard voice agents (Vapi, Retell, Bolna) charge a platform orchestration fee (usually $0.15/min) and require you to connect your own API keys. You pay separately for Speech-to-Text (Deepgram), LLM reasoning (OpenAI), and Text-to-Speech (ElevenLabs). This often inflates costs above ₹25.00/min. Claritiy Voice provides a flat, all-inclusive rate of ₹3.99/min out of the box.
+              Standard voice agents (Vapi, Retell) charge a platform orchestration fee (usually $0.15/min) and require you to connect your own API keys. You pay separately for Speech-to-Text (Deepgram), LLM reasoning (OpenAI), and Text-to-Speech (ElevenLabs). This often inflates costs above ₹25.00/min. Claritiy Voice provides a flat, all-inclusive rate of ₹3.99/min out of the box.
             </p>
           </div>
         </div>
@@ -6501,7 +6493,7 @@ export default function App() {
           },
           {
             "@type": "Question",
-            "name": "How is Claritiy Voice different from Bolna, Retell, or Vapi?",
+            "name": "How is Claritiy Voice different from Retell or Vapi?",
             "acceptedAnswer": {
               "@type": "Answer",
               "text": "Claritiy Voice is built specifically around COD order confirmation and RTO reduction, with the workflow ready out of the box — general voice AI platforms require building that flow yourself, and typically charge separately for speech-to-text, the language model, and text-to-speech rather than one transparent per-minute price."
@@ -6574,7 +6566,7 @@ export default function App() {
           },
           {
             "@type": "Question",
-            "name": "How is Claritiy Voice different from Bolna, Retell, or Vapi?",
+            "name": "How is Claritiy Voice different from Retell or Vapi?",
             "acceptedAnswer": {
               "@type": "Answer",
               "text": "Claritiy Voice is built specifically around COD order confirmation and RTO reduction, with the workflow ready out of the box — general voice AI platforms require building that flow yourself, and typically charge separately for speech-to-text, the language model, and text-to-speech rather than one transparent per-minute price."

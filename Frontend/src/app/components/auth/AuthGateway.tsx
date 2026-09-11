@@ -564,7 +564,7 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
 
           {/* Trust strip below card */}
           <div className="flex items-center justify-center gap-4 mt-5">
-            {['256-BIT TLS', 'AADHAAR COMPLIANT', 'ZERO RAW LOGS'].map(b => (
+            {['256-BIT TLS', 'MSME CERTIFIED', 'ZERO RAW LOGS'].map(b => (
               <span key={b} className="text-[9px] font-bold text-slate-400 font-mono uppercase tracking-wider flex items-center gap-1">
                 <Check className="w-2.5 h-2.5 text-[#059669]" /> {b}
               </span>

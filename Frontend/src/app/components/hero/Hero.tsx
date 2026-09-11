@@ -126,15 +126,15 @@ function HdGeometricalArchitectureDiagram() {
     },
     {
       id: 5,
-      title: "SOC 2 & HIPAA Security",
+      title: "MSME Security Blueprint",
       badge: "Enterprise Guardrails",
       category: "COMPLIANCE",
-      desc: "Edge-level PII/PHI redaction, TLS 1.3 encrypted WebRTC streams, PCI-DSS payment compliance, and automated call audit trails.",
+      desc: "Edge-level PII redaction, TLS 1.3 encrypted WebRTC streams, DPDP privacy compliance, and automated call audit trails.",
       icon: Lock,
       color: "#D97706",
       accentBg: "#FEF3C7",
       borderColor: "rgba(217, 119, 6, 0.4)",
-      stats: { primary: "SOC 2", label: "Type II Certified", detail: "HIPAA BAA Ready" }
+      stats: { primary: "MSME", label: "Registered Enterprise", detail: "DPDP Act Aligned" }
     }
   ];
 

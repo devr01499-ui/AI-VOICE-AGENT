@@ -1,5 +1,5 @@
 /**
- * Bolna Server — Provider Initialization
+ * Claritiy Voice Server — Provider Initialization
  *
  * Instantiates all external service providers and registers them with
  * the ProviderManager singleton. Called once during server bootstrap.

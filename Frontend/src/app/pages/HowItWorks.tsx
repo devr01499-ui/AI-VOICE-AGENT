@@ -122,9 +122,9 @@ VAD Threshold: -42dB (20ms speech window)`
       id: "disposition",
       stepNum: "04",
       name: "Edge Scrubbing & Sync",
-      badge: "HIPAA & SOC 2",
+      badge: "MSME & DPDP Act",
       nonTechDesc: "The instant the call ends, your team gets a text summary, sentiment report, and confirmation status in your dashboard and email.",
-      techDesc: "Post-call telemetry triggers edge-based PII/PHI redaction algorithms, calculating sentiment scores and posting unified JSON webhooks back to your core database.",
+      techDesc: "Post-call telemetry triggers edge-based PII redaction algorithms, calculating sentiment scores and posting unified JSON webhooks back to your core database.",
       metrics: "Instant Webhook Sync",
       nonTechDetails: [
         "Instant call summaries & customer mood tag",
@@ -364,8 +364,8 @@ export default function HowItWorks({ setPage }: HowItWorksProps) {
       a: "Claritiy Voice provides native integrations and REST webhooks for Shopify, HubSpot, Salesforce, Zoho, Epic EHR, and custom databases. Call summaries, transcripts, and disposition codes post back automatically the instant a call terminates."
     },
     {
-      q: "How are patient health records (HIPAA) and sensitive data secured?",
-      a: "All raw audio streams undergo real-time PII and PHI redaction at the edge before transcription logs are saved. All data in transit is encrypted with TLS 1.3 and SRTP, and resting data is AES-256 encrypted."
+      q: "How are customer data and sensitive information secured?",
+      a: "All raw audio streams undergo real-time PII redaction at the edge before transcription logs are saved. All data in transit is encrypted with TLS 1.3 and SRTP, and resting data is AES-256 encrypted."
     }
   ];
 
@@ -535,8 +535,8 @@ export default function HowItWorks({ setPage }: HowItWorksProps) {
             {
               icon: ShieldCheck,
               num: "04",
-              title: "Edge PII & HIPAA Scrubbing",
-              desc: "Transcripts and recordings are automatically scrubbed for credit card numbers, SSNs, and medical records before storage."
+              title: "Edge PII Redaction",
+              desc: "Transcripts and recordings are automatically scrubbed for sensitive numbers and personal identifiers before storage."
             }
           ].map((pillar, idx) => {
             const Icon = pillar.icon;

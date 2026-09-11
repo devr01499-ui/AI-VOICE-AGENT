@@ -13,7 +13,7 @@ import type {
 } from '../interfaces/IProvider';
 
 /**
- * Bolna Server — Generic SIP Provider
+ * Claritiy Voice Server — Generic SIP Provider
  *
  * Implements ITelephonyProvider to place outbound calls using drachtio-srf.
  */

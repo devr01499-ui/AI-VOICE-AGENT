@@ -1,5 +1,5 @@
 /**
- * Bolna Server — OpenAI Realtime Provider
+ * Claritiy Voice Server — OpenAI Realtime Provider
  *
  * WebSocket client for the OpenAI Realtime API. Manages per-call sessions
  * with bidirectional audio streaming and function-call execution.

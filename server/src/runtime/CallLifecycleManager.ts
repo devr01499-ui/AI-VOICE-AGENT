@@ -1,5 +1,5 @@
 /**
- * Bolna Voice Runtime Engine — Call Lifecycle Manager
+ * Claritiy Voice Runtime Engine — Call Lifecycle Manager
  *
  * Finite state machine governing call lifecycle transitions.
  * Each call progresses through a strict sequence of states; only
