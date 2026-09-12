@@ -108,11 +108,11 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     });
 
     let effectiveWorkspaceId = userId;
-    let workspaceRole = 'owner';
+    let workspaceRole = 'admin';
 
     if (teamMember) {
       effectiveWorkspaceId = teamMember.ownerId;
-      workspaceRole = teamMember.role;
+      workspaceRole = teamMember.role || 'viewer';
     }
 
     req.userId = userId;
@@ -138,13 +138,46 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
 }
 
 export function requireEditor(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  if (req.workspaceRole === 'viewer') {
+  const role = req.workspaceRole || 'admin';
+  if (role === 'viewer' || role === 'analyst') {
     res.status(403).json({
       success: false,
-      error: 'Forbidden: Viewers are read-only members and are not authorized to perform modifications in this workspace.'
+      error: 'Forbidden: Read-only members are not authorized to perform modifications in this workspace.'
     });
     return;
   }
   next();
+}
+
+/**
+ * Enterprise RBAC Middleware: Enforces permissions based on workspace role.
+ * Role Hierarchy: admin > developer > analyst > viewer
+ * Account owners (effectiveWorkspaceId === userId) automatically hold permanent admin privileges.
+ */
+export function requireRole(allowedRoles: string[]) {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+    const role = req.workspaceRole || 'admin';
+
+    // Account owners or admins always have unrestricted access
+    if (
+      role === 'admin' ||
+      role === 'owner' ||
+      req.user?.accountType === 'admin' ||
+      req.effectiveWorkspaceId === req.userId
+    ) {
+      next();
+      return;
+    }
+
+    if (!allowedRoles.includes(role)) {
+      res.status(403).json({
+        success: false,
+        error: `Forbidden: Your workspace role (${role}) is not authorized to perform this action.`
+      });
+      return;
+    }
+
+    next();
+  };
 }
 
