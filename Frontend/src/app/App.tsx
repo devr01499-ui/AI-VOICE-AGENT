@@ -13,7 +13,7 @@ import {
   exportAgentAsJson, importAgentFromJson, executeConductorPrompt,
   initiateCall, getCallTranscript, getLiveTranscriptWsUrl,
   fetchKBList, uploadKBDocument, scrapeKBUrl, deleteKBDocument, fetchCalendarBatches, createBatchCampaign, pauseBatchCampaign, resumeBatchCampaign, cancelBatchCampaign,
-  fetchAuditLogs, fetchDataRetention, updateDataRetention, fetchIpAllowlist, updateIpAllowlist,
+  fetchAuditLogs, fetchDataRetention, updateDataRetention, fetchIpAllowlist, updateIpAllowlist, fetchConcurrencyTelemetry, updateConcurrencyLimit,
   DEV_USER_ID, DEFAULT_AGENT_ID, API_BASE, apiClient,
   type ApiAgent, type ApiCall, type ApiProfile, type ApiKnowledgeBase, type ApiAuditLog,
 } from "./api";
@@ -1492,6 +1492,7 @@ function DashOverview() {
   const [apiAgents, setApiAgents] = useState<ApiAgent[]>([]);
   const [apiCalls, setApiCalls] = useState<ApiCall[]>([]);
   const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [concurrencyData, setConcurrencyData] = useState<{ activeCallCount: number; softLimit: number }>({ activeCallCount: 0, softLimit: 10 });
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1502,6 +1503,11 @@ function DashOverview() {
       setFetchError("Could not retrieve recent call telemetry.");
     });
     fetchCalendarBatches().then(setCampaigns).catch(() => {});
+    fetchConcurrencyTelemetry().then(res => {
+      if (res && res.softLimit) {
+        setConcurrencyData(res);
+      }
+    }).catch(() => {});
   }, []);
 
   const totalCallCount = apiCalls.length;
@@ -1588,6 +1594,39 @@ function DashOverview() {
             </div>
           );
         })}
+      </div>
+
+      {/* Real-time Concurrency Telemetry Widget */}
+      <div className="nm-card p-5 space-y-3 border-l-4 border-l-emerald-500 rounded-2xl">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl nm-raised flex items-center justify-center text-emerald-500">
+              <Activity className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Real-Time Telephony Concurrency</h4>
+              <p className="text-xs text-[var(--nm-text)] opacity-70" style={{fontFamily:"'Outfit', sans-serif"}}>Workspace soft limit & active telephony channel utilization</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <span className="text-xl font-extrabold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>
+              {concurrencyData.activeCallCount} <span className="text-xs font-bold text-slate-400">/ {concurrencyData.softLimit} soft limit</span>
+            </span>
+          </div>
+        </div>
+
+        <div className="w-full bg-slate-800/40 rounded-full h-2 overflow-hidden">
+          <div
+            className={`h-full transition-all duration-500 ${
+              (concurrencyData.activeCallCount / concurrencyData.softLimit) >= 0.9
+                ? "bg-rose-500"
+                : (concurrencyData.activeCallCount / concurrencyData.softLimit) >= 0.7
+                ? "bg-amber-500"
+                : "bg-emerald-500"
+            }`}
+            style={{ width: `${Math.min(100, Math.max(5, (concurrencyData.activeCallCount / Math.max(1, concurrencyData.softLimit)) * 100))}%` }}
+          />
+        </div>
       </div>
 
       {/* Agents Quick Strip */}
@@ -4718,6 +4757,26 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
     });
   };
 
+  // Concurrency Limit State
+  const [softConcurrencyLimit, setSoftConcurrencyLimit] = useState<number>(10);
+  const [concurrencySaveStatus, setConcurrencySaveStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchConcurrencyTelemetry().then(res => {
+      if (res && res.softLimit) setSoftConcurrencyLimit(res.softLimit);
+    }).catch(() => {});
+  }, []);
+
+  const handleConcurrencySelect = (limitVal: number) => {
+    updateConcurrencyLimit(limitVal).then(res => {
+      setSoftConcurrencyLimit(res.softLimit);
+      setConcurrencySaveStatus(res.message);
+      setTimeout(() => setConcurrencySaveStatus(null), 3000);
+    }).catch(err => {
+      alert(err?.response?.data?.error || "Failed to update concurrency limit");
+    });
+  };
+
   // IP Allowlist State
   const [allowedIpRanges, setAllowedIpRanges] = useState<string[]>([]);
   const [ipInputText, setIpInputText] = useState("");
@@ -4907,9 +4966,19 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
               <option value="365">365 Days</option>
             </DSelect>
           </DField>
-          {retentionSaveStatus && (
+          <DField label="Workspace Soft Concurrency Limit" hint="Maximum simultaneous active telephony channels for this workspace.">
+            <DSelect value={String(softConcurrencyLimit)} onChange={e => handleConcurrencySelect(parseInt(e.target.value, 10))}>
+              <option value="5">5 Concurrent Calls</option>
+              <option value="10">10 Concurrent Calls (Default)</option>
+              <option value="25">25 Concurrent Calls</option>
+              <option value="50">50 Concurrent Calls</option>
+              <option value="100">100 Concurrent Calls</option>
+              <option value="250">250 Concurrent Calls</option>
+            </DSelect>
+          </DField>
+          {concurrencySaveStatus && (
             <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold">
-              {retentionSaveStatus}
+              {concurrencySaveStatus}
             </div>
           )}
 
