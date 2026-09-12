@@ -626,6 +626,17 @@ export async function updateDataRetention(dataRetentionDays: number | null): Pro
   });
 }
 
+export async function fetchIpAllowlist(): Promise<{ allowedIpRanges: string[] }> {
+  return await apiFetch('/api/v2/user/ip-allowlist');
+}
+
+export async function updateIpAllowlist(allowedIpRanges: string[]): Promise<{ allowedIpRanges: string[]; message: string }> {
+  return await apiFetch('/api/v2/user/ip-allowlist', {
+    method: 'POST',
+    body: JSON.stringify({ allowedIpRanges }),
+  });
+}
+
 export async function executeConductorPrompt(prompt: string, chatHistory?: any[]): Promise<{ reply: string; actionsExecuted?: any[]; error?: string; currentPlan?: string }> {
   return apiFetch('/api/v2/conductor/execute', {
     method: 'POST',

@@ -13,7 +13,7 @@ import {
   exportAgentAsJson, importAgentFromJson, executeConductorPrompt,
   initiateCall, getCallTranscript, getLiveTranscriptWsUrl,
   fetchKBList, uploadKBDocument, scrapeKBUrl, deleteKBDocument, fetchCalendarBatches, createBatchCampaign, pauseBatchCampaign, resumeBatchCampaign, cancelBatchCampaign,
-  fetchAuditLogs, fetchDataRetention, updateDataRetention,
+  fetchAuditLogs, fetchDataRetention, updateDataRetention, fetchIpAllowlist, updateIpAllowlist,
   DEV_USER_ID, DEFAULT_AGENT_ID, API_BASE, apiClient,
   type ApiAgent, type ApiCall, type ApiProfile, type ApiKnowledgeBase, type ApiAuditLog,
 } from "./api";
@@ -4718,6 +4718,35 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
     });
   };
 
+  // IP Allowlist State
+  const [allowedIpRanges, setAllowedIpRanges] = useState<string[]>([]);
+  const [ipInputText, setIpInputText] = useState("");
+  const [ipSaveStatus, setIpSaveStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchIpAllowlist().then(res => {
+      if (res && Array.isArray(res.allowedIpRanges)) {
+        setAllowedIpRanges(res.allowedIpRanges);
+        setIpInputText(res.allowedIpRanges.join('\n'));
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleSaveIpAllowlist = () => {
+    const ranges = ipInputText
+      .split(/[\n,]/)
+      .map(r => r.trim())
+      .filter(Boolean);
+
+    updateIpAllowlist(ranges).then(res => {
+      setAllowedIpRanges(res.allowedIpRanges);
+      setIpSaveStatus(res.message || "IP allowlist updated successfully.");
+      setTimeout(() => setIpSaveStatus(null), 4000);
+    }).catch(err => {
+      alert(err?.response?.data?.error || "Failed to update IP allowlist");
+    });
+  };
+
   // Webhooks State
   const [webhook, setWebhook] = useState("https://hooks.acmecorp.com/aivoice");
   const [signingSecret, setSigningSecret] = useState("whsec_live_3847291048209384");
@@ -4883,6 +4912,32 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
               {retentionSaveStatus}
             </div>
           )}
+
+          <div className="pt-4 border-t border-slate-700/30 space-y-3">
+            <DField label="Dashboard IP Allowlist (CIDR)" hint="Restrict workspace login/access to specific IP ranges (e.g. 192.168.1.0/24, 203.0.113.5). One per line or comma-separated. Leave empty to allow all IPs.">
+              <textarea
+                value={ipInputText}
+                onChange={e => setIpInputText(e.target.value)}
+                placeholder="e.g. 192.168.1.0/24&#10;203.0.113.45"
+                className="w-full h-24 p-3 text-xs font-mono font-bold bg-[var(--nm-bg)] text-[var(--nm-text)] rounded-xl border border-slate-700/30 focus:outline-none focus:ring-1 focus:ring-[#059669]"
+              />
+            </DField>
+
+            {allowedIpRanges.length > 0 && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold space-y-1">
+                <p>⚠️ <strong>IP Restriction Active ({allowedIpRanges.length} rules):</strong> Ensure your current IP is in the list before saving to prevent lockout.</p>
+                <p className="text-[11px] opacity-80">Emergency Lockout Recovery SQL: <code className="bg-amber-950/60 px-1.5 py-0.5 rounded font-mono text-amber-300">UPDATE users SET allowed_ip_ranges = '&#123;&#125;' WHERE email = 'admin@example.com';</code></p>
+              </div>
+            )}
+
+            {ipSaveStatus && (
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold">
+                {ipSaveStatus}
+              </div>
+            )}
+
+            <DBtn onClick={handleSaveIpAllowlist}><Check className="w-4 h-4"/> Save IP allowlist</DBtn>
+          </div>
 
           <DBtn onClick={handleSaveWorkspace}><Check className="w-4 h-4"/> Save settings</DBtn>
           {(profile as any)?.isAdmin && (

@@ -183,5 +183,68 @@ router.post('/retention', requireAuth, requireRole(['admin']), async (req: Authe
   }
 });
 
+/**
+ * GET /api/v2/user/ip-allowlist
+ * Returns the current workspace allowed IP CIDR ranges.
+ */
+router.get('/ip-allowlist', requireAuth, async (req: AuthenticatedRequest, res) => {
+  try {
+    const ownerId = req.effectiveWorkspaceId || req.userId;
+    if (!ownerId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+
+    const user = await prisma.user.findUnique({
+      where: { id: ownerId },
+      select: { allowedIpRanges: true },
+    });
+
+    res.json({ success: true, allowedIpRanges: user?.allowedIpRanges ?? [] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to fetch IP allowlist' });
+  }
+});
+
+/**
+ * POST /api/v2/user/ip-allowlist
+ * Updates workspace allowed IP CIDR ranges (Admin-only).
+ */
+router.post('/ip-allowlist', requireAuth, requireRole(['admin']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const ownerId = req.effectiveWorkspaceId || req.userId;
+    if (!ownerId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+
+    const { allowedIpRanges } = req.body;
+    let cleanRanges: string[] = [];
+
+    if (Array.isArray(allowedIpRanges)) {
+      cleanRanges = allowedIpRanges
+        .map((r: any) => String(r).trim())
+        .filter((r: string) => r.length > 0);
+    }
+
+    await prisma.user.update({
+      where: { id: ownerId },
+      data: { allowedIpRanges: cleanRanges },
+    });
+
+    logAuditEvent({
+      workspaceOwnerId: ownerId,
+      actorUserId: req.userId!,
+      action: 'workspace.ip_allowlist.configured',
+      metadata: { allowedIpRanges: cleanRanges },
+    });
+
+    res.json({
+      success: true,
+      message: cleanRanges.length > 0
+        ? `IP allowlist configured with ${cleanRanges.length} allowed rule(s).`
+        : 'IP allowlist cleared. Access allowed from all IPs.',
+      allowedIpRanges: cleanRanges,
+    });
+  } catch (err) {
+    logger.error('Failed to update IP allowlist', { error: String(err) });
+    res.status(500).json({ success: false, error: 'Failed to update IP allowlist' });
+  }
+});
+
 export default router;
 
