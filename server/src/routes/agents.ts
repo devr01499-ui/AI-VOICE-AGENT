@@ -16,6 +16,7 @@ import { requireAuth, requireEditor } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { logAuditEvent } from '../utils/auditLogger';
 import { ADMIN_EMAIL } from '../config/constants';
+import { QaController } from '../controllers/QaController';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 
 const router = Router();
@@ -464,9 +465,14 @@ router.post(
         metadata: { name: newAgent.name, agentType: newAgent.agentType }
       });
 
+      const qaEvaluation = QaController.runLightweightQaCheck(newAgent.systemPrompt, newAgent.flowGraph);
+
       res.status(201).json({
         success: true,
-        data: newAgent,
+        data: {
+          ...newAgent,
+          qaEvaluation,
+        },
       });
     } catch (err) {
       next(err);
@@ -562,6 +568,8 @@ router.put(
         metadata: { name: updatedAgent.name, status: updatedAgent.status, version: updatedAgent.version }
       });
 
+      const qaEvaluation = QaController.runLightweightQaCheck(updatedAgent.systemPrompt, updatedAgent.flowGraph);
+
       res.json({
         success: true,
         data: {
@@ -580,6 +588,7 @@ router.put(
           systemPrompt: updatedAgent.systemPrompt,
           flowGraph: updatedAgent.flowGraph,
           tags: JSON.parse(updatedAgent.tags || '[]'),
+          qaEvaluation,
           createdAt: updatedAgent.createdAt.toISOString(),
           updatedAt: updatedAgent.updatedAt.toISOString(),
         },

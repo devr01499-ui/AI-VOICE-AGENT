@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   ArrowLeft,
   Volume2,
@@ -1183,6 +1183,33 @@ export default function SinglePromptStudio({
     }
   };
 
+  const qaScore = useMemo(() => {
+    let score = 100;
+    const issues: string[] = [];
+    const prompt = (systemPrompt || '').trim();
+    if (!prompt) {
+      score -= 50;
+      issues.push('Prompt is missing or empty');
+    } else {
+      if (prompt.length < 30) {
+        score -= 30;
+        issues.push('Prompt is too brief (< 30 characters)');
+      }
+      const lower = prompt.toLowerCase();
+      if (!lower.includes('greet') && !lower.includes('hello') && !lower.includes('welcome') && !lower.includes('you are') && !lower.includes('persona')) {
+        score -= 10;
+        issues.push('Prompt lacks explicit persona or greeting instruction');
+      }
+      if (!lower.includes('fallback') && !lower.includes('apologize') && !lower.includes('transfer') && !lower.includes('cannot') && !lower.includes('help') && !lower.includes('rules')) {
+        score -= 10;
+        issues.push('Prompt lacks explicit boundary or fallback guidance');
+      }
+    }
+    score = Math.max(0, Math.min(100, score));
+    const status: 'PASS' | 'WARN' | 'FAIL' = score >= 80 ? 'PASS' : score >= 60 ? 'WARN' : 'FAIL';
+    return { score, passed: score >= 70, status, issues };
+  }, [systemPrompt]);
+
   const rawJsonConfig = JSON.stringify(
     {
       agent_name: agentName,
@@ -1313,6 +1340,20 @@ export default function SinglePromptStudio({
                 </button>
               </div>
             )}
+          </div>
+
+          <div
+            className={`px-2.5 py-1 text-xs font-bold rounded-lg border flex items-center gap-1.5 cursor-help transition-all ${
+              qaScore.status === 'PASS'
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
+                : qaScore.status === 'WARN'
+                ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300'
+                : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300'
+            }`}
+            title={`Automated QA Evaluation: ${qaScore.status} (${qaScore.score}/100).\n${qaScore.issues.length > 0 ? qaScore.issues.join('\n') : 'All quality thresholds passed.'}`}
+          >
+            <span className={`w-2 h-2 rounded-full ${qaScore.status === 'PASS' ? 'bg-emerald-500' : qaScore.status === 'WARN' ? 'bg-amber-500' : 'bg-rose-500'}`} />
+            QA: {qaScore.status} {qaScore.score}/100
           </div>
 
           {showSavedToast && (

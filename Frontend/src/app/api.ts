@@ -61,6 +61,13 @@ export interface ApiAgent {
   languageMode?: string | null;
   direction?: string | null;
   tags?: string[];
+  qaEvaluation?: {
+    overallScore: number;
+    passed: boolean;
+    status: 'PASS' | 'WARN' | 'FAIL';
+    summary: string;
+    flaggedIssues: string[];
+  };
   createdAt: string;
   updatedAt: string;
 }
