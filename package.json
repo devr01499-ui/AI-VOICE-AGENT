@@ -6,7 +6,7 @@
     "postinstall": "prisma generate --schema=server/prisma/schema.prisma",
     "dev": "npm run --prefix server dev",
     "build": "npm run --prefix Frontend build && npm run --prefix server build",
-    "lint": "eslint",
+    "lint": "eslint .",
     "typecheck": "npm run --prefix Frontend typecheck && npm run --prefix server typecheck"
   },
   "dependencies": {

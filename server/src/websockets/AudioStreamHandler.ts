@@ -244,11 +244,15 @@ export class AudioStreamHandler {
             }
           });
 
-          // Register AI-stopped / interrupted speech (definitive barge-in trigger confirmed by Gemini)
+          // Register AI-stopped / interrupted speech (definitive barge-in trigger confirmed by Gemini or error fallback)
           eventBus.subscribe(PROVIDER_EVENTS.AI_STOPPED_SPEAKING, (payload) => {
             if (payload.callId === callId && (payload as any).interrupted) {
               logger.info('AudioStreamHandler: Gemini confirmed speech interruption (barge-in), clearing outbound audio queue', { callId });
               this.clearAudio(callId);
+            }
+            if (payload.callId === callId && (payload as any).error) {
+              logger.warn('AudioStreamHandler: mid-call error event received, playing spoken fallback and ending call', { callId, error: (payload as any).error });
+              this.playFallbackAndEndCall(callId);
             }
           });
 
@@ -454,6 +458,44 @@ export class AudioStreamHandler {
         error: err instanceof Error ? err.message : String(err),
       });
     }
+  }
+
+  /**
+   * Synthesizes and plays a brief soft fallback tone over outbound audio before gracefully closing the call on mid-call runtime error.
+   */
+  private playFallbackAndEndCall(callId: string): void {
+    const conn = this.connections.get(callId);
+    if (!conn || conn.ws.readyState !== WebSocket.OPEN) return;
+
+    this.clearAudio(callId);
+
+    // Synthesize a 1.5-second 440Hz PCM16 mono tone at 16kHz sample rate with exponential decay for a clean chime
+    const sampleRate = 16000;
+    const durationSec = 1.5;
+    const numSamples = Math.floor(sampleRate * durationSec);
+    const pcmBuffer = Buffer.alloc(numSamples * 2);
+
+    for (let i = 0; i < numSamples; i++) {
+      const t = i / sampleRate;
+      const decay = Math.exp(-3 * t);
+      const sampleValue = Math.floor(Math.sin(2 * Math.PI * 440 * t) * 8000 * decay);
+      pcmBuffer.writeInt16LE(sampleValue, i * 2);
+    }
+
+    const fallbackBase64 = pcmBuffer.toString('base64');
+    this.sendAudioToVobiz(callId, fallbackBase64);
+
+    // After playout finishes (~1.8s), close connection cleanly and end call session
+    setTimeout(() => {
+      const activeConn = this.connections.get(callId);
+      if (activeConn && activeConn.ws.readyState === WebSocket.OPEN) {
+        logger.info('AudioStreamHandler: mid-call error fallback playout completed, closing websocket', { callId });
+        activeConn.ws.close(1000, 'Call completed with fallback on mid-call error');
+      }
+      callOrchestrator.endCallSession(callId, 'fallback_completed').catch((err) => {
+        logger.error('AudioStreamHandler: failed to end session after fallback', { callId, error: err });
+      });
+    }, 1800);
   }
 
   private handleClose(callId: string, code: number, reason: string): void {

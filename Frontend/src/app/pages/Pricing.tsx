@@ -3,6 +3,7 @@ import { motion } from "motion/react";
 import { Check, ArrowRight, ShieldCheck, Zap, Loader2, Sparkles, Sliders, DollarSign, Eye, Code2, Lock } from "lucide-react";
 import RoiCalculator from "../components/calculator/RoiCalculator";
 import { API_BASE } from "../api";
+import { supabase } from "../lib/supabaseClient";
 
 declare global {
   interface Window {
@@ -167,6 +168,12 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
         throw new Error('Payment system configuration check required.');
       }
 
+      let profileEmail = '';
+      try {
+        const userRes = await supabase.auth.getUser();
+        profileEmail = userRes.data?.user?.email || '';
+      } catch {}
+
       const options = {
         key: (import.meta as any).env?.VITE_RAZORPAY_KEY_ID,
         amount: orderData.data.amount,
@@ -174,7 +181,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
         name: 'Claritiy Voice',
         description: `${planName} Plan`,
         order_id: orderData.data.id,
-        prefill: { email: '' },
+        prefill: { email: profileEmail },
         handler: async function (response: any) {
           try {
             const verifyRes = await fetch(`${API_BASE}/api/v2/billing/verify-plan`, {
@@ -185,7 +192,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
               },
               body: JSON.stringify({
                 plan: planName,
-                email: response.razorpay_customer_email || 'unknown@example.com',
+                email: response.razorpay_customer_email || profileEmail,
                 orderId: response.razorpay_order_id,
                 paymentId: response.razorpay_payment_id,
                 signature: response.razorpay_signature,

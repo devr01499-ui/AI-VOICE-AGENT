@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-09-12
+### Fixed
+- Added mid-call spoken error fallback in `AudioStreamHandler.ts` (`playFallbackAndEndCall`) to play a short synthesized 440Hz PCM16 16kHz audio tone and end calls cleanly on runtime errors instead of dead air.
+- Replaced fake `'unknown@example.com'` fallback email in `Pricing.tsx` Razorpay payment verification with the authenticated user profile email fetched via `supabase.auth.getUser()`.
+- Added `"ignoreDeprecations": "5.0"` to `Frontend/tsconfig.json` to prevent TypeScript `baseUrl` deprecation warnings.
+- Updated root `package.json` lint script to `"eslint ."` and renamed `Frontend/package.json` name to `claritiy-voice-frontend`.
+- Refreshed root and server `package-lock.json` files with updated package names.
+
 ## [Unreleased] - 2026-09-11
 ### Fixed
 - Replaced all unverified compliance claims (SOC 2 Type II, HIPAA BAA, ISO 27001, GDPR, PCI-DSS) across marketing and application pages with **MSME Certified Enterprise (Govt. of India MSME Registered)**, **256-Bit TLS 1.3 Encryption**, **AES-256 Data Protection**, and **DPDP Act Alignment**.
