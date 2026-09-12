@@ -13,7 +13,7 @@ import {
   exportAgentAsJson, importAgentFromJson, executeConductorPrompt,
   initiateCall, getCallTranscript, getLiveTranscriptWsUrl,
   fetchKBList, uploadKBDocument, scrapeKBUrl, deleteKBDocument, fetchCalendarBatches, createBatchCampaign, pauseBatchCampaign, resumeBatchCampaign, cancelBatchCampaign,
-  fetchAuditLogs,
+  fetchAuditLogs, fetchDataRetention, updateDataRetention,
   DEV_USER_ID, DEFAULT_AGENT_ID, API_BASE, apiClient,
   type ApiAgent, type ApiCall, type ApiProfile, type ApiKnowledgeBase, type ApiAuditLog,
 } from "./api";
@@ -4679,6 +4679,45 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
   });
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
+  // Data Retention State
+  const [dataRetentionDays, setDataRetentionDays] = useState<number | null>(null);
+  const [retentionConfirmModalOpen, setRetentionConfirmModalOpen] = useState(false);
+  const [pendingRetentionDays, setPendingRetentionDays] = useState<number | null>(null);
+  const [retentionSaveStatus, setRetentionSaveStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchDataRetention().then(res => {
+      if (res && res.dataRetentionDays !== undefined) {
+        setDataRetentionDays(res.dataRetentionDays);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleRetentionSelect = (valStr: string) => {
+    const val = valStr === 'null' ? null : parseInt(valStr, 10);
+    if (val !== null) {
+      setPendingRetentionDays(val);
+      setRetentionConfirmModalOpen(true);
+    } else {
+      updateDataRetention(null).then(() => {
+        setDataRetentionDays(null);
+        setRetentionSaveStatus("Data retention updated: Keep forever.");
+        setTimeout(() => setRetentionSaveStatus(null), 3000);
+      });
+    }
+  };
+
+  const confirmRetentionPolicy = () => {
+    updateDataRetention(pendingRetentionDays).then(res => {
+      setDataRetentionDays(pendingRetentionDays);
+      setRetentionConfirmModalOpen(false);
+      setRetentionSaveStatus(res.message || `Retention policy set to ${pendingRetentionDays} days.`);
+      setTimeout(() => setRetentionSaveStatus(null), 4000);
+    }).catch(err => {
+      alert(err?.response?.data?.error || "Failed to update retention policy");
+    });
+  };
+
   // Webhooks State
   const [webhook, setWebhook] = useState("https://hooks.acmecorp.com/aivoice");
   const [signingSecret, setSigningSecret] = useState("whsec_live_3847291048209384");
@@ -4827,6 +4866,24 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
               <DToggle on={(toggles as any)[s.key]} set={(val)=>setToggles(t=>({...t, [s.key]: val}))}/>
             </div>
           ))}
+          <DField label="Call Data Retention Policy" hint="Automatically purge call recordings & transcripts older than the configured window.">
+            <DSelect value={dataRetentionDays === null ? 'null' : String(dataRetentionDays)} onChange={e => handleRetentionSelect(e.target.value)}>
+              <option value="null">Keep forever (default — no purging)</option>
+              <option value="7">7 Days</option>
+              <option value="14">14 Days</option>
+              <option value="30">30 Days</option>
+              <option value="60">60 Days</option>
+              <option value="90">90 Days</option>
+              <option value="180">180 Days</option>
+              <option value="365">365 Days</option>
+            </DSelect>
+          </DField>
+          {retentionSaveStatus && (
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold">
+              {retentionSaveStatus}
+            </div>
+          )}
+
           <DBtn onClick={handleSaveWorkspace}><Check className="w-4 h-4"/> Save settings</DBtn>
           {(profile as any)?.isAdmin && (
             <div className="mt-6 pt-6 border-t border-transparent">
@@ -4838,6 +4895,37 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
                 <div>
                   <p className="text-2xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{((profile as any)?.totalMinutesConsumed ?? 0).toFixed(2)} <span className="text-base font-bold text-[var(--nm-text)]">min</span></p>
                   <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Total platform minutes consumed across all sandbox sessions</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {retentionConfirmModalOpen && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="nm-card p-6 max-w-md w-full space-y-4 border border-rose-500/30">
+                <div className="flex items-center gap-3 text-rose-500">
+                  <span className="text-2xl">⚠️</span>
+                  <h3 className="text-lg font-bold text-slate-100" style={{fontFamily:"'Outfit', sans-serif"}}>Confirm Irreversible Data Purge Policy</h3>
+                </div>
+                <p className="text-sm text-slate-300 leading-relaxed font-bold">
+                  Setting call data retention to <span className="text-rose-400 font-extrabold">{pendingRetentionDays} days</span> will schedule automatic permanent deletion of all call recordings and transcripts older than {pendingRetentionDays} days.
+                </p>
+                <p className="text-xs text-rose-400/90 font-bold bg-rose-500/10 p-3 rounded-xl border border-rose-500/20">
+                  This action cannot be undone. Once purged by the scheduled background job, destroyed data is permanently unrecoverable.
+                </p>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => setRetentionConfirmModalOpen(false)}
+                    className="flex-1 px-4 py-2.5 rounded-xl nm-raised hover:nm-pressed text-slate-300 text-xs font-bold transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmRetentionPolicy}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all shadow-lg shadow-rose-600/30"
+                  >
+                    Confirm {pendingRetentionDays}-Day Retention
+                  </button>
                 </div>
               </div>
             </div>

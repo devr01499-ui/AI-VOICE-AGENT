@@ -615,6 +615,17 @@ export async function fetchAuditLogs(filters?: { action?: string; startDate?: st
   return await apiFetch(`/api/v2/audit-logs${query}`);
 }
 
+export async function fetchDataRetention(): Promise<{ dataRetentionDays: number | null }> {
+  return await apiFetch('/api/v2/user/retention');
+}
+
+export async function updateDataRetention(dataRetentionDays: number | null): Promise<{ dataRetentionDays: number | null; message: string }> {
+  return await apiFetch('/api/v2/user/retention', {
+    method: 'POST',
+    body: JSON.stringify({ dataRetentionDays }),
+  });
+}
+
 export async function executeConductorPrompt(prompt: string, chatHistory?: any[]): Promise<{ reply: string; actionsExecuted?: any[]; error?: string; currentPlan?: string }> {
   return apiFetch('/api/v2/conductor/execute', {
     method: 'POST',
