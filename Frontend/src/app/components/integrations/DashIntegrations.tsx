@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sliders, CheckCircle2, XCircle, Zap, MessageSquare, Globe, FileSpreadsheet, RefreshCw, Key, ExternalLink, X, Check, Play, AlertCircle } from 'lucide-react';
+import { Sliders, CheckCircle2, XCircle, Zap, MessageSquare, Globe, FileSpreadsheet, RefreshCw, Key, ExternalLink, X, Check, Play, AlertCircle, Calendar, Database, Layers, ShieldCheck } from 'lucide-react';
 import { apiClient } from '../../api';
 
 interface UserIntegration {
@@ -23,12 +23,28 @@ interface IntegrationApp {
 
 const AVAILABLE_APPS: IntegrationApp[] = [
   {
-    type: 'slack',
-    name: 'Slack Alerting',
-    description: 'Post real-time call alerting notifications and operational incidents to a designated Slack channel.',
-    category: 'Alerts & Messaging',
+    type: 'calcom',
+    name: 'Cal.com Booking',
+    description: 'Direct self-serve API calendar integration. Enable AI voice agents to check real-time availability and schedule meetings live during calls.',
+    category: 'Calendar & Scheduling',
     iconBg: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400',
-    icon: MessageSquare,
+    icon: Calendar,
+  },
+  {
+    type: 'zapier',
+    name: 'Zapier Workflow',
+    description: 'Connect Claritiy Voice to 5,000+ apps. Trigger automated Zaps when calls terminate, contacts qualify, or transcripts complete.',
+    category: 'Automation',
+    iconBg: 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400',
+    icon: Zap,
+  },
+  {
+    type: 'make',
+    name: 'Make.com Scenario',
+    description: 'Build visual automation scenarios. Stream post-call lead analytics, sentiment scores, and record audio URLs to custom Make workflows.',
+    category: 'Automation',
+    iconBg: 'bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400',
+    icon: Layers,
   },
   {
     type: 'generic_webhook',
@@ -39,12 +55,12 @@ const AVAILABLE_APPS: IntegrationApp[] = [
     icon: Globe,
   },
   {
-    type: 'zapier',
-    name: 'Zapier / Make Workflow',
-    description: 'Connect Claritiy Voice to 5,000+ apps. Automatically trigger Zaps when calls finish or transcripts complete.',
-    category: 'Automation',
-    iconBg: 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400',
-    icon: Zap,
+    type: 'slack',
+    name: 'Slack Alerting',
+    description: 'Post real-time call alerting notifications and operational incidents to a designated Slack channel.',
+    category: 'Alerts & Messaging',
+    iconBg: 'bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400',
+    icon: MessageSquare,
   },
   {
     type: 'google_sheets',
@@ -53,6 +69,22 @@ const AVAILABLE_APPS: IntegrationApp[] = [
     category: 'Data & CRM',
     iconBg: 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400',
     icon: FileSpreadsheet,
+  },
+  {
+    type: 'hubspot',
+    name: 'HubSpot CRM (OAuth App)',
+    description: 'Requires registering a HubSpot Developer App on HubSpot App Marketplace with OAuth Client credentials and CRM object scope permissions.',
+    category: 'CRM & Enterprise',
+    iconBg: 'bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400',
+    icon: Database,
+  },
+  {
+    type: 'salesforce',
+    name: 'Salesforce CRM (Connected App)',
+    description: 'Requires setting up a Salesforce Connected App with Consumer Key/Secret, PKCE web server flow, and Salesforce instance domain mapping.',
+    category: 'CRM & Enterprise',
+    iconBg: 'bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400',
+    icon: ShieldCheck,
   },
 ];
 
@@ -66,6 +98,9 @@ export function DashIntegrations() {
     webhookUrl: '',
     secret: '',
     channel: '',
+    apiKey: '',
+    eventSlug: '',
+    clientId: '',
   });
   const [submitting, setSubmitting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -100,28 +135,47 @@ export function DashIntegrations() {
           webhookUrl: parsed.webhookUrl || parsed.url || '',
           secret: parsed.secret || '',
           channel: parsed.channel || '',
+          apiKey: parsed.apiKey || parsed.api_key || '',
+          eventSlug: parsed.eventSlug || parsed.event_slug || '',
+          clientId: parsed.clientId || parsed.client_id || '',
         });
       } catch {
-        setFormData({ webhookUrl: '', secret: '', channel: '' });
+        setFormData({ webhookUrl: '', secret: '', channel: '', apiKey: '', eventSlug: '', clientId: '' });
       }
     } else {
-      setFormData({ webhookUrl: '', secret: '', channel: '' });
+      setFormData({ webhookUrl: '', secret: '', channel: '', apiKey: '', eventSlug: '', clientId: '' });
     }
   };
 
   const handleSaveIntegration = async () => {
     if (!selectedApp) return;
-    if (!formData.webhookUrl.trim()) {
-      alert('Webhook URL is required');
-      return;
+
+    if (selectedApp.type === 'calcom') {
+      if (!formData.apiKey.trim() && !formData.webhookUrl.trim()) {
+        alert('Cal.com API Key or Webhook URL is required');
+        return;
+      }
+    } else if (selectedApp.type === 'hubspot' || selectedApp.type === 'salesforce') {
+      if (!formData.clientId.trim()) {
+        alert(`${selectedApp.name} Client ID is required`);
+        return;
+      }
+    } else {
+      if (!formData.webhookUrl.trim()) {
+        alert('Webhook Target URL is required');
+        return;
+      }
     }
 
     try {
       setSubmitting(true);
       const configObj = {
-        webhookUrl: formData.webhookUrl.trim(),
+        webhookUrl: formData.webhookUrl.trim() || undefined,
         secret: formData.secret.trim() || undefined,
         channel: formData.channel.trim() || undefined,
+        apiKey: formData.apiKey.trim() || undefined,
+        eventSlug: formData.eventSlug.trim() || undefined,
+        clientId: formData.clientId.trim() || undefined,
       };
 
       await apiClient.post(`/api/v2/integrations/${selectedApp.type}`, {
@@ -285,50 +339,115 @@ export function DashIntegrations() {
                 </div>
               )}
 
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Webhook Target URL <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="url"
-                  placeholder={
-                    selectedApp.type === 'slack'
-                      ? 'https://hooks.slack.com/services/T00/B00/XXXX'
-                      : 'https://your-server.com/api/webhooks'
-                  }
-                  value={formData.webhookUrl}
-                  onChange={(e) => setFormData({ ...formData, webhookUrl: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 font-mono text-[11px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
+              {selectedApp.type === 'calcom' ? (
+                <>
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Cal.com API Key <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="cal_live_..."
+                      value={formData.apiKey}
+                      onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 font-mono text-[11px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Event Type Slug / ID (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="30min-demo"
+                      value={formData.eventSlug}
+                      onChange={(e) => setFormData({ ...formData, eventSlug: e.target.value })}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 font-mono text-[11px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Custom Booking Webhook (Optional)
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://api.cal.com/v1/bookings"
+                      value={formData.webhookUrl}
+                      onChange={(e) => setFormData({ ...formData, webhookUrl: e.target.value })}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 font-mono text-[11px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </>
+              ) : selectedApp.type === 'hubspot' || selectedApp.type === 'salesforce' ? (
+                <>
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      {selectedApp.name} Client ID <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="OAuth2 Client ID..."
+                      value={formData.clientId}
+                      onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 font-mono text-[11px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
+                    <strong>Enterprise App Requirement Notice:</strong> Direct integration with {selectedApp.name} requires an official Developer/Connected App registered on our provider side. Contact support or your account executive for dedicated app authorization.
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Webhook Target URL <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="url"
+                      placeholder={
+                        selectedApp.type === 'slack'
+                          ? 'https://hooks.slack.com/services/T00/B00/XXXX'
+                          : selectedApp.type === 'make'
+                          ? 'https://hook.us1.make.com/xxxxxx'
+                          : selectedApp.type === 'zapier'
+                          ? 'https://hooks.zapier.com/hooks/catch/xxxxxx'
+                          : 'https://your-server.com/api/webhooks'
+                      }
+                      value={formData.webhookUrl}
+                      onChange={(e) => setFormData({ ...formData, webhookUrl: e.target.value })}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 font-mono text-[11px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
 
-              {selectedApp.type === 'slack' && (
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Channel Override (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="#voice-alerts"
-                    value={formData.channel}
-                    onChange={(e) => setFormData({ ...formData, channel: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
+                  {selectedApp.type === 'slack' && (
+                    <div>
+                      <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Channel Override (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="#voice-alerts"
+                        value={formData.channel}
+                        onChange={(e) => setFormData({ ...formData, channel: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      HMAC Secret Key (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="whsec_..."
+                      value={formData.secret}
+                      onChange={(e) => setFormData({ ...formData, secret: e.target.value })}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 font-mono text-[11px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </>
               )}
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  HMAC Secret Key (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="whsec_..."
-                  value={formData.secret}
-                  onChange={(e) => setFormData({ ...formData, secret: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 font-mono text-[11px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
             </div>
 
             <div className="px-5 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-between text-xs">
