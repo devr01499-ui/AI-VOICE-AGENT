@@ -428,7 +428,7 @@ router.post(
         }
       }
 
-      const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, systemVoice, temperature, systemPrompt, flowGraph, languageMode, direction } = req.body;
+      const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, systemVoice, temperature, systemPrompt, flowGraph, languageMode, direction, isPiiRedactionEnabled } = req.body;
 
       const safeName = (typeof name === 'string' && name.trim()) ? name.trim() : 'Single-Prompt Agent';
       const parsedTemp = Number(temperature);
@@ -452,6 +452,7 @@ router.post(
           flowGraph: typeof flowGraph === 'string' ? flowGraph : flowGraph ? JSON.stringify(flowGraph) : null,
           languageMode: languageMode || 'auto',
           direction: direction || 'outbound',
+          isPiiRedactionEnabled: Boolean(isPiiRedactionEnabled),
         },
       });
 
@@ -493,7 +494,7 @@ router.put(
       }
 
       const agentId = req.params.agentId as string;
-      const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, systemVoice, temperature, systemPrompt, flowGraph, languageMode, direction } = req.body;
+      const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, systemVoice, temperature, systemPrompt, flowGraph, languageMode, direction, isPiiRedactionEnabled } = req.body;
 
       // Verify ownership before updating
       let exists = await prisma.agent.findFirst({
@@ -540,6 +541,7 @@ router.put(
           ...(flowGraph !== undefined && { flowGraph: typeof flowGraph === 'string' ? flowGraph : flowGraph ? JSON.stringify(flowGraph) : null }),
           ...(languageMode !== undefined && { languageMode }),
           ...(direction !== undefined && { direction }),
+          ...(isPiiRedactionEnabled !== undefined && { isPiiRedactionEnabled: Boolean(isPiiRedactionEnabled) }),
         },
       });
 

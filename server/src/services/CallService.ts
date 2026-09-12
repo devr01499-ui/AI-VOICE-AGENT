@@ -21,6 +21,7 @@ import { prisma } from '../lib/prisma';
 import { ADMIN_EMAIL } from '../config/constants';
 import { WebhookDispatcher } from '../utils/WebhookDispatcher';
 import { ContactsController } from '../controllers/ContactsController';
+import { redactPii } from '../utils/piiRedactor';
 
 // ─── Input Shapes ─────────────────────────────────
 
@@ -248,15 +249,21 @@ export class CallService {
    * Returns the transcript for a call.
    */
   static async getCallTranscript(callId: string): Promise<TranscriptSegmentResponse[]> {
-    // Verify call exists
-    await CallRepository.findById(callId);
-
+    const call = await CallRepository.findById(callId);
     const segments = await TranscriptRepository.findByCallId(callId);
+
+    let isRedactionEnabled = false;
+    if (call?.agentId) {
+      const agent = await prisma.agent.findUnique({ where: { id: call.agentId } });
+      if (agent?.isPiiRedactionEnabled) {
+        isRedactionEnabled = true;
+      }
+    }
 
     return segments.map((seg: TranscriptSegment) => ({
       id: seg.id,
       speaker: seg.speaker as Speaker,
-      content: seg.content,
+      content: isRedactionEnabled ? redactPii(seg.content) : seg.content,
       startTime: seg.startTime,
       endTime: seg.endTime,
       sequenceNumber: seg.sequenceNumber,

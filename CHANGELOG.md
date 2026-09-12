@@ -2,6 +2,11 @@
 
 ## [Unreleased] - 2026-09-12
 ### Added
+- Implemented Phase 3 PII Redaction engine (`server/src/utils/piiRedactor.ts`) supporting pattern-based redaction for Indian/global phone numbers, email addresses, credit cards, and government IDs.
+- Added `isPiiRedactionEnabled` field to `Agent` model in Prisma schema defaulting to `false` so all existing user agents remain unaffected until opted in.
+- Integrated non-destructive render/export time PII redaction pass in `CallService.getCallTranscript` (`server/src/services/CallService.ts`) preserving original database records untouched.
+- Added PII Redaction toggle in Agent Settings UI (`AgentConfigPanel.tsx`) and exported `isPiiRedactionEnabled` in agent API schemas.
+- Added automated Phase 3 PII Redaction test verification script `scripts/test_pii_redaction.js`.
 - Implemented Phase 2 Audit Log system with `AuditLog` Prisma model (`workspaceOwnerId`, `actorUserId`, `action`, `targetId`, `metadata`, `createdAt`).
 - Built safe non-blocking audit logging helper `logAuditEvent` in `server/src/utils/auditLogger.ts` and integrated accountability logging across agent creation/editing/deletion, team member invitation/role-changes/removal.
 - Added read-only admin audit log endpoint `GET /api/v2/audit-logs` (`server/src/routes/auditLog.ts`) supporting action string matching and ISO date range filtering.
