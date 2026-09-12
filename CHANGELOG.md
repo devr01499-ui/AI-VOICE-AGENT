@@ -2,6 +2,10 @@
 
 ## [Unreleased] - 2026-09-12
 ### Added
+- Implemented Phase 1 4-Tier Role-Based Access Control (`admin`, `developer`, `analyst`, `viewer`) with additive role enforcement middleware (`requireRole`) in `server/src/middleware/auth.ts` and `server/src/routes/team.ts`.
+- Guaranteed permanent workspace owner admin immunity in `requireAuth` so workspace owners (`effectiveWorkspaceId === userId` or `accountType === 'admin'`) can never be locked out of their workspace settings.
+- Added Team Member role update endpoint `PUT /api/v2/team/:memberId/role` and extended `inviteTeamMember` and team UI in `App.tsx` with role selection dropdowns and admin-managed role editing.
+- Added automated Phase 1 RBAC test verification script `scripts/test_rbac_protection.js`.
 - Implemented responsive mobile drawer navigation & overlay backdrop (< 768px `md:`) in `App.tsx` shell, un-clipping content viewport scrolling without altering static desktop sidebar behavior.
 - Added mobile guidance banner & responsive header structure to `VisualFlowCanvas.tsx` for mobile viewports (< 768px).
 - Introduced new **Starter Plan** (₹800/month, 500 bundled minutes, 1 bundled virtual number) positioned between Trial and Startup plans.

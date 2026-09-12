@@ -4632,6 +4632,9 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
   const [numbersList, setNumbersList] = useState<any[]>([]);
   const [team, setTeam] = useState<any[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<'admin' | 'developer' | 'analyst' | 'viewer'>('viewer');
+
+  const canManageTeam = !profile?.workspaceRole || profile.workspaceRole === 'admin' || profile.workspaceRole === 'owner';
 
   // Workspace Settings State
   const [wsName, setWsName] = useState(profile?.fullName ?? "Claritiy Voice Workspace");
@@ -4671,7 +4674,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
   const handleInvite = async () => {
     if (!inviteEmail) return;
     try {
-      const res: any = await apiClient.post('/api/v2/team/invite', { email: inviteEmail });
+      const res: any = await apiClient.post('/api/v2/team/invite', { email: inviteEmail, role: inviteRole });
       if (res.data?.success) {
         setTeam(p => [...p, res.data.data]);
         setInviteEmail('');
@@ -4680,6 +4683,19 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
       }
     } catch (err: any) {
       alert(err?.response?.data?.error || "Failed to invite user");
+    }
+  };
+
+  const handleUpdateRole = async (memberId: string, newRole: string) => {
+    try {
+      const res: any = await apiClient.put(`/api/v2/team/${memberId}/role`, { role: newRole });
+      if (res.data?.success) {
+        setTeam(p => p.map(m => m.memberId === memberId ? { ...m, role: newRole } : m));
+      } else {
+        alert(res.data?.error || "Failed to update role");
+      }
+    } catch (err: any) {
+      alert(err?.response?.data?.error || "Failed to update member role");
     }
   };
 
@@ -4843,15 +4859,54 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
             <table className="w-full"><thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Member","Role","Joined",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>)}</tr></thead>
             <tbody className="divide-y divide-transparent">
               {team.map(m=>(
-                <tr key={m.memberId} className="hover:nm-pressed transition-all"><td className="px-5 py-4"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{m.member?.fullName || 'No Name'}</p><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{m.member?.email}</p></td><td className="px-5 py-4"><DBadge>{m.role}</DBadge></td><td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{new Date(m.createdAt).toLocaleDateString()}</td><td className="px-5 py-4"><DBtn size="sm" variant="ghost" onClick={() => handleRemove(m.memberId)}><Trash2 className="w-4 h-4 text-red-500"/></DBtn></td></tr>
+                <tr key={m.memberId} className="hover:nm-pressed transition-all">
+                  <td className="px-5 py-4">
+                    <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{m.member?.fullName || 'No Name'}</p>
+                    <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{m.member?.email}</p>
+                  </td>
+                  <td className="px-5 py-4">
+                    {canManageTeam ? (
+                      <select 
+                        value={m.role || 'viewer'} 
+                        onChange={(e) => handleUpdateRole(m.memberId, e.target.value)}
+                        className="bg-[var(--nm-bg)] text-[var(--nm-text)] text-xs font-bold rounded-lg px-3 py-1.5 border border-slate-700/30 focus:outline-none focus:ring-1 focus:ring-[#059669]"
+                      >
+                        <option value="admin">Admin</option>
+                        <option value="developer">Developer</option>
+                        <option value="analyst">Analyst</option>
+                        <option value="viewer">Viewer</option>
+                      </select>
+                    ) : (
+                      <DBadge>{m.role}</DBadge>
+                    )}
+                  </td>
+                  <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{new Date(m.createdAt).toLocaleDateString()}</td>
+                  <td className="px-5 py-4">
+                    {canManageTeam && (
+                      <DBtn size="sm" variant="ghost" onClick={() => handleRemove(m.memberId)}><Trash2 className="w-4 h-4 text-red-500"/></DBtn>
+                    )}
+                  </td>
+                </tr>
               ))}
               {team.length === 0 && <tr><td colSpan={4} className="text-center p-4 text-sm">No team members yet.</td></tr>}
             </tbody></table>
           </div>
-          <div className="flex gap-2">
-            <DInput placeholder="Invite by email..." value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} type="email" />
-            <DBtn onClick={handleInvite}><Plus className="w-4 h-4"/> Invite</DBtn>
-          </div>
+          {canManageTeam && (
+            <div className="flex flex-col sm:flex-row gap-2">
+              <DInput placeholder="Invite by email..." value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} type="email" />
+              <select 
+                value={inviteRole}
+                onChange={e => setInviteRole(e.target.value as any)}
+                className="bg-[var(--nm-bg)] text-[var(--nm-text)] text-xs font-bold rounded-xl px-4 py-2.5 border border-slate-700/30 focus:outline-none focus:ring-1 focus:ring-[#059669]"
+              >
+                <option value="admin">Admin Tier</option>
+                <option value="developer">Developer Tier</option>
+                <option value="analyst">Analyst Tier</option>
+                <option value="viewer">Viewer Tier</option>
+              </select>
+              <DBtn onClick={handleInvite}><Plus className="w-4 h-4"/> Invite Member</DBtn>
+            </div>
+          )}
         </div>
       )}
     </div>
