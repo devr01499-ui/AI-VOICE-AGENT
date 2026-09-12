@@ -29,6 +29,7 @@ model User {
   totalMinutesConsumed  Float    @default(0.0) @map("total_minutes_consumed")
   numberLocked          Boolean  @default(false) @map("number_locked")
   dataRetentionDays     Int?     @map("data_retention_days")
+  allowedIpRanges       String[] @default([]) @map("allowed_ip_ranges")
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
 

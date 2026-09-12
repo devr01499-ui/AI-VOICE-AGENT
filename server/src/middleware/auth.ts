@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { ADMIN_EMAIL } from '../config/constants';
+import { isIpAllowed } from '../utils/ipChecker';
 
 export interface AuthenticatedRequest extends Request {
   userId?: string;
@@ -113,6 +114,29 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     if (teamMember) {
       effectiveWorkspaceId = teamMember.ownerId;
       workspaceRole = teamMember.role || 'viewer';
+    }
+
+    // IP Allowlist Check
+    const workspaceOwner = effectiveWorkspaceId === userId
+      ? userProfile
+      : await prisma.user.findUnique({ where: { id: effectiveWorkspaceId }, select: { allowedIpRanges: true } });
+
+    const allowedIpRanges = workspaceOwner?.allowedIpRanges || [];
+    if (allowedIpRanges.length > 0) {
+      const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() || req.ip || req.socket.remoteAddress || '';
+      if (!isIpAllowed(clientIp, allowedIpRanges)) {
+        logger.warn('[requireAuth] Access denied by workspace IP allowlist', {
+          userId,
+          effectiveWorkspaceId,
+          clientIp,
+          allowedIpRanges,
+        });
+        res.status(403).json({
+          success: false,
+          error: `Access Denied: IP address (${clientIp}) is not in the workspace allowed IP range. Contact your administrator or refer to database emergency recovery procedures.`
+        });
+        return;
+      }
     }
 
     req.userId = userId;
