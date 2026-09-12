@@ -161,6 +161,16 @@ export class CallOrchestrator {
     return this.activeCalls.size;
   }
 
+  getActiveCallCountForUser(userId: string): number {
+    let count = 0;
+    for (const session of this.activeCalls.values()) {
+      if ((session as any).userId === userId) {
+        count++;
+      }
+    }
+    return count;
+  }
+
   /**
    * Placed outbound call handler.
    */

@@ -637,6 +637,17 @@ export async function updateIpAllowlist(allowedIpRanges: string[]): Promise<{ al
   });
 }
 
+export async function fetchConcurrencyTelemetry(): Promise<{ activeCallCount: number; softLimit: number }> {
+  return await apiFetch('/api/v2/user/concurrency');
+}
+
+export async function updateConcurrencyLimit(maxConcurrentCalls: number): Promise<{ softLimit: number; message: string }> {
+  return await apiFetch('/api/v2/user/concurrency', {
+    method: 'POST',
+    body: JSON.stringify({ maxConcurrentCalls }),
+  });
+}
+
 export async function executeConductorPrompt(prompt: string, chatHistory?: any[]): Promise<{ reply: string; actionsExecuted?: any[]; error?: string; currentPlan?: string }> {
   return apiFetch('/api/v2/conductor/execute', {
     method: 'POST',

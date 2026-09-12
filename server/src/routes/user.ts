@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { requireAuth, requireRole, AuthenticatedRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { logAuditEvent } from '../utils/auditLogger';
+import { CallOrchestrator } from '../core/orchestrator/CallOrchestrator';
 
 const router = Router();
 
@@ -243,6 +244,81 @@ router.post('/ip-allowlist', requireAuth, requireRole(['admin']), async (req: Au
   } catch (err) {
     logger.error('Failed to update IP allowlist', { error: String(err) });
     res.status(500).json({ success: false, error: 'Failed to update IP allowlist' });
+  }
+});
+
+/**
+ * GET /api/v2/user/concurrency
+ * Returns active concurrent call count and configured soft limit for workspace.
+ */
+router.get('/concurrency', requireAuth, async (req: AuthenticatedRequest, res) => {
+  try {
+    const ownerId = req.effectiveWorkspaceId || req.userId;
+    if (!ownerId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+
+    const user = await prisma.user.findUnique({
+      where: { id: ownerId },
+      select: { maxConcurrentCalls: true },
+    });
+
+    const inMemoryCount = CallOrchestrator.instance.getActiveCallCountForUser(ownerId);
+    const dbCount = await prisma.callSession.count({
+      where: {
+        userId: ownerId,
+        status: { in: ['IN_PROGRESS', 'initiated', 'queued', 'active'] },
+      },
+    });
+
+    const activeCallCount = Math.max(inMemoryCount, dbCount);
+    const softLimit = user?.maxConcurrentCalls ?? 10;
+
+    res.json({
+      success: true,
+      activeCallCount,
+      softLimit,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to fetch concurrency telemetry' });
+  }
+});
+
+/**
+ * POST /api/v2/user/concurrency
+ * Updates workspace configurable soft limit (Admin-only).
+ */
+router.post('/concurrency', requireAuth, requireRole(['admin']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const ownerId = req.effectiveWorkspaceId || req.userId;
+    if (!ownerId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+
+    const { maxConcurrentCalls } = req.body;
+    const parsedLimit = parseInt(String(maxConcurrentCalls), 10);
+
+    if (isNaN(parsedLimit) || parsedLimit <= 0) {
+      res.status(400).json({ success: false, error: 'maxConcurrentCalls must be a positive integer' });
+      return;
+    }
+
+    await prisma.user.update({
+      where: { id: ownerId },
+      data: { maxConcurrentCalls: parsedLimit },
+    });
+
+    logAuditEvent({
+      workspaceOwnerId: ownerId,
+      actorUserId: req.userId!,
+      action: 'workspace.concurrency.configured',
+      metadata: { maxConcurrentCalls: parsedLimit },
+    });
+
+    res.json({
+      success: true,
+      softLimit: parsedLimit,
+      message: `Soft concurrency limit updated to ${parsedLimit} active call(s).`,
+    });
+  } catch (err) {
+    logger.error('Failed to update concurrency limit', { error: String(err) });
+    res.status(500).json({ success: false, error: 'Failed to update concurrency settings' });
   }
 });
 
