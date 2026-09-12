@@ -13,8 +13,9 @@ import {
   exportAgentAsJson, importAgentFromJson, executeConductorPrompt,
   initiateCall, getCallTranscript, getLiveTranscriptWsUrl,
   fetchKBList, uploadKBDocument, scrapeKBUrl, deleteKBDocument, fetchCalendarBatches, createBatchCampaign, pauseBatchCampaign, resumeBatchCampaign, cancelBatchCampaign,
+  fetchAuditLogs,
   DEV_USER_ID, DEFAULT_AGENT_ID, API_BASE, apiClient,
-  type ApiAgent, type ApiCall, type ApiProfile, type ApiKnowledgeBase,
+  type ApiAgent, type ApiCall, type ApiProfile, type ApiKnowledgeBase, type ApiAuditLog,
 } from "./api";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -4628,13 +4629,42 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
 
 // ── Settings ──
 function DashSettings({ profile }: { profile: ApiProfile | null }) {
-  const [stab, setStab] = useState<"workspace"|"api"|"webhooks"|"billing"|"team">("workspace");
+  const [stab, setStab] = useState<"workspace"|"api"|"webhooks"|"billing"|"team"|"audit">("workspace");
   const [numbersList, setNumbersList] = useState<any[]>([]);
   const [team, setTeam] = useState<any[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'admin' | 'developer' | 'analyst' | 'viewer'>('viewer');
 
   const canManageTeam = !profile?.workspaceRole || profile.workspaceRole === 'admin' || profile.workspaceRole === 'owner';
+
+  // Audit Logs State
+  const [auditLogs, setAuditLogs] = useState<ApiAuditLog[]>([]);
+  const [auditActionFilter, setAuditActionFilter] = useState('');
+  const [auditStartDate, setAuditStartDate] = useState('');
+  const [auditEndDate, setAuditEndDate] = useState('');
+  const [loadingAudit, setLoadingAudit] = useState(false);
+
+  const loadAuditLogs = useCallback(() => {
+    setLoadingAudit(true);
+    fetchAuditLogs({
+      action: auditActionFilter,
+      startDate: auditStartDate || undefined,
+      endDate: auditEndDate || undefined,
+    }).then(res => {
+      if (res.data && Array.isArray(res.data)) {
+        setAuditLogs(res.data);
+      }
+      setLoadingAudit(false);
+    }).catch(() => {
+      setLoadingAudit(false);
+    });
+  }, [auditActionFilter, auditStartDate, auditEndDate]);
+
+  useEffect(() => {
+    if (stab === "audit") {
+      loadAuditLogs();
+    }
+  }, [stab, loadAuditLogs]);
 
   // Workspace Settings State
   const [wsName, setWsName] = useState(profile?.fullName ?? "Claritiy Voice Workspace");
@@ -4757,8 +4787,10 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
 
   return (
     <div className="space-y-4 max-w-2xl">
-      <div className="flex gap-2">
-        {(["workspace","api","webhooks","billing","team"] as const).map(t=><button key={t} onClick={()=>setStab(t)} className={`px-5 py-2.5 text-sm font-bold capitalize transition-all ${stab===t?"nm-pressed text-[var(--nm-accent)] rounded-xl":"hover:nm-pressed text-[var(--nm-text)] rounded-xl"}`} style={{fontFamily:"'Outfit', sans-serif"}}>{t}</button>)}
+      <div className="flex gap-2 flex-wrap">
+        {(canManageTeam ? ["workspace","api","webhooks","billing","team","audit"] : ["workspace","api","webhooks","billing","team"]).map(t=>(
+          <button key={t} onClick={()=>setStab(t as any)} className={`px-5 py-2.5 text-sm font-bold capitalize transition-all ${stab===t?"nm-pressed text-[var(--nm-accent)] rounded-xl":"hover:nm-pressed text-[var(--nm-text)] rounded-xl"}`} style={{fontFamily:"'Outfit', sans-serif"}}>{t === "audit" ? "Audit Logs" : t}</button>
+        ))}
       </div>
 
       {stab==="workspace"&&(
@@ -4907,6 +4939,89 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
               <DBtn onClick={handleInvite}><Plus className="w-4 h-4"/> Invite Member</DBtn>
             </div>
           )}
+        </div>
+      )}
+
+      {stab==="audit"&&(
+        <div className="space-y-4">
+          <div className="nm-card p-4 flex flex-wrap gap-3 items-center">
+            <div className="flex-1 min-w-[200px]">
+              <input
+                type="text"
+                placeholder="Filter by action (e.g. agent.created)..."
+                value={auditActionFilter}
+                onChange={e => setAuditActionFilter(e.target.value)}
+                className="w-full bg-[var(--nm-bg)] text-[var(--nm-text)] text-xs font-bold rounded-xl px-3 py-2 border border-slate-700/30 focus:outline-none focus:ring-1 focus:ring-[#059669]"
+              />
+            </div>
+            <div className="flex gap-2 items-center">
+              <input
+                type="date"
+                value={auditStartDate}
+                onChange={e => setAuditStartDate(e.target.value)}
+                className="bg-[var(--nm-bg)] text-[var(--nm-text)] text-xs font-bold rounded-xl px-3 py-2 border border-slate-700/30"
+              />
+              <span className="text-xs font-bold text-slate-400">to</span>
+              <input
+                type="date"
+                value={auditEndDate}
+                onChange={e => setAuditEndDate(e.target.value)}
+                className="bg-[var(--nm-bg)] text-[var(--nm-text)] text-xs font-bold rounded-xl px-3 py-2 border border-slate-700/30"
+              />
+            </div>
+            <DBtn size="sm" onClick={loadAuditLogs}><RefreshCw className={`w-3.5 h-3.5 ${loadingAudit ? 'animate-spin' : ''}`} /> Refresh</DBtn>
+          </div>
+
+          <div className="nm-raised rounded-2xl overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-700/30 text-[var(--nm-text)] text-xs font-bold">
+                  <th className="px-4 py-3">Timestamp</th>
+                  <th className="px-4 py-3">Action</th>
+                  <th className="px-4 py-3">Actor / User</th>
+                  <th className="px-4 py-3">Target ID</th>
+                  <th className="px-4 py-3">Metadata Context</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700/20 text-xs">
+                {auditLogs.map(log => (
+                  <tr key={log.id} className="hover:nm-pressed transition-all">
+                    <td className="px-4 py-3 font-mono text-slate-400 whitespace-nowrap">
+                      {new Date(log.createdAt).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="inline-block px-2.5 py-0.5 rounded-md font-mono text-[11px] font-bold bg-[#059669]/10 text-[#059669] border border-[#059669]/20">
+                        {log.action}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-[var(--nm-text)]">
+                      {log.actorUserId.slice(0, 8)}...
+                    </td>
+                    <td className="px-4 py-3 font-mono text-slate-400">
+                      {log.targetId ? log.targetId.slice(0, 12) : '-'}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-slate-300">
+                      {log.metadata ? JSON.stringify(log.metadata) : '-'}
+                    </td>
+                  </tr>
+                ))}
+                {auditLogs.length === 0 && !loadingAudit && (
+                  <tr>
+                    <td colSpan={5} className="text-center p-6 text-slate-400 text-xs">
+                      No audit log entries recorded matching current filters.
+                    </td>
+                  </tr>
+                )}
+                {loadingAudit && (
+                  <tr>
+                    <td colSpan={5} className="text-center p-6 text-slate-400 text-xs">
+                      Loading workspace audit trail...
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

@@ -14,6 +14,7 @@ import { prisma } from '../lib/prisma';
 import { getUserIdFromRequest } from '../utils/auth';
 import { requireAuth, requireEditor } from '../middleware/auth';
 import { logger } from '../utils/logger';
+import { logAuditEvent } from '../utils/auditLogger';
 import { ADMIN_EMAIL } from '../config/constants';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 
@@ -454,6 +455,14 @@ router.post(
         },
       });
 
+      logAuditEvent({
+        workspaceOwnerId: userId,
+        actorUserId: primaryUserId || userId,
+        action: 'agent.created',
+        targetId: newAgent.id,
+        metadata: { name: newAgent.name, agentType: newAgent.agentType }
+      });
+
       res.status(201).json({
         success: true,
         data: newAgent,
@@ -542,6 +551,14 @@ router.put(
         res.status(404).json({ success: false, error: 'Agent not found after update' });
         return;
       }
+
+      logAuditEvent({
+        workspaceOwnerId: userId,
+        actorUserId: primaryUserId || userId,
+        action: 'agent.updated',
+        targetId: updatedAgent.id,
+        metadata: { name: updatedAgent.name, status: updatedAgent.status, version: updatedAgent.version }
+      });
 
       res.json({
         success: true,
@@ -658,6 +675,14 @@ router.delete(
 
       await prisma.agent.deleteMany({
         where: { id: agentId, userId: userId },
+      });
+
+      logAuditEvent({
+        workspaceOwnerId: userId,
+        actorUserId: (req as any).user?.id || userId,
+        action: 'agent.deleted',
+        targetId: agentId,
+        metadata: { name: exists.name }
       });
 
       res.json({

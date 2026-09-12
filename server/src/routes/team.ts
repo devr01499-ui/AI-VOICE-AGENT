@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { validateBody, validateParams } from '../middleware/validation';
 import { logger } from '../utils/logger';
+import { logAuditEvent } from '../utils/auditLogger';
 
 const router = Router();
 
@@ -61,6 +62,15 @@ router.post('/invite', requireAuth, validateBody(inviteSchema), async (req: Auth
       data: { ownerId, memberId: userToInvite.id, role: assignedRole },
       include: { member: { select: { id: true, email: true, fullName: true, createdAt: true } } }
     });
+
+    logAuditEvent({
+      workspaceOwnerId: ownerId,
+      actorUserId: req.userId!,
+      action: 'team.member.invited',
+      targetId: userToInvite.id,
+      metadata: { email, role: assignedRole }
+    });
+
     res.status(201).json({ success: true, data: newMember });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to invite team member' });
@@ -80,6 +90,15 @@ router.put('/:memberId/role', requireAuth, validateParams(memberIdSchema), valid
       data: { role },
       include: { member: { select: { id: true, email: true, fullName: true, createdAt: true } } }
     });
+
+    logAuditEvent({
+      workspaceOwnerId: ownerId,
+      actorUserId: req.userId!,
+      action: 'team.role.updated',
+      targetId: String(memberId),
+      metadata: { role }
+    });
+
     res.json({ success: true, data: updated });
   } catch (error: any) {
     if (error.code === 'P2025') { res.status(404).json({ success: false, error: 'Team member not found' }); return; }
@@ -95,6 +114,14 @@ router.delete('/:memberId', requireAuth, validateParams(memberIdSchema), async (
     if (!canManageTeam(req)) { res.status(403).json({ success: false, error: 'Only workspace admins can remove members' }); return; }
 
     await prisma.teamMember.delete({ where: { ownerId_memberId: { ownerId, memberId: String(memberId) } } });
+
+    logAuditEvent({
+      workspaceOwnerId: ownerId,
+      actorUserId: req.userId!,
+      action: 'team.member.removed',
+      targetId: String(memberId)
+    });
+
     res.json({ success: true, message: 'Team member removed' });
   } catch (error: any) {
     if (error.code === 'P2025') { res.status(404).json({ success: false, error: 'Team member not found' }); return; }

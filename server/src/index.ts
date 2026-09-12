@@ -54,6 +54,8 @@ import contactsRoutes from './routes/contacts';
 import analyticsRoutes from './routes/analytics';
 import qaRoutes from './routes/qa';
 import alertingRoutes from './routes/alerting';
+import integrationsRoutes from './routes/integrations';
+import auditLogRoutes from './routes/auditLog';
 import { AlertEvaluator } from './services/AlertEvaluator';
 import { requireAuthOrApiKey } from './middleware/authWrapper';
 
@@ -237,6 +239,7 @@ app.use('/api/v2/contacts', requireAuth, contactsRoutes);
 app.use('/api/v2/analytics', requireAuth, analyticsRoutes);
 app.use('/api/v2/qa', requireAuth, qaRoutes);
 app.use('/api/v2/alerting', requireAuth, alertingRoutes);
+app.use('/api/v2/audit-logs', requireAuth, auditLogRoutes);
 
 // ─── 404 Handler ─────────────────────────────────
 

@@ -880,6 +880,22 @@ model PaymentTransaction {
   @@map("payment_transactions")
 }
 
+model AuditLog {
+  id               String   @id @default(uuid())
+  workspaceOwnerId String   @map("workspace_owner_id")
+  actorUserId      String   @map("actor_user_id")
+  action           String
+  targetId         String?  @map("target_id")
+  metadata         Json?
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@index([workspaceOwnerId])
+  @@index([actorUserId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
 
 
 

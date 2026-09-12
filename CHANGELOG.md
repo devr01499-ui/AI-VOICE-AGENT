@@ -2,6 +2,11 @@
 
 ## [Unreleased] - 2026-09-12
 ### Added
+- Implemented Phase 2 Audit Log system with `AuditLog` Prisma model (`workspaceOwnerId`, `actorUserId`, `action`, `targetId`, `metadata`, `createdAt`).
+- Built safe non-blocking audit logging helper `logAuditEvent` in `server/src/utils/auditLogger.ts` and integrated accountability logging across agent creation/editing/deletion, team member invitation/role-changes/removal.
+- Added read-only admin audit log endpoint `GET /api/v2/audit-logs` (`server/src/routes/auditLog.ts`) supporting action string matching and ISO date range filtering.
+- Added read-only Audit Log tab in Settings (`DashSettings` in `App.tsx`) with real-time filterable log table UI.
+- Added automated Phase 2 Audit Log test verification script `scripts/test_audit_log.js`.
 - Implemented Phase 1 4-Tier Role-Based Access Control (`admin`, `developer`, `analyst`, `viewer`) with additive role enforcement middleware (`requireRole`) in `server/src/middleware/auth.ts` and `server/src/routes/team.ts`.
 - Guaranteed permanent workspace owner admin immunity in `requireAuth` so workspace owners (`effectiveWorkspaceId === userId` or `accountType === 'admin'`) can never be locked out of their workspace settings.
 - Added Team Member role update endpoint `PUT /api/v2/team/:memberId/role` and extended `inviteTeamMember` and team UI in `App.tsx` with role selection dropdowns and admin-managed role editing.
