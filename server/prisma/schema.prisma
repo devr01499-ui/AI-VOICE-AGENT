@@ -28,6 +28,7 @@ model User {
   minutesRemainingSeconds Float   @default(0.0) @map("minutes_remaining_seconds")
   totalMinutesConsumed  Float    @default(0.0) @map("total_minutes_consumed")
   numberLocked          Boolean  @default(false) @map("number_locked")
+  dataRetentionDays     Int?     @map("data_retention_days")
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
 

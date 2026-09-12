@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
-import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
+import { requireAuth, requireRole, AuthenticatedRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
+import { logAuditEvent } from '../utils/auditLogger';
 
 const router = Router();
 
@@ -115,6 +116,70 @@ router.post('/notifications', requireAuth, async (req: AuthenticatedRequest, res
     res.json({ success: true, data: newNotif });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to post notification' });
+  }
+});
+
+/**
+ * GET /api/v2/user/retention
+ * Fetches workspace data retention setting.
+ */
+router.get('/retention', requireAuth, async (req: AuthenticatedRequest, res) => {
+  try {
+    const ownerId = req.effectiveWorkspaceId || req.userId;
+    if (!ownerId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+
+    const user = await prisma.user.findUnique({
+      where: { id: ownerId },
+      select: { dataRetentionDays: true },
+    });
+
+    res.json({ success: true, dataRetentionDays: user?.dataRetentionDays ?? null });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to fetch retention settings' });
+  }
+});
+
+/**
+ * POST /api/v2/user/retention
+ * Updates workspace data retention setting (Admin-only).
+ */
+router.post('/retention', requireAuth, requireRole(['admin']), async (req: AuthenticatedRequest, res) => {
+  try {
+    const ownerId = req.effectiveWorkspaceId || req.userId;
+    if (!ownerId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+
+    const { dataRetentionDays } = req.body;
+    let safeDays: number | null = null;
+
+    if (dataRetentionDays !== null && dataRetentionDays !== undefined) {
+      const parsed = parseInt(String(dataRetentionDays), 10);
+      if (isNaN(parsed) || parsed <= 0) {
+        res.status(400).json({ success: false, error: 'dataRetentionDays must be a positive integer or null' });
+        return;
+      }
+      safeDays = parsed;
+    }
+
+    await prisma.user.update({
+      where: { id: ownerId },
+      data: { dataRetentionDays: safeDays },
+    });
+
+    logAuditEvent({
+      workspaceOwnerId: ownerId,
+      actorUserId: req.userId!,
+      action: 'data.retention.configured',
+      metadata: { dataRetentionDays: safeDays },
+    });
+
+    res.json({
+      success: true,
+      message: safeDays ? `Data retention policy set to ${safeDays} days.` : 'Data retention set to keep forever.',
+      dataRetentionDays: safeDays,
+    });
+  } catch (err) {
+    logger.error('Failed to update retention policy', { error: String(err) });
+    res.status(500).json({ success: false, error: 'Failed to update retention settings' });
   }
 });
 

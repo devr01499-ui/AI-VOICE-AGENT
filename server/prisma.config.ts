@@ -22,6 +22,6 @@ export default defineConfig({
     // Do NOT fall back to 'file:../dev.db' — that causes prisma generate
     // to bake a SQLite-targeted client into dist/, which then crashes at
     // runtime when Render injects a PostgreSQL DATABASE_URL into the container.
-    url: process.env.DATABASE_URL ?? '',
+    url: process.env.DIRECT_URL ?? process.env.DATABASE_URL ?? '',
   },
 });
