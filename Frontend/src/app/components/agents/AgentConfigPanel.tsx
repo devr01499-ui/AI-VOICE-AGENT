@@ -16,6 +16,7 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
   const [voice, setVoice] = useState(agent.systemVoice || agent.voice || "Puck");
   const [temp, setTemp] = useState(agent.temperature ?? 0.7);
   const [languageMode, setLanguageMode] = useState(agent.languageMode || "auto");
+  const [isPiiRedactionEnabled, setIsPiiRedactionEnabled] = useState(agent.isPiiRedactionEnabled || false);
   const [calendarConnected, setCalendarConnected] = useState(false);
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -34,6 +35,7 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
     setVoice(agent.systemVoice || agent.voice || "Puck");
     setTemp(agent.temperature ?? 0.7);
     setLanguageMode(agent.languageMode || "auto");
+    setIsPiiRedactionEnabled(agent.isPiiRedactionEnabled || false);
   }, [agent.id]);
 
   const triggerDebouncedSave = (updatedFields: Record<string, any>) => {
@@ -51,6 +53,7 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
         systemVoice: updatedFields.systemVoice !== undefined ? updatedFields.systemVoice : voice,
         temperature: updatedFields.temperature !== undefined ? Number(updatedFields.temperature) : Number(temp),
         languageMode: updatedFields.languageMode !== undefined ? updatedFields.languageMode : languageMode,
+        isPiiRedactionEnabled: updatedFields.isPiiRedactionEnabled !== undefined ? updatedFields.isPiiRedactionEnabled : isPiiRedactionEnabled,
       };
 
       updateAgent(agent.id, payload)
@@ -287,6 +290,36 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
           <div className="flex justify-between text-xs font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Figtree', sans-serif" }}>
             <span>Factual (0.0)</span>
             <span>Creative (1.0)</span>
+          </div>
+        </div>
+
+        {/* PII Redaction Toggle */}
+        <div className="pt-6 border-t border-[var(--nm-bg-dark)] space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-[var(--nm-text)]" style={{ fontFamily: "'DM Mono', monospace" }}>
+                PII REDACTION FOR TRANSCRIPTS & EXPORTS
+              </p>
+              <p className="text-xs text-[var(--nm-text)] opacity-70 mt-1" style={{ fontFamily: "'Figtree', sans-serif" }}>
+                Redact phone numbers, emails, credit cards, and IDs at display/export time. Default: Off.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                const nextVal = !isPiiRedactionEnabled;
+                setIsPiiRedactionEnabled(nextVal);
+                triggerDebouncedSave({ isPiiRedactionEnabled: nextVal });
+              }}
+              className={`w-12 h-6 rounded-full p-1 transition-colors duration-200 ease-in-out ${
+                isPiiRedactionEnabled ? 'bg-[#059669]' : 'bg-slate-700'
+              }`}
+            >
+              <div
+                className={`w-4 h-4 rounded-full bg-white transition-transform duration-200 ease-in-out ${
+                  isPiiRedactionEnabled ? 'translate-x-6' : 'translate-x-0'
+                }`}
+              />
+            </button>
           </div>
         </div>
 
