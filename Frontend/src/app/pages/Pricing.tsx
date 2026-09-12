@@ -153,7 +153,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('token') : ''}`,
         },
-        body: JSON.stringify({ price })
+        body: JSON.stringify({ planName, price })
       });
       const orderData = await orderRes.json();
       
@@ -310,9 +310,9 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
         </section>
       )}
 
-      {/* 4 Tier Pricing Cards */}
+      {/* 5 Tier Pricing Cards */}
       <section className="px-6 max-w-7xl mx-auto relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 xl:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
           
           {/* Trial Plan */}
           <motion.div
@@ -353,6 +353,52 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
               className="py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors w-full flex items-center justify-center gap-2"
             >
               {purchasingPlan === "Trial" ? <Loader2 className="w-4 h-4 animate-spin" /> : "Purchase Trial"}
+            </button>
+          </motion.div>
+
+          {/* Starter Plan */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.18 }}
+            className="bg-white border border-[#EADEC9] rounded-3xl p-8 flex flex-col justify-between shadow-lg hover:shadow-xl transition-all"
+          >
+            <div>
+              <h3 className="font-bold text-xl text-slate-900 mb-1" style={{ fontFamily: "'Clash Display', sans-serif" }}>Starter Plan</h3>
+              <p className="text-xs text-slate-500 mb-6 font-plus-jakarta">Low-commitment entry plan for initial campaign rollout.</p>
+              <div className="mb-6">
+                <span className="text-4xl font-extrabold text-slate-900 font-mono">₹800</span>
+                <span className="text-xs text-slate-500 font-bold"> / month</span>
+                <p className="text-xs font-mono font-bold text-emerald-600 mt-1">500 Mins + 1 Free Phone Number</p>
+              </div>
+              <ul className="space-y-3 mb-8 text-xs text-slate-700 font-semibold font-plus-jakarta">
+                {(viewMode === "non-tech" ? [
+                  '500 Bundled Call Minutes (₹3.99/min after)',
+                  '1 Free Phone Number Included',
+                  '26+ HD Voice Personas',
+                  '70+ Languages & Dialects',
+                  'Standard Webhooks & CRM Sync',
+                  'Real-Time Transcripts'
+                ] : [
+                  '500 Bundled Call Mins (₹3.99/min overage)',
+                  '1 Dedicated Virtual Number',
+                  '5 Concurrent Call Channels',
+                  'REST Webhook Emitters (HMAC Signed)',
+                  'Custom RAG Knowledge Vectors (Up to 20MB)',
+                  'Full-Duplex VAD Interruption DSP'
+                ]).map(f => (
+                  <li key={f} className="flex items-center gap-2.5">
+                    <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" /> <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <button 
+              onClick={() => handlePurchase("Starter", 800)} 
+              disabled={purchasingPlan === "Starter"}
+              className="py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors w-full flex items-center justify-center gap-2"
+            >
+              {purchasingPlan === "Starter" ? <Loader2 className="w-4 h-4 animate-spin" /> : "Purchase Starter Plan"}
             </button>
           </motion.div>
           

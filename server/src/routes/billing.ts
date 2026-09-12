@@ -9,20 +9,21 @@ const router = Router();
 
 router.post('/create-plan-order', requireAuth, async (req, res) => {
   try {
-    const { price } = req.body; // e.g. 2999
+    const { planName, plan, price } = req.body;
+    const targetPlan = planName || plan || price;
     
-    if (!price || isNaN(price)) {
-      res.status(400).json({ success: false, error: 'Invalid price' });
+    if (!targetPlan) {
+      res.status(400).json({ success: false, error: 'Plan name is required' });
       return;
     }
 
     const billingService = new BillingService();
-    const order = await billingService.createPlanPurchaseOrder(price);
+    const order = await billingService.createPlanPurchaseOrder(targetPlan);
     
     res.json({ success: true, data: order });
   } catch (err: any) {
     logger.error('Billing: failed to create plan order', { error: String(err) });
-    if (err.message === 'Minimum amount must be at least 100 paise') {
+    if (err.message === 'Invalid or unknown plan name' || err.message === 'Minimum amount must be at least 100 paise') {
       res.status(400).json({ success: false, error: err.message });
       return;
     }
