@@ -2,6 +2,8 @@
 
 ## [Unreleased] - 2026-09-12
 ### Added
+- Implemented responsive mobile drawer navigation & overlay backdrop (< 768px `md:`) in `App.tsx` shell, un-clipping content viewport scrolling without altering static desktop sidebar behavior.
+- Added mobile guidance banner & responsive header structure to `VisualFlowCanvas.tsx` for mobile viewports (< 768px).
 - Introduced new **Starter Plan** (₹800/month, 500 bundled minutes, 1 bundled virtual number) positioned between Trial and Startup plans.
 
 ### Fixed

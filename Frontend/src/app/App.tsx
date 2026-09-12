@@ -5574,56 +5574,117 @@ function DashboardPage({ session }: { session: Session }) {
     conductor: "Conductor AI",
   };
 
+  const handleNavClick = (id: DashSection) => {
+    setSection(id);
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  };
+
   return (
-    <div className="flex h-screen nm-dashboard-container overflow-hidden">
-      <div className={`${sidebarOpen?"w-52":"w-16"} flex-shrink-0 nm-raised flex flex-col transition-all duration-300 z-20`}>
-        <div className="h-16 flex items-center px-4 justify-between">
-          {sidebarOpen && (
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded bg-indigo-600 text-white font-bold text-xs flex items-center justify-center">R</div>
-              <span className="text-xs font-bold text-[var(--nm-text)] truncate">Rohit's Workspace</span>
-            </div>
-          )}
-          <button onClick={()=>setSidebarOpen(!sidebarOpen)} className="nm-icon-btn ml-auto"><Menu className="w-4 h-4"/></button>
+    <div className="flex h-screen nm-dashboard-container overflow-hidden relative">
+      {/* Mobile Drawer Backdrop (< 768px) */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden transition-opacity"
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Sidebar Drawer on Mobile (< 768px), Static Sidebar on Desktop (>= 768px) */}
+      <div
+        className={`fixed md:relative inset-y-0 left-0 z-50 md:z-20 flex-shrink-0 nm-raised flex flex-col transition-all duration-300 ${
+          sidebarOpen
+            ? "w-64 md:w-52 translate-x-0"
+            : "-translate-x-full md:translate-x-0 md:w-16"
+        }`}
+      >
+        <div className="h-16 flex items-center px-4 justify-between flex-shrink-0">
+          <div className={`flex items-center gap-2 min-w-0 ${!sidebarOpen ? "md:hidden" : ""}`}>
+            <div className="w-6 h-6 rounded bg-indigo-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0">R</div>
+            <span className="text-xs font-bold text-[var(--nm-text)] truncate">Rohit's Workspace</span>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="nm-icon-btn ml-auto"
+            aria-label="Toggle navigation"
+          >
+            <Menu className="w-4 h-4"/>
+          </button>
         </div>
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-4">
-          {navGroups.map(group=>(
+          {navGroups.map(group => (
             <div key={group.label}>
-              {sidebarOpen&&<p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 px-2 mb-1 tracking-wider">{group.label}</p>}
+              <p className={`text-[10px] font-bold text-slate-400 dark:text-slate-500 px-2 mb-1 tracking-wider ${!sidebarOpen ? "hidden md:hidden md:group-hover:block" : ""}`}>
+                {group.label}
+              </p>
               <div className="space-y-0.5">
-                {group.items.map(item=>{
-                  const Icon=item.icon; const active=section===item.id;
-                  return <button key={item.id} onClick={()=>setSection(item.id as DashSection)} title={!sidebarOpen?item.label:undefined} className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all mb-1 ${active?"nm-pressed text-[var(--nm-accent)] font-bold":"hover:nm-raised text-[var(--nm-text)]"}`} style={{fontFamily:"'Outfit', sans-serif"}}><Icon className="w-4 h-4 flex-shrink-0" strokeWidth={active?2.5:2}/>{sidebarOpen&&<span className="truncate">{item.label}</span>}</button>;
+                {group.items.map(item => {
+                  const Icon = item.icon;
+                  const active = section === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleNavClick(item.id as DashSection)}
+                      title={!sidebarOpen ? item.label : undefined}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all mb-1 ${
+                        active ? "nm-pressed text-[var(--nm-accent)] font-bold" : "hover:nm-raised text-[var(--nm-text)]"
+                      }`}
+                      style={{ fontFamily: "'Outfit', sans-serif" }}
+                    >
+                      <Icon className="w-4 h-4 flex-shrink-0" strokeWidth={active ? 2.5 : 2} />
+                      <span className={`truncate ${!sidebarOpen ? "hidden md:hidden" : ""}`}>
+                        {item.label}
+                      </span>
+                    </button>
+                  );
                 })}
               </div>
             </div>
           ))}
         </nav>
-        {sidebarOpen&&(
-          <div className="p-4 mt-auto flex flex-col gap-3">
-            <div className="flex items-center gap-3 nm-raised p-2 rounded-xl">
-              <div className="w-8 h-8 nm-pressed rounded-full flex items-center justify-center flex-shrink-0"><span className="text-sm text-[var(--nm-accent)] font-bold">{(profile?.fullName ?? profile?.email ?? 'U').charAt(0).toUpperCase()}</span></div>
-              <div className="min-w-0 flex-1"><p className="text-xs font-bold truncate" style={{fontFamily:"'Outfit', sans-serif"}}>{profile?.fullName ?? profile?.email ?? 'User'}</p><p className="text-[10px] font-medium text-[var(--nm-accent)] truncate">devr01499@gmail...</p></div>
+        <div className={`p-4 mt-auto flex-col gap-3 flex-shrink-0 ${sidebarOpen ? "flex" : "hidden md:hidden"}`}>
+          <div className="flex items-center gap-3 nm-raised p-2 rounded-xl">
+            <div className="w-8 h-8 nm-pressed rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-sm text-[var(--nm-accent)] font-bold">{(profile?.fullName ?? profile?.email ?? 'U').charAt(0).toUpperCase()}</span>
             </div>
-            <button 
-              onClick={() => supabase.auth.signOut()} 
-              className="text-center text-[11px] font-bold py-2 nm-button w-full nm-state-error"
-              style={{fontFamily:"'Outfit', sans-serif"}}
-            >
-              Sign Out
-            </button>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold truncate" style={{ fontFamily: "'Outfit', sans-serif" }}>{profile?.fullName ?? profile?.email ?? 'User'}</p>
+              <p className="text-[10px] font-medium text-[var(--nm-accent)] truncate">{profile?.email || 'devr01499@gmail.com'}</p>
+            </div>
           </div>
-        )}
+          <button
+            onClick={() => supabase.auth.signOut()}
+            className="text-center text-[11px] font-bold py-2 nm-button w-full nm-state-error"
+            style={{ fontFamily: "'Outfit', sans-serif" }}
+          >
+            Sign Out
+          </button>
+        </div>
       </div>
-      <div className="flex-1 flex flex-col overflow-hidden relative z-0">
-        <div className="nm-raised px-8 h-16 flex items-center justify-between flex-shrink-0 m-4 rounded-2xl">
-          <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{titles[section] || "Dashboard"}</p>
-          <div className="flex items-center gap-4">
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-0">
+        <div className="nm-raised px-4 md:px-8 h-16 flex items-center justify-between flex-shrink-0 m-2 md:m-4 rounded-2xl gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="nm-icon-btn flex md:hidden flex-shrink-0"
+              aria-label="Open navigation menu"
+            >
+              <Menu className="w-5 h-5"/>
+            </button>
+            <p className="text-base md:text-lg font-bold text-[var(--nm-text)] truncate" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              {titles[section] || "Dashboard"}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
             <NotificationBar />
-            <button className="relative nm-icon-btn"><Bell className="w-4 h-4"/><span className="absolute top-1 right-1 w-2.5 h-2.5 bg-[var(--nm-error)] rounded-full"/></button>
+            <button className="relative nm-icon-btn p-2"><Bell className="w-4 h-4"/><span className="absolute top-1 right-1 w-2.5 h-2.5 bg-[var(--nm-error)] rounded-full"/></button>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-5">
           <AnimatePresence mode="wait">
             <motion.div key={section} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0}} transition={{duration:0.18}}>
               {section==="overview"&&<DashOverview/>}

@@ -510,8 +510,14 @@ export default function VisualFlowCanvas({
 
   return (
     <div className="fixed inset-0 z-[9999] bg-white dark:bg-slate-950 flex flex-col overflow-hidden font-sans text-slate-900 dark:text-slate-100">
+      {/* Mobile Screen Guidance Banner (< 768px) */}
+      <div className="md:hidden bg-amber-500/10 border-b border-amber-500/20 px-3 py-2 text-xs text-amber-700 dark:text-amber-300 font-semibold flex items-center gap-2 z-30 flex-shrink-0">
+        <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+        <span>Flow canvas works best on desktop screens. Simplified view mode below.</span>
+      </div>
+
       {/* ── 1. RETELL TOP NAVIGATION HEADER BAR ──────────────────────────── */}
-      <header className="h-14 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 flex items-center justify-between gap-4 z-20 flex-shrink-0">
+      <header className="h-14 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 md:px-4 flex items-center justify-between gap-2 md:gap-4 z-20 flex-shrink-0">
         <div className="flex items-center gap-3">
           {onBack && (
             <button
