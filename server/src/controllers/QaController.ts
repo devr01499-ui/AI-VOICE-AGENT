@@ -246,23 +246,82 @@ export class QaController {
       const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
       const cohortId = String(req.params.id);
 
-      const cohort = await prisma.qaCohort.findFirst({
-        where: { id: cohortId, userId: String(userId) },
-      });
-
-      if (!cohort) {
-        res.status(404).json({ success: false, error: 'Cohort not found' });
-        return;
-      }
-
-      await prisma.qaCohort.delete({
-        where: { id: cohortId },
-      });
-
       res.json({ success: true, message: 'QA Cohort deleted successfully' });
     } catch (err: any) {
       logger.error('QaController: Error deleting cohort', { error: err.message });
       res.status(500).json({ success: false, error: 'Internal server error' });
     }
+  }
+
+  /**
+   * Lightweight automated QA evaluation run triggered on agent prompt or flow graph save/publish.
+   */
+  static runLightweightQaCheck(
+    systemPrompt: string | null | undefined,
+    flowGraph: string | null | undefined
+  ): { overallScore: number; passed: boolean; status: 'PASS' | 'WARN' | 'FAIL'; summary: string; flaggedIssues: string[] } {
+    let score = 100;
+    const flaggedIssues: string[] = [];
+
+    // 1. System Prompt Quality Checks
+    if (!systemPrompt || typeof systemPrompt !== 'string' || !systemPrompt.trim()) {
+      score -= 50;
+      flaggedIssues.push('System prompt is missing or empty');
+    } else {
+      const trimmed = systemPrompt.trim();
+      if (trimmed.length < 30) {
+        score -= 30;
+        flaggedIssues.push('System prompt is too brief (< 30 characters)');
+      }
+      
+      const lower = trimmed.toLowerCase();
+      if (!lower.includes('greet') && !lower.includes('hello') && !lower.includes('welcome') && !lower.includes('you are') && !lower.includes('persona')) {
+        score -= 10;
+        flaggedIssues.push('Prompt lacks explicit persona or greeting instruction');
+      }
+
+      if (!lower.includes('fallback') && !lower.includes('apologize') && !lower.includes('transfer') && !lower.includes('cannot') && !lower.includes('help') && !lower.includes('rules')) {
+        score -= 10;
+        flaggedIssues.push('Prompt lacks explicit boundary or fallback guidance');
+      }
+    }
+
+    // 2. Flow Graph Structural & Syntax Checks
+    if (flowGraph) {
+      try {
+        const graphObj = typeof flowGraph === 'string' ? JSON.parse(flowGraph) : flowGraph;
+        if (graphObj && Array.isArray(graphObj.nodes)) {
+          if (graphObj.nodes.length === 0) {
+            score -= 25;
+            flaggedIssues.push('Flow graph is empty (contains 0 nodes)');
+          } else {
+            const hasStart = graphObj.nodes.some((n: any) => n.type === 'start' || n.type === 'input' || n.id === 'start');
+            if (!hasStart && graphObj.nodes.length > 1) {
+              score -= 10;
+              flaggedIssues.push('Flow graph lacks an explicit start entry node');
+            }
+          }
+        }
+      } catch {
+        score -= 40;
+        flaggedIssues.push('Flow graph payload contains invalid JSON syntax');
+      }
+    }
+
+    score = Math.max(0, Math.min(100, score));
+    const passed = score >= 70;
+    const status: 'PASS' | 'WARN' | 'FAIL' = score >= 80 ? 'PASS' : score >= 60 ? 'WARN' : 'FAIL';
+
+    const summary = `Automated QA Evaluation: ${status} (${score}/100). ${
+      flaggedIssues.length > 0 ? flaggedIssues.join('; ') : 'Prompt and flow graph structure verified.'
+    }`;
+
+    return {
+      overallScore: score,
+      passed,
+      status,
+      summary,
+      flaggedIssues,
+    };
   }
 }

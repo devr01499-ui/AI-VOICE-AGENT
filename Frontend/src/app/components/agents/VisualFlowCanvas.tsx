@@ -419,6 +419,34 @@ export default function VisualFlowCanvas({
   const [publishError, setPublishError] = useState<string | null>(null);
   const [showSavedToast, setShowSavedToast] = useState(false);
 
+  const qaScore = useMemo(() => {
+    let score = 100;
+    const issues: string[] = [];
+    const prompt = (compiledPrompt || '').trim();
+    if (!prompt) {
+      score -= 50;
+      issues.push('System prompt is missing or empty');
+    } else if (prompt.length < 30) {
+      score -= 30;
+      issues.push('System prompt is too brief (< 30 characters)');
+    }
+    if (nodes && Array.isArray(nodes)) {
+      if (nodes.length === 0) {
+        score -= 25;
+        issues.push('Flow graph is empty (0 nodes)');
+      } else {
+        const hasStart = nodes.some((n: any) => n.type === 'start' || n.type === 'input' || n.id === 'start');
+        if (!hasStart && nodes.length > 1) {
+          score -= 10;
+          issues.push('Flow graph lacks an explicit start entry node');
+        }
+      }
+    }
+    score = Math.max(0, Math.min(100, score));
+    const status: 'PASS' | 'WARN' | 'FAIL' = score >= 80 ? 'PASS' : score >= 60 ? 'WARN' : 'FAIL';
+    return { score, passed: score >= 70, status, issues };
+  }, [compiledPrompt, nodes]);
+
   const validateFlowGraph = (): void => {
     const comingSoonTypes = new Set(['transferCall', 'pressDigit', 'agentTransfer', 'inCallSms']);
     for (const node of nodes) {
@@ -564,6 +592,20 @@ export default function VisualFlowCanvas({
           <button className="px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-lg flex items-center gap-1.5 hover:bg-indigo-100 transition-all">
             <Play className="w-3.5 h-3.5" /> Test
           </button>
+
+          <div
+            className={`px-2.5 py-1 text-xs font-bold rounded-lg border flex items-center gap-1.5 cursor-help transition-all ${
+              qaScore.status === 'PASS'
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
+                : qaScore.status === 'WARN'
+                ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300'
+                : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300'
+            }`}
+            title={`Automated QA Evaluation: ${qaScore.status} (${qaScore.score}/100).\n${qaScore.issues.length > 0 ? qaScore.issues.join('\n') : 'All quality thresholds passed.'}`}
+          >
+            <span className={`w-2 h-2 rounded-full ${qaScore.status === 'PASS' ? 'bg-emerald-500' : qaScore.status === 'WARN' ? 'bg-amber-500' : 'bg-rose-500'}`} />
+            QA: {qaScore.status} {qaScore.score}/100
+          </div>
 
           {showSavedToast && (
             <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-md transition-all animate-pulse">
