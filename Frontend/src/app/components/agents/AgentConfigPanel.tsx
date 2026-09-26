@@ -298,10 +298,10 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-[var(--nm-text)]" style={{ fontFamily: "'DM Mono', monospace" }}>
-                PII REDACTION FOR TRANSCRIPTS & EXPORTS
+                PII REDACTION FOR CALL TRANSCRIPTS
               </p>
               <p className="text-xs text-[var(--nm-text)] opacity-70 mt-1" style={{ fontFamily: "'Figtree', sans-serif" }}>
-                Redact phone numbers, emails, credit cards, and IDs at display/export time. Default: Off.
+                Automatically mask phone numbers, email addresses, credit card numbers, and government IDs in call transcripts. Default: Off.
               </p>
             </div>
             <button

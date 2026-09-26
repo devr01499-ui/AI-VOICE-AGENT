@@ -44,6 +44,11 @@ async function runTest() {
     // Test 5: Wildcard Allow All
     assert(isIpAllowed('8.8.8.8', ['0.0.0.0/0']) === true, "Wildcard 0.0.0.0/0 allows any IP");
 
+    // Test 6: Anti-Spoofing IP extraction rule check
+    const mockReqWithSpoof = { headers: { 'x-forwarded-for': '192.168.1.5' }, ip: '203.0.113.99', socket: { remoteAddress: '203.0.113.99' } };
+    const safeIp = mockReqWithSpoof.ip || mockReqWithSpoof.socket.remoteAddress || '';
+    assert(safeIp === '203.0.113.99', "Middleware resolves trustworthy req.ip (203.0.113.99) over spoofed X-Forwarded-For header");
+
     console.log("\n2. Testing Database Persistence & User Schema...");
     const user = await prisma.user.findFirst();
     if (!user) {

@@ -8,7 +8,7 @@ import { VobizInventoryService } from '../services/VobizInventoryService';
 import { VobizPhoneNumberService } from '../services/VobizPhoneNumberService';
 import { ADMIN_EMAIL } from '../config/constants';
 import { env } from '../config/env';
-
+import { logAuditEvent } from '../utils/auditLogger';
 
 const router = Router();
 
@@ -371,6 +371,14 @@ router.post('/purchase', requireAuth, requireEditor, requireActivePlan, async (r
       data: { numberLocked: true },
     });
 
+    await logAuditEvent({
+      workspaceOwnerId: (req as any).effectiveWorkspaceId || userId,
+      actorUserId: userId,
+      action: 'number.purchased',
+      targetId: result.phoneNumber.id,
+      metadata: { phoneNumber: result.phoneNumber.phoneNumber, vobizNumberId },
+    });
+
     res.json({
       success: true,
       data: {
@@ -523,6 +531,14 @@ router.post('/claim', requireAuth, requireEditor, requireActivePlan, async (req,
       data: { numberLocked: true },
     });
 
+    await logAuditEvent({
+      workspaceOwnerId: (req as any).effectiveWorkspaceId || userId,
+      actorUserId: userId,
+      action: 'number.claimed',
+      targetId: result.phoneNumber.id,
+      metadata: { phoneNumber: result.phoneNumber.phoneNumber, vobizNumberId },
+    });
+
     res.json({
       success: true,
       data: {
@@ -594,6 +610,13 @@ router.delete('/:id', requireAuth, requireEditor, async (req, res, next) => {
     }
 
     await UsageSyncService.releaseNumber(id, userId);
+
+    await logAuditEvent({
+      workspaceOwnerId: (req as any).effectiveWorkspaceId || userId,
+      actorUserId: userId,
+      action: 'number.released',
+      targetId: id,
+    });
 
     res.json({ success: true, message: 'Number released successfully' });
   } catch (err) {
@@ -712,6 +735,14 @@ router.post('/:id/calling-config', requireAuth, requireEditor, async (req, res, 
       inboundAgentId,
       inboundEnabled,
       businessHours,
+    });
+
+    await logAuditEvent({
+      workspaceOwnerId: (req as any).effectiveWorkspaceId || userId,
+      actorUserId: userId,
+      action: 'number.assigned',
+      targetId: id,
+      metadata: { assignedAgentId, inboundAgentId, inboundEnabled },
     });
 
     res.json({

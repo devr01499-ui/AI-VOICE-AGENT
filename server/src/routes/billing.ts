@@ -4,6 +4,7 @@ import { logger } from '../utils/logger';
 import { AuthenticatedRequest, requireAuth } from '../middleware/auth';
 import { env } from '../config/env';
 import { ADMIN_EMAIL } from '../config/constants';
+import { logAuditEvent } from '../utils/auditLogger';
 
 const router = Router();
 
@@ -55,6 +56,14 @@ router.post('/verify-plan', requireAuth, async (req: any, res: any) => {
 
     await billingService.processPlanPurchase(req.userId, plan, paymentId, orderId);
     
+    await logAuditEvent({
+      workspaceOwnerId: req.effectiveWorkspaceId || req.userId,
+      actorUserId: req.userId,
+      action: 'billing.plan.changed',
+      targetId: orderId,
+      metadata: { plan, paymentId, orderId },
+    });
+
     logger.info(`Plan purchased: ${plan}, OrderId: ${orderId}, UserId: ${req.userId}`);
 
     res.json({

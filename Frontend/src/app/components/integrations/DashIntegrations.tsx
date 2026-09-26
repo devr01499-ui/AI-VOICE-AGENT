@@ -24,8 +24,8 @@ interface IntegrationApp {
 const AVAILABLE_APPS: IntegrationApp[] = [
   {
     type: 'calcom',
-    name: 'Cal.com Booking',
-    description: 'Direct self-serve API calendar integration. Enable AI voice agents to check real-time availability and schedule meetings live during calls.',
+    name: 'Cal.com Integration',
+    description: 'Connect your Cal.com account API credentials. Store your API key and booking settings for calendar sync configuration.',
     category: 'Calendar & Scheduling',
     iconBg: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400',
     icon: Calendar,

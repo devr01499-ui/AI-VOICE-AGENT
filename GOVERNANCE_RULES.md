@@ -28,3 +28,7 @@ You are strictly bound to this zero-regression architectural contract. Before re
 - **Build-Required Packages**: Any package required for TypeScript compilation (including all type declaration packages `@types/*`) must be placed in `dependencies` (never `devDependencies`) within `server/package.json`. This is because Render build containers use production-only installations (`NODE_ENV=production`) which bypass devDependencies, and a missing type package will crash `tsc` compilation.
 - **Local Sandbox Testing**: Before committing or deploying package configuration updates, run `npm ci --omit=dev && npx tsc --noEmit` locally in the `server` directory to simulate exactly how Render behaves under production constraints.
 
+## 6. Automated Test Suite Integrity Rules
+- **Production Code Invocation**: All verification test scripts (`scripts/test_*.js` or `scripts/test_*.ts`) must directly import or execute production application code (compiled server modules, route controllers, middleware, or utility functions).
+- **No Hand-Written Mock Logic**: Test scripts are strictly prohibited from duplicating business logic inside the test file itself. A test pass is valid only if assertions evaluate actual production code paths.
+

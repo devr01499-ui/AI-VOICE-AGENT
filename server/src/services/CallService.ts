@@ -70,11 +70,13 @@ export class CallService {
       throw new ValidationError('Insufficient call minutes remaining. You have 0 minutes left. Please purchase a plan.');
     }
 
-    let maxConcurrency = 1; // free/Starter
-    if (user.accountType === 'developer' || user.accountType === 'professional') {
-      maxConcurrency = 5; // Growth
-    } else if (user.accountType === 'enterprise') {
-      maxConcurrency = 15; // Scale
+    let maxConcurrency = user.maxConcurrentCalls ?? 1;
+    if (user.maxConcurrentCalls === null || user.maxConcurrentCalls === undefined) {
+      if (user.accountType === 'developer' || user.accountType === 'professional') {
+        maxConcurrency = 5; // Growth
+      } else if (user.accountType === 'enterprise') {
+        maxConcurrency = 15; // Scale
+      }
     }
 
     const activeCallCount = await prisma.call.count({
@@ -86,7 +88,7 @@ export class CallService {
 
     if (activeCallCount >= maxConcurrency) {
       throw new ValidationError('Concurrency limit exceeded', [
-        { field: 'concurrency', message: `Max allowed concurrent calls for your plan is ${maxConcurrency}.` }
+        { field: 'concurrency', message: `Max allowed concurrent calls (${maxConcurrency}) reached. You currently have ${activeCallCount} active calls.` }
       ]);
     }
 

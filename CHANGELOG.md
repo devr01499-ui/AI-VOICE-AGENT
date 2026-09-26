@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-09-26
+### Fixed
+- Generated and committed missing `Frontend/pnpm-lock.yaml` to ensure deterministic Vercel dependency installation.
+- Configured `onlyBuiltDependencies` in `Frontend/package.json` for `@tailwindcss/oxide`, `esbuild`, and `puppeteer` to satisfy `pnpm` build script approval checks during production builds.
+- Verified local production build execution (`pnpm run build` in `Frontend/`) passing with exit code 0.
+
 ## [Unreleased] - 2026-09-12
 ### Added
 - Implemented Phase 3 PII Redaction engine (`server/src/utils/piiRedactor.ts`) supporting pattern-based redaction for Indian/global phone numbers, email addresses, credit cards, and government IDs.

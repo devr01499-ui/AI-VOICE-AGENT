@@ -2,32 +2,18 @@
  * Phase 3 PII Redaction Verification Suite
  * 
  * Verifies:
- * 1. Pattern-based redaction for phone numbers, emails, credit cards, and Aadhaar/IDs.
- * 2. Preservation of non-sensitive text context.
- * 3. Default off state for existing agents (isPiiRedactionEnabled === false).
+ * 1. Imports and tests the REAL piiRedactor module from server build.
+ * 2. Pattern-based redaction for phone numbers, emails, credit cards, and Aadhaar/IDs.
+ * 3. Preservation of non-sensitive text context.
+ * 4. Transcript segment batch processing using real application function.
  */
 
-function redactPii(text) {
-  if (!text || typeof text !== 'string') return text;
-  let redacted = text;
-  redacted = redacted.replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '[REDACTED EMAIL]');
-  redacted = redacted.replace(/(?:\+\d{1,3}[-.\s]*)?(?:\d{10}|\d{5}[-.\s]?\d{5}|\d{3}[-.\s]?\d{3}[-.\s]?\d{4})\b/g, '[REDACTED PHONE]');
-  redacted = redacted.replace(/\b(?:\d[ -]?){13,16}\b/g, '[REDACTED CARD]');
-  redacted = redacted.replace(/\b\d{4}[- ]?\d{4}[- ]?\d{4}\b/g, '[REDACTED ID]');
-  return redacted;
-}
-
-function redactTranscriptSegments(segments) {
-  if (!Array.isArray(segments)) return segments;
-  return segments.map(seg => ({
-    ...seg,
-    content: typeof seg.content === 'string' ? redactPii(seg.content) : seg.content,
-  }));
-}
+require('dotenv').config({ path: './server/.env' });
+const { redactPii, redactTranscriptSegments } = require('../server/dist/utils/piiRedactor');
 
 async function testPiiRedaction() {
   console.log('====================================================');
-  console.log('🔒 Starting Phase 3 PII Redaction System Verification');
+  console.log('🔒 Starting Phase 3 Real Production PII Redaction Verification');
   console.log('====================================================\n');
 
   let passed = 0;
@@ -44,7 +30,7 @@ async function testPiiRedaction() {
     }
   }
 
-  console.log('--- Test 1: Pattern Redaction Verification ---');
+  console.log('--- Test 1: Pattern Redaction Verification via Real piiRedactor.ts ---');
   assertRedaction(
     'Please call me back at +91 98765 43210 regarding the invoice.',
     '[REDACTED PHONE]',
@@ -69,7 +55,7 @@ async function testPiiRedaction() {
     'Credit Card Number Redaction'
   );
 
-  console.log('\n--- Test 2: Transcript Segment Batch Processing ---');
+  console.log('\n--- Test 2: Real redactTranscriptSegments Helper Batch Processing ---');
   const rawSegments = [
     { speaker: 'agent', content: 'Hello, what is your contact phone number?' },
     { speaker: 'user', content: 'My phone number is +919876543210 and my email is john@acme.com.' },
@@ -80,7 +66,7 @@ async function testPiiRedaction() {
     redactedSegments[1].content.includes('[REDACTED PHONE]') &&
     redactedSegments[1].content.includes('[REDACTED EMAIL]')
   ) {
-    console.log('  [PASS] Batch transcript segments redacted cleanly');
+    console.log('  [PASS] Batch transcript segments redacted cleanly using real production helper');
     passed++;
   } else {
     console.error('  [FAIL] Batch transcript segment redaction failed, actual output:', redactedSegments[1].content);

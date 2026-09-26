@@ -5,6 +5,7 @@ import { logger } from '../utils/logger';
 import { VobizSubAccountService } from '../services/VobizSubAccountService';
 import { verifyVobizWebhook } from '../middleware/vobizWebhook';
 import { Resend } from 'resend';
+import { logAuditEvent } from '../utils/auditLogger';
 
 const router = Router();
 
@@ -76,6 +77,14 @@ router.post('/initiate-session', requireAuth, async (req, res, next) => {
     const hostedKycUrl = `https://console.vobiz.ai/kyc?sub_account_auth_id=${subAccount.authId}`;
 
     logger.info('KYC: Initiated Vobiz Hosted KYC Session', { userId, subAuthId: subAccount.authId });
+
+    await logAuditEvent({
+      workspaceOwnerId: (req as any).effectiveWorkspaceId || userId,
+      actorUserId: userId,
+      action: 'kyc.initiated',
+      targetId: subAccount.authId,
+      metadata: { status: 'pending' },
+    });
 
     res.json({
       success: true,
@@ -185,6 +194,13 @@ router.post('/webhook/vobiz', verifyVobizWebhook, async (req, res, next) => {
 
     if (targetUserId) {
       await notifyUserKycStatus(targetUserId, normalizedStatus, reason);
+      await logAuditEvent({
+        workspaceOwnerId: targetUserId,
+        actorUserId: targetUserId,
+        action: 'kyc.status_updated',
+        targetId: sub_account_auth_id || phoneNumber || targetUserId,
+        metadata: { status: normalizedStatus, reason },
+      });
     }
 
     res.json({ success: true, message: 'KYC status processed successfully' });
