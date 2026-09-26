@@ -1,64 +1,96 @@
 /**
  * Phase 1 RBAC Verification Suite
  * 
- * Verifies role enforcement across all 4 role tiers (admin, developer, analyst, viewer):
- * 1. Admin / Owner: Full access (agents, numbers, billing, team, settings).
- * 2. Developer: Build/edit agents, view analytics; BLOCKED from billing, team management, and settings changes.
- * 3. Analyst: Read-only access to calls/analytics; BLOCKED from agent edit/create, billing, team, settings.
- * 4. Viewer: Read-only access; BLOCKED from agent create/edit, numbers buy, billing, team.
- * 5. Permanent Owner Immunity: Workspace owner always evaluates to 'admin' role regardless of TeamMember records.
+ * Verifies:
+ * 1. Imports and executes the REAL requireRole middleware function from server build.
+ * 2. Role enforcement across all role tiers (admin, developer, analyst, viewer).
+ * 3. Permanent Owner / Admin Immunity in real requireRole middleware.
  */
+
+require('dotenv').config({ path: './server/.env' });
+const { requireRole } = require('../server/dist/middleware/auth');
+
+function createMockReqRes(workspaceRole, effectiveWorkspaceId, userId, accountType) {
+  const req = {
+    workspaceRole,
+    effectiveWorkspaceId,
+    userId,
+    user: { accountType },
+  };
+
+  let statusCode = 200;
+  let jsonResponse = null;
+  let nextCalled = false;
+
+  const res = {
+    status(code) {
+      statusCode = code;
+      return res;
+    },
+    json(body) {
+      jsonResponse = body;
+      return res;
+    }
+  };
+
+  const next = () => {
+    nextCalled = true;
+  };
+
+  return {
+    req,
+    res,
+    next,
+    getResult: () => ({ statusCode, jsonResponse, nextCalled }),
+  };
+}
 
 async function testRbacLogic() {
   console.log('====================================================');
-  console.log('🛡️  Starting Phase 1 RBAC Security & Policy Verification');
+  console.log('🛡️  Starting Phase 1 Real Production RBAC Middleware Verification');
   console.log('====================================================\n');
 
   let passed = 0;
   let failed = 0;
 
-  function assertPermission(role, effectiveWorkspaceId, userId, accountType, allowedRoles, expectedAllowed, testName) {
-    let mockUserRole = role;
-    const isOwner = effectiveWorkspaceId === userId || accountType === 'admin';
-    if (isOwner) {
-      mockUserRole = 'admin';
-    }
+  function assertMiddlewareAccess(allowedRoles, role, effectiveWorkspaceId, userId, accountType, expectedAllowed, testName) {
+    const middleware = requireRole(allowedRoles);
+    const { req, res, next, getResult } = createMockReqRes(role, effectiveWorkspaceId, userId, accountType);
+    
+    middleware(req, res, next);
+    const { statusCode, nextCalled } = getResult();
+    const actualAllowed = nextCalled && statusCode === 200;
 
-    const hasAccess = allowedRoles.includes(mockUserRole) || isOwner;
-
-    if (hasAccess === expectedAllowed) {
-      console.log(`  [PASS] ${testName} (Role: ${role}, Owner: ${isOwner}) -> Allowed: ${hasAccess}`);
+    if (actualAllowed === expectedAllowed) {
+      console.log(`  [PASS] ${testName} (Role: ${role}, Owner: ${effectiveWorkspaceId === userId}) -> Allowed: ${actualAllowed}`);
       passed++;
     } else {
-      console.error(`  [FAIL] ${testName} (Role: ${role}, Owner: ${isOwner}) -> Expected: ${expectedAllowed}, Got: ${hasAccess}`);
+      console.error(`  [FAIL] ${testName} -> Expected Allowed: ${expectedAllowed}, Got: ${actualAllowed} (Status: ${statusCode})`);
       failed++;
     }
   }
 
-  console.log('--- Test 1: Workspace Owner Permanent Admin Immunity ---');
-  assertPermission('viewer', 'user-123', 'user-123', 'user', ['admin'], true, 'Owner with viewer TeamMember record');
-  assertPermission('analyst', 'user-123', 'user-123', 'user', ['admin'], true, 'Owner with analyst TeamMember record');
-  assertPermission('developer', 'user-123', 'user-123', 'user', ['admin'], true, 'Owner with developer TeamMember record');
+  console.log('--- Test 1: Workspace Owner Permanent Admin Immunity in Real Middleware ---');
+  assertMiddlewareAccess(['admin'], 'viewer', 'user-123', 'user-123', 'free', true, 'Owner with viewer TeamMember record');
+  assertMiddlewareAccess(['admin'], 'analyst', 'user-123', 'user-123', 'free', true, 'Owner with analyst TeamMember record');
+  assertMiddlewareAccess(['admin'], 'developer', 'user-123', 'user-123', 'free', true, 'Owner with developer TeamMember record');
 
-  console.log('\n--- Test 2: Admin Tier Permissions ---');
-  assertPermission('admin', 'owner-999', 'user-111', 'user', ['admin'], true, 'Admin access to billing');
-  assertPermission('admin', 'owner-999', 'user-111', 'user', ['admin', 'developer'], true, 'Admin access to agent creation');
-  assertPermission('admin', 'owner-999', 'user-111', 'user', ['admin', 'developer', 'analyst', 'viewer'], true, 'Admin access to read-only logs');
+  console.log('\n--- Test 2: Real Admin Tier Permissions ---');
+  assertMiddlewareAccess(['admin'], 'admin', 'owner-999', 'user-111', 'free', true, 'Admin access to billing');
+  assertMiddlewareAccess(['admin', 'developer'], 'admin', 'owner-999', 'user-111', 'free', true, 'Admin access to agent creation');
 
-  console.log('\n--- Test 3: Developer Tier Permissions ---');
-  assertPermission('developer', 'owner-999', 'user-222', 'user', ['admin', 'developer'], true, 'Developer access to agent creation');
-  assertPermission('developer', 'owner-999', 'user-222', 'user', ['admin'], false, 'Developer BLOCKED from billing');
-  assertPermission('developer', 'owner-999', 'user-222', 'user', ['admin'], false, 'Developer BLOCKED from team management');
+  console.log('\n--- Test 3: Real Developer Tier Permissions ---');
+  assertMiddlewareAccess(['admin', 'developer'], 'developer', 'owner-999', 'user-222', 'free', true, 'Developer access to agent creation');
+  assertMiddlewareAccess(['admin'], 'developer', 'owner-999', 'user-222', 'free', false, 'Developer BLOCKED from billing');
 
-  console.log('\n--- Test 4: Analyst Tier Permissions ---');
-  assertPermission('analyst', 'owner-999', 'user-333', 'user', ['admin', 'developer', 'analyst', 'viewer'], true, 'Analyst access to call history & analytics');
-  assertPermission('analyst', 'owner-999', 'user-333', 'user', ['admin', 'developer'], false, 'Analyst BLOCKED from creating agents');
-  assertPermission('analyst', 'owner-999', 'user-333', 'user', ['admin'], false, 'Analyst BLOCKED from billing');
+  console.log('\n--- Test 4: Real Analyst Tier Permissions ---');
+  assertMiddlewareAccess(['admin', 'developer', 'analyst', 'viewer'], 'analyst', 'owner-999', 'user-333', 'free', true, 'Analyst access to call history & analytics');
+  assertMiddlewareAccess(['admin', 'developer'], 'analyst', 'owner-999', 'user-333', 'free', false, 'Analyst BLOCKED from creating agents');
 
-  console.log('\n--- Test 5: Viewer Tier Permissions ---');
-  assertPermission('viewer', 'owner-999', 'user-444', 'user', ['admin', 'developer', 'analyst', 'viewer'], true, 'Viewer access to read-only views');
-  assertPermission('viewer', 'owner-999', 'user-444', 'user', ['admin', 'developer'], false, 'Viewer BLOCKED from editing agents');
-  assertPermission('viewer', 'owner-999', 'user-444', 'user', ['admin'], false, 'Viewer BLOCKED from purchasing numbers');
+  console.log('\n--- Test 5: Real Viewer Tier Permissions ---');
+  assertMiddlewareAccess(['admin', 'developer', 'analyst', 'viewer'], 'viewer', 'owner-999', 'user-444', 'free', true, 'Viewer access to read-only views');
+  assertMiddlewareAccess(['admin', 'developer'], 'viewer', 'owner-999', 'user-444', 'free', false, 'Viewer BLOCKED from editing agents');
+  assertMiddlewareAccess(['admin'], 'viewer', 'owner-999', 'user-444', 'free', false, 'Viewer BLOCKED from purchasing numbers');
 
   console.log('\n====================================================');
   console.log(`RESULTS: ${passed} PASSED, ${failed} FAILED`);

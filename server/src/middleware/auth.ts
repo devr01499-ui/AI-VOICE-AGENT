@@ -123,7 +123,7 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
 
     const allowedIpRanges = workspaceOwner?.allowedIpRanges || [];
     if (allowedIpRanges.length > 0) {
-      const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() || req.ip || req.socket.remoteAddress || '';
+      const clientIp = req.ip || req.socket.remoteAddress || '';
       if (!isIpAllowed(clientIp, allowedIpRanges)) {
         logger.warn('[requireAuth] Access denied by workspace IP allowlist', {
           userId,

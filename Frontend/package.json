@@ -11,9 +11,16 @@
     "dev": "vite",
     "test:e2e": "playwright test"
   },
+  "onlyBuiltDependencies": [
+    "puppeteer",
+    "@tailwindcss/oxide",
+    "esbuild"
+  ],
   "pnpm": {
     "onlyBuiltDependencies": [
-      "puppeteer"
+      "puppeteer",
+      "@tailwindcss/oxide",
+      "esbuild"
     ]
   },
   "dependencies": {
