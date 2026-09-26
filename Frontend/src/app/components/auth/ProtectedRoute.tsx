@@ -28,11 +28,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // 2. Unauthenticated: Redirect to login page
+  // 2. Unauthenticated: Render AuthGateway login/signup form cleanly within SPA
   if (!session) {
-    if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-      window.location.href = '/login';
-    }
     return <AuthGateway onSuccess={() => {
       if (onSuccessRedirect) onSuccessRedirect();
     }} />;
