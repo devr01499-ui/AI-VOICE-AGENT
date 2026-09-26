@@ -2,8 +2,8 @@
 
 ## [Unreleased] - 2026-09-26
 ### Fixed
-- Created root `vercel.json` and updated `Frontend/vercel.json` with wildcard `/:path*` -> `/index.html` rewrite rules to prevent Vercel 404 errors on deep routes and OAuth redirects (`/dashboard`, `/auth/callback`).
-- Fixed Google OAuth callback bug in `AuthGateway.tsx` where `#access_token` in OAuth redirect URLs falsely toggled mode to password reset.
+- Added production target fallback URL (`https://elbgdgahyoyfbtuwsktx.supabase.co`) and anon key in `Frontend/src/app/lib/supabaseClient.ts` so Vercel builds succeed regardless of dashboard environment variable settings.
+- Configured explicit Supabase auth options (`persistSession: true`, `autoRefreshToken: true`, `detectSessionInUrl: true`) for robust login and session persistence.
 - Verified local build execution (`pnpm run build` in `Frontend/`) passing cleanly with exit code 0.
 
 ## [Unreleased] - 2026-09-12
