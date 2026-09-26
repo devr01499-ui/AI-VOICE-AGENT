@@ -5,18 +5,17 @@
     {
       "source": "/(.*)",
       "has": [{ "type": "host", "value": "insightclaritiysolution.com" }],
-      "destination": "https://claritiy.com/$1",
+      "destination": "https://www.claritiy.com/$1",
       "permanent": true
     },
     {
       "source": "/(.*)",
       "has": [{ "type": "host", "value": "www.insightclaritiysolution.com" }],
-      "destination": "https://claritiy.com/$1",
+      "destination": "https://www.claritiy.com/$1",
       "permanent": true
     }
   ],
-  "routes": [
-    { "handle": "filesystem" },
-    { "src": "/.*", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
