@@ -7024,13 +7024,16 @@ export default function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: currentSession }, error: authError }) => {
       if (authError || !currentSession) {
-        localStorage.removeItem('token');
-        setSession(null);
+        if (typeof window !== 'undefined' && !window.location.hash.includes('access_token')) {
+          localStorage.removeItem('token');
+          setSession(null);
+          setAuthLoading(false);
+        }
       } else {
         localStorage.setItem('token', currentSession.access_token);
         setSession(currentSession);
+        setAuthLoading(false);
       }
-      setAuthLoading(false);
     }).catch(() => {
       setAuthLoading(false);
     });
@@ -7040,6 +7043,9 @@ export default function App() {
       setAuthLoading(false);
       if (currentSession) {
         localStorage.setItem('token', currentSession.access_token);
+        if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
         const pendingPlan = localStorage.getItem('pending_plan_purchase');
         if (pendingPlan) {
           handleNavigate("pricing");
