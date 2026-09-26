@@ -3,22 +3,20 @@
   "trailingSlash": false,
   "redirects": [
     {
-      "source": "/:path*",
+      "source": "/(.*)",
       "has": [{ "type": "host", "value": "insightclaritiysolution.com" }],
-      "destination": "https://claritiy.com/:path*",
+      "destination": "https://claritiy.com/$1",
       "permanent": true
     },
     {
-      "source": "/:path*",
+      "source": "/(.*)",
       "has": [{ "type": "host", "value": "www.insightclaritiysolution.com" }],
-      "destination": "https://claritiy.com/:path*",
+      "destination": "https://claritiy.com/$1",
       "permanent": true
     }
   ],
-  "rewrites": [
-    {
-      "source": "/((?!api/|assets/|.*\\..*).*)",
-      "destination": "/index.html"
-    }
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/.*", "dest": "/index.html" }
   ]
 }
