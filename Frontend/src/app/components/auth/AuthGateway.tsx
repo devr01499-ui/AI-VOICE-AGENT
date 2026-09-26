@@ -240,7 +240,7 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
       const hash = window.location.hash;
       const search = window.location.search;
       const path = window.location.pathname.toLowerCase();
-      if (hash.includes('type=recovery') || hash.includes('access_token') || search.includes('type=recovery')) {
+      if (hash.includes('type=recovery') || search.includes('type=recovery')) {
         setMode('reset');
       } else if (path.includes('signup') || path.includes('register') || search.includes('mode=signup')) {
         setMode('signup');
