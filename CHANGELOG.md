@@ -2,9 +2,9 @@
 
 ## [Unreleased] - 2026-09-26
 ### Fixed
-- Added production target fallback URL (`https://elbgdgahyoyfbtuwsktx.supabase.co`) and anon key in `Frontend/src/app/lib/supabaseClient.ts` so Vercel builds succeed regardless of dashboard environment variable settings.
-- Configured explicit Supabase auth options (`persistSession: true`, `autoRefreshToken: true`, `detectSessionInUrl: true`) for robust login and session persistence.
-- Verified local build execution (`pnpm run build` in `Frontend/`) passing cleanly with exit code 0.
+- Added `frozen-lockfile=false` and `auto-install-peers=true` to root `.npmrc` and `Frontend/.npmrc` to eliminate Vercel CI `ERR_PNPM_OUTDATED_LOCKFILE` build failures.
+- Scoped root `package.json` build script to `"npm run --prefix Frontend build"` for Vercel deployment compatibility.
+- Generated and committed root `pnpm-lock.yaml` and verified clean build execution passing with exit code 0.
 
 ## [Unreleased] - 2026-09-12
 ### Added
