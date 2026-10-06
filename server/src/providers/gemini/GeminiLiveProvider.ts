@@ -18,6 +18,7 @@ import { ProviderError } from '../../types/errors';
 import { CallError } from '../../utils/CallError';
 import { env } from '../../config/env';
 import { ADMIN_EMAIL } from '../../config/constants';
+import { resolveLiveModel } from '../../utils/modelResolver';
 import type {
   IRealtimeProvider,
   HealthCheckResult,
@@ -76,73 +77,12 @@ interface ActiveSession {
   agentId?: string;
   userId?: string;
   resumptionHandle?: string;
+  cleanup?: () => Promise<void>;
 }
 
 export class GeminiLiveProvider implements IRealtimeProvider {
   public readonly name = 'gemini-live';
   public readonly type = 'realtime';
-  public currentAgent?: {
-    systemPrompt?: string;
-    instruction?: string;
-    voice?: string;
-    model?: string;
-  };
-  public ws!: WebSocket;
-
-  private balanceIntervalId: NodeJS.Timeout | null = null;
-  private callStartTime: number | null = null;
-  private currentUserId: string | null = null;
-  private accountsAgainstPlatformBalance: boolean = false;
-
-  private clearBalanceTicker() {
-    if (this.balanceIntervalId) {
-      clearInterval(this.balanceIntervalId);
-      this.balanceIntervalId = null;
-    }
-  }
-
-  private async processBalanceDeduction(): Promise<void> {
-    if (this.callStartTime && this.accountsAgainstPlatformBalance && this.currentUserId) {
-      const elapsedSeconds = (Date.now() - this.callStartTime) / 1000;
-      const elapsedMinutes = elapsedSeconds / 60;
-      const decrementVal = parseFloat(elapsedMinutes.toFixed(4));
-      
-      const userId = this.currentUserId;
-      this.callStartTime = null; // Prevent double deduction
-      this.accountsAgainstPlatformBalance = false;
-      this.currentUserId = null;
-
-      try {
-        const prismaInstance = (await import('../../lib/prisma')).prisma;
-        const userRecord = await prismaInstance.user.findUnique({ where: { id: userId }, select: { email: true, accountType: true } });
-        const isAdmin = userRecord?.accountType === 'admin' || userRecord?.email === ADMIN_EMAIL;
-
-        if (isAdmin) {
-          // Admin: only track total consumption, never decrement callingBalanceMinutes
-          await prismaInstance.user.update({
-            where: { id: userId },
-            data: { totalMinutesConsumed: { increment: decrementVal } }
-          });
-          logger.info('Monetization Gateway: Tracked admin usage (no balance deduction)', { userId, elapsedMinutes: decrementVal });
-        } else {
-          // Regular users: decrement calling balance and track total consumption
-          await prismaInstance.user.update({
-            where: { id: userId },
-            data: {
-              callingBalanceMinutes: { decrement: decrementVal },
-              totalMinutesConsumed: { increment: decrementVal },
-            }
-          });
-          logger.info('Monetization Gateway: Deducted minutes from platform balance upon call termination', {
-            userId,
-            elapsedMinutes: decrementVal
-          });
-        }
-      } catch (err) {
-        logger.error('Monetization Gateway: Failed to decrement calling credits on session closure', { error: String(err) });
-      }
-    }
-  }
 
   private readonly activeSessions = new Map<string, ActiveSession>();
   private readonly apiKey: string;
@@ -301,10 +241,9 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     } else {
       // Block Session Execution completely due to empty balances
       logger.warn('Monetization Gateway: Access blocked. Insufficient balances or missing keys.', { userId, callId });
-      throw new Error("INSUFFICIENT_FUNDS_OR_MISSING_KEY");
+      throw new Error("You're out of calling minutes. Add minutes or your own Gemini API key in Settings.");
     }
 
-    const model = 'gemini-2.5-flash-native-audio-latest';
     const apiVersion = 'v1alpha';
     const baseUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.${apiVersion}.GenerativeService.BidiGenerateContent`;
     const wsUrl = `${baseUrl}?key=${encodeURIComponent(selectedApiKey)}`;
@@ -312,33 +251,58 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     const sessionId = `gemini-sess-${Date.now()}`;
     const ws = new WebSocket(wsUrl);
 
-    // Bind context instances
-    this.currentAgent = {
-      systemPrompt: config.instructions,
-      instruction: config.instructions,
-      voice: config.voice,
-      model: `models/${model}`,
-    };
-    this.ws = ws;
-    this.currentUserId = userId;
-    this.callStartTime = Date.now();
-    this.accountsAgainstPlatformBalance = accountsAgainstPlatformBalance;
+    // ── Per-session closure state (no shared mutable instance fields) ──────
+    const sessionCallStartTime = { value: Date.now() };
+    let sessionBalanceIntervalId: NodeJS.Timeout | null = null;
 
-    ws.on('close', () => this.clearBalanceTicker());
-    ws.on('error', () => this.clearBalanceTicker());
-    ws.on('unexpected-response', () => this.clearBalanceTicker());
+    const clearSessionBalanceTicker = () => {
+      if (sessionBalanceIntervalId) {
+        clearInterval(sessionBalanceIntervalId);
+        sessionBalanceIntervalId = null;
+      }
+    };
+
+    const processSessionBalanceDeduction = async () => {
+      if (sessionCallStartTime.value && accountsAgainstPlatformBalance) {
+        const elapsedSeconds = (Date.now() - sessionCallStartTime.value) / 1000;
+        const elapsedMinutes = elapsedSeconds / 60;
+        const decrementVal = parseFloat(elapsedMinutes.toFixed(4));
+        sessionCallStartTime.value = 0; // Prevent double deduction
+        try {
+          const prismaInstance = (await import('../../lib/prisma')).prisma;
+          const userRecord = await prismaInstance.user.findUnique({ where: { id: userId }, select: { email: true, accountType: true } });
+          const isAdmin = userRecord?.accountType === 'admin' || userRecord?.email === ADMIN_EMAIL;
+          if (isAdmin) {
+            await prismaInstance.user.update({ where: { id: userId }, data: { totalMinutesConsumed: { increment: decrementVal } } });
+            logger.info('Monetization Gateway: Tracked admin usage (no balance deduction)', { userId, elapsedMinutes: decrementVal });
+          } else {
+            await prismaInstance.user.update({
+              where: { id: userId },
+              data: { callingBalanceMinutes: { decrement: decrementVal }, totalMinutesConsumed: { increment: decrementVal } },
+            });
+            logger.info('Monetization Gateway: Deducted minutes from platform balance upon call termination', { userId, elapsedMinutes: decrementVal });
+          }
+        } catch (err) {
+          logger.error('Monetization Gateway: Failed to decrement calling credits on session closure', { error: String(err) });
+        }
+      }
+    };
+
+    ws.on('close', () => clearSessionBalanceTicker());
+    ws.on('error', () => clearSessionBalanceTicker());
+    ws.on('unexpected-response', () => clearSessionBalanceTicker());
 
     // Repeating balance countdown interval loop:
     if (accountsAgainstPlatformBalance) {
-      this.balanceIntervalId = setInterval(async () => {
+      sessionBalanceIntervalId = setInterval(async () => {
         try {
           if (ws.readyState !== WebSocket.OPEN) {
-            this.clearBalanceTicker();
+            clearSessionBalanceTicker();
             return;
           }
 
-          if (!this.callStartTime) return;
-          const elapsedSeconds = (Date.now() - this.callStartTime) / 1000;
+          if (!sessionCallStartTime.value) return;
+          const elapsedSeconds = (Date.now() - sessionCallStartTime.value) / 1000;
           const elapsedMinutes = elapsedSeconds / 60;
 
           const currentUser = await prismaInstance.user.findUnique({
@@ -346,7 +310,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
           });
 
           if (!currentUser) {
-            this.clearBalanceTicker();
+            clearSessionBalanceTicker();
             ws.close(1011, "USER_NOT_FOUND");
             return;
           }
@@ -359,9 +323,9 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
           if (elapsedMinutes >= currentUser.callingBalanceMinutes) {
             logger.warn('Monetization Gateway: Balance depleted. Terminating connection cleanly.', { userId, callId });
-            this.clearBalanceTicker();
+            clearSessionBalanceTicker();
             ws.close(1011, "INSUFFICIENT_BALANCE");
-            callbacks.onError?.(sessionId, new Error("INSUFFICIENT_BALANCE"));
+            callbacks.onError?.(sessionId, new Error("You're out of calling minutes. Add minutes or your own Gemini API key in Settings."));
           }
         } catch (tickerErr) {
           logger.error('Monetization Gateway: Failed to check calling credits', { error: String(tickerErr) });
@@ -424,7 +388,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         });
       }
 
-      let systemInstructionString = this.currentAgent?.systemPrompt || this.currentAgent?.instruction || "Default assistant prompt";
+      let systemInstructionString = callData.agent?.systemPrompt || callData.agent?.instruction || config.instructions || "Default assistant prompt";
 
       if (hasKbDocs) {
         systemInstructionString = `${systemInstructionString}\n\n[KNOWLEDGE BASE GATES]\nYou have access to a knowledge base search tool 'search_knowledge_base'. If the user asks questions about facts, documents, websites, or details that you do not know, you MUST call this tool with a relevant search query to find the answer. Do not guess.`;
@@ -461,7 +425,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         }
       }
 
-      const agentVoiceMapping = systemVoiceVal || this.currentAgent?.voice || "Puck";
+      const agentVoiceMapping = systemVoiceVal || callData.agent?.voice || config.voice || "Puck";
 
       // Map voices: OpenAI legacy aliases → Gemini equivalents; all 30 Gemini library voices
       // map to themselves (correct PascalCase). Fallback passes the value through as-is.
@@ -540,7 +504,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         systemInstructionString = `${systemInstructionString}\n\n[DNC / OPT-OUT SECURITY GATES]\nIf the caller uses any opt-out phrases such as (${callSettings.optOutKeywords.join(', ')}), acknowledge politely and invoke the end_call tool immediately to mark them as opted out. Do not attempt to negotiate or continue the call.`;
       }
 
-      const targetModel = config.model || this.currentAgent?.model || "models/gemini-2.5-flash-native-audio-latest";
+      const targetModel = resolveLiveModel(config.model);
 
       const setupMessage = {
         setup: {
@@ -601,7 +565,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         selectedVoice: geminiVoice
       });
 
-      this.ws.send(JSON.stringify(setupMessage));
+      ws.send(JSON.stringify(setupMessage));
     });
 
     ws.on('message', (raw: WebSocket.RawData) => {
@@ -619,14 +583,18 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         // Handshake complete once setupComplete is received
         if (event.setupComplete) {
           logger.info('GeminiLiveProvider [HANDSHAKE]: setupComplete received from Google.', { sessionId, event: JSON.stringify(event) });
-          this.callStartTime = Date.now();
+          sessionCallStartTime.value = Date.now();
           this.activeSessions.set(sessionId, {
             ws,
             callbacks,
             createdAt: Date.now(),
             agentId: resolvedAgentId || undefined,
             userId,
-            ...(this.balanceIntervalId && { balanceInterval: this.balanceIntervalId }),
+            ...(sessionBalanceIntervalId && { balanceInterval: sessionBalanceIntervalId }),
+            cleanup: async () => {
+              clearSessionBalanceTicker();
+              await processSessionBalanceDeduction();
+            },
           });
 
           const handler = this.setupCompletePromises.get(sessionId);
@@ -652,8 +620,8 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         sessionId,
         error: err.message,
       });
-      this.clearBalanceTicker();
-      this.processBalanceDeduction().catch((deductErr) => {
+      clearSessionBalanceTicker();
+      processSessionBalanceDeduction().catch((deductErr) => {
         logger.error('GeminiLiveProvider: error during balance deduction on socket error', { error: String(deductErr) });
       });
       callbacks.onError?.(sessionId, err);
@@ -672,8 +640,8 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         code,
         reason: reason.toString(),
       });
-      this.clearBalanceTicker();
-      await this.processBalanceDeduction();
+      clearSessionBalanceTicker();
+      await processSessionBalanceDeduction();
       const activeSess = this.activeSessions.get(sessionId);
       if (activeSess?.balanceInterval) {
         clearInterval(activeSess.balanceInterval);
@@ -809,8 +777,13 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       clearInterval(session.balanceInterval);
     }
 
-    this.clearBalanceTicker();
-    await this.processBalanceDeduction();
+    if (session.cleanup) {
+      try {
+        await session.cleanup();
+      } catch (err) {
+        logger.error('GeminiLiveProvider: error in session cleanup', { sessionId, error: String(err) });
+      }
+    }
 
     try {
       if (session.ws.readyState === WebSocket.OPEN) {

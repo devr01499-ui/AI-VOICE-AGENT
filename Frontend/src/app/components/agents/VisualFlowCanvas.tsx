@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -55,7 +55,7 @@ import {
   HANDBOOK_PRESETS,
   compilePromptWithHandbook,
 } from './SinglePromptStudio';
-import { fetchKBList, assignKBAgent, unassignKBAgent, ApiKnowledgeBase } from '../../api';
+import { fetchKBList, assignKBAgent, unassignKBAgent, ApiKnowledgeBase, getSandboxTestWsUrl, getValidAuthToken } from '../../api';
 
 interface VisualFlowCanvasProps {
   initialGraph?: FlowGraph | null;
@@ -212,7 +212,7 @@ export default function VisualFlowCanvas({
   // Retell Global Settings state
   const [language, setLanguage] = useState('auto');
   const [voice, setVoice] = useState('Puck');
-  const [model] = useState('gemini-2.5-flash');
+  const [model] = useState('gemini-2.5-flash-native-audio-latest');
   const [direction, setDirection] = useState<'outbound' | 'inbound' | 'both'>('outbound');
   const [globalPrompt, setGlobalPrompt] = useState(legacySystemPrompt || 'Enter your global prompt here. Type {{ to add dynamic variables.');
   const [flexibilityMode, setFlexibilityMode] = useState<'flex' | 'rigid'>('rigid');
@@ -419,6 +419,195 @@ export default function VisualFlowCanvas({
   const [publishError, setPublishError] = useState<string | null>(null);
   const [showSavedToast, setShowSavedToast] = useState(false);
 
+  // ── Test Call Panel State ────────────────────────────────────────────────
+  type TestStatus = 'idle' | 'connecting' | 'connected' | 'error';
+  type TranscriptTurn = { speaker: 'user' | 'agent'; text: string; finalized: boolean };
+  const [isTestPanelOpen, setIsTestPanelOpen] = useState(false);
+  const [testStatus, setTestStatus] = useState<TestStatus>('idle');
+  const [testError, setTestError] = useState<string | null>(null);
+  const [transcriptTurns, setTranscriptTurns] = useState<TranscriptTurn[]>([]);
+  const wsRef = useRef<WebSocket | null>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const playbackContextRef = useRef<AudioContext | null>(null);
+  const processorNodeRef = useRef<ScriptProcessorNode | null>(null);
+  const nextPlaybackTimeRef = useRef<number>(0);
+
+  function floatTo16BitPCM(input: Float32Array): ArrayBuffer {
+    const buffer = new ArrayBuffer(input.length * 2);
+    const view = new DataView(buffer);
+    for (let i = 0; i < input.length; i++) {
+      const s = Math.max(-1, Math.min(1, input[i]));
+      view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    }
+    return buffer;
+  }
+
+  function arrayBufferToBase64(buffer: ArrayBuffer): string {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  }
+
+  function base64ToArrayBuffer(base64: string): ArrayBuffer {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes.buffer;
+  }
+
+  function playPcmAudioChunk(base64Audio: string) {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!playbackContextRef.current || playbackContextRef.current.state === 'closed') {
+        playbackContextRef.current = new AudioCtx({ sampleRate: 24000 });
+        nextPlaybackTimeRef.current = 0;
+      }
+      const ctx = playbackContextRef.current;
+      const rawPcm = base64ToArrayBuffer(base64Audio);
+      const int16 = new Int16Array(rawPcm);
+      const float32 = new Float32Array(int16.length);
+      for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768;
+      const audioBuffer = ctx.createBuffer(1, float32.length, 24000);
+      audioBuffer.copyToChannel(float32, 0);
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(ctx.destination);
+      const currentTime = ctx.currentTime;
+      if (nextPlaybackTimeRef.current < currentTime) nextPlaybackTimeRef.current = currentTime;
+      source.start(nextPlaybackTimeRef.current);
+      nextPlaybackTimeRef.current += audioBuffer.duration;
+    } catch (err) {
+      console.error('PCM playback error:', err);
+    }
+  }
+
+  function stopTestCall() {
+    if (processorNodeRef.current) { processorNodeRef.current.disconnect(); processorNodeRef.current = null; }
+    if (audioContextRef.current) { audioContextRef.current.close().catch(() => {}); audioContextRef.current = null; }
+    if (playbackContextRef.current) { playbackContextRef.current.close().catch(() => {}); playbackContextRef.current = null; }
+    if (micStreamRef.current) { micStreamRef.current.getTracks().forEach(t => t.stop()); micStreamRef.current = null; }
+    if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
+    setTestStatus('idle');
+  }
+
+  async function startTestCall() {
+    setTestError(null);
+    setTranscriptTurns([]);
+    setTestStatus('connecting');
+    setIsTestPanelOpen(true);
+    try {
+      // Save current canvas silently (no alert) and get the agent UUID
+      let agentId: string | undefined;
+      if (onEnsureSaved) {
+        const extra = getCanvasPayloadExtra();
+        agentId = await onEnsureSaved(compiledPrompt, currentFlowGraph, extra);
+      }
+      if (!agentId) throw new Error('Could not save the canvas — please try saving manually first.');
+
+      const rawToken = (await getValidAuthToken()) || '';
+      const wsUrl = getSandboxTestWsUrl(agentId, rawToken);
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onopen = async () => {
+        setTestStatus('connected');
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+          });
+          micStreamRef.current = stream;
+          const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+          const audioCtx = new AudioCtx({ sampleRate: 16000 });
+          audioContextRef.current = audioCtx;
+          const sourceNode = audioCtx.createMediaStreamSource(stream);
+
+          let workletLoaded = false;
+          if (audioCtx.audioWorklet) {
+            try {
+              const workletCode = `
+                class PCMProcessor extends AudioWorkletProcessor {
+                  process(inputs) {
+                    const ch = inputs[0]?.[0];
+                    if (ch) this.port.postMessage(ch);
+                    return true;
+                  }
+                }
+                registerProcessor('pcm-proc-flow', PCMProcessor);
+              `;
+              const blob = new Blob([workletCode], { type: 'application/javascript' });
+              const workletUrl = URL.createObjectURL(blob);
+              await audioCtx.audioWorklet.addModule(workletUrl);
+              const workletNode = new AudioWorkletNode(audioCtx, 'pcm-proc-flow');
+              workletNode.port.onmessage = (e) => {
+                if (wsRef.current?.readyState === WebSocket.OPEN) {
+                  wsRef.current.send(JSON.stringify({ event: 'audio', data: arrayBufferToBase64(floatTo16BitPCM(e.data)) }));
+                }
+              };
+              sourceNode.connect(workletNode);
+              workletNode.connect(audioCtx.destination);
+              workletLoaded = true;
+            } catch { workletLoaded = false; }
+          }
+
+          if (!workletLoaded) {
+            const proc = audioCtx.createScriptProcessor(4096, 1, 1);
+            processorNodeRef.current = proc;
+            proc.onaudioprocess = (e) => {
+              if (wsRef.current?.readyState === WebSocket.OPEN) {
+                wsRef.current.send(JSON.stringify({ event: 'audio', data: arrayBufferToBase64(floatTo16BitPCM(e.inputBuffer.getChannelData(0))) }));
+              }
+            };
+            sourceNode.connect(proc);
+            proc.connect(audioCtx.destination);
+          }
+        } catch (micErr: any) {
+          setTestError('Microphone permission denied or audio device failure.');
+          stopTestCall();
+        }
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if ((msg.event === 'audio' && msg.data) || (msg.event === 'media' && msg.media?.payload)) {
+            playPcmAudioChunk(msg.data || msg.media?.payload);
+          } else if (msg.event === 'transcript') {
+            const deltaText = msg.text || '';
+            if (deltaText) {
+              const speaker: 'user' | 'agent' = msg.isUser ? 'user' : 'agent';
+              const isFinal = Boolean(msg.isFinal);
+              setTranscriptTurns(prev => {
+                if (prev.length === 0) return [{ speaker, text: deltaText, finalized: isFinal }];
+                const last = prev[prev.length - 1];
+                if (last.speaker === speaker && !last.finalized) {
+                  const updated = [...prev];
+                  updated[updated.length - 1] = { ...last, text: last.text + deltaText, finalized: isFinal };
+                  return updated;
+                }
+                return [...prev, { speaker, text: deltaText, finalized: isFinal }];
+              });
+            }
+          } else if (msg.event === 'error' && msg.message) {
+            const rawMsg: string = msg.message;
+            const friendlyMsg = rawMsg === 'INSUFFICIENT_FUNDS_OR_MISSING_KEY' || rawMsg === 'INSUFFICIENT_BALANCE'
+              ? "You're out of calling minutes. Add minutes or your own Gemini API key in Settings."
+              : rawMsg;
+            setTestError(friendlyMsg);
+            setTestStatus('error');
+          }
+        } catch { /* ignore parse errors */ }
+      };
+
+      ws.onerror = () => { setTestStatus('error'); setTestError('WebSocket connection error.'); };
+      ws.onclose = () => { setTestStatus('idle'); };
+    } catch (err: any) {
+      setTestStatus('error');
+      setTestError(err?.message || 'Failed to start test call.');
+    }
+  }
+
   const qaScore = useMemo(() => {
     let score = 100;
     const issues: string[] = [];
@@ -585,11 +774,12 @@ export default function VisualFlowCanvas({
             </select>
           </div>
 
-          <button className="px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all">
-            Feedback
-          </button>
-
-          <button className="px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-lg flex items-center gap-1.5 hover:bg-indigo-100 transition-all">
+          <button
+            onClick={() => startTestCall()}
+            className="px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-lg flex items-center gap-1.5 hover:bg-indigo-100 transition-all"
+            title="Test current flow (auto-saves)"
+            id="flow-test-call-btn"
+          >
             <Play className="w-3.5 h-3.5" /> Test
           </button>
 
@@ -1360,6 +1550,99 @@ export default function VisualFlowCanvas({
           </div>
         </aside>
       </div>
+
+      {/* ── Test Call Panel Overlay ─────────────────────────────────────── */}
+      {isTestPanelOpen && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden border border-slate-200 dark:border-slate-700" style={{ maxHeight: '85vh' }}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <Mic className="w-4 h-4 text-indigo-500" />
+                <span className="font-semibold text-sm text-slate-800 dark:text-slate-100">Test Call</span>
+                <span className={`ml-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                  testStatus === 'connecting' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' :
+                  testStatus === 'connected' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' :
+                  testStatus === 'error' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400' :
+                  'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                }`}>
+                  {testStatus === 'connecting' ? 'Connecting...' :
+                   testStatus === 'connected' ? '● Live' :
+                   testStatus === 'error' ? 'Error' : 'Ended'}
+                </span>
+              </div>
+              <button
+                onClick={() => { stopTestCall(); setIsTestPanelOpen(false); }}
+                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors"
+                title="Close test panel"
+                id="flow-test-close-btn"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Error banner */}
+            {testError && (
+              <div className="mx-4 mt-3 px-3 py-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5" />
+                <span className="text-xs text-rose-700 dark:text-rose-400 font-medium">{testError}</span>
+              </div>
+            )}
+
+            {/* Connecting spinner */}
+            {testStatus === 'connecting' && (
+              <div className="flex flex-col items-center justify-center py-10 gap-3">
+                <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                <p className="text-sm text-slate-500 dark:text-slate-400">Saving canvas and connecting to agent…</p>
+              </div>
+            )}
+
+            {/* Transcript area */}
+            {(testStatus === 'connected' || transcriptTurns.length > 0) && (
+              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-[200px]">
+                {transcriptTurns.length === 0 && (
+                  <p className="text-xs text-slate-400 dark:text-slate-500 text-center mt-6">
+                    Speak now — the agent will greet you shortly…
+                  </p>
+                )}
+                {transcriptTurns.map((turn, idx) => (
+                  <div key={idx} className={`flex ${turn.speaker === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[80%] rounded-xl px-3.5 py-2.5 text-sm ${
+                      turn.speaker === 'user'
+                        ? 'bg-indigo-600 text-white rounded-br-sm'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-bl-sm'
+                    }`}>
+                      <p className="text-[11px] font-semibold mb-0.5 opacity-70">{turn.speaker === 'user' ? 'You' : 'Agent'}</p>
+                      <p className="leading-relaxed">{turn.text}{!turn.finalized && <span className="opacity-50 ml-1">…</span>}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Footer controls */}
+            <div className="px-4 py-4 border-t border-slate-200 dark:border-slate-800 flex justify-center">
+              {testStatus === 'connected' ? (
+                <button
+                  onClick={() => { stopTestCall(); setIsTestPanelOpen(false); }}
+                  className="px-5 py-2 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors flex items-center gap-2"
+                  id="flow-test-end-btn"
+                >
+                  <X className="w-4 h-4" /> End Test Call
+                </button>
+              ) : (
+                <button
+                  onClick={() => { stopTestCall(); setIsTestPanelOpen(false); }}
+                  className="px-5 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors"
+                >
+                  Close
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

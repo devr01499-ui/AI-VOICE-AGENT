@@ -5752,7 +5752,7 @@ function DashboardPage({ session }: { session: Session }) {
         initialAgent={singlePromptStudioAgent as any}
         agentName={singlePromptStudioAgent.name}
         onSave={async (agentData) => {
-          if (singlePromptStudioAgent.id && !singlePromptStudioAgent.id.startsWith('a') && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(singlePromptStudioAgent.id)) {
+          if (singlePromptStudioAgent.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(singlePromptStudioAgent.id)) {
             await updateAgent(singlePromptStudioAgent.id, agentData as any);
             alert("Single-prompt agent saved successfully!");
           } else {
@@ -5766,7 +5766,7 @@ function DashboardPage({ session }: { session: Session }) {
           fetchAgents().then(setApiAgents).catch(() => {});
         }}
         onEnsureSaved={async (agentData) => {
-          if (singlePromptStudioAgent.id && !singlePromptStudioAgent.id.startsWith('a') && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(singlePromptStudioAgent.id)) {
+          if (singlePromptStudioAgent.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(singlePromptStudioAgent.id)) {
             await updateAgent(singlePromptStudioAgent.id, agentData as any);
             fetchAgents().then(setApiAgents).catch(() => {});
             return singlePromptStudioAgent.id;
@@ -5846,10 +5846,10 @@ function DashboardPage({ session }: { session: Session }) {
             languageMode: extraConfig?.languageMode || extraConfig?.language || 'auto',
             systemVoice: extraConfig?.systemVoice || extraConfig?.voiceName || 'Puck',
             voiceName: extraConfig?.voiceName || extraConfig?.systemVoice || 'Puck',
-            model: extraConfig?.model || 'gemini-2.5-flash',
+            model: extraConfig?.model || 'gemini-2.5-flash-native-audio-latest',
             agentConfig: extraConfig?.handbookPresets ? { handbookPresets: extraConfig.handbookPresets } : undefined,
           };
-          if (studioAgent.id && !studioAgent.id.startsWith('a') && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(studioAgent.id)) {
+          if (studioAgent.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(studioAgent.id)) {
             await updateAgent(studioAgent.id, payload as any);
             alert("Conversational flow graph published successfully!");
           } else {
@@ -5869,10 +5869,10 @@ function DashboardPage({ session }: { session: Session }) {
             languageMode: extraConfig?.languageMode || extraConfig?.language || 'auto',
             systemVoice: extraConfig?.systemVoice || extraConfig?.voiceName || 'Puck',
             voiceName: extraConfig?.voiceName || extraConfig?.systemVoice || 'Puck',
-            model: extraConfig?.model || 'gemini-2.5-flash',
+            model: extraConfig?.model || 'gemini-2.5-flash-native-audio-latest',
             agentConfig: extraConfig?.handbookPresets ? { handbookPresets: extraConfig.handbookPresets } : undefined,
           };
-          if (studioAgent.id && !studioAgent.id.startsWith('a') && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(studioAgent.id)) {
+          if (studioAgent.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(studioAgent.id)) {
             await updateAgent(studioAgent.id, payload as any);
             fetchAgents().then(setApiAgents).catch(() => {});
             return studioAgent.id;

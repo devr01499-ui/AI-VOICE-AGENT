@@ -822,7 +822,7 @@ export default function SinglePromptStudio({
       setTranscriptTurns([]);
 
       let targetAgentId = currentAgentId;
-      if (!targetAgentId || targetAgentId.startsWith('a') || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetAgentId)) {
+      if (!targetAgentId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetAgentId)) {
         if (onEnsureSaved) {
           targetAgentId = await onEnsureSaved(getStudioPayload());
           setCurrentAgentId(targetAgentId);
@@ -969,7 +969,11 @@ export default function SinglePromptStudio({
               return prev;
             });
           } else if (msg.event === 'error' && msg.message) {
-            setTestError(msg.message);
+            const rawMsg: string = msg.message;
+            const friendlyMsg = rawMsg === 'INSUFFICIENT_FUNDS_OR_MISSING_KEY' || rawMsg === 'INSUFFICIENT_BALANCE'
+              ? "You're out of calling minutes. Add minutes or your own Gemini API key in Settings."
+              : rawMsg;
+            setTestError(friendlyMsg);
           } else if (msg.event === 'latency' && typeof msg.latencyMs === 'number') {
             setLatency(msg.latencyMs);
           }

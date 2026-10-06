@@ -8,6 +8,7 @@ import { verifySupabaseToken } from '../utils/auth';
 import { ADMIN_EMAIL } from '../config/constants';
 import { CalendarService } from '../core/orchestrator/CalendarService';
 import { extractToolsFromFlowGraph } from '../core/orchestrator/CallOrchestrator';
+import { resolveLiveModel } from '../utils/modelResolver';
 
 function getGreetingTextForLanguage(languageMode: string | null | undefined): string {
   const map: Record<string, string> = {
@@ -70,6 +71,32 @@ export class SandboxStreamHandler {
       createdAt: Date.now(),
     };
     this.connections.set(connectionId, session);
+
+    // ── Register message handler IMMEDIATELY (before any async await) ──────
+    // This prevents audio chunks sent during the setup latency window from being lost.
+    ws.on('message', (message: WebSocket.RawData) => {
+      try {
+        const event = JSON.parse(message.toString());
+        if (event.event === 'audio' && event.data) {
+          if (session.providerSessionId) {
+            this.provider.sendAudio(session.providerSessionId, event.data);
+          }
+          // else: session not ready yet — drop silently (Gemini hasn't opened yet)
+        } else if (event.event === 'media' && event.media?.payload) {
+          if (session.providerSessionId) {
+            this.provider.sendAudio(session.providerSessionId, event.media.payload);
+          }
+        } else {
+          logger.warn('SandboxStreamHandler: Unrecognized inbound event', { connectionId, event: event?.event });
+        }
+      } catch (err: any) {
+        logger.error('SandboxStreamHandler: Failed to process incoming socket message', { connectionId, error: err.message });
+      }
+    });
+
+    ws.on('error', (err: Error) => {
+      logger.error('SandboxStreamHandler: Client connection error', { connectionId, error: err.message });
+    });
 
     try {
       // 1. Verify Supabase JWT token
@@ -160,12 +187,29 @@ export class SandboxStreamHandler {
       }
 
       // 2. Setup Gemini Live configuration
+      // For flow agents, compile the flow graph the same way CallOrchestrator does,
+      // so sandbox tests are identical to real calls.
+      let sandboxInstructions = agent.systemPrompt || 'You are a helpful assistant.';
+      if (agent.flowGraph && agent.flowGraph !== '' && agent.flowGraph !== '{}') {
+        try {
+          const FlowCompiler = require('../core/orchestrator/FlowCompiler');
+          const parsedAgentCfg = typeof agent.agentConfig === 'string'
+            ? (() => { try { return JSON.parse(agent.agentConfig); } catch { return {}; } })()
+            : (agent.agentConfig || {});
+          const flexibilityMode = (parsedAgentCfg as any)?.flexibilityMode || 'rigid';
+          sandboxInstructions = FlowCompiler.compile(agent.flowGraph, agent.name, flexibilityMode);
+          logger.info('SandboxStreamHandler: FlowCompiler compiled instructions for flow agent', { connectionId, agentId });
+        } catch (compileErr) {
+          logger.warn('SandboxStreamHandler: FlowCompiler failed, falling back to systemPrompt', { error: String(compileErr) });
+        }
+      }
+
       const config = {
         callId: connectionId,
         agentId: agentId,
-        model: agent.model || 'models/gemini-2.5-flash-native-audio-latest',
+        model: resolveLiveModel(agent.model),
         voice: agent.voiceName || 'Aoede',
-        instructions: agent.systemPrompt || 'You are a helpful assistant.',
+        instructions: sandboxInstructions,
         tools: tools.length > 0 ? tools : undefined,
         userId: userId,
         agent: agent,
@@ -320,26 +364,6 @@ export class SandboxStreamHandler {
       return;
     }
 
-    // 4. Handle client events
-    ws.on('message', (message: WebSocket.RawData) => {
-      try {
-        const event = JSON.parse(message.toString());
-        if (event.event === 'audio' && event.data) {
-          if (session.providerSessionId) {
-            this.provider.sendAudio(session.providerSessionId, event.data);
-          }
-        } else if (event.event === 'media' && event.media?.payload) {
-          if (session.providerSessionId) {
-            this.provider.sendAudio(session.providerSessionId, event.media.payload);
-          }
-        } else {
-          logger.warn('SandboxStreamHandler: Unrecognized inbound event', { connectionId, event: event?.event });
-        }
-      } catch (err: any) {
-        logger.error('SandboxStreamHandler: Failed to process incoming socket message', { connectionId, error: err.message });
-      }
-    });
-
     ws.on('close', async () => {
       logger.info('SandboxStreamHandler: Client connection closed', { connectionId });
       if (session.providerSessionId) {
@@ -350,10 +374,6 @@ export class SandboxStreamHandler {
         }
       }
       this.connections.delete(connectionId);
-    });
-
-    ws.on('error', (err: Error) => {
-      logger.error('SandboxStreamHandler: Client connection error', { connectionId, error: err.message });
     });
   }
 }

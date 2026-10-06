@@ -15,6 +15,7 @@ import { ADMIN_EMAIL } from '../../config/constants';
 import { CalendarService } from './CalendarService';
 import { bookFollowUpCallTool, executeBookFollowUpCall } from '../../lib/calendar/bookingTool';
 import { McpService } from '../../services/McpService';
+import { resolveLiveModel } from '../../utils/modelResolver';
 
 export function extractToolsFromFlowGraph(flowGraphInput: string | object | null | undefined): any[] {
   if (!flowGraphInput) return [];
@@ -315,8 +316,7 @@ export class CallOrchestrator {
         voice: finalVoice,
         llm: {
           provider: llmProvider,
-          model: agent.model || rawConfig.llm_config?.model || 
-            (llmProvider === 'gemini' ? 'models/gemini-2.5-flash-native-audio-latest' : 'gpt-4o-realtime-preview'),
+          model: resolveLiveModel(agent.model || rawConfig.llm_config?.model),
           temperature: agent.temperature !== null && agent.temperature !== undefined ? Number(agent.temperature) : (rawConfig.temperature !== undefined ? Number(rawConfig.temperature) : (rawConfig.llm_config?.temperature !== undefined ? Number(rawConfig.llm_config.temperature) : undefined)),
         },
         tools: rawConfig.tools || (combinedTools.length > 0 ? combinedTools : undefined),
