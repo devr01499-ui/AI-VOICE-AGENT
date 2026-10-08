@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { Resend } from "resend";
 import { z } from "zod";
+import { sensitiveOperationsLimiter } from "../middleware/rateLimiter";
 
 const router = Router();
 
@@ -13,7 +14,7 @@ const ContactSchema = z.object({
   message: z.string().min(1, "Message is required"),
 });
 
-router.post("/", async (req, res) => {
+router.post("/", sensitiveOperationsLimiter, async (req, res) => {
   try {
     const data = ContactSchema.parse(req.body);
 

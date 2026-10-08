@@ -7,6 +7,7 @@ import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { EncryptionService } from '../utils/EncryptionService';
+import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
@@ -28,6 +29,13 @@ const callIdParamSchema = z.object({
 });
 
 // ─── Routes ──────────────────────────────────────
+
+/** POST /api/v2/calls — Initiate an outbound call (mutating, protected by sensitiveOperationsLimiter). */
+router.post(
+  '/',
+  sensitiveOperationsLimiter,
+  CallController.initiateCall
+);
 
 /** GET /api/v2/calls — List all calls (isolated to the authenticated userId). */
 router.get(

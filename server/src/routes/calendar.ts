@@ -8,6 +8,7 @@ import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { getWebhookSigningSecret } from '../utils/security';
 import { scheduleCall, cancelBooking, rescheduleBooking } from '../lib/calendar/scheduler';
+import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
@@ -235,7 +236,7 @@ router.get('/batches', requireAuth, async (req, res) => {
  * POST /api/v2/calendar/batches
  * Create a new batch campaign with recipient list.
  */
-router.post('/batches', requireAuth, async (req, res) => {
+router.post('/batches', requireAuth, sensitiveOperationsLimiter, async (req, res) => {
   try {
     const userId = getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });

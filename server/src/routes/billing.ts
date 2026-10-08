@@ -5,10 +5,11 @@ import { AuthenticatedRequest, requireAuth } from '../middleware/auth';
 import { env } from '../config/env';
 import { ADMIN_EMAIL } from '../config/constants';
 import { logAuditEvent } from '../utils/auditLogger';
+import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
-router.post('/create-plan-order', requireAuth, async (req, res) => {
+router.post('/create-plan-order', requireAuth, sensitiveOperationsLimiter, async (req, res) => {
   try {
     const { planName, plan, price } = req.body;
     const targetPlan = planName || plan || price;
@@ -32,7 +33,7 @@ router.post('/create-plan-order', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/verify-plan', requireAuth, async (req: any, res: any) => {
+router.post('/verify-plan', requireAuth, sensitiveOperationsLimiter, async (req: any, res: any) => {
   try {
     const { plan, orderId, paymentId, signature } = req.body;
 

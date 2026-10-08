@@ -6,6 +6,7 @@ import { VobizSubAccountService } from '../services/VobizSubAccountService';
 import { verifyVobizWebhook } from '../middleware/vobizWebhook';
 import { Resend } from 'resend';
 import { logAuditEvent } from '../utils/auditLogger';
+import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
@@ -61,7 +62,7 @@ async function notifyUserKycStatus(userId: string, status: string, reason?: stri
  * Initiates Vobiz's Hosted KYC Session for the user's sub-account.
  * Strictly ZERO raw document upload/storage on our servers (Aadhaar Act compliant).
  */
-router.post('/initiate-session', requireAuth, async (req, res, next) => {
+router.post('/initiate-session', requireAuth, sensitiveOperationsLimiter, async (req, res, next) => {
   try {
     const userId = (req as any).userId;
     if (!userId) {

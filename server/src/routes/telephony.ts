@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { TelephonyController } from '../controllers/telephony.controller';
+import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
@@ -14,6 +15,6 @@ router.get('/sub-accounts', requireAuth, TelephonyController.getSubAccount);
 router.post('/sub-accounts', requireAuth, TelephonyController.provisionSubAccount);
 
 // POST /api/v2/telephony/purchase
-router.post('/purchase', requireAuth, TelephonyController.purchaseAndAssign);
+router.post('/purchase', requireAuth, sensitiveOperationsLimiter, TelephonyController.purchaseAndAssign);
 
 export default router;

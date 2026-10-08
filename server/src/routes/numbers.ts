@@ -9,6 +9,7 @@ import { VobizPhoneNumberService } from '../services/VobizPhoneNumberService';
 import { ADMIN_EMAIL } from '../config/constants';
 import { env } from '../config/env';
 import { logAuditEvent } from '../utils/auditLogger';
+import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
@@ -251,7 +252,7 @@ router.get('/search', requireAuth, async (req, res, next) => {
  * Creates a Razorpay order for purchasing a number.
  * Body: { baseCost, setupFee?, currency? }
  */
-router.post('/create-order', requireAuth, requireEditor, requireActivePlan, async (req, res, next) => {
+router.post('/create-order', requireAuth, requireEditor, requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
   const userId = (req as any).userId;
   try {
     const { baseCost = 0, setupFee = 0, currency = 'INR' } = req.body;
@@ -289,7 +290,7 @@ router.post('/create-order', requireAuth, requireEditor, requireActivePlan, asyn
  *     and log a [VOBIZ_PURCHASE_FAILURE] alert for ops.
  *   - Raw error strings from Vobiz are never returned to the client.
  */
-router.post('/purchase', requireAuth, requireEditor, requireActivePlan, async (req, res, next) => {
+router.post('/purchase', requireAuth, requireEditor, requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
   const userId = (req as any).userId;
   const { vobizNumberId, expectedPrice, orderId, paymentId, signature, agentId } = req.body;
 
@@ -459,7 +460,7 @@ router.post('/purchase', requireAuth, requireEditor, requireActivePlan, async (r
  * No second Razorpay charge required — billed against master account balance.
  * Body: { vobizNumberId, agentId? }
  */
-router.post('/claim', requireAuth, requireEditor, requireActivePlan, async (req, res, next) => {
+router.post('/claim', requireAuth, requireEditor, requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
   const userId = (req as any).userId;
   const { vobizNumberId, agentId } = req.body;
 
