@@ -22,6 +22,7 @@ export class VobizSubAccountService {
   /**
    * Retrieves an existing sub-account for the user, or creates one via Vobiz API if it doesn't exist.
    * Checks database first to prevent duplicate sub-account creation on repeat number purchases.
+   * Reprovisions legacy mock sub-accounts (SA_MOCK_) if real Vobiz credentials are now available.
    */
   async getOrCreateSubAccount(userId: string, userEmail?: string) {
     const existing = await prisma.vobizSubAccount.findUnique({
@@ -29,6 +30,15 @@ export class VobizSubAccountService {
     });
 
     if (existing) {
+      // Item 9 repair path: If environment has real Vobiz credentials but record was created with SA_MOCK_, re-provision on live Vobiz
+      if (!this.isMock && existing.authId.startsWith('SA_MOCK_')) {
+        logger.warn('VobizSubAccountService: repairing legacy SA_MOCK_ sub-account in live environment', {
+          userId,
+          mockAuthId: existing.authId,
+        });
+        return this.repairMockSubAccount(existing.id, userId, userEmail);
+      }
+
       logger.info('VobizSubAccountService: using existing sub-account', { userId, authId: existing.authId });
       return existing;
     }
@@ -37,10 +47,89 @@ export class VobizSubAccountService {
   }
 
   /**
+   * Repairs an existing mock sub-account by provisioning real credentials on Vobiz
+   * and updating the existing database record in-place.
+   */
+  async repairMockSubAccount(existingId: string, userId: string, userEmail?: string) {
+    logger.info('VobizSubAccountService: re-provisioning mock sub-account on Vobiz', { existingId, userId });
+    let effectiveName = userEmail;
+    if (!effectiveName) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true },
+      });
+      effectiveName = user?.email || `user-${userId.substring(0, 8)}`;
+    }
+
+    let cleanBaseUrl = this.baseUrl.replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
+    const url = `${cleanBaseUrl}/api/v1/accounts/${this.masterAuthId}/sub-accounts/`;
+    const body = {
+      name: effectiveName,
+      enabled: true,
+    };
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-Auth-ID': this.masterAuthId,
+      'X-Auth-Token': this.masterAuthToken,
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new ProviderError('vobiz', `Repair subaccount failed on Vobiz (${response.status}): ${text}`);
+    }
+
+    const data = (await response.json()) as any;
+    const subAuthId = data.sub_account?.auth_id || data.auth_credentials?.auth_id || data.auth_id;
+    const subAuthToken = data.sub_account?.auth_token || data.auth_credentials?.auth_token || data.auth_token;
+
+    if (!subAuthId || !subAuthToken) {
+      throw new ProviderError('vobiz', 'Vobiz returned success for repair but missing sub-account credentials in payload');
+    }
+
+    const encryptedToken = EncryptionService.encrypt(subAuthToken);
+
+    const repaired = await prisma.vobizSubAccount.update({
+      where: { id: existingId },
+      data: {
+        authId: subAuthId,
+        authToken: encryptedToken,
+        kycStatus: 'pending',
+        kycVerifiedAt: null,
+      },
+    });
+
+    logger.info('VobizSubAccountService: successfully repaired mock sub-account on Vobiz', {
+      userId,
+      existingId,
+      newAuthId: subAuthId,
+    });
+
+    return repaired;
+  }
+
+  /**
    * Provisions a new Sub-Account on Vobiz set with the user's email address as the sub-account name.
    */
   async createSubAccount(userId: string, userEmail?: string) {
     logger.info('VobizSubAccountService: provisioning new sub-account', { userId, userEmail, isMock: this.isMock });
+
+    // Item 9: Throw loudly in production if Vobiz auth credentials are missing
+    if (this.isMock) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new ProviderError(
+          'vobiz',
+          'CRITICAL CONFIG ERROR: VOBIZ_AUTH_ID is not configured in production. Cannot create mock sub-accounts in production environment.'
+        );
+      }
+    }
 
     let effectiveName = userEmail;
     if (!effectiveName) {
