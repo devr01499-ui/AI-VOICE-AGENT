@@ -3794,8 +3794,11 @@ function DashNumbers({ profile, onNavigateToBilling }: { profile?: any; onNaviga
   };
 
   const [kycRedirectUrl, setKycRedirectUrl] = useState<string | null>(null);
+  const [kycSubmitting, setKycSubmitting] = useState(false);
 
   const submitKyc = async () => {
+    if (kycSubmitting) return;
+    setKycSubmitting(true);
     try {
       const res = await apiClient.post('/api/v2/kyc/initiate-session', {});
       if (res.data?.success) {
@@ -3816,6 +3819,8 @@ function DashNumbers({ profile, onNavigateToBilling }: { profile?: any; onNaviga
     } catch (e: any) {
       console.error(e);
       alert(e?.response?.data?.error || e?.message || 'KYC Error');
+    } finally {
+      setKycSubmitting(false);
     }
   };
 
@@ -3922,7 +3927,9 @@ function DashNumbers({ profile, onNavigateToBilling }: { profile?: any; onNaviga
                 <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
                 <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Verification Failed</p>
                 <p className="text-sm text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Please try initiating hosted KYC verification again.</p>
-                <DBtn onClick={submitKyc} className="mt-4">Retry KYC Verification</DBtn>
+                <DBtn onClick={submitKyc} disabled={kycSubmitting} className="mt-4">
+                  {kycSubmitting ? 'Starting...' : 'Retry KYC Verification'}
+                </DBtn>
               </>
             )}
           </div>

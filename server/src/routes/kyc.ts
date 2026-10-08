@@ -106,7 +106,7 @@ export async function notifyUserKycStatus(userId: string, status: string, reason
  * Initiates Vobiz's Hosted KYC Session for the user's sub-account.
  * Strictly ZERO raw document upload/storage on our servers (Aadhaar Act compliant).
  */
-router.post('/initiate-session', requireAuth, sensitiveOperationsLimiter, async (req, res, next) => {
+router.post(['/initiate-session', '/start'], requireAuth, sensitiveOperationsLimiter, async (req, res, next) => {
   try {
     const userId = (req as any).userId;
     if (!userId) {

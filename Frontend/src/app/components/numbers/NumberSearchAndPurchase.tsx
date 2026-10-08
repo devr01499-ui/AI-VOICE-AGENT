@@ -209,6 +209,7 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
   }, [selectedCountry, selectedType, numberLocked, handleSearch]);
 
   const handleTriggerKyc = async () => {
+    if (kycInitiating) return;
     setKycInitiating(true);
     try {
       const apiBase = getRuntimeUrl();
@@ -729,9 +730,10 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
                             {isAadhaar && !isKycVerified ? (
                               <button
                                 onClick={handleTriggerKyc}
-                                className="px-4 py-2 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition-all shadow-sm flex items-center gap-1 ml-auto cursor-pointer"
+                                disabled={kycInitiating}
+                                className="px-4 py-2 rounded-full bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs transition-all shadow-sm flex items-center gap-1 ml-auto cursor-pointer"
                               >
-                                <ShieldAlert className="w-3.5 h-3.5" /> Complete KYC to Claim
+                                <ShieldAlert className="w-3.5 h-3.5" /> {kycInitiating ? 'Starting...' : 'Complete KYC to Claim'}
                               </button>
                             ) : (
                               <button

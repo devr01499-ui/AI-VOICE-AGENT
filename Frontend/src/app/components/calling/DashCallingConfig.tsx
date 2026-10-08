@@ -28,6 +28,7 @@ export function DashCallingConfig() {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [isInitiatingKyc, setIsInitiatingKyc] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -77,6 +78,8 @@ export function DashCallingConfig() {
   };
 
   const handleInitiateHostedKyc = async () => {
+    if (isInitiatingKyc) return;
+    setIsInitiatingKyc(true);
     try {
       const res = await apiClient.post('/api/v2/kyc/initiate-session', {});
       if (res.data?.data?.redirectUrl) {
@@ -85,6 +88,8 @@ export function DashCallingConfig() {
       }
     } catch (err) {
       alert("Failed to open Vobiz Hosted KYC Session: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setIsInitiatingKyc(false);
     }
   };
 
@@ -143,9 +148,10 @@ export function DashCallingConfig() {
           </div>
           <button
             onClick={handleInitiateHostedKyc}
-            className="px-4 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+            disabled={isInitiatingKyc}
+            className="px-4 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
           >
-            <ShieldCheck className="w-4 h-4" /> Start KYC Verification Now
+            <ShieldCheck className="w-4 h-4" /> {isInitiatingKyc ? 'Starting...' : 'Start KYC Verification Now'}
           </button>
         </div>
       )}

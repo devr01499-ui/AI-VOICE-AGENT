@@ -19,10 +19,14 @@ export class VobizSubAccountService {
     return this.masterAuthId === 'MA_PLACEHOLDER' || this.masterAuthId.includes('placeholder');
   }
 
+  // Item 10: In-memory promise mutex per userId to collapse concurrent requests into a single creation
+  private static inFlightCreations = new Map<string, Promise<any>>();
+
   /**
    * Retrieves an existing sub-account for the user, or creates one via Vobiz API if it doesn't exist.
    * Checks database first to prevent duplicate sub-account creation on repeat number purchases.
    * Reprovisions legacy mock sub-accounts (SA_MOCK_) if real Vobiz credentials are now available.
+   * Collapses concurrent requests for the same user into a single operation.
    */
   async getOrCreateSubAccount(userId: string, userEmail?: string) {
     const existing = await prisma.vobizSubAccount.findUnique({
@@ -43,7 +47,23 @@ export class VobizSubAccountService {
       return existing;
     }
 
-    return this.createSubAccount(userId, userEmail);
+    // Item 10: Check if another request in this process is already creating a sub-account for this userId
+    const inFlight = VobizSubAccountService.inFlightCreations.get(userId);
+    if (inFlight) {
+      logger.info('VobizSubAccountService: waiting on concurrent sub-account creation in-flight', { userId });
+      return inFlight;
+    }
+
+    const creationPromise = (async () => {
+      try {
+        return await this.createSubAccount(userId, userEmail);
+      } finally {
+        VobizSubAccountService.inFlightCreations.delete(userId);
+      }
+    })();
+
+    VobizSubAccountService.inFlightCreations.set(userId, creationPromise);
+    return creationPromise;
   }
 
   /**
@@ -189,22 +209,43 @@ export class VobizSubAccountService {
 
     const encryptedToken = EncryptionService.encrypt(subAuthToken);
 
-    const subAccount = await prisma.vobizSubAccount.create({
-      data: {
+    // Item 10: Database-level unique constraint race protection
+    try {
+      const subAccount = await prisma.vobizSubAccount.create({
+        data: {
+          userId,
+          authId: subAuthId,
+          authToken: encryptedToken,
+          kycMode: 'customer_use',
+        },
+      });
+
+      logger.info('VobizSubAccountService: successfully provisioned sub-account with email name', {
         userId,
-        authId: subAuthId,
-        authToken: encryptedToken,
-        kycMode: 'customer_use',
-      },
-    });
+        subAuthId,
+        name: effectiveName,
+      });
 
-    logger.info('VobizSubAccountService: successfully provisioned sub-account with email name', {
-      userId,
-      subAuthId,
-      name: effectiveName,
-    });
-
-    return subAccount;
+      return subAccount;
+    } catch (insertErr: any) {
+      if (
+        insertErr?.code === 'P2002' ||
+        String(insertErr?.message || insertErr).includes('unique') ||
+        String(insertErr?.message || insertErr).includes('UniqueConstraintViolation')
+      ) {
+        logger.warn('VobizSubAccountService: caught duplicate sub-account creation race condition (P2002), returning existing record', {
+          userId,
+          duplicateAuthId: subAuthId,
+        });
+        const existingAfterRace = await prisma.vobizSubAccount.findUnique({
+          where: { userId },
+        });
+        if (existingAfterRace) {
+          return existingAfterRace;
+        }
+      }
+      throw insertErr;
+    }
   }
 
   /**
