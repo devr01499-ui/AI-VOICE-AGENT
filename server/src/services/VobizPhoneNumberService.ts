@@ -4,6 +4,7 @@ import { VobizSubAccountService } from './VobizSubAccountService';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { ProviderError } from '../types/errors';
+import { NotificationService } from './NotificationService';
 
 export class VobizPhoneNumberService extends VobizIntegrationService {
   
@@ -101,7 +102,41 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
       }
 
       // 5. Explicitly assign the purchased number to that specific user's sub-account
-      await subAccountService.assignNumberToSubAccount(subAccount.authId, numberDetails.e164, numberDetails.id);
+      const assignResult = await subAccountService.assignNumberToSubAccount(subAccount.authId, numberDetails.e164, numberDetails.id);
+
+      if (!assignResult || !assignResult.success) {
+        const failureReason = `Number purchased from inventory, but sub-account DID assignment failed: ${(assignResult as any)?.error || (assignResult as any)?.status || 'unknown'}`;
+        
+        await prisma.phoneNumberOrder.update({
+          where: { id: order.id },
+          data: {
+            orderStatus: 'assignment_failed',
+            providerStatus: 'assignment_failed',
+            failureReason,
+          }
+        });
+
+        logger.error('[CRITICAL_ADMIN_ALERT] Number assignment failed after purchase', {
+          orderId: order.id,
+          userId: params.userId,
+          subAuthId: subAccount.authId,
+          e164: numberDetails.e164,
+          assignResult,
+        });
+
+        // Broadcast critical in-app notification to founder/admins
+        NotificationService.createInAppNotification({
+          userId: null,
+          message: `🚨 ADMIN ALERT: Phone number ${numberDetails.e164} was purchased but assignment to sub-account ${subAccount.authId} failed (Order #${order.id}). Manual intervention required in Vobiz console.`,
+          isImportant: true,
+        });
+
+        // Do not tell the user it is done
+        throw new ProviderError(
+          'vobiz',
+          `Number ${numberDetails.e164} was reserved, but could not be assigned to your sub-account. Our engineering team has been alerted (Order ID: ${order.id}).`
+        );
+      }
 
       // 6. Calculate next billing date (today + 1 month)
       const nextBillingDate = new Date();
@@ -147,10 +182,12 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
 
     } catch (err) {
       const error = err as Error;
+      const currentOrder = await prisma.phoneNumberOrder.findUnique({ where: { id: order.id } });
+      const finalOrderStatus = currentOrder?.orderStatus === 'assignment_failed' ? 'assignment_failed' : 'failed';
       await prisma.phoneNumberOrder.update({
         where: { id: order.id },
         data: { 
-          orderStatus: 'failed', 
+          orderStatus: finalOrderStatus, 
           failureReason: error.message || 'Unknown error' 
         }
       });
