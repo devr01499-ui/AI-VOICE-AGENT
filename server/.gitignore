@@ -9,6 +9,7 @@ dist/
 .env.*
 !.env.example
 
-# database
+# database & data
 *.db
 *.db-journal
+data/

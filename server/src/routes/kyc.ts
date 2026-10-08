@@ -11,49 +11,92 @@ import { PhoneNumberActivationService } from '../services/PhoneNumberActivationS
 
 const router = Router();
 
+import { NotificationService } from '../services/NotificationService';
+
 /**
- * Dispatches an email notification via Resend when KYC verification status changes.
+ * Dispatches both an in-app notification and an email notification via Resend when KYC verification status changes.
  */
-async function notifyUserKycStatus(userId: string, status: string, reason?: string) {
+export async function notifyUserKycStatus(userId: string, status: string, reason?: string) {
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { email: true, fullName: true }
     });
 
-    if (!user || !user.email) return;
-
-    logger.info('KYC Notification: Sending status email to user', { userId, email: user.email, status });
+    if (!user) return;
 
     const isVerified = status === 'verified';
 
-    if (process.env.RESEND_API_KEY) {
-      const resend = new Resend(process.env.RESEND_API_KEY);
-      await resend.emails.send({
-        from: 'Claritiy Voice <onboarding@resend.dev>',
-        to: user.email,
-        subject: `Claritiy Voice — KYC Verification ${isVerified ? 'Approved! 🎉' : 'Action Required'}`,
-        html: `
-          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #0F172A;">
-            <h2 style="color: ${isVerified ? '#059669' : '#DC2626'};">
-              Claritiy Voice — KYC Verification ${isVerified ? 'Verified' : 'Failed'}
-            </h2>
-            <p>Hello ${user.fullName || 'User'},</p>
-            <p>${isVerified
-              ? 'Your account-level KYC verification with Vobiz has been successfully approved! You can now self-serve claim any phone numbers requiring verification directly in your dashboard.'
-              : `Your account-level KYC verification could not be completed. ${reason ? 'Reason: ' + reason : 'Please retry document verification in your calling configuration.'}`
-            }</p>
-            <p style="margin-top: 24px; font-size: 12px; color: #64748B;">
-              This is an automated notification from Claritiy Voice Enterprise Voice AI.
-            </p>
-          </div>
-        `
+    // 1. In-App Notification (Guaranteed delivery even if external email provider fails)
+    const inAppMessage = isVerified
+      ? '🎉 KYC Verification Approved: Your account verification with Vobiz is complete! You can now activate and use your phone numbers.'
+      : `⚠️ KYC Verification Action Required: Your verification could not be completed${reason ? ` (${reason})` : ''}. Please retry verification in your dashboard.`;
+
+    NotificationService.createInAppNotification({
+      userId,
+      message: inAppMessage,
+      isImportant: true,
+    });
+
+    if (!user.email) return;
+
+    logger.info('KYC Notification: Sending status email to user', { userId, email: user.email, status });
+
+    const fromAddress = process.env.RESEND_FROM_EMAIL || 'Claritiy Voice <notifications@claritiyvoice.com>';
+
+    // 2. Email Delivery via Resend
+    if (!process.env.RESEND_API_KEY) {
+      if (process.env.NODE_ENV === 'production') {
+        const errorMsg = 'CRITICAL CONFIG ERROR: RESEND_API_KEY is not configured in production! Customer KYC notification email could not be delivered.';
+        logger.error(errorMsg, { userId, email: user.email, status });
+        throw new Error(errorMsg);
+      }
+      logger.info('[MOCK EMAIL NOTIFICATION] KYC status email sent to user', { email: user.email, status, from: fromAddress });
+      return;
+    }
+
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const emailResult = await resend.emails.send({
+      from: fromAddress,
+      to: user.email,
+      subject: `Claritiy Voice — KYC Verification ${isVerified ? 'Approved! 🎉' : 'Action Required'}`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #0F172A;">
+          <h2 style="color: ${isVerified ? '#059669' : '#DC2626'};">
+            Claritiy Voice — KYC Verification ${isVerified ? 'Verified' : 'Failed'}
+          </h2>
+          <p>Hello ${user.fullName || 'User'},</p>
+          <p>${isVerified
+            ? 'Your account-level KYC verification with Vobiz has been successfully approved! You can now activate and use phone numbers directly in your dashboard.'
+            : `Your account-level KYC verification could not be completed. ${reason ? 'Reason: ' + reason : 'Please retry document verification in your calling configuration.'}`
+          }</p>
+          <p style="margin-top: 24px; font-size: 12px; color: #64748B;">
+            This is an automated notification from Claritiy Voice Enterprise Voice AI.
+          </p>
+        </div>
+      `
+    });
+
+    if (emailResult.error) {
+      logger.error('KYC Notification: Resend returned error delivering email', {
+        userId,
+        error: emailResult.error
       });
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(`Resend delivery failed: ${emailResult.error.message || JSON.stringify(emailResult.error)}`);
+      }
     } else {
-      logger.info('[MOCK EMAIL NOTIFICATION] KYC status email sent to user', { email: user.email, status });
+      logger.info('KYC Notification: Status email dispatched via Resend', {
+        userId,
+        email: user.email,
+        emailId: emailResult.data?.id
+      });
     }
   } catch (err) {
-    logger.error('KYC Notification: Failed to send status notification email', { userId, error: String(err) });
+    logger.error('KYC Notification: Error dispatching status notifications', { userId, error: String(err) });
+    if (process.env.NODE_ENV === 'production') {
+      throw err;
+    }
   }
 }
 

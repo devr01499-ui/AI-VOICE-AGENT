@@ -45,45 +45,15 @@ router.post('/billing-config', requireAuth, async (req: AuthenticatedRequest, re
   }
 });
 
-// Company-wide notifications store
-const fs = require('fs');
-const path = require('path');
-const notificationsFilePath = path.join(__dirname, '../../data/company_notifications.json');
-
-function getCompanyNotifications() {
-  try {
-    if (fs.existsSync(notificationsFilePath)) {
-      const data = fs.readFileSync(notificationsFilePath, 'utf8');
-      return JSON.parse(data);
-    }
-  } catch (e) {}
-  return [
-    {
-      id: 'notif-default-1',
-      message: '📢 Claritiy Voice System Announcement: Outbound telephony engine operational across all channels.',
-      createdAt: new Date().toISOString(),
-      isImportant: true,
-    }
-  ];
-}
-
-function saveCompanyNotifications(notifs: any[]) {
-  try {
-    const dir = path.dirname(notificationsFilePath);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(notificationsFilePath, JSON.stringify(notifs, null, 2), 'utf8');
-  } catch (e) {
-    logger.error('Failed to save company notifications', { error: String(e) });
-  }
-}
+import { NotificationService } from '../services/NotificationService';
 
 /**
  * GET /api/v2/user/notifications
- * Returns list of company-wide notifications for all logged-in users.
+ * Returns list of in-app notifications for the logged-in user and company announcements.
  */
 router.get('/notifications', requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const notifications = getCompanyNotifications();
+    const notifications = NotificationService.getForUser(req.userId);
     res.json({ success: true, data: notifications });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to fetch notifications' });
@@ -102,18 +72,11 @@ router.post('/notifications', requireAuth, async (req: AuthenticatedRequest, res
       return;
     }
 
-    const current = getCompanyNotifications();
-    const newNotif = {
-      id: `notif_${Date.now()}`,
+    const newNotif = NotificationService.createInAppNotification({
       message: message.trim(),
-      createdAt: new Date().toISOString(),
-      isImportant: !!isImportant,
-    };
+      isImportant: !!isImportant
+    });
 
-    const updated = [newNotif, ...current].slice(0, 10);
-    saveCompanyNotifications(updated);
-
-    logger.info('Company notification posted', { userId: req.userId, message: newNotif.message });
     res.json({ success: true, data: newNotif });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to post notification' });
