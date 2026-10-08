@@ -142,7 +142,7 @@ router.get('/status', requireAuth, async (req, res, next) => {
 });
 
 /**
- * POST /api/v2/webhooks/vobiz/kyc
+ * POST /api/v2/kyc/webhook/vobiz
  * 
  * Webhook endpoint registered with Vobiz to receive asynchronous KYC status updates.
  * Updates phoneNumber.kycStatus & VobizSubAccount.kycStatus in DB, and notifies user via email.
@@ -153,7 +153,16 @@ router.post('/webhook/vobiz', verifyVobizWebhook, async (req, res, next) => {
     
     logger.info('KYC Webhook: Received update from Vobiz', { sub_account_auth_id, phoneNumber, status, reason });
 
-    const normalizedStatus = (status || '').toLowerCase() === 'verified' ? 'verified' : 'failed';
+    const rawStatus = (status || '').toLowerCase().trim();
+    let normalizedStatus: 'verified' | 'failed' | 'pending';
+    if (rawStatus === 'verified' || rawStatus === 'approved') {
+      normalizedStatus = 'verified';
+    } else if (rawStatus === 'failed' || rawStatus === 'rejected') {
+      normalizedStatus = 'failed';
+    } else {
+      normalizedStatus = 'pending';
+    }
+
     let targetUserId: string | null = null;
 
     if (sub_account_auth_id) {
@@ -162,35 +171,58 @@ router.post('/webhook/vobiz', verifyVobizWebhook, async (req, res, next) => {
       });
       if (subAccount) {
         targetUserId = subAccount.userId;
-        await prisma.vobizSubAccount.update({
-          where: { id: subAccount.id },
-          data: {
-            kycStatus: normalizedStatus,
-            kycVerifiedAt: normalizedStatus === 'verified' ? new Date() : null,
-          }
-        });
-        await prisma.phoneNumber.updateMany({
-          where: { userId: subAccount.userId },
-          data: { kycStatus: normalizedStatus }
-        });
-        logger.info('KYC Webhook: Updated account and phone numbers for user via sub-account', { userId: subAccount.userId, status: normalizedStatus });
+
+        // Prevent downgrade of an already-verified account
+        if (subAccount.kycStatus === 'verified' && normalizedStatus !== 'verified') {
+          logger.info('KYC Webhook: Ignoring non-verified update for already-verified sub-account to prevent downgrade', {
+            subAccountId: subAccount.id,
+            currentKycStatus: subAccount.kycStatus,
+            incomingStatus: normalizedStatus,
+          });
+        } else {
+          await prisma.vobizSubAccount.update({
+            where: { id: subAccount.id },
+            data: {
+              kycStatus: normalizedStatus,
+              kycVerifiedAt: normalizedStatus === 'verified' ? new Date() : (normalizedStatus === 'failed' ? null : subAccount.kycVerifiedAt),
+            }
+          });
+          // Update KYC-required phone numbers
+          await prisma.phoneNumber.updateMany({
+            where: { userId: subAccount.userId, aadhaarRequired: true },
+            data: { kycStatus: normalizedStatus }
+          });
+          logger.info('KYC Webhook: Updated account and phone numbers for user via sub-account', { userId: subAccount.userId, status: normalizedStatus });
+        }
       }
     } else if (phoneNumber) {
       const phoneRec = await prisma.phoneNumber.findUnique({ where: { phoneNumber } });
       if (phoneRec) {
         targetUserId = phoneRec.userId;
-        await prisma.phoneNumber.update({
-          where: { id: phoneRec.id },
-          data: { kycStatus: normalizedStatus }
+        const currentSubAccount = await prisma.vobizSubAccount.findUnique({
+          where: { userId: phoneRec.userId }
         });
-        await prisma.vobizSubAccount.updateMany({
-          where: { userId: phoneRec.userId },
-          data: {
-            kycStatus: normalizedStatus,
-            kycVerifiedAt: normalizedStatus === 'verified' ? new Date() : null,
-          }
-        });
-        logger.info('KYC Webhook: Updated phone number & account status', { phoneNumber, status: normalizedStatus });
+
+        if (currentSubAccount && currentSubAccount.kycStatus === 'verified' && normalizedStatus !== 'verified') {
+          logger.info('KYC Webhook: Ignoring non-verified update for already-verified phone/account to prevent downgrade', {
+            phoneId: phoneRec.id,
+            currentKycStatus: currentSubAccount.kycStatus,
+            incomingStatus: normalizedStatus,
+          });
+        } else {
+          await prisma.phoneNumber.update({
+            where: { id: phoneRec.id },
+            data: { kycStatus: normalizedStatus }
+          });
+          await prisma.vobizSubAccount.updateMany({
+            where: { userId: phoneRec.userId },
+            data: {
+              kycStatus: normalizedStatus,
+              kycVerifiedAt: normalizedStatus === 'verified' ? new Date() : null,
+            }
+          });
+          logger.info('KYC Webhook: Updated phone number & account status', { phoneNumber, status: normalizedStatus });
+        }
       }
     }
 
@@ -199,7 +231,11 @@ router.post('/webhook/vobiz', verifyVobizWebhook, async (req, res, next) => {
       // Number becomes active when (KYC verified OR number does not require KYC) AND walletFundedAt is set
       await PhoneNumberActivationService.evaluateAndActivateUserNumbers(targetUserId, 'kyc_webhook');
 
-      await notifyUserKycStatus(targetUserId, normalizedStatus, reason);
+      // Send email notifications ONLY on final state transitions (verified or failed), never on pending
+      if (normalizedStatus === 'verified' || normalizedStatus === 'failed') {
+        await notifyUserKycStatus(targetUserId, normalizedStatus, reason);
+      }
+
       await logAuditEvent({
         workspaceOwnerId: targetUserId,
         actorUserId: targetUserId,
