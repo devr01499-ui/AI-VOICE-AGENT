@@ -110,10 +110,28 @@ export class CallService {
       ]);
     }
 
-    const effectiveFromNumber = fromPhoneNumber || env.VOBIZ_FROM_NUMBER;
+    // ── Caller ID resolution and ownership gate ──
+    const isAdmin = user.accountType === 'admin' || user.email === ADMIN_EMAIL;
+    let effectiveFromNumber: string;
 
-    // ── Enforce caller ID ownership, active status, and KYC verification gate ──
-    if (user.accountType !== 'admin' && user.email !== ADMIN_EMAIL) {
+    if (isAdmin) {
+      // Admin users may explicitly provide a number or fall back to platform default
+      effectiveFromNumber = (fromPhoneNumber && fromPhoneNumber.trim()) || env.VOBIZ_FROM_NUMBER;
+      if (!effectiveFromNumber) {
+        throw new ValidationError('Missing caller ID', [
+          { field: 'fromPhoneNumber', message: 'No caller ID provided and VOBIZ_FROM_NUMBER is not configured.' }
+        ]);
+      }
+    } else {
+      // Non-admin users: require fromPhoneNumber to be explicitly provided; NEVER fall back to VOBIZ_FROM_NUMBER
+      if (!fromPhoneNumber || !fromPhoneNumber.trim()) {
+        throw new ValidationError('Caller ID required', [
+          { field: 'fromPhoneNumber', message: 'Caller ID is required. Please specify one of your active purchased phone numbers.' }
+        ]);
+      }
+
+      effectiveFromNumber = fromPhoneNumber.trim();
+
       const cleanFromDigits = effectiveFromNumber.replace(/\D/g, '');
       const fromVariants = Array.from(new Set([
         effectiveFromNumber,
