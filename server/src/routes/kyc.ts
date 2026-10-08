@@ -149,7 +149,8 @@ router.post('/initiate-session', requireAuth, sensitiveOperationsLimiter, async 
 /**
  * GET /api/v2/kyc/status
  * 
- * Performs a live query to Vobiz API to fetch and sync current KYC status.
+ * Returns current KYC status from database.
+ * Only triggers live sync to Vobiz API if last sync is older than 3 minutes and status is not yet verified.
  */
 router.get('/status', requireAuth, async (req, res, next) => {
   try {
@@ -159,8 +160,27 @@ router.get('/status', requireAuth, async (req, res, next) => {
       return;
     }
 
-    const subAccountService = new VobizSubAccountService();
-    const syncResult = await subAccountService.syncKycStatus(userId);
+    const subAccount = await prisma.vobizSubAccount.findUnique({
+      where: { userId }
+    });
+
+    const SYNC_TTL_MS = 3 * 60 * 1000; // 3 minutes
+    const isStale = !subAccount || !subAccount.updatedAt || (Date.now() - subAccount.updatedAt.getTime() > SYNC_TTL_MS);
+
+    let kycStatus = subAccount?.kycStatus || 'pending';
+    let isVerified = kycStatus === 'verified';
+
+    // Only live-sync if cache is stale and account is not already verified
+    if (isStale && !isVerified) {
+      try {
+        const subAccountService = new VobizSubAccountService();
+        const syncResult = await subAccountService.syncKycStatus(userId);
+        kycStatus = syncResult.kycStatus;
+        isVerified = syncResult.isVerified;
+      } catch (syncErr) {
+        logger.warn('KYC: non-blocking sync error, returning cached DB state', { userId, error: String(syncErr) });
+      }
+    }
 
     const numbers = await prisma.phoneNumber.findMany({
       where: { userId },
@@ -170,16 +190,16 @@ router.get('/status', requireAuth, async (req, res, next) => {
     res.json({
       success: true,
       data: {
-        kycStatus: syncResult.kycStatus, // "verified" | "pending" | "failed"
-        isVerified: syncResult.isVerified,
-        confirmationMessage: syncResult.isVerified
+        kycStatus, // "verified" | "pending" | "failed"
+        isVerified,
+        confirmationMessage: isVerified
           ? "Your KYC verification is active and verified with Vobiz."
           : "Your KYC verification is being processed and typically takes up to 24 hours. We'll notify you once it's complete.",
         numbers
       }
     });
   } catch (err) {
-    logger.error('KYC: failed to fetch live status', { error: String(err) });
+    logger.error('KYC: failed to fetch status', { error: String(err) });
     next(err);
   }
 });

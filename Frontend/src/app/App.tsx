@@ -3613,10 +3613,26 @@ function DashNumbers({ profile, onNavigateToBilling }: { profile?: any; onNaviga
   const [pendingActivations, setPendingActivations] = useState<any[]>([]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // KYC Flow State
+  // KYC Flow State & Polling Ref
   const [showKyc, setShowKyc] = useState<string | null>(null); // phoneNumberId
   const [kycStep, setKycStep] = useState(3);
   const [kycStatus, setKycStatus] = useState<string | null>(null);
+  const kycPollingRef = useRef<any>(null);
+  const kycPollAttemptsRef = useRef<number>(0);
+
+  const stopKycPolling = useCallback(() => {
+    if (kycPollingRef.current) {
+      clearInterval(kycPollingRef.current);
+      kycPollingRef.current = null;
+    }
+    kycPollAttemptsRef.current = 0;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopKycPolling();
+    };
+  }, [stopKycPolling]);
 
   const [showSip, setShowSip] = useState(false);
   const [showPass, setShowPass] = useState(false);
@@ -3803,21 +3819,37 @@ function DashNumbers({ profile, onNavigateToBilling }: { profile?: any; onNaviga
     }
   };
 
-  const pollKycStatus = () => {
-    const interval = setInterval(async () => {
+  const pollKycStatus = useCallback(() => {
+    stopKycPolling();
+
+    const checkStatusOnce = async () => {
       try {
         const res = await apiClient.get('/api/v2/kyc/status');
         if (res.data?.success) {
           const status = res.data.data.kycStatus;
           setKycStatus(status);
           if (status === 'verified' || status === 'failed') {
-            clearInterval(interval);
+            stopKycPolling();
             loadNumbers();
           }
         }
       } catch (e) {}
-    }, 5000);
-  };
+    };
+
+    // Immediate check
+    checkStatusOnce();
+
+    // Poll every 30s with hard stop after 10 attempts (5 minutes max)
+    const MAX_POLL_ATTEMPTS = 10;
+    kycPollingRef.current = setInterval(async () => {
+      kycPollAttemptsRef.current += 1;
+      if (kycPollAttemptsRef.current >= MAX_POLL_ATTEMPTS) {
+        stopKycPolling();
+        return;
+      }
+      await checkStatusOnce();
+    }, 30000);
+  }, [loadNumbers, stopKycPolling]);
 
   const [deleteModal, setDeleteModal] = useState<{ open: boolean, id: string }>({ open: false, id: '' });
   async function performDelete(id: string) {
@@ -3857,7 +3889,7 @@ function DashNumbers({ profile, onNavigateToBilling }: { profile?: any; onNaviga
       />
       
       {/* KYC Status Modal */}
-      <DModal open={!!showKyc} onClose={() => setShowKyc(null)} title="Vobiz Hosted KYC Verification" width="max-w-xl">
+      <DModal open={!!showKyc} onClose={() => { stopKycPolling(); setShowKyc(null); }} title="Vobiz Hosted KYC Verification" width="max-w-xl">
         <div className="space-y-6">
           <div className="space-y-4 text-center py-6">
             {kycStatus === 'pending' ? (
@@ -3883,7 +3915,7 @@ function DashNumbers({ profile, onNavigateToBilling }: { profile?: any; onNaviga
                 <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-4" />
                 <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>KYC Approved!</p>
                 <p className="text-sm text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Your account is now verified. All phone numbers requiring verification can now be claimed.</p>
-                <DBtn onClick={() => setShowKyc(null)} className="mt-4">Close</DBtn>
+                <DBtn onClick={() => { stopKycPolling(); setShowKyc(null); }} className="mt-4">Close</DBtn>
               </>
             ) : (
               <>
