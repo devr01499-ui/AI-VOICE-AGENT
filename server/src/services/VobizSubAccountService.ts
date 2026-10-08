@@ -323,6 +323,11 @@ export class VobizSubAccountService {
         }
       });
 
+      // 4. Evaluate number auto-activation rule:
+      // Active when (KYC verified OR number does not require KYC) AND walletFundedAt is set
+      const { PhoneNumberActivationService } = await import('./PhoneNumberActivationService');
+      await PhoneNumberActivationService.evaluateAndActivateUserNumbers(userId, 'sync_kyc');
+
       return { kycStatus: subKycStatus, isVerified };
     } catch (err) {
       logger.error('VobizSubAccountService: error syncing KYC status from Vobiz (failing closed to pending)', { error: String(err) });

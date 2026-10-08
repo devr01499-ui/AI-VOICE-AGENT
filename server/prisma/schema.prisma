@@ -377,6 +377,7 @@ model VobizSubAccount {
   kycMode       String    @default("customer_use") @map("kyc_mode")
   kycStatus     String    @default("pending") @map("kyc_status") // pending | verified | failed
   kycVerifiedAt DateTime? @map("kyc_verified_at")
+  walletFundedAt DateTime? @map("wallet_funded_at")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 

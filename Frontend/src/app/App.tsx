@@ -3601,13 +3601,17 @@ function DashCallLogs() {
 }
 
 // ── Phone Numbers ──
-function DashNumbers() {
+function DashNumbers({ profile, onNavigateToBilling }: { profile?: any; onNavigateToBilling?: () => void } = {}) {
   const [numbers, setNumbers] = useState<any[]>([]);
   const [liveAgents, setLiveAgents] = useState<ApiAgent[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'list' | 'buy'>('list');
   const [purchaseLoading, setPurchaseLoading] = useState<string | null>(null);
   const [buyAgentId, setBuyAgentId] = useState<string>("");
+
+  // Founder / Admin Pending Activations Queue State
+  const [pendingActivations, setPendingActivations] = useState<any[]>([]);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // KYC Flow State
   const [showKyc, setShowKyc] = useState<string | null>(null); // phoneNumberId
@@ -3618,6 +3622,34 @@ function DashNumbers() {
   const [showPass, setShowPass] = useState(false);
   const [sipForm, setSipForm] = useState({uri:"sip:pbx.acmecorp.com",user:"claritiyvoice",pass:"",codec:"PCMU,PCMA,G722",transport:"TLS",dtmf:"RFC 2833",register:true});
   
+  const loadPendingActivations = useCallback(async () => {
+    if (!profile?.isAdmin) return;
+    try {
+      const res = await apiClient.get('/api/v2/numbers/pending-activations');
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setPendingActivations(res.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to load pending activations', err);
+    }
+  }, [profile?.isAdmin]);
+
+  const handleMarkFundedAndActivate = async (id: string) => {
+    setActionLoading(id);
+    try {
+      const res = await apiClient.post(`/api/v2/numbers/${id}/mark-funded-and-activate`);
+      if (res.data?.success) {
+        await Promise.all([loadNumbers(), loadPendingActivations()]);
+      } else {
+        alert((res.data as any)?.error || 'Failed to mark funded and activate');
+      }
+    } catch (err: any) {
+      alert(err?.response?.data?.error || err.message || 'Operation failed');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const loadNumbers = useCallback(async () => {
     try {
       setLoading(true);
@@ -3644,7 +3676,10 @@ function DashNumbers() {
   useEffect(() => {
     loadNumbers();
     fetchAgents().then(setLiveAgents).catch(() => {});
-  }, [loadNumbers]);
+    if (profile?.isAdmin) {
+      loadPendingActivations();
+    }
+  }, [loadNumbers, loadPendingActivations, profile?.isAdmin]);
 
   const handlePurchase = async (num: any) => {
     setPurchaseLoading(num.e164);
@@ -3861,6 +3896,71 @@ function DashNumbers() {
           </div>
         </div>
       </DModal>
+
+      {/* Founder Admin Operations Queue: Pending Activations */}
+      {profile?.isAdmin && (
+        <div className="nm-card p-5 rounded-2xl mb-6 border border-amber-500/30">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div>
+              <h3 className="text-base font-bold text-amber-400 flex items-center gap-2" style={{fontFamily:"'Outfit', sans-serif"}}>
+                <span>⚡</span> Founder Operations — Pending Activations ({pendingActivations.length})
+              </h3>
+              <p className="text-xs text-[var(--nm-text)] mt-1 font-bold">
+                Customer phone numbers awaiting wallet funding or activation.
+              </p>
+            </div>
+            <DBtn size="sm" variant="secondary" onClick={loadPendingActivations}>Refresh Queue</DBtn>
+          </div>
+
+          {pendingActivations.length === 0 ? (
+            <p className="text-xs text-[var(--nm-text)] py-2 font-bold">No customer numbers currently awaiting activation.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-white/5 text-[var(--nm-text)] text-xs font-bold">
+                    <th className="py-2 px-3">NUMBER</th>
+                    <th className="py-2 px-3">OWNER EMAIL</th>
+                    <th className="py-2 px-3">KYC STATE</th>
+                    <th className="py-2 px-3">FUNDED?</th>
+                    <th className="py-2 px-3">STATUS</th>
+                    <th className="py-2 px-3">ACTION</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5 text-xs">
+                  {pendingActivations.map((p) => (
+                    <tr key={p.id} className="hover:bg-white/5">
+                      <td className="py-3 px-3 font-mono font-bold text-emerald-400">{p.number}</td>
+                      <td className="py-3 px-3 font-bold text-[var(--nm-text)]">{p.ownerEmail}</td>
+                      <td className="py-3 px-3">
+                        <DBadge v={p.kycState === 'verified' ? 'success' : p.kycState === 'failed' ? 'error' : 'warning'}>
+                          {p.kycState || 'pending'}
+                        </DBadge>
+                      </td>
+                      <td className="py-3 px-3">
+                        <DBadge v={p.funded ? 'success' : 'neutral'}>
+                          {p.funded ? 'Funded' : 'Unfunded'}
+                        </DBadge>
+                      </td>
+                      <td className="py-3 px-3 capitalize font-bold text-[var(--nm-text)]">{p.status}</td>
+                      <td className="py-3 px-3">
+                        <DBtn
+                          size="sm"
+                          variant="primary"
+                          disabled={actionLoading === p.id}
+                          onClick={() => handleMarkFundedAndActivate(p.id)}
+                        >
+                          {actionLoading === p.id ? 'Activating...' : 'Mark Funded & Activate'}
+                        </DBtn>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{numbers.length} numbers provisioned</p>
@@ -6074,7 +6174,7 @@ function DashboardPage({ session }: { session: Session }) {
               {section==="calling"&&<DashCallingConfig/>}
               {section==="batch"&&<DashBatch/>}
               {section==="calls"&&<DashCallLogs/>}
-              {section==="numbers"&&<DashNumbers/>}
+              {section==="numbers"&&<DashNumbers profile={profile}/>}
               {section==="knowledge"&&<DashKnowledge apiAgents={apiAgents}/>}
               {section==="voices"&&<DashVoices apiAgents={apiAgents} setApiAgents={setApiAgents}/>}
               {section==="calendar"&&<DashCalendar/>}

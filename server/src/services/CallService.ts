@@ -112,7 +112,7 @@ export class CallService {
 
     const effectiveFromNumber = fromPhoneNumber || env.VOBIZ_FROM_NUMBER;
 
-    // ── Enforce KYC verification gate on outbound caller ID ─────────────
+    // ── Enforce caller ID ownership, active status, and KYC verification gate ──
     if (user.accountType !== 'admin' && user.email !== ADMIN_EMAIL) {
       const cleanFromDigits = effectiveFromNumber.replace(/\D/g, '');
       const fromVariants = Array.from(new Set([
@@ -128,7 +128,19 @@ export class CallService {
         }
       });
 
-      if (numberRecord && (numberRecord.kycStatus === 'pending' || numberRecord.kycStatus === 'failed')) {
+      if (!numberRecord) {
+        throw new ValidationError('Unauthorized caller ID', [
+          { field: 'fromPhoneNumber', message: `Phone number ${effectiveFromNumber} does not exist or belong to your account. Please assign a valid active phone number.` }
+        ]);
+      }
+
+      if (numberRecord.status !== 'active') {
+        throw new ValidationError('Your number is awaiting activation', [
+          { field: 'fromPhoneNumber', message: 'Your number is awaiting activation. It will become active once KYC is verified and wallet funding is confirmed.' }
+        ]);
+      }
+
+      if (numberRecord.kycStatus === 'pending' || numberRecord.kycStatus === 'failed') {
         throw new ValidationError('Outbound call blocked due to unverified KYC', [
           { field: 'fromPhoneNumber', message: `KYC verification is ${numberRecord.kycStatus} for caller ID ${effectiveFromNumber}. Please complete KYC verification in your dashboard before placing outbound calls.` }
         ]);

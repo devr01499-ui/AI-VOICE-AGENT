@@ -628,20 +628,23 @@ router.delete('/:id', requireAuth, requireEditor, async (req, res, next) => {
 
 /**
  * PATCH /api/v2/numbers/:id/activate
- * Admin/manual status toggle flipping status to "active" once founder manually tops up sub-account wallet in Vobiz console.
+ * Admin-only status toggle flipping status to "active".
+ * Scoped by admin role, looking up the number by id only (not owner userId), with audit logging.
  */
-router.patch('/:id/activate', requireAuth, requireEditor, async (req, res, next) => {
+router.patch('/:id/activate', async (req, res, next) => {
   try {
-    const userId = (req as any).userId;
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user || (user.accountType !== 'admin' && user.email !== ADMIN_EMAIL)) {
+    const adminUserId = (req as any).userId;
+    const adminUser = await prisma.user.findUnique({ where: { id: adminUserId } });
+    if (!adminUser || (adminUser.accountType !== 'admin' && adminUser.email !== ADMIN_EMAIL)) {
       res.status(403).json({ success: false, error: 'Access Denied: Manual activation requires founder admin confirmation.' });
       return;
     }
     const id = req.params.id as string;
 
-    const phone = await prisma.phoneNumber.findFirst({
-      where: { id, userId },
+    // Admin lookup by number id only (scoped by admin role, not by owner)
+    const phone = await prisma.phoneNumber.findUnique({
+      where: { id },
+      include: { user: true }
     });
 
     if (!phone) {
@@ -654,10 +657,168 @@ router.patch('/:id/activate', requireAuth, requireEditor, async (req, res, next)
       data: { status: 'active' },
     });
 
-    logger.info('Numbers: number status updated to active', { userId, phoneId: id });
+    await logAuditEvent({
+      workspaceOwnerId: phone.userId,
+      actorUserId: adminUserId,
+      action: 'number.activated',
+      targetId: id,
+      metadata: {
+        activatedBy: adminUser.email,
+        phoneNumber: phone.phoneNumber,
+        ownerEmail: phone.user?.email,
+      },
+    });
+
+    logger.info('Numbers: number status updated to active by admin', {
+      adminUserId,
+      adminEmail: adminUser.email,
+      phoneId: id,
+      ownerUserId: phone.userId,
+      phoneNumber: phone.phoneNumber,
+    });
     res.json({ success: true, data: updated });
   } catch (err) {
     logger.error('Numbers: failed to activate number', { error: String(err) });
+    next(err);
+  }
+});
+
+/**
+ * GET /api/v2/numbers/pending-activations
+ * Admin-only list of numbers pending activation across all customers.
+ * Returns: number, owner email, KYC state, funded? (walletFundedAt != null)
+ */
+router.get('/pending-activations', async (req, res, next) => {
+  try {
+    const adminUserId = (req as any).userId;
+    const adminUser = await prisma.user.findUnique({ where: { id: adminUserId } });
+    if (!adminUser || (adminUser.accountType !== 'admin' && adminUser.email !== ADMIN_EMAIL)) {
+      res.status(403).json({ success: false, error: 'Access Denied: Founder admin privilege required.' });
+      return;
+    }
+
+    const pendingNumbers = await prisma.phoneNumber.findMany({
+      where: {
+        status: { not: 'active' },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            fullName: true,
+            vobizSubAccount: {
+              select: {
+                authId: true,
+                kycStatus: true,
+                walletFundedAt: true,
+              }
+            }
+          }
+        }
+      },
+      orderBy: { purchasedAt: 'desc' }
+    });
+
+    const formatted = pendingNumbers.map(n => ({
+      id: n.id,
+      number: n.phoneNumber,
+      ownerId: n.userId,
+      ownerEmail: n.user?.email || 'unknown',
+      ownerName: n.user?.fullName || '',
+      kycState: n.kycStatus,
+      aadhaarRequired: n.aadhaarRequired,
+      funded: !!n.user?.vobizSubAccount?.walletFundedAt,
+      walletFundedAt: n.user?.vobizSubAccount?.walletFundedAt || null,
+      status: n.status,
+      purchasedAt: n.purchasedAt,
+    }));
+
+    res.json({ success: true, data: formatted });
+  } catch (err) {
+    logger.error('Numbers: failed to fetch pending activations', { error: String(err) });
+    next(err);
+  }
+});
+
+/**
+ * POST /api/v2/numbers/:id/mark-funded-and-activate
+ * Founder daily tool action:
+ * 1. Sets walletFundedAt on the owner's Vobiz sub-account.
+ * 2. Evaluates the activation rule:
+ *    A number becomes active automatically when (KYC verified OR number does not require KYC) AND walletFundedAt is set.
+ * 3. Audit-logs who marked it and what was activated.
+ */
+router.post('/:id/mark-funded-and-activate', async (req, res, next) => {
+  try {
+    const adminUserId = (req as any).userId;
+    const adminUser = await prisma.user.findUnique({ where: { id: adminUserId } });
+    if (!adminUser || (adminUser.accountType !== 'admin' && adminUser.email !== ADMIN_EMAIL)) {
+      res.status(403).json({ success: false, error: 'Access Denied: Founder admin privilege required.' });
+      return;
+    }
+
+    const id = req.params.id as string;
+    const phone = await prisma.phoneNumber.findUnique({
+      where: { id },
+      include: { user: true }
+    });
+
+    if (!phone) {
+      res.status(404).json({ success: false, error: 'Phone number not found' });
+      return;
+    }
+
+    const now = new Date();
+
+    // 1. Mark wallet funded on the user's VobizSubAccount
+    await prisma.vobizSubAccount.upsert({
+      where: { userId: phone.userId },
+      update: { walletFundedAt: now },
+      create: {
+        userId: phone.userId,
+        authId: `SA_MANUAL_${phone.userId.slice(0, 8)}`,
+        authToken: 'wallet_funded_manual',
+        walletFundedAt: now,
+      }
+    });
+
+    await logAuditEvent({
+      workspaceOwnerId: phone.userId,
+      actorUserId: adminUserId,
+      action: 'wallet.marked_funded',
+      targetId: phone.id,
+      metadata: {
+        markedBy: adminUser.email,
+        phoneNumber: phone.phoneNumber,
+        ownerEmail: phone.user?.email,
+      }
+    });
+
+    // 2. Evaluate activation rule:
+    // A number becomes active automatically when (KYC verified OR number does not require KYC) AND walletFundedAt is set.
+    const { PhoneNumberActivationService } = await import('../services/PhoneNumberActivationService');
+    const activatedNumbers = await PhoneNumberActivationService.evaluateAndActivateUserNumbers(
+      phone.userId,
+      'admin_wallet_funding',
+      adminUserId
+    );
+
+    const refreshedPhone = await prisma.phoneNumber.findUnique({ where: { id } });
+
+    res.json({
+      success: true,
+      data: {
+        phoneNumber: refreshedPhone,
+        activated: refreshedPhone?.status === 'active',
+        activatedNumbers,
+        message: refreshedPhone?.status === 'active'
+          ? 'Wallet marked funded and phone number activated successfully.'
+          : 'Wallet marked funded. Number is awaiting KYC verification before it auto-activates.',
+      }
+    });
+  } catch (err) {
+    logger.error('Numbers: failed to mark funded and activate', { error: String(err) });
     next(err);
   }
 });

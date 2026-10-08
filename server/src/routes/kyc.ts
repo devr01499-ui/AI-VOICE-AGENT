@@ -7,6 +7,7 @@ import { verifyVobizWebhook } from '../middleware/vobizWebhook';
 import { Resend } from 'resend';
 import { logAuditEvent } from '../utils/auditLogger';
 import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
+import { PhoneNumberActivationService } from '../services/PhoneNumberActivationService';
 
 const router = Router();
 
@@ -194,6 +195,10 @@ router.post('/webhook/vobiz', verifyVobizWebhook, async (req, res, next) => {
     }
 
     if (targetUserId) {
+      // Evaluate number auto-activation rule:
+      // Number becomes active when (KYC verified OR number does not require KYC) AND walletFundedAt is set
+      await PhoneNumberActivationService.evaluateAndActivateUserNumbers(targetUserId, 'kyc_webhook');
+
       await notifyUserKycStatus(targetUserId, normalizedStatus, reason);
       await logAuditEvent({
         workspaceOwnerId: targetUserId,
