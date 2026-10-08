@@ -309,9 +309,10 @@ export class VobizSubAccountService {
         }
       }
 
-      // 3. Sync database records for this user strictly matching their own sub-account status
+      // 3. Sync database records for this user strictly matching their own sub-account status.
+      // Limit update strictly to aadhaarRequired: true numbers so non-KYC numbers are not overwritten.
       await prisma.phoneNumber.updateMany({
-        where: { userId },
+        where: { userId, aadhaarRequired: true },
         data: { kycStatus: subKycStatus }
       });
 
