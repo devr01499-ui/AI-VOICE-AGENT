@@ -4,6 +4,7 @@ import {
   Building2, Landmark, ShieldCheck, Home as HomeIcon, ShoppingBag,
   Truck, Headphones, Code, CheckCircle2, ArrowRight, TrendingUp
 } from "lucide-react";
+import UseCaseBlueprintModal from "./UseCaseBlueprintModal";
 
 const INDUSTRIES = [
   {
@@ -92,6 +93,7 @@ export const INDUSTRY_CARDS = INDUSTRIES;
 
 export default function IndustryShowroomGrid() {
   const [active, setActive] = useState(0);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const current = INDUSTRIES[active];
   const isGreen = current.accent === "#059669";
 
@@ -177,7 +179,8 @@ export default function IndustryShowroomGrid() {
               </ul>
 
               <button
-                className="inline-flex items-center gap-2 font-bold text-sm px-6 py-3 rounded-full transition-all hover:scale-[1.03] active:scale-95"
+                onClick={() => setIsModalOpen(true)}
+                className="inline-flex items-center gap-2 font-bold text-sm px-6 py-3 rounded-full transition-all hover:scale-[1.03] active:scale-95 cursor-pointer"
                 style={{
                   background: `linear-gradient(135deg, ${current.accent}, ${isGreen ? "#10B981" : "#F59E0B"})`,
                   boxShadow: `0 6px 20px ${current.accent}40`,
@@ -249,6 +252,18 @@ export default function IndustryShowroomGrid() {
           </div>
         </motion.div>
       </AnimatePresence>
+
+      {/* ── Interactive Architecture & Use Case Flowchart Blueprint Modal ── */}
+      <UseCaseBlueprintModal
+        industry={current}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        allIndustries={INDUSTRIES}
+        onSelectIndustry={(ind) => {
+          const idx = INDUSTRIES.findIndex(i => i.id === ind.id);
+          if (idx !== -1) setActive(idx);
+        }}
+      />
     </div>
   );
 }

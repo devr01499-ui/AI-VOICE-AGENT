@@ -260,7 +260,7 @@ export default function Footer({ setPage }: FooterProps) {
             </li>
             <li>
               <a
-                href="https://www.linkedin.com/company/claritiy-voice"
+                href="https://www.linkedin.com/company/claritiy/?viewAsMember=true"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-slate-700 hover:text-emerald-600 transition-colors font-semibold"

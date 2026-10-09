@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { Check, ArrowRight, ShieldCheck, Zap, Loader2, Sparkles, Sliders, DollarSign, Lock, HelpCircle, PhoneCall } from "lucide-react";
+import { Check, ArrowRight, ShieldCheck, Zap, Loader2, Sparkles, Lock, HelpCircle, PhoneCall } from "lucide-react";
 import { API_BASE } from "../api";
 import { supabase } from "../lib/supabaseClient";
 
@@ -33,79 +33,7 @@ function GeometricGridBackground() {
   );
 }
 
-// ── Interactive Call Volume Cost Estimator Slider ──────────────────────────────
-function UsageCostEstimatorSlider() {
-  const [minutes, setMinutes] = useState(1500);
 
-  const bundledRate = minutes >= 10000 ? 2.99 : minutes >= 2500 ? 3.49 : 3.99;
-  const estimatedPlanCost = Math.round(minutes * bundledRate);
-  const manualStaffCost = Math.round((minutes / 180) * 22000); // ~180 mins per agent/day
-  const savings = Math.max(0, manualStaffCost - estimatedPlanCost);
-
-  return (
-    <div className="bg-[#0B132B] text-white rounded-3xl p-8 md:p-12 shadow-2xl border border-slate-800 space-y-8 relative overflow-hidden">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
-        <div>
-          <div className="flex items-center gap-2 text-emerald-400 font-mono text-xs font-bold uppercase tracking-wider mb-1">
-            <Sliders className="w-4 h-4" /> INTERACTIVE USAGE ESTIMATOR
-          </div>
-          <h3 className="text-2xl font-bold text-white" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-            Estimate Your Monthly Calling Investment & Savings
-          </h3>
-        </div>
-        <div className="px-4 py-2 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded-xl font-mono text-xs font-bold">
-          PAY-AS-YOU-GO: ₹3.99/MIN (BUNDLED AT ₹2.99/MIN)
-        </div>
-      </div>
-
-      {/* Slider Control */}
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <span className="text-slate-400 text-sm font-medium">Monthly Estimated Call Volume:</span>
-          <span className="font-mono text-2xl font-extrabold text-emerald-400">
-            {minutes.toLocaleString()} <span className="text-xs text-slate-400 font-normal">minutes/mo</span>
-          </span>
-        </div>
-        <input
-          type="range"
-          min="200"
-          max="30000"
-          step="100"
-          value={minutes}
-          onChange={(e) => setMinutes(Number(e.target.value))}
-          className="w-full h-3 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-        />
-        <div className="flex justify-between text-[11px] font-mono text-slate-400">
-          <span>200 mins</span>
-          <span>5,000 mins</span>
-          <span>15,000 mins</span>
-          <span>30,000+ mins</span>
-        </div>
-      </div>
-
-      {/* Cost Comparison Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
-        <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-2">
-          <span className="text-slate-400 text-xs font-mono font-bold block uppercase">CLARITIY VOICE ESTIMATE</span>
-          <p className="text-3xl font-extrabold text-emerald-400 font-mono">₹{estimatedPlanCost.toLocaleString()}</p>
-          <p className="text-slate-400 text-xs font-plus-jakarta">All-inclusive audio, LLM & telephony</p>
-        </div>
-
-        <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-2">
-          <span className="text-slate-400 text-xs font-mono font-bold block uppercase">MANUAL CALL CENTER COST</span>
-          <p className="text-3xl font-extrabold text-slate-300 font-mono">₹{manualStaffCost.toLocaleString()}</p>
-          <p className="text-slate-400 text-xs font-plus-jakarta">Salary, seats, telephony & overhead</p>
-        </div>
-
-        <div className="bg-emerald-950/80 p-6 rounded-2xl border border-emerald-500/50 space-y-2">
-          <span className="text-emerald-400 text-xs font-mono font-bold block uppercase">YOUR NET SAVINGS</span>
-          <p className="text-3xl font-extrabold text-emerald-300 font-mono">₹{savings.toLocaleString()}</p>
-          <p className="text-emerald-200 text-xs font-semibold font-plus-jakarta">Saved monthly with Claritiy Voice</p>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function Pricing({ setPage, isDashboard }: PricingProps) {
   const [purchasingPlan, setPurchasingPlan] = useState<string | null>(null);
@@ -288,12 +216,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
         </section>
       )}
 
-      {/* Interactive Estimator Slider */}
-      {!isDashboard && (
-        <section className="px-6 max-w-7xl mx-auto relative z-10">
-          <UsageCostEstimatorSlider />
-        </section>
-      )}
+
 
       {/* ── 3 Main Plan Cards Grid ───────────────────────────────────────── */}
       <section className="px-6 max-w-7xl mx-auto relative z-10">
@@ -455,29 +378,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
         </div>
       </section>
 
-      {/* Flat-Rate Philosophy */}
-      {!isDashboard && (
-        <section className="px-6 max-w-5xl mx-auto relative z-10">
-          <div className="bg-white border border-[#E8E2D9] rounded-3xl p-8 md:p-12 shadow-sm space-y-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700">
-                <DollarSign className="w-5 h-5" />
-              </div>
-              <h2 className="text-2xl md:text-3xl font-bold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-                Pay-As-You-Go Base Rate: Flat ₹3.99 / Minute
-              </h2>
-            </div>
-            <div className="text-slate-600 font-plus-jakarta text-sm md:text-base leading-relaxed space-y-4">
-              <p>
-                If your call volume fluctuates seasonally, you can utilize our standalone Pay-As-You-Go rate at a flat <strong>₹3.99 per minute</strong> with zero monthly platform fees.
-              </p>
-              <p>
-                Unlike multi-vendor chained stacks that charge separate line items for speech recognition, LLM tokens, and neural voices, Claritiy Voice unifies the entire stack into one predictable invoice. What you see is what you pay — zero unexpected surprise fees.
-              </p>
-            </div>
-          </div>
-        </section>
-      )}
+
     </div>
   );
 }

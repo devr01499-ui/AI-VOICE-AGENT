@@ -6673,19 +6673,6 @@ const response = await fetch("https://api.claritiy.com/v2/calls", {
           ))}
         </div>
       </section>
-
-      {/* Developer API sandbox code snippets */}
-      <section className="px-6 max-w-5xl mx-auto pb-24">
-        <div className="bg-[#11131B]/60 border border-slate-800 rounded-3xl p-8 shadow-2xl">
-          <h2 className="font-sora text-2xl font-extrabold text-white mb-4">API Integration Sandbox</h2>
-          <p className="text-xs text-slate-400 leading-relaxed mb-6 font-plus-jakarta">
-            Change selections above to dynamically generate the payload configuration for calling this voice persona.
-          </p>
-          <div className="bg-[#0c0d14] rounded-2xl p-6 border border-slate-850 font-mono text-xs text-slate-300 overflow-x-auto relative">
-            <pre className="whitespace-pre">{codeSnippet}</pre>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

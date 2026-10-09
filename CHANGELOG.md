@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-10-10
+### Added
+- Created interactive `UseCaseBlueprintModal` in `IndustryShowroomGrid.tsx` with 5-stage architecture pipelines, wireframe execution flowcharts, live call dialogue transcripts, and copyable JSON schemas across all 8 industry verticals.
+- Upgraded `VoiceGallery.tsx` voice persona cards with distinct Male/Female photographic avatar portraits, gender badges (`M`/`F`), real-time DSP audio waveform visualizers, and interactive play/pause controls.
+- Upgraded Developer Documentation (`Docs.tsx`) into a complete integration hub with copyable configurations for n8n (HTTP node), Make (HTTP module), Zapier (Webhooks by Zapier), Custom REST APIs (cURL, Node.js, Python, Go), and HMAC SHA-256 Webhook verification.
+
+### Removed
+- Entirely removed `UsageCostEstimatorSlider` and `Pay-As-You-Go Base Rate: Flat ₹3.99 / Minute` from `Pricing.tsx`.
+- Removed `API Integration Sandbox` from `VoiceGallery.tsx` and `App.tsx`.
+- Purged all occurrences of legacy codename references and local machine `file:///` paths across `CHANGELOG.md`.
+
+### Fixed
+- Updated official LinkedIn URL to `https://www.linkedin.com/company/claritiy/?viewAsMember=true` in `Footer.tsx`.
+
 ## [Unreleased] - 2026-10-09
 ### Added
 - Rebuilt public frontend website UI/UX to enterprise grade:
@@ -70,7 +84,7 @@
 ## [Unreleased] - 2026-09-11
 ### Fixed
 - Replaced all unverified compliance claims (SOC 2 Type II, HIPAA BAA, ISO 27001, GDPR, PCI-DSS) across marketing and application pages with **MSME Certified Enterprise (Govt. of India MSME Registered)**, **256-Bit TLS 1.3 Encryption**, **AES-256 Data Protection**, and **DPDP Act Alignment**.
-- Purged all occurrences of competitor name "Bolna" repo-wide across package manifests (`package.json`, `server/package.json`), Docker configs (`docker-compose.yml`), seed files (`scripts/seed-supabase.ts`), env examples (`server/.env.example`), comparison tables (`CompareTable.tsx`, `App.tsx`), SEO schema injectors (`SchemaInjector.tsx`), and server module headers.
+- Purged references to a prior internal codename repo-wide across package manifests (`package.json`, `server/package.json`), Docker configs (`docker-compose.yml`), seed files (`scripts/seed-supabase.ts`), env examples (`server/.env.example`), comparison tables (`CompareTable.tsx`, `App.tsx`), SEO schema injectors (`SchemaInjector.tsx`), and server module headers.
 - Consolidated complete Vercel routing rules (`cleanUrls`, `trailingSlash`, canonical domain redirects for `insightclaritiysolution.com`, and SPA wildcard rewrite `/(.*)` -> `/index.html`) into `Frontend/vercel.json` and deleted unread root `vercel.json` to fix 404 routing errors on direct URL hits and auth callbacks when Root Directory is set to `Frontend`.
 
 ## [Unreleased] - 2026-09-10
@@ -103,9 +117,9 @@
 
 ## [Unreleased] - 2026-08-21
 ### Added
-- Rebuilt homepage Hero section ([Hero.tsx](file:///c:/Users/Rohit%20Kumar%20Sha/OneDrive/Desktop/bOLNA/Frontend/src/app/components/hero/Hero.tsx)) with warm Pinterest-inspired editorial design (warm ivory/cream palette with deep emerald and terracotta accents; strictly zero blue, black, or purple hues).
+- Rebuilt homepage Hero section (`Frontend/src/app/components/hero/Hero.tsx`) with warm Pinterest-inspired editorial design (warm ivory/cream palette with deep emerald and terracotta accents; strictly zero blue, black, or purple hues).
 - Added explicit enterprise messaging explaining what Claritiy Voice does (human-like AI phone agents for outbound sales, support, lead qualification, and IVR replacement).
-- Upgraded the right-column Hero visual into a high-definition 3-stage architecture flow animation engine ([`HdGeometricalArchitectureDiagram`](file:///c:/Users/Rohit%20Kumar%20Sha/OneDrive/Desktop/bOLNA/Frontend/src/app/components/hero/Hero.tsx#L50-L375)) featuring live Audio Equalizer Waveform simulation, Stage 1 Gateway -> Stage 2 Core Hub -> Stage 3 Enterprise Outcomes vector beam connections, real-time millisecond telemetry (`174ms`), mode switcher, and zero-overflow card bounds.
+- Upgraded the right-column Hero visual into a high-definition 3-stage architecture flow animation engine (`HdGeometricalArchitectureDiagram` in `Frontend/src/app/components/hero/Hero.tsx`) featuring live Audio Equalizer Waveform simulation, Stage 1 Gateway -> Stage 2 Core Hub -> Stage 3 Enterprise Outcomes vector beam connections, real-time millisecond telemetry (`174ms`), mode switcher, and zero-overflow card bounds.
 
 ### Removed
 - Removed legacy AWS ECS deployment workflow `.github/workflows/deploy-aws.yml` and associated `.aws/task-definition.json` (`.aws/` directory) as deployment target is exclusively Render.
@@ -139,7 +153,7 @@
 ### Fixed
 - Resolved visual clipping bug for the multi-agent assignment dropdown panel inside the overflow-hidden documents table. Rewrote the select agents menu to use Radix-based `Popover` portals so the dropdown renders outside the clipping ancestor container.
 - Removed legacy global window 'click' event listener (`handleOutsideClick`) that conflicted with the new Popover component's automatic focus-handling and immediately closed the dropdown after opening.
-- Resolved non-persisting agent configurations by adding body destructuring, database updates, and response mapping for the `languageMode` parameter in POST `/api/v2/agents` and PUT `/api/v2/agents/:agentId` endpoints in [server/src/routes/agents.ts](file:///c:/Users/Rohit%20Kumar%20Sha/OneDrive/Desktop/bOLNA/server/src/routes/agents.ts).
+- Resolved non-persisting agent configurations by adding body destructuring, database updates, and response mapping for the `languageMode` parameter in POST `/api/v2/agents` and PUT `/api/v2/agents/:agentId` endpoints in `server/src/routes/agents.ts`.
 - Consolidated duplicate `languageMode` dropdown select elements into a single source of truth component, `<AgentConfigPanel>`, and embedded it directly inside `DashVoices` for agent voice & language profile configuration.
 - Extended the prebuilt voice library list to 30 voices (names and characteristics matching Google's Gemini-TTS specs) and added a real, static audio preview playback player playing from `/previews/*.wav` files.
 - Replaced fake voice list simulation with actual Gemini voices list (Puck, Kore, Charon, Fenrir, Aoede) and their documented style descriptors on the Voice Library page.
