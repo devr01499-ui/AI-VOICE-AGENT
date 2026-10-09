@@ -5,7 +5,7 @@ import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { ADMIN_EMAIL } from '../config/constants';
-import { isIpAllowed } from '../utils/ipChecker';
+import { isIpAllowed, getTrustedClientIp } from '../utils/ipChecker';
 
 export interface AuthenticatedRequest extends Request {
   userId?: string;
@@ -123,7 +123,7 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
 
     const allowedIpRanges = workspaceOwner?.allowedIpRanges || [];
     if (allowedIpRanges.length > 0) {
-      const clientIp = req.ip || req.socket.remoteAddress || '';
+      const clientIp = getTrustedClientIp(req);
       if (!isIpAllowed(clientIp, allowedIpRanges)) {
         logger.warn('[requireAuth] Access denied by workspace IP allowlist', {
           userId,
