@@ -25,7 +25,7 @@ const AVAILABLE_APPS: IntegrationApp[] = [
   {
     type: 'calcom',
     name: 'Cal.com Integration',
-    description: 'Connect your Cal.com account API credentials. Store your API key and booking settings for calendar sync configuration.',
+    description: 'Connect your Cal.com account API credentials. Store your API key and booking settings for calendar sync configuration (in-call live voice booking in active development).',
     category: 'Calendar & Scheduling',
     iconBg: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400',
     icon: Calendar,
@@ -377,6 +377,9 @@ export function DashIntegrations() {
                       className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 font-mono text-[11px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
+                  <p className="text-[11px] text-slate-500 italic mt-1">
+                    Note: Stores credentials and event routing configuration. Live mid-call tool-based calendar booking by voice agents is currently in active development.
+                  </p>
                 </>
               ) : selectedApp.type === 'hubspot' || selectedApp.type === 'salesforce' ? (
                 <>

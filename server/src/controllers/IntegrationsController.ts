@@ -111,7 +111,7 @@ export class IntegrationsController {
           res.status(400).json({ success: false, error: 'Cal.com API Key or Event Slug/Webhook URL required for test' });
           return;
         }
-        res.json({ success: true, message: `Cal.com connection validated! Event type: ${eventSlug || 'default'}. Real-time voice scheduling active.` });
+        res.json({ success: true, message: `Cal.com API credentials validated! Event type: ${eventSlug || 'default'}. Credential storage active (in-call live voice booking in active development).` });
         return;
       }
 
