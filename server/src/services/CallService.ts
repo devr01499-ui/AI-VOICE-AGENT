@@ -79,16 +79,33 @@ export class CallService {
       }
     }
 
-    const activeCallCount = await prisma.call.count({
+    const orchestratorActiveCount = callOrchestrator.getActiveCallCountForUser(userId);
+    const dbCallCount = await prisma.call.count({
       where: {
         userId,
         status: { in: ['queued', 'ringing', 'in_progress'] },
       }
     });
+    const dbSessionCount = await prisma.callSession.count({
+      where: {
+        userId,
+        status: { in: ['IN_PROGRESS', 'initiated', 'queued', 'active'] },
+      }
+    });
+
+    const activeCallCount = Math.max(orchestratorActiveCount, dbCallCount, dbSessionCount);
 
     if (activeCallCount >= maxConcurrency) {
+      logger.warn('[CallService] Concurrency limit exceeded before placing call', {
+        userId,
+        activeCallCount,
+        maxConcurrency,
+        orchestratorActiveCount,
+        dbCallCount,
+        dbSessionCount,
+      });
       throw new ValidationError('Concurrency limit exceeded', [
-        { field: 'concurrency', message: `Max allowed concurrent calls (${maxConcurrency}) reached. You currently have ${activeCallCount} active calls.` }
+        { field: 'concurrency', message: `Max allowed concurrent calls (${maxConcurrency}) reached. You currently have ${activeCallCount} active call(s).` }
       ]);
     }
 
