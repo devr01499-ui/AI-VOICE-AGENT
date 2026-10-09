@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Menu, ArrowRight, ChevronDown, Zap, Users, Globe2, BookOpen, Layers } from "lucide-react";
+import { X, Menu, ArrowRight, ChevronDown, Zap, Users, Globe2, BookOpen, Layers, Workflow } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from "motion/react";
 
 import { Session } from "@supabase/supabase-js";
@@ -7,7 +7,7 @@ import { Session } from "@supabase/supabase-js";
 type Page =
   | "home" | "solutions" | "how-it-works" | "voices" | "pricing"
   | "blog" | "blog-rto" | "blog-healthcare" | "blog-fintech"
-  | "docs" | "privacy" | "terms" | "security" | "dashboard" | "industries" | "voice-ai-index" | "faq" | "contact" | "compare" | "numbers_buy";
+  | "docs" | "privacy" | "terms" | "security" | "dashboard" | "industries" | "use-cases" | "voice-ai-index" | "faq" | "contact" | "compare" | "numbers_buy";
 
 interface NavbarProps {
   page: Page;
@@ -18,6 +18,7 @@ interface NavbarProps {
 const PLATFORM_ITEMS = [
   { icon: Zap, label: "How Claritiy Works", desc: "Sub-180ms real-time audio engine", id: "how-it-works" as Page },
   { icon: Layers, label: "Enterprise Solutions", desc: "COD confirmation & clinic intake", id: "solutions" as Page },
+  { icon: Workflow, label: "Use Case Blueprints", desc: "Industry diagrams & wiremaps", id: "use-cases" as Page },
   { icon: Globe2, label: "HD Voice Gallery", desc: "70+ languages & regional accents", id: "voices" as Page },
 ];
 

@@ -974,7 +974,7 @@ POST /dms/v2/service/book
             Pre-Built Agent Templates For 12 Verticals
           </h2>
         </div>
-        <IndustryShowroomGrid />
+        <IndustryShowroomGrid setPage={setPage} />
       </section>
 
       {/* ── Bottom Callout ──────────────────────────────────────────────── */}

@@ -16,6 +16,7 @@ type Page =
   | "security" 
   | "dashboard" 
   | "industries" 
+  | "use-cases"
   | "faq" 
   | "contact" 
   | "voice-ai-index";

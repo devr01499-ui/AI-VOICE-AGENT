@@ -4,7 +4,10 @@ import {
   Building2, Landmark, ShieldCheck, Home as HomeIcon, ShoppingBag,
   Truck, Headphones, Code, CheckCircle2, ArrowRight, TrendingUp
 } from "lucide-react";
-import UseCaseBlueprintModal from "./UseCaseBlueprintModal";
+
+interface IndustryShowroomGridProps {
+  setPage?: (p: any, topicId?: string) => void;
+}
 
 const INDUSTRIES = [
   {
@@ -91,11 +94,19 @@ const INDUSTRIES = [
 
 export const INDUSTRY_CARDS = INDUSTRIES;
 
-export default function IndustryShowroomGrid() {
+export default function IndustryShowroomGrid({ setPage }: IndustryShowroomGridProps) {
   const [active, setActive] = useState(0);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const current = INDUSTRIES[active];
   const isGreen = current.accent === "#059669";
+
+  const handleExplore = () => {
+    if (setPage) {
+      setPage("use-cases", current.id);
+    } else {
+      window.history.pushState(null, "", `/use-cases/${current.id}`);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -108,7 +119,7 @@ export default function IndustryShowroomGrid() {
             <button
               key={ind.id}
               onClick={() => setActive(i)}
-              className="relative flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all"
+              className="relative flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all cursor-pointer"
               style={{
                 background: isActive ? (ind.accent === "#059669" ? "#D1FAE5" : "#FEF3C7") : "white",
                 color: isActive ? ind.accent : "#6B7280",
@@ -179,7 +190,7 @@ export default function IndustryShowroomGrid() {
               </ul>
 
               <button
-                onClick={() => setIsModalOpen(true)}
+                onClick={handleExplore}
                 className="inline-flex items-center gap-2 font-bold text-sm px-6 py-3 rounded-full transition-all hover:scale-[1.03] active:scale-95 cursor-pointer"
                 style={{
                   background: `linear-gradient(135deg, ${current.accent}, ${isGreen ? "#10B981" : "#F59E0B"})`,
@@ -187,7 +198,7 @@ export default function IndustryShowroomGrid() {
                   color: "white",
                 }}
               >
-                Explore {current.label} Use Cases <ArrowRight className="w-4 h-4" />
+                Explore {current.label} Dedicated Use Case Page <ArrowRight className="w-4 h-4" />
               </button>
             </div>
 
@@ -252,18 +263,6 @@ export default function IndustryShowroomGrid() {
           </div>
         </motion.div>
       </AnimatePresence>
-
-      {/* ── Interactive Architecture & Use Case Flowchart Blueprint Modal ── */}
-      <UseCaseBlueprintModal
-        industry={current}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        allIndustries={INDUSTRIES}
-        onSelectIndustry={(ind) => {
-          const idx = INDUSTRIES.findIndex(i => i.id === ind.id);
-          if (idx !== -1) setActive(idx);
-        }}
-      />
     </div>
   );
 }

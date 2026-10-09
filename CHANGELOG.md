@@ -1,8 +1,11 @@
 # CHANGELOG
 
 ## [Unreleased] - 2026-10-10
-### Added
-- Created interactive `UseCaseBlueprintModal` in `IndustryShowroomGrid.tsx` with 5-stage architecture pipelines, wireframe execution flowcharts, live call dialogue transcripts, and copyable JSON schemas across all 8 industry verticals.
+- Created dedicated full-featured `UseCases.tsx` page architecture with deep-link routing (`/use-cases/:id` and `/use-cases`), covering 8 major verticals with specific topics and 32 sub-topic deep-dives.
+- Built interactive SVG telephony wiremaps and latency flowcharts with live telemetry node inspection.
+- Connected each sub-topic with pre-built Claritiy Agent Studio dashboard templates (`tpl-1` through `tpl-16`) featuring 1-click studio launch buttons.
+- Integrated verbatim production call dialogue simulators and copyable enterprise JSON schemas.
+- Upgraded `IndustryShowroomGrid.tsx` and `Navbar.tsx` to navigate directly to dedicated use case pages.
 - Upgraded `VoiceGallery.tsx` voice persona cards with distinct Male/Female photographic avatar portraits, gender badges (`M`/`F`), real-time DSP audio waveform visualizers, and interactive play/pause controls.
 - Upgraded Developer Documentation (`Docs.tsx`) into a complete integration hub with copyable configurations for n8n (HTTP node), Make (HTTP module), Zapier (Webhooks by Zapier), Custom REST APIs (cURL, Node.js, Python, Go), and HMAC SHA-256 Webhook verification.
 

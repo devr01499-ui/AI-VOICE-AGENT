@@ -63,6 +63,7 @@ const Security = lazy(() => import("./pages/Security"));
 const VoiceAIIndex = lazy(() => import("./pages/VoiceAIIndex"));
 const FAQ = lazy(() => import("./pages/FAQ"));
 const ContactUs = lazy(() => import("./pages/ContactUs"));
+const UseCases = lazy(() => import("./pages/UseCases"));
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Page = 
@@ -81,6 +82,7 @@ type Page =
   | "security"
   | "dashboard" 
   | "industries"
+  | "use-cases"
   | "faq"
   | "contact"
   | "compare"
@@ -6799,6 +6801,7 @@ export default function App() {
         "/faq": "faq",
         "/contact": "contact",
         "/solutions": "solutions",
+        "/use-cases": "use-cases",
         "/voices": "voices",
         "/docs": "docs",
         "/privacy": "privacy",
@@ -6812,6 +6815,7 @@ export default function App() {
       };
       
       if (pathMap[path]) return pathMap[path];
+      if (path.startsWith("/use-cases") || path.startsWith("/industries")) return "use-cases";
       if (path.startsWith("/dashboard") || path.startsWith("/login") || path.startsWith("/signup") || path.startsWith("/register") || path.startsWith("/auth") || path.startsWith("/confirm")) return "dashboard";
       if (path.startsWith("/blog/how-to-reduce-cod-rto")) return "blog-rto";
       if (path.startsWith("/voice-ai-index")) return "voice-ai-index";
@@ -6825,6 +6829,12 @@ export default function App() {
       return path.replace("/voice-ai-index/", "");
     }
     return null;
+  });
+
+  const [currentIndustryId, setCurrentIndustryId] = useState<string | null>(() => {
+    const path = window.location.pathname;
+    const match = path.match(/\/(?:use-cases|industries)\/([^/]+)/);
+    return match ? match[1] : null;
   });
 
   const [agentId, setAgentId] = useState<string | null>(null);
@@ -6862,6 +6872,10 @@ export default function App() {
       
       if (pathMap[path]) {
         setPage(pathMap[path]);
+      } else if (path.startsWith("/use-cases") || path.startsWith("/industries")) {
+        setPage("use-cases");
+        const match = path.match(/\/(?:use-cases|industries)\/([^/]+)/);
+        setCurrentIndustryId(match ? match[1] : null);
       } else if (path.startsWith("/dashboard") || path.startsWith("/login") || path.startsWith("/signup") || path.startsWith("/register") || path.startsWith("/auth") || path.startsWith("/confirm")) {
         setPage("dashboard");
       } else if (path.startsWith("/blog/how-to-reduce-cod-rto")) {
@@ -6882,11 +6896,15 @@ export default function App() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  const handleNavigate = (p: Page) => {
+  const handleNavigate = (p: Page, extraId?: string) => {
     setPage(p);
+    if (p === "use-cases" || p === "industries") {
+      setCurrentIndustryId(extraId || null);
+    }
     const pathMap: Record<Page, string> = {
       home: "/",
-      industries: "/industries",
+      industries: extraId ? `/use-cases/${extraId}` : "/use-cases",
+      "use-cases": extraId ? `/use-cases/${extraId}` : "/use-cases",
       pricing: "/pricing",
       "how-it-works": "/how-it-works",
       "blog-rto": "/blog/how-to-reduce-cod-rto",
@@ -6920,6 +6938,7 @@ export default function App() {
     const titleMap: Record<Page, string> = {
       home: "Claritiy Voice",
       industries: "Claritiy Voice — AI Calling Solutions for Every Industry",
+      "use-cases": "Claritiy Voice — Production Use Case Blueprints & Architecture",
       pricing: "Claritiy Voice Pricing — ₹3.99/min, No Hidden Fees",
       "how-it-works": "How Claritiy Voice Confirms COD Orders Automatically",
       "blog-rto": "How to Reduce COD RTO for D2C Brands in India",
@@ -6943,6 +6962,7 @@ export default function App() {
     const descMap: Record<Page, string> = {
       home: "Claritiy Voice calls every COD customer before dispatch to confirm the order, cutting RTO — without hiring a calling team.",
       industries: "Tailored voice AI agent solutions for e-commerce, healthcare, finance, logistics and more.",
+      "use-cases": "Specific use case topics, interactive architecture wiremaps, and connected dashboard templates for healthcare, finance, e-commerce, and more.",
       pricing: "Transparent, per-minute AI voice agent pricing. No stacked STT, LLM, or TTS fees like other platforms.",
       "how-it-works": "See exactly how Claritiy Voice calls, confirms, and logs every cash-on-delivery order before it ships.",
       "blog-rto": "A practical guide to cutting cash-on-delivery returns and reverse logistics costs using automated AI confirmation calls.",
@@ -6965,7 +6985,8 @@ export default function App() {
 
     const navPathMap: Record<Page, string> = {
       home: "",
-      industries: "industries",
+      industries: "use-cases",
+      "use-cases": "use-cases",
       pricing: "pricing",
       "how-it-works": "how-it-works",
       "blog-rto": "blog/how-to-reduce-cod-rto",
@@ -7248,6 +7269,9 @@ export default function App() {
             {page === "contact" && <ContactUs />}
             {(page as string) === "dashboard" && <AuthGateway onSuccess={() => handleNavigate("dashboard")} />}
             {page === "voice-ai-index" && <VoiceAIIndex setPage={setPage} initialTopicId={currentTopicId} />}
+            {(page === "use-cases" || page === "industries") && (
+              <UseCases setPage={handleNavigate} initialIndustryId={currentIndustryId} />
+            )}
           </Suspense>
         </motion.div>
       </AnimatePresence>
