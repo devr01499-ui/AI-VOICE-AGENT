@@ -44,6 +44,7 @@ import { DashLiveMonitoring } from "./components/monitoring/DashLiveMonitoring";
 import { DashAIQualityAssurance } from "./components/qa/DashAIQualityAssurance";
 import { DashAlerting } from "./components/alerting/DashAlerting";
 import { DashIntegrations } from "./components/integrations/DashIntegrations";
+import { KycComplianceSettings } from "./components/kyc/KycComplianceSettings";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 const Home = lazy(() => import("./pages/Home"));
@@ -3609,7 +3610,7 @@ function DashCallLogs() {
 }
 
 // ── Phone Numbers ──
-function DashNumbers({ profile, onNavigateToBilling }: { profile?: any; onNavigateToBilling?: () => void } = {}) {
+function DashNumbers({ profile, onNavigateToBilling, onNavigateToKyc }: { profile?: any; onNavigateToBilling?: () => void; onNavigateToKyc?: () => void } = {}) {
   const [numbers, setNumbers] = useState<any[]>([]);
   const [liveAgents, setLiveAgents] = useState<ApiAgent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -3620,27 +3621,6 @@ function DashNumbers({ profile, onNavigateToBilling }: { profile?: any; onNaviga
   // Founder / Admin Pending Activations Queue State
   const [pendingActivations, setPendingActivations] = useState<any[]>([]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-
-  // KYC Flow State & Polling Ref
-  const [showKyc, setShowKyc] = useState<string | null>(null); // phoneNumberId
-  const [kycStep, setKycStep] = useState(3);
-  const [kycStatus, setKycStatus] = useState<string | null>(null);
-  const kycPollingRef = useRef<any>(null);
-  const kycPollAttemptsRef = useRef<number>(0);
-
-  const stopKycPolling = useCallback(() => {
-    if (kycPollingRef.current) {
-      clearInterval(kycPollingRef.current);
-      kycPollingRef.current = null;
-    }
-    kycPollAttemptsRef.current = 0;
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      stopKycPolling();
-    };
-  }, [stopKycPolling]);
 
   const [showSip, setShowSip] = useState(false);
   const [showPass, setShowPass] = useState(false);
@@ -3783,10 +3763,11 @@ function DashNumbers({ profile, onNavigateToBilling }: { profile?: any; onNaviga
         await loadNumbers();
         // Check if onboarding/KYC is required
         if (purchaseRes.data.data.status === 'KYC Required' || purchaseRes.data.data.kycStatus === 'pending') {
-          setShowKyc(purchaseRes.data.data.phoneNumberId || purchaseRes.data.data.id);
-          setKycStep(3);
-          setKycStatus('pending');
-          submitKyc();
+          if (onNavigateToKyc) {
+            onNavigateToKyc();
+          } else {
+            alert('KYC verification required. Please navigate to Settings > KYC & Compliance.');
+          }
         } else {
           alert('Phone number purchased and assigned successfully!');
         }
@@ -3800,69 +3781,6 @@ function DashNumbers({ profile, onNavigateToBilling }: { profile?: any; onNaviga
       setPurchaseLoading(null);
     }
   };
-
-  const [kycRedirectUrl, setKycRedirectUrl] = useState<string | null>(null);
-  const [kycSubmitting, setKycSubmitting] = useState(false);
-
-  const submitKyc = async () => {
-    if (kycSubmitting) return;
-    setKycSubmitting(true);
-    try {
-      const res = await apiClient.post('/api/v2/kyc/initiate-session', {});
-      if (res.data?.success) {
-        const redirectUrl = res.data.data?.redirectUrl;
-        if (redirectUrl) {
-          setKycRedirectUrl(redirectUrl);
-          const win = window.open(redirectUrl, '_blank');
-          if (!win) {
-            console.warn("Popup blocked by browser. Direct fallback link displayed in modal.");
-          }
-        }
-        setKycStep(3);
-        setKycStatus('pending');
-        pollKycStatus();
-      } else {
-        alert((res.data as any)?.error || 'KYC Session initiation failed');
-      }
-    } catch (e: any) {
-      console.error(e);
-      alert(e?.response?.data?.error || e?.message || 'KYC Error');
-    } finally {
-      setKycSubmitting(false);
-    }
-  };
-
-  const pollKycStatus = useCallback(() => {
-    stopKycPolling();
-
-    const checkStatusOnce = async () => {
-      try {
-        const res = await apiClient.get('/api/v2/kyc/status');
-        if (res.data?.success) {
-          const status = res.data.data.kycStatus;
-          setKycStatus(status);
-          if (status === 'verified' || status === 'failed') {
-            stopKycPolling();
-            loadNumbers();
-          }
-        }
-      } catch (e) {}
-    };
-
-    // Immediate check
-    checkStatusOnce();
-
-    // Poll every 30s with hard stop after 10 attempts (5 minutes max)
-    const MAX_POLL_ATTEMPTS = 10;
-    kycPollingRef.current = setInterval(async () => {
-      kycPollAttemptsRef.current += 1;
-      if (kycPollAttemptsRef.current >= MAX_POLL_ATTEMPTS) {
-        stopKycPolling();
-        return;
-      }
-      await checkStatusOnce();
-    }, 30000);
-  }, [loadNumbers, stopKycPolling]);
 
   const [deleteModal, setDeleteModal] = useState<{ open: boolean, id: string }>({ open: false, id: '' });
   async function performDelete(id: string) {
@@ -3886,7 +3804,7 @@ function DashNumbers({ profile, onNavigateToBilling }: { profile?: any; onNaviga
   if (viewMode === 'buy') {
     return (
       <div className="space-y-6">
-        <NumberSearchAndPurchase onBack={() => { setViewMode('list'); loadNumbers(); }} />
+        <NumberSearchAndPurchase onBack={() => { setViewMode('list'); loadNumbers(); }} onNavigateToKyc={onNavigateToKyc} />
       </div>
     );
   }
@@ -3900,49 +3818,6 @@ function DashNumbers({ profile, onNavigateToBilling }: { profile?: any; onNaviga
         title="Delete Phone Number" 
         message="Are you sure you want to delete this phone number? It will be removed permanently." 
       />
-      
-      {/* KYC Status Modal */}
-      <DModal open={!!showKyc} onClose={() => { stopKycPolling(); setShowKyc(null); }} title="Vobiz Hosted KYC Verification" width="max-w-xl">
-        <div className="space-y-6">
-          <div className="space-y-4 text-center py-6">
-            {kycStatus === 'pending' ? (
-              <>
-                <div className="w-12 h-12 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin mx-auto mb-4" />
-                <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Verification Pending</p>
-                <p className="text-sm text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Vobiz is processing your document verification. This typically completes within a few minutes.</p>
-                {kycRedirectUrl && (
-                  <div className="pt-3">
-                    <a
-                      href={kycRedirectUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all shadow-sm"
-                    >
-                      Re-open Vobiz Verification Portal →
-                    </a>
-                  </div>
-                )}
-              </>
-            ) : kycStatus === 'verified' ? (
-              <>
-                <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-4" />
-                <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>KYC Approved!</p>
-                <p className="text-sm text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Your account is now verified. All phone numbers requiring verification can now be claimed.</p>
-                <DBtn onClick={() => { stopKycPolling(); setShowKyc(null); }} className="mt-4">Close</DBtn>
-              </>
-            ) : (
-              <>
-                <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Verification Failed</p>
-                <p className="text-sm text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Please try initiating hosted KYC verification again.</p>
-                <DBtn onClick={submitKyc} disabled={kycSubmitting} className="mt-4">
-                  {kycSubmitting ? 'Starting...' : 'Retry KYC Verification'}
-                </DBtn>
-              </>
-            )}
-          </div>
-        </div>
-      </DModal>
 
       {/* Founder Admin Operations Queue: Pending Activations */}
       {profile?.isAdmin && (
@@ -4051,8 +3926,11 @@ function DashNumbers({ profile, onNavigateToBilling }: { profile?: any; onNaviga
                     </div>
                   </td>
                   <td className="px-5 py-4"><div className="flex gap-2">
-                    {n.kycStatus === 'pending' && <DBtn size="sm" variant="secondary" onClick={() => {setShowKyc(n.id); setKycStep(3); setKycStatus('pending'); pollKycStatus();}}>Check KYC</DBtn>}
-                    {n.kycStatus === 'failed' && <DBtn size="sm" variant="secondary" onClick={() => {setShowKyc(n.id); setKycStep(3); setKycStatus('failed');}}>Retry KYC</DBtn>}
+                    {(n.kycStatus === 'pending' || n.kycStatus === 'failed') && (
+                      <DBtn size="sm" variant="secondary" onClick={() => { if (onNavigateToKyc) onNavigateToKyc(); }}>
+                        {n.kycStatus === 'failed' ? 'Fix KYC' : 'View KYC'}
+                      </DBtn>
+                    )}
                     {n.kycStatus === 'verified' && <DBtn size="sm" variant="ghost"><Edit3 className="w-4 h-4"/></DBtn>}
                     <DBtn size="sm" variant="ghost" onClick={() => setDeleteModal({ open: true, id: n.id })}><Trash2 className="w-4 h-4 text-red-400"/></DBtn>
                   </div></td>
@@ -4815,11 +4693,32 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
 
 // ── Settings ──
 function DashSettings({ profile }: { profile: ApiProfile | null }) {
-  const [stab, setStab] = useState<"workspace"|"api"|"webhooks"|"billing"|"team"|"audit">("workspace");
+  const [stab, setStab] = useState<"workspace"|"kyc"|"api"|"webhooks"|"billing"|"team"|"audit">(() => {
+    try {
+      const target = localStorage.getItem('open_settings_tab');
+      if (target === 'kyc') {
+        localStorage.removeItem('open_settings_tab');
+        return 'kyc';
+      }
+    } catch {}
+    return "workspace";
+  });
+  const [kycOverallStatus, setKycOverallStatus] = useState<string>('pending');
   const [numbersList, setNumbersList] = useState<any[]>([]);
   const [team, setTeam] = useState<any[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'admin' | 'developer' | 'analyst' | 'viewer'>('viewer');
+
+  useEffect(() => {
+    // Fetch initial KYC overall status for the tab badge
+    apiClient.get('/api/v2/kyc/documents')
+      .then(res => {
+        if (res.data?.success && res.data.data?.overallStatus) {
+          setKycOverallStatus(res.data.data.overallStatus);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const canManageTeam = !profile?.workspaceRole || profile.workspaceRole === 'admin' || profile.workspaceRole === 'owner';
 
@@ -5132,10 +5031,27 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
   };
 
   return (
-    <div className="space-y-4 max-w-2xl">
+    <div className={`space-y-4 ${stab === 'kyc' ? 'max-w-4xl' : 'max-w-2xl'}`}>
       <div className="flex gap-2 flex-wrap">
-        {(canManageTeam ? ["workspace","api","webhooks","billing","team","audit"] : ["workspace","api","webhooks","billing","team"]).map(t=>(
-          <button key={t} onClick={()=>setStab(t as any)} className={`px-5 py-2.5 text-sm font-bold capitalize transition-all ${stab===t?"nm-pressed text-[var(--nm-accent)] rounded-xl":"hover:nm-pressed text-[var(--nm-text)] rounded-xl"}`} style={{fontFamily:"'Outfit', sans-serif"}}>{t === "audit" ? "Audit Logs" : t}</button>
+        {(canManageTeam ? ["workspace","kyc","api","webhooks","billing","team","audit"] : ["workspace","kyc","api","webhooks","billing","team"]).map(t=>(
+          <button 
+            key={t} 
+            onClick={()=>setStab(t as any)} 
+            className={`px-5 py-2.5 text-sm font-bold capitalize transition-all flex items-center gap-2 ${stab===t?"nm-pressed text-[var(--nm-accent)] rounded-xl":"hover:nm-pressed text-[var(--nm-text)] rounded-xl"}`} 
+            style={{fontFamily:"'Outfit', sans-serif"}}
+          >
+            {t === "audit" ? "Audit Logs" : t === "kyc" ? "KYC & Compliance" : t}
+            {t === "kyc" && (
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                kycOverallStatus === 'verified' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                kycOverallStatus === 'rejected' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                kycOverallStatus === 'action_required' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+              }`}>
+                {kycOverallStatus === 'verified' ? 'Verified' : kycOverallStatus === 'rejected' ? 'Rejected' : kycOverallStatus === 'action_required' ? 'Action Req.' : 'Pending'}
+              </span>
+            )}
+          </button>
         ))}
       </div>
 
@@ -5454,6 +5370,10 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
             </table>
           </div>
         </div>
+      )}
+
+      {stab==="kyc"&&(
+        <KycComplianceSettings onStatusChange={(newStatus) => setKycOverallStatus(newStatus)} />
       )}
     </div>
   );
@@ -6290,10 +6210,10 @@ function DashboardPage({ session }: { session: Session }) {
             <motion.div key={section} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0}} transition={{duration:0.18}}>
               {section==="overview"&&<DashOverview/>}
               {section==="agents"&&<DashAgents session={session} profile={profile} setApiAgents={setApiAgents} setStudioAgent={setStudioAgent} setSinglePromptStudioAgent={setSinglePromptStudioAgent} />}
-              {section==="calling"&&<DashCallingConfig/>}
+              {section==="calling"&&<DashCallingConfig onNavigateToKyc={() => { localStorage.setItem('open_settings_tab', 'kyc'); setSection("settings"); }} />}
               {section==="batch"&&<DashBatch/>}
               {section==="calls"&&<DashCallLogs/>}
-              {section==="numbers"&&<DashNumbers profile={profile}/>}
+              {section==="numbers"&&<DashNumbers profile={profile} onNavigateToKyc={() => { localStorage.setItem('open_settings_tab', 'kyc'); setSection("settings"); }} />}
               {section==="knowledge"&&<DashKnowledge apiAgents={apiAgents}/>}
               {section==="voices"&&<DashVoices apiAgents={apiAgents} setApiAgents={setApiAgents}/>}
               {section==="calendar"&&<DashCalendar/>}

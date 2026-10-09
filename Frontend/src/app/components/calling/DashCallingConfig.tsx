@@ -22,13 +22,12 @@ interface AgentOption {
   status: string;
 }
 
-export function DashCallingConfig() {
+export function DashCallingConfig({ onNavigateToKyc }: { onNavigateToKyc?: () => void } = {}) {
   const [numbers, setNumbers] = useState<CallingNumberConfig[]>([]);
   const [agents, setAgents] = useState<AgentOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [isInitiatingKyc, setIsInitiatingKyc] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -77,19 +76,13 @@ export function DashCallingConfig() {
     }
   };
 
-  const handleInitiateHostedKyc = async () => {
-    if (isInitiatingKyc) return;
-    setIsInitiatingKyc(true);
-    try {
-      const res = await apiClient.post('/api/v2/kyc/initiate-session', {});
-      if (res.data?.data?.redirectUrl) {
-        window.open(res.data.data.redirectUrl, '_blank');
-        alert(res.data.data.confirmationMessage || "Your KYC verification is being processed and typically takes up to 24 hours. We'll notify you once it's complete.");
-      }
-    } catch (err) {
-      alert("Failed to open Vobiz Hosted KYC Session: " + (err instanceof Error ? err.message : String(err)));
-    } finally {
-      setIsInitiatingKyc(false);
+  const handleGoToKyc = () => {
+    if (onNavigateToKyc) {
+      onNavigateToKyc();
+    } else {
+      localStorage.setItem('open_settings_tab', 'kyc');
+      window.location.hash = 'kyc';
+      window.dispatchEvent(new CustomEvent('navigate_section', { detail: 'settings' }));
     }
   };
 
@@ -147,11 +140,10 @@ export function DashCallingConfig() {
             </div>
           </div>
           <button
-            onClick={handleInitiateHostedKyc}
-            disabled={isInitiatingKyc}
-            className="px-4 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+            onClick={handleGoToKyc}
+            className="px-4 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
           >
-            <ShieldCheck className="w-4 h-4" /> {isInitiatingKyc ? 'Starting...' : 'Start KYC Verification Now'}
+            <ShieldCheck className="w-4 h-4" /> Complete KYC in Settings
           </button>
         </div>
       )}
@@ -187,16 +179,17 @@ export function DashCallingConfig() {
                         </span>
                         {item.kycStatus !== 'verified' && (
                           <button
-                            onClick={handleInitiateHostedKyc}
-                            disabled={isInitiatingKyc}
-                            className={`px-3 py-1.5 text-xs font-bold text-white rounded-lg shadow-sm transition-all flex items-center gap-1.5 ${
-                              isInitiatingKyc
-                                ? 'bg-amber-400 cursor-not-allowed opacity-80'
-                                : 'bg-amber-600 hover:bg-amber-700 active:scale-95 cursor-pointer'
-                            }`}
+                            onClick={() => {
+                              if (onNavigateToKyc) {
+                                onNavigateToKyc();
+                              } else {
+                                window.location.hash = '#kyc';
+                              }
+                            }}
+                            className="px-3 py-1.5 text-xs font-bold text-white rounded-lg shadow-sm transition-all flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 active:scale-95 cursor-pointer"
                           >
                             <ShieldCheck className="w-3.5 h-3.5" />
-                            {isInitiatingKyc ? 'Opening KYC...' : 'Start KYC Verification'}
+                            Complete KYC & Compliance →
                           </button>
                         )}
                       </p>

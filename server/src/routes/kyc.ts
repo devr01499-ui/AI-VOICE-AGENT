@@ -8,13 +8,131 @@ import { Resend } from 'resend';
 import { logAuditEvent } from '../utils/auditLogger';
 import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
 import { PhoneNumberActivationService } from '../services/PhoneNumberActivationService';
+import { NotificationService } from '../services/NotificationService';
+import { EncryptionService } from '../utils/EncryptionService';
+import { uploadGstCertificateToStorage } from '../utils/kycStorage';
+import { env } from '../config/env';
 
 const router = Router();
 
-import { NotificationService } from '../services/NotificationService';
+// Validation regexes
+const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/i;
+const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i;
 
 /**
- * Dispatches both an in-app notification and an email notification via Resend when KYC verification status changes.
+ * Dispatches both an in-app notification and an email notification via Resend when individual document status changes.
+ */
+export async function notifyUserDocumentStatus(
+  userId: string,
+  documentType: string,
+  status: 'verified' | 'failed' | 'pending',
+  reason?: string
+) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, fullName: true },
+    });
+
+    if (!user) return;
+
+    const docLabels: Record<string, string> = {
+      pan: 'PAN Card',
+      gst: 'GST Certificate',
+      aadhaar: 'Aadhaar (DigiLocker)',
+    };
+    const docName = docLabels[documentType] || documentType.toUpperCase();
+    const isVerified = status === 'verified';
+
+    // 1. In-App Notification
+    const inAppMessage = isVerified
+      ? `🎉 KYC Approved: Your ${docName} has been successfully verified!`
+      : `⚠️ KYC Action Required: Your ${docName} verification could not be completed${reason ? ` (${reason})` : ''}. Please re-submit in Settings.`;
+
+    NotificationService.createInAppNotification({
+      userId,
+      message: inAppMessage,
+      isImportant: true,
+    });
+
+    if (!user.email) return;
+
+    logger.info('KYC Document Notification: Sending document status email to user', {
+      userId,
+      email: user.email,
+      documentType,
+      status,
+    });
+
+    const fromAddress = process.env.RESEND_FROM_EMAIL || 'Claritiy Voice <notifications@claritiyvoice.com>';
+
+    // 2. Email Delivery via Resend
+    if (!process.env.RESEND_API_KEY) {
+      if (process.env.NODE_ENV === 'production') {
+        const errorMsg = 'CRITICAL CONFIG ERROR: RESEND_API_KEY is not configured in production!';
+        logger.error(errorMsg, { userId, email: user.email, status, documentType });
+        throw new Error(errorMsg);
+      }
+      logger.info('[MOCK EMAIL NOTIFICATION] KYC document status email sent to user', {
+        email: user.email,
+        documentType,
+        status,
+        from: fromAddress,
+      });
+      return;
+    }
+
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const emailResult = await resend.emails.send({
+      from: fromAddress,
+      to: user.email,
+      subject: `Claritiy Voice — ${docName} Verification ${isVerified ? 'Approved! 🎉' : 'Action Required'}`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #0F172A;">
+          <h2 style="color: ${isVerified ? '#059669' : '#DC2626'};">
+            Claritiy Voice — ${docName} Verification ${isVerified ? 'Approved' : 'Failed'}
+          </h2>
+          <p>Hello ${user.fullName || 'User'},</p>
+          <p>${isVerified
+            ? `Your ${docName} document has been successfully verified on Claritiy Voice.`
+            : `Your ${docName} document verification could not be completed. ${reason ? 'Reason: ' + reason : 'Please review and re-submit in Settings → KYC & Compliance.'}`
+          }</p>
+          <p style="margin-top: 24px; font-size: 12px; color: #64748B;">
+            This is an automated compliance notification from Claritiy Voice Enterprise Voice AI.
+          </p>
+        </div>
+      `,
+    });
+
+    if (emailResult.error) {
+      logger.error('KYC Document Notification: Resend returned error delivering email', {
+        userId,
+        error: emailResult.error,
+      });
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(`Resend delivery failed: ${emailResult.error.message || JSON.stringify(emailResult.error)}`);
+      }
+    } else {
+      logger.info('KYC Document Notification: Status email dispatched via Resend', {
+        userId,
+        email: user.email,
+        emailId: emailResult.data?.id,
+      });
+    }
+  } catch (err) {
+    logger.error('KYC Document Notification: Error dispatching document notification', {
+      userId,
+      documentType,
+      error: String(err),
+    });
+    if (process.env.NODE_ENV === 'production') {
+      throw err;
+    }
+  }
+}
+
+/**
+ * Dispatches both an in-app notification and an email notification via Resend when overall KYC verification status changes.
  */
 export async function notifyUserKycStatus(userId: string, status: string, reason?: string) {
   try {
@@ -27,7 +145,6 @@ export async function notifyUserKycStatus(userId: string, status: string, reason
 
     const isVerified = status === 'verified';
 
-    // 1. In-App Notification (Guaranteed delivery even if external email provider fails)
     const inAppMessage = isVerified
       ? '🎉 KYC Verification Approved: Your account verification with Vobiz is complete! You can now activate and use your phone numbers.'
       : `⚠️ KYC Verification Action Required: Your verification could not be completed${reason ? ` (${reason})` : ''}. Please retry verification in your dashboard.`;
@@ -44,7 +161,6 @@ export async function notifyUserKycStatus(userId: string, status: string, reason
 
     const fromAddress = process.env.RESEND_FROM_EMAIL || 'Claritiy Voice <notifications@claritiyvoice.com>';
 
-    // 2. Email Delivery via Resend
     if (!process.env.RESEND_API_KEY) {
       if (process.env.NODE_ENV === 'production') {
         const errorMsg = 'CRITICAL CONFIG ERROR: RESEND_API_KEY is not configured in production! Customer KYC notification email could not be delivered.';
@@ -68,7 +184,7 @@ export async function notifyUserKycStatus(userId: string, status: string, reason
           <p>Hello ${user.fullName || 'User'},</p>
           <p>${isVerified
             ? 'Your account-level KYC verification with Vobiz has been successfully approved! You can now activate and use phone numbers directly in your dashboard.'
-            : `Your account-level KYC verification could not be completed. ${reason ? 'Reason: ' + reason : 'Please retry document verification in your calling configuration.'}`
+            : `Your account-level KYC verification could not be completed. ${reason ? 'Reason: ' + reason : 'Please retry document verification in Settings.'}`
           }</p>
           <p style="margin-top: 24px; font-size: 12px; color: #64748B;">
             This is an automated notification from Claritiy Voice Enterprise Voice AI.
@@ -101,10 +217,533 @@ export async function notifyUserKycStatus(userId: string, status: string, reason
 }
 
 /**
+ * Checks whether all required documents for a user are verified.
+ * If so, updates sub-account, phone numbers, and triggers auto-activation.
+ */
+async function checkAndApplyFullKycApproval(userId: string, subAccountId: string) {
+  const docs = await prisma.kycDocument.findMany({ where: { userId } });
+  const panDoc = docs.find((d) => d.documentType === 'pan');
+  const gstDoc = docs.find((d) => d.documentType === 'gst');
+
+  const allRequiredVerified = panDoc?.status === 'verified' && gstDoc?.status === 'verified';
+
+  if (allRequiredVerified) {
+    logger.info('KYC: All required documents verified for user. Elevating account status to verified', { userId });
+    await prisma.vobizSubAccount.update({
+      where: { id: subAccountId },
+      data: {
+        kycStatus: 'verified',
+        kycVerifiedAt: new Date(),
+      },
+    });
+
+    await prisma.phoneNumber.updateMany({
+      where: { userId, aadhaarRequired: true },
+      data: { kycStatus: 'verified' },
+    });
+
+    await PhoneNumberActivationService.evaluateAndActivateUserNumbers(userId, 'kyc_document_verified');
+    await notifyUserKycStatus(userId, 'verified');
+
+    await logAuditEvent({
+      workspaceOwnerId: userId,
+      actorUserId: userId,
+      action: 'kyc.status_changed',
+      targetId: subAccountId,
+      metadata: { status: 'verified', source: 'on_platform_document_verification' },
+    });
+  }
+}
+
+/**
+ * GET /api/v2/kyc/documents
+ * Returns every required document for the user's business type and its current status,
+ * for the Settings page to render directly.
+ */
+router.get('/documents', requireAuth, async (req, res, next) => {
+  try {
+    const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+
+    const docs = await prisma.kycDocument.findMany({
+      where: { userId },
+    });
+
+    const subAccount = await prisma.vobizSubAccount.findUnique({
+      where: { userId },
+    });
+
+    const panDoc = docs.find((d) => d.documentType === 'pan');
+    const gstDoc = docs.find((d) => d.documentType === 'gst');
+    const aadhaarDoc = docs.find((d) => d.documentType === 'aadhaar');
+
+    const businessType = 'business'; // Defaults to business (requiring PAN + GST)
+
+    const isFullyVerified = panDoc?.status === 'verified' && gstDoc?.status === 'verified';
+    let overallStatus: 'verified' | 'pending' | 'failed' | 'not_submitted' = 'not_submitted';
+
+    if (isFullyVerified || subAccount?.kycStatus === 'verified') {
+      overallStatus = 'verified';
+    } else if (panDoc?.status === 'failed' || gstDoc?.status === 'failed' || aadhaarDoc?.status === 'failed') {
+      overallStatus = 'failed';
+    } else if (panDoc?.status === 'pending' || gstDoc?.status === 'pending') {
+      overallStatus = 'pending';
+    }
+
+    const documentList = [
+      {
+        documentType: 'pan',
+        label: 'Permanent Account Number (PAN)',
+        description: 'Authorized signatory PAN for tax & identity verification',
+        required: true,
+        status: panDoc?.status || 'not_submitted',
+        panNumber: panDoc?.panNumber || null,
+        fullName: panDoc?.fullName || null,
+        dob: panDoc?.dob || null,
+        failureReason: panDoc?.failureReason || null,
+        verifiedAt: panDoc?.verifiedAt || null,
+        updatedAt: panDoc?.updatedAt || null,
+      },
+      {
+        documentType: 'gst',
+        label: 'GST Certificate (GSTIN)',
+        description: 'GST registration certificate PDF/image for commercial telephony',
+        required: true,
+        status: gstDoc?.status || 'not_submitted',
+        gstin: gstDoc?.gstin || null,
+        gstCertUrl: gstDoc?.gstCertUrl || null,
+        failureReason: gstDoc?.failureReason || null,
+        verifiedAt: gstDoc?.verifiedAt || null,
+        updatedAt: gstDoc?.updatedAt || null,
+      },
+      {
+        documentType: 'aadhaar',
+        label: 'Aadhaar Identity (DigiLocker)',
+        description: 'Digital consent verification via DigiLocker (zero raw document storage)',
+        required: false,
+        status: aadhaarDoc?.status || 'not_submitted',
+        vobizReference: aadhaarDoc?.vobizReference || null,
+        failureReason: aadhaarDoc?.failureReason || null,
+        verifiedAt: aadhaarDoc?.verifiedAt || null,
+        updatedAt: aadhaarDoc?.updatedAt || null,
+      },
+    ];
+
+    res.json({
+      success: true,
+      data: {
+        businessType,
+        overallStatus,
+        isFullyVerified,
+        subAccountAuthId: subAccount?.authId || null,
+        documents: documentList,
+      },
+    });
+  } catch (err) {
+    logger.error('KYC: failed to get documents', { error: String(err) });
+    next(err);
+  }
+});
+
+/**
+ * POST /api/v2/kyc/verify-document
+ * Body: { documentType: 'pan' | 'gst', panNumber?, fullName?, dob?, gstin?, gstCertFile?, gstCertName? }
+ * Calls Vobiz's per-document verification API server-to-server using the sub-account's own SA_ credentials.
+ * NEVER uses the master MA_ credentials.
+ * Fails closed on any provider error. Idempotent on (userId, documentType).
+ */
+router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (req, res, next) => {
+  try {
+    const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+
+    const { documentType, panNumber, fullName, dob, gstin, gstCertFile, gstCertName } = req.body;
+
+    if (!documentType || (documentType !== 'pan' && documentType !== 'gst')) {
+      res.status(400).json({ success: false, error: 'Invalid documentType. Must be "pan" or "gst".' });
+      return;
+    }
+
+    // 1. Validate inputs per document type
+    if (documentType === 'pan') {
+      if (!panNumber || !PAN_REGEX.test(panNumber.trim())) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid PAN number format. Must be 10 alphanumeric characters (e.g., ABCDE1234F).',
+        });
+        return;
+      }
+      if (!fullName || fullName.trim().length < 2) {
+        res.status(400).json({ success: false, error: 'Full name is required as per PAN card.' });
+        return;
+      }
+      if (!dob || dob.trim().length < 4) {
+        res.status(400).json({ success: false, error: 'Date of birth is required.' });
+        return;
+      }
+    }
+
+    let resolvedGstCertUrl: string | undefined;
+
+    if (documentType === 'gst') {
+      if (!gstin || !GSTIN_REGEX.test(gstin.trim())) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid GSTIN format. Must be a 15-character valid GST number.',
+        });
+        return;
+      }
+      if (!gstCertFile) {
+        // Check if an existing certificate was already uploaded
+        const existingDoc = await prisma.kycDocument.findUnique({
+          where: { userId_documentType: { userId, documentType: 'gst' } },
+        });
+        if (!existingDoc?.gstCertUrl) {
+          res.status(400).json({
+            success: false,
+            error: 'GST certificate document file is required. Please upload your GST certificate PDF or image.',
+          });
+          return;
+        }
+        resolvedGstCertUrl = existingDoc.gstCertUrl;
+      } else {
+        // Upload GST certificate to Supabase Storage (never local disk)
+        resolvedGstCertUrl = await uploadGstCertificateToStorage(userId, gstCertFile, gstCertName);
+      }
+    }
+
+    // 2. Fetch or create sub-account for the user
+    const subAccountService = new VobizSubAccountService();
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    const subAccount = await subAccountService.getOrCreateSubAccount(userId, user?.email || undefined);
+
+    if (!subAccount || !subAccount.authId) {
+      res.status(502).json({
+        success: false,
+        error: 'Failed to access telephony sub-account. Please contact support.',
+      });
+      return;
+    }
+
+    // 3. Decrypt sub-account token — NEVER use master MA_ credentials
+    const subAuthId = subAccount.authId;
+    let decryptedSubAuthToken = '';
+    try {
+      decryptedSubAuthToken = EncryptionService.decrypt(subAccount.authToken);
+    } catch {
+      decryptedSubAuthToken = subAccount.authToken;
+    }
+
+    let verificationResultStatus: 'verified' | 'failed' | 'pending' = 'pending';
+    let vobizReference: string | null = null;
+    let failureReason: string | null = null;
+
+    const isMock = subAuthId.startsWith('SA_MOCK_') || (env.VOBIZ_AUTH_ID || '').includes('placeholder');
+
+    if (isMock) {
+      // Mock / local verification engine
+      if (documentType === 'pan') {
+        const isMockValid = PAN_REGEX.test((panNumber || '').trim().toUpperCase());
+        if (isMockValid) {
+          verificationResultStatus = 'verified';
+          vobizReference = `vob_pan_${Date.now()}`;
+        } else {
+          verificationResultStatus = 'failed';
+          failureReason = 'PAN format or name mismatch with NSDL records.';
+        }
+      } else if (documentType === 'gst') {
+        const isMockValid = GSTIN_REGEX.test((gstin || '').trim().toUpperCase());
+        if (isMockValid) {
+          verificationResultStatus = 'verified';
+          vobizReference = `vob_gst_${Date.now()}`;
+        } else {
+          verificationResultStatus = 'failed';
+          failureReason = 'GSTIN registration status inactive or invalid.';
+        }
+      }
+    } else {
+      // Live server-to-server call to Vobiz per-document verification API using SA_ credentials
+      const baseUrl = (env.VOBIZ_API_URL || 'https://api.vobiz.ai').replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
+      const vobizUrl = `${baseUrl}/api/v1/accounts/${subAuthId}/kyc/verify-document`;
+
+      const payload = documentType === 'pan'
+        ? {
+            document_type: 'pan',
+            pan_number: (panNumber || '').trim().toUpperCase(),
+            name: (fullName || '').trim(),
+            dob: (dob || '').trim(),
+          }
+        : {
+            document_type: 'gst',
+            gstin: (gstin || '').trim().toUpperCase(),
+            certificate_url: resolvedGstCertUrl,
+          };
+
+      try {
+        const vobizRes = await fetch(vobizUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Auth-ID': subAuthId,
+            'X-Auth-Token': decryptedSubAuthToken,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (vobizRes.ok) {
+          const resData = (await vobizRes.json()) as any;
+          const status = (resData.status || resData.verification_status || '').toLowerCase();
+          if (status === 'verified' || status === 'approved' || resData.verified === true) {
+            verificationResultStatus = 'verified';
+            vobizReference = resData.reference || resData.id || resData.request_id || `vob_${Date.now()}`;
+          } else if (status === 'failed' || status === 'rejected' || resData.verified === false) {
+            verificationResultStatus = 'failed';
+            failureReason = resData.failure_reason || resData.reason || resData.message || 'Document verification rejected by government records.';
+          } else {
+            verificationResultStatus = 'pending';
+            vobizReference = resData.reference || resData.id || null;
+          }
+        } else {
+          // Fail closed: Any provider non-200 response sets status to failed or pending
+          const errText = await vobizRes.text();
+          logger.warn('KYC: Vobiz document verification provider error (failing closed)', {
+            subAuthId,
+            documentType,
+            status: vobizRes.status,
+            errText,
+          });
+          verificationResultStatus = 'failed';
+          failureReason = `Verification provider returned status ${vobizRes.status}: ${errText.substring(0, 120)}`;
+        }
+      } catch (callErr: any) {
+        logger.error('KYC: Network error calling Vobiz document verification (failing closed)', {
+          error: String(callErr?.message || callErr),
+        });
+        verificationResultStatus = 'failed';
+        failureReason = 'Network error contacting verification provider. Please try again.';
+      }
+    }
+
+    // 4. Idempotent database write to KycDocument (upsert on [userId, documentType])
+    const cleanPan = panNumber ? panNumber.trim().toUpperCase() : undefined;
+    const cleanName = fullName ? fullName.trim() : undefined;
+    const cleanDob = dob ? dob.trim() : undefined;
+    const cleanGstin = gstin ? gstin.trim().toUpperCase() : undefined;
+
+    const savedDoc = await prisma.kycDocument.upsert({
+      where: {
+        userId_documentType: { userId, documentType },
+      },
+      create: {
+        userId,
+        documentType,
+        status: verificationResultStatus,
+        panNumber: cleanPan,
+        fullName: cleanName,
+        dob: cleanDob,
+        gstin: cleanGstin,
+        gstCertUrl: resolvedGstCertUrl,
+        vobizReference,
+        failureReason,
+        verifiedAt: verificationResultStatus === 'verified' ? new Date() : null,
+      },
+      update: {
+        status: verificationResultStatus,
+        ...(cleanPan && { panNumber: cleanPan }),
+        ...(cleanName && { fullName: cleanName }),
+        ...(cleanDob && { dob: cleanDob }),
+        ...(cleanGstin && { gstin: cleanGstin }),
+        ...(resolvedGstCertUrl && { gstCertUrl: resolvedGstCertUrl }),
+        vobizReference,
+        failureReason,
+        verifiedAt: verificationResultStatus === 'verified' ? new Date() : null,
+      },
+    });
+
+    // 5. Audit Logging on status change
+    await logAuditEvent({
+      workspaceOwnerId: userId,
+      actorUserId: userId,
+      action: verificationResultStatus === 'verified' ? 'kyc.document_verified' : 'kyc.document_rejected',
+      targetId: savedDoc.id,
+      metadata: {
+        documentType,
+        status: verificationResultStatus,
+        vobizReference,
+        failureReason,
+      },
+    });
+
+    // 6. Resend email notification
+    await notifyUserDocumentStatus(userId, documentType, verificationResultStatus, failureReason || undefined);
+
+    // 7. Check if overall KYC can now be elevated to verified
+    if (verificationResultStatus === 'verified') {
+      await checkAndApplyFullKycApproval(userId, subAccount.id);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        id: savedDoc.id,
+        documentType: savedDoc.documentType,
+        status: savedDoc.status,
+        failureReason: savedDoc.failureReason,
+        verifiedAt: savedDoc.verifiedAt,
+        gstCertUrl: savedDoc.gstCertUrl,
+      },
+    });
+  } catch (err) {
+    logger.error('KYC: verify-document error', { error: String(err) });
+    next(err);
+  }
+});
+
+/**
+ * POST /api/v2/kyc/verify-aadhaar
+ * DigiLocker consent flow (access_request_id).
+ * Strictly NEVER stores raw Aadhaar number or document image.
+ * Only stores the verified/not-verified result returned by Vobiz.
+ */
+router.post('/verify-aadhaar', requireAuth, sensitiveOperationsLimiter, async (req, res, next) => {
+  try {
+    const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+
+    const { access_request_id } = req.body;
+    if (!access_request_id || typeof access_request_id !== 'string') {
+      res.status(400).json({ success: false, error: 'access_request_id is required for DigiLocker consent verification.' });
+      return;
+    }
+
+    const subAccountService = new VobizSubAccountService();
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    const subAccount = await subAccountService.getOrCreateSubAccount(userId, user?.email || undefined);
+
+    let decryptedSubAuthToken = '';
+    try {
+      decryptedSubAuthToken = EncryptionService.decrypt(subAccount.authToken);
+    } catch {
+      decryptedSubAuthToken = subAccount.authToken;
+    }
+
+    const subAuthId = subAccount.authId;
+    const isMock = subAuthId.startsWith('SA_MOCK_') || (env.VOBIZ_AUTH_ID || '').includes('placeholder');
+
+    let verificationResultStatus: 'verified' | 'failed' = 'failed';
+    let failureReason: string | null = null;
+
+    if (isMock) {
+      // Mock flow
+      if (access_request_id.length > 5) {
+        verificationResultStatus = 'verified';
+      } else {
+        verificationResultStatus = 'failed';
+        failureReason = 'DigiLocker consent token expired or invalid.';
+      }
+    } else {
+      const baseUrl = (env.VOBIZ_API_URL || 'https://api.vobiz.ai').replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
+      const vobizUrl = `${baseUrl}/api/v1/accounts/${subAuthId}/kyc/verify-aadhaar`;
+
+      try {
+        const vobizRes = await fetch(vobizUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Auth-ID': subAuthId,
+            'X-Auth-Token': decryptedSubAuthToken,
+          },
+          body: JSON.stringify({ access_request_id }),
+        });
+
+        if (vobizRes.ok) {
+          const resData = (await vobizRes.json()) as any;
+          if (resData.verified === true || resData.status === 'verified') {
+            verificationResultStatus = 'verified';
+          } else {
+            verificationResultStatus = 'failed';
+            failureReason = resData.reason || resData.message || 'DigiLocker consent verification failed.';
+          }
+        } else {
+          // Fail closed
+          const errText = await vobizRes.text();
+          verificationResultStatus = 'failed';
+          failureReason = `DigiLocker provider error (${vobizRes.status}): ${errText.substring(0, 100)}`;
+        }
+      } catch (err: any) {
+        verificationResultStatus = 'failed';
+        failureReason = 'Network error communicating with DigiLocker gateway.';
+      }
+    }
+
+    // Upsert into KycDocument — NO raw Aadhaar stored
+    const savedDoc = await prisma.kycDocument.upsert({
+      where: {
+        userId_documentType: { userId, documentType: 'aadhaar' },
+      },
+      create: {
+        userId,
+        documentType: 'aadhaar',
+        status: verificationResultStatus,
+        vobizReference: access_request_id,
+        failureReason,
+        verifiedAt: verificationResultStatus === 'verified' ? new Date() : null,
+      },
+      update: {
+        status: verificationResultStatus,
+        vobizReference: access_request_id,
+        failureReason,
+        verifiedAt: verificationResultStatus === 'verified' ? new Date() : null,
+      },
+    });
+
+    await logAuditEvent({
+      workspaceOwnerId: userId,
+      actorUserId: userId,
+      action: verificationResultStatus === 'verified' ? 'kyc.document_verified' : 'kyc.document_rejected',
+      targetId: savedDoc.id,
+      metadata: {
+        documentType: 'aadhaar',
+        status: verificationResultStatus,
+        vobizReference: access_request_id,
+        failureReason,
+      },
+    });
+
+    await notifyUserDocumentStatus(userId, 'aadhaar', verificationResultStatus, failureReason || undefined);
+
+    if (verificationResultStatus === 'verified') {
+      await checkAndApplyFullKycApproval(userId, subAccount.id);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        id: savedDoc.id,
+        documentType: 'aadhaar',
+        status: savedDoc.status,
+        failureReason: savedDoc.failureReason,
+        verifiedAt: savedDoc.verifiedAt,
+      },
+    });
+  } catch (err) {
+    logger.error('KYC: verify-aadhaar error', { error: String(err) });
+    next(err);
+  }
+});
+
+/**
+ * @deprecated Use on-platform KYC endpoints (POST /verify-document, POST /verify-aadhaar) instead.
  * POST /api/v2/kyc/initiate-session
- * 
- * Initiates Vobiz's Hosted KYC Session for the user's sub-account.
- * Strictly ZERO raw document upload/storage on our servers (Aadhaar Act compliant).
  */
 router.post(['/initiate-session', '/start'], requireAuth, sensitiveOperationsLimiter, async (req, res, next) => {
   try {
@@ -118,17 +757,16 @@ router.post(['/initiate-session', '/start'], requireAuth, sensitiveOperationsLim
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
     const subAccount = await subAccountService.getOrCreateSubAccount(userId, user?.email || undefined);
 
-    // Build Vobiz Hosted KYC Redirect URL for sub-account
     const hostedKycUrl = `https://console.vobiz.ai/kyc?sub_account_auth_id=${subAccount.authId}`;
 
-    logger.info('KYC: Initiated Vobiz Hosted KYC Session', { userId, subAuthId: subAccount.authId });
+    logger.info('KYC [DEPRECATED]: Initiated Vobiz Hosted KYC Session fallback', { userId, subAuthId: subAccount.authId });
 
     await logAuditEvent({
       workspaceOwnerId: (req as any).effectiveWorkspaceId || userId,
       actorUserId: userId,
       action: 'kyc.initiated',
       targetId: subAccount.authId,
-      metadata: { status: 'pending' },
+      metadata: { status: 'pending', deprecated: true },
     });
 
     res.json({
@@ -148,9 +786,6 @@ router.post(['/initiate-session', '/start'], requireAuth, sensitiveOperationsLim
 
 /**
  * GET /api/v2/kyc/status
- * 
- * Returns current KYC status from database.
- * Only triggers live sync to Vobiz API if last sync is older than 3 minutes and status is not yet verified.
  */
 router.get('/status', requireAuth, async (req, res, next) => {
   try {
@@ -164,19 +799,29 @@ router.get('/status', requireAuth, async (req, res, next) => {
       where: { userId }
     });
 
-    const SYNC_TTL_MS = 3 * 60 * 1000; // 3 minutes
+    const docs = await prisma.kycDocument.findMany({ where: { userId } });
+    const panDoc = docs.find((d) => d.documentType === 'pan');
+    const gstDoc = docs.find((d) => d.documentType === 'gst');
+
+    const isFullyDocVerified = panDoc?.status === 'verified' && gstDoc?.status === 'verified';
+
+    const SYNC_TTL_MS = 3 * 60 * 1000;
     const isStale = !subAccount || !subAccount.updatedAt || (Date.now() - subAccount.updatedAt.getTime() > SYNC_TTL_MS);
 
-    let kycStatus = subAccount?.kycStatus || 'pending';
+    let kycStatus = (isFullyDocVerified || subAccount?.kycStatus === 'verified') ? 'verified' : (subAccount?.kycStatus || 'pending');
     let isVerified = kycStatus === 'verified';
 
-    // Only live-sync if cache is stale and account is not already verified
     if (isStale && !isVerified) {
       try {
         const subAccountService = new VobizSubAccountService();
         const syncResult = await subAccountService.syncKycStatus(userId);
-        kycStatus = syncResult.kycStatus;
-        isVerified = syncResult.isVerified;
+        if (isFullyDocVerified) {
+          kycStatus = 'verified';
+          isVerified = true;
+        } else {
+          kycStatus = syncResult.kycStatus;
+          isVerified = syncResult.isVerified;
+        }
       } catch (syncErr) {
         logger.warn('KYC: non-blocking sync error, returning cached DB state', { userId, error: String(syncErr) });
       }
@@ -190,12 +835,13 @@ router.get('/status', requireAuth, async (req, res, next) => {
     res.json({
       success: true,
       data: {
-        kycStatus, // "verified" | "pending" | "failed"
+        kycStatus,
         isVerified,
         confirmationMessage: isVerified
           ? "Your KYC verification is active and verified with Vobiz."
-          : "Your KYC verification is being processed and typically takes up to 24 hours. We'll notify you once it's complete.",
-        numbers
+          : "Your KYC verification is being processed. We'll notify you once it's complete.",
+        numbers,
+        documents: docs,
       }
     });
   } catch (err) {
@@ -206,9 +852,6 @@ router.get('/status', requireAuth, async (req, res, next) => {
 
 /**
  * POST /api/v2/kyc/webhook/vobiz
- * 
- * Webhook endpoint registered with Vobiz to receive asynchronous KYC status updates.
- * Updates phoneNumber.kycStatus & VobizSubAccount.kycStatus in DB, and notifies user via email.
  */
 router.post('/webhook/vobiz', verifyVobizWebhook, async (req, res, next) => {
   try {
@@ -235,7 +878,6 @@ router.post('/webhook/vobiz', verifyVobizWebhook, async (req, res, next) => {
       if (subAccount) {
         targetUserId = subAccount.userId;
 
-        // Prevent downgrade of an already-verified account
         if (subAccount.kycStatus === 'verified' && normalizedStatus !== 'verified') {
           logger.info('KYC Webhook: Ignoring non-verified update for already-verified sub-account to prevent downgrade', {
             subAccountId: subAccount.id,
@@ -250,7 +892,6 @@ router.post('/webhook/vobiz', verifyVobizWebhook, async (req, res, next) => {
               kycVerifiedAt: normalizedStatus === 'verified' ? new Date() : (normalizedStatus === 'failed' ? null : subAccount.kycVerifiedAt),
             }
           });
-          // Update KYC-required phone numbers
           await prisma.phoneNumber.updateMany({
             where: { userId: subAccount.userId, aadhaarRequired: true },
             data: { kycStatus: normalizedStatus }
@@ -290,11 +931,8 @@ router.post('/webhook/vobiz', verifyVobizWebhook, async (req, res, next) => {
     }
 
     if (targetUserId) {
-      // Evaluate number auto-activation rule:
-      // Number becomes active when (KYC verified OR number does not require KYC) AND walletFundedAt is set
       await PhoneNumberActivationService.evaluateAndActivateUserNumbers(targetUserId, 'kyc_webhook');
 
-      // Send email notifications ONLY on final state transitions (verified or failed), never on pending
       if (normalizedStatus === 'verified' || normalizedStatus === 'failed') {
         await notifyUserKycStatus(targetUserId, normalizedStatus, reason);
       }

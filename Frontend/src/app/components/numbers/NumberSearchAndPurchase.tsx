@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Loader2, AlertCircle, CheckCircle2,
-  Phone, Globe, ShieldAlert, Info, ChevronDown, UserCheck, Sparkles,
+  Phone, Globe, ShieldAlert, ShieldCheck, Info, ChevronDown, UserCheck, Sparkles,
   ArrowLeft, Check, SlidersHorizontal, Lock
 } from 'lucide-react';
 import { formatCurrency } from '../../../lib/formatCurrency';
@@ -50,9 +50,10 @@ function CapabilityBadge({ label, active }: { label: string; active?: boolean })
 
 interface NumberSearchAndPurchaseProps {
   onBack?: () => void;
+  onNavigateToKyc?: () => void;
 }
 
-export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps = {}) {
+export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearchAndPurchaseProps = {}) {
   const getRuntimeUrl = () => API_BASE;
 
   // Locked State
@@ -63,9 +64,7 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
   // KYC Verification State
   const [accountKycStatus, setAccountKycStatus] = useState<string>('none');
   const [isKycVerified, setIsKycVerified] = useState<boolean>(false);
-  const [showKycModal, setShowKycModal] = useState<boolean>(false);
-  const [kycInitiating, setKycInitiating] = useState<boolean>(false);
-  const [kycRedirectUrl, setKycRedirectUrl] = useState<string | null>(null);
+  const [isKycBlocked, setIsKycBlocked] = useState<boolean>(false);
 
   // Filters
   const [selectedCountry, setSelectedCountry] = useState('IN');
@@ -208,31 +207,13 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
     }
   }, [selectedCountry, selectedType, numberLocked, handleSearch]);
 
-  const handleTriggerKyc = async () => {
-    if (kycInitiating) return;
-    setKycInitiating(true);
-    try {
-      const apiBase = getRuntimeUrl();
-      const res = await fetch(`${apiBase}/api/v2/kyc/initiate-session`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-        },
-        body: JSON.stringify({}),
-      });
-      const data = await res.json();
-      if (data.success && data.data?.redirectUrl) {
-        setKycRedirectUrl(data.data.redirectUrl);
-        window.open(data.data.redirectUrl, '_blank');
-        setShowKycModal(true);
-      } else {
-        alert(data.error || 'Failed to initiate KYC session.');
-      }
-    } catch (err: any) {
-      alert(err.message || 'KYC Error');
-    } finally {
-      setKycInitiating(false);
+  const handleTriggerKyc = () => {
+    if (onNavigateToKyc) {
+      onNavigateToKyc();
+    } else {
+      localStorage.setItem('open_settings_tab', 'kyc');
+      window.location.hash = 'kyc';
+      window.dispatchEvent(new CustomEvent('navigate_section', { detail: 'settings' }));
     }
   };
 
@@ -240,6 +221,7 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
     if (!selectedNumber || !confirmedWarning) return;
 
     setError(null);
+    setIsKycBlocked(false);
     setPurchasing(true);
 
     try {
@@ -261,6 +243,9 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
 
       if (!data.success) {
         setError(data.error || 'Failed to claim phone number.');
+        if (data.kycRequired || (data.error && data.error.toLowerCase().includes('kyc'))) {
+          setIsKycBlocked(true);
+        }
         if (data.numberLocked) {
           setNumberLocked(true);
         }
@@ -386,11 +371,21 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
 
           {/* Error Banner */}
           {error && (
-            <div className="mb-6 p-4 rounded-2xl flex items-start gap-3 border bg-red-50 text-red-700 border-red-100">
-              <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-red-500" />
-              <div>
+            <div className="mb-6 p-4 rounded-2xl flex flex-col gap-2 border bg-red-50 text-red-700 border-red-100">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-red-500" />
                 <p className="text-sm font-semibold">{error}</p>
               </div>
+              {(isKycBlocked || error.toLowerCase().includes('kyc')) && (
+                <div className="pt-2 pl-8">
+                  <button
+                    onClick={handleTriggerKyc}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <ShieldCheck className="w-4 h-4" /> Complete KYC & Compliance in Settings →
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -546,53 +541,31 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
             </div>
             <button
               onClick={handleTriggerKyc}
-              disabled={kycInitiating}
               className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
             >
-              {kycInitiating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldAlert className="w-4 h-4" />}
-              Complete KYC Verification
+              <ShieldAlert className="w-4 h-4" />
+              Complete KYC in Settings
             </button>
-          </div>
-        )}
-
-        {/* KYC Verification Pending Modal */}
-        {showKycModal && (
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-6 text-center">
-              <div className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
-                <ShieldAlert className="w-8 h-8 text-emerald-600" />
-              </div>
-              <div>
-                <h3 className="text-xl font-extrabold text-gray-900">Vobiz Hosted KYC Session Initiated</h3>
-                <p className="text-xs text-gray-500 mt-2 leading-relaxed">
-                  Complete document verification in the opened Vobiz window. Once verified, you can self-serve claim any phone number requiring KYC.
-                </p>
-              </div>
-              {kycRedirectUrl && (
-                <a
-                  href={kycRedirectUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-block w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-2xl transition-all shadow-md text-center"
-                >
-                  Open Verification Portal →
-                </a>
-              )}
-              <button
-                onClick={() => { setShowKycModal(false); fetchKycStatus(); }}
-                className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-xs rounded-xl transition-all"
-              >
-                I've Completed Verification / Close
-              </button>
-            </div>
           </div>
         )}
 
         {/* Error Banner */}
         {error && (
-          <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3 text-red-700 text-sm font-semibold">
-            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-            <span>{error}</span>
+          <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex flex-col gap-2 text-red-700 text-sm font-semibold">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-red-500" />
+              <span>{error}</span>
+            </div>
+            {(isKycBlocked || error.toLowerCase().includes('kyc')) && (
+              <div className="pt-1 pl-8">
+                <button
+                  onClick={handleTriggerKyc}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer w-fit"
+                >
+                  <ShieldCheck className="w-4 h-4" /> Complete KYC & Compliance in Settings →
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -730,10 +703,9 @@ export function NumberSearchAndPurchase({ onBack }: NumberSearchAndPurchaseProps
                             {isAadhaar && !isKycVerified ? (
                               <button
                                 onClick={handleTriggerKyc}
-                                disabled={kycInitiating}
-                                className="px-4 py-2 rounded-full bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs transition-all shadow-sm flex items-center gap-1 ml-auto cursor-pointer"
+                                className="px-4 py-2 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition-all shadow-sm flex items-center gap-1 ml-auto cursor-pointer"
                               >
-                                <ShieldAlert className="w-3.5 h-3.5" /> {kycInitiating ? 'Starting...' : 'Complete KYC to Claim'}
+                                <ShieldAlert className="w-3.5 h-3.5" /> Complete KYC to Claim
                               </button>
                             ) : (
                               <button

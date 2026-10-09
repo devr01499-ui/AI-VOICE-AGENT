@@ -27,6 +27,37 @@ const requireActivePlan = async (req: any, res: any, next: any) => {
 };
 
 /**
+ * Checks that all required KycDocument records (PAN + GST) are verified for the user.
+ * Blocks number selection and purchasing before charging or locking if KYC is incomplete.
+ */
+export async function checkRequiredKycDocumentsVerified(userId: string): Promise<{ verified: boolean; missing: string[]; error?: string }> {
+  const docs = await prisma.kycDocument.findMany({
+    where: { userId },
+  });
+
+  const panDoc = docs.find((d) => d.documentType === 'pan');
+  const gstDoc = docs.find((d) => d.documentType === 'gst');
+
+  const missing: string[] = [];
+  if (!panDoc || panDoc.status !== 'verified') {
+    missing.push('PAN');
+  }
+  if (!gstDoc || gstDoc.status !== 'verified') {
+    missing.push('GST');
+  }
+
+  if (missing.length > 0) {
+    return {
+      verified: false,
+      missing,
+      error: `KYC verification required: ${missing.join(' and ')} document${missing.length > 1 ? 's' : ''} not verified. Please complete KYC & Compliance verification in Settings before selecting or claiming a phone number.`,
+    };
+  }
+
+  return { verified: true, missing: [] };
+}
+
+/**
  * GET /api/v2/numbers
  * Returns all active phone numbers provisioned to the current authenticated user's workspace.
  * Reads from our PhoneNumber table — no live Vobiz call needed.
@@ -91,6 +122,8 @@ router.get('/status', requireAuth, async (req, res, next) => {
       orderBy: { purchasedAt: 'desc' },
     });
 
+    const kycCheck = await checkRequiredKycDocumentsVerified(userId);
+
     res.json({
       success: true,
       data: {
@@ -99,7 +132,9 @@ router.get('/status', requireAuth, async (req, res, next) => {
         hasNumber: !!primaryNumber,
         number: primaryNumber ? primaryNumber.phoneNumber : null,
         numberStatus: primaryNumber ? primaryNumber.status : null,
-        kycStatus: primaryNumber ? primaryNumber.kycStatus : null,
+        kycStatus: primaryNumber ? primaryNumber.kycStatus : (kycCheck.verified ? 'verified' : 'pending'),
+        isKycVerified: kycCheck.verified,
+        missingKycDocuments: kycCheck.missing,
       }
     });
   } catch (err) {
@@ -255,6 +290,19 @@ router.get('/search', requireAuth, async (req, res, next) => {
 router.post('/create-order', requireAuth, requireEditor, requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
   const userId = (req as any).userId;
   try {
+    // Gate on KYC: check every required KycDocument is status: 'verified' before allowing order creation
+    const kycCheck = await checkRequiredKycDocumentsVerified(userId);
+    if (!kycCheck.verified) {
+      res.status(403).json({
+        success: false,
+        error: kycCheck.error,
+        kycRequired: true,
+        missing: kycCheck.missing,
+        actionUrl: '/settings',
+      });
+      return;
+    }
+
     const { baseCost = 0, setupFee = 0, currency = 'INR' } = req.body;
 
     logger.info('[NUMBERS_CREATE_ORDER] Creating Razorpay order', { userId, baseCost, setupFee, currency });
@@ -309,6 +357,19 @@ router.post('/purchase', requireAuth, requireEditor, requireActivePlan, sensitiv
     return;
   }
 
+  // Gate on KYC: check every required KycDocument is status: 'verified' before charging or locking
+  const kycCheck = await checkRequiredKycDocumentsVerified(userId);
+  if (!kycCheck.verified) {
+    res.status(403).json({
+      success: false,
+      error: kycCheck.error,
+      kycRequired: true,
+      missing: kycCheck.missing,
+      actionUrl: '/settings',
+    });
+    return;
+  }
+
   if (!vobizNumberId || expectedPrice === undefined || !orderId || !paymentId || !signature) {
     res.status(400).json({ success: false, error: 'Missing required purchase fields.' });
     return;
@@ -344,7 +405,27 @@ router.post('/purchase', requireAuth, requireEditor, requireActivePlan, sensitiv
     return;
   }
 
-  // Step 2: Attempt Vobiz purchase (idempotency key = orderId, tied to the payment)
+  // Step 2: Ensure Vobiz sub-account exists BEFORE number purchase (blocks on failure)
+  try {
+    const { VobizSubAccountService } = require('../services/VobizSubAccountService');
+    const subAccountService = new VobizSubAccountService();
+    const subAccount = await subAccountService.getOrCreateSubAccount(userId, user.email);
+    if (!subAccount || !subAccount.authId) {
+      throw new Error('Vobiz sub-account could not be created or retrieved.');
+    }
+  } catch (subErr: any) {
+    logger.error('[SUB_ACCOUNT_PROVISION_BLOCKING_ERROR] Failed to provision sub-account before purchase', {
+      userId,
+      error: String(subErr?.message || subErr),
+    });
+    res.status(502).json({
+      success: false,
+      error: 'Telephony sub-account provisioning failed prior to number purchase. Please contact support.',
+    });
+    return;
+  }
+
+  // Step 3: Attempt Vobiz purchase (idempotency key = orderId, tied to the payment)
   try {
     const phoneService = new VobizPhoneNumberService();
     const result = await phoneService.purchaseAndAssignNumber({
@@ -354,17 +435,6 @@ router.post('/purchase', requireAuth, requireEditor, requireActivePlan, sensitiv
       expectedPrice,
       agentId,
     });
-
-    // Step 3: Non-blocking automatic sub-account creation for user if not exists
-    try {
-      const { VobizSubAccountService } = require('../services/VobizSubAccountService');
-      const subAccountService = new VobizSubAccountService();
-      subAccountService.getOrCreateSubAccount(userId).catch((subErr: any) => {
-        logger.warn('[SUB_ACCOUNT_AUTO_PROVISION_WARN] Non-blocking sub-account creation warning', { userId, error: String(subErr) });
-      });
-    } catch (subAccountErr) {
-      logger.warn('[SUB_ACCOUNT_INIT_WARN] Could not initialize VobizSubAccountService', { userId, error: String(subAccountErr) });
-    }
 
     // Step 4: Lock number selection for user permanently
     await prisma.user.update({
@@ -485,6 +555,19 @@ router.post('/claim', requireAuth, requireEditor, requireActivePlan, sensitiveOp
     return;
   }
 
+  // Gate on KYC: check every required KycDocument is status: 'verified' before claiming or locking
+  const kycCheck = await checkRequiredKycDocumentsVerified(userId);
+  if (!kycCheck.verified) {
+    res.status(403).json({
+      success: false,
+      error: kycCheck.error,
+      kycRequired: true,
+      missing: kycCheck.missing,
+      actionUrl: '/settings',
+    });
+    return;
+  }
+
   const claimIdempotencyKey = `claim_${userId}_${vobizNumberId}`;
 
   // Idempotency check: Return existing record if already claimed
@@ -505,6 +588,26 @@ router.post('/claim', requireAuth, requireEditor, requireActivePlan, sensitiveOp
     return;
   }
 
+  // Move Vobiz sub-account creation to happen BEFORE number claim (blocks on failure)
+  try {
+    const { VobizSubAccountService } = require('../services/VobizSubAccountService');
+    const subAccountService = new VobizSubAccountService();
+    const subAccount = await subAccountService.getOrCreateSubAccount(userId, user.email);
+    if (!subAccount || !subAccount.authId) {
+      throw new Error('Vobiz sub-account could not be created or retrieved.');
+    }
+  } catch (subErr: any) {
+    logger.error('[SUB_ACCOUNT_PROVISION_BLOCKING_ERROR] Failed to provision sub-account before claim', {
+      userId,
+      error: String(subErr?.message || subErr),
+    });
+    res.status(502).json({
+      success: false,
+      error: 'Telephony sub-account provisioning failed prior to number claim. Please contact support.',
+    });
+    return;
+  }
+
   try {
     const phoneService = new VobizPhoneNumberService();
     const result = await phoneService.purchaseAndAssignNumber({
@@ -514,17 +617,6 @@ router.post('/claim', requireAuth, requireEditor, requireActivePlan, sensitiveOp
       expectedPrice: 0,
       agentId,
     });
-
-    // Auto-create/reuse Vobiz sub-account for user
-    try {
-      const { VobizSubAccountService } = require('../services/VobizSubAccountService');
-      const subAccountService = new VobizSubAccountService();
-      subAccountService.getOrCreateSubAccount(userId, user.email).catch((subErr: any) => {
-        logger.warn('[SUB_ACCOUNT_AUTO_PROVISION_WARN] Sub-account warning during claim', { userId, error: String(subErr) });
-      });
-    } catch (subAccountErr) {
-      logger.warn('[SUB_ACCOUNT_INIT_WARN] Could not initialize VobizSubAccountService during claim', { userId, error: String(subAccountErr) });
-    }
 
     // Flip numberLocked to true server-side
     await prisma.user.update({
