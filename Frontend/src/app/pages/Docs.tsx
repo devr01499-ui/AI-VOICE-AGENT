@@ -1,145 +1,243 @@
+import { useState } from "react";
 import { motion } from "motion/react";
-import { Check } from "lucide-react";
+import { Check, Copy, Terminal, Code2, Sparkles, ArrowRight, Webhook, Cpu, ShieldCheck } from "lucide-react";
 
 export default function Docs() {
-  const curlCode = `curl -X POST https://api.claritiy.com/v2/calls \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
+  const [activeLang, setActiveLang] = useState<"curl" | "node" | "python">("curl");
+  const [copiedSnippet, setCopiedSnippet] = useState<string | null>(null);
+
+  const handleCopy = (code: string, id: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedSnippet(id);
+    setTimeout(() => setCopiedSnippet(null), 2000);
+  };
+
+  const codeSnippets = {
+    curl: `curl -X POST https://api.claritiyvoice.com/api/v2/calls/outbound \\
+  -H "Authorization: Bearer claritiy_live_98a2..." \\
   -H "Content-Type: application/json" \\
   -d '{
-    "agentId": "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380d22",
+    "agentId": "tpl-1-receptionist",
     "phoneNumber": "+919876543210",
-    "languageMode": "hi",
-    "voiceId": "kore"
-  }'`;
+    "variables": {
+      "customerName": "Rahul Sharma",
+      "orderId": "ORD-9912",
+      "amount": 2499
+    }
+  }'`,
+    node: `import axios from 'axios';
+
+const response = await axios.post(
+  'https://api.claritiyvoice.com/api/v2/calls/outbound',
+  {
+    agentId: 'tpl-1-receptionist',
+    phoneNumber: '+919876543210',
+    variables: {
+      customerName: 'Rahul Sharma',
+      orderId: 'ORD-9912',
+      amount: 2499
+    }
+  },
+  {
+    headers: {
+      'Authorization': 'Bearer ' + process.env.CLARITIY_API_KEY,
+      'Content-Type': 'application/json'
+    }
+  }
+);
+
+console.log('Call Session Queued:', response.data.data.callId);`,
+    python: `import os
+import requests
+
+url = "https://api.claritiyvoice.com/api/v2/calls/outbound"
+headers = {
+    "Authorization": f"Bearer {os.getenv('CLARITIY_API_KEY')}",
+    "Content-Type": "application/json"
+}
+payload = {
+    "agentId": "tpl-1-receptionist",
+    "phoneNumber": "+919876543210",
+    "variables": {
+        "customerName": "Rahul Sharma",
+        "orderId": "ORD-9912",
+        "amount": 2499
+    }
+}
+
+response = requests.post(url, json=payload, headers=headers)
+print("Call Queued:", response.json()["data"]["callId"])`
+  };
 
   const responseJson = `{
-  "status": "queued",
-  "callId": "call_f9048a12bc",
-  "timestamp": "2026-07-21T16:21:00Z"
+  "success": true,
+  "data": {
+    "callId": "call_98a21f8b1",
+    "status": "queued",
+    "recipient": "+919876543210",
+    "latencyQueueMs": 28,
+    "timestamp": "2026-10-09T18:24:00Z"
+  }
 }`;
 
   return (
-    <div className="pb-32 pt-32 text-ink text-left max-w-4xl mx-auto px-6 bg-cream-bg min-h-screen">
-      <section className="text-center space-y-6 mb-16">
-        <h1 className="text-display text-ink">
-          API &amp; Webhook Reference
+    <div className="pb-32 pt-28 text-[#0D1117] max-w-5xl mx-auto px-6 bg-[#FFFDF9] min-h-screen font-plus-jakarta">
+      {/* ── Header ──────────────────────────────────────────────────────── */}
+      <section className="text-center space-y-4 mb-16">
+        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-mono font-bold tracking-wider uppercase">
+          <Terminal className="w-3.5 h-3.5 text-emerald-600" />
+          DEVELOPER API & WEBHOOK REFERENCE
+        </span>
+        <h1 className="text-4xl md:text-5xl font-extrabold text-[#0D1117] tracking-tight" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+          REST APIs & Webhook Subscriptions
         </h1>
-        <p className="text-body text-ink-muted max-w-xl mx-auto">
-          Trigger voice agent sessions programmatically from checkout flows, CRM hooks, or operational dispatch logs.
+        <p className="text-slate-500 text-base md:text-lg max-w-2xl mx-auto leading-relaxed">
+          Trigger voice agent sessions programmatically from checkout flows, CRM automation hooks, or operational dispatch logs in under 5 lines of code.
         </p>
       </section>
 
-      <motion.div 
-        initial={{ opacity: 0, y: 15 }} 
-        animate={{ opacity: 1, y: 0 }} 
-        transition={{ duration: 0.5 }}
-        className="space-y-12"
-      >
-        <div className="space-y-4">
-          <h2 className="text-h2 text-ink">Initiate Outbound Call</h2>
-          <p className="text-body text-ink-muted">
-            Send a <code>POST</code> request to enqueue a full duplex outbound call session.
-          </p>
-        </div>
-
-        {/* Code Blocks */}
-        <div className="space-y-8">
-          <div className="bg-forest-deep border border-forest-mid rounded-md p-6 font-mono text-small text-mint-primary overflow-x-auto relative shadow-level-2">
-            <p className="text-caption font-bold mb-4 uppercase tracking-wider text-surface-white">Request Header &amp; Payload</p>
-            <pre className="whitespace-pre">{curlCode}</pre>
-          </div>
-
-          <div className="bg-forest-deep border border-forest-mid rounded-md p-6 font-mono text-small text-success overflow-x-auto relative shadow-level-2">
-            <p className="text-caption font-bold mb-4 uppercase tracking-wider text-surface-white">Queue Success Response</p>
-            <pre className="whitespace-pre">{responseJson}</pre>
-          </div>
-        </div>
-
-        {/* Integrations Section */}
-        <div className="pt-20">
-          <h2 className="text-h2 text-ink mb-8 text-center">No-Code Integrations</h2>
-          <div className="space-y-6">
-            <div className="card-soft">
-              <h4 className="text-h3 text-ink mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#FF4F00] text-white font-bold text-lg">Z</span>
-                Zapier
-              </h4>
-              <p className="text-body text-ink-muted mb-4">You can easily trigger Claritiy Voice calls from any Zapier workflow using the <strong>Webhooks by Zapier</strong> app.</p>
-              <ol className="list-decimal pl-6 space-y-2 text-body text-ink-muted">
-                <li>In your Zap, add a <strong>Webhooks by Zapier</strong> action step.</li>
-                <li>Set the Event to <strong>Custom Request</strong> or <strong>POST</strong>.</li>
-                <li>Set the URL to <code className="bg-forest-deep/10 px-1 py-0.5 rounded text-forest-deep text-sm">https://api.claritiy.com/api/v2/calls/outbound</code>.</li>
-                <li>Set the Payload Type to <strong>json</strong>.</li>
-                <li>Under Data, add <code className="text-sm bg-forest-deep/10 px-1 py-0.5 rounded">agentId</code> and <code className="text-sm bg-forest-deep/10 px-1 py-0.5 rounded">phoneNumber</code> (mapped from your previous steps).</li>
-                <li>Under Headers, add a key named <code className="text-sm bg-forest-deep/10 px-1 py-0.5 rounded">Authorization</code> and set the value to <code className="text-sm bg-forest-deep/10 px-1 py-0.5 rounded">Bearer YOUR_API_KEY</code>.</li>
-              </ol>
-            </div>
-
-            <div className="card-soft">
-              <h4 className="text-h3 text-ink mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#8B237C] text-white font-bold text-lg">M</span>
-                Make (Integromat)
-              </h4>
-              <p className="text-body text-ink-muted mb-4">Use the <strong>HTTP</strong> module in Make to initiate calls from your scenarios.</p>
-              <ol className="list-decimal pl-6 space-y-2 text-body text-ink-muted">
-                <li>Add the <strong>HTTP &gt; Make a request</strong> module.</li>
-                <li>URL: <code className="bg-forest-deep/10 px-1 py-0.5 rounded text-forest-deep text-sm">https://api.claritiy.com/api/v2/calls/outbound</code></li>
-                <li>Method: <strong>POST</strong></li>
-                <li>Headers: Key <code className="text-sm bg-forest-deep/10 px-1 py-0.5 rounded">Authorization</code>, Value <code className="text-sm bg-forest-deep/10 px-1 py-0.5 rounded">Bearer YOUR_API_KEY</code></li>
-                <li>Body type: <strong>Raw</strong></li>
-                <li>Content type: <strong>JSON (application/json)</strong></li>
-                <li>Request content: Enter your JSON payload mapping <code className="text-sm bg-forest-deep/10 px-1 py-0.5 rounded">{"{"}"agentId": "...", "phoneNumber": "..."{"}"}</code>.</li>
-              </ol>
-            </div>
-
-            <div className="card-soft">
-              <h4 className="text-h3 text-ink mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#EA4335] text-white font-bold text-lg">n</span>
-                n8n
-              </h4>
-              <p className="text-body text-ink-muted mb-4">In n8n, use the <strong>HTTP Request</strong> node to connect to the Claritiy API.</p>
-              <ol className="list-decimal pl-6 space-y-2 text-body text-ink-muted">
-                <li>Add an <strong>HTTP Request</strong> node.</li>
-                <li>Method: <strong>POST</strong></li>
-                <li>URL: <code className="bg-forest-deep/10 px-1 py-0.5 rounded text-forest-deep text-sm">https://api.claritiy.com/api/v2/calls/outbound</code></li>
-                <li>Authentication: <strong>Header Auth</strong></li>
-                <li>Create a new credential: Name it "Claritiy Voice", set Header to <code className="text-sm bg-forest-deep/10 px-1 py-0.5 rounded">Authorization</code>, Value to <code className="text-sm bg-forest-deep/10 px-1 py-0.5 rounded">Bearer YOUR_API_KEY</code>.</li>
-                <li>Send Body: <strong>true</strong>, Body Content Type: <strong>JSON</strong></li>
-                <li>Specify Body: Add <code className="text-sm bg-forest-deep/10 px-1 py-0.5 rounded">agentId</code> and <code className="text-sm bg-forest-deep/10 px-1 py-0.5 rounded">phoneNumber</code> as parameters.</li>
-              </ol>
-            </div>
-          </div>
-        </div>
-        
-        {/* FAQ Section */}
-        <div className="pt-20">
-          <h2 className="text-h2 text-ink mb-8 text-center">Frequently Asked Questions</h2>
-          <div className="space-y-6">
-            {[
-              {
-                q: "How does Claritiy Voice reduce COD RTO?",
-                a: "Claritiy Voice places an automated confirmation call to every cash-on-delivery customer before their order is dispatched, verifying the order details and delivery address. This catches wrong numbers, changed minds, and unclear addresses before a courier is sent, which directly reduces return-to-origin (RTO) and failed delivery costs."
-              },
-              {
-                q: "Do I need to hire a calling team to confirm COD orders?",
-                a: "No. Claritiy Voice replaces or scales alongside a manual calling team with AI voice agents that call every order automatically, at any volume, without additional hiring."
-              },
-              {
-                q: "What languages does Claritiy Voice support for COD confirmation calls?",
-                a: "Claritiy Voice supports English and Hindi today, with additional Indian languages including Bengali, Kannada, Malayalam, and Gujarati, plus Mandarin and Arabic for international sellers."
-              }
-            ].map((faq, idx) => (
-              <div key={idx} className="card-soft">
-                <h4 className="text-h3 text-ink mb-2 flex items-start gap-3">
-                  <Check className="w-5 h-5 text-mint-primary flex-shrink-0 mt-1" />
-                  {faq.q}
-                </h4>
-                <p className="text-body text-ink-muted pl-8">{faq.a}</p>
+      <div className="space-y-12">
+        {/* ── Section: Outbound Call Placement ────────────────────────────── */}
+        <div className="bg-white rounded-3xl p-8 border border-[#E8E2D9] shadow-sm space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+            <div>
+              <div className="flex items-center gap-2.5">
+                <span className="px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-800 font-mono text-xs font-bold">
+                  POST
+                </span>
+                <span className="font-mono text-sm font-bold text-slate-800">
+                  /api/v2/calls/outbound
+                </span>
               </div>
-            ))}
+              <p className="text-xs text-slate-500 mt-1">
+                Initiate a full-duplex outbound telephony session targeting an E.164 phone number.
+              </p>
+            </div>
+
+            {/* Language Selector */}
+            <div className="flex items-center gap-1 bg-[#FAF8F5] p-1 rounded-xl border border-[#E8E2D9]">
+              {(["curl", "node", "python"] as const).map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => setActiveLang(lang)}
+                  className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all ${
+                    activeLang === lang
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "text-slate-500 hover:text-slate-900"
+                  }`}
+                >
+                  {lang === "curl" ? "cURL" : lang === "node" ? "Node.js" : "Python"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Code Box with Copy Button */}
+          <div className="relative bg-slate-900 rounded-2xl p-5 border border-slate-800 font-mono text-xs text-emerald-400 overflow-x-auto shadow-inner">
+            <button
+              onClick={() => handleCopy(codeSnippets[activeLang], "req")}
+              className="absolute right-4 top-4 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono transition-colors flex items-center gap-1.5 border border-slate-700"
+            >
+              {copiedSnippet === "req" ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedSnippet === "req" ? "Copied" : "Copy"}</span>
+            </button>
+            <pre className="leading-relaxed">{codeSnippets[activeLang]}</pre>
+          </div>
+
+          {/* Success Response */}
+          <div className="space-y-2">
+            <span className="text-xs font-mono font-bold text-slate-500 uppercase tracking-wider block">
+              QUEUE SUCCESS RESPONSE (200 OK)
+            </span>
+            <div className="bg-slate-950 rounded-2xl p-4 border border-slate-800 font-mono text-xs text-emerald-300 overflow-x-auto">
+              <pre className="leading-relaxed">{responseJson}</pre>
+            </div>
           </div>
         </div>
-      </motion.div>
+
+        {/* ── Section: Post-Call Disposition Webhook ──────────────────────── */}
+        <div className="bg-white rounded-3xl p-8 border border-[#E8E2D9] shadow-sm space-y-6">
+          <div className="space-y-1 border-b border-slate-100 pb-5">
+            <div className="flex items-center gap-2.5">
+              <span className="px-2.5 py-1 rounded-md bg-amber-100 text-amber-800 font-mono text-xs font-bold">
+                WEBHOOK
+              </span>
+              <span className="font-mono text-sm font-bold text-slate-800">
+                call.completed
+              </span>
+            </div>
+            <p className="text-xs text-slate-500">
+              Dispatched to your registered webhook URL upon call termination with full audit telemetry.
+            </p>
+          </div>
+
+          <div className="bg-slate-900 rounded-2xl p-5 border border-slate-800 font-mono text-xs text-slate-300 overflow-x-auto shadow-inner">
+            <pre className="leading-relaxed">{`// Received by your webhook receiver
+POST /your-endpoint/call-disposition
+Headers: {
+  "x-claritiy-signature": "sha256=9f821a...",
+  "Content-Type": "application/json"
+}
+Body: {
+  "event": "call.completed",
+  "callId": "call_98a21f8b1",
+  "agentId": "tpl-1-receptionist",
+  "durationSeconds": 72,
+  "disposition": "VERIFIED_CONFIRMED",
+  "sentiment": "POSITIVE",
+  "transcript": "Buyer verified delivery [REDACTED_ADDRESS].",
+  "customData": {
+    "orderId": "ORD-9912",
+    "landmarkAdded": "Near Gate 2"
+  }
+}`}</pre>
+          </div>
+        </div>
+
+        {/* ── Section: No-Code Automation Connectors ──────────────────────── */}
+        <div className="space-y-6">
+          <div className="text-center max-w-2xl mx-auto space-y-2">
+            <h2 className="text-2xl md:text-3xl font-bold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+              No-Code Connectors & Integrations
+            </h2>
+            <p className="text-slate-500 text-xs md:text-sm">
+              Connect Claritiy Voice to your existing marketing, e-commerce, and CRM platforms with zero custom code.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white p-6 rounded-2xl border border-[#E8E2D9] shadow-sm space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-[#FF4F00] text-white flex items-center justify-center font-bold text-lg">
+                Z
+              </div>
+              <h3 className="font-bold text-base text-slate-900">Zapier Webhooks</h3>
+              <p className="text-xs text-slate-500 leading-relaxed font-plus-jakarta">
+                Trigger outbound verification calls directly when a new lead enters HubSpot, Facebook Lead Ads, or Google Sheets.
+              </p>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl border border-[#E8E2D9] shadow-sm space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-[#8B237C] text-white flex items-center justify-center font-bold text-lg">
+                M
+              </div>
+              <h3 className="font-bold text-base text-slate-900">Make (Integromat)</h3>
+              <p className="text-xs text-slate-500 leading-relaxed font-plus-jakarta">
+                Use the HTTP module to enqueue calls, parse returned appointment slots, and update Google Calendar automatically.
+              </p>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl border border-[#E8E2D9] shadow-sm space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-[#96BF48] text-white flex items-center justify-center font-bold text-lg">
+                S
+              </div>
+              <h3 className="font-bold text-base text-slate-900">Shopify Webhooks</h3>
+              <p className="text-xs text-slate-500 leading-relaxed font-plus-jakarta">
+                Subscribe to <code>orders/create</code> events to trigger Cash-on-Delivery confirmation calls within 60 seconds of checkout.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

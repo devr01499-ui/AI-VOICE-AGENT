@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { Check, ArrowRight, ShieldCheck, Zap, Loader2, Sparkles, Sliders, DollarSign, Eye, Code2, Lock } from "lucide-react";
+import { Check, ArrowRight, ShieldCheck, Zap, Loader2, Sparkles, Sliders, DollarSign, Lock, HelpCircle, PhoneCall } from "lucide-react";
 import RoiCalculator from "../components/calculator/RoiCalculator";
 import { API_BASE } from "../api";
 import { supabase } from "../lib/supabaseClient";
@@ -51,11 +51,11 @@ function UsageCostEstimatorSlider() {
             <Sliders className="w-4 h-4" /> INTERACTIVE USAGE ESTIMATOR
           </div>
           <h3 className="text-2xl font-bold text-white" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-            Estimate Your Monthly Calling Investment
+            Estimate Your Monthly Calling Investment & Savings
           </h3>
         </div>
         <div className="px-4 py-2 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded-xl font-mono text-xs font-bold">
-          FLAT RATE: ₹3.99/MIN (BUNDLED AT ₹2.99/MIN)
+          PAY-AS-YOU-GO: ₹3.99/MIN (BUNDLED AT ₹2.99/MIN)
         </div>
       </div>
 
@@ -110,7 +110,6 @@ function UsageCostEstimatorSlider() {
 
 export default function Pricing({ setPage, isDashboard }: PricingProps) {
   const [purchasingPlan, setPurchasingPlan] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"non-tech" | "tech">("non-tech");
 
   const waitForRazorpay = () => {
     return new Promise((resolve) => {
@@ -185,67 +184,70 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
       }
 
       const options = {
-        key: (import.meta as any).env?.VITE_RAZORPAY_KEY_ID,
+        key: orderData.data.keyId,
         amount: orderData.data.amount,
-        currency: orderData.data.currency,
+        currency: orderData.data.currency || 'INR',
         name: 'Claritiy Voice',
-        description: `${planName} Plan`,
-        order_id: orderData.data.id,
-        prefill: { email: profileEmail },
+        description: `${planName} Plan Subscription`,
+        order_id: orderData.data.orderId,
+        prefill: {
+          email: profileEmail || '',
+        },
+        theme: {
+          color: '#059669',
+        },
         handler: async function (response: any) {
           try {
-            const verifyRes = await fetch(`${API_BASE}/api/v2/billing/verify-plan`, {
+            const verifyRes = await fetch(`${API_BASE}/api/v2/billing/verify-plan-payment`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'Authorization': `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('token') : ''}`,
               },
               body: JSON.stringify({
-                plan: planName,
-                email: response.razorpay_customer_email || profileEmail,
-                orderId: response.razorpay_order_id,
-                paymentId: response.razorpay_payment_id,
-                signature: response.razorpay_signature,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                planName,
               })
             });
             const verifyData = await verifyRes.json();
             if (verifyData.success) {
-              alert(`Success! You have purchased the ${planName} Plan. Select your 1 free bundled phone number now.`);
-              if (setPage) {
-                setPage("numbers_buy");
-              } else {
-                window.location.href = "/dashboard/numbers/buy";
-              }
+              alert(`Success! Your account has been upgraded to the ${planName} Plan.`);
+              if (setPage) setPage('dashboard');
+              else window.location.reload();
             } else {
-              alert(verifyData.error || 'Verification failed.');
-              setPurchasingPlan(null);
+              alert('Payment verification failed: ' + (verifyData.error || 'Unknown error'));
             }
-          } catch (verifyErr: any) {
-             alert(verifyErr.message || 'Verification error');
-             setPurchasingPlan(null);
-          }
-        },
-        modal: {
-          ondismiss: function() {
+          } catch (err: any) {
+            alert('Error verifying payment: ' + err.message);
+          } finally {
             setPurchasingPlan(null);
           }
         },
-        theme: { color: '#059669' }
+        modal: {
+          ondismiss: function () {
+            setPurchasingPlan(null);
+          }
+        }
       };
 
-      const paymentObject = new window.Razorpay(options);
-      paymentObject.open();
-
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Provisioning failed');
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (response: any) {
+        alert('Payment failed: ' + (response.error.description || 'Unknown reason'));
+        setPurchasingPlan(null);
+      });
+      rzp.open();
+    } catch (err: any) {
+      alert(err.message || 'Error initiating payment');
       setPurchasingPlan(null);
     }
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const pending = localStorage.getItem('pending_plan_purchase');
-    if (token && pending) {
+    const pending = typeof window !== 'undefined' ? localStorage.getItem('pending_plan_purchase') : null;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (pending && token) {
       try {
         const { planName, price } = JSON.parse(pending);
         localStorage.removeItem('pending_plan_purchase');
@@ -257,18 +259,18 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
   }, []);
 
   return (
-    <div className={`${isDashboard ? "space-y-12 pb-12 pt-4 bg-transparent" : "space-y-24 pb-32 pt-28 bg-[#FFFDF9] min-h-screen relative"}`}>
+    <div className={`${isDashboard ? "space-y-12 pb-12 pt-4 bg-transparent font-plus-jakarta" : "space-y-24 pb-32 pt-28 bg-[#FFFDF9] min-h-screen relative font-plus-jakarta"}`}>
       {!isDashboard && <GeometricGridBackground />}
 
       {!isDashboard && (
         <section className="px-6 max-w-5xl mx-auto text-center space-y-6 relative z-10">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-mono font-bold tracking-wider uppercase">
-            <Sparkles className="w-3.5 h-3.5" />
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-mono font-bold tracking-wider uppercase shadow-sm">
+            <Sparkles className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
             TRANSPARENT ENTERPRISE PRICING
           </div>
 
           <motion.h1 
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 25 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-4xl md:text-6xl font-extrabold text-slate-900 tracking-tight leading-tight"
             style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}
@@ -277,39 +279,13 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
           </motion.h1>
 
           <motion.p 
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 25 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
             className="text-slate-600 text-lg md:text-xl max-w-3xl mx-auto font-plus-jakarta leading-relaxed"
           >
             One unified price per minute. No stacked line-item fees for speech recognition, LLM reasoning, or neural voice synthesis.
           </motion.p>
-
-          {/* View Perspective Switcher */}
-          <div className="pt-4 flex justify-center">
-            <div className="bg-slate-900 text-white p-1.5 rounded-2xl inline-flex items-center gap-2 border border-slate-800 shadow-xl">
-              <button
-                onClick={() => setViewMode("non-tech")}
-                className={`px-5 py-2.5 rounded-xl font-mono text-xs font-bold transition-all flex items-center gap-2 ${
-                  viewMode === "non-tech"
-                    ? "bg-emerald-500 text-black shadow-md"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                <Eye className="w-4 h-4" /> Non-Tech Business View
-              </button>
-              <button
-                onClick={() => setViewMode("tech")}
-                className={`px-5 py-2.5 rounded-xl font-mono text-xs font-bold transition-all flex items-center gap-2 ${
-                  viewMode === "tech"
-                    ? "bg-emerald-500 text-black shadow-md"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                <Code2 className="w-4 h-4" /> Tech Developer Specs
-              </button>
-            </div>
-          </div>
         </section>
       )}
 
@@ -320,129 +296,42 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
         </section>
       )}
 
-      {/* 5 Tier Pricing Cards */}
+      {/* ── 3 Main Plan Cards Grid ───────────────────────────────────────── */}
       <section className="px-6 max-w-7xl mx-auto relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-          
-          {/* Trial Plan */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-            className="bg-white border border-[#EADEC9] rounded-3xl p-8 flex flex-col justify-between shadow-lg hover:shadow-xl transition-all"
-          >
-            <div>
-              <h3 className="font-bold text-xl text-slate-900 mb-1" style={{ fontFamily: "'Clash Display', sans-serif" }}>Trial Plan</h3>
-              <p className="text-xs text-slate-500 mb-6 font-plus-jakarta">Test our platform & verify outbound line setup.</p>
-              <div className="mb-6">
-                <span className="text-4xl font-extrabold text-slate-900 font-mono">₹1</span>
-                <span className="text-xs text-slate-500 font-bold"> / once</span>
-                <p className="text-xs font-mono font-bold text-emerald-600 mt-1">Includes 20 Bundled Mins</p>
-              </div>
-              <ul className="space-y-3 mb-8 text-xs text-slate-700 font-semibold font-plus-jakarta">
-                {(viewMode === "non-tech" ? [
-                  '20 Bundled Call Minutes',
-                  'All Core Agent Features Included',
-                  'Real-Time Text Transcripts',
-                  'Instant Identity Verification'
-                ] : [
-                  '20 Bundled Call Minutes',
-                  'Max 2 Concurrent Channels',
-                  'Standard REST Webhooks',
-                  'E.164 Number Format Validation'
-                ]).map(f => (
-                  <li key={f} className="flex items-center gap-2.5">
-                    <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" /> <span>{f}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <button 
-              onClick={() => handlePurchase("Trial", 1)} 
-              disabled={purchasingPlan === "Trial"}
-              className="py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors w-full flex items-center justify-center gap-2"
-            >
-              {purchasingPlan === "Trial" ? <Loader2 className="w-4 h-4 animate-spin" /> : "Purchase Trial"}
-            </button>
-          </motion.div>
+        <div className="text-center max-w-3xl mx-auto mb-12 space-y-3">
+          <span className="text-xs font-mono font-bold text-emerald-700 uppercase tracking-widest">
+            PLANS & BUNDLED MINUTES
+          </span>
+          <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+            Choose The Capacity That Fits Your Operations
+          </h2>
+        </div>
 
-          {/* Starter Plan */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.18 }}
-            className="bg-white border border-[#EADEC9] rounded-3xl p-8 flex flex-col justify-between shadow-lg hover:shadow-xl transition-all"
-          >
-            <div>
-              <h3 className="font-bold text-xl text-slate-900 mb-1" style={{ fontFamily: "'Clash Display', sans-serif" }}>Starter Plan</h3>
-              <p className="text-xs text-slate-500 mb-6 font-plus-jakarta">Low-commitment entry plan for initial campaign rollout.</p>
-              <div className="mb-6">
-                <span className="text-4xl font-extrabold text-slate-900 font-mono">₹800</span>
-                <span className="text-xs text-slate-500 font-bold"> / month</span>
-                <p className="text-xs font-mono font-bold text-emerald-600 mt-1">500 Mins + 1 Free Phone Number</p>
-              </div>
-              <ul className="space-y-3 mb-8 text-xs text-slate-700 font-semibold font-plus-jakarta">
-                {(viewMode === "non-tech" ? [
-                  '500 Bundled Call Minutes (₹3.99/min after)',
-                  '1 Free Phone Number Included',
-                  '26+ HD Voice Personas',
-                  '70+ Languages & Dialects',
-                  'Standard Webhooks & CRM Sync',
-                  'Real-Time Transcripts'
-                ] : [
-                  '500 Bundled Call Mins (₹3.99/min overage)',
-                  '1 Dedicated Virtual Number',
-                  '5 Concurrent Call Channels',
-                  'REST Webhook Emitters (HMAC Signed)',
-                  'Custom RAG Knowledge Vectors (Up to 20MB)',
-                  'Full-Duplex VAD Interruption DSP'
-                ]).map(f => (
-                  <li key={f} className="flex items-center gap-2.5">
-                    <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" /> <span>{f}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <button 
-              onClick={() => handlePurchase("Starter", 800)} 
-              disabled={purchasingPlan === "Starter"}
-              className="py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors w-full flex items-center justify-center gap-2"
-            >
-              {purchasingPlan === "Starter" ? <Loader2 className="w-4 h-4 animate-spin" /> : "Purchase Starter Plan"}
-            </button>
-          </motion.div>
-          
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Startup Plan */}
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white border border-[#EADEC9] rounded-3xl p-8 flex flex-col justify-between shadow-lg hover:shadow-xl transition-all"
+            className="bg-white border border-[#E8E2D9] rounded-3xl p-8 flex flex-col justify-between shadow-sm hover:shadow-xl hover:border-slate-300 transition-all"
           >
             <div>
               <h3 className="font-bold text-xl text-slate-900 mb-1" style={{ fontFamily: "'Clash Display', sans-serif" }}>Startup Plan</h3>
-              <p className="text-xs text-slate-500 mb-6 font-plus-jakarta">Ideal for growing teams testing automated campaigns.</p>
+              <p className="text-xs text-slate-500 mb-6 font-plus-jakarta">For growing businesses testing AI voice automation.</p>
               <div className="mb-6">
                 <span className="text-4xl font-extrabold text-slate-900 font-mono">₹3,799</span>
                 <span className="text-xs text-slate-500 font-bold"> / month</span>
-                <p className="text-xs font-mono font-bold text-emerald-600 mt-1">750 Mins + 1 Free Phone Number</p>
+                <p className="text-xs font-mono font-bold text-emerald-700 mt-1">1,000 Bundled Mins (₹3.79/min effective)</p>
               </div>
               <ul className="space-y-3 mb-8 text-xs text-slate-700 font-semibold font-plus-jakarta">
-                {(viewMode === "non-tech" ? [
-                  '750 Bundled Call Minutes (₹3.99/min after)',
-                  '1 Free Phone Number Included',
-                  '26+ HD Voice Personas',
-                  '70+ Languages & Dialects',
-                  'Standard Webhooks & CRM Sync',
-                  'Real-Time Transcripts'
-                ] : [
-                  '750 Bundled Call Mins (₹3.99/min overage)',
-                  '1 Dedicated Virtual Number',
+                {[
+                  '1,000 Bundled Calling Minutes (₹3.79/min overage)',
+                  'Access to All 15 Pre-Built Templates',
+                  'Visual Flow Builder & Single Prompt Studio',
+                  'Standard Bidirectional Webhooks',
                   '10 Concurrent Call Channels',
-                  'REST Webhook Emitters (HMAC Signed)',
-                  'Custom RAG Knowledge Vectors (Up to 50MB)',
-                  'Full-Duplex VAD Interruption DSP'
-                ]).map(f => (
+                  'Email & Community Support'
+                ].map(f => (
                   <li key={f} className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" /> <span>{f}</span>
                   </li>
@@ -452,7 +341,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
             <button 
               onClick={() => handlePurchase("Startup", 3799)} 
               disabled={purchasingPlan === "Startup"}
-              className="py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors w-full flex items-center justify-center gap-2"
+              className="py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors w-full flex items-center justify-center gap-2 cursor-pointer shadow-sm"
             >
               {purchasingPlan === "Startup" ? <Loader2 className="w-4 h-4 animate-spin" /> : "Purchase Startup Plan"}
             </button>
@@ -460,38 +349,32 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
 
           {/* Growth Plan */}
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="bg-slate-900 text-white border border-slate-800 rounded-3xl p-8 flex flex-col justify-between relative shadow-2xl"
+            className="bg-slate-900 text-white border border-slate-800 rounded-3xl p-8 flex flex-col justify-between relative shadow-2xl ring-2 ring-emerald-500/20"
           >
-            <div className="absolute -top-3 right-6 bg-emerald-500 text-black text-[10px] font-mono font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">
+            <div className="absolute -top-3 right-6 bg-emerald-500 text-black text-[10px] font-mono font-extrabold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
               MOST POPULAR
             </div>
             <div>
               <h3 className="font-bold text-xl text-white mb-1" style={{ fontFamily: "'Clash Display', sans-serif" }}>Growth Plan</h3>
-              <p className="text-xs text-slate-400 mb-6 font-plus-jakarta">For high-volume operations scaling call volume.</p>
+              <p className="text-xs text-slate-400 mb-6 font-plus-jakarta">For high-volume operations scaling phone queues.</p>
               <div className="mb-6">
                 <span className="text-4xl font-extrabold text-white font-mono">₹10,799</span>
                 <span className="text-xs text-slate-400 font-bold"> / month</span>
-                <p className="text-xs font-mono font-bold text-emerald-400 mt-1">2,865 Mins + 1 Free Phone Number</p>
+                <p className="text-xs font-mono font-bold text-emerald-400 mt-1">2,865 Mins + 1 Free Phone Number Included</p>
               </div>
               <ul className="space-y-3 mb-8 text-xs text-slate-200 font-semibold font-plus-jakarta">
-                {(viewMode === "non-tech" ? [
-                  '2,865 Bundled Call Minutes (₹3.49/min after)',
-                  '1 Free Phone Number Included',
-                  'Everything in Startup',
-                  'Priority Telephony Routing',
-                  '1 Custom Voice Clone',
-                  'Sentiment Analytics & Scoring'
-                ] : [
+                {[
                   '2,865 Bundled Mins (₹3.49/min overage)',
+                  '1 Free Local / National Phone Number',
                   '50 Concurrent Call Channels',
-                  'Zero-Shot 5-Second Voice Cloning',
-                  'Priority Carrier SIP Routing',
-                  'Custom Dynamic Function Schemas',
-                  'Edge PII/PHI Redaction Pipeline'
-                ]).map(f => (
+                  '1 Custom Brand Voice Clone (Zero-Shot 5s)',
+                  'Priority SIP Carrier Routing',
+                  'Edge PII Pattern Redaction Pipeline',
+                  'Priority WhatsApp & Engineering Support'
+                ].map(f => (
                   <li key={f} className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" /> <span>{f}</span>
                   </li>
@@ -501,7 +384,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
             <button 
               onClick={() => handlePurchase("Growth", 10799)} 
               disabled={purchasingPlan === "Growth"}
-              className="py-3.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs rounded-xl transition-colors w-full flex items-center justify-center gap-2"
+              className="py-3.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs rounded-xl transition-colors w-full flex items-center justify-center gap-2 shadow-lg cursor-pointer"
             >
               {purchasingPlan === "Growth" ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -515,10 +398,10 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
 
           {/* Enterprise Plan */}
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="bg-white border border-[#EADEC9] rounded-3xl p-8 flex flex-col justify-between shadow-lg hover:shadow-xl transition-all"
+            className="bg-white border border-[#E8E2D9] rounded-3xl p-8 flex flex-col justify-between shadow-sm hover:shadow-xl hover:border-slate-300 transition-all"
           >
             <div>
               <h3 className="font-bold text-xl text-slate-900 mb-1" style={{ fontFamily: "'Clash Display', sans-serif" }}>Enterprise Plan</h3>
@@ -526,24 +409,17 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
               <div className="mb-6">
                 <span className="text-4xl font-extrabold text-slate-900 font-mono">₹30,799</span>
                 <span className="text-xs text-slate-500 font-bold"> / month</span>
-                <p className="text-xs font-mono font-bold text-emerald-600 mt-1">10,000 Mins + 1 Free Phone Number</p>
+                <p className="text-xs font-mono font-bold text-emerald-700 mt-1">10,000 Mins + 1 Free Phone Number Included</p>
               </div>
               <ul className="space-y-3 mb-8 text-xs text-slate-700 font-semibold font-plus-jakarta">
-                {(viewMode === "non-tech" ? [
-                  '10,000 Bundled Call Minutes (₹2.99/min after)',
-                  '1 Free Phone Number Included',
-                  'Everything in Growth',
-                  'Dedicated SIP IP Addresses',
-                  'MSME Registered Enterprise Verification',
-                  '99.99% Uptime SLA'
-                ] : [
+                {[
                   '10,000 Bundled Mins (₹2.99/min overage)',
                   '200+ Unlimited Concurrent Channels',
                   'Dedicated SIP IP Trunking & IP Whitelisting',
-                  'MSME Enterprise Certification & Audit Trail',
+                  'MSME Registered Enterprise Verification',
                   'Custom On-Prem / VPC Proxy Egress',
-                  '99.99% Guaranteed SLA Uptime'
-                ]).map(f => (
+                  'Dedicated Solutions Architect & 99.99% SLA'
+                ].map(f => (
                   <li key={f} className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" /> <span>{f}</span>
                   </li>
@@ -553,27 +429,27 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
             <button 
               onClick={() => handlePurchase("Enterprise", 30799)} 
               disabled={purchasingPlan === "Enterprise"}
-              className="py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors w-full flex items-center justify-center gap-2"
+              className="py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors w-full flex items-center justify-center gap-2 cursor-pointer shadow-sm"
             >
               {purchasingPlan === "Enterprise" ? <Loader2 className="w-4 h-4 animate-spin" /> : "Purchase Enterprise Plan"}
             </button>
           </motion.div>
-
         </div>
 
         {/* Custom Enterprise Banner */}
-        <div className="mt-12 bg-[#0B132B] text-white rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between shadow-xl border border-slate-800">
-          <div className="mb-6 md:mb-0 md:mr-8 text-center md:text-left">
+        <div className="mt-12 bg-[#0B132B] text-white rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between shadow-2xl border border-slate-800 relative overflow-hidden">
+          <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="mb-6 md:mb-0 md:mr-8 text-center md:text-left relative z-10">
             <h3 className="text-2xl font-bold mb-2" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-              Need a Custom Enterprise Deal or On-Premise Deployment?
+              Need a Custom Enterprise Contract or On-Premise Gateway?
             </h3>
             <p className="text-slate-300 text-sm font-plus-jakarta max-w-2xl">
-              For volume pricing, dedicated SIP trunks, or custom SLA contracts, our solution engineers can build a custom deployment package.
+              For volume discounts above 30,000 minutes, dedicated telecom SIP trunks, or custom SLA contracts, our solution engineers can build a tailored deployment package.
             </p>
           </div>
           <button 
             onClick={() => setPage ? setPage("contact") : window.location.href = "/contact"}
-            className="py-3.5 px-8 bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-sm rounded-xl transition-colors whitespace-nowrap"
+            className="py-3.5 px-8 bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-sm rounded-xl transition-colors whitespace-nowrap cursor-pointer shadow-md relative z-10"
           >
             Contact Sales Team
           </button>
@@ -590,13 +466,18 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
       {/* Flat-Rate Philosophy */}
       {!isDashboard && (
         <section className="px-6 max-w-5xl mx-auto relative z-10">
-          <div className="bg-white border border-[#EADEC9] rounded-3xl p-8 md:p-12 shadow-lg space-y-6">
-            <h2 className="text-3xl font-bold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-              Pay-As-You-Go Base Rate: Flat ₹3.99 / Minute
-            </h2>
-            <div className="text-slate-600 font-plus-jakarta text-base leading-relaxed space-y-4">
+          <div className="bg-white border border-[#E8E2D9] rounded-3xl p-8 md:p-12 shadow-sm space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700">
+                <DollarSign className="w-5 h-5" />
+              </div>
+              <h2 className="text-2xl md:text-3xl font-bold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+                Pay-As-You-Go Base Rate: Flat ₹3.99 / Minute
+              </h2>
+            </div>
+            <div className="text-slate-600 font-plus-jakarta text-sm md:text-base leading-relaxed space-y-4">
               <p>
-                If your call volume fluctuates seasonally, you can utilize our standalone Pay-As-You-Go rate at a flat <strong>₹3.99 per minute</strong>.
+                If your call volume fluctuates seasonally, you can utilize our standalone Pay-As-You-Go rate at a flat <strong>₹3.99 per minute</strong> with zero monthly platform fees.
               </p>
               <p>
                 Unlike multi-vendor chained stacks that charge separate line items for speech recognition, LLM tokens, and neural voices, Claritiy Voice unifies the entire stack into one predictable invoice. What you see is what you pay — zero unexpected surprise fees.
@@ -605,7 +486,6 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
           </div>
         </section>
       )}
-
     </div>
   );
 }

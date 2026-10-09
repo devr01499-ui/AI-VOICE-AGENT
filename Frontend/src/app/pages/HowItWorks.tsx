@@ -3,9 +3,9 @@ import React, { useState, useEffect } from "react";
 import { 
   Zap, Cpu, Database, ShieldCheck, ArrowRight, Activity, 
   Layers, CheckCircle2, ChevronRight, Sparkles, RefreshCw, Lock, Terminal,
-  Sliders, Eye, Code2, Headphones, Radio, Network, Server, FileCode, Check
+  Sliders, Code2, Headphones, Radio, Network, Server, FileCode, Check,
+  Volume2, PhoneCall, Mic, MessageSquare, Clock
 } from "lucide-react";
-import FeatureCapabilityGrid from "../components/showroom/FeatureCapabilityGrid";
 
 type Page = any;
 
@@ -35,10 +35,11 @@ function GeometricGridBackground() {
   );
 }
 
-// ── Interactive Pipeline Visualizer ──────────────────────────────────────────
-function ArchitecturePipelineCanvas({ viewMode }: { viewMode: "non-tech" | "tech" }) {
+// ── Interactive Pipeline Visualizer Component ──────────────────────────────────
+function ArchitecturePipelineCanvas() {
   const [activeStep, setActiveStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [inspectorTab, setInspectorTab] = useState<"outcome" | "protocol">("outcome");
 
   const pipelineSteps = [
     {
@@ -46,22 +47,17 @@ function ArchitecturePipelineCanvas({ viewMode }: { viewMode: "non-tech" | "tech
       stepNum: "01",
       name: "API & Webhook Trigger",
       badge: "Sub-50ms Queue",
-      nonTechDesc: "When a customer places a Cash on Delivery order on Shopify or books an appointment online, your system instantly sends a notification to Claritiy Voice to start a call within seconds.",
-      techDesc: "Incoming REST webhooks or SDK events pass through edge payload validation, generating an E.164 normalized session identifier and queueing worker execution within < 50ms.",
-      metrics: "Sub-50ms Trigger Queue",
-      nonTechDetails: [
-        "Automatic call trigger on order/booking",
-        "Validates buyer phone number format",
-        "Retries automatically if caller line is busy"
+      humanizedSummary: "When a customer completes checkout on Shopify or books a clinic consultation online, your software instantly triggers Claritiy Voice to place or route the call within seconds.",
+      techSummary: "Incoming REST webhooks or backend SDK events clear schema validation, standardize phone numbers into E.164 formats, and dispatch telephony workers with <50ms queue latency.",
+      keyMetrics: "< 50ms Trigger Latency",
+      businessHighlights: [
+        "Instant outbound calling within 60s of checkout or web inquiry",
+        "E.164 phone number formatting and regional route assignment",
+        "Automated exponential backoff retries for busy lines"
       ],
-      techDetails: [
-        "REST Webhook & Node/Python SDK Emitters",
-        "E.164 Phone Format Standardization",
-        "Exponential Backoff Retry Worker Queue"
-      ],
-      codeSnippet: `// Event Intake Webhook Payload
+      codeSnippet: `// Outbound Call Ingress Webhook
 POST /api/v2/calls/outbound
-Headers: { "x-api-key": "cv_live_99...", "Content-Type": "application/json" }
+Headers: { "Authorization": "Bearer cv_live_99...", "Content-Type": "application/json" }
 Body: {
   "agentId": "ag_8921_cod",
   "phoneNumber": "+919876543210",
@@ -73,22 +69,17 @@ Body: {
       stepNum: "02",
       name: "WebRTC Zero-Copy Audio",
       badge: "Sub-180ms Latency",
-      nonTechDesc: "The caller hears a natural human voice instantaneously with zero lag or awkward silence. If the customer interrupts mid-sentence, the AI stops talking immediately to listen.",
-      techDesc: "Full-duplex zero-copy UDP WebRTC streams bypass HTTP REST proxy overhead. Carrier SIP trunks connect straight to neural speech engines with 20ms VAD barge-in interception.",
-      metrics: "< 175ms Roundtrip Latency",
-      nonTechDetails: [
-        "Instant human-like voice responses",
-        "Listens while speaking (barge-in capability)",
-        "Handles noisy background phone environments"
+      humanizedSummary: "The caller hears a fluid, warm human voice with zero awkward silence. If the caller interrupts mid-sentence, the AI pauses in 20 milliseconds to listen with empathy.",
+      techSummary: "Full-duplex zero-copy UDP WebRTC streams bypass slow HTTP REST proxies. Telecom SIP trunks connect straight to neural speech engines with 20ms Voice Activity Detection (VAD) hardware interrupts.",
+      keyMetrics: "< 175ms Roundtrip Turn-Taking",
+      businessHighlights: [
+        "Indistinguishable from a polite human agent",
+        "Fluid barge-in interruption handling mid-sentence",
+        "Native noise suppression for noisy outdoor caller environments"
       ],
-      techDetails: [
-        "UDP RTP/SRTP Buffer Audio Streaming",
-        "Full-Duplex VAD Signal Interruption",
-        "Direct Carrier SIP Trunking Gateway"
-      ],
-      codeSnippet: `// WebRTC Audio Stream Spec
+      codeSnippet: `// WebRTC Audio Stream Specification
 Protocol: SRTP / UDP (RFC 3711)
-Codec: audio/x-l16; rate=16000 (16kHz PCM)
+Codec: audio/x-l16; rate=16000 (16kHz PCM L16)
 Jitter Buffer: Adaptive 8ms - 15ms
 VAD Threshold: -42dB (20ms speech window)`
     },
@@ -97,23 +88,19 @@ VAD Threshold: -42dB (20ms speech window)`
       stepNum: "03",
       name: "Multimodal RAG & Function Calling",
       badge: "100% Guardrails",
-      nonTechDesc: "The AI agent checks your business guidelines, answers exact questions about products or appointments, and updates your software during the call.",
-      techDesc: "Multimodal LLM reasoning executes dynamic JSON tool calls mid-dialogue, querying RAG micro-vector knowledge bases (<15ms HNSW vector lookup) with zero hallucinations.",
-      metrics: "100% Guardrail Compliance",
-      nonTechDetails: [
-        "Answers exact business FAQs accurately",
-        "Updates CRM/orders live during the call",
-        "Never guesses or makes up fake facts"
+      humanizedSummary: "The agent adheres strictly to your company guidelines, checks appointment availability or product stock in real time, and never hallucinates made-up facts.",
+      techSummary: "The engine queries localized HNSW vector databases in <15ms and executes dynamic JSON function schemas directly on your backend systems mid-call.",
+      keyMetrics: "15ms Micro-Vector RAG Retrieval",
+      businessHighlights: [
+        "Reads and writes directly to Shopify, Epic EHR, or CRM",
+        "Strict prompt boundaries eliminate hallucinations",
+        "Multi-turn context retention across long conversations"
       ],
-      techDetails: [
-        "HNSW Vector Knowledge Base Indexing",
-        "Dynamic JSON Function Schema Execution",
-        "Strict System Prompt Safety Boundary"
-      ],
-      codeSnippet: `// Live Function Execution Log
+      codeSnippet: `// Real-Time Tool Execution Log
+POST /api/v2/integrations/crm/confirm-address
 {
   "function": "confirm_delivery_address",
-  "params": { "orderId": "ORD-9912", "landmark": "Near Gate 2" },
+  "parameters": { "orderId": "ORD-9912", "landmark": "Near Gate 2" },
   "execution_time_ms": 38,
   "status": "SUCCESS"
 }`
@@ -122,27 +109,24 @@ VAD Threshold: -42dB (20ms speech window)`
       id: "disposition",
       stepNum: "04",
       name: "Edge Scrubbing & Sync",
-      badge: "MSME & DPDP Act",
-      nonTechDesc: "The instant the call ends, your team gets a text summary, sentiment report, and confirmation status in your dashboard and email.",
-      techDesc: "Post-call telemetry triggers edge-based PII redaction algorithms, calculating sentiment scores and posting unified JSON webhooks back to your core database.",
-      metrics: "Instant Webhook Sync",
-      nonTechDetails: [
-        "Instant call summaries & customer mood tag",
-        "Protects sensitive credit card & personal info",
-        "Updates your database automatically"
+      badge: "DPDP & MSME Compliant",
+      humanizedSummary: "The moment the call ends, your team receives a structured summary, sentiment tag, and updated order status in your dashboard, CRM, and SMS alerts.",
+      techSummary: "Edge telemetry redacts PII/PHI pattern data before saving audit transcripts. Signed HMAC webhooks post structured disposition payloads to your server instantly.",
+      keyMetrics: "Instant Signed Webhook Dispatch",
+      businessHighlights: [
+        "Structured call disposition (Confirmed, Rescheduled, Escalated)",
+        "Automated edge PII redaction for phone, card, and personal data",
+        "Immediate sync to your database, Slack, and email"
       ],
-      techDetails: [
-        "Edge Regex PII / PHI Redaction Engine",
-        "NLP Sentiment & Intent Scoring",
-        "Webhook Payload Post-Back with HMAC Sign"
-      ],
-      codeSnippet: `// Edge Redacted Post-Call Webhook
+      codeSnippet: `// Signed Post-Call Disposition Webhook
 POST /webhooks/call-disposition
-Payload: {
+Headers: { "x-signature-sha256": "hmac_8a92..." }
+Body: {
   "callId": "call_9812",
   "outcome": "CONFIRMED",
   "sentiment": "POSITIVE",
-  "transcript": "Customer confirmed address [REDACTED_ADDRESS]."
+  "durationSeconds": 84,
+  "transcript": "Buyer verified delivery [REDACTED_ADDRESS]."
 }`
     }
   ];
@@ -151,7 +135,7 @@ Payload: {
     if (!isPlaying) return;
     const interval = setInterval(() => {
       setActiveStep((prev) => (prev + 1) % pipelineSteps.length);
-    }, 4500);
+    }, 5500);
     return () => clearInterval(interval);
   }, [isPlaying, pipelineSteps.length]);
 
@@ -159,36 +143,33 @@ Payload: {
 
   return (
     <div className="bg-[#0B132B] text-white rounded-3xl p-6 md:p-10 shadow-2xl border border-slate-800 relative overflow-hidden">
-      {/* Ambient glowing geometric highlights */}
+      {/* Ambient background glows */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* Header bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-8 border-b border-slate-800/80">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-8 border-b border-slate-800/80 relative z-10">
         <div className="flex items-center gap-3">
           <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_12px_#34d399]" />
           <span className="font-mono text-xs font-bold tracking-wider text-emerald-400 uppercase">
-            LIVE MULTIMODAL PIPELINE ENGINE • {viewMode === "non-tech" ? "BUSINESS OVERVIEW" : "ENGINEERING SPECIFICATIONS"}
+            LIVE MULTIMODAL PIPELINE ENGINE • STAGE {current.stepNum} OF 04
           </span>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsPlaying(!isPlaying)}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 transition-colors flex items-center gap-2 border border-slate-700/60"
+            className="px-3.5 py-1.5 rounded-xl text-xs font-mono bg-slate-900 hover:bg-slate-800 text-slate-300 transition-colors flex items-center gap-2 border border-slate-700/60 cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isPlaying ? "animate-spin text-emerald-400" : ""}`} />
             {isPlaying ? "Auto-Advancing" : "Paused"}
           </button>
-          <span className="px-3.5 py-1.5 rounded-xl text-xs font-mono bg-emerald-950/80 text-emerald-400 border border-emerald-800/80 font-bold">
-            AVERAGE LATENCY: 174ms
-          </span>
         </div>
       </div>
 
-      {/* Step Buttons */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 my-8">
+      {/* 4 Steps Nav Selector */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 py-8 relative z-10">
         {pipelineSteps.map((s, idx) => {
-          const isActive = activeStep === idx;
+          const isActive = idx === activeStep;
           return (
             <button
               key={s.id}
@@ -196,7 +177,7 @@ Payload: {
                 setActiveStep(idx);
                 setIsPlaying(false);
               }}
-              className={`p-4 rounded-2xl border text-left transition-all relative overflow-hidden ${
+              className={`p-4 rounded-2xl border text-left transition-all relative overflow-hidden cursor-pointer ${
                 isActive
                   ? "bg-emerald-950/90 border-emerald-500 text-white shadow-[0_0_25px_rgba(5,150,105,0.3)]"
                   : "bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200"
@@ -211,7 +192,7 @@ Payload: {
               <p className="font-bold text-sm text-white truncate">{s.name}</p>
               {isActive && (
                 <motion.div
-                  layoutId="activeBar"
+                  layoutId="activePipelineBar"
                   className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-400"
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 />
@@ -221,18 +202,18 @@ Payload: {
         })}
       </div>
 
-      {/* Active Inspector Display */}
+      {/* Active Stage Inspector Canvas */}
       <AnimatePresence mode="wait">
         <motion.div
-          key={`${current.id}-${viewMode}`}
+          key={current.id}
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -15 }}
           transition={{ duration: 0.25 }}
-          className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center"
+          className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10"
         >
-          {/* Main Description Column */}
-          <div className="lg:col-span-7 space-y-4">
+          {/* Left Column: Humanized Context & Details */}
+          <div className="lg:col-span-7 space-y-5">
             <div className="flex items-center gap-3">
               <span className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center font-mono font-bold text-sm">
                 {current.stepNum}
@@ -242,68 +223,78 @@ Payload: {
               </h3>
             </div>
             
-            <p className="text-slate-300 text-sm leading-relaxed font-plus-jakarta">
-              {viewMode === "non-tech" ? current.nonTechDesc : current.techDesc}
+            <p className="text-slate-300 text-sm md:text-base leading-relaxed font-plus-jakarta">
+              {current.humanizedSummary}
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
-              {(viewMode === "non-tech" ? current.nonTechDetails : current.techDetails).map((d) => (
-                <div key={d} className="flex items-center gap-2 bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-300 font-mono">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                  <span className="truncate">{d}</span>
+            <div className="p-3.5 bg-slate-950/80 rounded-xl border border-slate-800/80 font-mono text-xs text-slate-400">
+              <span className="text-emerald-400 font-bold block mb-1">UNDER THE HOOD:</span>
+              {current.techSummary}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+              {current.businessHighlights.map((hl, i) => (
+                <div key={i} className="flex items-start gap-2 bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-xs text-slate-300 font-sans">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                  <span className="leading-tight">{hl}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Right Simulation & Code/Telemetry Inspector */}
-          <div className="lg:col-span-5 bg-slate-950 rounded-2xl p-6 border border-slate-800 flex flex-col justify-between h-full space-y-4">
-            {viewMode === "tech" ? (
-              <div className="space-y-3">
-                <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-                  <span className="text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
-                    <Code2 className="w-3.5 h-3.5" /> TECHNICAL SCHEMA
+          {/* Right Column: Interactive Inspector (Outcome vs Protocol) */}
+          <div className="lg:col-span-5 bg-slate-950 rounded-2xl p-6 border border-slate-800 flex flex-col justify-between space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800">
+                <button
+                  onClick={() => setInspectorTab("outcome")}
+                  className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all ${
+                    inspectorTab === "outcome"
+                      ? "bg-emerald-500 text-black shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Key Impact
+                </button>
+                <button
+                  onClick={() => setInspectorTab("protocol")}
+                  className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all ${
+                    inspectorTab === "protocol"
+                      ? "bg-emerald-500 text-black shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Event Payload
+                </button>
+              </div>
+              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
+                {current.badge}
+              </span>
+            </div>
+
+            {inspectorTab === "outcome" ? (
+              <div className="space-y-4 py-2">
+                <div>
+                  <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest block mb-1">
+                    BENCHMARK PERFORMANCE
                   </span>
-                  <span className="text-[10px] font-mono text-slate-400">JSON / PROTOCOL</span>
+                  <p className="font-mono text-2xl font-extrabold text-emerald-400">{current.keyMetrics}</p>
                 </div>
-                <pre className="text-slate-300 font-mono text-[11px] bg-slate-900 p-3 rounded-xl border border-slate-800 overflow-x-auto leading-relaxed max-h-40">
+                <p className="text-xs text-slate-400 leading-relaxed font-plus-jakarta">
+                  Tested and verified on high-density telecom trunks with zero audio packet loss and sub-20ms interrupt response times.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <pre className="text-slate-300 font-mono text-[11px] bg-slate-900 p-3 rounded-xl border border-slate-800 overflow-x-auto leading-relaxed max-h-48">
                   {current.codeSnippet}
                 </pre>
               </div>
-            ) : (
-              <div className="space-y-4">
-                <div>
-                  <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest block mb-1">
-                    KEY VALUE DELIVERED
-                  </span>
-                  <p className="font-mono text-xl font-bold text-emerald-400">{current.metrics}</p>
-                </div>
-                
-                {/* Live Audio Wave Visualizer */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center text-[10px] font-mono text-slate-400">
-                    <span>LIVE VOICE CHANNEL</span>
-                    <span className="text-emerald-400 font-bold">FULL DUPLEX</span>
-                  </div>
-                  <div className="flex items-center gap-1 h-10 bg-slate-900 rounded-xl px-4 justify-between overflow-hidden border border-slate-800">
-                    {Array.from({ length: 24 }).map((_, i) => (
-                      <motion.div
-                        key={i}
-                        className="w-1 bg-emerald-400 rounded-full"
-                        animate={{ height: ["15%", `${20 + Math.sin(i + activeStep) * 70}%`, "15%"] }}
-                        transition={{ duration: 0.8 + (i % 3) * 0.2, repeat: Infinity, ease: "easeInOut" }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
             )}
 
-            <div className="text-[11px] font-mono text-slate-400 pt-3 border-t border-slate-900 flex justify-between items-center">
-              <span className="flex items-center gap-1.5 text-slate-400">
-                <Lock className="w-3 h-3 text-emerald-400" /> PII ENCRYPTED
-              </span>
-              <span className="text-emerald-400 font-bold">TLS 1.3 / SRTP</span>
+            <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+              <span>STATUS: OPERATIONAL</span>
+              <span className="text-emerald-400">STAGE READY</span>
             </div>
           </div>
         </motion.div>
@@ -312,196 +303,153 @@ Payload: {
   );
 }
 
-// ── Main Page Component ───────────────────────────────────────────────────────
+// ── Main Page Component ────────────────────────────────────────────────────────
 export default function HowItWorks({ setPage }: HowItWorksProps) {
-  const [viewMode, setViewMode] = useState<"non-tech" | "tech">("non-tech");
-  const [openFaq, setOpenFaq] = useState<number | null>(0);
-
-  const nonTechSteps = [
+  const threeSteps = [
     {
       step: "01",
-      icon: Radio,
-      title: "1. The AI Listens (Human Ear Analogy)",
-      desc: "Just like an attentive human receptionist, Claritiy Voice listens to the caller's voice over the phone. It filters out background street noise, echoes, and pauses using advanced digital noise suppression."
+      icon: Mic,
+      title: "1. The Caller Speaks",
+      desc: "The caller speaks naturally in their native language or regional dialect. Our acoustic DSP suppresses outdoor background noise, traffic, and echoes in real time."
     },
     {
       step: "02",
       icon: Cpu,
-      title: "2. The AI Thinks (Smart Assistant)",
-      desc: "The agent instantly checks your company guidelines, product catalogue, or appointment calendar. It decides the exact best response based on your exact business instructions — with 0 hallucinations."
+      title: "2. The AI Thinks & Checks",
+      desc: "In under 85ms, the agent cross-references your company rules, available calendar slots, or order details. It formulates an accurate answer without hallucination."
     },
     {
       step: "03",
       icon: Headphones,
-      title: "3. The AI Speaks (Natural Human Voice)",
-      desc: "The agent responds in a warm, human voice with natural pauses and regional accents. If the customer interrupts or speaks over the agent, the AI pauses mid-sentence to listen politely."
+      title: "3. The AI Responds Naturally",
+      desc: "The agent replies in a warm human voice with natural pauses. If the caller interrupts mid-sentence, the AI immediately halts speech and listens politely."
     }
   ];
 
-  const techLatencyBreakdown = [
-    { phase: "Carrier Telecom SIP Handshake", target: "32 ms", tech: "G.711 / SRTP transport setup via Twilio/Plivo/Exotel carrier routes." },
+  const latencyBreakdown = [
+    { phase: "Telecom Carrier SIP Handshake", target: "32 ms", tech: "G.711 / SRTP transport setup via Twilio, Exotel, or Plivo carrier trunks." },
     { phase: "Acoustic Noise Filter & VAD", target: "15 ms", tech: "Dual-microphone noise suppression and 20ms voice activity windowing." },
-    { phase: "Neural Multimodal Inference", target: "85 ms", tech: "Gemini Live native audio streaming pipeline with zero-copy memory buffers." },
-    { phase: "RAG Vector Lookup & Tool Execution", target: "14 ms", tech: "HNSW vector search in SQLite/Prisma with dynamic JSON function calling." },
-    { phase: "Audio Buffer Egress to Telecom", target: "28 ms", tech: "16kHz PCM L16 streaming packet egress over UDP zero-copy transport." }
-  ];
-
-  const faqs = [
-    {
-      q: "How does Claritiy Voice achieve sub-180ms response latency?",
-      a: "Claritiy Voice bypasses traditional HTTP API REST chains. Audio streams travel over zero-copy UDP WebRTC connections directly from telecom gateways to neural inference models. Speech recognition, reasoning context, and voice generation run in an integrated memory buffer without intermediary network hops."
-    },
-    {
-      q: "How does Claritiy Voice prevent AI hallucinations on customer phone calls?",
-      a: "Every conversation is bound to strict system prompts and high-speed Retrieval-Augmented Generation (RAG) micro-vectors. If a customer asks a question outside your knowledge base, the agent relies on pre-programmed safety fallback policies rather than guessing."
-    },
-    {
-      q: "Can Claritiy Voice handle mid-sentence interruptions (barge-in)?",
-      a: "Yes. Our full-duplex DSP audio stack monitors incoming voice activity continuously. When the caller speaks while the agent is generating audio, the system halts playback within 20 milliseconds and processes the caller's new utterance immediately."
-    },
-    {
-      q: "What CRM systems and webhooks does Claritiy Voice integrate with?",
-      a: "Claritiy Voice provides native integrations and REST webhooks for Shopify, HubSpot, Salesforce, Zoho, Epic EHR, and custom databases. Call summaries, transcripts, and disposition codes post back automatically the instant a call terminates."
-    },
-    {
-      q: "How are customer data and sensitive information secured?",
-      a: "All raw audio streams undergo real-time PII redaction at the edge before transcription logs are saved. All data in transit is encrypted with TLS 1.3 and SRTP, and resting data is AES-256 encrypted."
-    }
+    { phase: "Neural Multimodal Audio Inference", target: "85 ms", tech: "Gemini Live native audio streaming pipeline with zero-copy memory buffers." },
+    { phase: "RAG Micro-Vector & Tool Calling", target: "14 ms", tech: "HNSW vector search in SQLite/Prisma with dynamic JSON function calling." },
+    { phase: "Audio Buffer Packet Egress", target: "28 ms", tech: "16kHz PCM L16 streaming packet egress over UDP zero-copy transport." }
   ];
 
   return (
-    <div className="space-y-24 pb-32 pt-28 bg-[#FFFDF9] min-h-screen relative">
+    <div className="space-y-24 pb-32 pt-28 bg-[#FFFDF9] min-h-screen relative font-plus-jakarta">
       <GeometricGridBackground />
       
-      {/* Hero Header */}
+      {/* ── Hero Header ────────────────────────────────────────────────── */}
       <section className="px-6 max-w-5xl mx-auto text-center space-y-6 relative z-10">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-mono font-bold tracking-wider uppercase">
-          <Sparkles className="w-3.5 h-3.5" />
-          NATIVE MULTIMODAL SPEECH ARCHITECTURE
-        </div>
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-mono font-bold tracking-wider uppercase shadow-sm"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
+          FULL-DUPLEX REAL-TIME VOICE ARCHITECTURE
+        </motion.div>
         
         <motion.h1 
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 25 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-4xl md:text-6xl font-extrabold text-slate-900 tracking-tight leading-tight"
           style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}
         >
-          How Claritiy Voice Powers Sub-180ms Conversational AI
+          How Claritiy Voice Achieves Sub-180ms Conversational Latency
         </motion.h1>
 
         <motion.p 
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 25 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="text-slate-600 text-lg md:text-xl max-w-3xl mx-auto font-plus-jakarta leading-relaxed"
         >
-          Whether you are an executive looking for clear business ROI or an engineer auditing zero-copy WebRTC architecture, explore how Claritiy Voice replaces legacy phone queues.
+          Experience how our unified zero-copy WebRTC pipeline eliminates legacy phone trees and transforms complex business phone calls into fluid, human conversations.
         </motion.p>
+      </section>
 
-        {/* View Perspective Switcher */}
-        <div className="pt-4 flex justify-center">
-          <div className="bg-slate-900 text-white p-1.5 rounded-2xl inline-flex items-center gap-2 border border-slate-800 shadow-xl">
-            <button
-              onClick={() => setViewMode("non-tech")}
-              className={`px-5 py-2.5 rounded-xl font-mono text-xs font-bold transition-all flex items-center gap-2 ${
-                viewMode === "non-tech"
-                  ? "bg-emerald-500 text-black shadow-md"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              <Eye className="w-4 h-4" /> Non-Tech View (Business & Concepts)
-            </button>
-            <button
-              onClick={() => setViewMode("tech")}
-              className={`px-5 py-2.5 rounded-xl font-mono text-xs font-bold transition-all flex items-center gap-2 ${
-                viewMode === "tech"
-                  ? "bg-emerald-500 text-black shadow-md"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              <Code2 className="w-4 h-4" /> Tech Deep-Dive (Developer Specs)
-            </button>
+      {/* ── Interactive Architecture Pipeline Visualizer ────────────────── */}
+      <section className="px-6 max-w-7xl mx-auto relative z-10">
+        <ArchitecturePipelineCanvas />
+      </section>
+
+      {/* ── 3-Step Simple Conversational Journey ─────────────────────────── */}
+      <section className="px-6 max-w-7xl mx-auto relative z-10">
+        <div className="bg-white border border-[#EADEC9] rounded-3xl p-8 md:p-12 shadow-xl space-y-8">
+          <div className="text-center max-w-3xl mx-auto space-y-3">
+            <span className="text-xs font-mono font-bold text-emerald-600 uppercase tracking-widest">
+              THE CALLER EXPERIENCE
+            </span>
+            <h2 className="text-3xl font-extrabold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+              How a Live Phone Call Flows from Start to Finish
+            </h2>
+            <p className="text-slate-600 text-sm font-plus-jakarta">
+              No robotic touchtone menus or robotic delay. Here is how your customers experience Claritiy Voice.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4">
+            {threeSteps.map((step) => {
+              const Icon = step.icon;
+              return (
+                <div key={step.step} className="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-4 hover:shadow-lg transition-all">
+                  <div className="flex justify-between items-center">
+                    <div className="w-12 h-12 rounded-xl bg-emerald-500 text-black flex items-center justify-center font-bold shadow-sm">
+                      <Icon className="w-6 h-6" />
+                    </div>
+                    <span className="font-mono text-2xl font-bold text-slate-300">{step.step}</span>
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+                    {step.title}
+                  </h3>
+                  <p className="text-slate-600 text-sm leading-relaxed font-plus-jakarta">
+                    {step.desc}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* Interactive Architecture Pipeline Visualizer */}
+      {/* ── Latency Budget & Protocol Telemetry ──────────────────────────── */}
       <section className="px-6 max-w-7xl mx-auto relative z-10">
-        <ArchitecturePipelineCanvas viewMode={viewMode} />
-      </section>
-
-      {/* Dynamic View Section: Non-Tech vs Tech Deep-Dive */}
-      <section className="px-6 max-w-7xl mx-auto relative z-10">
-        {viewMode === "non-tech" ? (
-          <div className="bg-white border border-[#EADEC9] rounded-3xl p-8 md:p-12 shadow-xl space-y-8">
-            <div className="text-center max-w-3xl mx-auto space-y-3">
-              <span className="text-xs font-mono font-bold text-emerald-600 uppercase tracking-widest">
-                VOICE AI EXPLAINED SIMPLY
-              </span>
-              <h2 className="text-3xl font-extrabold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-                How Claritiy Voice Works in 3 Simple Steps
-              </h2>
-              <p className="text-slate-600 text-sm font-plus-jakarta">
-                No complex technical jargon — here is how an AI voice call flows from start to finish.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4">
-              {nonTechSteps.map((step) => {
-                const Icon = step.icon;
-                return (
-                  <div key={step.step} className="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-4 hover:shadow-lg transition-all">
-                    <div className="flex justify-between items-center">
-                      <div className="w-12 h-12 rounded-xl bg-emerald-500 text-black flex items-center justify-center font-bold">
-                        <Icon className="w-6 h-6" />
-                      </div>
-                      <span className="font-mono text-2xl font-bold text-slate-300">{step.step}</span>
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-                      {step.title}
-                    </h3>
-                    <p className="text-slate-600 text-sm leading-relaxed font-plus-jakarta">
-                      {step.desc}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
+        <div className="bg-slate-900 text-white border border-slate-800 rounded-3xl p-8 md:p-12 shadow-2xl space-y-8">
+          <div className="text-center max-w-3xl mx-auto space-y-3">
+            <span className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">
+              TELEMETRY BENCHMARK AUDIT
+            </span>
+            <h2 className="text-3xl font-extrabold text-white" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+              Sub-180ms Latency Budget & Audio Pipeline Specs
+            </h2>
+            <p className="text-slate-400 text-sm font-mono">
+              Total roundtrip latency budget measured from caller utterance to synthesized audio playback.
+            </p>
           </div>
-        ) : (
-          <div className="bg-slate-900 text-white border border-slate-800 rounded-3xl p-8 md:p-12 shadow-xl space-y-8">
-            <div className="text-center max-w-3xl mx-auto space-y-3">
-              <span className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">
-                TELEMETRY BENCHMARK AUDIT
-              </span>
-              <h2 className="text-3xl font-extrabold text-white" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-                Sub-180ms Latency Budget & Protocol Spec
-              </h2>
-              <p className="text-slate-400 text-sm font-mono">
-                Comprehensive engineering audit of packet roundtrip times across our audio pipeline.
-              </p>
-            </div>
 
-            <div className="space-y-4 pt-2">
-              {techLatencyBreakdown.map((item, i) => (
-                <div key={i} className="bg-slate-950 p-5 rounded-2xl border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4 font-mono">
-                  <div className="space-y-1">
-                    <span className="text-sm font-bold text-white flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400" /> {item.phase}
-                    </span>
-                    <p className="text-xs text-slate-400">{item.tech}</p>
-                  </div>
-                  <div className="px-4 py-2 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded-xl font-bold text-sm text-right whitespace-nowrap">
-                    {item.target}
-                  </div>
+          <div className="space-y-3.5 pt-2 max-w-4xl mx-auto">
+            {latencyBreakdown.map((item, i) => (
+              <div key={i} className="bg-slate-950 p-5 rounded-2xl border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4 font-mono shadow-sm">
+                <div className="space-y-1">
+                  <span className="text-sm font-bold text-white flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" /> {item.phase}
+                  </span>
+                  <p className="text-xs text-slate-400 font-sans">{item.tech}</p>
                 </div>
-              ))}
-            </div>
+                <div className="px-4 py-2 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded-xl font-bold text-sm text-right whitespace-nowrap">
+                  {item.target}
+                </div>
+              </div>
+            ))}
           </div>
-        )}
+
+          <div className="p-4 bg-emerald-950/60 border border-emerald-500/40 rounded-2xl max-w-4xl mx-auto text-center font-mono text-xs text-emerald-300">
+            TOTAL COMBINED BUDGET: 174ms (Bypasses traditional 1,200ms chained REST API lag)
+          </div>
+        </div>
       </section>
 
-      {/* 4 Core Pillars Grid */}
+      {/* ── 4 Core Architectural Pillars ─────────────────────────────────── */}
       <section className="px-6 max-w-7xl mx-auto relative z-10">
         <div className="text-center max-w-3xl mx-auto mb-12 space-y-3">
           <span className="text-xs font-mono font-bold text-emerald-600 uppercase tracking-widest">
@@ -549,18 +497,16 @@ export default function HowItWorks({ setPage }: HowItWorksProps) {
                 transition={{ delay: idx * 0.1 }}
                 className="bg-white border border-[#EADEC9] rounded-3xl p-8 hover:shadow-xl hover:border-emerald-500/40 transition-all group relative"
               >
-                <div className="flex justify-between items-start mb-6">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                <div className="flex justify-between items-center mb-6">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 group-hover:scale-110 transition-transform">
                     <Icon className="w-6 h-6" />
                   </div>
-                  <span className="font-mono text-2xl font-bold text-slate-300 group-hover:text-emerald-500 transition-colors">
-                    {pillar.num}
-                  </span>
+                  <span className="font-mono text-xs font-bold text-slate-300">{pillar.num}</span>
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-3" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+                <h3 className="font-bold text-lg text-slate-900 mb-2" style={{ fontFamily: "'Clash Display', sans-serif" }}>
                   {pillar.title}
                 </h3>
-                <p className="text-slate-600 text-sm leading-relaxed font-plus-jakarta">
+                <p className="text-slate-500 text-xs leading-relaxed font-plus-jakarta">
                   {pillar.desc}
                 </p>
               </motion.div>
@@ -569,90 +515,32 @@ export default function HowItWorks({ setPage }: HowItWorksProps) {
         </div>
       </section>
 
-      {/* Feature Capability Grid Section */}
-      <section className="px-6 max-w-7xl mx-auto relative z-10 space-y-8">
-        <div className="text-center max-w-3xl mx-auto space-y-3">
-          <span className="text-xs font-mono font-bold text-emerald-600 uppercase tracking-widest">
-            FEATURE MATRIX
-          </span>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-            12 Enterprise Capabilities Out Of The Box
-          </h2>
-        </div>
-        <FeatureCapabilityGrid />
-      </section>
-
-      {/* FAQ Section */}
-      <section className="px-6 max-w-4xl mx-auto relative z-10 space-y-8">
-        <div className="text-center space-y-3">
-          <span className="text-xs font-mono font-bold text-emerald-600 uppercase tracking-widest">
-            FREQUENTLY ASKED QUESTIONS
-          </span>
-          <h2 className="text-3xl font-bold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-            Technical Architecture & Setup FAQ
-          </h2>
-        </div>
-
-        <div className="space-y-4">
-          {faqs.map((faq, idx) => {
-            const isOpen = openFaq === idx;
-            return (
-              <div
-                key={faq.q}
-                className="bg-white border border-[#EADEC9] rounded-2xl overflow-hidden transition-all"
-              >
-                <button
-                  onClick={() => setOpenFaq(isOpen ? null : idx)}
-                  className="w-full p-6 text-left font-bold text-slate-900 flex justify-between items-center gap-4 hover:bg-slate-50 transition-colors"
-                >
-                  <span className="text-base">{faq.q}</span>
-                  <ChevronRight className={`w-5 h-5 text-emerald-600 transition-transform ${isOpen ? "rotate-90" : ""}`} />
-                </button>
-                <AnimatePresence>
-                  {isOpen && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="px-6 pb-6 text-slate-600 text-sm leading-relaxed font-plus-jakarta border-t border-slate-100 pt-4"
-                    >
-                      {faq.a}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Bottom CTA */}
+      {/* ── Bottom Callout ──────────────────────────────────────────────── */}
       <section className="px-6 max-w-5xl mx-auto relative z-10">
-        <div className="bg-[#0B132B] text-white rounded-3xl p-10 md:p-16 text-center space-y-6 relative overflow-hidden border border-slate-800">
+        <div className="bg-[#0B132B] text-white rounded-3xl p-10 md:p-16 text-center space-y-6 border border-slate-800 shadow-2xl relative overflow-hidden">
+          <div className="absolute -left-20 -top-20 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
           <h2 className="text-3xl md:text-5xl font-extrabold" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-            Experience Claritiy Voice Live
+            Experience Sub-180ms Voice in Action
           </h2>
-          <p className="text-slate-300 max-w-2xl mx-auto text-base leading-relaxed font-plus-jakarta">
-            Test our sub-180ms voice AI agent in the sandbox right now. Build, configure, and launch outbound campaigns in minutes.
+          <p className="text-slate-300 max-w-2xl mx-auto text-base font-plus-jakarta">
+            Launch our interactive sandbox in your browser and test voice barge-in with your microphone now.
           </p>
-          <div className="pt-4 flex flex-col sm:flex-row justify-center gap-4">
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10">
             <button
               onClick={() => setPage("dashboard")}
-              className="btn-primary py-4 px-8 text-base bg-emerald-500 hover:bg-emerald-400 text-black font-bold flex items-center justify-center gap-2"
+              className="py-4 px-8 text-base bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl inline-flex items-center gap-2 transition-all shadow-lg cursor-pointer"
             >
-              Get Started Free <ArrowRight className="w-5 h-5" />
+              Test Live in Sandbox <ArrowRight className="w-5 h-5" />
             </button>
             <button
-              onClick={() => setPage("pricing")}
-              className="py-4 px-8 text-base bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-full transition-colors border border-slate-700"
+              onClick={() => setPage("solutions")}
+              className="py-4 px-8 text-base bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl inline-flex items-center gap-2 transition-all border border-slate-700 cursor-pointer"
             >
-              View Pricing Plans
+              Explore Templates
             </button>
           </div>
         </div>
       </section>
-
     </div>
   );
 }

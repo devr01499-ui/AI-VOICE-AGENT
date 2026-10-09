@@ -234,7 +234,7 @@ export default function BlogIndex({ setPage }: BlogIndexProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-200 font-plus-jakarta text-xs">
             <div className="space-y-1">
               <span className="font-mono font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
-                <Eye className="w-3.5 h-3.5" /> EXECUTIVE / NON-TECH SUMMARY
+                <Eye className="w-3.5 h-3.5" /> EXECUTIVE SUMMARY
               </span>
               <p className="text-slate-600 leading-relaxed">{activeArticle.nonTechSummary}</p>
             </div>

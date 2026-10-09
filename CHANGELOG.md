@@ -5,8 +5,12 @@
 - Rebuilt public frontend website UI/UX to enterprise grade:
   - Upgraded Footer (`Footer.tsx`) with structured multi-column navigation matching production templates, live system latency telemetry, compliance pill tags (MSME, TLS 1.3, DPDP, RBI), direct WhatsApp/Email/LinkedIn channels, and ethical AI voice disclosure.
   - Upgraded Solutions (`Solutions.tsx`) with an interactive Production Templates Showcase featuring the 15 production agents across 6 client verticals (BFSI, Healthcare, E-Commerce, Real Estate, Home Services, Sales/Front Desk), operational problem definitions, built-in guardrails, and live dialogue simulators.
-  - Upgraded Contact Us (`ContactUs.tsx`) into an Enterprise Pilot & Consultation Studio with vertical and volume selectors, SLA guarantees, and instant WhatsApp support channel.
-  - Upgraded FAQ (`FAQ.tsx`) with animated categorized accordion, instant topic search, and humanized operational answers.
+  - Replaced binary "Non-Tech View" vs "Tech Specs" page toggles across `Solutions.tsx`, `HowItWorks.tsx`, `Voices.tsx`, and `Pricing.tsx` with unified, cohesive designs featuring embedded contextual sub-tabs and synchronized business/telemetry views.
+  - Upgraded `HowItWorks.tsx` with a unified 4-stage pipeline visualizer, 3-step customer call progression, telemetry latency budget breakdown, and 4 architectural pillars.
+  - Upgraded `Voices.tsx` with live soundwave animation, emotional persona tonal dynamics, 70+ regional language matrix, and integrated acoustic DSP hardware specifications.
+  - Upgraded `Pricing.tsx` with unified high-value feature lists, interactive usage volume estimator, net ROI calculations, and transparent flat-rate billing.
+  - Upgraded `Docs.tsx` into a full-featured Developer Hub with multi-language code snippets (cURL, Node.js, Python), copy buttons, webhook event payloads, and no-code connector cards.
+  - Upgraded `Security.tsx` into an authoritative enterprise data governance blueprint covering edge PII redaction, TLS 1.3 / SRTP encryption, zero retention, MSME registration, and DPDP compliance.
 ### Fixed
 - P0: Replaced all unverified compliance claims (SOC 2 Type II, HIPAA BAA, ISO 27001) and unverified `< 180ms` latency claims in `Hero.tsx`, `CompareTable.tsx`, and `App.tsx` with authentic infrastructure metrics (`256-Bit TLS`, `Sub-Second Native Multimodal`).
 - P0: Verified and surfaced Hosted KYC verification onboarding trigger (`Start KYC Verification Now`) in `DashCallingConfig.tsx` wired to `/api/v2/kyc/initiate-session` and Vobiz KYC gateway.

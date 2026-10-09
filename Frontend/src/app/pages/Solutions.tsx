@@ -6,7 +6,8 @@ import {
   ArrowRight, Building2, Landmark, Home as HomeIcon, 
   ShoppingBag, Truck, HeartPulse, CheckCircle2, Sparkles, Phone, MessageSquare,
   ShieldCheck, GraduationCap, Car, Code2, Eye, FileText, Check, Bot, Zap,
-  Clock, Shield, UserCheck, Stethoscope, ChevronRight, Play, Filter
+  Clock, Shield, UserCheck, Stethoscope, ChevronRight, Play, Filter, Activity,
+  Sliders, ArrowUpRight
 } from "lucide-react";
 
 type Page = any;
@@ -275,9 +276,9 @@ const PRODUCTION_TEMPLATES: ShowcaseTemplate[] = [
 
 export default function Solutions({ setPage }: SolutionsProps) {
   const [activeTab, setActiveTab] = useState("ecommerce");
-  const [viewMode, setViewMode] = useState<"non-tech" | "tech">("non-tech");
   const [templateCategoryFilter, setTemplateCategoryFilter] = useState<string>("All");
   const [selectedTemplate, setSelectedTemplate] = useState<ShowcaseTemplate>(PRODUCTION_TEMPLATES[8]); // Default to COD
+  const [inspectorMode, setInspectorMode] = useState<"dialogue" | "schema" | "metrics">("dialogue");
 
   const filteredTemplates = PRODUCTION_TEMPLATES.filter((tpl) => 
     templateCategoryFilter === "All" ? true : tpl.category === templateCategoryFilter
@@ -290,8 +291,7 @@ export default function Solutions({ setPage }: SolutionsProps) {
       icon: ShoppingBag,
       tagline: "Slash Return-To-Origin (RTO) Losses by 40%",
       metric: "40% RTO Reduction",
-      nonTechSummary: "In markets where Cash-on-Delivery (COD) represents up to 70% of e-commerce orders, fake addresses and buyer mind-changes cause massive courier losses. Claritiy Voice calls buyers automatically within 60 seconds of checkout, verifying delivery landmarks and offering prepaid discount upgrades in their local language.",
-      techSummary: "Webhooks emitted from Shopify/WooCommerce hit our edge ingress controller (<50ms queue latency). The agent executes dynamic order updates via REST APIs, standardizing landmark fields and flagging high-risk fraud scores.",
+      summary: "In markets where Cash-on-Delivery (COD) represents up to 70% of e-commerce orders, fake addresses and buyer mind-changes cause massive courier losses. Claritiy Voice calls buyers automatically within 60 seconds of checkout, verifying delivery landmarks and offering prepaid discount upgrades in their local language.",
       triggers: ["Shopify / WooCommerce Checkout Webhook", "High-Risk Fraud Score Trigger"],
       integrations: ["Shopify", "WooCommerce", "Shiprocket", "Clickpost", "Custom REST APIs"],
       useCases: ["Address & Landmark Verification", "Pre-Dispatch Prepaid Conversion Incentives", "Order Cancellation Handling", "Delivery Exception Rescheduling"],
@@ -308,7 +308,13 @@ POST /api/v2/integrations/shopify/cod-verify
   "landmark_added": "Near Blue Dart office, Bandra West",
   "confidence_score": 0.98,
   "execution_ms": 172
-}`
+}`,
+      metricsData: {
+        latency: "174ms roundtrip",
+        concurrency: "5,000+ calls/hr",
+        successRate: "94.2% completed verification",
+        format: "SRTP 16kHz PCM zero-copy"
+      }
     },
     {
       id: "healthcare",
@@ -316,8 +322,7 @@ POST /api/v2/integrations/shopify/cod-verify
       icon: HeartPulse,
       tagline: "Secure Patient Intake & Appointment Automation",
       metric: "85% Shorter Queue Times",
-      nonTechSummary: "Clinic receptionists spend hours answering repetitive phone calls for appointments, prep instructions, and clinic hours. Claritiy Voice acts as a 24/7 polite receptionist that answers on the first ring, books appointments directly onto the doctor's calendar, and reminds patients of pre-op guidelines.",
-      techSummary: "Encrypted zero-retention WebRTC audio streaming with edge PII redaction. Directly reads and writes appointment availability using FHIR / Epic EHR / Cerner REST API contracts.",
+      summary: "Clinic receptionists spend hours answering repetitive phone calls for appointments, prep instructions, and clinic hours. Claritiy Voice acts as a 24/7 polite receptionist that answers on the first ring, books appointments directly onto the doctor's calendar, and reminds patients of pre-op guidelines.",
       triggers: ["Inbound Patient Call", "Missed Appointment Alert", "Post-Op Follow-Up Schedule"],
       integrations: ["Epic EHR", "Cerner", "AthenaHealth", "Kareo", "DrChrono"],
       useCases: ["Appointment Scheduling & Reminders", "Pre-Procedure Prep Instructions", "Insurance Verification Intake", "Post-Discharge Wellness Check"],
@@ -335,7 +340,13 @@ POST /fhir/r4/Appointment
   "practitionerId": "dr_sharma_01",
   "start": "2026-08-27T14:30:00Z",
   "phi_redacted": true
-}`
+}`,
+      metricsData: {
+        latency: "168ms roundtrip",
+        concurrency: "1,200+ clinics active",
+        successRate: "91.8% first-call booking",
+        format: "Edge PII Scrubbed • FHIR R4"
+      }
     },
     {
       id: "finance",
@@ -343,8 +354,7 @@ POST /fhir/r4/Appointment
       icon: Landmark,
       tagline: "Ethical Payment Reminders & KYC Outreach",
       metric: "3.4× Debt Recovery Rate",
-      nonTechSummary: "Traditional collection calls suffer from agent turnover, aggressive tone, and high compliance risk. Claritiy Voice agents maintain a polite, respectful tone, guiding borrowers through EMI schedules, offering pre-approved payment plans, and sending instant SMS payment links during the call.",
-      techSummary: "Secure payment link emission via Razorpay/Stripe webhooks. Directly interfaces with core banking platforms (Finacle, T24) with atomic event logs for regulatory auditing.",
+      summary: "Traditional collection calls suffer from agent turnover, aggressive tone, and high compliance risk. Claritiy Voice agents maintain a polite, respectful tone, guiding borrowers through EMI schedules, offering pre-approved payment plans, and sending instant SMS payment links during the call.",
       triggers: ["3-Day Pre-Due Reminder", "1-30 DPD Early Delinquency Queue"],
       integrations: ["Finacle", "T24", "Salesforce Financial Services Cloud", "Custom Core Banking"],
       useCases: ["Pre-Due EMI Payment Reminders", "Ethical Debt Restructuring Negotiations", "KYC Document Follow-up", "Credit Card Activation Intake"],
@@ -361,7 +371,13 @@ POST /api/v2/finance/emi-reminder
   "payment_link_sent": true,
   "channel": "SMS_AND_WHATSAPP",
   "call_disposition": "PROMISE_TO_PAY"
-}`
+}`,
+      metricsData: {
+        latency: "162ms roundtrip",
+        concurrency: "10,000+ concurrent channels",
+        successRate: "88.4% promise to pay",
+        format: "RBI Fair Practices • TLS 1.3"
+      }
     },
     {
       id: "realestate",
@@ -369,8 +385,7 @@ POST /api/v2/finance/emi-reminder
       icon: HomeIcon,
       tagline: "Qualify 10,000+ Inbound Leads Monthly",
       metric: "5× More Site Visits Booked",
-      nonTechSummary: "Online property inquiries turn cold within 5 minutes. Claritiy Voice calls inbound web leads instantly, asks key qualification questions (budget, move-in timeline, location preference), and schedules site visits directly onto your sales agents' calendars.",
-      techSummary: "Sub-3s speed-to-lead outbound triggering from Facebook Ads, Google Ads, or HubSpot webhooks. Parses caller intent using RAG vector indices and synchronizes site visit events to Google Calendar / CRM.",
+      summary: "Online property inquiries turn cold within 5 minutes. Claritiy Voice calls inbound web leads instantly, asks key qualification questions (budget, move-in timeline, location preference), and schedules site visits directly onto your sales agents' calendars.",
       triggers: ["Web Lead Form Submission", "Property Listing Inquiry"],
       integrations: ["HubSpot", "Salesforce", "Zoho CRM", "Google Calendar"],
       useCases: ["Immediate Lead Qualification", "Site Visit Scheduling", "Listing Availability Check", "Mortgage Partner Referral Intake"],
@@ -387,7 +402,13 @@ POST /api/v2/crm/leads/qualify
   "preferred_area": "Whitefield",
   "site_visit_timestamp": "2026-08-23T10:30:00Z",
   "status": "QUALIFIED"
-}`
+}`,
+      metricsData: {
+        latency: "171ms roundtrip",
+        concurrency: "Instant sub-3s trigger",
+        successRate: "68% tour schedule rate",
+        format: "Bidirectional CRM Webhooks"
+      }
     },
     {
       id: "logistics",
@@ -395,8 +416,7 @@ POST /api/v2/crm/leads/qualify
       icon: Truck,
       tagline: "Proactive Delivery Updates & Driver Coordination",
       metric: "62% Fewer WISMO Calls",
-      nonTechSummary: "Shipment delays flood customer support lines with 'Where Is My Order?' (WISMO) calls. Claritiy Voice proactively calls recipients with revised delivery ETAs, clears up confusing delivery addresses, and coordinates driver pickups.",
-      techSummary: "Subscribes to WMS / TMS exception webhooks (Delhivery, FedEx, Shiprocket). Emits automated speech dispatch notifications with voice-controlled address landmark recording.",
+      summary: "Shipment delays flood customer support lines with 'Where Is My Order?' (WISMO) calls. Claritiy Voice proactively calls recipients with revised delivery ETAs, clears up confusing delivery addresses, and coordinates driver pickups.",
       triggers: ["Delivery Exception Event", "Address Unclear Flag"],
       integrations: ["FedEx", "DHL", "Delhivery", "Custom WMS / TMS"],
       useCases: ["Proactive Delivery Status Alerts", "Failed Delivery Rescheduling", "Driver Coordination Calling", "Return Pickup Verification"],
@@ -412,7 +432,13 @@ POST /tms/v1/driver/note
   "driver_instruction": "Leave package with Gate 1 Security",
   "recipient_confirmed": true,
   "latency_ms": 145
-}`
+}`,
+      metricsData: {
+        latency: "145ms roundtrip",
+        concurrency: "High-volume batch routing",
+        successRate: "98.5% first-attempt delivery",
+        format: "REST Event Stream"
+      }
     },
     {
       id: "insurance",
@@ -420,8 +446,7 @@ POST /tms/v1/driver/note
       icon: ShieldCheck,
       tagline: "First Notice of Loss Intake & Policy Renewal",
       metric: "78% Policy Renewal Rate",
-      nonTechSummary: "Filing an insurance claim or renewing a policy during emergencies requires fast, calm assistance. Claritiy Voice collects initial loss details, records vehicle/home damage descriptions, and sends instant claim tracking numbers.",
-      techSummary: "Compliant with state insurance guidelines and encrypted data protection. Integrates with Guidewire and Duck Creek policy administration systems.",
+      summary: "Filing an insurance claim or renewing a policy during emergencies requires fast, calm assistance. Claritiy Voice collects initial loss details, records vehicle/home damage descriptions, and sends instant claim tracking numbers.",
       triggers: ["First Notice of Loss Call", "30-Day Policy Renewal Alert"],
       integrations: ["Guidewire", "Duck Creek", "Salesforce Financial Cloud", "Custom Policy DB"],
       useCases: ["FNOL Claims Intake", "Policy Renewal Outreach", "Claim Status Tracking", "Coverage Inquiry Handling"],
@@ -437,7 +462,13 @@ POST /api/v2/insurance/fnol
   "incident_type": "MOTOR_ACCIDENT",
   "ncb_discount_applied": true,
   "status": "CLAIM_FILE_INITIATED"
-}`
+}`,
+      metricsData: {
+        latency: "179ms roundtrip",
+        concurrency: "24/7 disaster surge ready",
+        successRate: "3.5× faster claims triage",
+        format: "Zero Audio Retention Policy"
+      }
     },
     {
       id: "education",
@@ -445,8 +476,7 @@ POST /api/v2/insurance/fnol
       icon: GraduationCap,
       tagline: "Student Counseling & Enrollment Nurturing",
       metric: "41% Lift in Student Enrollment",
-      nonTechSummary: "Universities and online learning platforms lose prospective students due to delayed follow-ups. Claritiy Voice calls applicants, answers course curriculum questions, guides them through tuition fee options, and schedules counselor video calls.",
-      techSummary: "Parses applicant history from LeadSquared or Salesforce Education Cloud. Dynamically adapts tone for friendly academic guidance.",
+      summary: "Universities and online learning platforms lose prospective students due to delayed follow-ups. Claritiy Voice calls applicants, answers course curriculum questions, guides them through tuition fee options, and schedules counselor video calls.",
       triggers: ["Application Submitted Webhook", "Course Inquiry Form"],
       integrations: ["LeadSquared", "Salesforce Education", "HubSpot", "Google Meet API"],
       useCases: ["Enrollment Confirmation", "Financial Aid Counseling", "Class Schedule Updates", "Alumni Outreach"],
@@ -461,7 +491,13 @@ POST /api/v2/edu/admissions/nurture
   "applicant_id": "app_5541",
   "course": "M.Sc Data Science",
   "counselor_slot_booked": "2026-08-25T11:00:00Z"
-}`
+}`,
+      metricsData: {
+        latency: "170ms roundtrip",
+        concurrency: "Scalable admissions queues",
+        successRate: "41% enrollment acceleration",
+        format: "LeadSquared & LMS APIs"
+      }
     },
     {
       id: "automotive",
@@ -469,8 +505,7 @@ POST /api/v2/edu/admissions/nurture
       icon: Car,
       tagline: "Service Appointment & Test Drive Scheduling",
       metric: "4.8 / 5 Customer Rating",
-      nonTechSummary: "Car dealerships and service centers lose revenue when customer service lines are busy. Claritiy Voice handles service reminder calls, confirms test drive slots, and sends pickup notifications automatically.",
-      techSummary: "Interfaces directly with Dealer Management Systems (DMS) for real-time bay availability and loaner vehicle tracking.",
+      summary: "Car dealerships and service centers lose revenue when customer service lines are busy. Claritiy Voice handles service reminder calls, confirms test drive slots, and sends pickup notifications automatically.",
       triggers: ["Mileage Service Interval Due", "Test Drive Booking Webhook"],
       integrations: ["CDK Global", "Reynolds & Reynolds", "Salesforce Auto", "Custom DMS"],
       useCases: ["Periodic Service Reminders", "Test Drive Confirmations", "Vehicle Pickup Readiness Alerts", "Parts Availability Check"],
@@ -486,7 +521,13 @@ POST /dms/v2/service/book
   "service_type": "20K_PERIODIC",
   "bay_reserved": "BAY_04",
   "loaner_vehicle_assigned": true
-}`
+}`,
+      metricsData: {
+        latency: "165ms roundtrip",
+        concurrency: "Multi-dealership bay sync",
+        successRate: "92% booking completion",
+        format: "DMS Direct Bay Connector"
+      }
     }
   ];
 
@@ -498,13 +539,17 @@ POST /dms/v2/service/book
       
       {/* ── Hero Section ────────────────────────────────────────────────── */}
       <section className="px-6 max-w-5xl mx-auto text-center space-y-6 relative z-10">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-mono font-bold tracking-wider uppercase">
-          <Sparkles className="w-3.5 h-3.5" />
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-mono font-bold tracking-wider uppercase shadow-sm"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
           ENTERPRISE INDUSTRY SOLUTIONS & TEMPLATES
-        </div>
+        </motion.div>
         
         <motion.h1 
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 25 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-4xl md:text-6xl font-extrabold text-slate-900 tracking-tight leading-tight"
           style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}
@@ -513,7 +558,7 @@ POST /dms/v2/service/book
         </motion.h1>
 
         <motion.p 
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 25 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="text-slate-600 text-lg md:text-xl max-w-3xl mx-auto font-plus-jakarta leading-relaxed"
@@ -522,24 +567,29 @@ POST /dms/v2/service/book
         </motion.p>
 
         {/* Operational Highlights Pill Grid */}
-        <div className="pt-4 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-4xl mx-auto">
-          <div className="bg-white border border-[#E8E2D9] rounded-2xl p-4 text-center shadow-sm">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="pt-4 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-4xl mx-auto"
+        >
+          <div className="bg-white border border-[#E8E2D9] rounded-2xl p-4 text-center shadow-sm hover:border-emerald-500/40 transition-all">
             <span className="text-2xl font-extrabold text-[#059669] font-mono block">40%</span>
             <span className="text-xs text-slate-500 font-semibold">COD RTO Reduction</span>
           </div>
-          <div className="bg-white border border-[#E8E2D9] rounded-2xl p-4 text-center shadow-sm">
+          <div className="bg-white border border-[#E8E2D9] rounded-2xl p-4 text-center shadow-sm hover:border-emerald-500/40 transition-all">
             <span className="text-2xl font-extrabold text-[#059669] font-mono block">&lt;180ms</span>
             <span className="text-xs text-slate-500 font-semibold">Sub-Human Latency</span>
           </div>
-          <div className="bg-white border border-[#E8E2D9] rounded-2xl p-4 text-center shadow-sm">
+          <div className="bg-white border border-[#E8E2D9] rounded-2xl p-4 text-center shadow-sm hover:border-emerald-500/40 transition-all">
             <span className="text-2xl font-extrabold text-[#059669] font-mono block">70+</span>
             <span className="text-xs text-slate-500 font-semibold">Regional Dialects</span>
           </div>
-          <div className="bg-white border border-[#E8E2D9] rounded-2xl p-4 text-center shadow-sm">
+          <div className="bg-white border border-[#E8E2D9] rounded-2xl p-4 text-center shadow-sm hover:border-emerald-500/40 transition-all">
             <span className="text-2xl font-extrabold text-[#059669] font-mono block">15</span>
             <span className="text-xs text-slate-500 font-semibold">Production Templates</span>
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* ── FEATURED: 15 Production Templates Interactive Explorer ────────── */}
@@ -635,7 +685,7 @@ POST /dms/v2/service/book
 
               <button
                 onClick={() => setPage("dashboard")}
-                className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5"
+                className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5 shadow-sm"
               >
                 Deploy in Studio <ArrowRight className="w-3.5 h-3.5" />
               </button>
@@ -672,12 +722,12 @@ POST /dms/v2/service/book
                 <h4 className="text-xs font-mono font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                   <MessageSquare className="w-3.5 h-3.5 text-emerald-600" /> LIVE DIALOGUE SIMULATION:
                 </h4>
-                <span className="text-[10px] font-mono text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded">
+                <span className="text-[10px] font-mono text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                   LATENCY &lt; 180MS
                 </span>
               </div>
 
-              <div className="space-y-2 bg-slate-900 text-white p-4 rounded-2xl border border-slate-800 text-xs">
+              <div className="space-y-2 bg-slate-900 text-white p-4 rounded-2xl border border-slate-800 text-xs shadow-inner">
                 {selectedTemplate.sampleDialogue.map((turn, idx) => {
                   const isAgent = turn.speaker.includes("AI") || turn.speaker.includes("Agent") || turn.speaker.includes("Voice");
                   return (
@@ -702,47 +752,21 @@ POST /dms/v2/service/book
         </div>
       </section>
 
-      {/* ── Industry Deep-Dive Tabs Section ─────────────────────────────── */}
+      {/* ── Industry Deep-Dive Section with Unified Inspector ───────────── */}
       <section className="px-6 max-w-7xl mx-auto relative z-10 space-y-8">
         <div className="text-center max-w-3xl mx-auto space-y-3">
           <span className="text-xs font-mono font-bold text-emerald-700 uppercase tracking-widest">
-            DEEP-DIVE SPECIFICATIONS
+            INDUSTRY ARCHITECTURE & WORKFLOWS
           </span>
           <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-            Industry Architecture & Integrations
+            Operational Blueprints Across Verticals
           </h2>
           <p className="text-slate-500 text-sm">
-            Toggle between business operational impact and technical API integration schemas.
+            Select an industry below to review how Claritiy Voice handles customer conversations, live event triggers, and backend CRM integration schemas.
           </p>
-
-          {/* View Perspective Switcher */}
-          <div className="pt-2 flex justify-center">
-            <div className="bg-slate-900 text-white p-1 rounded-2xl inline-flex items-center gap-1 border border-slate-800 shadow-lg">
-              <button
-                onClick={() => setViewMode("non-tech")}
-                className={`px-4 py-2 rounded-xl font-mono text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  viewMode === "non-tech"
-                    ? "bg-emerald-500 text-black shadow-md"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                <Eye className="w-3.5 h-3.5" /> Non-Tech Business View
-              </button>
-              <button
-                onClick={() => setViewMode("tech")}
-                className={`px-4 py-2 rounded-xl font-mono text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  viewMode === "tech"
-                    ? "bg-emerald-500 text-black shadow-md"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                <Code2 className="w-3.5 h-3.5" /> Tech Developer Specs
-              </button>
-            </div>
-          </div>
         </div>
 
-        {/* Industry Buttons */}
+        {/* Industry Switcher Buttons */}
         <div className="flex items-center gap-2 overflow-x-auto pb-4 justify-start md:justify-center border-b border-slate-200">
           {solutions.map((s) => {
             const Icon = s.icon;
@@ -750,8 +774,11 @@ POST /dms/v2/service/book
             return (
               <button
                 key={s.id}
-                onClick={() => setActiveTab(s.id)}
-                className={`px-4 py-3 rounded-2xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap border ${
+                onClick={() => {
+                  setActiveTab(s.id);
+                  setInspectorMode("dialogue");
+                }}
+                className={`px-4 py-3 rounded-2xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap border cursor-pointer ${
                   isActive
                     ? "bg-slate-900 text-white border-slate-900 shadow-lg"
                     : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900"
@@ -764,10 +791,10 @@ POST /dms/v2/service/book
           })}
         </div>
 
-        {/* Selected Industry Card */}
+        {/* Selected Industry Card with Unified Multi-Tab Inspector */}
         <AnimatePresence mode="wait">
           <motion.div
-            key={`${currentSolution.id}-${viewMode}`}
+            key={currentSolution.id}
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -15 }}
@@ -785,7 +812,7 @@ POST /dms/v2/service/book
               </h2>
               
               <p className="text-slate-600 leading-relaxed font-plus-jakarta text-base">
-                {viewMode === "non-tech" ? currentSolution.nonTechSummary : currentSolution.techSummary}
+                {currentSolution.summary}
               </p>
 
               {/* Core Use Cases */}
@@ -824,61 +851,112 @@ POST /dms/v2/service/book
               </div>
             </div>
 
-            {/* Right Dialogue / Code Schema Inspector Column */}
+            {/* Right Interactive Inspector Column */}
             <div className="lg:col-span-5 bg-slate-900 text-white rounded-2xl p-6 border border-slate-800 space-y-4">
-              {viewMode === "non-tech" ? (
-                <>
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                    <div className="flex items-center gap-2">
-                      <MessageSquare className="w-4 h-4 text-emerald-400" />
-                      <span className="font-mono text-xs font-bold text-white uppercase">LIVE DIALOGUE PREVIEW</span>
-                    </div>
-                    <span className="font-mono text-[10px] text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
-                      LATENCY: 174ms
-                    </span>
-                  </div>
+              {/* Contextual Sub-Tab Switcher */}
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                  <button
+                    onClick={() => setInspectorMode("dialogue")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1 ${
+                      inspectorMode === "dialogue"
+                        ? "bg-emerald-500 text-black shadow-sm"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" /> Call Dialogue
+                  </button>
+                  <button
+                    onClick={() => setInspectorMode("schema")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1 ${
+                      inspectorMode === "schema"
+                        ? "bg-emerald-500 text-black shadow-sm"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    <Code2 className="w-3.5 h-3.5" /> API Schema
+                  </button>
+                  <button
+                    onClick={() => setInspectorMode("metrics")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1 ${
+                      inspectorMode === "metrics"
+                        ? "bg-emerald-500 text-black shadow-sm"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    <Activity className="w-3.5 h-3.5" /> Telemetry
+                  </button>
+                </div>
 
-                  <div className="space-y-3 font-sans text-xs">
-                    {currentSolution.transcript.map((line, idx) => (
-                      <div
-                        key={idx}
-                        className={`p-3 rounded-xl space-y-1 ${
-                          line.speaker === "agent"
-                            ? "bg-slate-800 border border-slate-700 text-slate-200"
-                            : "bg-emerald-950/60 border border-emerald-800/60 text-emerald-200 ml-4"
-                        }`}
-                      >
-                        <div className="flex justify-between items-center font-mono text-[10px] text-slate-400">
-                          <span className={line.speaker === "agent" ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
-                            {line.speaker === "agent" ? "Claritiy Voice Agent" : "Customer"}
-                          </span>
-                        </div>
-                        <p className="leading-relaxed font-medium">{line.text}</p>
+                <span className="font-mono text-[10px] text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
+                  LIVE DEMO
+                </span>
+              </div>
+
+              {/* Sub-Tab 1: Dialogue Simulation */}
+              {inspectorMode === "dialogue" && (
+                <div className="space-y-3 font-sans text-xs">
+                  {currentSolution.transcript.map((line, idx) => (
+                    <div
+                      key={idx}
+                      className={`p-3 rounded-xl space-y-1 ${
+                        line.speaker === "agent"
+                          ? "bg-slate-800 border border-slate-700 text-slate-200"
+                          : "bg-emerald-950/60 border border-emerald-800/60 text-emerald-200 ml-4"
+                      }`}
+                    >
+                      <div className="flex justify-between items-center font-mono text-[10px] text-slate-400">
+                        <span className={line.speaker === "agent" ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
+                          {line.speaker === "agent" ? "Claritiy Voice Agent" : "Customer"}
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                    <div className="flex items-center gap-2">
-                      <Code2 className="w-4 h-4 text-emerald-400" />
-                      <span className="font-mono text-xs font-bold text-white uppercase">INTEGRATION JSON SCHEMA</span>
+                      <p className="leading-relaxed font-medium">{line.text}</p>
                     </div>
-                    <span className="font-mono text-[10px] text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
-                      REST / WEBHOOK
-                    </span>
-                  </div>
+                  ))}
+                </div>
+              )}
 
+              {/* Sub-Tab 2: Webhook Schema */}
+              {inspectorMode === "schema" && (
+                <div className="space-y-2">
                   <pre className="text-slate-300 font-mono text-[11px] bg-slate-950 p-4 rounded-xl border border-slate-800 overflow-x-auto leading-relaxed max-h-72">
                     {currentSolution.techSchema}
                   </pre>
-                </>
+                  <p className="text-[11px] text-slate-400 font-mono">
+                    Post-back webhook delivered via TLS 1.3 with HMAC cryptographic signature.
+                  </p>
+                </div>
+              )}
+
+              {/* Sub-Tab 3: Telemetry & Latency */}
+              {inspectorMode === "metrics" && (
+                <div className="grid grid-cols-2 gap-3 font-mono text-xs">
+                  <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1">
+                    <span className="text-[10px] text-slate-500 uppercase block">ROUNDTRIP LATENCY</span>
+                    <span className="text-emerald-400 font-bold text-sm block">{currentSolution.metricsData.latency}</span>
+                    <span className="text-[10px] text-slate-400 block">Edge ingress node</span>
+                  </div>
+                  <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1">
+                    <span className="text-[10px] text-slate-500 uppercase block">CONCURRENCY BUDGET</span>
+                    <span className="text-white font-bold text-sm block">{currentSolution.metricsData.concurrency}</span>
+                    <span className="text-[10px] text-slate-400 block">Auto-scaling SIP trunks</span>
+                  </div>
+                  <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1">
+                    <span className="text-[10px] text-slate-500 uppercase block">RESOLUTION RATE</span>
+                    <span className="text-emerald-400 font-bold text-sm block">{currentSolution.metricsData.successRate}</span>
+                    <span className="text-[10px] text-slate-400 block">Without human agent transfer</span>
+                  </div>
+                  <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1">
+                    <span className="text-[10px] text-slate-500 uppercase block">AUDIO PROTOCOL</span>
+                    <span className="text-white font-bold text-sm block">{currentSolution.metricsData.format}</span>
+                    <span className="text-[10px] text-slate-400 block">Full duplex WebRTC</span>
+                  </div>
+                </div>
               )}
 
               <button
                 onClick={() => setPage("dashboard")}
-                className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-bold font-sans rounded-xl transition-colors flex items-center justify-center gap-2 text-xs"
+                className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-bold font-sans rounded-xl transition-colors flex items-center justify-center gap-2 text-xs shadow-sm cursor-pointer"
               >
                 Test This Solution In Dashboard <ArrowRight className="w-4 h-4" />
               </button>
@@ -915,23 +993,24 @@ POST /dms/v2/service/book
 
       {/* ── Bottom Callout ──────────────────────────────────────────────── */}
       <section className="px-6 max-w-5xl mx-auto relative z-10">
-        <div className="bg-[#0B132B] text-white rounded-3xl p-10 md:p-16 text-center space-y-6 border border-slate-800">
+        <div className="bg-[#0B132B] text-white rounded-3xl p-10 md:p-16 text-center space-y-6 border border-slate-800 shadow-2xl relative overflow-hidden">
+          <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
           <h2 className="text-3xl md:text-5xl font-extrabold" style={{ fontFamily: "'Clash Display', sans-serif" }}>
             Deploy Your First Production Agent in 10 Minutes
           </h2>
           <p className="text-slate-300 max-w-2xl mx-auto text-base font-plus-jakarta">
             Connect your phone number, select a production template, and launch with zero upfront engineering overhead.
           </p>
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10">
             <button
               onClick={() => setPage("dashboard")}
-              className="py-4 px-8 text-base bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl inline-flex items-center gap-2 transition-all shadow-lg"
+              className="py-4 px-8 text-base bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl inline-flex items-center gap-2 transition-all shadow-lg cursor-pointer"
             >
               Start Free in Sandbox <ArrowRight className="w-5 h-5" />
             </button>
             <button
               onClick={() => setPage("contact")}
-              className="py-4 px-8 text-base bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl inline-flex items-center gap-2 transition-all border border-slate-700"
+              className="py-4 px-8 text-base bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl inline-flex items-center gap-2 transition-all border border-slate-700 cursor-pointer"
             >
               Book Architecture Review
             </button>
