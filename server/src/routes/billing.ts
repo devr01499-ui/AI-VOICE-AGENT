@@ -55,15 +55,33 @@ router.post('/verify-plan', requireAuth, sensitiveOperationsLimiter, async (req:
       return;
     }
 
+    const { prisma } = await import('../lib/prisma');
+    const userBefore = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { accountType: true }
+    });
+
     await billingService.processPlanPurchase(req.userId, plan, paymentId, orderId);
-    
+
+    const isPlanChange = !!userBefore?.accountType && userBefore.accountType !== 'free';
+
     await logAuditEvent({
       workspaceOwnerId: req.effectiveWorkspaceId || req.userId,
       actorUserId: req.userId,
-      action: 'billing.plan.changed',
+      action: 'billing.plan.purchased',
       targetId: orderId,
-      metadata: { plan, paymentId, orderId },
+      metadata: { plan, paymentId, orderId, previousPlan: userBefore?.accountType || 'none' },
     });
+
+    if (isPlanChange) {
+      await logAuditEvent({
+        workspaceOwnerId: req.effectiveWorkspaceId || req.userId,
+        actorUserId: req.userId,
+        action: 'billing.plan.changed',
+        targetId: orderId,
+        metadata: { plan, paymentId, orderId, previousPlan: userBefore?.accountType },
+      });
+    }
 
     logger.info(`Plan purchased: ${plan}, OrderId: ${orderId}, UserId: ${req.userId}`);
 

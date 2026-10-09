@@ -439,8 +439,8 @@ export class VobizSubAccountService {
         }
       }
 
-      // 3. Sync database records for this user strictly matching their own sub-account status.
-      // Limit update strictly to aadhaarRequired: true numbers so non-KYC numbers are not overwritten.
+      const prevSub = await prisma.vobizSubAccount.findUnique({ where: { userId }, select: { kycStatus: true, authId: true } });
+
       await prisma.phoneNumber.updateMany({
         where: { userId, aadhaarRequired: true },
         data: { kycStatus: subKycStatus }
@@ -453,6 +453,17 @@ export class VobizSubAccountService {
           kycVerifiedAt: isVerified ? new Date() : null,
         }
       });
+
+      if (prevSub && prevSub.kycStatus !== subKycStatus) {
+        const { logAuditEvent } = await import('../utils/auditLogger');
+        await logAuditEvent({
+          workspaceOwnerId: userId,
+          actorUserId: userId,
+          action: 'kyc.status_changed',
+          targetId: prevSub.authId,
+          metadata: { status: subKycStatus, previousStatus: prevSub.kycStatus, source: 'live_sync' },
+        });
+      }
 
       // 4. Evaluate number auto-activation rule:
       // Active when (KYC verified OR number does not require KYC) AND walletFundedAt is set

@@ -302,7 +302,7 @@ router.post('/webhook/vobiz', verifyVobizWebhook, async (req, res, next) => {
       await logAuditEvent({
         workspaceOwnerId: targetUserId,
         actorUserId: targetUserId,
-        action: 'kyc.status_updated',
+        action: 'kyc.status_changed',
         targetId: sub_account_auth_id || phoneNumber || targetUserId,
         metadata: { status: normalizedStatus, reason },
       });
