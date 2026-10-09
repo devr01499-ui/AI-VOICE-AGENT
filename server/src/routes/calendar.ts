@@ -198,7 +198,7 @@ router.get('/bookings', requireAuth, async (req, res) => {
  */
 router.get('/batches', requireAuth, async (req, res) => {
   try {
-    const userId = getUserIdFromRequest(req);
+    const userId = (req as any).effectiveWorkspaceId || getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const batches = await prisma.batch.findMany({
@@ -238,7 +238,7 @@ router.get('/batches', requireAuth, async (req, res) => {
  */
 router.post('/batches', requireAuth, sensitiveOperationsLimiter, async (req, res) => {
   try {
-    const userId = getUserIdFromRequest(req);
+    const userId = (req as any).effectiveWorkspaceId || getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const { name, agentId, recipients, scheduleNow } = req.body;
@@ -303,7 +303,7 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, async (req, res
  */
 router.post('/batches/:id/pause', requireAuth, async (req, res) => {
   try {
-    const userId = getUserIdFromRequest(req);
+    const userId = (req as any).effectiveWorkspaceId || getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const batchId = Array.isArray(req.params.id) ? req.params.id[0] : (req.params.id as string);
@@ -325,7 +325,7 @@ router.post('/batches/:id/pause', requireAuth, async (req, res) => {
  */
 router.post('/batches/:id/resume', requireAuth, async (req, res) => {
   try {
-    const userId = getUserIdFromRequest(req);
+    const userId = (req as any).effectiveWorkspaceId || getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const batchId = Array.isArray(req.params.id) ? req.params.id[0] : (req.params.id as string);
@@ -352,7 +352,7 @@ router.post('/batches/:id/resume', requireAuth, async (req, res) => {
  */
 router.post('/batches/:id/cancel', requireAuth, async (req, res) => {
   try {
-    const userId = getUserIdFromRequest(req);
+    const userId = (req as any).effectiveWorkspaceId || getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const batchId = Array.isArray(req.params.id) ? req.params.id[0] : (req.params.id as string);

@@ -15,6 +15,13 @@
 - P1: Removed hardcoded `csat: 4.9` and dummy call rows in `App.tsx`, connecting metrics to real call records and empty states.
 - P2: Fixed workspace settings persistence in `App.tsx` by hydrating settings form state from `localStorage` on component mount.
 - P2: Standardized live API key prefixes to `claritiy_live_` in `apikeys.ts` and `authWrapper.ts` with backward compatibility for legacy keys.
+- P1: Scoped batch campaign routes (`GET/POST /batches`, `pause`, `resume`, `cancel`) in `server/src/routes/calendar.ts` and `GET /api/v2/calls` in `server/src/routes/calls.ts` to `effectiveWorkspaceId` for complete team member workspace isolation.
+- P1: Hardened Gemini Live `goAway` session event in `GeminiLiveProvider.ts` to prevent premature disconnections while retaining upstream `resumptionHandle`.
+- P2: Updated API Quick Start code snippet in `App.tsx` Settings to use production `claritiy_live_` API key token format.
+- P2: Anchored CORS origin regex in `server/src/index.ts` to exclusively allow Claritiy Voice domains and blocked arbitrary third-party Vercel/Render apps from sending credentialed cross-origin requests.
+- P2: Replaced legacy recruiting screening prompts in `CallController.ts` and multilingual greetings in `SandboxStreamHandler.ts` with warm, professional voice assistant defaults.
+- P2: Guarded batch campaign completion in `BatchService.ts` to ensure batch status remains running until all straggling in-progress recipients have fully resolved.
+- P3: Configured `--max-old-space-size=4096` in `server/package.json` for deterministic typechecking.
 
 ## [Unreleased] - 2026-09-26
 ### Fixed

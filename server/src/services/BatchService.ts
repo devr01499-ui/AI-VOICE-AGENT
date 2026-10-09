@@ -118,6 +118,7 @@ export class BatchService {
       await new Promise(res => setTimeout(res, 1000));
     }
 
+    const inProgressCount = await prisma.batchRecipient.count({ where: { batchId, status: 'in_progress' } });
     const finalCompleted = await prisma.batchRecipient.count({ where: { batchId, status: 'completed' } });
     const finalFailed = await prisma.batchRecipient.count({ where: { batchId, status: 'failed' } });
 
@@ -126,8 +127,8 @@ export class BatchService {
       data: {
         completedCount: finalCompleted,
         failedCount: finalFailed,
-        status: 'completed',
-        completedAt: new Date()
+        status: inProgressCount > 0 ? 'running' : 'completed',
+        ...(inProgressCount === 0 ? { completedAt: new Date() } : {})
       }
     });
 

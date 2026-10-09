@@ -102,8 +102,8 @@ app.use(cors({
     const frontendOrigin = env.FRONTEND_URL ? (() => { try { return new URL(env.FRONTEND_URL).origin; } catch { return null; } })() : null;
     const isAllowedList = allowedOrigins.includes(origin) || (frontendOrigin !== null && origin === frontendOrigin);
     const isAnchoredDomain = /^https:\/\/(www\.)?claritiy\.com$/.test(origin) ||
-                             /^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/.test(origin) ||
-                             /^https:\/\/[a-zA-Z0-9-]+\.onrender\.com$/.test(origin);
+                             /^https:\/\/(ai-voice-agent|claritiy)[a-zA-Z0-9-]*\.vercel\.app$/.test(origin) ||
+                             /^https:\/\/ai-voice-agent-backend-mv32\.onrender\.com$/.test(origin);
 
     if (isAllowedList || isAnchoredDomain) {
       callback(null, true);

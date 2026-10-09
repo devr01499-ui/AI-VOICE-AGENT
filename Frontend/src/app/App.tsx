@@ -5281,7 +5281,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
           <ApiKeyManagement />
           <div className="nm-card p-6 space-y-4">
             <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Quick start</p>
-            <div className="nm-pressed rounded-2xl p-5 overflow-x-auto text-[var(--nm-text)]"><pre className="text-sm font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{`curl -X POST ${window.location.origin}/api/v2/calls \\\n  -H "Authorization: Bearer cv_prod_sk_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{"agentId":"YOUR_AGENT_UUID","phoneNumber":"+919876543210"}'`}</pre></div>
+            <div className="nm-pressed rounded-2xl p-5 overflow-x-auto text-[var(--nm-text)]"><pre className="text-sm font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{`curl -X POST ${window.location.origin}/api/v2/calls \\\n  -H "Authorization: Bearer claritiy_live_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{"agentId":"YOUR_AGENT_UUID","phoneNumber":"+919876543210"}'`}</pre></div>
           </div>
         </div>
       )}

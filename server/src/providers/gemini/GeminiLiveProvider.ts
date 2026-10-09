@@ -957,10 +957,17 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         timeLeftMs: event.goAway.timeLeftMs,
         resumptionHandle: event.goAway.resumptionHandle,
       });
-      callbacks.onError?.(
-        sessionId,
-        new Error(`Session is ending in ${timeLeftSeconds} seconds due to upstream resource constraints.`)
-      );
+
+      // Avoid dropping call prematurely while time remains; trigger fallback only when remaining time elapses
+      const delayMs = event.goAway.timeLeftMs ? Math.max(500, event.goAway.timeLeftMs - 1000) : 10000;
+      setTimeout(() => {
+        if (this.activeSessions.has(sessionId)) {
+          callbacks.onError?.(
+            sessionId,
+            new Error(`Session expired after ${timeLeftSeconds} seconds due to upstream resource constraints.`)
+          );
+        }
+      }, delayMs);
     }
   }
 }
