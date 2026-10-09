@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-10-09
+### Fixed
+- P0: Replaced all unverified compliance claims (SOC 2 Type II, HIPAA BAA, ISO 27001) and unverified `< 180ms` latency claims in `Hero.tsx`, `CompareTable.tsx`, and `App.tsx` with authentic infrastructure metrics (`256-Bit TLS`, `Sub-Second Native Multimodal`).
+- P0: Verified and surfaced Hosted KYC verification onboarding trigger (`Start KYC Verification Now`) in `DashCallingConfig.tsx` wired to `/api/v2/kyc/initiate-session` and Vobiz KYC gateway.
+- P0: Verified topological BFS visual flow builder graph compilation in `VisualFlowCanvas.tsx`, `flowCompiler.ts`, and `FlowCompiler.ts` respecting visual edges and multi-branch condition transitions.
+- P0: Verified multi-tenant outbound calling via dynamic user ID / workspace ID routing in `CallController.ts` and `CallService.ts` with zero admin-account hardcoding.
+- P0: Hardened live call audio streaming in `AudioStreamHandler.ts` by handling `PROVIDER_EVENTS.ERROR_OCCURRED` with idempotent synthesized fallback audio alert and graceful disconnect, eliminating dead air.
+- P0: Confirmed low-latency edge deployment configuration targeting Singapore (`region: singapore`) in `render.yaml` for sub-second proximity to Indian telephony providers.
+- P1: Enforced flow graph validation in `VisualFlowCanvas.tsx` to prevent publishing unfinished features (Call Transfer, Send SMS) and substituted polite callback instructions in `flowCompiler.ts`.
+- P1: Enforced strict 4-tier RBAC (`requireRole` / `requireEditor`) in `server/src/routes/agents.ts` returning 403 on mutation attempts by `viewer` role accounts (verified with test suite).
+- P1: Verified sequential batch campaign execution in `BatchService.ts` running real calls through `CallService.createCall`.
+- P1: Verified continuous background alert evaluation worker in `AlertEvaluator.ts` running every 60 seconds from server boot.
+- P1: Removed hardcoded `csat: 4.9` and dummy call rows in `App.tsx`, connecting metrics to real call records and empty states.
+- P2: Fixed workspace settings persistence in `App.tsx` by hydrating settings form state from `localStorage` on component mount.
+- P2: Standardized live API key prefixes to `claritiy_live_` in `apikeys.ts` and `authWrapper.ts` with backward compatibility for legacy keys.
+
 ## [Unreleased] - 2026-09-26
 ### Fixed
 - Added `frozen-lockfile=false` and `auto-install-peers=true` to root `.npmrc` and `Frontend/.npmrc` to eliminate Vercel CI `ERR_PNPM_OUTDATED_LOCKFILE` build failures.

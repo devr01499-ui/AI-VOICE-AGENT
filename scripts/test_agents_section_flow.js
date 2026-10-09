@@ -161,11 +161,11 @@ function runWorkflowTests() {
   // Extract flowGraphs from App.tsx templates
   const expectedGreetings = [
     'Hello! Thank you for calling Claritiy Voice.',
-    'Hi! This is Alex from Claritiy Voice',
-    'Hello! Thank you for calling Bright Dental.',
-    'Thanks for calling Premier Realty.',
-    'Welcome to Order Support!',
-    'Welcome to the Claritiy Voice Summit Desk!'
+    'Thank you for calling Pinecrest Medical Group.',
+    'Hi! This is Jordan from Claritiy Voice',
+    'Customer Win-Back Specialist representing Claritiy Voice',
+    'Thank you for calling Bright Smiles Dental!',
+    'Thank you for calling Apex Home Services.'
   ];
 
   let greetingsFound = 0;

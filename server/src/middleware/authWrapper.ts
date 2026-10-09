@@ -13,7 +13,7 @@ export const requireAuthOrApiKey = async (req: Request, res: Response, next: Nex
   
   // A simple heuristic: if the token starts with our api key prefix, use API Key auth.
   // Otherwise, use Supabase session auth.
-  if (token.startsWith('blna_live_')) {
+  if (token.startsWith('claritiy_live_') || token.startsWith('blna_live_')) {
     await requireApiKey(req as ApiAuthenticatedRequest, res, next);
   } else {
     await requireAuth(req as AuthenticatedRequest, res, next);

@@ -256,6 +256,14 @@ export class AudioStreamHandler {
             }
           });
 
+          // Register explicit engine error event for instant fallback on transport disconnect
+          eventBus.subscribe(PROVIDER_EVENTS.ERROR_OCCURRED, (payload) => {
+            if (payload.callId === callId) {
+              logger.warn('AudioStreamHandler: engine error event received, triggering audio fallback and graceful close', { callId, reason: (payload as any).reason });
+              this.playFallbackAndEndCall(callId);
+            }
+          });
+
           // Trigger initial greeting — immediately once session is up (no delay needed since setup already took time)
           try {
             logger.info('AudioStreamHandler: triggering greeting', { callId, sessionId });
@@ -466,6 +474,8 @@ export class AudioStreamHandler {
   private playFallbackAndEndCall(callId: string): void {
     const conn = this.connections.get(callId);
     if (!conn || conn.ws.readyState !== WebSocket.OPEN) return;
+    if ((conn as any).isFallingBack) return;
+    (conn as any).isFallingBack = true;
 
     this.clearAudio(callId);
 

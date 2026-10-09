@@ -1784,6 +1784,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
   });
   const [agentsLoading, setAgentsLoading] = useState(agents.length === 0);
   const [agentsError, setAgentsError] = useState<string | null>(null);
+  const [allCalls, setAllCalls] = useState<ApiCall[]>([]);
   const [kbList, setKbList] = useState<ApiKnowledgeBase[]>(() => {
     try {
       const cached = localStorage.getItem('cache_kb_list');
@@ -1806,6 +1807,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
         fetchCalls({ limit: 100 }).catch(() => []),
         apiClient.get('/api/v2/numbers').then(r => r.data?.data || []).catch(() => [])
       ]).then(([data, callsData, numbersData]) => {
+          setAllCalls(callsData || []);
           const newAgents = (data || []).map(a => {
             const assignedKbIds = (kbListResult || [])
               .filter(k => k.agentIds && k.agentIds.includes(a.id))
@@ -1818,7 +1820,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
               type: (a.agentType === 'prompt' ? 'prompt' : 'conversational') as 'prompt' | 'conversational',
               status: (a.status as 'active' | 'paused' | 'draft') ?? 'draft',
               calls: agentCalls.length,
-              csat: agentCalls.length > 0 ? 4.9 : null,
+              csat: null,
               lang: 'EN',
               voice: a.systemVoice || a.voiceName || 'Puck',
               model: a.model ?? 'gemini-2.5-flash',
@@ -2513,18 +2515,24 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
       )}
       {detailTab==="calls" && (
         <div className="nm-raised rounded-2xl overflow-hidden mt-6">
-          <table className="w-full"><thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Caller","Duration","Result","Sentiment","Date",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>)}</tr></thead>
+          <table className="w-full"><thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Caller","Duration","Result","Sentiment","Date"].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>)}</tr></thead>
           <tbody className="divide-y divide-transparent">
-            {[{name:"Marcus Johnson",dur:"4m 12s",result:"Resolved",sent:"Positive",date:"Today 2:14 PM"},{name:"Elena Vasquez",dur:"2m 38s",result:"Scheduled",sent:"Positive",date:"Today 1:58 PM"},{name:"David Kim",dur:"7m 55s",result:"Transferred",sent:"Neutral",date:"Today 1:41 PM"},{name:"Aisha Okafor",dur:"3m 20s",result:"Resolved",sent:"Positive",date:"Today 1:22 PM"}].map(c=>(
-              <tr key={c.name} className="hover:nm-pressed transition-all cursor-pointer">
-                <td className="px-5 py-4 text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.name}</td>
-                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.dur}</td>
-                <td className="px-5 py-4"><DBadge v={c.result==="Resolved"||c.result==="Scheduled"?"success":"warning"}>{c.result}</DBadge></td>
-                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.sent}</td>
-                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.date}</td>
-                <td className="px-5 py-4"><DBtn size="sm" variant="ghost"><Eye className="w-3.5 h-3.5"/> Transcript</DBtn></td>
+            {allCalls.filter(c => c.agentId === selected.id || c.agent?.name === selected.name).slice(0, 10).map((c, idx) => (
+              <tr key={c.id || idx} className="hover:nm-pressed transition-all">
+                <td className="px-5 py-4 text-base font-bold text-[var(--nm-text)] font-mono" style={{fontFamily:"'Outfit', sans-serif"}}>{c.phoneNumber || 'Anonymous'}</td>
+                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.duration != null ? `${Math.floor(c.duration/60)}m ${c.duration%60}s` : '0s'}</td>
+                <td className="px-5 py-4"><DBadge v={c.status==="completed"?"success":"warning"}>{c.status === "completed" ? "Completed" : c.status}</DBadge></td>
+                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.sentiment || 'Neutral'}</td>
+                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.createdAt ? new Date(c.createdAt).toLocaleDateString() : '—'}</td>
               </tr>
             ))}
+            {allCalls.filter(c => c.agentId === selected.id || c.agent?.name === selected.name).length === 0 && (
+              <tr>
+                <td colSpan={5} className="text-center p-8 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>
+                  NO CALL TELEMETRY RECORDED FOR THIS AGENT YET.
+                </td>
+              </tr>
+            )}
           </tbody></table>
         </div>
       )}
@@ -4844,16 +4852,61 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
     }
   }, [stab, loadAuditLogs]);
 
-  // Workspace Settings State
-  const [wsName, setWsName] = useState(profile?.fullName ?? "Claritiy Voice Workspace");
-  const [billingEmail, setBillingEmail] = useState(profile?.email ?? "billing@claritiy.com");
-  const [timezone, setTimezone] = useState("Asia/Kolkata (UTC+5:30)");
-  const [defaultNumberId, setDefaultNumberId] = useState("");
-  const [toggles, setToggles] = useState({
-    recording: true,
-    transcription: true,
-    sentiment: true,
-    summary: true,
+  // Workspace Settings State (Hydrated from localStorage)
+  const [wsName, setWsName] = useState(() => {
+    try {
+      const s = localStorage.getItem('workspace_settings');
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (parsed.wsName) return parsed.wsName;
+      }
+    } catch {}
+    return profile?.fullName ?? "Claritiy Voice Workspace";
+  });
+  const [billingEmail, setBillingEmail] = useState(() => {
+    try {
+      const s = localStorage.getItem('workspace_settings');
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (parsed.billingEmail) return parsed.billingEmail;
+      }
+    } catch {}
+    return profile?.email ?? "billing@claritiy.com";
+  });
+  const [timezone, setTimezone] = useState(() => {
+    try {
+      const s = localStorage.getItem('workspace_settings');
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (parsed.timezone) return parsed.timezone;
+      }
+    } catch {}
+    return "Asia/Kolkata (UTC+5:30)";
+  });
+  const [defaultNumberId, setDefaultNumberId] = useState(() => {
+    try {
+      const s = localStorage.getItem('workspace_settings');
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (parsed.defaultNumberId) return parsed.defaultNumberId;
+      }
+    } catch {}
+    return "";
+  });
+  const [toggles, setToggles] = useState<Record<string, boolean>>(() => {
+    try {
+      const s = localStorage.getItem('workspace_settings');
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (parsed.toggles) return parsed.toggles;
+      }
+    } catch {}
+    return {
+      recording: true,
+      transcription: true,
+      sentiment: true,
+      summary: true,
+    };
   });
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
@@ -4945,17 +4998,44 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
     });
   };
 
-  // Webhooks State
-  const [webhook, setWebhook] = useState("https://hooks.acmecorp.com/aivoice");
-  const [signingSecret, setSigningSecret] = useState("whsec_live_3847291048209384");
+  // Webhooks State (Hydrated from localStorage)
+  const [webhook, setWebhook] = useState(() => {
+    try {
+      const s = localStorage.getItem('webhook_settings');
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (parsed.webhook) return parsed.webhook;
+      }
+    } catch {}
+    return "https://hooks.acmecorp.com/aivoice";
+  });
+  const [signingSecret, setSigningSecret] = useState(() => {
+    try {
+      const s = localStorage.getItem('webhook_settings');
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (parsed.signingSecret) return parsed.signingSecret;
+      }
+    } catch {}
+    return "whsec_live_3847291048209384";
+  });
   const [copiedSecret, setCopiedSecret] = useState(false);
-  const [events, setEvents] = useState<Record<string, boolean>>({
-    "call.started": true,
-    "call.ended": true,
-    "call.transferred": true,
-    "call.recording_ready": true,
-    "campaign.completed": true,
-    "agent.error": true,
+  const [events, setEvents] = useState<Record<string, boolean>>(() => {
+    try {
+      const s = localStorage.getItem('webhook_settings');
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (parsed.events) return parsed.events;
+      }
+    } catch {}
+    return {
+      "call.started": true,
+      "call.ended": true,
+      "call.transferred": true,
+      "call.recording_ready": true,
+      "campaign.completed": true,
+      "agent.error": true,
+    };
   });
   const [webhookStatus, setWebhookStatus] = useState<string | null>(null);
 
@@ -5090,7 +5170,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
                 <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{s.l}</p>
                 <p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{s.d}</p>
               </div>
-              <DToggle on={(toggles as any)[s.key]} set={(val)=>setToggles(t=>({...t, [s.key]: val}))}/>
+              <DToggle on={Boolean(toggles[s.key])} set={(val)=>setToggles((t: Record<string, boolean>)=>({...t, [s.key]: val}))}/>
             </div>
           ))}
           <DField label="Call Data Retention Policy" hint="Automatically purge call recordings & transcripts older than the configured window.">
@@ -6719,7 +6799,7 @@ function ComparePage({ setPage }: { setPage: (p: Page) => void }) {
     },
     {
       feature: "Duplex Barge-In Latency",
-      claritiy: "✅ < 180ms response speed",
+      claritiy: "✅ Sub-second response speed",
       vapi: "⚠️ ~240ms to 320ms latency",
       retell: "⚠️ ~200ms to 280ms latency"
     },

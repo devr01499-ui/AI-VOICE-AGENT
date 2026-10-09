@@ -517,10 +517,10 @@ export default function Hero({ setPage }: HeroProps) {
             {/* Platform Proof Metrics Bar */}
             <div className="pt-6 border-t border-slate-200/80 grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
-                { label: "Sub-Second Latency", value: "< 180ms" },
+                { label: "Response Latency", value: "< 500ms" },
                 { label: "Supported Languages", value: "70+ Dialects" },
                 { label: "Human Voice Parity", value: "99.9%" },
-                { label: "Security & PII", value: "SOC2 / HIPAA" }
+                { label: "Security & Privacy", value: "256-Bit TLS" }
               ].map((stat, idx) => (
                 <div key={idx} className="space-y-0.5">
                   <p className="text-lg sm:text-xl font-extrabold text-[#0F172A] font-mono">

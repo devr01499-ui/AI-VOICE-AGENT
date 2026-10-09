@@ -36,7 +36,7 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res) => {
     
     // Generate a random 32-byte key
     const rawKey = crypto.randomBytes(32).toString('hex');
-    const prefix = 'blna_live_';
+    const prefix = 'claritiy_live_';
     const fullKey = prefix + rawKey;
     
     // Hash the full key for storage

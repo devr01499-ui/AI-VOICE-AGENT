@@ -10,7 +10,7 @@ export default function CompareTable() {
     },
     {
       feature: "End-to-End Latency",
-      claritiy: "< 180ms (Native Multimodal)",
+      claritiy: "Sub-Second (Native Multimodal)",
       vapi: "800ms - 1,500ms (API pipeline lag)",
       retell: "800ms - 1,200ms (API pipeline lag)"
     },
@@ -28,7 +28,7 @@ export default function CompareTable() {
     },
     {
       feature: "Full-Duplex Interruption",
-      claritiy: "✅ Instant Pauses (<120ms response)",
+      claritiy: "✅ Instant Pauses (Sub-Second Response)",
       vapi: "⚠️ Lagged interruption threshold",
       retell: "⚠️ Configurable but latency-prone"
     },

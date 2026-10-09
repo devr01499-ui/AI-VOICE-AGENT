@@ -188,9 +188,15 @@ export function DashCallingConfig() {
                         {item.kycStatus !== 'verified' && (
                           <button
                             onClick={handleInitiateHostedKyc}
-                            className="px-2.5 py-1 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-sm transition-all flex items-center gap-1 cursor-pointer"
+                            disabled={isInitiatingKyc}
+                            className={`px-3 py-1.5 text-xs font-bold text-white rounded-lg shadow-sm transition-all flex items-center gap-1.5 ${
+                              isInitiatingKyc
+                                ? 'bg-amber-400 cursor-not-allowed opacity-80'
+                                : 'bg-amber-600 hover:bg-amber-700 active:scale-95 cursor-pointer'
+                            }`}
                           >
-                            <ShieldCheck className="w-3.5 h-3.5" /> Start KYC Verification
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            {isInitiatingKyc ? 'Opening KYC...' : 'Start KYC Verification'}
                           </button>
                         )}
                       </p>
