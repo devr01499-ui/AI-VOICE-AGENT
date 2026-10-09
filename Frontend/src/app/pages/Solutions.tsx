@@ -1,7 +1,6 @@
 import { motion, AnimatePresence } from "motion/react";
 import React, { useState } from "react";
 import IndustryShowroomGrid from "../components/showroom/IndustryShowroomGrid";
-import RoiCalculator from "../components/calculator/RoiCalculator";
 import { 
   ArrowRight, Building2, Landmark, Home as HomeIcon, 
   ShoppingBag, Truck, HeartPulse, CheckCircle2, Sparkles, Phone, MessageSquare,
@@ -963,19 +962,6 @@ POST /dms/v2/service/book
             </div>
           </motion.div>
         </AnimatePresence>
-      </section>
-
-      {/* ── ROI Calculator Section ──────────────────────────────────────── */}
-      <section className="px-6 max-w-7xl mx-auto relative z-10 space-y-8">
-        <div className="text-center max-w-3xl mx-auto space-y-3">
-          <span className="text-xs font-mono font-bold text-emerald-600 uppercase tracking-widest">
-            FINANCIAL MODELING
-          </span>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-            Calculate Your Monthly Call Center Savings
-          </h2>
-        </div>
-        <RoiCalculator />
       </section>
 
       {/* ── All Covered Verticals Grid ──────────────────────────────────── */}

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { Check, ArrowRight, ShieldCheck, Zap, Loader2, Sparkles, Sliders, DollarSign, Lock, HelpCircle, PhoneCall } from "lucide-react";
-import RoiCalculator from "../components/calculator/RoiCalculator";
 import { API_BASE } from "../api";
 import { supabase } from "../lib/supabaseClient";
 
@@ -454,13 +453,6 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
             Contact Sales Team
           </button>
         </div>
-
-        {/* Embedded ROI Calculator */}
-        {!isDashboard && (
-          <div className="mt-20">
-            <RoiCalculator />
-          </div>
-        )}
       </section>
 
       {/* Flat-Rate Philosophy */}

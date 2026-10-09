@@ -10,7 +10,7 @@
   - Upgraded `Voices.tsx` with live soundwave animation, emotional persona tonal dynamics, 70+ regional language matrix, and integrated acoustic DSP hardware specifications.
   - Upgraded `Pricing.tsx` with unified high-value feature lists, interactive usage volume estimator, net ROI calculations, and transparent flat-rate billing.
   - Upgraded `Docs.tsx` into a full-featured Developer Hub with multi-language code snippets (cURL, Node.js, Python), copy buttons, webhook event payloads, and no-code connector cards.
-  - Upgraded `Security.tsx` into an authoritative enterprise data governance blueprint covering edge PII redaction, TLS 1.3 / SRTP encryption, zero retention, MSME registration, and DPDP compliance.
+  - Removed the "Calculate Your Monthly Call Center Savings" ROI calculator widget from `Solutions.tsx` and `Pricing.tsx` across the platform.
 ### Fixed
 - P0: Replaced all unverified compliance claims (SOC 2 Type II, HIPAA BAA, ISO 27001) and unverified `< 180ms` latency claims in `Hero.tsx`, `CompareTable.tsx`, and `App.tsx` with authentic infrastructure metrics (`256-Bit TLS`, `Sub-Second Native Multimodal`).
 - P0: Verified and surfaced Hosted KYC verification onboarding trigger (`Start KYC Verification Now`) in `DashCallingConfig.tsx` wired to `/api/v2/kyc/initiate-session` and Vobiz KYC gateway.
