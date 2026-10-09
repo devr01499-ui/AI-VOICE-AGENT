@@ -2173,7 +2173,7 @@ export default function SinglePromptStudio({
                 {/* PII Redaction Categories */}
                 <div>
                   <span className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                    PII Redaction Categories (Logs & Storage)
+                    PII Redaction Categories (Transcripts & Logs)
                   </span>
                   <div className="grid grid-cols-2 gap-2">
                     {[
