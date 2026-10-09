@@ -174,6 +174,16 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
         profileEmail = userRes.data?.user?.email || '';
       } catch {}
 
+      if (!profileEmail) {
+        try {
+          const userStr = localStorage.getItem('user');
+          if (userStr) {
+            const parsed = JSON.parse(userStr);
+            profileEmail = parsed.email || '';
+          }
+        } catch {}
+      }
+
       const options = {
         key: (import.meta as any).env?.VITE_RAZORPAY_KEY_ID,
         amount: orderData.data.amount,
