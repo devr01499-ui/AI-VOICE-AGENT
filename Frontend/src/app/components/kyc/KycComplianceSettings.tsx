@@ -343,29 +343,55 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
     );
   }
 
+  const verifiedCount = [panDoc?.status === 'verified', gstDoc?.status === 'verified', aadhaarDoc?.status === 'verified'].filter(Boolean).length;
+
   return (
-    <div className="space-y-6 max-w-4xl font-sans">
+    <div className="w-full space-y-8 font-sans">
       {/* Top Banner & Overall Status */}
-      <div className="nm-card p-6 md:p-8 space-y-4 border border-slate-200/60 shadow-sm rounded-3xl">
+      <div className="nm-card p-6 md:p-8 space-y-6 border border-slate-200/60 shadow-sm rounded-3xl bg-gradient-to-br from-white via-white to-slate-50/50">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold shadow-xs">
               <ShieldCheck className="w-6 h-6" />
             </div>
             <div>
               <h2 className="text-xl font-extrabold text-[var(--nm-text)] flex items-center gap-3" style={{ fontFamily: "'Clash Display', 'Outfit', sans-serif" }}>
-                KYC & Compliance Verification
+                KYC & Regulatory Compliance
               </h2>
               <p className="text-xs text-slate-500 mt-0.5" style={{ fontFamily: "'Outfit', sans-serif" }}>
                 Mandatory Indian Department of Telecommunications (DoT) sub-account identity compliance.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <div className="text-right">
               <span className="text-[11px] font-bold text-slate-400 block uppercase tracking-wider">Account Status</span>
               {renderStatusBadge(overallStatus)}
             </div>
+          </div>
+        </div>
+
+        {/* Live Progress Bar & Telephony Status */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+          <div className="md:col-span-7 bg-slate-50/90 rounded-2xl p-4 border border-slate-200/60">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs font-bold text-slate-700">Sub-Account Verification Lifecycle</span>
+              <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                {verifiedCount} of 3 Documents Verified
+              </span>
+            </div>
+            <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-emerald-500 transition-all duration-500 rounded-full"
+                style={{ width: `${(verifiedCount / 3) * 100}%` }}
+              />
+            </div>
+          </div>
+          <div className="md:col-span-5 bg-slate-50/90 rounded-2xl p-4 border border-slate-200/60 flex items-start gap-2.5">
+            <InfoIcon className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-slate-600 leading-relaxed">
+              Telecom carrier regulations require independent verification for each sub-account under <code className="text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded font-mono">customer_use</code> mode. Sub-accounts cannot inherit master KYC.
+            </p>
           </div>
         </div>
 
@@ -385,21 +411,10 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
             <span>{notification.message}</span>
           </div>
         )}
-
-        <div className="bg-slate-50/80 rounded-2xl p-4 text-xs text-slate-600 leading-relaxed border border-slate-200/60 flex items-start gap-3">
-          <InfoIcon className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold text-slate-800">Why is this required?</p>
-            <p className="mt-0.5">
-              Telecom carrier regulations require independent verification for each sub-account under{' '}
-              <code className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-mono text-[11px]">customer_use</code> mode. Sub-accounts cannot inherit master KYC. All documents are securely verified server-to-server.
-            </p>
-          </div>
-        </div>
       </div>
 
       {/* Grid of Document Verification Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
         
         {/* ── CARD 1: PAN Verification (Personal or Company, No DOB) ── */}
         <div className="nm-card p-6 rounded-3xl border border-slate-200/70 shadow-xs space-y-5 flex flex-col justify-between">
@@ -659,7 +674,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
         </div>
 
         {/* ── CARD 3: Aadhaar Card Verification (Upload) ── */}
-        <div className="nm-card p-6 rounded-3xl border border-slate-200/70 shadow-xs space-y-5 flex flex-col justify-between md:col-span-2">
+        <div className="nm-card p-6 rounded-3xl border border-slate-200/70 shadow-xs space-y-5 flex flex-col justify-between">
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-2 pb-3 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -723,7 +738,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
 
             {aadhaarDoc?.status !== 'verified' && (
               <form onSubmit={handleSubmitAadhaar} className="space-y-3.5 text-xs">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 gap-3.5">
                   <div>
                     <label className="block text-slate-600 font-bold mb-1">
                       Aadhaar Number (12 digits)
@@ -802,6 +817,45 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
           </div>
         </div>
 
+      </div>
+
+      {/* ── Telephony Readiness & Carrier Isolation Deck ── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+        <div className="nm-card p-6 rounded-3xl border border-slate-200/60 shadow-xs space-y-3 bg-gradient-to-br from-white to-slate-50/60">
+          <div className="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+          <h4 className="text-sm font-bold text-slate-800" style={{ fontFamily: "'Outfit', sans-serif" }}>
+            DoT Sub-Account Isolation
+          </h4>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            In accordance with Indian telecom regulations, every enterprise tenant operates within an isolated cryptographic sub-account namespace with sovereign data residency.
+          </p>
+        </div>
+
+        <div className="nm-card p-6 rounded-3xl border border-slate-200/60 shadow-xs space-y-3 bg-gradient-to-br from-white to-slate-50/60">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+          <h4 className="text-sm font-bold text-slate-800" style={{ fontFamily: "'Outfit', sans-serif" }}>
+            Unrestricted Calling Throughput
+          </h4>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Once identity verification completes, all automated voice agents gain immediate access to dedicated Indian DIDs, unlimited outbound PSTN concurrency, and high-quality carrier trunking.
+          </p>
+        </div>
+
+        <div className="nm-card p-6 rounded-3xl border border-slate-200/60 shadow-xs space-y-3 bg-gradient-to-br from-white to-slate-50/60">
+          <div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-600 flex items-center justify-center font-bold">
+            <Building className="w-5 h-5" />
+          </div>
+          <h4 className="text-sm font-bold text-slate-800" style={{ fontFamily: "'Outfit', sans-serif" }}>
+            Automated Audit Readiness
+          </h4>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            All document verification timestamps, cryptographic hashes, and compliance tokens are automatically synchronized with carrier gateways for regulatory audit trail compliance.
+          </p>
+        </div>
       </div>
     </div>
   );

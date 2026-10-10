@@ -5032,135 +5032,339 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
     setTimeout(() => setCopiedSecret(false), 2000);
   };
 
+  const tabConfig: { id: "workspace"|"kyc"|"api"|"webhooks"|"billing"|"team"|"audit"; label: string; icon: any; badge?: React.ReactNode }[] = [
+    { id: "workspace", label: "General & Voice", icon: Sliders },
+    { 
+      id: "kyc", 
+      label: "KYC & Compliance", 
+      icon: ShieldCheck, 
+      badge: (
+        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+          kycOverallStatus === 'verified' ? 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/30' :
+          kycOverallStatus === 'rejected' ? 'bg-red-500/20 text-red-500 border border-red-500/30' :
+          kycOverallStatus === 'action_required' ? 'bg-amber-500/20 text-amber-500 border border-amber-500/30' :
+          'bg-blue-500/20 text-blue-500 border border-blue-500/30'
+        }`}>
+          {kycOverallStatus === 'verified' ? 'Verified' : kycOverallStatus === 'rejected' ? 'Rejected' : kycOverallStatus === 'action_required' ? 'Action Req.' : 'Pending'}
+        </span>
+      )
+    },
+    { id: "api", label: "API & Keys", icon: Key },
+    { id: "webhooks", label: "Webhooks", icon: Radio },
+    { id: "billing", label: "Billing & Credits", icon: CreditCard },
+    { id: "team", label: `Team (${team.length})`, icon: Users },
+    ...(canManageTeam ? [{ id: "audit" as const, label: "Audit Logs", icon: FileText }] : []),
+  ];
+
   return (
-    <div className={`space-y-4 ${stab === 'kyc' ? 'max-w-4xl' : 'max-w-2xl'}`}>
-      <div className="flex gap-2 flex-wrap">
-        {(canManageTeam ? ["workspace","kyc","api","webhooks","billing","team","audit"] : ["workspace","kyc","api","webhooks","billing","team"]).map(t=>(
-          <button 
-            key={t} 
-            onClick={()=>setStab(t as any)} 
-            className={`px-5 py-2.5 text-sm font-bold capitalize transition-all flex items-center gap-2 ${stab===t?"nm-pressed text-[var(--nm-accent)] rounded-xl":"hover:nm-pressed text-[var(--nm-text)] rounded-xl"}`} 
-            style={{fontFamily:"'Outfit', sans-serif"}}
-          >
-            {t === "audit" ? "Audit Logs" : t === "kyc" ? "KYC & Compliance" : t}
-            {t === "kyc" && (
-              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                kycOverallStatus === 'verified' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                kycOverallStatus === 'rejected' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                kycOverallStatus === 'action_required' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-              }`}>
-                {kycOverallStatus === 'verified' ? 'Verified' : kycOverallStatus === 'rejected' ? 'Rejected' : kycOverallStatus === 'action_required' ? 'Action Req.' : 'Pending'}
-              </span>
-            )}
-          </button>
-        ))}
+    <div className="w-full max-w-7xl mx-auto space-y-8 pb-12 font-sans">
+      {/* ── Executive Settings Header ── */}
+      <div className="nm-card p-6 md:p-8 rounded-3xl border border-border-soft/60 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-gradient-to-br from-[var(--nm-bg)] via-[var(--nm-bg)] to-mint-primary/5">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+              <ShieldCheck className="w-3.5 h-3.5" /> Enterprise Governance
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono font-semibold text-ink-muted bg-surface-white/60 border border-border-soft">
+              Workspace ID: {profile?.id ? profile.id.slice(0, 8) : 'ws_default'}
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold text-ink-muted bg-surface-white/60 border border-border-soft">
+              Telephony Engine: Indian PSTN & WebRTC
+            </span>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-[var(--nm-text)] tracking-tight" style={{ fontFamily: "'Clash Display', 'Outfit', sans-serif" }}>
+            Workspace Settings & Telephony Governance
+          </h1>
+          <p className="text-xs md:text-sm text-ink-muted max-w-3xl leading-relaxed" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+            Configure enterprise sub-accounts, Indian DoT compliance policies, speech synthesis defaults, real-time webhooks, and team roles for <strong className="text-[var(--nm-text)]">Claritiy Voice</strong>.
+          </p>
+        </div>
+
+        {/* Telemetry Status Chips */}
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 shrink-0">
+          <div className="p-3.5 rounded-2xl bg-surface-white/80 border border-border-soft shadow-xs flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-mint-primary/15 text-forest-deep flex items-center justify-center font-bold">
+              <Activity className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-bold tracking-wider text-ink-muted">Throughput</p>
+              <p className="text-xs font-extrabold text-[var(--nm-text)] font-mono">{softConcurrencyLimit} Concurrent Calls</p>
+            </div>
+          </div>
+          <div className="p-3.5 rounded-2xl bg-surface-white/80 border border-border-soft shadow-xs flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-600 flex items-center justify-center font-bold">
+              <ShieldCheck className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-bold tracking-wider text-ink-muted">Carrier Sub-Account</p>
+              <p className="text-xs font-extrabold text-[var(--nm-text)] capitalize">{kycOverallStatus === 'verified' ? 'Verified (Active)' : 'Compliance Sandbox'}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {stab==="workspace"&&(
-        <div className="nm-card p-6 space-y-5">
-          {saveStatus && <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold">{saveStatus}</div>}
-          <DField label="Workspace name"><DInput value={wsName} onChange={e=>setWsName(e.target.value)}/></DField>
-          <DField label="Billing email"><DInput type="email" value={billingEmail} onChange={e=>setBillingEmail(e.target.value)}/></DField>
-          <DField label="Timezone">
-            <DSelect value={timezone} onChange={e=>setTimezone(e.target.value)}>
-              <option value="Asia/Kolkata (UTC+5:30)">Asia/Kolkata (UTC+5:30) — India Standard Time</option>
-              <option value="America/New_York (UTC−5)">America/New_York (UTC−5)</option>
-              <option value="America/Chicago (UTC−6)">America/Chicago (UTC−6)</option>
-              <option value="America/Los_Angeles (UTC−8)">America/Los_Angeles (UTC−8)</option>
-              <option value="Europe/London (UTC+0)">Europe/London (UTC+0)</option>
-            </DSelect>
-          </DField>
-          <DField label="Default outbound number">
-            <DSelect value={defaultNumberId} onChange={e=>setDefaultNumberId(e.target.value)}>
-              {numbersList.map(n=><option key={n.id} value={n.id}>{n.phoneNumber} — {n.label || 'Provisioned'}</option>)}
-              {numbersList.length === 0 && <option value="">No numbers provisioned</option>}
-            </DSelect>
-          </DField>
-          {[
-            {key: "recording", l:"Call recording",d:"Record all calls for compliance"},
-            {key: "transcription", l:"Real-time transcription",d:"Stream live transcripts to the dashboard"},
-            {key: "sentiment", l:"Sentiment analysis",d:"Analyse caller sentiment on every call"},
-            {key: "summary", l:"Auto-summary",d:"Generate a summary after each call ends"}
-          ].map(s=>(
-            <div key={s.key} className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{s.l}</p>
-                <p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{s.d}</p>
-              </div>
-              <DToggle on={Boolean(toggles[s.key])} set={(val)=>setToggles((t: Record<string, boolean>)=>({...t, [s.key]: val}))}/>
-            </div>
-          ))}
-          <DField label="Call Data Retention Policy" hint="Automatically purge call recordings & transcripts older than the configured window.">
-            <DSelect value={dataRetentionDays === null ? 'null' : String(dataRetentionDays)} onChange={e => handleRetentionSelect(e.target.value)}>
-              <option value="null">Keep forever (default — no purging)</option>
-              <option value="7">7 Days</option>
-              <option value="14">14 Days</option>
-              <option value="30">30 Days</option>
-              <option value="60">60 Days</option>
-              <option value="90">90 Days</option>
-              <option value="180">180 Days</option>
-              <option value="365">365 Days</option>
-            </DSelect>
-          </DField>
-          <DField label="Workspace Soft Concurrency Limit" hint="Maximum simultaneous active telephony channels for this workspace.">
-            <DSelect value={String(softConcurrencyLimit)} onChange={e => handleConcurrencySelect(parseInt(e.target.value, 10))}>
-              <option value="5">5 Concurrent Calls</option>
-              <option value="10">10 Concurrent Calls (Default)</option>
-              <option value="25">25 Concurrent Calls</option>
-              <option value="50">50 Concurrent Calls</option>
-              <option value="100">100 Concurrent Calls</option>
-              <option value="250">250 Concurrent Calls</option>
-            </DSelect>
-          </DField>
-          {concurrencySaveStatus && (
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold">
-              {concurrencySaveStatus}
-            </div>
-          )}
+      {/* ── Sub-navigation Tab Bar ── */}
+      <div className="flex gap-2 flex-wrap p-1.5 nm-pressed rounded-2xl border border-border-soft/40">
+        {tabConfig.map(t => {
+          const IconComp = t.icon;
+          const isActive = stab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setStab(t.id)}
+              className={`px-4 py-2.5 text-xs font-bold transition-all flex items-center gap-2 rounded-xl ${
+                isActive
+                  ? "nm-raised text-[var(--nm-accent)] shadow-xs bg-surface-white"
+                  : "hover:nm-raised text-[var(--nm-text)] opacity-75 hover:opacity-100"
+              }`}
+              style={{ fontFamily: "'Outfit', sans-serif" }}
+            >
+              <IconComp className="w-3.5 h-3.5" />
+              <span>{t.label}</span>
+              {t.badge}
+            </button>
+          );
+        })}
+      </div>
 
-          <div className="pt-4 border-t border-slate-700/30 space-y-3">
-            <DField label="Dashboard IP Allowlist (CIDR)" hint="Restrict workspace login/access to specific IP ranges (e.g. 192.168.1.0/24, 203.0.113.5). One per line or comma-separated. Leave empty to allow all IPs.">
-              <textarea
-                value={ipInputText}
-                onChange={e => setIpInputText(e.target.value)}
-                placeholder="e.g. 192.168.1.0/24&#10;203.0.113.45"
-                className="w-full h-24 p-3 text-xs font-mono font-bold bg-[var(--nm-bg)] text-[var(--nm-text)] rounded-xl border border-slate-700/30 focus:outline-none focus:ring-1 focus:ring-[#059669]"
-              />
-            </DField>
-
-            {allowedIpRanges.length > 0 && (
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold space-y-1">
-                <p>⚠️ <strong>IP Restriction Active ({allowedIpRanges.length} rules):</strong> Ensure your current IP is in the list before saving to prevent lockout.</p>
-                <p className="text-[11px] opacity-80">Emergency Lockout Recovery SQL: <code className="bg-amber-950/60 px-1.5 py-0.5 rounded font-mono text-amber-300">UPDATE users SET allowed_ip_ranges = '&#123;&#125;' WHERE email = 'admin@example.com';</code></p>
-              </div>
-            )}
-
-            {ipSaveStatus && (
-              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold">
-                {ipSaveStatus}
-              </div>
-            )}
-
-            <DBtn onClick={handleSaveIpAllowlist}><Check className="w-4 h-4"/> Save IP allowlist</DBtn>
-          </div>
-
-          <DBtn onClick={handleSaveWorkspace}><Check className="w-4 h-4"/> Save settings</DBtn>
-          {(profile as any)?.isAdmin && (
-            <div className="mt-6 pt-6 border-t border-transparent">
-              <p className="text-xs font-bold uppercase tracking-wider text-[var(--nm-text)] mb-4" style={{fontFamily:"'Outfit', sans-serif"}}>Admin — Credits Consumed</p>
-              <div className="nm-pressed rounded-2xl p-6 flex items-center gap-5">
-                <div className="w-12 h-12 rounded-full nm-raised flex items-center justify-center flex-shrink-0">
-                  <span className="text-xl">📊</span>
+      {/* ── TAB 1: WORKSPACE ── */}
+      {stab === "workspace" && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Left Column (col-span-12 lg:col-span-7 space-y-6) */}
+          <div className="lg:col-span-7 space-y-6">
+            {/* Card 1: Workspace Profile & Defaults */}
+            <div className="nm-card p-6 md:p-8 space-y-5 rounded-3xl border border-border-soft/60">
+              <div className="flex items-center gap-3 pb-3 border-b border-border-soft/40">
+                <div className="w-10 h-10 rounded-2xl bg-mint-primary/20 text-forest-deep flex items-center justify-center font-bold">
+                  <Building2 className="w-5 h-5 text-emerald-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{((profile as any)?.totalMinutesConsumed ?? 0).toFixed(2)} <span className="text-base font-bold text-[var(--nm-text)]">min</span></p>
-                  <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Total platform minutes consumed across all sandbox sessions</p>
+                  <h3 className="text-base font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                    Workspace Identity & Routing
+                  </h3>
+                  <p className="text-xs text-ink-muted">General metadata and default outbound caller identity</p>
                 </div>
               </div>
-            </div>
-          )}
 
+              {saveStatus && (
+                <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{saveStatus}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <DField label="Workspace name">
+                  <DInput value={wsName} onChange={e => setWsName(e.target.value)} placeholder="Workspace name" />
+                </DField>
+                <DField label="Billing email">
+                  <DInput type="email" value={billingEmail} onChange={e => setBillingEmail(e.target.value)} placeholder="billing@domain.com" />
+                </DField>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <DField label="Timezone">
+                  <DSelect value={timezone} onChange={e => setTimezone(e.target.value)}>
+                    <option value="Asia/Kolkata (UTC+5:30)">Asia/Kolkata (UTC+5:30) — India Standard Time</option>
+                    <option value="America/New_York (UTC−5)">America/New_York (UTC−5)</option>
+                    <option value="America/Chicago (UTC−6)">America/Chicago (UTC−6)</option>
+                    <option value="America/Los_Angeles (UTC−8)">America/Los_Angeles (UTC−8)</option>
+                    <option value="Europe/London (UTC+0)">Europe/London (UTC+0)</option>
+                  </DSelect>
+                </DField>
+                <DField label="Default outbound number">
+                  <DSelect value={defaultNumberId} onChange={e => setDefaultNumberId(e.target.value)}>
+                    {numbersList.map(n => (
+                      <option key={n.id} value={n.id}>
+                        {n.phoneNumber} — {n.label || 'Provisioned'}
+                      </option>
+                    ))}
+                    {numbersList.length === 0 && <option value="">No numbers provisioned</option>}
+                  </DSelect>
+                </DField>
+              </div>
+
+              <div className="pt-2">
+                <DBtn onClick={handleSaveWorkspace} className="w-full sm:w-auto">
+                  <Check className="w-4 h-4" /> Save Workspace Profile
+                </DBtn>
+              </div>
+            </div>
+
+            {/* Card 2: Call Processing & Speech Engines */}
+            <div className="nm-card p-6 md:p-8 space-y-5 rounded-3xl border border-border-soft/60">
+              <div className="flex items-center gap-3 pb-3 border-b border-border-soft/40">
+                <div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-600 flex items-center justify-center font-bold">
+                  <Zap className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                    Live Call Processing & Speech Intelligence
+                  </h3>
+                  <p className="text-xs text-ink-muted">Automated processing pipelines executed on voice sessions</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {[
+                  { key: "recording", l: "Call Recording", d: "Record inbound and outbound audio streams for compliance", icon: Volume2 },
+                  { key: "transcription", l: "Live Transcription", d: "Stream real-time STT transcripts to dashboard sockets", icon: FileText },
+                  { key: "sentiment", l: "Sentiment Analysis", d: "Evaluate caller emotion, tone, and CSAT predictions", icon: Activity },
+                  { key: "summary", l: "Auto-Summary", d: "Synthesize post-call key takeaways and action items", icon: Sparkles }
+                ].map(s => {
+                  const SIcon = s.icon;
+                  const isChecked = Boolean(toggles[s.key]);
+                  return (
+                    <div
+                      key={s.key}
+                      onClick={() => setToggles((t: Record<string, boolean>) => ({ ...t, [s.key]: !isChecked }))}
+                      className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between gap-3 ${
+                        isChecked
+                          ? "bg-emerald-500/5 border-emerald-500/30"
+                          : "bg-surface-white/60 border-border-soft/60 opacity-80"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isChecked ? "bg-emerald-500/20 text-emerald-600" : "bg-zinc-100 text-zinc-500"}`}>
+                            <SIcon className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Outfit', sans-serif" }}>{s.l}</p>
+                          </div>
+                        </div>
+                        <DToggle on={isChecked} set={(val) => setToggles((t: Record<string, boolean>) => ({ ...t, [s.key]: val }))} />
+                      </div>
+                      <p className="text-[11px] text-ink-muted leading-relaxed" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{s.d}</p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="pt-1">
+                <DBtn onClick={handleSaveWorkspace} variant="secondary" size="sm">
+                  <Check className="w-3.5 h-3.5" /> Update Pipeline Preferences
+                </DBtn>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column (col-span-12 lg:col-span-5 space-y-6) */}
+          <div className="lg:col-span-5 space-y-6">
+            {/* Card 3: Retention & Concurrency */}
+            <div className="nm-card p-6 md:p-8 space-y-5 rounded-3xl border border-border-soft/60">
+              <div className="flex items-center gap-3 pb-3 border-b border-border-soft/40">
+                <div className="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold">
+                  <Clock className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                    Data Retention & Capacity
+                  </h3>
+                  <p className="text-xs text-ink-muted">Lifecycle destruction rules & channel quotas</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <DField label="Call Data Retention Policy" hint="Automatically purge call recordings & transcripts older than the configured window.">
+                  <DSelect value={dataRetentionDays === null ? 'null' : String(dataRetentionDays)} onChange={e => handleRetentionSelect(e.target.value)}>
+                    <option value="null">Keep forever (default — no purging)</option>
+                    <option value="7">7 Days</option>
+                    <option value="14">14 Days</option>
+                    <option value="30">30 Days</option>
+                    <option value="60">60 Days</option>
+                    <option value="90">90 Days</option>
+                    <option value="180">180 Days</option>
+                    <option value="365">365 Days</option>
+                  </DSelect>
+                </DField>
+                {retentionSaveStatus && (
+                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold">
+                    {retentionSaveStatus}
+                  </div>
+                )}
+
+                <DField label="Workspace Soft Concurrency Limit" hint="Maximum simultaneous active telephony channels for this workspace.">
+                  <DSelect value={String(softConcurrencyLimit)} onChange={e => handleConcurrencySelect(parseInt(e.target.value, 10))}>
+                    <option value="5">5 Concurrent Calls</option>
+                    <option value="10">10 Concurrent Calls (Default)</option>
+                    <option value="25">25 Concurrent Calls</option>
+                    <option value="50">50 Concurrent Calls</option>
+                    <option value="100">100 Concurrent Calls</option>
+                    <option value="250">250 Concurrent Calls</option>
+                  </DSelect>
+                </DField>
+                {concurrencySaveStatus && (
+                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold">
+                    {concurrencySaveStatus}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Card 4: Dashboard IP Allowlist */}
+            <div className="nm-card p-6 md:p-8 space-y-4 rounded-3xl border border-border-soft/60">
+              <div className="flex items-center gap-3 pb-3 border-b border-border-soft/40">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
+                  <Shield className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                    Zero-Trust IP Firewall
+                  </h3>
+                  <p className="text-xs text-ink-muted">Restrict administrative access to authorized CIDR blocks</p>
+                </div>
+              </div>
+
+              <DField label="Allowed IP Ranges (CIDR)" hint="One per line or comma-separated. Leave empty to allow all IP addresses.">
+                <textarea
+                  value={ipInputText}
+                  onChange={e => setIpInputText(e.target.value)}
+                  placeholder="e.g. 192.168.1.0/24&#10;203.0.113.45"
+                  className="w-full h-24 p-3 text-xs font-mono font-bold bg-surface-white text-[var(--nm-text)] rounded-2xl border border-border-soft focus:outline-none focus:ring-2 focus:ring-mint-primary shadow-inner"
+                />
+              </DField>
+
+              {allowedIpRanges.length > 0 && (
+                <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs font-bold space-y-1">
+                  <p>⚠️ <strong>IP Restriction Active ({allowedIpRanges.length} rules):</strong> Ensure your current IP is in the list before saving to prevent lockout.</p>
+                  <p className="text-[10px] opacity-80">Emergency Lockout Recovery SQL: <code className="bg-amber-950/20 px-1 py-0.5 rounded font-mono text-amber-600">UPDATE users SET allowed_ip_ranges = '&#123;&#125;' WHERE email = 'admin@example.com';</code></p>
+                </div>
+              )}
+
+              {ipSaveStatus && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold">
+                  {ipSaveStatus}
+                </div>
+              )}
+
+              <DBtn onClick={handleSaveIpAllowlist} size="sm">
+                <Check className="w-3.5 h-3.5" /> Save IP Allowlist
+              </DBtn>
+            </div>
+
+            {/* Card 5: Admin Usage Ledger */}
+            {(profile as any)?.isAdmin && (
+              <div className="nm-card p-6 rounded-3xl border border-border-soft/60 space-y-3 bg-gradient-to-br from-surface-white via-surface-white to-mint-primary/5">
+                <p className="text-xs font-bold uppercase tracking-wider text-ink-muted" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  Platform Telemetry — Admin Ledger
+                </p>
+                <div className="nm-pressed rounded-2xl p-5 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-mint-primary/20 text-forest-deep flex items-center justify-center font-bold shrink-0">
+                    <Activity className="w-6 h-6 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-extrabold text-[var(--nm-text)] font-mono" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                      {((profile as any)?.totalMinutesConsumed ?? 0).toFixed(2)} <span className="text-sm font-bold text-ink-muted">min</span>
+                    </p>
+                    <p className="text-xs text-ink-muted">Aggregated telephony duration consumed across all sandbox & live runs.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Retention Confirmation Dialog */}
           {retentionConfirmModalOpen && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
               <div className="nm-card p-6 max-w-md w-full space-y-4 border border-rose-500/30">
@@ -5194,187 +5398,392 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
         </div>
       )}
 
-      {stab==="api"&&(
-        <div className="space-y-6">
-          <ApiKeyManagement />
-          <div className="nm-card p-6 space-y-4">
-            <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Quick start</p>
-            <div className="nm-pressed rounded-2xl p-5 overflow-x-auto text-[var(--nm-text)]"><pre className="text-sm font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{`curl -X POST ${window.location.origin}/api/v2/calls \\\n  -H "Authorization: Bearer claritiy_live_..." \\\n  -H "Content-Type: application/json" \\\n  -d '{"agentId":"YOUR_AGENT_UUID","phoneNumber":"+919876543210"}'`}</pre></div>
+      {/* ── TAB 2: API KEYS ── */}
+      {stab === "api" && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-7 space-y-6">
+            <ApiKeyManagement />
+          </div>
+          <div className="lg:col-span-5 space-y-6">
+            <div className="nm-card p-6 md:p-8 space-y-4 rounded-3xl border border-border-soft/60">
+              <div className="flex items-center gap-3 pb-3 border-b border-border-soft/40">
+                <div className="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold">
+                  <Key className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                    cURL Quickstart
+                  </h3>
+                  <p className="text-xs text-ink-muted">Initiate outbound voice agent calls via REST API</p>
+                </div>
+              </div>
+              <div className="nm-pressed rounded-2xl p-4 overflow-x-auto bg-slate-950 text-emerald-400 font-mono text-xs leading-relaxed border border-slate-800">
+                <pre>{`curl -X POST ${window.location.origin}/api/v2/calls \\
+  -H "Authorization: Bearer claritiy_live_..." \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "agentId": "YOUR_AGENT_UUID",
+    "phoneNumber": "+919876543210"
+  }'`}</pre>
+              </div>
+            </div>
+
+            <div className="nm-card p-6 rounded-3xl border border-border-soft/60 space-y-3 bg-gradient-to-br from-surface-white to-slate-50/60">
+              <div className="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center font-bold">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <h4 className="text-sm font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                API Rate Limits & Authentication
+              </h4>
+              <p className="text-xs text-ink-muted leading-relaxed">
+                Standard accounts are provisioned with <strong>120 requests/minute</strong> burst rate limits. Bearer keys carry identical permissions to workspace owners. Store keys securely in environment variables.
+              </p>
+            </div>
           </div>
         </div>
       )}
 
-      {stab==="webhooks"&&(
-        <div className="nm-card p-6 space-y-5">
-          {webhookStatus && <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold">{webhookStatus}</div>}
-          <DField label="Webhook URL" hint="We POST events to this URL in real time."><DInput value={webhook} onChange={e=>setWebhook(e.target.value)}/></DField>
-          <DField label="Events">
-            <div className="space-y-3 mt-2">
-              {Object.keys(events).map(ev => (
-                <label key={ev} className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={events[ev]} onChange={e => setEvents(evs => ({ ...evs, [ev]: e.target.checked }))} className="accent-[var(--nm-accent)] w-4 h-4"/>
-                  <span className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{ev}</span>
-                </label>
-              ))}
+      {/* ── TAB 3: WEBHOOKS ── */}
+      {stab === "webhooks" && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-7 space-y-6">
+            <div className="nm-card p-6 md:p-8 space-y-5 rounded-3xl border border-border-soft/60">
+              <div className="flex items-center gap-3 pb-3 border-b border-border-soft/40">
+                <div className="w-10 h-10 rounded-2xl bg-mint-primary/20 text-forest-deep flex items-center justify-center font-bold">
+                  <Radio className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                    Webhook Destination & Events
+                  </h3>
+                  <p className="text-xs text-ink-muted">Receive real-time HTTP POST notifications on voice lifecycle events</p>
+                </div>
+              </div>
+
+              {webhookStatus && (
+                <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{webhookStatus}</span>
+                </div>
+              )}
+
+              <DField label="Webhook Endpoint URL" hint="We deliver JSON payloads with POST requests. Target must return HTTP 200 within 5 seconds.">
+                <DInput value={webhook} onChange={e => setWebhook(e.target.value)} placeholder="https://api.yourdomain.com/webhooks/voice" />
+              </DField>
+
+              <DField label="Subscribed Lifecycle Events">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  {Object.keys(events).map(ev => (
+                    <label key={ev} className={`p-3 rounded-2xl border cursor-pointer flex items-center gap-3 transition-all ${events[ev] ? "bg-emerald-500/5 border-emerald-500/30" : "bg-surface-white/60 border-border-soft/60"}`}>
+                      <input
+                        type="checkbox"
+                        checked={events[ev]}
+                        onChange={e => setEvents(evs => ({ ...evs, [ev]: e.target.checked }))}
+                        className="accent-emerald-600 w-4 h-4 rounded"
+                      />
+                      <span className="text-xs font-bold text-[var(--nm-text)] font-mono">{ev}</span>
+                    </label>
+                  ))}
+                </div>
+              </DField>
+
+              <div className="pt-2">
+                <DBtn onClick={handleSaveWebhook}>
+                  <Check className="w-4 h-4" /> Save &amp; Test Webhook Endpoint
+                </DBtn>
+              </div>
             </div>
-          </DField>
-          <DField label="Signing secret" hint="Verify payloads with HMAC-SHA256.">
-            <div className="flex gap-3">
-              <DInput type="password" value={signingSecret} onChange={e => setSigningSecret(e.target.value)}/>
-              <button onClick={handleCopySecret} className="p-3 nm-raised rounded-xl hover:nm-pressed text-[var(--nm-text)] transition-all flex items-center gap-1 text-xs font-bold">
-                <Copy className="w-4 h-4"/> {copiedSecret ? "Copied!" : "Copy"}
-              </button>
+          </div>
+
+          <div className="lg:col-span-5 space-y-6">
+            <div className="nm-card p-6 md:p-8 space-y-4 rounded-3xl border border-border-soft/60">
+              <div className="flex items-center gap-3 pb-3 border-b border-border-soft/40">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
+                  <ShieldCheck className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                    Cryptographic Signature
+                  </h3>
+                  <p className="text-xs text-ink-muted">HMAC-SHA256 verification secret</p>
+                </div>
+              </div>
+
+              <DField label="Signing Secret" hint="Every webhook request includes an X-Claritiy-Signature header calculated with this secret.">
+                <div className="flex gap-2">
+                  <DInput type="password" value={signingSecret} onChange={e => setSigningSecret(e.target.value)} />
+                  <button
+                    onClick={handleCopySecret}
+                    className="px-4 py-2.5 nm-raised rounded-pill hover:nm-pressed text-[var(--nm-text)] transition-all flex items-center gap-1.5 text-xs font-bold shrink-0"
+                  >
+                    <Copy className="w-3.5 h-3.5" /> {copiedSecret ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+              </DField>
+
+              <div className="nm-pressed rounded-2xl p-4 bg-slate-950 text-slate-300 font-mono text-[11px] leading-relaxed border border-slate-800 space-y-2">
+                <p className="text-emerald-400 font-bold">// Node.js Verification Example</p>
+                <pre className="text-slate-300">{`const hash = crypto
+  .createHmac('sha256', secret)
+  .update(rawBody)
+  .digest('hex');
+const isValid = hash === req.headers['x-claritiy-signature'];`}</pre>
+              </div>
             </div>
-          </DField>
-          <DBtn onClick={handleSaveWebhook}><Check className="w-4 h-4"/> Save &amp; test webhook</DBtn>
+          </div>
         </div>
       )}
 
-      {stab==="billing"&&(
+      {/* ── TAB 4: BILLING ── */}
+      {stab === "billing" && (
         <BillingGateway />
       )}
 
-      {stab==="team"&&(
-        <div className="space-y-4">
-          <div className="nm-raised rounded-2xl overflow-hidden">
-            <table className="w-full"><thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Member","Role","Joined",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>)}</tr></thead>
-            <tbody className="divide-y divide-transparent">
-              {team.map(m=>(
-                <tr key={m.memberId} className="hover:nm-pressed transition-all">
-                  <td className="px-5 py-4">
-                    <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{m.member?.fullName || 'No Name'}</p>
-                    <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{m.member?.email}</p>
-                  </td>
-                  <td className="px-5 py-4">
-                    {canManageTeam ? (
-                      <select 
-                        value={m.role || 'viewer'} 
-                        onChange={(e) => handleUpdateRole(m.memberId, e.target.value)}
-                        className="bg-[var(--nm-bg)] text-[var(--nm-text)] text-xs font-bold rounded-lg px-3 py-1.5 border border-slate-700/30 focus:outline-none focus:ring-1 focus:ring-[#059669]"
-                      >
-                        <option value="admin">Admin</option>
-                        <option value="developer">Developer</option>
-                        <option value="analyst">Analyst</option>
-                        <option value="viewer">Viewer</option>
-                      </select>
-                    ) : (
-                      <DBadge>{m.role}</DBadge>
+      {/* ── TAB 5: TEAM ── */}
+      {stab === "team" && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-8 space-y-6">
+            <div className="nm-card p-6 md:p-8 space-y-5 rounded-3xl border border-border-soft/60">
+              <div className="flex items-center justify-between pb-3 border-b border-border-soft/40">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold">
+                    <Users className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                      Team Directory
+                    </h3>
+                    <p className="text-xs text-ink-muted">Authorized workspace collaborators and access tiers</p>
+                  </div>
+                </div>
+                <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
+                  {team.length} Active {team.length === 1 ? 'Member' : 'Members'}
+                </span>
+              </div>
+
+              <div className="nm-pressed rounded-2xl overflow-hidden border border-border-soft/40">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border-soft/30 bg-surface-white/40 text-ink-muted">
+                      {["Member", "Role", "Joined", ""].map(h => (
+                        <th key={h} className="text-left px-5 py-3.5 text-[11px] font-bold uppercase tracking-wider" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-soft/30">
+                    {team.map(m => (
+                      <tr key={m.memberId} className="hover:bg-surface-white/60 transition-all">
+                        <td className="px-5 py-4">
+                          <p className="text-sm font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                            {m.member?.fullName || 'No Name'}
+                          </p>
+                          <p className="text-xs text-ink-muted font-medium">{m.member?.email}</p>
+                        </td>
+                        <td className="px-5 py-4">
+                          {canManageTeam ? (
+                            <select
+                              value={m.role || 'viewer'}
+                              onChange={(e) => handleUpdateRole(m.memberId, e.target.value)}
+                              className="bg-surface-white text-[var(--nm-text)] text-xs font-bold rounded-xl px-3 py-1.5 border border-border-soft focus:outline-none focus:ring-1 focus:ring-mint-primary shadow-xs"
+                            >
+                              <option value="admin">Admin</option>
+                              <option value="developer">Developer</option>
+                              <option value="analyst">Analyst</option>
+                              <option value="viewer">Viewer</option>
+                            </select>
+                          ) : (
+                            <span className="text-xs font-bold capitalize px-2.5 py-1 rounded-md bg-slate-100 text-slate-800">
+                              {m.role}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-5 py-4 text-xs font-medium text-ink-muted font-mono">
+                          {new Date(m.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          {canManageTeam && (
+                            <button
+                              onClick={() => handleRemove(m.memberId)}
+                              className="p-2 rounded-xl text-red-500 hover:bg-red-50 transition-all"
+                              title="Remove member"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {team.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="text-center p-8 text-xs text-ink-muted">
+                          No team members invited yet.
+                        </td>
+                      </tr>
                     )}
-                  </td>
-                  <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{new Date(m.createdAt).toLocaleDateString()}</td>
-                  <td className="px-5 py-4">
-                    {canManageTeam && (
-                      <DBtn size="sm" variant="ghost" onClick={() => handleRemove(m.memberId)}><Trash2 className="w-4 h-4 text-red-500"/></DBtn>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {team.length === 0 && <tr><td colSpan={4} className="text-center p-4 text-sm">No team members yet.</td></tr>}
-            </tbody></table>
-          </div>
-          {canManageTeam && (
-            <div className="flex flex-col sm:flex-row gap-2">
-              <DInput placeholder="Invite by email..." value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} type="email" />
-              <select 
-                value={inviteRole}
-                onChange={e => setInviteRole(e.target.value as any)}
-                className="bg-[var(--nm-bg)] text-[var(--nm-text)] text-xs font-bold rounded-xl px-4 py-2.5 border border-slate-700/30 focus:outline-none focus:ring-1 focus:ring-[#059669]"
-              >
-                <option value="admin">Admin Tier</option>
-                <option value="developer">Developer Tier</option>
-                <option value="analyst">Analyst Tier</option>
-                <option value="viewer">Viewer Tier</option>
-              </select>
-              <DBtn onClick={handleInvite}><Plus className="w-4 h-4"/> Invite Member</DBtn>
+                  </tbody>
+                </table>
+              </div>
             </div>
-          )}
+          </div>
+
+          <div className="lg:col-span-4 space-y-6">
+            {canManageTeam && (
+              <div className="nm-card p-6 md:p-8 space-y-4 rounded-3xl border border-border-soft/60">
+                <div className="flex items-center gap-3 pb-3 border-b border-border-soft/40">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
+                    <Plus className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                      Invite Collaborator
+                    </h3>
+                    <p className="text-xs text-ink-muted">Add a team member to this workspace</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3.5">
+                  <DField label="Collaborator Email">
+                    <DInput
+                      placeholder="colleague@company.com"
+                      value={inviteEmail}
+                      onChange={e => setInviteEmail(e.target.value)}
+                      type="email"
+                    />
+                  </DField>
+
+                  <DField label="Access Role">
+                    <select
+                      value={inviteRole}
+                      onChange={e => setInviteRole(e.target.value as any)}
+                      className="w-full bg-surface-white border border-border-soft rounded-pill px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-mint-primary shadow-sm text-xs font-bold"
+                    >
+                      <option value="admin">Admin — Full Workspace & Telephony Access</option>
+                      <option value="developer">Developer — Agents, API & Webhooks</option>
+                      <option value="analyst">Analyst — Call Logs & Transcripts Only</option>
+                      <option value="viewer">Viewer — Read-Only Dashboard</option>
+                    </select>
+                  </DField>
+
+                  <DBtn onClick={handleInvite} className="w-full">
+                    <Plus className="w-4 h-4" /> Send Workspace Invitation
+                  </DBtn>
+                </div>
+              </div>
+            )}
+
+            <div className="nm-card p-6 rounded-3xl border border-border-soft/60 space-y-3 bg-gradient-to-br from-surface-white to-slate-50/60">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-ink-muted" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                Role Capabilities Matrix
+              </h4>
+              <ul className="text-xs text-ink-muted space-y-2">
+                <li>• <strong>Admin:</strong> Billing, KYC, IP firewall, team management & agents.</li>
+                <li>• <strong>Developer:</strong> Manage agents, knowledge bases, API keys & webhooks.</li>
+                <li>• <strong>Analyst:</strong> View call recordings, live transcripts & analytics.</li>
+                <li>• <strong>Viewer:</strong> Read-only monitoring with zero mutation access.</li>
+              </ul>
+            </div>
+          </div>
         </div>
       )}
 
-      {stab==="audit"&&(
-        <div className="space-y-4">
-          <div className="nm-card p-4 flex flex-wrap gap-3 items-center">
-            <div className="flex-1 min-w-[200px]">
+      {/* ── TAB 6: AUDIT TRAIL ── */}
+      {stab === "audit" && (
+        <div className="space-y-6">
+          <div className="nm-card p-6 rounded-3xl border border-border-soft/60 flex flex-wrap gap-4 items-center justify-between">
+            <div className="flex-1 min-w-[240px]">
+              <label className="text-[10px] font-bold text-ink-muted uppercase tracking-wider block mb-1">Filter by Action</label>
               <input
                 type="text"
-                placeholder="Filter by action (e.g. agent.created)..."
+                placeholder="e.g. agent.created, api_key.generated..."
                 value={auditActionFilter}
                 onChange={e => setAuditActionFilter(e.target.value)}
-                className="w-full bg-[var(--nm-bg)] text-[var(--nm-text)] text-xs font-bold rounded-xl px-3 py-2 border border-slate-700/30 focus:outline-none focus:ring-1 focus:ring-[#059669]"
+                className="w-full bg-surface-white text-[var(--nm-text)] text-xs font-bold rounded-xl px-3.5 py-2.5 border border-border-soft focus:outline-none focus:ring-2 focus:ring-mint-primary"
               />
             </div>
-            <div className="flex gap-2 items-center">
-              <input
-                type="date"
-                value={auditStartDate}
-                onChange={e => setAuditStartDate(e.target.value)}
-                className="bg-[var(--nm-bg)] text-[var(--nm-text)] text-xs font-bold rounded-xl px-3 py-2 border border-slate-700/30"
-              />
-              <span className="text-xs font-bold text-slate-400">to</span>
-              <input
-                type="date"
-                value={auditEndDate}
-                onChange={e => setAuditEndDate(e.target.value)}
-                className="bg-[var(--nm-bg)] text-[var(--nm-text)] text-xs font-bold rounded-xl px-3 py-2 border border-slate-700/30"
-              />
+            <div className="flex gap-2.5 items-end flex-wrap sm:flex-nowrap">
+              <div>
+                <label className="text-[10px] font-bold text-ink-muted uppercase tracking-wider block mb-1">Start Date</label>
+                <input
+                  type="date"
+                  value={auditStartDate}
+                  onChange={e => setAuditStartDate(e.target.value)}
+                  className="bg-surface-white text-[var(--nm-text)] text-xs font-bold rounded-xl px-3 py-2 border border-border-soft"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-ink-muted uppercase tracking-wider block mb-1">End Date</label>
+                <input
+                  type="date"
+                  value={auditEndDate}
+                  onChange={e => setAuditEndDate(e.target.value)}
+                  className="bg-surface-white text-[var(--nm-text)] text-xs font-bold rounded-xl px-3 py-2 border border-border-soft"
+                />
+              </div>
+              <DBtn size="sm" onClick={loadAuditLogs} className="h-10">
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingAudit ? 'animate-spin' : ''}`} /> Refresh
+              </DBtn>
             </div>
-            <DBtn size="sm" onClick={loadAuditLogs}><RefreshCw className={`w-3.5 h-3.5 ${loadingAudit ? 'animate-spin' : ''}`} /> Refresh</DBtn>
           </div>
 
-          <div className="nm-raised rounded-2xl overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-700/30 text-[var(--nm-text)] text-xs font-bold">
-                  <th className="px-4 py-3">Timestamp</th>
-                  <th className="px-4 py-3">Action</th>
-                  <th className="px-4 py-3">Actor / User</th>
-                  <th className="px-4 py-3">Target ID</th>
-                  <th className="px-4 py-3">Metadata Context</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-700/20 text-xs">
-                {auditLogs.map(log => (
-                  <tr key={log.id} className="hover:nm-pressed transition-all">
-                    <td className="px-4 py-3 font-mono text-slate-400 whitespace-nowrap">
-                      {new Date(log.createdAt).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-block px-2.5 py-0.5 rounded-md font-mono text-[11px] font-bold bg-[#059669]/10 text-[#059669] border border-[#059669]/20">
-                        {log.action}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-[var(--nm-text)]">
-                      {log.actorUserId.slice(0, 8)}...
-                    </td>
-                    <td className="px-4 py-3 font-mono text-slate-400">
-                      {log.targetId ? log.targetId.slice(0, 12) : '-'}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-slate-300">
-                      {log.metadata ? JSON.stringify(log.metadata) : '-'}
-                    </td>
+          <div className="nm-card p-6 rounded-3xl border border-border-soft/60 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-border-soft/40 text-ink-muted text-xs font-bold uppercase tracking-wider" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+                    <th className="px-4 py-3">Timestamp</th>
+                    <th className="px-4 py-3">Action</th>
+                    <th className="px-4 py-3">Actor / User</th>
+                    <th className="px-4 py-3">Target ID</th>
+                    <th className="px-4 py-3">Metadata Context</th>
                   </tr>
-                ))}
-                {auditLogs.length === 0 && !loadingAudit && (
-                  <tr>
-                    <td colSpan={5} className="text-center p-6 text-slate-400 text-xs">
-                      No audit log entries recorded matching current filters.
-                    </td>
-                  </tr>
-                )}
-                {loadingAudit && (
-                  <tr>
-                    <td colSpan={5} className="text-center p-6 text-slate-400 text-xs">
-                      Loading workspace audit trail...
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-border-soft/20 text-xs">
+                  {auditLogs.map(log => (
+                    <tr key={log.id} className="hover:bg-surface-white/60 transition-all">
+                      <td className="px-4 py-3.5 font-mono text-ink-muted whitespace-nowrap">
+                        {new Date(log.createdAt).toLocaleString()}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className="inline-block px-2.5 py-1 rounded-md font-mono text-[11px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                          {log.action}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 font-mono text-[var(--nm-text)] font-semibold">
+                        {log.actorUserId.slice(0, 8)}...
+                      </td>
+                      <td className="px-4 py-3.5 font-mono text-ink-muted">
+                        {log.targetId ? log.targetId.slice(0, 12) : '-'}
+                      </td>
+                      <td className="px-4 py-3.5 font-mono text-slate-600 max-w-xs truncate">
+                        {log.metadata ? JSON.stringify(log.metadata) : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                  {auditLogs.length === 0 && !loadingAudit && (
+                    <tr>
+                      <td colSpan={5} className="text-center p-8 text-ink-muted text-xs">
+                        No audit log entries recorded matching current filters.
+                      </td>
+                    </tr>
+                  )}
+                  {loadingAudit && (
+                    <tr>
+                      <td colSpan={5} className="text-center p-8 text-ink-muted text-xs">
+                        Loading workspace audit trail...
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
 
-      {stab==="kyc"&&(
+      {/* ── TAB 7: KYC & COMPLIANCE ── */}
+      {stab === "kyc" && (
         <KycComplianceSettings onStatusChange={(newStatus) => setKycOverallStatus(newStatus)} />
       )}
     </div>

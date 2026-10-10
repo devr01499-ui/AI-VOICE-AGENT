@@ -1,6 +1,14 @@
 # CHANGELOG
 
 ## [Unreleased] - 2026-10-10
+- Overhauled Settings & Governance Page UI/UX (`App.tsx` & `KycComplianceSettings.tsx`):
+  - Upgraded settings container from narrow column (`max-w-2xl`/`max-w-4xl`) to wide-screen responsive 12-column grid (`max-w-7xl mx-auto`), eliminating empty right-side blank areas.
+  - Implemented executive Settings Header with workspace breadcrumbs, system ID badges, platform description, and live telemetry chips (channel concurrency, carrier sub-account status).
+  - Modernized tab navigation bar with glassmorphic pill buttons containing Lucide icons (`Sliders`, `ShieldCheck`, `Key`, `Radio`, `CreditCard`, `Users`, `FileText`) and live KYC status badges.
+  - Re-architected General & Voice tab into a 7/5 responsive column grid (Workspace Identity & Outbound Telephony + 2x2 Call Processing Toggles on left; Data Retention, Soft Concurrency & IP Firewall on right).
+  - Upgraded KYC tab into a balanced 3-column layout (`grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6`) for PAN, GSTIN, and Aadhaar cards with a live verification progress bar (`X of 3 Documents Verified`).
+  - Added a 3-card Telephony Readiness & Carrier Isolation Deck at the bottom of the KYC tab to provide clear carrier governance details and utilize blank horizontal space.
+  - Transformed API, Webhooks, and Team tabs into 2-column layouts pairing management tables with cURL quickstart snippets, HMAC-SHA256 signature verification code examples, and RBAC matrix cards.
 - Overhauled KYC & Compliance Settings (`KycComplianceSettings.tsx`):
   - Removed provider-internal labels ("Direct Vobiz SA_ API", "Supabase Storage Vault", "Encrypted transmission", "Aadhaar Act 2016 Compliant", "No Biometrics or UID Stored").
   - Removed DigiLocker consent request text and replaced with direct Aadhaar Card upload dropzone supporting PDF and image verification.
