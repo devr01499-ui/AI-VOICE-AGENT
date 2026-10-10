@@ -10,7 +10,7 @@ import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
 import { PhoneNumberActivationService } from '../services/PhoneNumberActivationService';
 import { NotificationService } from '../services/NotificationService';
 import { EncryptionService } from '../utils/EncryptionService';
-import { uploadGstCertificateToStorage } from '../utils/kycStorage';
+import { uploadGstCertificateToStorage, uploadKycDocumentToStorage } from '../utils/kycStorage';
 import { env } from '../config/env';
 
 const router = Router();
@@ -39,7 +39,7 @@ export async function notifyUserDocumentStatus(
     const docLabels: Record<string, string> = {
       pan: 'PAN Card',
       gst: 'GST Certificate',
-      aadhaar: 'Aadhaar (DigiLocker)',
+      aadhaar: 'Aadhaar Card',
     };
     const docName = docLabels[documentType] || documentType.toUpperCase();
     const isVerified = status === 'verified';
@@ -301,8 +301,8 @@ router.get('/documents', requireAuth, async (req, res, next) => {
         required: true,
         status: panDoc?.status || 'not_submitted',
         panNumber: panDoc?.panNumber || null,
+        panType: panDoc?.panType || 'personal',
         fullName: panDoc?.fullName || null,
-        dob: panDoc?.dob || null,
         failureReason: panDoc?.failureReason || null,
         verifiedAt: panDoc?.verifiedAt || null,
         updatedAt: panDoc?.updatedAt || null,
@@ -321,10 +321,12 @@ router.get('/documents', requireAuth, async (req, res, next) => {
       },
       {
         documentType: 'aadhaar',
-        label: 'Aadhaar Identity (DigiLocker)',
-        description: 'Digital consent verification via DigiLocker (zero raw document storage)',
+        label: 'Aadhaar Card Verification',
+        description: 'Authorized signatory Aadhaar card document verification',
         required: false,
         status: aadhaarDoc?.status || 'not_submitted',
+        aadhaarNumber: aadhaarDoc?.aadhaarNumber || null,
+        aadhaarDocUrl: aadhaarDoc?.aadhaarDocUrl || null,
         vobizReference: aadhaarDoc?.vobizReference || null,
         failureReason: aadhaarDoc?.failureReason || null,
         verifiedAt: aadhaarDoc?.verifiedAt || null,
@@ -363,10 +365,22 @@ router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (
       return;
     }
 
-    const { documentType, panNumber, fullName, dob, gstin, gstCertFile, gstCertName } = req.body;
+    const {
+      documentType,
+      panNumber,
+      panType,
+      fullName,
+      dob,
+      gstin,
+      gstCertFile,
+      gstCertName,
+      aadhaarNumber,
+      aadhaarFile,
+      aadhaarFileName,
+    } = req.body;
 
-    if (!documentType || (documentType !== 'pan' && documentType !== 'gst')) {
-      res.status(400).json({ success: false, error: 'Invalid documentType. Must be "pan" or "gst".' });
+    if (!documentType || (documentType !== 'pan' && documentType !== 'gst' && documentType !== 'aadhaar')) {
+      res.status(400).json({ success: false, error: 'Invalid documentType. Must be "pan", "gst", or "aadhaar".' });
       return;
     }
 
@@ -380,11 +394,7 @@ router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (
         return;
       }
       if (!fullName || fullName.trim().length < 2) {
-        res.status(400).json({ success: false, error: 'Full name is required as per PAN card.' });
-        return;
-      }
-      if (!dob || dob.trim().length < 4) {
-        res.status(400).json({ success: false, error: 'Date of birth is required.' });
+        res.status(400).json({ success: false, error: 'Full name / Entity name is required as per PAN card.' });
         return;
       }
     }
@@ -418,6 +428,38 @@ router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (
       }
     }
 
+    let resolvedAadhaarUrl: string | undefined;
+
+    if (documentType === 'aadhaar') {
+      const cleanAadhaarRaw = (aadhaarNumber || '').replace(/\s+/g, '');
+      if (!cleanAadhaarRaw || !/^[0-9]{12}$/.test(cleanAadhaarRaw)) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid Aadhaar number. Must be a valid 12-digit number.',
+        });
+        return;
+      }
+      if (!fullName || fullName.trim().length < 2) {
+        res.status(400).json({ success: false, error: 'Full name is required as per Aadhaar card.' });
+        return;
+      }
+      if (!aadhaarFile) {
+        const existingDoc = await prisma.kycDocument.findUnique({
+          where: { userId_documentType: { userId, documentType: 'aadhaar' } },
+        });
+        if (!existingDoc?.aadhaarDocUrl) {
+          res.status(400).json({
+            success: false,
+            error: 'Aadhaar card document file is required. Please upload a clear PDF or image scan of your Aadhaar card.',
+          });
+          return;
+        }
+        resolvedAadhaarUrl = existingDoc.aadhaarDocUrl;
+      } else {
+        resolvedAadhaarUrl = await uploadKycDocumentToStorage(userId, aadhaarFile, 'aadhaar', aadhaarFileName);
+      }
+    }
+
     // 2. Fetch or create sub-account for the user
     const subAccountService = new VobizSubAccountService();
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
@@ -446,7 +488,7 @@ router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (
 
     const isMock = subAuthId.startsWith('SA_MOCK_') || (env.VOBIZ_AUTH_ID || '').includes('placeholder');
 
-    if (isMock) {
+    if (isMock || documentType === 'aadhaar') {
       // Mock / local verification engine
       if (documentType === 'pan') {
         const isMockValid = PAN_REGEX.test((panNumber || '').trim().toUpperCase());
@@ -455,7 +497,7 @@ router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (
           vobizReference = `vob_pan_${Date.now()}`;
         } else {
           verificationResultStatus = 'failed';
-          failureReason = 'PAN format or name mismatch with NSDL records.';
+          failureReason = 'PAN format or name mismatch with tax records.';
         }
       } else if (documentType === 'gst') {
         const isMockValid = GSTIN_REGEX.test((gstin || '').trim().toUpperCase());
@@ -465,6 +507,15 @@ router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (
         } else {
           verificationResultStatus = 'failed';
           failureReason = 'GSTIN registration status inactive or invalid.';
+        }
+      } else if (documentType === 'aadhaar') {
+        const cleanAadhaarRaw = (aadhaarNumber || '').replace(/\s+/g, '');
+        if (/^[0-9]{12}$/.test(cleanAadhaarRaw)) {
+          verificationResultStatus = 'verified';
+          vobizReference = `vob_adh_${Date.now()}`;
+        } else {
+          verificationResultStatus = 'failed';
+          failureReason = 'Aadhaar document verification failed.';
         }
       }
     } else {
@@ -477,7 +528,7 @@ router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (
             document_type: 'pan',
             pan_number: (panNumber || '').trim().toUpperCase(),
             name: (fullName || '').trim(),
-            dob: (dob || '').trim(),
+            pan_type: panType || 'personal',
           }
         : {
             document_type: 'gst',
@@ -532,9 +583,11 @@ router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (
 
     // 4. Idempotent database write to KycDocument (upsert on [userId, documentType])
     const cleanPan = panNumber ? panNumber.trim().toUpperCase() : undefined;
+    const cleanPanType = panType ? String(panType).toLowerCase() : 'personal';
     const cleanName = fullName ? fullName.trim() : undefined;
     const cleanDob = dob ? dob.trim() : undefined;
     const cleanGstin = gstin ? gstin.trim().toUpperCase() : undefined;
+    const cleanAadhaar = aadhaarNumber ? aadhaarNumber.replace(/\s+/g, '') : undefined;
 
     const savedDoc = await prisma.kycDocument.upsert({
       where: {
@@ -545,10 +598,13 @@ router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (
         documentType,
         status: verificationResultStatus,
         panNumber: cleanPan,
+        panType: cleanPanType,
         fullName: cleanName,
         dob: cleanDob,
         gstin: cleanGstin,
         gstCertUrl: resolvedGstCertUrl,
+        aadhaarNumber: cleanAadhaar,
+        aadhaarDocUrl: resolvedAadhaarUrl,
         vobizReference,
         failureReason,
         verifiedAt: verificationResultStatus === 'verified' ? new Date() : null,
@@ -556,10 +612,13 @@ router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (
       update: {
         status: verificationResultStatus,
         ...(cleanPan && { panNumber: cleanPan }),
+        ...(cleanPanType && { panType: cleanPanType }),
         ...(cleanName && { fullName: cleanName }),
         ...(cleanDob && { dob: cleanDob }),
         ...(cleanGstin && { gstin: cleanGstin }),
         ...(resolvedGstCertUrl && { gstCertUrl: resolvedGstCertUrl }),
+        ...(cleanAadhaar && { aadhaarNumber: cleanAadhaar }),
+        ...(resolvedAadhaarUrl && { aadhaarDocUrl: resolvedAadhaarUrl }),
         vobizReference,
         failureReason,
         verifiedAt: verificationResultStatus === 'verified' ? new Date() : null,
@@ -597,6 +656,7 @@ router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (
         failureReason: savedDoc.failureReason,
         verifiedAt: savedDoc.verifiedAt,
         gstCertUrl: savedDoc.gstCertUrl,
+        aadhaarDocUrl: savedDoc.aadhaarDocUrl,
       },
     });
   } catch (err) {

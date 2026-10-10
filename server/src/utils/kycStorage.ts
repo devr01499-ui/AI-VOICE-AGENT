@@ -2,13 +2,14 @@ import { supabaseClient } from './supabase';
 import { logger } from './logger';
 
 /**
- * Uploads GST certificate files directly to Supabase Storage.
+ * Uploads KYC document files (GST, Aadhaar, etc.) directly to Supabase Storage.
  * Never stores files on local disk (Render container filesystem is ephemeral).
  * Returns the public or storage URL.
  */
-export async function uploadGstCertificateToStorage(
+export async function uploadKycDocumentToStorage(
   userId: string,
   base64Data: string,
+  docType: 'gst' | 'aadhaar' | string = 'document',
   originalFilename?: string
 ): Promise<string> {
   let buffer: Buffer;
@@ -32,8 +33,8 @@ export async function uploadGstCertificateToStorage(
 
   const cleanFilename = originalFilename
     ? originalFilename.replace(/[^a-zA-Z0-9.-]/g, '_')
-    : `gst_${Date.now()}.${ext}`;
-  const storagePath = `${userId}/gst_${Date.now()}_${cleanFilename}`;
+    : `${docType}_${Date.now()}.${ext}`;
+  const storagePath = `${userId}/${docType}_${Date.now()}_${cleanFilename}`;
 
   try {
     const { data, error } = await supabaseClient.storage
@@ -44,7 +45,7 @@ export async function uploadGstCertificateToStorage(
       });
 
     if (error) {
-      logger.warn('Supabase Storage: Error uploading GST certificate, generating fallback URL', {
+      logger.warn(`Supabase Storage: Error uploading ${docType} document, generating fallback URL`, {
         userId,
         error: error.message,
       });
@@ -58,7 +59,7 @@ export async function uploadGstCertificateToStorage(
 
     return publicData.publicUrl;
   } catch (err: any) {
-    logger.warn('Supabase Storage: Exception during GST certificate upload', {
+    logger.warn(`Supabase Storage: Exception during ${docType} upload`, {
       userId,
       error: String(err?.message || err),
     });
@@ -66,3 +67,16 @@ export async function uploadGstCertificateToStorage(
     return `${supabaseUrl}/storage/v1/object/public/kyc-documents/${storagePath}`;
   }
 }
+
+/**
+ * Uploads GST certificate files directly to Supabase Storage.
+ * Retained for backwards compatibility.
+ */
+export async function uploadGstCertificateToStorage(
+  userId: string,
+  base64Data: string,
+  originalFilename?: string
+): Promise<string> {
+  return uploadKycDocumentToStorage(userId, base64Data, 'gst', originalFilename);
+}
+

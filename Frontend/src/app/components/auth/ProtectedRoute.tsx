@@ -1,7 +1,7 @@
 import React, { ReactNode } from 'react';
 import { Session } from '@supabase/supabase-js';
 import AuthGateway from './AuthGateway';
-import { RefreshCw } from 'lucide-react';
+import { GlobalConsentModal } from '../common/GlobalConsentModal';
 
 interface ProtectedRouteProps {
   session: Session | null;
@@ -35,8 +35,17 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }} />;
   }
 
-  // 3. Authenticated: Render protected view
-  return <>{children}</>;
+  // 3. Authenticated: Render protected view with global consent guard
+  return (
+    <>
+      <GlobalConsentModal
+        userEmail={session.user.email}
+        userFullName={session.user.user_metadata?.full_name}
+      />
+      {children}
+    </>
+  );
 };
 
 export default ProtectedRoute;
+

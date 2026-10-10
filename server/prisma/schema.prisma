@@ -31,6 +31,7 @@ model User {
   dataRetentionDays     Int?     @map("data_retention_days")
   allowedIpRanges       String[] @default([]) @map("allowed_ip_ranges")
   maxConcurrentCalls    Int?     @default(10) @map("max_concurrent_calls")
+  hasConsentedTerms    Boolean  @default(false) @map("has_consented_terms")
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
 
@@ -54,6 +55,7 @@ model User {
   ownedTeamMembers     TeamMember[] @relation("WorkspaceOwner")
   memberOfTeams        TeamMember[] @relation("WorkspaceMember")
   kycDocuments         KycDocument[]
+  consents             UserConsent[]
 
   @@map("users")
 }
@@ -393,10 +395,13 @@ model KycDocument {
   documentType   String    @map("document_type") // pan | gst | aadhaar
   status         String    @default("pending") // pending | verified | failed
   panNumber      String?   @map("pan_number")
+  panType        String?   @default("personal") @map("pan_type") // personal | company
   fullName       String?   @map("full_name")
   dob            String?
   gstin          String?
   gstCertUrl     String?   @map("gst_cert_url")
+  aadhaarNumber  String?   @map("aadhaar_number")
+  aadhaarDocUrl  String?   @map("aadhaar_doc_url")
   vobizReference String?   @map("vobiz_reference")
   failureReason  String?   @map("failure_reason")
   verifiedAt     DateTime? @map("verified_at")
@@ -408,6 +413,26 @@ model KycDocument {
   @@unique([userId, documentType])
   @@index([userId])
   @@map("kyc_documents")
+}
+
+model UserConsent {
+  id                  String    @id @default(uuid())
+  userId              String?   @map("user_id")
+  email               String
+  fullName            String?   @map("full_name")
+  termsAndConditions  Boolean   @default(true) @map("terms_and_conditions")
+  termsOfUse          Boolean   @default(true) @map("terms_of_use")
+  privacyPolicy       Boolean   @default(true) @map("privacy_policy")
+  consentVersion      String    @default("v1.0") @map("consent_version")
+  ipAddress           String?   @map("ip_address")
+  userAgent           String?   @map("user_agent")
+  consentedAt         DateTime  @default(now()) @map("consented_at")
+
+  user                User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([email])
+  @@map("user_consents")
 }
 
 // ─────────────────────────────────────────────

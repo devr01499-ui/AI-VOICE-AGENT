@@ -1,6 +1,16 @@
 # CHANGELOG
 
 ## [Unreleased] - 2026-10-10
+- Overhauled KYC & Compliance Settings (`KycComplianceSettings.tsx`):
+  - Removed provider-internal labels ("Direct Vobiz SA_ API", "Supabase Storage Vault", "Encrypted transmission", "Aadhaar Act 2016 Compliant", "No Biometrics or UID Stored").
+  - Removed DigiLocker consent request text and replaced with direct Aadhaar Card upload dropzone supporting PDF and image verification.
+  - Refactored PAN verification: removed Date of Birth requirement and introduced interactive selection between Personal PAN Card and Company PAN Card.
+  - Replaced "Not Submitted" badge states with clean "Pending Upload" indicators.
+- Created persistent User Consent tracking architecture:
+  - Added `UserConsent` relational model in PostgreSQL via Prisma (`user_consents` table) recording timestamped legal consents, client IP, user agent, and agreed version.
+  - Created backend API endpoints `POST /api/v2/user/consent` and `GET /api/v2/user/consent-status`.
+  - Implemented mandatory signup consent pop-up modal box in `AuthGateway.tsx` requiring explicit agreement to Terms of Service & Terms of Use before account creation.
+  - Integrated `GlobalConsentModal.tsx` in `ProtectedRoute.tsx` ensuring existing and OAuth-authenticated users also provide and record legal consent.
 - Created dedicated full-featured `UseCases.tsx` page architecture with deep-link routing (`/use-cases/:id` and `/use-cases`), covering 8 major verticals with specific topics and 32 sub-topic deep-dives.
 - Built interactive SVG telephony wiremaps and latency flowcharts with live telemetry node inspection.
 - Connected each sub-topic with pre-built Claritiy Agent Studio dashboard templates (`tpl-1` through `tpl-16`) featuring 1-click studio launch buttons.

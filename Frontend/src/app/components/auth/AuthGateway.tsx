@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+import { apiClient } from '../../api';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Mail, Lock, ShieldAlert, LogIn, UserPlus, Eye, EyeOff,
-  Mic, Radio, Cpu, Globe, Shield, Phone, Zap, Check,
+  Mic, Radio, Cpu, Globe, Shield, Phone, Zap, Check, CheckCircle2, AlertCircle, X, ExternalLink, RefreshCw, ShieldCheck,
 } from 'lucide-react';
 
 // ── Animated AI Voice Visualizer (replaces Lottie) ──────────────────────────
@@ -234,6 +235,12 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
+  // Terms and Conditions & Terms of Use Consent Modal States
+  const [showConsentModal, setShowConsentModal] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsOfUseAccepted, setTermsOfUseAccepted] = useState(false);
+  const [submittingConsent, setSubmittingConsent] = useState(false);
+
   useEffect(() => {
     // Check if redirect contains password reset token / recovery type
     if (typeof window !== 'undefined') {
@@ -258,33 +265,93 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
     };
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleConfirmConsentAndSignUp = async () => {
+    if (!termsAccepted || !termsOfUseAccepted) {
+      setError('You must accept both the Terms and Conditions and Terms of Use to create an account.');
+      return;
+    }
+
+    setSubmittingConsent(true);
     setLoading(true);
     setError('');
     setMessage('');
+    try {
+      // 1. Record legal consent in the database
+      try {
+        await apiClient.post('/api/v2/user/consent', {
+          email: email.trim().toLowerCase(),
+          fullName: fullName.trim(),
+          termsAndConditions: true,
+          termsOfUse: true,
+          privacyPolicy: true,
+          consentVersion: 'v1.0',
+        });
+      } catch (consentErr) {
+        console.warn('Consent logging warning:', consentErr);
+      }
+
+      // 2. Perform Supabase registration
+      const redirectUrl = `${window.location.origin}/dashboard`;
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            full_name: fullName,
+            account_type: accountType,
+            contact_number: contactNumber,
+            has_consented_terms: true,
+          },
+        },
+      });
+      if (signUpError) throw signUpError;
+
+      setShowConsentModal(false);
+
+      if (data?.session) {
+        if (onSuccess) onSuccess();
+      } else {
+        setMessage('A verification link has been sent to your email. Please confirm to activate your workspace.');
+        setMode('signin');
+      }
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred during signup.');
+    } finally {
+      setSubmittingConsent(false);
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setMessage('');
+
+    if (mode === 'signup') {
+      if (!fullName.trim()) {
+        setError('Please enter your full name.');
+        return;
+      }
+      if (!email.trim()) {
+        setError('Please enter your email address.');
+        return;
+      }
+      if (!password || password.length < 6) {
+        setError('Password must be at least 6 characters.');
+        return;
+      }
+      // Mandatory popup modal box appears on signup
+      setShowConsentModal(true);
+      return;
+    }
+
+    setLoading(true);
     try {
       if (mode === 'signin') {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) throw signInError;
         if (onSuccess) onSuccess();
-      } else if (mode === 'signup') {
-        const redirectUrl = `${window.location.origin}/dashboard`;
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: redirectUrl,
-            data: { full_name: fullName, account_type: accountType, contact_number: contactNumber },
-          },
-        });
-        if (signUpError) throw signUpError;
-        if (data?.session) {
-          if (onSuccess) onSuccess();
-        } else {
-          setMessage('A verification link has been sent to your email. Please confirm to activate your workspace.');
-          setMode('signin');
-        }
       } else if (mode === 'forgot') {
         const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/dashboard`,
@@ -572,6 +639,137 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
           </div>
         </motion.div>
       </div>
+
+      {/* ── MANDATORY SIGNUP CONSENT POPUP MODAL ── */}
+      <AnimatePresence>
+        {showConsentModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden text-slate-800"
+              style={{ fontFamily: "'Outfit', sans-serif" }}
+            >
+              {/* Header */}
+              <div
+                className="p-6 text-center border-b border-emerald-100 relative"
+                style={{ background: 'linear-gradient(135deg, #F0FDF4 0%, #ECFDF5 100%)' }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setShowConsentModal(false)}
+                  className="absolute top-4 right-4 p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center mx-auto mb-3">
+                  <ShieldCheck className="w-6 h-6 text-emerald-600" />
+                </div>
+                <h3
+                  className="text-lg font-extrabold text-slate-900"
+                  style={{ fontFamily: "'Clash Display', 'Outfit', sans-serif" }}
+                >
+                  Terms of Service & Regulatory Consent
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Mandatory agreement before activating your Claritiy Voice workspace.
+                </p>
+              </div>
+
+              {/* Content summary */}
+              <div className="p-6 space-y-4 text-xs">
+                {error && (
+                  <div className="p-3 rounded-xl bg-red-50 text-red-700 border border-red-200 font-semibold flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/70 space-y-2.5 max-h-48 overflow-y-auto leading-relaxed text-slate-600">
+                  <p className="font-bold text-slate-800">Please review and confirm your adherence to platform rules:</p>
+                  <ul className="list-disc pl-4 space-y-1.5">
+                    <li>
+                      <strong>Acceptable Telephony Use:</strong> All outbound and inbound conversational voice agents must comply with applicable telecommunications carrier rules, DoT & TRAI guidelines, and national Do-Not-Call (DND) directories.
+                    </li>
+                    <li>
+                      <strong>Identity & Verification:</strong> You agree that all organization, tax (PAN/GSTIN), and representative identity details (Aadhaar) provided are accurate and authentic.
+                    </li>
+                    <li>
+                      <strong>Caller Consent & Audio Privacy:</strong> Voice recordings and call transcripts must strictly follow required consent regulations under applicable privacy laws.
+                    </li>
+                    <li>
+                      <strong>Strict Anti-Abuse Policy:</strong> Unauthorized robocalling, harassment, fraudulent caller ID spoofing, or illegal solicitation is strictly prohibited.
+                    </li>
+                  </ul>
+                  <div className="pt-2 flex gap-4 text-[11px] font-bold text-emerald-700">
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
+                      Read Full Terms of Service <ExternalLink className="w-3 h-3" />
+                    </a>
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
+                      Privacy Policy <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                </div>
+
+                {/* Checkboxes */}
+                <div className="space-y-3 pt-1">
+                  <label className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={termsAccepted}
+                      onChange={(e) => setTermsAccepted(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <span className="text-xs text-slate-700 leading-normal">
+                      I have read, understood, and accept the <strong>Claritiy Voice Terms and Conditions</strong>.
+                    </span>
+                  </label>
+
+                  <label className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={termsOfUseAccepted}
+                      onChange={(e) => setTermsOfUseAccepted(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <span className="text-xs text-slate-700 leading-normal">
+                      I agree to the <strong>Terms of Use</strong> and give my explicit consent to follow all platform regulations and telecommunications policies.
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Footer buttons */}
+              <div className="p-5 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowConsentModal(false)}
+                  className="py-2.5 px-4 rounded-xl font-bold text-xs text-slate-600 hover:text-slate-800 transition-colors cursor-pointer"
+                >
+                  Decline & Go Back
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmConsentAndSignUp}
+                  disabled={!termsAccepted || !termsOfUseAccepted || submittingConsent}
+                  className="py-2.5 px-6 rounded-xl font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 shadow-xs cursor-pointer"
+                >
+                  {submittingConsent ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Creating Workspace…
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5" /> I Agree & Create Account
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

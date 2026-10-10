@@ -285,5 +285,130 @@ router.post('/concurrency', requireAuth, requireRole(['admin']), async (req: Aut
   }
 });
 
+/**
+ * POST /api/v2/user/consent
+ * Stores user legal consent for Terms and Conditions, Terms of Use, and Acceptable Calling policies.
+ * Can be invoked during initial signup or by logged-in users.
+ */
+router.post('/consent', async (req, res) => {
+  try {
+    const { email, fullName, termsAndConditions, termsOfUse, privacyPolicy, consentVersion } = req.body;
+
+    if (!email || typeof email !== 'string') {
+      res.status(400).json({ success: false, error: 'Email is required to record legal consent.' });
+      return;
+    }
+
+    if (!termsAndConditions || !termsOfUse) {
+      res.status(400).json({
+        success: false,
+        error: 'Explicit consent to Terms and Conditions and Terms of Use is required.',
+      });
+      return;
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const userAgent = (req.headers['user-agent'] as string) || null;
+    const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || null;
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email: cleanEmail },
+      select: { id: true },
+    });
+
+    const consentRecord = await prisma.userConsent.create({
+      data: {
+        email: cleanEmail,
+        fullName: fullName?.trim() || null,
+        userId: existingUser?.id || null,
+        termsAndConditions: true,
+        termsOfUse: true,
+        privacyPolicy: privacyPolicy !== false,
+        consentVersion: consentVersion || 'v1.0',
+        ipAddress,
+        userAgent,
+      },
+    });
+
+    if (existingUser) {
+      await prisma.user.update({
+        where: { id: existingUser.id },
+        data: { hasConsentedTerms: true },
+      });
+    }
+
+    logger.info('User Consent: Successfully recorded Terms & Conditions and Terms of Use consent', {
+      email: cleanEmail,
+      consentId: consentRecord.id,
+      userId: existingUser?.id,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        consentId: consentRecord.id,
+        consentedAt: consentRecord.consentedAt,
+      },
+      message: 'Consent recorded successfully.',
+    });
+  } catch (err: any) {
+    logger.error('User Consent: Failed to record consent', { error: String(err?.message || err) });
+    res.status(500).json({ success: false, error: 'Failed to record consent record.' });
+  }
+});
+
+/**
+ * GET /api/v2/user/consent-status
+ * Checks if current authenticated user has provided legal consent to Terms and Conditions.
+ */
+router.get('/consent-status', requireAuth, async (req: AuthenticatedRequest, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, hasConsentedTerms: true },
+    });
+
+    if (!user) {
+      res.status(404).json({ success: false, error: 'User not found' });
+      return;
+    }
+
+    let hasConsented = user.hasConsentedTerms;
+    if (!hasConsented) {
+      const consentRecord = await prisma.userConsent.findFirst({
+        where: {
+          OR: [{ userId }, { email: user.email }],
+        },
+      });
+      if (consentRecord) {
+        hasConsented = true;
+        // Self-heal user flag
+        await prisma.user.update({
+          where: { id: userId },
+          data: { hasConsentedTerms: true },
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        hasConsented,
+      },
+    });
+  } catch (err: any) {
+    logger.error('User Consent: Failed to check consent status', { error: String(err?.message || err) });
+    res.status(500).json({ success: false, error: 'Failed to verify consent status.' });
+  }
+});
+
 export default router;
+
 

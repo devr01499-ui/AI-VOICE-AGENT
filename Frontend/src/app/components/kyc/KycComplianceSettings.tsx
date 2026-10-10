@@ -7,14 +7,12 @@ import {
   CheckCircle2,
   AlertCircle,
   Upload,
-  FileText,
   FileCheck,
   ExternalLink,
   RefreshCw,
   Building,
   CreditCard,
   UserCheck,
-  ArrowRight,
 } from 'lucide-react';
 
 export interface KycDocData {
@@ -24,10 +22,13 @@ export interface KycDocData {
   required: boolean;
   status: 'verified' | 'pending' | 'failed' | 'not_submitted';
   panNumber?: string | null;
+  panType?: 'personal' | 'company' | null;
   fullName?: string | null;
   dob?: string | null;
   gstin?: string | null;
   gstCertUrl?: string | null;
+  aadhaarNumber?: string | null;
+  aadhaarDocUrl?: string | null;
   vobizReference?: string | null;
   failureReason?: string | null;
   verifiedAt?: string | null;
@@ -42,9 +43,9 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
   const [subAccountAuthId, setSubAccountAuthId] = useState<string | null>(null);
 
   // Form states: PAN
+  const [panType, setPanType] = useState<'personal' | 'company'>('personal');
   const [panNumber, setPanNumber] = useState('');
   const [panFullName, setPanFullName] = useState('');
-  const [panDob, setPanDob] = useState('');
   const [submittingPan, setSubmittingPan] = useState(false);
   const [panError, setPanError] = useState<string | null>(null);
 
@@ -54,8 +55,10 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
   const [submittingGst, setSubmittingGst] = useState(false);
   const [gstError, setGstError] = useState<string | null>(null);
 
-  // Form states: Aadhaar (DigiLocker)
-  const [accessRequestId, setAccessRequestId] = useState('');
+  // Form states: Aadhaar (Card upload)
+  const [aadhaarNumber, setAadhaarNumber] = useState('');
+  const [aadhaarFullName, setAadhaarFullName] = useState('');
+  const [aadhaarFile, setAadhaarFile] = useState<{ name: string; base64: string } | null>(null);
   const [submittingAadhaar, setSubmittingAadhaar] = useState(false);
   const [aadhaarError, setAadhaarError] = useState<string | null>(null);
 
@@ -81,11 +84,16 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
         if (panDoc) {
           if (panDoc.panNumber) setPanNumber(panDoc.panNumber);
           if (panDoc.fullName) setPanFullName(panDoc.fullName);
-          if (panDoc.dob) setPanDob(panDoc.dob);
+          if (panDoc.panType) setPanType(panDoc.panType);
         }
         const gstDoc = data.documents?.find((d: KycDocData) => d.documentType === 'gst');
         if (gstDoc && gstDoc.gstin) {
           setGstin(gstDoc.gstin);
+        }
+        const aadhaarDoc = data.documents?.find((d: KycDocData) => d.documentType === 'aadhaar');
+        if (aadhaarDoc) {
+          if (aadhaarDoc.aadhaarNumber) setAadhaarNumber(aadhaarDoc.aadhaarNumber);
+          if (aadhaarDoc.fullName) setAadhaarFullName(aadhaarDoc.fullName);
         }
       }
     } catch (err: any) {
@@ -100,7 +108,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
   }, [loadDocuments]);
 
   // Handle GST File upload selection
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGstFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -121,7 +129,29 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
     reader.readAsDataURL(file);
   };
 
-  // Submit PAN Verification
+  // Handle Aadhaar File upload selection
+  const handleAadhaarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 8 * 1024 * 1024) {
+      setAadhaarError('File size exceeds 8MB limit. Please upload a smaller document.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      setAadhaarFile({
+        name: file.name,
+        base64,
+      });
+      setAadhaarError(null);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Submit PAN Verification (Supports Personal and Company PAN, No DOB)
   const handleSubmitPan = async (e: React.FormEvent) => {
     e.preventDefault();
     setPanError(null);
@@ -133,11 +163,11 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
       return;
     }
     if (!panFullName.trim()) {
-      setPanError('Please enter the full name as appearing on the PAN card.');
-      return;
-    }
-    if (!panDob.trim()) {
-      setPanError('Please enter your date of birth.');
+      setPanError(
+        panType === 'company'
+          ? 'Please enter the registered company/entity name as per PAN card.'
+          : 'Please enter the full name as appearing on the PAN card.'
+      );
       return;
     }
 
@@ -146,8 +176,8 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
       const res = await apiClient.post('/api/v2/kyc/verify-document', {
         documentType: 'pan',
         panNumber: cleanPan,
+        panType,
         fullName: panFullName.trim(),
-        dob: panDob.trim(),
       });
 
       if (res.data?.success) {
@@ -216,21 +246,37 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
     }
   };
 
-  // Submit Aadhaar DigiLocker Verification
+  // Submit Aadhaar Card Verification
   const handleSubmitAadhaar = async (e: React.FormEvent) => {
     e.preventDefault();
     setAadhaarError(null);
     setNotification(null);
 
-    if (!accessRequestId.trim()) {
-      setAadhaarError('Please enter a valid DigiLocker Access Request ID.');
+    const cleanAadhaar = aadhaarNumber.replace(/\s+/g, '');
+    if (!cleanAadhaar || !/^[0-9]{12}$/.test(cleanAadhaar)) {
+      setAadhaarError('Please enter a valid 12-digit Aadhaar number.');
+      return;
+    }
+
+    if (!aadhaarFullName.trim()) {
+      setAadhaarError('Please enter the full name as appearing on the Aadhaar card.');
+      return;
+    }
+
+    const currentAadhaarDoc = documents.find((d) => d.documentType === 'aadhaar');
+    if (!aadhaarFile && !currentAadhaarDoc?.aadhaarDocUrl) {
+      setAadhaarError('Please upload your Aadhaar card document (PDF or image).');
       return;
     }
 
     setSubmittingAadhaar(true);
     try {
-      const res = await apiClient.post('/api/v2/kyc/verify-aadhaar', {
-        access_request_id: accessRequestId.trim(),
+      const res = await apiClient.post('/api/v2/kyc/verify-document', {
+        documentType: 'aadhaar',
+        aadhaarNumber: cleanAadhaar,
+        fullName: aadhaarFullName.trim(),
+        aadhaarFile: aadhaarFile?.base64,
+        aadhaarFileName: aadhaarFile?.name,
       });
 
       if (res.data?.success) {
@@ -238,9 +284,10 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
           type: res.data.data.status === 'verified' ? 'success' : 'error',
           message:
             res.data.data.status === 'verified'
-              ? 'Aadhaar consent verification approved!'
-              : `Aadhaar verification rejected: ${res.data.data.failureReason || 'Consent expired or invalid'}`,
+              ? 'Aadhaar verification approved successfully!'
+              : `Aadhaar verification rejected: ${res.data.data.failureReason || 'Details could not be verified'}`,
         });
+        setAadhaarFile(null);
         await loadDocuments();
       } else {
         setAadhaarError((res.data as any)?.error || 'Aadhaar verification failed.');
@@ -272,14 +319,14 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
         );
       case 'failed':
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-500/10 text-red-600 border border-red-500/30">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-500/10 text-red-600 border border-red-200">
             <AlertCircle className="w-3.5 h-3.5 text-red-600" /> Action Required
           </span>
         );
       default:
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-500/10 text-slate-500 border border-slate-500/20">
-            Not Submitted
+            Pending Upload
           </span>
         );
     }
@@ -345,7 +392,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
             <p className="font-semibold text-slate-800">Why is this required?</p>
             <p className="mt-0.5">
               Telecom carrier regulations require independent verification for each sub-account under{' '}
-              <code className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-mono text-[11px]">customer_use</code> mode. Sub-accounts cannot inherit master KYC. All documents are verified server-to-server and never stored insecurely.
+              <code className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-mono text-[11px]">customer_use</code> mode. Sub-accounts cannot inherit master KYC. All documents are securely verified server-to-server.
             </p>
           </div>
         </div>
@@ -354,7 +401,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
       {/* Grid of Document Verification Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
-        {/* ── CARD 1: PAN Verification ── */}
+        {/* ── CARD 1: PAN Verification (Personal or Company, No DOB) ── */}
         <div className="nm-card p-6 rounded-3xl border border-slate-200/70 shadow-xs space-y-5 flex flex-col justify-between">
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-2 pb-3 border-b border-slate-100">
@@ -388,8 +435,13 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Verified On-Record
                 </p>
                 <p className="text-[11px] text-emerald-700">
-                  PAN: <span className="font-mono font-bold">{panDoc.panNumber}</span> · Name: {panDoc.fullName}
+                  PAN: <span className="font-mono font-bold">{panDoc.panNumber}</span> · {panDoc.fullName}
                 </p>
+                {panDoc.panType && (
+                  <p className="text-[10px] text-emerald-600 uppercase font-mono font-bold">
+                    Type: {panDoc.panType === 'company' ? 'Company PAN' : 'Personal PAN'}
+                  </p>
+                )}
                 {panDoc.verifiedAt && (
                   <p className="text-[10px] text-emerald-600/80">
                     Verified on: {new Date(panDoc.verifiedAt).toLocaleDateString()}
@@ -407,8 +459,39 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
             {/* Form */}
             {panDoc?.status !== 'verified' && (
               <form onSubmit={handleSubmitPan} className="space-y-3.5 text-xs">
+                {/* Options: Personal PAN vs Company PAN */}
                 <div>
-                  <label className="block text-slate-600 font-bold mb-1">PAN Number (10 characters)</label>
+                  <label className="block text-slate-600 font-bold mb-1.5">Select PAN Card Type</label>
+                  <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setPanType('personal')}
+                      className={`py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+                        panType === 'personal'
+                          ? 'bg-white text-emerald-700 shadow-xs'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      Personal PAN Card
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPanType('company')}
+                      className={`py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+                        panType === 'company'
+                          ? 'bg-white text-emerald-700 shadow-xs'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      Company PAN Card
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 font-bold mb-1">
+                    {panType === 'company' ? 'Company PAN Number (10 characters)' : 'PAN Number (10 characters)'}
+                  </label>
                   <input
                     type="text"
                     value={panNumber}
@@ -420,27 +503,19 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-600 font-bold mb-1">Full Name (as per PAN Card)</label>
+                  <label className="block text-slate-600 font-bold mb-1">
+                    {panType === 'company' ? 'Company / Business Legal Name' : 'Full Name (as per PAN Card)'}
+                  </label>
                   <input
                     type="text"
                     value={panFullName}
                     onChange={(e) => setPanFullName(e.target.value)}
-                    placeholder="e.g. Rajesh Kumar Sharma"
+                    placeholder={panType === 'company' ? 'e.g. Acme Innovations Pvt Ltd' : 'e.g. Rajesh Kumar Sharma'}
                     disabled={submittingPan}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 font-medium"
                   />
                 </div>
-                <div>
-                  <label className="block text-slate-600 font-bold mb-1">Date of Birth (DD/MM/YYYY or YYYY-MM-DD)</label>
-                  <input
-                    type="text"
-                    value={panDob}
-                    onChange={(e) => setPanDob(e.target.value)}
-                    placeholder="YYYY-MM-DD"
-                    disabled={submittingPan}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 font-medium"
-                  />
-                </div>
+
                 <button
                   type="submit"
                   disabled={submittingPan}
@@ -448,7 +523,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
                 >
                   {submittingPan ? (
                     <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Verifying with Vobiz…
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Verifying PAN Details…
                     </>
                   ) : panDoc?.status === 'failed' ? (
                     'Re-submit PAN Verification'
@@ -460,8 +535,8 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
             )}
           </div>
           <div className="pt-2 text-[10px] text-slate-400 border-t border-slate-100 flex items-center justify-between">
-            <span>Direct Vobiz SA_ API</span>
-            <span>Zero manual wait</span>
+            <span>Tax Identity Compliance</span>
+            <span>Automated instant verification</span>
           </div>
         </div>
 
@@ -543,7 +618,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
                     <input
                       type="file"
                       accept=".pdf,image/png,image/jpeg,image/jpg"
-                      onChange={handleFileChange}
+                      onChange={handleGstFileChange}
                       disabled={submittingGst}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
@@ -554,7 +629,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
                       </p>
                     ) : (
                       <p className="text-[11px] text-slate-500 font-medium">
-                        Drag or click to attach GST certificate (Stored on Supabase)
+                        Drag or click to attach GST certificate
                       </p>
                     )}
                   </div>
@@ -566,7 +641,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
                 >
                   {submittingGst ? (
                     <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Verifying with Vobiz…
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Verifying GST Registration…
                     </>
                   ) : gstDoc?.status === 'failed' ? (
                     'Re-submit GST Verification'
@@ -578,12 +653,12 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
             )}
           </div>
           <div className="pt-2 text-[10px] text-slate-400 border-t border-slate-100 flex items-center justify-between">
-            <span>Supabase Storage Vault</span>
-            <span>Encrypted transmission</span>
+            <span>Commercial Entity Compliance</span>
+            <span>Secure Verification</span>
           </div>
         </div>
 
-        {/* ── CARD 3: Aadhaar DigiLocker (Only if needed) ── */}
+        {/* ── CARD 3: Aadhaar Card Verification (Upload) ── */}
         <div className="nm-card p-6 rounded-3xl border border-slate-200/70 shadow-xs space-y-5 flex flex-col justify-between md:col-span-2">
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-2 pb-3 border-b border-slate-100">
@@ -593,10 +668,10 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                    Aadhaar Identity Verification (DigiLocker)
+                    Aadhaar Card Verification
                   </h3>
                   <p className="text-[11px] text-slate-400">
-                    Proprietor / Sole Representative Electronic KYC (Zero Document Image Storage)
+                    Authorized Signatory / Representative Identity Verification
                   </p>
                 </div>
               </div>
@@ -604,8 +679,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed">
-              In accordance with UIDAI and Aadhaar regulatory guidelines, Claritiy Voice strictly{' '}
-              <strong>never stores raw Aadhaar numbers or document scans</strong> in our databases or storage. DigiLocker cryptographic consent flows return exclusively verified/not-verified confirmation tokens.
+              Upload authorized representative Aadhaar card for regulatory identity compliance.
             </p>
 
             {aadhaarDoc?.status === 'failed' && aadhaarDoc.failureReason && (
@@ -618,11 +692,26 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
             )}
 
             {aadhaarDoc?.status === 'verified' && (
-              <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs space-y-1">
+              <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs space-y-1.5">
                 <p className="font-bold flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> DigiLocker Consent Verified
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Aadhaar Verified On-Record
                 </p>
-                <p className="text-[11px] text-emerald-700">Digital verification complete via DigiLocker gateway.</p>
+                {aadhaarDoc.aadhaarNumber && (
+                  <p className="text-[11px] text-emerald-700">
+                    Aadhaar: <span className="font-mono font-bold">XXXX-XXXX-{aadhaarDoc.aadhaarNumber.slice(-4)}</span>
+                    {aadhaarDoc.fullName && ` · ${aadhaarDoc.fullName}`}
+                  </p>
+                )}
+                {aadhaarDoc.aadhaarDocUrl && (
+                  <a
+                    href={aadhaarDoc.aadhaarDocUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 underline"
+                  >
+                    <ExternalLink className="w-3 h-3" /> View Uploaded Aadhaar Card
+                  </a>
+                )}
               </div>
             )}
 
@@ -633,39 +722,83 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
             )}
 
             {aadhaarDoc?.status !== 'verified' && (
-              <form onSubmit={handleSubmitAadhaar} className="flex flex-col sm:flex-row gap-3 items-end">
-                <div className="flex-1 w-full text-xs">
-                  <label className="block text-slate-600 font-bold mb-1">
-                    DigiLocker Consent Request ID (access_request_id)
-                  </label>
-                  <input
-                    type="text"
-                    value={accessRequestId}
-                    onChange={(e) => setAccessRequestId(e.target.value)}
-                    placeholder="Enter DigiLocker consent access request ID"
-                    disabled={submittingAadhaar}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-slate-900"
-                  />
+              <form onSubmit={handleSubmitAadhaar} className="space-y-3.5 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-slate-600 font-bold mb-1">
+                      Aadhaar Number (12 digits)
+                    </label>
+                    <input
+                      type="text"
+                      value={aadhaarNumber}
+                      onChange={(e) => setAadhaarNumber(e.target.value.replace(/[^0-9]/g, '').slice(0, 12))}
+                      placeholder="e.g. 123456789012"
+                      maxLength={12}
+                      disabled={submittingAadhaar}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono font-bold tracking-wider text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-600 font-bold mb-1">
+                      Full Name (as per Aadhaar Card)
+                    </label>
+                    <input
+                      type="text"
+                      value={aadhaarFullName}
+                      onChange={(e) => setAadhaarFullName(e.target.value)}
+                      placeholder="e.g. Rajesh Kumar Sharma"
+                      disabled={submittingAadhaar}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 font-medium"
+                    />
+                  </div>
                 </div>
+
+                <div>
+                  <label className="block text-slate-600 font-bold mb-1">
+                    Aadhaar Card Document (PDF or PNG/JPG)
+                  </label>
+                  <div className="relative border-2 border-dashed border-slate-200 hover:border-emerald-500 rounded-2xl p-4 text-center cursor-pointer transition-colors bg-white">
+                    <input
+                      type="file"
+                      accept=".pdf,image/png,image/jpeg,image/jpg"
+                      onChange={handleAadhaarFileChange}
+                      disabled={submittingAadhaar}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    <Upload className="w-5 h-5 text-slate-400 mx-auto mb-1.5" />
+                    {aadhaarFile ? (
+                      <p className="text-xs font-bold text-emerald-700 flex items-center justify-center gap-1">
+                        <FileCheck className="w-3.5 h-3.5" /> {aadhaarFile.name}
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-slate-500 font-medium">
+                        Drag or click to attach Aadhaar card document
+                      </p>
+                    )}
+                  </div>
+                </div>
+
                 <button
                   type="submit"
                   disabled={submittingAadhaar}
-                  className="px-6 py-2.5 rounded-xl font-bold text-white bg-slate-800 hover:bg-slate-900 disabled:opacity-50 transition-all flex items-center gap-2 cursor-pointer shrink-0 text-xs shadow-xs"
+                  className="w-full py-2.5 px-4 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
                 >
                   {submittingAadhaar ? (
                     <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Verifying…
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Verifying Aadhaar Document…
                     </>
+                  ) : aadhaarDoc?.status === 'failed' ? (
+                    'Re-submit Aadhaar Verification'
                   ) : (
-                    'Verify Consent'
+                    'Upload & Verify Aadhaar Card'
                   )}
                 </button>
               </form>
             )}
           </div>
           <div className="pt-2 text-[10px] text-slate-400 border-t border-slate-100 flex items-center justify-between">
-            <span>Aadhaar Act 2016 Compliant</span>
-            <span>No Biometrics or UID Stored</span>
+            <span>Identity Document Compliance</span>
+            <span>Department of Telecommunications Verification</span>
           </div>
         </div>
 
