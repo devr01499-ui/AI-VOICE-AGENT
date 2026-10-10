@@ -4,10 +4,7 @@ import { motion, AnimatePresence, useScroll, useMotionValueEvent } from "motion/
 
 import { Session } from "@supabase/supabase-js";
 
-type Page =
-  | "home" | "solutions" | "how-it-works" | "voices" | "pricing"
-  | "blog" | "blog-rto" | "blog-healthcare" | "blog-fintech"
-  | "docs" | "privacy" | "terms" | "security" | "dashboard" | "industries" | "use-cases" | "voice-ai-index" | "faq" | "contact" | "compare" | "numbers_buy";
+type Page = any;
 
 interface NavbarProps {
   page: Page;

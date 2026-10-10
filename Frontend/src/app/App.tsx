@@ -64,6 +64,7 @@ const VoiceAIIndex = lazy(() => import("./pages/VoiceAIIndex"));
 const FAQ = lazy(() => import("./pages/FAQ"));
 const ContactUs = lazy(() => import("./pages/ContactUs"));
 const UseCases = lazy(() => import("./pages/UseCases"));
+const AiVoiceAgentSoftware = lazy(() => import("./pages/AiVoiceAgentSoftware"));
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Page = 
@@ -87,7 +88,8 @@ type Page =
   | "contact"
   | "compare"
   | "numbers_buy"
-  | "voice-ai-index";
+  | "voice-ai-index"
+  | "ai-voice-agent-software";
 
 // ─── Sound Wave Component ─────────────────────────────────────────────────────
 function SoundWave({ active = true, bars = 32, className = "" }: { active?: boolean; bars?: number; className?: string }) {
@@ -6756,6 +6758,7 @@ export default function App() {
         "/terms": "terms",
         "/security": "security",
         "/voice-ai-index": "voice-ai-index",
+        "/ai-voice-agent-software": "ai-voice-agent-software",
         "/blog": "blog",
         "/blog/how-to-reduce-cod-rto": "blog-rto",
         "/blog/healthcare-ai-calling": "blog-healthcare",
@@ -6813,6 +6816,7 @@ export default function App() {
         "/terms": "terms",
         "/security": "security",
         "/voice-ai-index": "voice-ai-index",
+        "/ai-voice-agent-software": "ai-voice-agent-software",
         "/blog": "blog",
         "/blog/how-to-reduce-cod-rto": "blog-rto",
         "/blog/healthcare-ai-calling": "blog-healthcare",
@@ -6872,6 +6876,7 @@ export default function App() {
       terms: "/terms",
       security: "/security",
       "voice-ai-index": "/voice-ai-index",
+      "ai-voice-agent-software": "/ai-voice-agent-software",
       compare: "/compare",
       numbers_buy: "/dashboard",
     };
@@ -6906,6 +6911,7 @@ export default function App() {
       terms: "Terms of Service — Claritiy Voice",
       security: "Security — Claritiy Voice",
       "voice-ai-index": "Voice AI Index — Claritiy Voice",
+      "ai-voice-agent-software": "AI Voice Agent Software — Deploy Human-Sounding Phone Agents | Claritiy Voice",
       compare: "Compare — Claritiy Voice",
       numbers_buy: "Buy Numbers — Claritiy Voice",
     };
@@ -6930,6 +6936,7 @@ export default function App() {
       terms: "Terms of service for using the Claritiy Voice platform.",
       security: "Learn about our enterprise-grade security and compliance measures.",
       "voice-ai-index": "The complete index of voice AI capabilities and benchmarks.",
+      "ai-voice-agent-software": "Deploy autonomous AI voice agent software with sub-180ms latency, native regional accents, and seamless CRM integrations. Flat ₹3.99/min.",
       compare: "Compare Claritiy Voice against other platforms.",
       numbers_buy: "Purchase phone numbers for your AI voice agents.",
     };
@@ -6954,6 +6961,7 @@ export default function App() {
       terms: "terms",
       security: "security",
       "voice-ai-index": "voice-ai-index",
+      "ai-voice-agent-software": "ai-voice-agent-software",
       compare: "compare",
       numbers_buy: "dashboard",
     };
@@ -7225,6 +7233,7 @@ export default function App() {
             {page === "contact" && <ContactUs />}
             {(page as string) === "dashboard" && <AuthGateway onSuccess={() => handleNavigate("dashboard")} />}
             {page === "voice-ai-index" && <VoiceAIIndex setPage={setPage} initialTopicId={currentTopicId} />}
+            {page === "ai-voice-agent-software" && <AiVoiceAgentSoftware setPage={handleNavigate} />}
             {(page === "use-cases" || page === "industries") && (
               <UseCases setPage={handleNavigate} initialIndustryId={currentIndustryId} />
             )}

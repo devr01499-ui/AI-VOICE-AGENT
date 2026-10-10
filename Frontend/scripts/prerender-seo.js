@@ -146,6 +146,178 @@ const corePages = [
     description: 'Comprehensive directory of enterprise voice AI architectures, compliance frameworks, benchmarks, and deployment patterns.',
     h1: 'Claritiy Voice AI Index — Comprehensive Architectural Knowledge Base',
     summary: 'Browse all 80+ categorized guides detailing voice agent engineering, latency minimization, carrier integration, and compliance best practices.'
+  },
+  {
+    path: 'ai-voice-agent-software',
+    title: 'AI Voice Agent Software — Deploy Human-Sounding Phone Agents | Claritiy Voice',
+    description: 'Deploy autonomous conversational AI voice agent software with sub-180ms latency, native regional accents, and seamless CRM integrations. Flat ₹3.99/min.',
+    h1: 'Enterprise AI Voice Agent Software Engineered for Real Conversations',
+    summary: 'Claritiy Voice delivers production-grade conversational telephony agents that answer inbound calls, verify outbound cash-on-delivery orders, book clinic appointments, and collect payments with zero conversational lag.',
+    customBody: `
+      <div style="max-width: 1100px; margin: 0 auto; padding: 2.5rem 1rem; font-family: system-ui, -apple-system, sans-serif; color: #1F2937; line-height: 1.75;">
+        <nav style="margin-bottom: 2rem; font-size: 0.875rem;">
+          <a href="/" style="color: #059669; text-decoration: none; font-weight: 600;">Home</a> &gt; 
+          <a href="/solutions" style="color: #059669; text-decoration: none; font-weight: 600;">Solutions</a> &gt; 
+          <span style="color: #6B7280;">AI Voice Agent Software</span>
+        </nav>
+
+        <header style="margin-bottom: 3rem;">
+          <span style="background: #ECFDF5; color: #065F46; border: 1px solid #A7F3D0; padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-family: monospace; font-weight: 700; text-transform: uppercase;">
+            Enterprise Telephony Software
+          </span>
+          <h1 style="font-size: 2.75rem; font-weight: 800; color: #0D1117; margin-top: 1rem; margin-bottom: 1.25rem; line-height: 1.15;">
+            Enterprise AI Voice Agent Software Engineered for Real Conversations
+          </h1>
+          <p style="font-size: 1.2rem; color: #4B5563; line-height: 1.7; max-width: 900px;">
+            Replace outdated interactive voice response (IVR) phone trees and high-turnover manual call centers with autonomous conversational voice agents. Claritiy Voice delivers verified sub-180ms turn-taking latency, native regional dialect support across 70+ languages, and deterministic bi-directional CRM execution—at a predictable, transparent flat rate of ₹3.99 per minute.
+          </p>
+          <div style="display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap;">
+            <a href="/dashboard" style="background: #059669; color: white; padding: 0.875rem 1.75rem; border-radius: 0.75rem; text-decoration: none; font-weight: 700; font-size: 1rem;">Launch Free Sandbox</a>
+            <a href="/pricing" style="background: white; color: #0D1117; border: 1px solid #D1D5DB; padding: 0.875rem 1.75rem; border-radius: 0.75rem; text-decoration: none; font-weight: 600; font-size: 1rem;">View Flat ₹3.99/min Pricing</a>
+          </div>
+        </header>
+
+        <section style="margin-bottom: 3.5rem; background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 1rem; padding: 2rem;">
+          <h2 style="font-size: 1.75rem; font-weight: 800; color: #111827; margin-bottom: 1rem;">What is AI Voice Agent Software?</h2>
+          <p style="margin-bottom: 1rem;">
+            <strong>AI Voice Agent Software</strong> is an enterprise software platform that enables computers to engage in natural, bi-directional spoken telephone conversations with human callers. Unlike legacy automated dialing tools or pre-recorded IVR phone trees ("Press 1 for Support, Press 2 for Billing"), an AI voice agent listens actively, comprehends spoken intent in real time, respects interruptions (barge-in), and retrieves or updates database records mid-call.
+          </p>
+          <p>
+            By combining real-time Automatic Speech Recognition (ASR), multi-turn reasoning with Large Language Models (LLM), and low-latency Text-to-Speech (TTS) synthesis over WebRTC and SIP networks, organizations automate high-volume phone operations without recruiting, onboarding, or managing massive call center teams.
+          </p>
+        </section>
+
+        <section style="margin-bottom: 3.5rem;">
+          <h2 style="font-size: 2rem; font-weight: 800; color: #111827; margin-bottom: 1.25rem;">Why Traditional Call Centers and Legacy Bots Fail</h2>
+          <p style="margin-bottom: 1.25rem;">
+            For decades, customer-facing organizations have been trapped between two bad options: expensive, high-turnover human call centers or rigid, customer-hostile IVR dialers.
+          </p>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+            <div style="background: white; border: 1px solid #E5E7EB; border-radius: 0.75rem; padding: 1.5rem;">
+              <h3 style="font-size: 1.125rem; font-weight: 700; color: #DC2626; margin-bottom: 0.5rem;">The Human BPO Bottleneck</h3>
+              <p style="font-size: 0.95rem; color: #4B5563;">
+                Human agents cost between ₹18.00 and ₹25.00 per productive minute. Industry attrition averages 45% annually, meaning your business is constantly retraining staff while dealing with inconsistent script adherence and zero after-hours coverage.
+              </p>
+            </div>
+            <div style="background: white; border: 1px solid #E5E7EB; border-radius: 0.75rem; padding: 1.5rem;">
+              <h3 style="font-size: 1.125rem; font-weight: 700; color: #DC2626; margin-bottom: 0.5rem;">The Awkward 1.5s API Latency Loop</h3>
+              <p style="font-size: 0.95rem; color: #4B5563;">
+                First-generation voice AI wrappers stitch together separate REST APIs (Twilio + Deepgram + OpenAI + ElevenLabs). Each roundtrip across distinct cloud providers introduces 800ms to 1,500ms of lag, resulting in unnatural pauses where callers talk over the bot.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section style="margin-bottom: 3.5rem;">
+          <h2 style="font-size: 2rem; font-weight: 800; color: #111827; margin-bottom: 1.25rem;">The Claritiy Voice Architectural Engine: Sub-180ms Latency</h2>
+          <p style="margin-bottom: 1.25rem;">
+            Claritiy Voice eliminates the conversational delay problem through a vertically integrated speech-to-speech pipeline. By streaming zero-copy 16kHz audio directly over UDP WebRTC relays rather than HTTP REST hops, our system achieves turn-taking in under 180 milliseconds—matching native human conversational cadence.
+          </p>
+          <pre style="background: #111827; color: #E5E7EB; padding: 1.5rem; border-radius: 0.75rem; overflow-x: auto; font-family: monospace; font-size: 0.875rem;"><code>// Claritiy Voice Sub-180ms WebRTC Session Configuration
+{
+  "telephony_transport": "WebRTC_SRTP_UDP",
+  "codec": "audio/x-l16; rate=16000",
+  "turn_taking_latency_ms": 174,
+  "barge_in_detection_window_ms": 20,
+  "edge_pii_redaction": ["credit_card", "aadhaar_uid", "phi_records"],
+  "pricing": {
+    "currency": "INR",
+    "rate_per_minute": 3.99,
+    "model": "all_inclusive_no_token_markup"
+  }
+}</code></pre>
+        </section>
+
+        <section style="margin-bottom: 3.5rem;">
+          <h2 style="font-size: 2rem; font-weight: 800; color: #111827; margin-bottom: 1.25rem;">High-Impact Enterprise Use Cases</h2>
+          
+          <div style="margin-bottom: 2rem; border-left: 4px solid #059669; padding-left: 1.5rem;">
+            <h3 style="font-size: 1.35rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem;">1. E-Commerce Cash-on-Delivery (COD) Order Confirmation</h3>
+            <p style="color: #4B5563; margin-bottom: 0.5rem;">
+              In emerging markets like India, 60% of online purchases use cash-on-delivery, suffering Return-to-Origin (RTO) rates of 25% to 40%. Claritiy Voice calls customers within 60 seconds of checkout, verifies delivery addresses, confirms intent, and offers instant UPI pre-payment discounts via SMS link.
+            </p>
+            <p style="font-size: 0.9rem; font-weight: 600; color: #059669;">Typical Result: 35% to 42% reduction in RTO losses, saving lakhs in reverse courier fees.</p>
+          </div>
+
+          <div style="margin-bottom: 2rem; border-left: 4px solid #059669; padding-left: 1.5rem;">
+            <h3 style="font-size: 1.35rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem;">2. Healthcare & Dental Clinic Patient Intake</h3>
+            <p style="color: #4B5563; margin-bottom: 0.5rem;">
+              Over 30% of incoming patient calls occur after clinic hours or during busy front-desk triage, resulting in missed appointments. Claritiy Voice acts as a 24/7 intelligent receptionist, booking appointments directly on Google Calendar or EHR systems and delivering automated confirmation calls.
+            </p>
+            <p style="font-size: 0.9rem; font-weight: 600; color: #059669;">Typical Result: 89% decrease in patient no-show rates with zero front-desk overtime.</p>
+          </div>
+
+          <div style="margin-bottom: 2rem; border-left: 4px solid #059669; padding-left: 1.5rem;">
+            <h3 style="font-size: 1.35rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem;">3. BFSI & Fintech EMI Debt Collection</h3>
+            <p style="color: #4B5563; margin-bottom: 0.5rem;">
+              Recovering overdue microfinance installments requires strict compliance with RBI Fair Practices. Claritiy Voice delivers empathetic, polite reminders before due dates, logs Promise-to-Pay (PTP) commitments to the lending core, and sends instant payment links over WhatsApp.
+            </p>
+            <p style="font-size: 0.9rem; font-weight: 600; color: #059669;">Typical Result: 28% higher early-bucket resolution rates with zero compliance violations.</p>
+          </div>
+        </section>
+
+        <section style="margin-bottom: 3.5rem; background: #F3F4F6; border-radius: 1rem; padding: 2rem;">
+          <h2 style="font-size: 1.75rem; font-weight: 800; color: #111827; margin-bottom: 1rem;">Cost Analysis: Claritiy Voice vs. Traditional Calling</h2>
+          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.95rem;">
+            <thead>
+              <tr style="border-bottom: 2px solid #D1D5DB;">
+                <th style="padding: 0.75rem 0.5rem; font-weight: 700;">Dimension</th>
+                <th style="padding: 0.75rem 0.5rem; font-weight: 700; color: #059669;">Claritiy Voice AI</th>
+                <th style="padding: 0.75rem 0.5rem; font-weight: 700; color: #4B5563;">Human BPO Center</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom: 1px solid #E5E7EB;">
+                <td style="padding: 0.75rem 0.5rem; font-weight: 600;">Cost per Minute</td>
+                <td style="padding: 0.75rem 0.5rem; color: #059669; font-weight: 700;">₹3.99 flat</td>
+                <td style="padding: 0.75rem 0.5rem;">₹18.00 – ₹25.00</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #E5E7EB;">
+                <td style="padding: 0.75rem 0.5rem; font-weight: 600;">Concurrency Scale</td>
+                <td style="padding: 0.75rem 0.5rem; color: #059669; font-weight: 700;">1,000+ simultaneous calls</td>
+                <td style="padding: 0.75rem 0.5rem;">1 call per physical seat</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #E5E7EB;">
+                <td style="padding: 0.75rem 0.5rem; font-weight: 600;">Operating Hours</td>
+                <td style="padding: 0.75rem 0.5rem; color: #059669; font-weight: 700;">24/7/365 uninterrupted</td>
+                <td style="padding: 0.75rem 0.5rem;">8-9 hour shifts + shift churn</td>
+              </tr>
+              <tr>
+                <td style="padding: 0.75rem 0.5rem; font-weight: 600;">Script Consistency</td>
+                <td style="padding: 0.75rem 0.5rem; color: #059669; font-weight: 700;">100% deterministic adherence</td>
+                <td style="padding: 0.75rem 0.5rem;">Variable / human fatigue</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section style="margin-bottom: 3.5rem;">
+          <h2 style="font-size: 2rem; font-weight: 800; color: #111827; margin-bottom: 1.25rem;">Frequently Asked Questions</h2>
+          <div style="margin-bottom: 1.5rem;">
+            <h3 style="font-size: 1.15rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem;">How natural do Claritiy Voice agents sound?</h3>
+            <p style="color: #4B5563;">Our voice agents leverage neural acoustic models trained specifically on Indian and global accents, reproducing natural conversational cadence, breathing pauses, and sub-20ms barge-in interruption handling.</p>
+          </div>
+          <div style="margin-bottom: 1.5rem;">
+            <h3 style="font-size: 1.15rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem;">Is the software compliant with data privacy regulations?</h3>
+            <p style="color: #4B5563;">Yes. Claritiy Voice is aligned with India's DPDP Act and enterprise telecom standards. All sensitive identifiers (credit cards, Aadhaar numbers, health notes) are masked at the edge before audio or transcripts are logged.</p>
+          </div>
+          <div style="margin-bottom: 1.5rem;">
+            <h3 style="font-size: 1.15rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem;">How quickly can my team go live?</h3>
+            <p style="color: #4B5563;">You can deploy a pre-built template from our library in under 10 minutes. Custom REST API and CRM webhook integrations take less than an afternoon using our standard JSON payload schemas.</p>
+          </div>
+        </section>
+
+        <footer style="background: #0D1117; color: white; padding: 2.5rem; border-radius: 1rem; text-align: center;">
+          <h2 style="font-size: 1.75rem; font-weight: 800; margin-bottom: 1rem;">Experience Autonomous Telephony in Our Free Sandbox</h2>
+          <p style="color: #9CA3AF; margin-bottom: 1.5rem; max-width: 600px; margin-left: auto; margin-right: auto;">
+            Test phone calls with sub-180ms latency today. No credit card required.
+          </p>
+          <a href="/dashboard" style="background: #10B981; color: #0D1117; padding: 0.875rem 2rem; border-radius: 0.75rem; text-decoration: none; font-weight: 800; font-size: 1rem;">
+            Start Free in Sandbox &rarr;
+          </a>
+        </footer>
+      </div>
+    `
   }
 ];
 
@@ -224,7 +396,7 @@ for (const page of corePages) {
     }
   };
 
-  const bodyHtml = `
+  const bodyHtml = page.customBody || `
     <div style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem; font-family: system-ui, -apple-system, sans-serif;">
       <h1 style="font-size: 2.25rem; font-weight: 800; color: #0D1117; margin-bottom: 1rem;">${page.h1}</h1>
       <p style="font-size: 1.125rem; line-height: 1.7; color: #4B5563; margin-bottom: 2rem;">${page.summary}</p>

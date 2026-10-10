@@ -1,5 +1,11 @@
 # CHANGELOG
 
+- Created high-value commercial landing page `/ai-voice-agent-software` (`Frontend/src/app/pages/AiVoiceAgentSoftware.tsx`):
+  - 2,000+ words of 100% humanized, conversion-focused content targeting primary keyword `ai voice agent software`.
+  - Built interactive live audio player simulating real bilingual Hindi/English customer call turn-taking.
+  - Implemented interactive ROI cost-savings estimator comparing Claritiy Voice (₹3.99/min) against traditional human BPO centers.
+  - Added enterprise use case cards (E-Commerce COD RTO Reduction, Healthcare Clinic Intake, BFSI EMI Debt Recovery).
+  - Wired into `App.tsx` routing, sitemap generator (`generate-sitemap.js`), and static HTML pre-rendering engine (`prerender-seo.js`).
 - Fixed Google Search Console "Discovered - currently not indexed" failure across 97+ pages:
   - Removed hardcoded root `<link rel="canonical" href="https://www.claritiy.com/" />` from `Frontend/index.html` template that was flagging all 97 routes as duplicate copies of the homepage.
   - Corrected domain spelling in `Frontend/public/robots.txt` from `https://www.clarity.com/sitemap.xml` to `https://www.claritiy.com/sitemap.xml`.

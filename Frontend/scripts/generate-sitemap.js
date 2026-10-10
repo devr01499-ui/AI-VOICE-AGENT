@@ -40,6 +40,7 @@ const baseUrls = [
   'https://www.claritiy.com/faq',
   'https://www.claritiy.com/contact',
   'https://www.claritiy.com/voice-ai-index',
+  'https://www.claritiy.com/ai-voice-agent-software',
 ];
 
 // Combine all URLs
