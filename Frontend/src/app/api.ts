@@ -654,10 +654,3 @@ export async function updateConcurrencyLimit(maxConcurrentCalls: number): Promis
     body: JSON.stringify({ maxConcurrentCalls }),
   });
 }
-
-export async function executeConductorPrompt(prompt: string, chatHistory?: any[]): Promise<{ reply: string; actionsExecuted?: any[]; error?: string; currentPlan?: string }> {
-  return apiFetch('/api/v2/conductor/execute', {
-    method: 'POST',
-    body: JSON.stringify({ prompt, chatHistory }),
-  });
-}

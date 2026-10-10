@@ -10,7 +10,7 @@ import SinglePromptStudio from "./components/agents/SinglePromptStudio";
 import { DashCalendar } from "./components/calendar/CalendarOverview";
 import {
   fetchAgents, fetchAgent, fetchCalls, fetchProfile, createAgent, updateAgent, deleteAgent, chatWithAgent,
-  exportAgentAsJson, importAgentFromJson, executeConductorPrompt,
+  exportAgentAsJson, importAgentFromJson,
   initiateCall, getCallTranscript, getLiveTranscriptWsUrl,
   fetchKBList, uploadKBDocument, scrapeKBUrl, deleteKBDocument, fetchCalendarBatches, createBatchCampaign, pauseBatchCampaign, resumeBatchCampaign, cancelBatchCampaign,
   fetchAuditLogs, fetchDataRetention, updateDataRetention, fetchIpAllowlist, updateIpAllowlist, fetchConcurrencyTelemetry, updateConcurrencyLimit,
@@ -620,7 +620,7 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
-type DashSection = "overview"|"agents"|"calling"|"batch"|"calls"|"numbers"|"knowledge"|"voices"|"calendar"|"settings"|"billing"|"companion"|"chat_history"|"contacts"|"analytics"|"live_monitoring"|"qa"|"alerting"|"integrations"|"conductor";
+type DashSection = "overview"|"agents"|"calling"|"batch"|"calls"|"numbers"|"knowledge"|"voices"|"calendar"|"settings"|"billing"|"companion"|"chat_history"|"contacts"|"analytics"|"live_monitoring"|"qa"|"alerting"|"integrations";
 
 
 // Shared tiny helpers
@@ -5058,51 +5058,6 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-8 pb-12 font-sans">
-      {/* ── Executive Settings Header ── */}
-      <div className="nm-card p-6 md:p-8 rounded-3xl border border-border-soft/60 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-gradient-to-br from-[var(--nm-bg)] via-[var(--nm-bg)] to-mint-primary/5">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-              <ShieldCheck className="w-3.5 h-3.5" /> Enterprise Governance
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono font-semibold text-ink-muted bg-surface-white/60 border border-border-soft">
-              Workspace ID: {profile?.id ? profile.id.slice(0, 8) : 'ws_default'}
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold text-ink-muted bg-surface-white/60 border border-border-soft">
-              Telephony Engine: Indian PSTN & WebRTC
-            </span>
-          </div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-[var(--nm-text)] tracking-tight" style={{ fontFamily: "'Clash Display', 'Outfit', sans-serif" }}>
-            Workspace Settings & Telephony Governance
-          </h1>
-          <p className="text-xs md:text-sm text-ink-muted max-w-3xl leading-relaxed" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-            Configure enterprise sub-accounts, Indian DoT compliance policies, speech synthesis defaults, real-time webhooks, and team roles for <strong className="text-[var(--nm-text)]">Claritiy Voice</strong>.
-          </p>
-        </div>
-
-        {/* Telemetry Status Chips */}
-        <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 shrink-0">
-          <div className="p-3.5 rounded-2xl bg-surface-white/80 border border-border-soft shadow-xs flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-mint-primary/15 text-forest-deep flex items-center justify-center font-bold">
-              <Activity className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-[10px] uppercase font-bold tracking-wider text-ink-muted">Throughput</p>
-              <p className="text-xs font-extrabold text-[var(--nm-text)] font-mono">{softConcurrencyLimit} Concurrent Calls</p>
-            </div>
-          </div>
-          <div className="p-3.5 rounded-2xl bg-surface-white/80 border border-border-soft shadow-xs flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-600 flex items-center justify-center font-bold">
-              <ShieldCheck className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-[10px] uppercase font-bold tracking-wider text-ink-muted">Carrier Sub-Account</p>
-              <p className="text-xs font-extrabold text-[var(--nm-text)] capitalize">{kycOverallStatus === 'verified' ? 'Verified (Active)' : 'Compliance Sandbox'}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* ── Sub-navigation Tab Bar ── */}
       <div className="flex gap-2 flex-wrap p-1.5 nm-pressed rounded-2xl border border-border-soft/40">
         {tabConfig.map(t => {
@@ -5251,7 +5206,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
 
           {/* Right Column (col-span-12 lg:col-span-5 space-y-6) */}
           <div className="lg:col-span-5 space-y-6">
-            {/* Card 3: Retention & Concurrency */}
+            {/* Card 3: Call Data Retention Policy */}
             <div className="nm-card p-6 md:p-8 space-y-5 rounded-3xl border border-border-soft/60">
               <div className="flex items-center gap-3 pb-3 border-b border-border-soft/40">
                 <div className="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold">
@@ -5259,9 +5214,9 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                    Data Retention & Capacity
+                    Call Data Retention Policy
                   </h3>
-                  <p className="text-xs text-ink-muted">Lifecycle destruction rules & channel quotas</p>
+                  <p className="text-xs text-ink-muted">Lifecycle destruction rules & automated storage purging</p>
                 </div>
               </div>
 
@@ -5283,64 +5238,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
                     {retentionSaveStatus}
                   </div>
                 )}
-
-                <DField label="Workspace Soft Concurrency Limit" hint="Maximum simultaneous active telephony channels for this workspace.">
-                  <DSelect value={String(softConcurrencyLimit)} onChange={e => handleConcurrencySelect(parseInt(e.target.value, 10))}>
-                    <option value="5">5 Concurrent Calls</option>
-                    <option value="10">10 Concurrent Calls (Default)</option>
-                    <option value="25">25 Concurrent Calls</option>
-                    <option value="50">50 Concurrent Calls</option>
-                    <option value="100">100 Concurrent Calls</option>
-                    <option value="250">250 Concurrent Calls</option>
-                  </DSelect>
-                </DField>
-                {concurrencySaveStatus && (
-                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold">
-                    {concurrencySaveStatus}
-                  </div>
-                )}
               </div>
-            </div>
-
-            {/* Card 4: Dashboard IP Allowlist */}
-            <div className="nm-card p-6 md:p-8 space-y-4 rounded-3xl border border-border-soft/60">
-              <div className="flex items-center gap-3 pb-3 border-b border-border-soft/40">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
-                  <Shield className="w-5 h-5 text-amber-600" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                    Zero-Trust IP Firewall
-                  </h3>
-                  <p className="text-xs text-ink-muted">Restrict administrative access to authorized CIDR blocks</p>
-                </div>
-              </div>
-
-              <DField label="Allowed IP Ranges (CIDR)" hint="One per line or comma-separated. Leave empty to allow all IP addresses.">
-                <textarea
-                  value={ipInputText}
-                  onChange={e => setIpInputText(e.target.value)}
-                  placeholder="e.g. 192.168.1.0/24&#10;203.0.113.45"
-                  className="w-full h-24 p-3 text-xs font-mono font-bold bg-surface-white text-[var(--nm-text)] rounded-2xl border border-border-soft focus:outline-none focus:ring-2 focus:ring-mint-primary shadow-inner"
-                />
-              </DField>
-
-              {allowedIpRanges.length > 0 && (
-                <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs font-bold space-y-1">
-                  <p>⚠️ <strong>IP Restriction Active ({allowedIpRanges.length} rules):</strong> Ensure your current IP is in the list before saving to prevent lockout.</p>
-                  <p className="text-[10px] opacity-80">Emergency Lockout Recovery SQL: <code className="bg-amber-950/20 px-1 py-0.5 rounded font-mono text-amber-600">UPDATE users SET allowed_ip_ranges = '&#123;&#125;' WHERE email = 'admin@example.com';</code></p>
-                </div>
-              )}
-
-              {ipSaveStatus && (
-                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold">
-                  {ipSaveStatus}
-                </div>
-              )}
-
-              <DBtn onClick={handleSaveIpAllowlist} size="sm">
-                <Check className="w-3.5 h-3.5" /> Save IP Allowlist
-              </DBtn>
             </div>
 
             {/* Card 5: Admin Usage Ledger */}
@@ -5971,263 +5869,6 @@ class DashboardErrorBoundary extends React.Component<{ children: React.ReactNode
 }
 
 // ── Main DashboardPage ──
-// ── DashConductor AI Autonomous Co-Worker (Retell Snapshot 1 + Enterprise Plan Gating) ──
-function DashConductor({ profile, setSection }: { profile?: ApiProfile | null; setSection?: (s: DashSection) => void }) {
-  const [chatInput, setChatInput] = useState('');
-  const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; text: string; actions?: any[] }>>([]);
-  const [loading, setLoading] = useState(false);
-  const [isEnterprise, setIsEnterprise] = useState(() => profile?.accountType === 'enterprise');
-
-  useEffect(() => {
-    if (profile) {
-      setIsEnterprise(profile.accountType === 'enterprise');
-    }
-  }, [profile]);
-
-  const handleSendPrompt = async () => {
-    if (!chatInput.trim() || loading) return;
-    const promptText = chatInput.trim();
-    setMessages(prev => [...prev, { role: 'user', text: promptText }]);
-    setChatInput('');
-    setLoading(true);
-
-    try {
-      const res = await executeConductorPrompt(promptText, messages);
-      if (res.error === 'ENTERPRISE_PLAN_REQUIRED') {
-        setIsEnterprise(false);
-        setMessages(prev => [
-          ...prev,
-          {
-            role: 'assistant',
-            text: '🔒 Conductor AI Autonomous Co-Worker is exclusively available on the Enterprise Plan.',
-          }
-        ]);
-      } else {
-        setMessages(prev => [
-          ...prev,
-          {
-            role: 'assistant',
-            text: res.reply || 'Conductor AI operation completed successfully.',
-            actions: res.actionsExecuted,
-          }
-        ]);
-      }
-    } catch (err: any) {
-      setMessages(prev => [
-        ...prev,
-        {
-          role: 'assistant',
-          text: `Conductor AI Execution Notice: ${err?.message || 'Execution failed due to a network or system error. Please try again.'}`,
-        }
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ── Enterprise Access Lock Card (If not on Enterprise Plan) ──
-  if (!isEnterprise) {
-    return (
-      <div className="flex h-[calc(100vh-6rem)] overflow-hidden bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 items-center justify-center">
-        <div className="max-w-xl w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 text-center">
-          <div className="w-16 h-16 bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
-            <Sparkles className="w-8 h-8" />
-          </div>
-
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-full">
-              👑 Enterprise Plan Exclusive
-            </div>
-            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
-              Conductor AI Autonomous Co-Worker
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              Conductor AI takes complete root control of your voice workspace on your behalf.
-              It autonomously builds complex conversational flow agents, ingests Knowledge Base URLs, provisions SIP phone numbers, and runs analytics audits via natural language.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 text-left text-xs bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-            <div className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-300">
-              <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" /> Full Autonomous Dashboard Control
-            </div>
-            <div className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-300">
-              <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" /> Multi-Step Agent Auto-Builder
-            </div>
-            <div className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-300">
-              <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" /> Instant Document & URL Ingestion
-            </div>
-            <div className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-300">
-              <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" /> Unlimited SIP Trunk Provisioning
-            </div>
-          </div>
-
-          <div className="pt-2">
-            <button
-              onClick={() => {
-                if (setSection) setSection('billing');
-              }}
-              className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-500/25 transition-all flex items-center justify-center gap-2"
-            >
-              <Sparkles className="w-4 h-4" /> Upgrade to Enterprise Plan ($2,999/mo)
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Full Enterprise Conductor AI Co-Worker View ──
-  return (
-    <div className="flex h-[calc(100vh-6rem)] overflow-hidden bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800">
-      {/* Sub-sidebar: Conductor History */}
-      <div className="w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex flex-col gap-4">
-        <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold text-sm">
-          <Sparkles className="w-4 h-4 text-purple-500" />
-          <span>Conductor History</span>
-        </div>
-        <div className="relative">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input type="text" placeholder="Search chats" className="w-full pl-9 pr-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-xs focus:outline-none" />
-        </div>
-        <button
-          onClick={() => setMessages([])}
-          className="w-full py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 text-slate-700 dark:text-slate-300"
-        >
-          <Plus className="w-3.5 h-3.5" /> New chat
-        </button>
-        <div className="flex-1 overflow-y-auto text-xs text-slate-400 p-2 space-y-2">
-          {messages.length === 0 ? (
-            <p className="text-center py-4">No past chat history</p>
-          ) : (
-            <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-lg font-medium text-slate-700 dark:text-slate-300 truncate">
-              Autonomous Session ({messages.length} msgs)
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Main Viewport: Chat Feed or Hero Prompt */}
-      <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 relative overflow-hidden">
-        {/* Header */}
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 font-semibold text-xs">
-            <Sparkles className="w-4 h-4" /> Conductor AI Enterprise Co-Worker
-          </div>
-          <span className="px-2.5 py-1 bg-purple-100 text-purple-700 text-[10px] font-bold rounded-md flex items-center gap-1">
-            ⚡ 3D Active
-          </span>
-        </div>
-
-        {/* Message Feed / Hero View */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto space-y-4">
-              <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center">
-                <Sparkles className="w-6 h-6" />
-              </div>
-              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-                Good evening, {profile?.fullName || 'Rohit'}
-              </h2>
-              <p className="text-xs text-slate-400">
-                Ask Conductor AI to build voice agents, attach knowledge bases, or audit analytics on your behalf.
-              </p>
-            </div>
-          ) : (
-            messages.map((m, idx) => (
-              <div
-                key={idx}
-                className={`flex gap-3 text-xs max-w-2xl ${
-                  m.role === 'user' ? 'ml-auto flex-row-reverse' : 'mr-auto'
-                }`}
-              >
-                <div
-                  className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[10px] flex-shrink-0 ${
-                    m.role === 'user'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-purple-100 text-purple-700'
-                  }`}
-                >
-                  {m.role === 'user' ? 'U' : <Sparkles className="w-3.5 h-3.5" />}
-                </div>
-                <div className="space-y-2">
-                  <div
-                    className={`p-3 rounded-2xl leading-relaxed ${
-                      m.role === 'user'
-                        ? 'bg-indigo-600 text-white font-medium'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
-                    }`}
-                  >
-                    {m.text}
-                  </div>
-
-                  {m.actions && m.actions.length > 0 && (
-                    <div className="space-y-1">
-                      {m.actions.map((act: any, aIdx: number) => (
-                        <div
-                          key={aIdx}
-                          className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold rounded-lg flex items-center gap-2"
-                        >
-                          <Zap className="w-3.5 h-3.5 text-emerald-500" />
-                          <span>Action Executed: {act.title}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))
-          )}
-          {loading && (
-            <div className="flex items-center gap-2 text-xs text-purple-500 italic p-2">
-              <Sparkles className="w-4 h-4 animate-spin" /> Conductor AI executing dashboard actions...
-            </div>
-          )}
-        </div>
-
-        {/* Input Bar */}
-        <div className="p-4 border-t border-slate-100 dark:border-slate-800">
-          <div className="w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 space-y-2">
-            <textarea
-              rows={2}
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendPrompt();
-                }
-              }}
-              placeholder="Ask Conductor to build, edit, or manage anything in your dashboard..."
-              className="w-full bg-transparent text-xs focus:outline-none resize-none text-slate-800 dark:text-slate-200 font-medium"
-            />
-
-            <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700/60">
-              <div className="flex items-center gap-2">
-                <button className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500">
-                  <Plus className="w-4 h-4" />
-                </button>
-                <button className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500">
-                  <FileText className="w-4 h-4" />
-                </button>
-              </div>
-
-              <button
-                onClick={handleSendPrompt}
-                disabled={loading || !chatInput.trim()}
-                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all disabled:opacity-50"
-              >
-                Send <Send className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Main DashboardPage ──
 function DashboardPage({ session }: { session: Session }) {
   const getInitialDashSection = (): DashSection => {
     if (typeof window !== "undefined") {
@@ -6478,7 +6119,6 @@ function DashboardPage({ session }: { session: Session }) {
         { id: "integrations", icon: Sliders, label: "Integrations" },
         { id: "billing", icon: CreditCard, label: "Billing" },
         { id: "settings", icon: Settings, label: "Settings" },
-        { id: "conductor", icon: Sparkles, label: "Conductor AI" },
       ]
     }
   ];
@@ -6503,7 +6143,6 @@ function DashboardPage({ session }: { session: Session }) {
     qa: "AI Quality Assurance",
     alerting: "Alerting",
     integrations: "Integrations",
-    conductor: "Conductor AI",
   };
 
   const handleNavClick = (id: DashSection) => {
@@ -6631,7 +6270,6 @@ function DashboardPage({ session }: { session: Session }) {
               {section==="settings"&&<DashSettings profile={profile} />}
               {section==="billing"&&<Pricing isDashboard />}
               {section==="companion"&&<DashCompanion session={session} setApiAgents={setApiAgents} />}
-              {section==="conductor"&&<DashConductor profile={profile} setSection={setSection} />}
               {section==="chat_history"&&<DashChatHistory />}
               {section==="contacts"&&<DashContacts />}
               {section==="analytics"&&<DashAnalytics />}

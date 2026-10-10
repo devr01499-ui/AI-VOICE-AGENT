@@ -1,6 +1,14 @@
 # CHANGELOG
 
 ## [Unreleased] - 2026-10-10
+- Removed Conductor AI entirely from codebase:
+  - Deleted `server/src/routes/conductor.ts` and unmounted `/api/v2/conductor` route in `server/src/index.ts`.
+  - Removed `executeConductorPrompt` from `Frontend/src/app/api.ts`.
+  - Removed `DashConductor` component, `"conductor"` from `DashSection`, sidebar navigation item, and route from `Frontend/src/app/App.tsx`.
+- Refined Settings Page UI (`Frontend/src/app/App.tsx`):
+  - Removed top Executive Settings Header (Enterprise Governance badge, Workspace ID, Telephony Engine, sub-account description, Throughput & Carrier Sub-Account telemetry chips).
+  - Removed Workspace Soft Concurrency Limit dropdown and status notifications.
+  - Removed Zero-Trust IP Firewall card (Allowed IP Ranges textarea, CIDR rules warning, and save action).
 - Overhauled Settings & Governance Page UI/UX (`App.tsx` & `KycComplianceSettings.tsx`):
   - Upgraded settings container from narrow column (`max-w-2xl`/`max-w-4xl`) to wide-screen responsive 12-column grid (`max-w-7xl mx-auto`), eliminating empty right-side blank areas.
   - Implemented executive Settings Header with workspace breadcrumbs, system ID badges, platform description, and live telemetry chips (channel concurrency, carrier sub-account status).
