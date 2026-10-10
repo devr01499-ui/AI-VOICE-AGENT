@@ -1,6 +1,9 @@
 # CHANGELOG
 
 ## [Unreleased] - 2026-10-10
+- Removed Founder Operations — Pending Activations queue from Phone Numbers dashboard (`Frontend/src/app/App.tsx`):
+  - Removed admin queue card, pending activations table, and manual "Mark Funded & Activate" actions.
+  - Cleaned up unneeded pending activations state hooks and API polling.
 - Removed Conductor AI entirely from codebase:
   - Deleted `server/src/routes/conductor.ts` and unmounted `/api/v2/conductor` route in `server/src/index.ts`.
   - Removed `executeConductorPrompt` from `Frontend/src/app/api.ts`.
