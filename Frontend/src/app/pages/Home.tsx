@@ -10,6 +10,7 @@ import {
   FileText, RefreshCw, Webhook, Languages, Activity
 } from "lucide-react";
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import LottieVoiceOrb from "../components/animation/LottieVoiceOrb";
 
 type Page = any;
 interface HomeProps { setPage: (p: Page) => void; }
@@ -489,6 +490,21 @@ export default function Home({ setPage }: HomeProps) {
       {/* ── HERO ── */}
       <Hero setPage={setPage} />
 
+      {/* ── INTERACTIVE LIVE VOICE AI LOTTIE SIMULATOR ── */}
+      <section className="py-16 md:py-24 px-4 sm:px-6 max-w-6xl mx-auto">
+        <div className="text-center max-w-3xl mx-auto mb-12 space-y-4">
+          <SectionLabel text="Interactive Voice Simulator" color="green" />
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#0F172A] leading-tight"
+            style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
+            Experience Sub-180ms Neural Voice AI in Real Time
+          </h2>
+          <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
+            Watch our 60 FPS neural audio engine react on loop. Switch between live conversational scenarios, toggle playback speed, and test how our agents handle interruptions with native human cadence.
+          </p>
+        </div>
+
+        <LottieVoiceOrb onExploreClick={() => setPage("solutions")} />
+      </section>
 
       {/* ── HOW IT WORKS (Grid Steps) ── */}
       <GridSteps />

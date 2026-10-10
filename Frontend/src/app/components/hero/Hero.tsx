@@ -6,6 +6,8 @@ import {
   Sparkles, Layers, RefreshCw, Volume2, ArrowUpRight,
   Radio, Server, ShieldCheck, FileText, FastForward, Sliders, Check
 } from "lucide-react";
+import Lottie from "lottie-react";
+import { voiceOrbLottieData } from "../animation/lottieVoiceData";
 
 type Page = any;
 interface HeroProps {
@@ -283,8 +285,13 @@ function HdGeometricalArchitectureDiagram() {
                     : "bg-white border-emerald-200 shadow-md hover:border-emerald-400"
                 }`}
               >
-                <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md mx-auto flex items-center justify-center mb-2 text-emerald-800 shadow-inner">
-                  <Cpu className={`w-7 h-7 ${selectedNode === 0 ? "text-white" : "text-[#059669]"}`} />
+                <div className="relative w-14 h-14 mx-auto mb-1 flex items-center justify-center">
+                  <Lottie
+                    animationData={voiceOrbLottieData}
+                    loop={true}
+                    autoplay={true}
+                    className="w-full h-full drop-shadow-[0_0_16px_rgba(5,150,105,0.7)]"
+                  />
                 </div>
                 <h4 className={`text-base font-black ${selectedNode === 0 ? "text-white" : "text-[#0F172A]"}`}>
                   Claritiy Voice AI
