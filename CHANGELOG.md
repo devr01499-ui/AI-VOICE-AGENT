@@ -1,6 +1,12 @@
 # CHANGELOG
 
-## [Unreleased] - 2026-10-10
+- Fixed Google Search Console "Discovered - currently not indexed" failure across 97+ pages:
+  - Removed hardcoded root `<link rel="canonical" href="https://www.claritiy.com/" />` from `Frontend/index.html` template that was flagging all 97 routes as duplicate copies of the homepage.
+  - Corrected domain spelling in `Frontend/public/robots.txt` from `https://www.clarity.com/sitemap.xml` to `https://www.claritiy.com/sitemap.xml`.
+  - Added 301 permanent redirects in root `vercel.json` and `Frontend/vercel.json` for legacy `/compare` -> `/solutions` and `/industries` -> `/use-cases`.
+  - Updated `generate-sitemap.js` to strictly output 200-OK canonical URLs (removing `/compare` and `/industries`, adding `/use-cases` and blog routes).
+  - Implemented automated static pre-rendering pipeline in `Frontend/scripts/prerender-seo.js` (`npm run build` -> `postbuild`) generating static HTML for all 17 core pages and 90 programmatic `/voice-ai-index/*` topics with unique titles, meta descriptions, self-referencing canonicals, JSON-LD structured schemas, and semantic article content.
+  - Updated `Frontend/src/app/pages/VoiceAIIndex.tsx` and `Frontend/src/app/App.tsx` to dynamically maintain self-referencing canonical tags and `TechArticle` JSON-LD schemas during client-side hydration and navigation.
 - Removed Founder Operations — Pending Activations queue from Phone Numbers dashboard (`Frontend/src/app/App.tsx`):
   - Removed admin queue card, pending activations table, and manual "Mark Funded & Activate" actions.
   - Cleaned up unneeded pending activations state hooks and API polling.

@@ -28,4 +28,4 @@ Allow: /
 Disallow: /dashboard/
 Disallow: /api/
 
-Sitemap: https://www.clarity.com/sitemap.xml
+Sitemap: https://www.claritiy.com/sitemap.xml

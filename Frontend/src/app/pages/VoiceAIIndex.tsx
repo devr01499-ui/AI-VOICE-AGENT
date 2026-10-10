@@ -105,6 +105,39 @@ export default function VoiceAIIndex({ setPage, initialTopicId }: VoiceAIIndexPr
         document.head.appendChild(metaDesc);
       }
       metaDesc.setAttribute('content', `Detailed guide and architecture for ${activeTopic.title}. Learn how to implement enterprise voice AI.`);
+
+      // Update Canonical Link dynamically to self-referencing topic URL
+      let canonical = document.querySelector('link[rel="canonical"]');
+      if (!canonical) {
+        canonical = document.createElement('link');
+        canonical.setAttribute('rel', 'canonical');
+        document.head.appendChild(canonical);
+      }
+      canonical.setAttribute('href', `https://www.claritiy.com/voice-ai-index/${activeTopic.id}`);
+
+      // Inject TechArticle structured data
+      document.querySelectorAll("script[data-schema='voice-index-topic']").forEach(el => el.remove());
+      const articleSchema = document.createElement("script");
+      articleSchema.type = "application/ld+json";
+      articleSchema.setAttribute("data-schema", "voice-index-topic");
+      articleSchema.text = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "TechArticle",
+        "headline": activeTopic.title,
+        "description": `Detailed guide and architecture for ${activeTopic.title}.`,
+        "url": `https://www.claritiy.com/voice-ai-index/${activeTopic.id}`,
+        "inLanguage": "en-US",
+        "author": {
+          "@type": "Organization",
+          "name": "Claritiy Voice Systems Engineering"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "Claritiy Voice",
+          "url": "https://www.claritiy.com"
+        }
+      });
+      document.head.appendChild(articleSchema);
     }
 
     // Cleanup when component unmounts
@@ -114,6 +147,7 @@ export default function VoiceAIIndex({ setPage, initialTopicId }: VoiceAIIndexPr
       if (metaDesc) {
         metaDesc.setAttribute('content', 'Confirm cash-on-delivery (COD) orders before dispatch to reduce RTO (return-to-origin) and failed deliveries using automated AI voice calls.');
       }
+      document.querySelectorAll("script[data-schema='voice-index-topic']").forEach(el => el.remove());
     };
   }, [currentTopicIndex]);
 

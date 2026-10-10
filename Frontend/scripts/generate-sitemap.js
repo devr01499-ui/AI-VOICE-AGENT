@@ -21,16 +21,19 @@ if (slugs.length === 0) {
   process.exit(1);
 }
 
-// Base URLs for the website
+// Base canonical URLs for the website (strictly 200 OK canonical endpoints)
 const baseUrls = [
   'https://www.claritiy.com/',
   'https://www.claritiy.com/pricing',
   'https://www.claritiy.com/how-it-works',
-  'https://www.claritiy.com/industries',
-  'https://www.claritiy.com/compare',
+  'https://www.claritiy.com/use-cases',
   'https://www.claritiy.com/solutions',
   'https://www.claritiy.com/voices',
   'https://www.claritiy.com/docs',
+  'https://www.claritiy.com/blog',
+  'https://www.claritiy.com/blog/how-to-reduce-cod-rto',
+  'https://www.claritiy.com/blog/healthcare-ai-calling',
+  'https://www.claritiy.com/blog/fintech-collections-ai',
   'https://www.claritiy.com/privacy',
   'https://www.claritiy.com/terms',
   'https://www.claritiy.com/security',

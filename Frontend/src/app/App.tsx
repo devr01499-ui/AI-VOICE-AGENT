@@ -6763,6 +6763,7 @@ export default function App() {
       };
       
       if (pathMap[path]) return pathMap[path];
+      if (path === "/compare") return "solutions";
       if (path.startsWith("/use-cases") || path.startsWith("/industries")) return "use-cases";
       if (path.startsWith("/dashboard") || path.startsWith("/login") || path.startsWith("/signup") || path.startsWith("/register") || path.startsWith("/auth") || path.startsWith("/confirm")) return "dashboard";
       if (path.startsWith("/blog/how-to-reduce-cod-rto")) return "blog-rto";
@@ -6820,6 +6821,8 @@ export default function App() {
       
       if (pathMap[path]) {
         setPage(pathMap[path]);
+      } else if (path === "/compare") {
+        setPage("solutions");
       } else if (path.startsWith("/use-cases") || path.startsWith("/industries")) {
         setPage("use-cases");
         const match = path.match(/\/(?:use-cases|industries)\/([^/]+)/);
@@ -6973,8 +6976,13 @@ export default function App() {
       canonical.setAttribute("rel", "canonical");
       document.head.appendChild(canonical);
     }
-    const path = navPathMap[page] ?? "";
-    canonical.setAttribute("href", `https://www.claritiy.com/${path}`);
+    let path = navPathMap[page] ?? "";
+    if (page === "voice-ai-index" && currentTopicId) {
+      path = `voice-ai-index/${currentTopicId}`;
+    } else if ((page === "use-cases" || page === "industries") && currentIndustryId) {
+      path = `use-cases/${currentIndustryId}`;
+    }
+    canonical.setAttribute("href", path ? `https://www.claritiy.com/${path}` : "https://www.claritiy.com/");
 
     // Update Robots tag
     let robots = document.querySelector("meta[name='robots']");

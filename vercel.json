@@ -12,6 +12,21 @@
       "has": [{ "type": "host", "value": "www.insightclaritiysolution.com" }],
       "destination": "https://www.claritiy.com/$1",
       "permanent": true
+    },
+    {
+      "source": "/compare",
+      "destination": "https://www.claritiy.com/solutions",
+      "permanent": true
+    },
+    {
+      "source": "/industries",
+      "destination": "https://www.claritiy.com/use-cases",
+      "permanent": true
+    },
+    {
+      "source": "/industries/:path*",
+      "destination": "https://www.claritiy.com/use-cases/:path*",
+      "permanent": true
     }
   ],
   "rewrites": [
