@@ -1,9 +1,11 @@
 # CHANGELOG
 
-- Removed DigiLocker Integration in Favor of Direct Aadhaar Card Upload:
-  - Removed DigiLocker authorization popup, session initiation (`POST /api/v2/kyc/digilocker/initiate`), and consent verification (`POST /api/v2/kyc/verify-aadhaar`) endpoints.
-  - Streamlined `KycComplianceSettings.tsx` to feature a unified, direct Aadhaar card upload dropzone and form (12-digit Aadhaar number, full name, and scanned PDF/image file upload).
-  - Consolidated all document submissions (PAN, GST, Aadhaar) through the secure `POST /api/v2/kyc/verify-document` pipeline with Supabase Storage encryption.
+- Restored DigiLocker for Aadhaar with Confirmed Vobiz Schema & Parent Credential Fix:
+  - Restored `POST /api/v2/kyc/digilocker/initiate` and `POST /api/v2/kyc/digilocker/verify` with exact Vobiz request/response shapes.
+  - Fixed credential handling: DigiLocker endpoints authenticate strictly with parent master credentials (`X-Auth-ID: VOBIZ_AUTH_ID`, `X-Auth-Token: VOBIZ_AUTH_TOKEN`), passing `sub_auth_id` only in path parameter.
+  - Polled live `GET /sub-accounts/{sub_auth_id}/kyc/status` writing `kyc_calls_blocked` and per-document `verifications` states directly to dashboard.
+  - Removed raw Aadhaar number input and manual document upload fields from `KycComplianceSettings.tsx` in favor of government DigiLocker portal authorization.
+  - Handled plain status responses for Aadhaar without assuming failure reason strings.
 
 - KYC Verification Engine Overhaul & Zero-Trust Governance:
   - Added `requireActivePlan` middleware to all KYC compliance endpoints (`/verify-document`, `/verify-aadhaar`, `/documents`, `/digilocker/initiate`, `/status`), preventing unpaid accounts from triggering metered upstream provider calls.

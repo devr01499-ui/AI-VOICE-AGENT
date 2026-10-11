@@ -313,12 +313,10 @@ router.get('/documents', requireAuth, requireActivePlan, async (req, res, next) 
       },
       {
         documentType: 'aadhaar',
-        label: 'Aadhaar Card Verification',
-        description: 'Authorized signatory Aadhaar card document verification',
+        label: 'Aadhaar Verification (DigiLocker)',
+        description: 'Instant UIDAI identity verification via DigiLocker OTP authorization',
         required: businessType === 'individual',
         status: aadhaarDoc?.status || 'not_submitted',
-        aadhaarNumber: maskAadhaar(aadhaarDoc?.aadhaarNumber),
-        aadhaarDocUrl: aadhaarDoc?.aadhaarDocUrl || null,
         vobizReference: aadhaarDoc?.vobizReference || null,
         failureReason: aadhaarDoc?.failureReason || null,
         verifiedAt: aadhaarDoc?.verifiedAt || null,
@@ -366,13 +364,18 @@ router.post('/verify-document', requireAuth, requireActivePlan, sensitiveOperati
       gstin,
       gstCertFile,
       gstCertName,
-      aadhaarNumber,
-      aadhaarFile,
-      aadhaarFileName,
     } = req.body;
 
-    if (!documentType || (documentType !== 'pan' && documentType !== 'gst' && documentType !== 'aadhaar')) {
-      res.status(400).json({ success: false, error: 'Invalid documentType. Must be "pan", "gst", or "aadhaar".' });
+    if (documentType === 'aadhaar') {
+      res.status(400).json({
+        success: false,
+        error: 'Aadhaar verification must be initiated via DigiLocker (POST /api/v2/kyc/digilocker/initiate).',
+      });
+      return;
+    }
+
+    if (!documentType || (documentType !== 'pan' && documentType !== 'gst')) {
+      res.status(400).json({ success: false, error: 'Invalid documentType. Must be "pan" or "gst".' });
       return;
     }
 
@@ -417,38 +420,6 @@ router.post('/verify-document', requireAuth, requireActivePlan, sensitiveOperati
       } else {
         // Upload GST certificate to Supabase Storage (never local disk)
         resolvedGstCertUrl = await uploadGstCertificateToStorage(userId, gstCertFile, gstCertName);
-      }
-    }
-
-    let resolvedAadhaarUrl: string | undefined;
-
-    if (documentType === 'aadhaar') {
-      const cleanAadhaarRaw = (aadhaarNumber || '').replace(/\s+/g, '');
-      if (!cleanAadhaarRaw || !/^[0-9]{12}$/.test(cleanAadhaarRaw)) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid Aadhaar number. Must be a valid 12-digit number.',
-        });
-        return;
-      }
-      if (!fullName || fullName.trim().length < 2) {
-        res.status(400).json({ success: false, error: 'Full name is required as per Aadhaar card.' });
-        return;
-      }
-      if (!aadhaarFile) {
-        const existingDoc = await prisma.kycDocument.findUnique({
-          where: { userId_documentType: { userId, documentType: 'aadhaar' } },
-        });
-        if (!existingDoc?.aadhaarDocUrl) {
-          res.status(400).json({
-            success: false,
-            error: 'Aadhaar card document file is required. Please upload a clear PDF or image scan of your Aadhaar card.',
-          });
-          return;
-        }
-        resolvedAadhaarUrl = existingDoc.aadhaarDocUrl;
-      } else {
-        resolvedAadhaarUrl = await uploadKycDocumentToStorage(userId, aadhaarFile, 'aadhaar', aadhaarFileName);
       }
     }
 
@@ -524,7 +495,7 @@ router.post('/verify-document', requireAuth, requireActivePlan, sensitiveOperati
       failureReason = 'Live government verification required. Cannot verify document under mock/simulated credentials.';
       vobizReference = `mock_${documentType}_${Date.now()}`;
     } else {
-      // Live server-to-server call to documented Vobiz KYC API authenticated with parent credentials
+      // Live server-to-server call to documented Vobiz KYC API
       const baseUrl = (env.VOBIZ_API_URL || 'https://api.vobiz.ai').replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
       const masterAuthId = env.VOBIZ_AUTH_ID;
       const masterAuthToken = env.VOBIZ_AUTH_TOKEN;
@@ -540,65 +511,85 @@ router.post('/verify-document', requireAuth, requireActivePlan, sensitiveOperati
         return;
       }
 
-      const headers = {
+      const masterHeaders = {
         'Content-Type': 'application/json',
         'X-Auth-ID': masterAuthId,
         'X-Auth-Token': masterAuthToken,
       };
 
       try {
-        if (documentType === 'aadhaar') {
-          // Document upload verification for Aadhaar Card (no DigiLocker dependency)
-          verificationResultStatus = 'verified';
-          vobizReference = `doc_adh_${Date.now()}`;
-        } else {
-          let vobizRes: Response;
-          if (documentType === 'pan') {
-            const vobizUrl = `${baseUrl}/api/v1/sub-accounts/${subAuthId}/kyc/verify-pan`;
+        let vobizRes: Response;
+        if (documentType === 'pan') {
+          const vobizUrl = `${baseUrl}/api/v1/sub-accounts/${subAuthId}/kyc/verify-pan`;
+          vobizRes = await fetch(vobizUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Auth-ID': subAuthId,
+              'X-Auth-Token': decryptedSubAuthToken,
+            },
+            body: JSON.stringify({ pan: (panNumber || '').trim().toUpperCase() }),
+          });
+
+          if (vobizRes.status === 401) {
+            // Fallback to parent master credentials if sub-account auth token rejected
             vobizRes = await fetch(vobizUrl, {
               method: 'POST',
-              headers,
+              headers: masterHeaders,
               body: JSON.stringify({ pan: (panNumber || '').trim().toUpperCase() }),
             });
-          } else {
-            const vobizUrl = `${baseUrl}/api/v1/sub-accounts/${subAuthId}/kyc/verify-gst`;
+          }
+        } else {
+          const vobizUrl = `${baseUrl}/api/v1/sub-accounts/${subAuthId}/kyc/verify-gst`;
+          vobizRes = await fetch(vobizUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Auth-ID': subAuthId,
+              'X-Auth-Token': decryptedSubAuthToken,
+            },
+            body: JSON.stringify({ gstin: (gstin || '').trim().toUpperCase() }),
+          });
+
+          if (vobizRes.status === 401) {
+            // Fallback to parent master credentials if sub-account auth token rejected
             vobizRes = await fetch(vobizUrl, {
               method: 'POST',
-              headers,
+              headers: masterHeaders,
               body: JSON.stringify({ gstin: (gstin || '').trim().toUpperCase() }),
             });
           }
+        }
 
-          if (vobizRes.ok) {
-            const resData = (await vobizRes.json()) as any;
-            const status = (resData.status || '').toLowerCase();
-            if (status === 'verified' || resData.verified === true) {
-              verificationResultStatus = 'verified';
-              vobizReference = resData.api_id || resData.reference || resData.id || `vob_${Date.now()}`;
-            } else if (status === 'failed' || status === 'rejected' || resData.verified === false) {
-              verificationResultStatus = 'failed';
-              failureReason = resData.message || resData.reason || 'Document verification rejected: details did not match official records.';
-            } else {
-              verificationResultStatus = 'pending';
-              vobizReference = resData.api_id || resData.reference || null;
-            }
+        if (vobizRes.ok) {
+          const resData = (await vobizRes.json()) as any;
+          const status = (resData.status || '').toLowerCase();
+          if (status === 'verified' || resData.verified === true) {
+            verificationResultStatus = 'verified';
+            vobizReference = resData.api_id || resData.reference || resData.id || `vob_${Date.now()}`;
+          } else if (status === 'failed' || status === 'rejected' || resData.verified === false) {
+            verificationResultStatus = 'failed';
+            failureReason = resData.message || resData.reason || 'Document verification rejected: details did not match official records.';
           } else {
-            const errText = await vobizRes.text();
-            logger.error('[ADMIN_ALERT][VOBIZ_PROVIDER_ERROR] KYC: Vobiz document verification provider error', {
-              subAuthId,
-              documentType,
-              status: vobizRes.status,
-              errText: errText.substring(0, 300),
-            });
-
-            res.status(502).json({
-              success: false,
-              outcome: 'error',
-              canFallbackHosted: true,
-              error: 'Verification provider is temporarily unavailable. Please try again shortly or continue with Vobiz hosted verification.',
-            });
-            return;
+            verificationResultStatus = 'pending';
+            vobizReference = resData.api_id || resData.reference || null;
           }
+        } else {
+          const errText = await vobizRes.text();
+          logger.error('[ADMIN_ALERT][VOBIZ_PROVIDER_ERROR] KYC: Vobiz document verification provider error', {
+            subAuthId,
+            documentType,
+            status: vobizRes.status,
+            errText: errText.substring(0, 300),
+          });
+
+          res.status(502).json({
+            success: false,
+            outcome: 'error',
+            canFallbackHosted: true,
+            error: 'Verification provider is temporarily unavailable. Please try again shortly or continue with Vobiz hosted verification.',
+          });
+          return;
         }
       } catch (callErr: any) {
         logger.error('[ADMIN_ALERT][VOBIZ_PROVIDER_ERROR] KYC: Network error calling Vobiz document verification', {
@@ -621,7 +612,6 @@ router.post('/verify-document', requireAuth, requireActivePlan, sensitiveOperati
     const cleanName = fullName ? fullName.trim() : undefined;
     const cleanDob = dob ? dob.trim() : undefined;
     const cleanGstin = gstin ? gstin.trim().toUpperCase() : undefined;
-    const cleanAadhaar = aadhaarNumber ? aadhaarNumber.replace(/\s+/g, '') : undefined;
 
     const savedDoc = await prisma.kycDocument.upsert({
       where: {
@@ -637,8 +627,6 @@ router.post('/verify-document', requireAuth, requireActivePlan, sensitiveOperati
         dob: cleanDob,
         gstin: cleanGstin,
         gstCertUrl: resolvedGstCertUrl,
-        aadhaarNumber: cleanAadhaar ? maskAadhaar(cleanAadhaar) : undefined,
-        aadhaarDocUrl: resolvedAadhaarUrl,
         vobizReference,
         failureReason,
         verifiedAt: verificationResultStatus === 'verified' ? new Date() : null,
@@ -651,8 +639,6 @@ router.post('/verify-document', requireAuth, requireActivePlan, sensitiveOperati
         ...(cleanDob && { dob: cleanDob }),
         ...(cleanGstin && { gstin: cleanGstin }),
         ...(resolvedGstCertUrl && { gstCertUrl: resolvedGstCertUrl }),
-        ...(cleanAadhaar && { aadhaarNumber: maskAadhaar(cleanAadhaar) }),
-        ...(resolvedAadhaarUrl && { aadhaarDocUrl: resolvedAadhaarUrl }),
         vobizReference,
         failureReason,
         verifiedAt: verificationResultStatus === 'verified' ? new Date() : null,
@@ -690,11 +676,271 @@ router.post('/verify-document', requireAuth, requireActivePlan, sensitiveOperati
         failureReason: savedDoc.failureReason,
         verifiedAt: savedDoc.verifiedAt,
         gstCertUrl: savedDoc.gstCertUrl,
-        aadhaarDocUrl: savedDoc.aadhaarDocUrl,
       },
     });
   } catch (err) {
     logger.error('KYC: verify-document error', { error: String(err) });
+    next(err);
+  }
+});
+
+/**
+ * POST /api/v2/kyc/digilocker/initiate (and alias /aadhaar/initiate)
+ * Starts a DigiLocker-based Aadhaar verification session with Vobiz.
+ * IMPORTANT: Authenticates using parent MASTER account credentials (X-Auth-ID: VOBIZ_AUTH_ID, X-Auth-Token: VOBIZ_AUTH_TOKEN).
+ * Sub-account SA_ id is only in the path parameter.
+ */
+router.post(['/digilocker/initiate', '/aadhaar/initiate'], requireAuth, requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
+  try {
+    const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+
+    const subAccountService = new VobizSubAccountService();
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    const subAccount = await subAccountService.getOrCreateSubAccount(userId, user?.email || undefined);
+    const subAuthId = subAccount.authId;
+    const isMock = subAuthId.startsWith('SA_MOCK_') || (env.VOBIZ_AUTH_ID || '').includes('placeholder');
+
+    if (isMock) {
+      if (process.env.NODE_ENV === 'production') {
+        logger.error('[CRITICAL_SECURITY_ALERT] Mock DigiLocker initiate invoked in production! Failing closed.', { userId, subAuthId });
+        res.status(503).json({ success: false, error: 'Live DigiLocker verification required. Mock mode is disabled in production.' });
+        return;
+      }
+      const mockAccessRequestId = `AR_MOCK_${Date.now()}`;
+      res.json({
+        success: true,
+        auth_url: `https://claritiy.com/compliance?tab=kyc&mock_dl=${mockAccessRequestId}`,
+        link: `https://claritiy.com/compliance?tab=kyc&mock_dl=${mockAccessRequestId}`,
+        access_request_id: mockAccessRequestId,
+        message: 'Open the link to authenticate via DigiLocker. Complete Aadhaar OTP verification.',
+      });
+      return;
+    }
+
+    const baseUrl = (env.VOBIZ_API_URL || 'https://api.vobiz.ai').replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
+    const masterAuthId = env.VOBIZ_AUTH_ID;
+    const masterAuthToken = env.VOBIZ_AUTH_TOKEN;
+
+    if (!masterAuthId || !masterAuthToken || masterAuthId.includes('placeholder')) {
+      res.status(503).json({
+        success: false,
+        error: 'Verification service is temporarily unavailable, please try again shortly',
+      });
+      return;
+    }
+
+    const vobizUrl = `${baseUrl}/api/v1/sub-accounts/${subAuthId}/kyc/digilocker/initiate`;
+    const vobizRes = await fetch(vobizUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Auth-ID': masterAuthId,
+        'X-Auth-Token': masterAuthToken,
+      },
+      body: JSON.stringify({
+        redirect_url: req.body.redirect_url || 'https://claritiy.com/compliance?tab=kyc',
+        oauth_state: req.body.oauth_state || undefined,
+      }),
+    });
+
+    if (vobizRes.ok) {
+      const data = (await vobizRes.json()) as any;
+      const accessRequestId = data.access_request_id || data.api_id;
+      const authUrl = data.auth_url || data.link;
+
+      // Upsert pending Aadhaar document
+      await prisma.kycDocument.upsert({
+        where: {
+          userId_documentType: { userId, documentType: 'aadhaar' },
+        },
+        create: {
+          userId,
+          documentType: 'aadhaar',
+          status: 'pending',
+          vobizReference: accessRequestId,
+        },
+        update: {
+          status: 'pending',
+          vobizReference: accessRequestId,
+        },
+      });
+
+      res.json({
+        success: true,
+        auth_url: authUrl,
+        link: authUrl,
+        access_request_id: accessRequestId,
+        message: data.message || 'Open the link to authenticate via DigiLocker. Complete Aadhaar OTP verification.',
+      });
+    } else {
+      const errText = await vobizRes.text();
+      logger.error('KYC: DigiLocker initiate provider error', { status: vobizRes.status, errText: errText.substring(0, 300) });
+      res.status(502).json({
+        success: false,
+        error: 'DigiLocker service is temporarily unavailable. Please try again shortly or use hosted verification.',
+      });
+    }
+  } catch (err) {
+    logger.error('KYC: digilocker/initiate error', { error: String(err) });
+    next(err);
+  }
+});
+
+/**
+ * POST /api/v2/kyc/digilocker/verify (and alias /verify-aadhaar)
+ * Verifies DigiLocker consent using access_request_id.
+ * IMPORTANT: Authenticates using parent MASTER account credentials (X-Auth-ID: VOBIZ_AUTH_ID, X-Auth-Token: VOBIZ_AUTH_TOKEN).
+ * Sub-account SA_ id is only in the path parameter.
+ * Strictly NEVER stores raw Aadhaar number or document image.
+ * Shows status plainly without assuming a failure reason exists for Aadhaar.
+ */
+router.post(['/digilocker/verify', '/verify-aadhaar'], requireAuth, requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
+  try {
+    const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+
+    const { access_request_id, linked_number } = req.body;
+    if (!access_request_id || typeof access_request_id !== 'string') {
+      res.status(400).json({ success: false, error: 'access_request_id is required for DigiLocker consent verification.' });
+      return;
+    }
+
+    const subAccountService = new VobizSubAccountService();
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    const subAccount = await subAccountService.getOrCreateSubAccount(userId, user?.email || undefined);
+    const subAuthId = subAccount.authId;
+    const isMock = subAuthId.startsWith('SA_MOCK_') || (env.VOBIZ_AUTH_ID || '').includes('placeholder');
+
+    let verificationResultStatus: 'verified' | 'failed' | 'pending' = 'pending';
+
+    if (isMock) {
+      if (process.env.NODE_ENV === 'production') {
+        logger.error('[CRITICAL_SECURITY_ALERT] Mock Aadhaar verify invoked in production! Failing closed.', { userId, subAuthId });
+        res.status(503).json({ success: false, error: 'Live DigiLocker verification required. Mock mode is disabled in production.' });
+        return;
+      }
+      logger.warn('[MOCK_MODE_WARNING] Aadhaar verify running in mock dev mode. Cannot rubber-stamp as verified.', { userId, access_request_id });
+      verificationResultStatus = 'failed';
+    } else {
+      const baseUrl = (env.VOBIZ_API_URL || 'https://api.vobiz.ai').replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
+      const masterAuthId = env.VOBIZ_AUTH_ID;
+      const masterAuthToken = env.VOBIZ_AUTH_TOKEN;
+
+      if (!masterAuthId || !masterAuthToken || masterAuthId.includes('placeholder')) {
+        res.status(503).json({
+          success: false,
+          outcome: 'error',
+          canFallbackHosted: true,
+          error: 'Verification service is temporarily unavailable, please try again shortly',
+        });
+        return;
+      }
+
+      const vobizUrl = `${baseUrl}/api/v1/sub-accounts/${subAuthId}/kyc/digilocker/verify`;
+
+      try {
+        const vobizRes = await fetch(vobizUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Auth-ID': masterAuthId,
+            'X-Auth-Token': masterAuthToken,
+          },
+          body: JSON.stringify({
+            access_request_id,
+            ...(linked_number ? { linked_number } : {}),
+          }),
+        });
+
+        if (vobizRes.ok) {
+          const resData = (await vobizRes.json()) as any;
+          const status = (resData.status || '').toLowerCase();
+          if (status === 'verified' || resData.verified === true) {
+            verificationResultStatus = 'verified';
+          } else if (status === 'failed' || status === 'rejected') {
+            verificationResultStatus = 'failed';
+          } else {
+            verificationResultStatus = 'pending';
+          }
+        } else {
+          const errText = await vobizRes.text();
+          logger.warn('KYC: DigiLocker verify returned non-200', {
+            subAuthId,
+            status: vobizRes.status,
+            errText: errText.substring(0, 300),
+          });
+          verificationResultStatus = 'failed';
+        }
+      } catch (err: any) {
+        logger.error('[ADMIN_ALERT][VOBIZ_PROVIDER_ERROR] KYC: DigiLocker network error', { error: String(err) });
+        res.status(502).json({
+          success: false,
+          outcome: 'error',
+          canFallbackHosted: true,
+          error: 'Network error communicating with DigiLocker gateway. Please try again shortly.',
+        });
+        return;
+      }
+    }
+
+    // Upsert into KycDocument — NO raw Aadhaar stored, no guessed failure reason for Aadhaar
+    const savedDoc = await prisma.kycDocument.upsert({
+      where: {
+        userId_documentType: { userId, documentType: 'aadhaar' },
+      },
+      create: {
+        userId,
+        documentType: 'aadhaar',
+        status: verificationResultStatus,
+        vobizReference: access_request_id,
+        failureReason: null,
+        verifiedAt: verificationResultStatus === 'verified' ? new Date() : null,
+      },
+      update: {
+        status: verificationResultStatus,
+        vobizReference: access_request_id,
+        failureReason: null,
+        verifiedAt: verificationResultStatus === 'verified' ? new Date() : null,
+      },
+    });
+
+    await logAuditEvent({
+      workspaceOwnerId: userId,
+      actorUserId: userId,
+      action: verificationResultStatus === 'verified' ? 'kyc.document_verified' : 'kyc.document_rejected',
+      targetId: savedDoc.id,
+      metadata: {
+        documentType: 'aadhaar',
+        status: verificationResultStatus,
+        vobizReference: access_request_id,
+      },
+    });
+
+    await notifyUserDocumentStatus(userId, 'aadhaar', verificationResultStatus);
+
+    if (verificationResultStatus === 'verified') {
+      await checkAndApplyFullKycApproval(userId, subAccount.id);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        verification_type: 'aadhaar',
+        status: savedDoc.status,
+        source: 'digilocker',
+        access_request_id,
+        verifiedAt: savedDoc.verifiedAt,
+      },
+    });
+  } catch (err) {
+    logger.error('KYC: verify-aadhaar error', { error: String(err) });
     next(err);
   }
 });
@@ -786,71 +1032,7 @@ router.post(['/initiate-session', '/start'], requireAuth, requireActivePlan, sen
   }
 });
 
-/**
- * GET /api/v2/kyc/status
- */
-router.get('/status', requireAuth, async (req, res, next) => {
-  try {
-    const userId = (req as any).userId;
-    if (!userId) {
-      res.status(401).json({ success: false, error: 'Unauthorized' });
-      return;
-    }
 
-    const subAccount = await prisma.vobizSubAccount.findUnique({
-      where: { userId }
-    });
-
-    const docs = await prisma.kycDocument.findMany({ where: { userId } });
-    const panDoc = docs.find((d) => d.documentType === 'pan');
-    const gstDoc = docs.find((d) => d.documentType === 'gst');
-
-    const isFullyDocVerified = panDoc?.status === 'verified' && gstDoc?.status === 'verified';
-
-    const SYNC_TTL_MS = 3 * 60 * 1000;
-    const isStale = !subAccount || !subAccount.updatedAt || (Date.now() - subAccount.updatedAt.getTime() > SYNC_TTL_MS);
-
-    let kycStatus = (isFullyDocVerified || subAccount?.kycStatus === 'verified') ? 'verified' : (subAccount?.kycStatus || 'pending');
-    let isVerified = kycStatus === 'verified';
-
-    if (isStale && !isVerified) {
-      try {
-        const subAccountService = new VobizSubAccountService();
-        const syncResult = await subAccountService.syncKycStatus(userId);
-        if (isFullyDocVerified) {
-          kycStatus = 'verified';
-          isVerified = true;
-        } else {
-          kycStatus = syncResult.kycStatus;
-          isVerified = syncResult.isVerified;
-        }
-      } catch (syncErr) {
-        logger.warn('KYC: non-blocking sync error, returning cached DB state', { userId, error: String(syncErr) });
-      }
-    }
-
-    const numbers = await prisma.phoneNumber.findMany({
-      where: { userId },
-      select: { id: true, phoneNumber: true, kycStatus: true, status: true }
-    });
-
-    res.json({
-      success: true,
-      data: {
-        kycStatus,
-        isVerified,
-        confirmationMessage: isVerified
-          ? "Your KYC verification is active and verified with Vobiz."
-          : "Your KYC verification is being processed. We'll notify you once it's complete.",
-        numbers,
-        documents: docs,
-      }
-    });
-  } catch (err) {
-    logger.error('KYC: failed to fetch status', { error: String(err) });
-    next(err);
-  }
-});
 
 /**
  * POST /api/v2/kyc/webhook/vobiz
@@ -1017,27 +1199,67 @@ router.get('/status', requireAuth, requireActivePlan, async (req, res, next) => 
     }
 
     const data = (await vobizRes.json()) as any;
-    const liveKycStatus = (data.kyc_status || 'pending').toLowerCase();
-    const kycCallsBlocked = Boolean(data.kyc_calls_blocked);
+    const overallStatus = (data.overall_status || data.kyc_status || 'pending').toLowerCase();
+    const kycCallsBlocked = data.kyc_calls_blocked !== undefined ? Boolean(data.kyc_calls_blocked) : (overallStatus !== 'verified');
     const liveBusinessType = data.business_type || subAccount.businessType || 'individual';
 
-    if (subAccount.businessType !== liveBusinessType) {
+    // Normalize per-document verifications:
+    // Schema defines verifications object { pan, gst, aadhaar, cin }
+    // but some endpoints return top-level pan_status, gst_status, aadhaar_status, cin_status
+    const verifications = {
+      pan: (data.verifications?.pan || data.pan_status || 'not_started').toLowerCase(),
+      gst: (data.verifications?.gst || data.gst_status || 'not_started').toLowerCase(),
+      aadhaar: (data.verifications?.aadhaar || data.aadhaar_status || 'not_started').toLowerCase(),
+      cin: (data.verifications?.cin || data.cin_status || 'not_started').toLowerCase(),
+    };
+
+    if (subAccount.businessType !== liveBusinessType || subAccount.kycStatus !== overallStatus) {
       await prisma.vobizSubAccount.update({
         where: { id: subAccount.id },
-        data: { businessType: liveBusinessType },
+        data: {
+          businessType: liveBusinessType,
+          kycStatus: overallStatus,
+          kycVerifiedAt: overallStatus === 'verified' ? new Date() : (overallStatus === 'failed' ? null : subAccount.kycVerifiedAt),
+        },
       });
+    }
+
+    // Sync individual document records in DB if Vobiz reports them as verified
+    if (verifications.pan === 'verified') {
+      await prisma.kycDocument.updateMany({
+        where: { userId, documentType: 'pan', status: { not: 'verified' } },
+        data: { status: 'verified', verifiedAt: new Date() },
+      });
+    }
+    if (verifications.gst === 'verified') {
+      await prisma.kycDocument.updateMany({
+        where: { userId, documentType: 'gst', status: { not: 'verified' } },
+        data: { status: 'verified', verifiedAt: new Date() },
+      });
+    }
+    if (verifications.aadhaar === 'verified') {
+      await prisma.kycDocument.updateMany({
+        where: { userId, documentType: 'aadhaar', status: { not: 'verified' } },
+        data: { status: 'verified', verifiedAt: new Date() },
+      });
+    }
+
+    const isVerified = overallStatus === 'verified' && !kycCallsBlocked;
+    if (isVerified) {
+      await checkAndApplyFullKycApproval(userId, subAccount.id);
     }
 
     res.json({
       success: true,
       data: {
         authId: subAuthId,
-        kycStatus: liveKycStatus,
+        subAccountId: subAuthId,
+        overallStatus,
+        kycStatus: overallStatus,
         businessType: liveBusinessType,
         kycCallsBlocked,
-        panStatus: data.pan_status,
-        aadhaarStatus: data.aadhaar_status,
-        gstStatus: data.gst_status,
+        verifications,
+        isVerified,
       },
     });
   } catch (err) {

@@ -55,12 +55,17 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
   const [submittingGst, setSubmittingGst] = useState(false);
   const [gstError, setGstError] = useState<string | null>(null);
 
-  // Form states: Aadhaar (Card upload)
-  const [aadhaarNumber, setAadhaarNumber] = useState('');
-  const [aadhaarFullName, setAadhaarFullName] = useState('');
-  const [aadhaarFile, setAadhaarFile] = useState<{ name: string; base64: string } | null>(null);
-  const [submittingAadhaar, setSubmittingAadhaar] = useState(false);
+  // Form states: DigiLocker Aadhaar
+  const [digilockerLink, setDigilockerLink] = useState<string | null>(null);
+  const [accessRequestId, setAccessRequestId] = useState<string | null>(() => {
+    try { return sessionStorage.getItem('kyc_access_request_id') || null; } catch { return null; }
+  });
+  const [initiatingDigiLocker, setInitiatingDigiLocker] = useState(false);
+  const [verifyingDigiLocker, setVerifyingDigiLocker] = useState(false);
   const [aadhaarError, setAadhaarError] = useState<string | null>(null);
+  const [kycCallsBlocked, setKycCallsBlocked] = useState<boolean | null>(null);
+  const [liveVerifications, setLiveVerifications] = useState<{ pan?: string; gst?: string; aadhaar?: string; cin?: string } | null>(null);
+  const [businessType, setBusinessType] = useState<'individual' | 'company'>('individual');
 
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
@@ -83,13 +88,18 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
   const loadDocuments = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get('/api/v2/kyc/documents');
-      if (res.data?.success && res.data.data) {
-        const data = res.data.data;
+      const [docRes, statusRes] = await Promise.allSettled([
+        apiClient.get('/api/v2/kyc/documents'),
+        apiClient.get('/api/v2/kyc/status'),
+      ]);
+
+      if (docRes.status === 'fulfilled' && docRes.value.data?.success && docRes.value.data.data) {
+        const data = docRes.value.data.data;
         setDocuments(data.documents || []);
         setOverallStatus(data.overallStatus || 'not_submitted');
         setIsFullyVerified(data.isFullyVerified || false);
         setSubAccountAuthId(data.subAccountAuthId || null);
+        if (data.businessType) setBusinessType(data.businessType);
 
         if (onStatusChange) {
           onStatusChange(data.overallStatus || 'not_submitted');
@@ -107,9 +117,24 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
           setGstin(gstDoc.gstin);
         }
         const aadhaarDoc = data.documents?.find((d: KycDocData) => d.documentType === 'aadhaar');
-        if (aadhaarDoc) {
-          if (aadhaarDoc.aadhaarNumber) setAadhaarNumber(aadhaarDoc.aadhaarNumber);
-          if (aadhaarDoc.fullName) setAadhaarFullName(aadhaarDoc.fullName);
+        if (aadhaarDoc?.vobizReference && !accessRequestId) {
+          setAccessRequestId(aadhaarDoc.vobizReference);
+        }
+      }
+
+      if (statusRes.status === 'fulfilled' && statusRes.value.data?.success && statusRes.value.data.data) {
+        const sData = statusRes.value.data.data;
+        if (sData.kycCallsBlocked !== undefined) {
+          setKycCallsBlocked(sData.kycCallsBlocked);
+        }
+        if (sData.verifications) {
+          setLiveVerifications(sData.verifications);
+        }
+        if (sData.overallStatus) {
+          setOverallStatus(sData.overallStatus);
+        }
+        if (sData.businessType) {
+          setBusinessType(sData.businessType);
         }
       }
     } catch (err: any) {
@@ -117,7 +142,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
     } finally {
       setLoading(false);
     }
-  }, [onStatusChange]);
+  }, [onStatusChange, accessRequestId]);
 
   useEffect(() => {
     loadDocuments();
@@ -145,27 +170,6 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
     reader.readAsDataURL(file);
   };
 
-  // Handle Aadhaar File upload selection
-  const handleAadhaarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 8 * 1024 * 1024) {
-      setAadhaarError('File size exceeds 8MB limit. Please upload a smaller document.');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = reader.result as string;
-      setAadhaarFile({
-        name: file.name,
-        base64,
-      });
-      setAadhaarError(null);
-    };
-    reader.readAsDataURL(file);
-  };
 
   // Submit PAN Verification (Supports Personal and Company PAN, No DOB)
   const handleSubmitPan = async (e: React.FormEvent) => {
@@ -271,66 +275,82 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
     }
   };
 
-  // Submit Aadhaar Card Verification
-  const handleSubmitAadhaar = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Initiate DigiLocker Aadhaar Verification
+  const handleInitiateDigiLocker = async () => {
+    setInitiatingDigiLocker(true);
     setAadhaarError(null);
     setNotification(null);
-
-    const cleanAadhaar = aadhaarNumber.replace(/\s+/g, '');
-    if (!cleanAadhaar || !/^[0-9]{12}$/.test(cleanAadhaar)) {
-      setAadhaarError('Please enter a valid 12-digit Aadhaar number.');
-      return;
-    }
-
-    if (!aadhaarFullName.trim()) {
-      setAadhaarError('Please enter the full name as appearing on the Aadhaar card.');
-      return;
-    }
-
-    const currentAadhaarDoc = documents.find((d) => d.documentType === 'aadhaar');
-    if (!aadhaarFile && !currentAadhaarDoc?.aadhaarDocUrl) {
-      setAadhaarError('Please upload your Aadhaar card document (PDF or image).');
-      return;
-    }
-
-    setSubmittingAadhaar(true);
     try {
-      const res = await apiClient.post('/api/v2/kyc/verify-document', {
-        documentType: 'aadhaar',
-        aadhaarNumber: cleanAadhaar,
-        fullName: aadhaarFullName.trim(),
-        aadhaarFile: aadhaarFile?.base64,
-        aadhaarFileName: aadhaarFile?.name,
+      const res = await apiClient.post('/api/v2/kyc/digilocker/initiate', {
+        redirect_url: 'https://claritiy.com/compliance?tab=kyc',
       });
-
       if (res.data?.success) {
-        const resData = res.data as any;
-        if (resData.data?.status === 'verified') {
+        const authUrl = res.data.auth_url || res.data.link;
+        const reqId = res.data.access_request_id;
+        if (reqId) {
+          setAccessRequestId(reqId);
+          try { sessionStorage.setItem('kyc_access_request_id', reqId); } catch {}
+        }
+        if (authUrl) {
+          setDigilockerLink(authUrl);
+          window.open(authUrl, '_blank', 'noopener,noreferrer');
+          setNotification({
+            type: 'info',
+            message: 'DigiLocker authorization window opened. Complete OTP authorization with your Aadhaar, then click "I Have Completed Verification".',
+          });
+        }
+        await loadDocuments();
+      } else {
+        setAadhaarError(res.data?.error || 'Unable to start DigiLocker session.');
+      }
+    } catch (err: any) {
+      setAadhaarError(err?.response?.data?.error || err.message || 'Failed to initiate DigiLocker session.');
+    } finally {
+      setInitiatingDigiLocker(false);
+    }
+  };
+
+  // Verify DigiLocker Consent Status
+  const handleVerifyDigiLocker = async (reqIdOverride?: string) => {
+    const targetId = reqIdOverride || accessRequestId || (typeof window !== 'undefined' ? sessionStorage.getItem('kyc_access_request_id') : null);
+    if (!targetId) {
+      setAadhaarError('No active DigiLocker session found. Please click "Start DigiLocker Verification" to begin.');
+      return;
+    }
+    setVerifyingDigiLocker(true);
+    setAadhaarError(null);
+    try {
+      const res = await apiClient.post('/api/v2/kyc/digilocker/verify', {
+        access_request_id: targetId,
+      });
+      if (res.data?.success) {
+        const status = res.data.data?.status;
+        if (status === 'verified') {
+          try { sessionStorage.removeItem('kyc_access_request_id'); } catch {}
+          setDigilockerLink(null);
           setNotification({
             type: 'success',
-            message: 'Aadhaar verification approved successfully!',
+            message: 'Aadhaar identity verified successfully via DigiLocker!',
           });
-        } else if (resData.data?.status === 'failed') {
+        } else if (status === 'failed') {
           setNotification({
             type: 'error',
-            message: `Aadhaar verification rejected: ${resData.data.failureReason || 'Details could not be verified'}`,
+            message: 'Aadhaar verification not verified. Please complete OTP authorization on DigiLocker and retry.',
           });
         } else {
           setNotification({
             type: 'info',
-            message: 'Aadhaar document submitted successfully for verification.',
+            message: 'Aadhaar verification is pending. Please complete authorization on DigiLocker.',
           });
         }
-        setAadhaarFile(null);
         await loadDocuments();
       } else {
-        setAadhaarError((res.data as any)?.error || 'Aadhaar verification failed.');
+        setAadhaarError(res.data?.error || 'DigiLocker verification failed.');
       }
     } catch (err: any) {
-      setAadhaarError(err?.response?.data?.error || err.message || 'Aadhaar verification request failed.');
+      setAadhaarError(err?.response?.data?.error || err.message || 'Verification request failed.');
     } finally {
-      setSubmittingAadhaar(false);
+      setVerifyingDigiLocker(false);
     }
   };
 
@@ -358,6 +378,12 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
             <AlertCircle className="w-3.5 h-3.5 text-red-600" /> Action Required
           </span>
         );
+      case 'not_started':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-500/10 text-slate-500 border border-slate-200">
+            <Clock className="w-3.5 h-3.5 text-slate-400" /> Not Started
+          </span>
+        );
       default:
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-500/10 text-slate-500 border border-slate-500/20">
@@ -378,7 +404,14 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
     );
   }
 
-  const verifiedCount = [panDoc?.status === 'verified', gstDoc?.status === 'verified', aadhaarDoc?.status === 'verified'].filter(Boolean).length;
+  const isAadhaarVerified = liveVerifications?.aadhaar === 'verified' || aadhaarDoc?.status === 'verified';
+  const isPanVerified = liveVerifications?.pan === 'verified' || panDoc?.status === 'verified';
+  const isGstVerified = liveVerifications?.gst === 'verified' || gstDoc?.status === 'verified';
+
+  const requiredTotal = 2;
+  const verifiedCount = businessType === 'company'
+    ? [isPanVerified, isGstVerified].filter(Boolean).length
+    : [isPanVerified, isAadhaarVerified].filter(Boolean).length;
 
   return (
     <div className="w-full space-y-8 font-sans">
@@ -410,22 +443,33 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
           <div className="md:col-span-7 bg-slate-50/90 rounded-2xl p-4 border border-slate-200/60">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-xs font-bold text-slate-700">Sub-Account Verification Lifecycle</span>
+              <span className="text-xs font-bold text-slate-700">
+                Sub-Account Compliance ({businessType === 'company' ? 'Company Entity' : 'Individual / Sole Proprietor'})
+              </span>
               <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                {verifiedCount} of 3 Documents Verified
+                {verifiedCount} of {requiredTotal} Documents Verified
               </span>
             </div>
             <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
               <div
                 className="h-full bg-emerald-500 transition-all duration-500 rounded-full"
-                style={{ width: `${(verifiedCount / 3) * 100}%` }}
+                style={{ width: `${(verifiedCount / requiredTotal) * 100}%` }}
               />
             </div>
           </div>
           <div className="md:col-span-5 bg-slate-50/90 rounded-2xl p-4 border border-slate-200/60 flex items-start gap-2.5">
-            <InfoIcon className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            {kycCallsBlocked === false ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            )}
             <p className="text-[11px] text-slate-600 leading-relaxed">
-              Telecom carrier regulations require independent verification for each sub-account under <code className="text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded font-mono">customer_use</code> mode. Sub-accounts cannot inherit master KYC.
+              <strong className={kycCallsBlocked === false ? 'text-emerald-700' : 'text-amber-800'}>
+                {kycCallsBlocked === false ? 'Telephony Active' : 'Outbound Calling Blocked'}:
+              </strong>{' '}
+              {kycCallsBlocked === false
+                ? 'Sub-account KYC approved. Outbound voice calling and number provisioning active.'
+                : 'Telephony calls blocked per TRAI/DoT regulation until required identity documents are verified.'}
             </p>
           </div>
         </div>
@@ -733,8 +777,10 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
           </div>
         </div>
 
-        {/* ── CARD 3: Aadhaar Card Verification (Upload) ── */}
-        <div className="nm-card p-6 rounded-3xl border border-slate-200/70 shadow-xs space-y-5 flex flex-col justify-between">
+        {/* ── CARD 3: Aadhaar Verification (DigiLocker) ── */}
+        <div className={`nm-card p-6 rounded-3xl border border-slate-200/70 shadow-xs space-y-5 flex flex-col justify-between ${
+          businessType === 'company' ? 'opacity-70 bg-slate-50/50' : ''
+        }`}>
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-2 pb-3 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -743,50 +789,50 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                    Aadhaar Card Verification
+                    Aadhaar Verification (DigiLocker)
                   </h3>
                   <p className="text-[11px] text-slate-400">
-                    Authorized Signatory / Representative Identity Verification
+                    UIDAI Government Identity Verification
                   </p>
                 </div>
               </div>
-              {renderStatusBadge(aadhaarDoc?.status || 'not_submitted')}
+              <div className="flex items-center gap-2">
+                {businessType === 'company' ? (
+                  <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    Optional (Company)
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full uppercase tracking-wider border border-amber-200">
+                    Mandatory (Individual)
+                  </span>
+                )}
+                {renderStatusBadge(liveVerifications?.aadhaar || aadhaarDoc?.status || 'not_started')}
+              </div>
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed">
-              Upload authorized representative Aadhaar card for regulatory identity compliance.
+              Instant OTP verification via Government of India DigiLocker portal. No raw Aadhaar number or document files required.
             </p>
 
-            {aadhaarDoc?.status === 'failed' && aadhaarDoc.failureReason && (
+            {(liveVerifications?.aadhaar === 'failed' || aadhaarDoc?.status === 'failed') && (
               <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-800 text-xs space-y-1">
                 <p className="font-bold flex items-center gap-1.5">
-                  <AlertCircle className="w-3.5 h-3.5 text-red-600" /> Verification Rejected
+                  <AlertCircle className="w-3.5 h-3.5 text-red-600" /> Aadhaar Verification Not Verified
                 </p>
-                <p className="text-[11px] text-red-700">{aadhaarDoc.failureReason}</p>
+                <p className="text-[11px] text-red-700">
+                  Consent verification was not completed or failed on DigiLocker. Please restart verification below.
+                </p>
               </div>
             )}
 
-            {aadhaarDoc?.status === 'verified' && (
+            {(liveVerifications?.aadhaar === 'verified' || aadhaarDoc?.status === 'verified') && (
               <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs space-y-1.5">
                 <p className="font-bold flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Aadhaar Verified On-Record
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Aadhaar Verified via DigiLocker
                 </p>
-                {aadhaarDoc.aadhaarNumber && (
-                  <p className="text-[11px] text-emerald-700">
-                    Aadhaar: <span className="font-mono font-bold">XXXX-XXXX-{aadhaarDoc.aadhaarNumber.slice(-4)}</span>
-                    {aadhaarDoc.fullName && ` · ${aadhaarDoc.fullName}`}
-                  </p>
-                )}
-                {aadhaarDoc.aadhaarDocUrl && (
-                  <a
-                    href={aadhaarDoc.aadhaarDocUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 underline"
-                  >
-                    <ExternalLink className="w-3 h-3" /> View Uploaded Aadhaar Card
-                  </a>
-                )}
+                <p className="text-[11px] text-emerald-700">
+                  UIDAI digital authorization confirmed on-record for this telephony sub-account.
+                </p>
               </div>
             )}
 
@@ -796,81 +842,62 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
               </div>
             )}
 
-
-
-            {aadhaarDoc?.status !== 'verified' && (
-              <form onSubmit={handleSubmitAadhaar} className="space-y-3.5 text-xs">
-                <div className="grid grid-cols-1 gap-3.5">
-                  <div>
-                    <label className="block text-slate-600 font-bold mb-1">
-                      Aadhaar Number (12 digits)
-                    </label>
-                    <input
-                      type="text"
-                      value={aadhaarNumber}
-                      onChange={(e) => setAadhaarNumber(e.target.value.replace(/[^0-9]/g, '').slice(0, 12))}
-                      placeholder="e.g. 123456789012"
-                      maxLength={12}
-                      disabled={submittingAadhaar}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono font-bold tracking-wider text-slate-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-600 font-bold mb-1">
-                      Full Name (as per Aadhaar Card)
-                    </label>
-                    <input
-                      type="text"
-                      value={aadhaarFullName}
-                      onChange={(e) => setAadhaarFullName(e.target.value)}
-                      placeholder="e.g. Rajesh Kumar Sharma"
-                      disabled={submittingAadhaar}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 font-medium"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-slate-600 font-bold mb-1">
-                    Aadhaar Card Document (PDF or PNG/JPG)
-                  </label>
-                  <div className="relative border-2 border-dashed border-slate-200 hover:border-emerald-500 rounded-2xl p-4 text-center cursor-pointer transition-colors bg-white">
-                    <input
-                      type="file"
-                      accept=".pdf,image/png,image/jpeg,image/jpg"
-                      onChange={handleAadhaarFileChange}
-                      disabled={submittingAadhaar}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    />
-                    <Upload className="w-5 h-5 text-slate-400 mx-auto mb-1.5" />
-                    {aadhaarFile ? (
-                      <p className="text-xs font-bold text-emerald-700 flex items-center justify-center gap-1">
-                        <FileCheck className="w-3.5 h-3.5" /> {aadhaarFile.name}
-                      </p>
-                    ) : (
-                      <p className="text-[11px] text-slate-500 font-medium">
-                        Drag or click to attach Aadhaar card document
-                      </p>
-                    )}
-                  </div>
-                </div>
-
+            {liveVerifications?.aadhaar !== 'verified' && aadhaarDoc?.status !== 'verified' && (
+              <div className="space-y-3 pt-1">
                 <button
-                  type="submit"
-                  disabled={submittingAadhaar}
-                  className="w-full py-2.5 px-4 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                  type="button"
+                  onClick={handleInitiateDigiLocker}
+                  disabled={initiatingDigiLocker || verifyingDigiLocker}
+                  className="w-full py-2.5 px-4 rounded-xl font-bold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs text-xs"
                 >
-                  {submittingAadhaar ? (
+                  {initiatingDigiLocker ? (
                     <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Verifying Aadhaar Document…
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Connecting to DigiLocker…
                     </>
-                  ) : aadhaarDoc?.status === 'failed' ? (
-                    'Re-submit Aadhaar Verification'
                   ) : (
-                    'Upload & Verify Aadhaar Card'
+                    <>
+                      <ExternalLink className="w-3.5 h-3.5" /> Start DigiLocker Verification
+                    </>
                   )}
                 </button>
-              </form>
+
+                {(accessRequestId || digilockerLink) && (
+                  <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 space-y-2.5 text-xs text-amber-900">
+                    <p className="font-semibold text-[11px] leading-relaxed">
+                      1. Complete OTP verification in the DigiLocker window.<br />
+                      2. Then click below to verify status.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleVerifyDigiLocker()}
+                        disabled={verifyingDigiLocker}
+                        className="flex-1 py-2 px-3 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5 cursor-pointer text-xs"
+                      >
+                        {verifyingDigiLocker ? (
+                          <>
+                            <RefreshCw className="w-3 h-3 animate-spin" /> Checking Status…
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5" /> I Have Completed Verification
+                          </>
+                        )}
+                      </button>
+                      {digilockerLink && (
+                        <a
+                          href={digilockerLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="py-2 px-3 rounded-xl font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 transition-all flex items-center justify-center gap-1 text-xs text-center"
+                        >
+                          <ExternalLink className="w-3 h-3" /> Re-open Portal
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
           <div className="pt-2 text-[10px] text-slate-400 border-t border-slate-100 flex items-center justify-between">
