@@ -191,7 +191,7 @@ export const CustomerDetail: React.FC<CustomerDetailProps> = ({ customerId, onBa
   if (loading) {
     return (
       <div className="py-20 text-center text-slate-500">
-        <div className="h-6 w-6 border-2 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mx-auto mb-3" />
+        <div className="h-6 w-6 border-2 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-3" />
         <p className="text-sm">Loading Customer 360 profile...</p>
       </div>
     );
@@ -233,7 +233,7 @@ export const CustomerDetail: React.FC<CustomerDetailProps> = ({ customerId, onBa
       <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="flex items-start gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 font-bold text-xl shrink-0">
+            <div className="h-14 w-14 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-white font-bold text-xl shrink-0">
               {customer.fullName ? customer.fullName[0].toUpperCase() : 'U'}
             </div>
             <div>
@@ -276,7 +276,7 @@ export const CustomerDetail: React.FC<CustomerDetailProps> = ({ customerId, onBa
                   setModalInput({ ...modalInput, minutes: 60, reason: '' });
                   setActionModal('grant');
                 }}
-                className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer shadow-lg shadow-indigo-600/20"
+                className="px-3 py-2 bg-white hover:bg-zinc-200 text-black font-semibold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span>Grant Minutes</span>
@@ -412,8 +412,8 @@ export const CustomerDetail: React.FC<CustomerDetailProps> = ({ customerId, onBa
             onClick={() => setActiveTab(tab.key as any)}
             className={`pb-3 border-b-2 transition-colors cursor-pointer ${
               activeTab === tab.key
-                ? 'border-indigo-500 text-indigo-400 font-semibold'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-white text-white font-semibold'
+                : 'border-transparent text-zinc-400 hover:text-white'
             }`}
           >
             {tab.label}
@@ -622,13 +622,13 @@ export const CustomerDetail: React.FC<CustomerDetailProps> = ({ customerId, onBa
               placeholder="Record notes from phone call, sales discussion, KYC inquiry, or risk review..."
               rows={3}
               required
-              className="w-full p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+              className="w-full p-3 rounded-xl bg-black border border-zinc-800 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
             />
             <div className="mt-3 flex justify-end">
               <button
                 type="submit"
                 disabled={modalLoading || !modalInput.noteText.trim()}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-medium cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 bg-white hover:bg-zinc-200 text-black font-semibold rounded-xl text-xs cursor-pointer disabled:opacity-50"
               >
                 Save Note
               </button>
@@ -638,8 +638,8 @@ export const CustomerDetail: React.FC<CustomerDetailProps> = ({ customerId, onBa
           {/* Notes list */}
           <div className="space-y-3">
             {notes.map((n) => (
-              <div key={n.id} className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 flex items-start gap-3">
-                <MessageSquare className="h-4 w-4 text-indigo-400 shrink-0 mt-0.5" />
+              <div key={n.id} className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 flex items-start gap-3">
+                <MessageSquare className="h-4 w-4 text-zinc-400 shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
                     <span className="font-semibold text-white">{n.staffEmail || 'Staff Member'}</span>
@@ -777,7 +777,7 @@ export const CustomerDetail: React.FC<CustomerDetailProps> = ({ customerId, onBa
                 <button
                   type="submit"
                   disabled={modalLoading || !modalInput.reason.trim()}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-medium cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 bg-white hover:bg-zinc-200 text-black font-semibold rounded-xl text-xs cursor-pointer disabled:opacity-50"
                 >
                   {modalLoading ? 'Executing...' : 'Confirm Operation'}
                 </button>

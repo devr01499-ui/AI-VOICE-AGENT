@@ -58,7 +58,7 @@ export const CallsList: React.FC<CallsListProps> = ({ onSelectCustomer }) => {
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold text-white flex items-center gap-2">
-          <PhoneCall className="h-5 w-5 text-indigo-400" />
+          <PhoneCall className="h-5 w-5 text-white" />
           <span>Platform Calls & Telephony</span>
         </h1>
         <p className="text-xs text-slate-400 mt-1">
@@ -82,7 +82,7 @@ export const CallsList: React.FC<CallsListProps> = ({ onSelectCustomer }) => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by recipient phone, call ID, or user email..."
-            className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+            className="w-full pl-10 pr-4 py-2 bg-black border border-zinc-800 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
           />
         </form>
 
@@ -142,7 +142,7 @@ export const CallsList: React.FC<CallsListProps> = ({ onSelectCustomer }) => {
               {loading ? (
                 <tr>
                   <td colSpan={8} className="text-center py-12 text-slate-500">
-                    <div className="h-5 w-5 border-2 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mx-auto mb-2" />
+                    <div className="h-5 w-5 border-2 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-2" />
                     <span>Loading calls history...</span>
                   </td>
                 </tr>
@@ -182,7 +182,7 @@ export const CallsList: React.FC<CallsListProps> = ({ onSelectCustomer }) => {
                         type="button"
                         onClick={() => c.userId && onSelectCustomer?.(c.userId)}
                         className={`text-left text-white font-medium truncate max-w-xs block ${
-                          onSelectCustomer && c.userId ? 'cursor-pointer hover:text-indigo-400 hover:underline' : ''
+                          onSelectCustomer && c.userId ? 'cursor-pointer hover:text-white hover:underline' : ''
                         }`}
                       >
                         {c.user?.fullName || 'User'}
@@ -198,7 +198,7 @@ export const CallsList: React.FC<CallsListProps> = ({ onSelectCustomer }) => {
                         c.recordingUrl ? (
                           <button
                             onClick={() => setPlaybackUrl(c.recordingUrl)}
-                            className="px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 text-[11px] font-medium inline-flex items-center gap-1 cursor-pointer"
+                            className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-700 text-[11px] font-medium inline-flex items-center gap-1 cursor-pointer"
                           >
                             <Play className="h-3 w-3" />
                             <span>Play</span>

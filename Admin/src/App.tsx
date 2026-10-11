@@ -59,11 +59,11 @@ const AdminRouter: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400">
-        <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-indigo-600 flex items-center justify-center font-bold text-white text-lg shadow-lg shadow-indigo-500/20 mb-4 animate-pulse">
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center text-zinc-400">
+        <div className="h-10 w-10 rounded-xl bg-white text-black flex items-center justify-center font-bold text-lg shadow-sm mb-4 animate-pulse">
           C
         </div>
-        <p className="text-xs font-mono tracking-wider uppercase text-slate-500">
+        <p className="text-xs font-mono tracking-wider uppercase text-zinc-500">
           Claritiy Voice Security Gateway...
         </p>
       </div>
@@ -114,7 +114,7 @@ const AdminRouter: React.FC = () => {
             </p>
             <button
               onClick={() => navigate('/overview')}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-medium cursor-pointer"
+              className="px-4 py-2 bg-white hover:bg-zinc-200 text-black font-semibold rounded-xl text-xs cursor-pointer"
             >
               Go to Overview
             </button>

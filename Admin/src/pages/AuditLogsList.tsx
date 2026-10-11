@@ -38,7 +38,7 @@ export const AuditLogsList: React.FC = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold text-white flex items-center gap-2">
-          <FileText className="h-5 w-5 text-indigo-400" />
+          <FileText className="h-5 w-5 text-white" />
           <span>Administrative Audit Logs</span>
         </h1>
         <p className="text-xs text-slate-400 mt-1">
@@ -63,7 +63,7 @@ export const AuditLogsList: React.FC = () => {
               {loading ? (
                 <tr>
                   <td colSpan={6} className="text-center py-12 text-slate-500">
-                    <div className="h-5 w-5 border-2 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mx-auto mb-2" />
+                    <div className="h-5 w-5 border-2 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-2" />
                     <span>Loading audit records...</span>
                   </td>
                 </tr>
@@ -84,7 +84,7 @@ export const AuditLogsList: React.FC = () => {
                       <div className="text-[10px] text-slate-500 uppercase font-mono">{log.staffRole}</div>
                     </td>
                     <td className="px-4 py-3.5">
-                      <span className="text-[10px] px-2 py-0.5 rounded font-mono uppercase font-bold bg-slate-800 text-indigo-300 border border-slate-700">
+                      <span className="text-[10px] px-2 py-0.5 rounded font-mono uppercase font-bold bg-zinc-900 text-white border border-zinc-700">
                         {log.action}
                       </span>
                     </td>

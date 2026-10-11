@@ -15,7 +15,7 @@ export const Settings: React.FC = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold text-white flex items-center gap-2">
-          <SettingsIcon className="h-5 w-5 text-indigo-400" />
+          <SettingsIcon className="h-5 w-5 text-white" />
           <span>System Governance & Security Settings</span>
         </h1>
         <p className="text-xs text-slate-400 mt-1">
@@ -27,7 +27,7 @@ export const Settings: React.FC = () => {
       <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Shield className="h-4 w-4 text-indigo-400" />
+            <Shield className="h-4 w-4 text-white" />
             <h2 className="text-sm font-bold text-white uppercase font-mono">
               Staff Role Caps (Founder Decision #3)
             </h2>
@@ -54,7 +54,7 @@ export const Settings: React.FC = () => {
                   <td className="px-4 py-3 font-bold uppercase text-white">{c.role}</td>
                   <td className="px-4 py-3 text-slate-300">{c.grantPerAction}</td>
                   <td className="px-4 py-3 text-slate-300">{c.grantPerDay}</td>
-                  <td className="px-4 py-3 text-indigo-400 font-bold">{c.maxDiscount}</td>
+                  <td className="px-4 py-3 text-white font-bold">{c.maxDiscount}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -77,7 +77,7 @@ export const Settings: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3">
           <div className="flex items-center gap-2">
-            <Globe className="h-4 w-4 text-indigo-400" />
+            <Globe className="h-4 w-4 text-white" />
             <h3 className="text-xs font-bold text-white uppercase font-mono">
               Network & Origin Isolation
             </h3>
@@ -102,7 +102,7 @@ export const Settings: React.FC = () => {
 
         <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3">
           <div className="flex items-center gap-2">
-            <Lock className="h-4 w-4 text-indigo-400" />
+            <Lock className="h-4 w-4 text-white" />
             <h3 className="text-xs font-bold text-white uppercase font-mono">
               Auth & Session Security
             </h3>
@@ -118,7 +118,7 @@ export const Settings: React.FC = () => {
             </div>
             <div className="flex justify-between py-1">
               <span className="text-slate-400">Call Content (Recordings/Transcripts)</span>
-              <span className="font-mono text-purple-400 text-[11px] font-bold">
+              <span className="font-mono text-white text-[11px] font-bold">
                 Owner Only (Decision #4)
               </span>
             </div>

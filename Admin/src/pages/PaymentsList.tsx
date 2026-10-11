@@ -42,7 +42,7 @@ export const PaymentsList: React.FC<PaymentsListProps> = ({ onSelectCustomer }) 
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold text-white flex items-center gap-2">
-          <CreditCard className="h-5 w-5 text-indigo-400" />
+          <CreditCard className="h-5 w-5 text-white" />
           <span>Payments & GST Invoices</span>
         </h1>
         <p className="text-xs text-slate-400 mt-1">
@@ -68,7 +68,7 @@ export const PaymentsList: React.FC<PaymentsListProps> = ({ onSelectCustomer }) 
               {loading ? (
                 <tr>
                   <td colSpan={7} className="text-center py-12 text-slate-500">
-                    <div className="h-5 w-5 border-2 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mx-auto mb-2" />
+                    <div className="h-5 w-5 border-2 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-2" />
                     <span>Loading payment transactions...</span>
                   </td>
                 </tr>
@@ -90,7 +90,7 @@ export const PaymentsList: React.FC<PaymentsListProps> = ({ onSelectCustomer }) 
                         type="button"
                         onClick={() => p.userId && onSelectCustomer?.(p.userId)}
                         className={`text-left text-white font-medium block ${
-                          onSelectCustomer && p.userId ? 'cursor-pointer hover:text-indigo-400 hover:underline' : ''
+                          onSelectCustomer && p.userId ? 'cursor-pointer hover:text-white hover:underline' : ''
                         }`}
                       >
                         {p.user?.fullName || 'User'}
@@ -117,7 +117,7 @@ export const PaymentsList: React.FC<PaymentsListProps> = ({ onSelectCustomer }) 
                     <td className="px-4 py-3.5">
                       {p.invoice ? (
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-[11px] text-indigo-400">
+                          <span className="font-mono text-[11px] text-zinc-300">
                             {p.invoice.invoiceNumber}
                           </span>
                           {p.invoice.pdfUrl && (

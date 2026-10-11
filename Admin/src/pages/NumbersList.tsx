@@ -29,7 +29,7 @@ export const NumbersList: React.FC<NumbersListProps> = ({ onSelectCustomer }) =>
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold text-white flex items-center gap-2">
-          <Hash className="h-5 w-5 text-indigo-400" />
+          <Hash className="h-5 w-5 text-white" />
           <span>Provisioned Phone Numbers</span>
         </h1>
         <p className="text-xs text-slate-400 mt-1">
@@ -55,7 +55,7 @@ export const NumbersList: React.FC<NumbersListProps> = ({ onSelectCustomer }) =>
               {loading ? (
                 <tr>
                   <td colSpan={7} className="text-center py-12 text-slate-500">
-                    <div className="h-5 w-5 border-2 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mx-auto mb-2" />
+                    <div className="h-5 w-5 border-2 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-2" />
                     <span>Loading phone numbers...</span>
                   </td>
                 </tr>
@@ -106,7 +106,7 @@ export const NumbersList: React.FC<NumbersListProps> = ({ onSelectCustomer }) =>
                         type="button"
                         onClick={() => n.userId && onSelectCustomer?.(n.userId)}
                         className={`text-left text-white font-medium block ${
-                          onSelectCustomer && n.userId ? 'cursor-pointer hover:text-indigo-400 hover:underline' : ''
+                          onSelectCustomer && n.userId ? 'cursor-pointer hover:text-white hover:underline' : ''
                         }`}
                       >
                         {n.user?.fullName || 'User'}

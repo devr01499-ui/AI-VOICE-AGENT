@@ -97,7 +97,7 @@ export const Health: React.FC = () => {
         <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-white flex items-center gap-2">
-              <Database className="h-4 w-4 text-indigo-400" />
+              <Database className="h-4 w-4 text-white" />
               <span>PostgreSQL Database</span>
             </span>
             <span className="text-[10px] px-2 py-0.5 rounded font-mono uppercase font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -120,7 +120,7 @@ export const Health: React.FC = () => {
         <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-white flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-purple-400" />
+              <Sparkles className="h-4 w-4 text-white" />
               <span>Gemini 2.5 Native Audio</span>
             </span>
             <span className="text-[10px] px-2 py-0.5 rounded font-mono uppercase font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -191,7 +191,7 @@ export const Health: React.FC = () => {
         <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-white flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-indigo-400" />
+              <ShieldCheck className="h-4 w-4 text-white" />
               <span>Trust Proxy & IP Gate</span>
             </span>
             <span className="text-[10px] px-2 py-0.5 rounded font-mono uppercase font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">

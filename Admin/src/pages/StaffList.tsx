@@ -77,10 +77,10 @@ export const StaffList: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-white flex items-center gap-2">
-            <Shield className="h-5 w-5 text-indigo-400" />
+            <Shield className="h-5 w-5 text-white" />
             <span>Staff Governance & RBAC</span>
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-zinc-400 mt-1">
             Manage administrative personnel, assign role boundaries, and control console access
           </p>
         </div>
@@ -88,7 +88,7 @@ export const StaffList: React.FC = () => {
         {staff?.role === 'owner' && (
           <button
             onClick={() => setInviteModalOpen(true)}
-            className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-medium flex items-center gap-2 transition-colors cursor-pointer self-start sm:self-auto shadow-lg shadow-indigo-600/20"
+            className="px-3.5 py-2 bg-white hover:bg-zinc-200 text-black font-semibold rounded-xl text-xs flex items-center gap-2 transition-colors cursor-pointer self-start sm:self-auto shadow-sm"
           >
             <UserPlus className="h-4 w-4" />
             <span>Invite New Staff</span>
@@ -97,17 +97,17 @@ export const StaffList: React.FC = () => {
       </div>
 
       {error && (
-        <div className="p-4 rounded-xl bg-red-950/40 border border-red-500/20 text-red-300 text-xs flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
+        <div className="p-4 rounded-xl bg-zinc-900 border border-zinc-700 text-white text-xs flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 text-white shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {/* Staff Table */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+      <div className="bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-950/80 text-[11px] uppercase tracking-wider text-slate-400 font-mono border-b border-slate-800">
+          <table className="w-full text-left text-xs text-zinc-300">
+            <thead className="bg-black text-[11px] uppercase tracking-wider text-zinc-400 font-mono border-b border-zinc-800">
               <tr>
                 <th className="px-5 py-3.5 font-semibold">Staff Name & Email</th>
                 <th className="px-4 py-3.5 font-semibold">Role</th>
@@ -117,17 +117,17 @@ export const StaffList: React.FC = () => {
                 <th className="px-4 py-3.5 font-semibold text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody className="divide-y divide-zinc-800/60">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-slate-500">
-                    <div className="h-5 w-5 border-2 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mx-auto mb-2" />
+                  <td colSpan={6} className="text-center py-12 text-zinc-500">
+                    <div className="h-5 w-5 border-2 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-2" />
                     <span>Loading staff directory...</span>
                   </td>
                 </tr>
               ) : staffUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-slate-500">
+                  <td colSpan={6} className="text-center py-12 text-zinc-500">
                     No staff members found.
                   </td>
                 </tr>
@@ -139,20 +139,20 @@ export const StaffList: React.FC = () => {
                   const canModify = !isSelf && (!isTargetOwner || isCurrentOwner);
 
                   return (
-                    <tr key={u.id} className="hover:bg-slate-800/40 transition-colors">
+                    <tr key={u.id} className="hover:bg-zinc-900/50 transition-colors">
                       <td className="px-5 py-3.5">
                         <div className="font-semibold text-white flex items-center gap-2">
                           <span>{u.name}</span>
                           {isSelf && (
-                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-mono">
+                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-900 text-white border border-zinc-700 font-mono">
                               YOU
                             </span>
                           )}
                         </div>
-                        <div className="text-[11px] text-slate-400 font-mono">{u.email}</div>
+                        <div className="text-[11px] text-zinc-400 font-mono">{u.email}</div>
                       </td>
                       <td className="px-4 py-3.5">
-                        <span className="text-[10px] px-2 py-0.5 rounded font-mono uppercase font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                        <span className="text-[10px] px-2 py-0.5 rounded font-mono uppercase font-bold bg-zinc-900 text-zinc-300 border border-zinc-700">
                           {u.role}
                         </span>
                       </td>
@@ -267,7 +267,7 @@ export const StaffList: React.FC = () => {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 bg-white hover:bg-zinc-200 text-black font-semibold rounded-xl cursor-pointer disabled:opacity-50"
                 >
                   {submitting ? 'Inviting...' : 'Send Invitation'}
                 </button>
