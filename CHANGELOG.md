@@ -1,5 +1,10 @@
 # CHANGELOG
 
+- DigiLocker Aadhaar Verification Top-Level Redirect Flow & Route Mapping:
+  - **Eliminated Blocked iFrame Modal**: Replaced in-app `<iframe>` modal with full top-level `window.location.href` navigation to official UIDAI/DigiLocker consent portal, resolving silent browser CSP `frame-ancestors 'none'` blocks.
+  - **Automated Return Verification**: Added session resumption on mount in `KycComplianceSettings.tsx` using `sessionStorage.getItem('kyc_access_request_id')`, automatically executing verification upon user return to `/compliance?tab=kyc`.
+  - **Route Mapping for /compliance & /settings**: Added `/compliance` and `/settings` URL mapping in `Frontend/src/app/App.tsx` routing tables, `getInitialDashSection`, and `DashSettings` to land users directly in the KYC tab upon completing DigiLocker authorization.
+
 - Statutory PAN Category Derivation & Aadhaar Bypass Closure:
   - **Statutory Entity Derivation (`derivePanCategory`)**: Implemented statutory NSDL / Income Tax Department 4th-character entity type derivation (`P` / `H` -> `personal`, `C` / `F` / `A` / `T` / `B` / `L` / `J` / `G` -> `company`). Ceased trusting client-supplied `panType` in `POST /api/v2/kyc/verify-document`.
   - **Declaration Mismatch Rejection & Fraud Logging**: Added validation rejecting client attempts to submit Individual PANs under declared `company` type (or vice-versa) with HTTP 400 (`PAN_CATEGORY_MISMATCH`), logging `[FRAUD_SIGNAL][PAN_CATEGORY_MISMATCH]`.

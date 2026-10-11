@@ -4600,6 +4600,11 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
 function DashSettings({ profile }: { profile: ApiProfile | null }) {
   const [stab, setStab] = useState<"workspace"|"kyc"|"api"|"webhooks"|"billing"|"team"|"audit">(() => {
     try {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('tab') === 'kyc') return 'kyc';
+        if (window.location.pathname.includes('/compliance')) return 'kyc';
+      }
       const target = localStorage.getItem('open_settings_tab');
       if (target === 'kyc') {
         localStorage.removeItem('open_settings_tab');
@@ -5776,6 +5781,10 @@ function DashboardPage({ session }: { session: Session }) {
   const getInitialDashSection = (): DashSection => {
     if (typeof window !== "undefined") {
       const path = window.location.pathname;
+      const search = window.location.search;
+      if (path === "/compliance" || path.startsWith("/compliance") || search.includes("tab=kyc")) {
+        return "settings";
+      }
       if (path.startsWith("/dashboard/")) {
         const sub = path.replace("/dashboard/", "").trim() as DashSection;
         if (sub) return sub;
@@ -6742,6 +6751,8 @@ export default function App() {
         "/how-it-works": "how-it-works",
         "/industries": "industries",
         "/dashboard": "dashboard",
+        "/compliance": "dashboard",
+        "/settings": "dashboard",
         "/login": "dashboard",
         "/signup": "dashboard",
         "/register": "dashboard",
@@ -6768,7 +6779,7 @@ export default function App() {
       if (pathMap[path]) return pathMap[path];
       if (path === "/compare") return "solutions";
       if (path.startsWith("/use-cases") || path.startsWith("/industries")) return "use-cases";
-      if (path.startsWith("/dashboard") || path.startsWith("/login") || path.startsWith("/signup") || path.startsWith("/register") || path.startsWith("/auth") || path.startsWith("/confirm")) return "dashboard";
+      if (path.startsWith("/dashboard") || path.startsWith("/compliance") || path.startsWith("/settings") || path.startsWith("/login") || path.startsWith("/signup") || path.startsWith("/register") || path.startsWith("/auth") || path.startsWith("/confirm")) return "dashboard";
       if (path.startsWith("/blog/how-to-reduce-cod-rto")) return "blog-rto";
       if (path.startsWith("/voice-ai-index")) return "voice-ai-index";
     }
@@ -6801,6 +6812,8 @@ export default function App() {
         "/how-it-works": "how-it-works",
         "/industries": "industries",
         "/dashboard": "dashboard",
+        "/compliance": "dashboard",
+        "/settings": "dashboard",
         "/login": "dashboard",
         "/signup": "dashboard",
         "/register": "dashboard",
@@ -6831,7 +6844,7 @@ export default function App() {
         setPage("use-cases");
         const match = path.match(/\/(?:use-cases|industries)\/([^/]+)/);
         setCurrentIndustryId(match ? match[1] : null);
-      } else if (path.startsWith("/dashboard") || path.startsWith("/login") || path.startsWith("/signup") || path.startsWith("/register") || path.startsWith("/auth") || path.startsWith("/confirm")) {
+      } else if (path.startsWith("/dashboard") || path.startsWith("/compliance") || path.startsWith("/settings") || path.startsWith("/login") || path.startsWith("/signup") || path.startsWith("/register") || path.startsWith("/auth") || path.startsWith("/confirm")) {
         setPage("dashboard");
       } else if (path.startsWith("/blog/how-to-reduce-cod-rto")) {
         setPage("blog-rto");
