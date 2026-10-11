@@ -1,5 +1,10 @@
 # CHANGELOG
 
+- Fixed KycComplianceSettings.tsx Undeclared State Variables & Added Frontend Typecheck Gate:
+  - Declared `systemErrorMessage`, `initiatingHosted`, and `showHostedFallback` state hooks in `KycComplianceSettings.tsx`, resolving the `ReferenceError` that crashed the dashboard shell with "Dashboard Unable to Load".
+  - Cast API responses safely to avoid TypeScript property access warnings.
+  - Hardened Frontend build script in `package.json` to `"build": "tsc --noEmit && vite build"`, ensuring any undeclared variable or type mismatch fails the build gate prior to bundle generation.
+
 - In-App DigiLocker Modal, Regulatory Opt-Out (DNC), UCC Consent Records & Gemini Session Resumption:
   - **In-App DigiLocker Modal**: Replaced new-tab redirect with embedded in-app modal & iframe inside Settings KYC (`KycComplianceSettings.tsx`). Implemented auto-detection on redirect to `redirect_url` (`compliance?tab=kyc`), automatic modal closure, and direct verification trigger with email notifications.
   - **Inbound KYC Gate**: Strengthened `InboundCallService.ts` to match outbound `CallService.ts` defense-in-depth: checks `numberRecord.status === 'active'`, `numberRecord.kycStatus === 'verified'`, and validates sub-account KYC (`kycCallsBlocked` / `kycStatus`), blocking unverified incoming calls with HTTP 403.

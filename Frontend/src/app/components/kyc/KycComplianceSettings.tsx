@@ -68,6 +68,9 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
   const [liveVerifications, setLiveVerifications] = useState<{ pan?: string; gst?: string; aadhaar?: string; cin?: string } | null>(null);
   const [businessType, setBusinessType] = useState<'individual' | 'company'>('individual');
   const [showDigiLockerModal, setShowDigiLockerModal] = useState<boolean>(false);
+  const [systemErrorMessage, setSystemErrorMessage] = useState<string | null>(null);
+  const [initiatingHosted, setInitiatingHosted] = useState<boolean>(false);
+  const [showHostedFallback, setShowHostedFallback] = useState<boolean>(false);
 
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
@@ -291,8 +294,8 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
         redirect_url: redirectUrl,
       });
       if (res.data?.success) {
-        const authUrl = res.data.auth_url || res.data.link;
-        const reqId = res.data.access_request_id;
+        const authUrl = (res.data as any)?.auth_url || (res.data as any)?.link;
+        const reqId = (res.data as any)?.access_request_id;
         if (reqId) {
           setAccessRequestId(reqId);
           try { sessionStorage.setItem('kyc_access_request_id', reqId); } catch {}
@@ -307,7 +310,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
         }
         await loadDocuments();
       } else {
-        setAadhaarError(res.data?.error || 'Unable to start DigiLocker session.');
+        setAadhaarError((res.data as any)?.error || 'Unable to start DigiLocker session.');
       }
     } catch (err: any) {
       setAadhaarError(err?.response?.data?.error || err.message || 'Failed to initiate DigiLocker session.');
@@ -352,7 +355,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
         }
         await loadDocuments();
       } else {
-        setAadhaarError(res.data?.error || 'DigiLocker verification failed.');
+        setAadhaarError((res.data as any)?.error || 'DigiLocker verification failed.');
       }
     } catch (err: any) {
       setAadhaarError(err?.response?.data?.error || err.message || 'Verification request failed.');
