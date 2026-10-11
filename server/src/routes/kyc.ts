@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
+import { requireActivePlan } from '../middleware/planValidation';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
+import { checkRequiredKycDocumentsVerified, checkAndApplyFullKycApproval } from '../services/KycVerificationService';
 import { VobizSubAccountService } from '../services/VobizSubAccountService';
 import { verifyVobizWebhook } from '../middleware/vobizWebhook';
 import { Resend } from 'resend';
@@ -240,50 +242,11 @@ export async function notifyUserKycStatus(userId: string, status: string, reason
 }
 
 /**
- * Checks whether all required documents for a user are verified.
- * If so, updates sub-account, phone numbers, and triggers auto-activation.
- */
-async function checkAndApplyFullKycApproval(userId: string, subAccountId: string) {
-  const docs = await prisma.kycDocument.findMany({ where: { userId } });
-  const panDoc = docs.find((d) => d.documentType === 'pan');
-  const gstDoc = docs.find((d) => d.documentType === 'gst');
-
-  const allRequiredVerified = panDoc?.status === 'verified' && gstDoc?.status === 'verified';
-
-  if (allRequiredVerified) {
-    logger.info('KYC: All required documents verified for user. Elevating account status to verified', { userId });
-    await prisma.vobizSubAccount.update({
-      where: { id: subAccountId },
-      data: {
-        kycStatus: 'verified',
-        kycVerifiedAt: new Date(),
-      },
-    });
-
-    await prisma.phoneNumber.updateMany({
-      where: { userId, aadhaarRequired: true },
-      data: { kycStatus: 'verified' },
-    });
-
-    await PhoneNumberActivationService.evaluateAndActivateUserNumbers(userId, 'kyc_document_verified');
-    await notifyUserKycStatus(userId, 'verified');
-
-    await logAuditEvent({
-      workspaceOwnerId: userId,
-      actorUserId: userId,
-      action: 'kyc.status_changed',
-      targetId: subAccountId,
-      metadata: { status: 'verified', source: 'on_platform_document_verification' },
-    });
-  }
-}
-
-/**
  * GET /api/v2/kyc/documents
  * Returns every required document for the user's business type and its current status,
  * for the Settings page to render directly.
  */
-router.get('/documents', requireAuth, async (req, res, next) => {
+router.get('/documents', requireAuth, requireActivePlan, async (req, res, next) => {
   try {
     const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
     if (!userId) {
@@ -291,28 +254,34 @@ router.get('/documents', requireAuth, async (req, res, next) => {
       return;
     }
 
-    const docs = await prisma.kycDocument.findMany({
-      where: { userId },
-    });
-
-    const subAccount = await prisma.vobizSubAccount.findUnique({
-      where: { userId },
-    });
+    const [docs, subAccount, kycResult] = await Promise.all([
+      prisma.kycDocument.findMany({ where: { userId } }),
+      prisma.vobizSubAccount.findUnique({ where: { userId } }),
+      checkRequiredKycDocumentsVerified(userId),
+    ]);
 
     const panDoc = docs.find((d) => d.documentType === 'pan');
     const gstDoc = docs.find((d) => d.documentType === 'gst');
     const aadhaarDoc = docs.find((d) => d.documentType === 'aadhaar');
 
-    const businessType = 'business'; // Defaults to business (requiring PAN + GST)
+    const businessType = kycResult.businessType;
+    const isFullyVerified = kycResult.verified;
 
-    const isFullyVerified = panDoc?.status === 'verified' && gstDoc?.status === 'verified';
     let overallStatus: 'verified' | 'pending' | 'failed' | 'not_submitted' = 'not_submitted';
 
     if (isFullyVerified || subAccount?.kycStatus === 'verified') {
       overallStatus = 'verified';
-    } else if (panDoc?.status === 'failed' || gstDoc?.status === 'failed' || aadhaarDoc?.status === 'failed') {
+    } else if (
+      (kycResult.requiredDocs.includes('PAN') && panDoc?.status === 'failed') ||
+      (kycResult.requiredDocs.includes('GST') && gstDoc?.status === 'failed') ||
+      (kycResult.requiredDocs.includes('Aadhaar') && aadhaarDoc?.status === 'failed')
+    ) {
       overallStatus = 'failed';
-    } else if (panDoc?.status === 'pending' || gstDoc?.status === 'pending') {
+    } else if (
+      (kycResult.requiredDocs.includes('PAN') && panDoc?.status === 'pending') ||
+      (kycResult.requiredDocs.includes('GST') && gstDoc?.status === 'pending') ||
+      (kycResult.requiredDocs.includes('Aadhaar') && aadhaarDoc?.status === 'pending')
+    ) {
       overallStatus = 'pending';
     }
 
@@ -334,7 +303,7 @@ router.get('/documents', requireAuth, async (req, res, next) => {
         documentType: 'gst',
         label: 'GST Certificate (GSTIN)',
         description: 'GST registration certificate PDF/image for commercial telephony',
-        required: true,
+        required: businessType === 'company',
         status: gstDoc?.status || 'not_submitted',
         gstin: gstDoc?.gstin || null,
         gstCertUrl: gstDoc?.gstCertUrl || null,
@@ -345,8 +314,8 @@ router.get('/documents', requireAuth, async (req, res, next) => {
       {
         documentType: 'aadhaar',
         label: 'Aadhaar Card Verification',
-        description: 'Authorized signatory Aadhaar card document verification',
-        required: false,
+        description: 'Authorized signatory Aadhaar card DigiLocker identity verification',
+        required: businessType === 'individual',
         status: aadhaarDoc?.status || 'not_submitted',
         aadhaarNumber: maskAadhaar(aadhaarDoc?.aadhaarNumber),
         aadhaarDocUrl: aadhaarDoc?.aadhaarDocUrl || null,
@@ -380,7 +349,7 @@ router.get('/documents', requireAuth, async (req, res, next) => {
  * NEVER uses the master MA_ credentials.
  * Fails closed on any provider error. Idempotent on (userId, documentType).
  */
-router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (req, res, next) => {
+router.post('/verify-document', requireAuth, requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
   try {
     const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
     if (!userId) {
@@ -534,35 +503,29 @@ router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (
     let digilockerAccessRequestId: string | null = null;
 
     if (isMock) {
-      // Mock / local verification engine
-      if (documentType === 'pan') {
-        const isMockValid = PAN_REGEX.test((panNumber || '').trim().toUpperCase());
-        if (isMockValid) {
-          verificationResultStatus = 'verified';
-          vobizReference = `vob_pan_${Date.now()}`;
-        } else {
-          verificationResultStatus = 'failed';
-          failureReason = 'PAN format or name mismatch with tax records.';
-        }
-      } else if (documentType === 'gst') {
-        const isMockValid = GSTIN_REGEX.test((gstin || '').trim().toUpperCase());
-        if (isMockValid) {
-          verificationResultStatus = 'verified';
-          vobizReference = `vob_gst_${Date.now()}`;
-        } else {
-          verificationResultStatus = 'failed';
-          failureReason = 'GSTIN registration status inactive or invalid.';
-        }
-      } else if (documentType === 'aadhaar') {
-        const cleanAadhaarRaw = (aadhaarNumber || '').replace(/\s+/g, '');
-        if (/^[0-9]{12}$/.test(cleanAadhaarRaw) || resolvedAadhaarUrl) {
-          verificationResultStatus = 'verified';
-          vobizReference = `vob_adh_${Date.now()}`;
-        } else {
-          verificationResultStatus = 'failed';
-          failureReason = 'Please enter a valid 12-digit Aadhaar number.';
-        }
+      if (process.env.NODE_ENV === 'production') {
+        logger.error('[CRITICAL_SECURITY_ALERT] Mock KYC verification path invoked in production! Failing closed.', {
+          userId,
+          subAuthId,
+          documentType,
+        });
+        res.status(503).json({
+          success: false,
+          outcome: 'error',
+          canFallbackHosted: true,
+          error: 'Live verification required. Mock verification is disabled in production.',
+        });
+        return;
       }
+
+      logger.warn('[MOCK_MODE_ALERT] Document verification attempted in mock mode. Documents cannot be rubber-stamped as verified without government check.', {
+        userId,
+        subAuthId,
+        documentType,
+      });
+      verificationResultStatus = 'failed';
+      failureReason = 'Live government verification required. Cannot verify document under mock/simulated credentials.';
+      vobizReference = `mock_${documentType}_${Date.now()}`;
     } else {
       // Live server-to-server call to documented Vobiz KYC API authenticated with parent credentials
       const baseUrl = (env.VOBIZ_API_URL || 'https://api.vobiz.ai').replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
@@ -764,7 +727,7 @@ router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (
  * Starts a DigiLocker-based Aadhaar verification session with Vobiz.
  * Returns auth_url and access_request_id.
  */
-router.post(['/digilocker/initiate', '/aadhaar/initiate'], requireAuth, sensitiveOperationsLimiter, async (req, res, next) => {
+router.post(['/digilocker/initiate', '/aadhaar/initiate'], requireAuth, requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
   try {
     const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
     if (!userId) {
@@ -779,6 +742,11 @@ router.post(['/digilocker/initiate', '/aadhaar/initiate'], requireAuth, sensitiv
     const isMock = subAuthId.startsWith('SA_MOCK_') || (env.VOBIZ_AUTH_ID || '').includes('placeholder');
 
     if (isMock) {
+      if (process.env.NODE_ENV === 'production') {
+        logger.error('[CRITICAL_SECURITY_ALERT] Mock DigiLocker initiate invoked in production! Failing closed.', { userId, subAuthId });
+        res.status(503).json({ success: false, error: 'Live DigiLocker verification required. Mock mode is disabled in production.' });
+        return;
+      }
       const mockAccessRequestId = `AR_MOCK_${Date.now()}`;
       res.json({
         success: true,
@@ -863,7 +831,7 @@ router.post(['/digilocker/initiate', '/aadhaar/initiate'], requireAuth, sensitiv
  * Strictly NEVER stores raw Aadhaar number or document image.
  * Only stores the verified/not-verified result returned by Vobiz.
  */
-router.post(['/verify-aadhaar', '/digilocker/verify'], requireAuth, sensitiveOperationsLimiter, async (req, res, next) => {
+router.post(['/verify-aadhaar', '/digilocker/verify'], requireAuth, requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
   try {
     const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
     if (!userId) {
@@ -914,13 +882,14 @@ router.post(['/verify-aadhaar', '/digilocker/verify'], requireAuth, sensitiveOpe
     let failureReason: string | null = null;
 
     if (isMock) {
-      // Mock flow
-      if (access_request_id.length > 5) {
-        verificationResultStatus = 'verified';
-      } else {
-        verificationResultStatus = 'failed';
-        failureReason = 'DigiLocker consent token expired or invalid.';
+      if (process.env.NODE_ENV === 'production') {
+        logger.error('[CRITICAL_SECURITY_ALERT] Mock Aadhaar verify invoked in production! Failing closed.', { userId, subAuthId });
+        res.status(503).json({ success: false, error: 'Live DigiLocker verification required. Mock mode is disabled in production.' });
+        return;
       }
+      logger.warn('[MOCK_MODE_WARNING] Aadhaar verify running in mock dev mode. Cannot rubber-stamp as verified.', { userId, access_request_id });
+      verificationResultStatus = 'failed';
+      failureReason = 'Live DigiLocker verification required. Simulated credentials cannot verify Aadhaar.';
     } else {
       const baseUrl = (env.VOBIZ_API_URL || 'https://api.vobiz.ai').replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
       const masterAuthId = env.VOBIZ_AUTH_ID;
@@ -1045,7 +1014,7 @@ router.post(['/verify-aadhaar', '/digilocker/verify'], requireAuth, sensitiveOpe
  * @deprecated Use on-platform KYC endpoints (POST /verify-document, POST /verify-aadhaar) instead.
  * POST /api/v2/kyc/initiate-session
  */
-router.post(['/initiate-session', '/start'], requireAuth, sensitiveOperationsLimiter, async (req, res, next) => {
+router.post(['/initiate-session', '/start'], requireAuth, requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
   try {
     const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
     if (!userId) {
@@ -1293,6 +1262,97 @@ router.post('/webhook/vobiz', verifyVobizWebhook, async (req, res, next) => {
     res.json({ success: true, message: 'KYC status processed successfully' });
   } catch (err) {
     logger.error('KYC Webhook: Error processing webhook', { error: String(err) });
+    next(err);
+  }
+});
+
+/**
+ * GET /api/v2/kyc/status
+ * Queries live Vobiz sub-account KYC status (/api/v1/sub-accounts/{sub_auth_id}/kyc/status)
+ * and syncs business_type and kyc_calls_blocked.
+ */
+router.get('/status', requireAuth, requireActivePlan, async (req, res, next) => {
+  try {
+    const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+
+    const subAccount = await prisma.vobizSubAccount.findUnique({ where: { userId } });
+    if (!subAccount) {
+      res.status(404).json({ success: false, error: 'Sub-account not provisioned for this user.' });
+      return;
+    }
+
+    const subAuthId = subAccount.authId;
+    const isMock = subAuthId.startsWith('SA_MOCK_') || (env.VOBIZ_AUTH_ID || '').includes('placeholder');
+
+    if (isMock) {
+      res.json({
+        success: true,
+        data: {
+          authId: subAuthId,
+          kycStatus: subAccount.kycStatus,
+          businessType: subAccount.businessType,
+          kycCallsBlocked: true,
+          isMock: true,
+        },
+      });
+      return;
+    }
+
+    const baseUrl = (env.VOBIZ_API_URL || 'https://api.vobiz.ai').replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
+    const masterAuthId = env.VOBIZ_AUTH_ID;
+    const masterAuthToken = env.VOBIZ_AUTH_TOKEN;
+
+    if (!masterAuthId || !masterAuthToken || masterAuthId.includes('placeholder')) {
+      res.status(503).json({ success: false, error: 'Vobiz credentials not configured.' });
+      return;
+    }
+
+    const vobizRes = await fetch(`${baseUrl}/api/v1/sub-accounts/${subAuthId}/kyc/status`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'X-Auth-ID': masterAuthId,
+        'X-Auth-Token': masterAuthToken,
+      },
+    });
+
+    if (!vobizRes.ok) {
+      const errText = await vobizRes.text();
+      logger.warn('KYC: Failed to fetch live Vobiz status', { status: vobizRes.status, errText: errText.substring(0, 200) });
+      res.status(502).json({ success: false, error: 'Unable to query KYC provider status.' });
+      return;
+    }
+
+    const data = (await vobizRes.json()) as any;
+    const liveKycStatus = (data.kyc_status || 'pending').toLowerCase();
+    const kycCallsBlocked = Boolean(data.kyc_calls_blocked);
+    const liveBusinessType = data.business_type || subAccount.businessType || 'individual';
+
+    if (subAccount.businessType !== liveBusinessType) {
+      await prisma.vobizSubAccount.update({
+        where: { id: subAccount.id },
+        data: { businessType: liveBusinessType },
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        authId: subAuthId,
+        kycStatus: liveKycStatus,
+        businessType: liveBusinessType,
+        kycCallsBlocked,
+        panStatus: data.pan_status,
+        aadhaarStatus: data.aadhaar_status,
+        gstStatus: data.gst_status,
+      },
+    });
+  } catch (err) {
+    logger.error('KYC: GET /status error', { error: String(err) });
     next(err);
   }
 });

@@ -379,6 +379,7 @@ model VobizSubAccount {
   authToken     String    @map("auth_token") // Encrypted
   kycMode       String    @default("customer_use") @map("kyc_mode")
   kycStatus     String    @default("pending") @map("kyc_status") // pending | verified | failed
+  businessType  String    @default("individual") @map("business_type") // individual | company
   kycVerifiedAt DateTime? @map("kyc_verified_at")
   walletFundedAt DateTime? @map("wallet_funded_at")
   createdAt     DateTime  @default(now()) @map("created_at")

@@ -11,51 +11,12 @@ import { env } from '../config/env';
 import { logAuditEvent } from '../utils/auditLogger';
 import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
 
+import { requireActivePlan } from '../middleware/planValidation';
+import { checkRequiredKycDocumentsVerified } from '../services/KycVerificationService';
+
+export { checkRequiredKycDocumentsVerified };
+
 const router = Router();
-
-const requireActivePlan = async (req: any, res: any, next: any) => {
-  try {
-    const user = await prisma.user.findUnique({ where: { id: req.userId } });
-    if (!user || (user.email !== ADMIN_EMAIL && user.callingBalanceMinutes <= 0)) {
-      res.status(403).json({ success: false, error: 'You must purchase a Trial Plan or Subscription to unlock phone number provisioning.' });
-      return;
-    }
-    next();
-  } catch (err) {
-    next(err);
-  }
-};
-
-/**
- * Checks that all required KycDocument records (PAN + GST) are verified for the user.
- * Blocks number selection and purchasing before charging or locking if KYC is incomplete.
- */
-export async function checkRequiredKycDocumentsVerified(userId: string): Promise<{ verified: boolean; missing: string[]; error?: string }> {
-  const docs = await prisma.kycDocument.findMany({
-    where: { userId },
-  });
-
-  const panDoc = docs.find((d) => d.documentType === 'pan');
-  const gstDoc = docs.find((d) => d.documentType === 'gst');
-
-  const missing: string[] = [];
-  if (!panDoc || panDoc.status !== 'verified') {
-    missing.push('PAN');
-  }
-  if (!gstDoc || gstDoc.status !== 'verified') {
-    missing.push('GST');
-  }
-
-  if (missing.length > 0) {
-    return {
-      verified: false,
-      missing,
-      error: `KYC verification required: ${missing.join(' and ')} document${missing.length > 1 ? 's' : ''} not verified. Please complete KYC & Compliance verification in Settings before selecting or claiming a phone number.`,
-    };
-  }
-
-  return { verified: true, missing: [] };
-}
 
 /**
  * GET /api/v2/numbers

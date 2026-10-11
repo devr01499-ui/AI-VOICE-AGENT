@@ -1,5 +1,14 @@
 # CHANGELOG
 
+- KYC Verification Engine Overhaul & Zero-Trust Governance:
+  - Added `requireActivePlan` middleware to all KYC compliance endpoints (`/verify-document`, `/verify-aadhaar`, `/documents`, `/digilocker/initiate`, `/status`), preventing unpaid accounts from triggering metered upstream provider calls.
+  - De-duplicated KYC completeness logic into single source of truth `KycVerificationService.ts` branching on `business_type`: `individual` accounts unlock phone numbers with PAN + Aadhaar (DigiLocker) without requiring GST; `company` accounts require PAN + GST.
+  - Eliminated mock regex rubber-stamping: prevented mock fallback from silently verifying unverified documents without official government checks.
+  - Added mock reference detection `isMockVobizReference`: blocks `vob_pan_*`, `vob_gst_*`, `vob_adh_*`, and `SA_MOCK_*` from ever falsely elevating sub-accounts or phone numbers.
+  - Added live Vobiz sub-account KYC status endpoint `GET /api/v2/kyc/status` to synchronize `kyc_status`, `business_type`, and `kyc_calls_blocked`.
+  - Executed one-time migration script `server/scripts/audit_and_reset_mock_kyc.js` to reset legacy mock-verified document rows to pending and remove stray test PDF artifacts.
+  - Added automated governance test suite `scripts/test_kyc_governance_suite.ts` verifying all regulatory branching, plan security, and failure boundaries.
+
 - Built interactive looping Lottie voice orb simulator & Hero neural node integration:
   - Engineered pure mathematical 60 FPS vector Lottie animation dataset (`Frontend/src/app/components/animation/lottieVoiceData.ts`) with zero external CDN dependencies, eliminating offline breakages and CORS issues.
   - Implemented interactive simulator card (`Frontend/src/app/components/animation/LottieVoiceOrb.tsx`) with real-time audio sphere, play/pause controls, speed multiplier toggle (1.0x / 1.5x), live dialogue turn indicators, and real-time telephony telemetry (sub-180ms latency, 18ms VAD, 99.8% intent accuracy).
