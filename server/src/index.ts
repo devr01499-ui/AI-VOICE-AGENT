@@ -275,8 +275,15 @@ async function bootstrap(): Promise<void> {
     logger.warn('Claritiy Voice Server: PUBLIC_URL not configured — telephony callbacks will require ngrok or explicit host configuration');
   }
 
-  if (!env.VOBIZ_AUTH_ID || !env.VOBIZ_AUTH_TOKEN) {
-    logger.warn('Claritiy Voice Server: Vobiz credentials missing — telephony features will degrade gracefully');
+  // Fail loud at boot in production if real Vobiz credentials are missing or placeholder
+  if (env.NODE_ENV === 'production' && (!env.VOBIZ_AUTH_ID || !env.VOBIZ_AUTH_TOKEN || env.VOBIZ_AUTH_ID.includes('placeholder') || env.VOBIZ_AUTH_ID === 'MA_PLACEHOLDER')) {
+    logger.error('[BOOT_FAILURE] Production server starting WITHOUT real Vobiz credentials. KYC/calling will not function.', {
+      hasAuthId: Boolean(env.VOBIZ_AUTH_ID),
+      hasAuthToken: Boolean(env.VOBIZ_AUTH_TOKEN),
+    });
+    process.exit(1); // fail loud at boot, not silently per-request
+  } else if (!env.VOBIZ_AUTH_ID || !env.VOBIZ_AUTH_TOKEN || env.VOBIZ_AUTH_ID.includes('placeholder')) {
+    logger.warn('Claritiy Voice Server: Vobiz credentials missing or placeholder — telephony features will degrade gracefully in non-production');
   }
 
   if (!env.GOOGLE_API_KEY && !env.OPENAI_API_KEY && !env.GEMINI_API_KEY) {

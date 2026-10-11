@@ -747,11 +747,11 @@ router.post(['/digilocker/initiate', '/aadhaar/initiate'], requireAuth, requireA
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
     const subAccount = await subAccountService.getOrCreateSubAccount(userId, user?.email || undefined);
     const subAuthId = subAccount.authId;
-    const isMock = subAuthId.startsWith('SA_MOCK_') || (env.VOBIZ_AUTH_ID || '').includes('placeholder');
+    const isMock = subAuthId.startsWith('SA_MOCK_') || !env.VOBIZ_AUTH_ID || env.VOBIZ_AUTH_ID === 'MA_PLACEHOLDER' || env.VOBIZ_AUTH_ID.includes('placeholder');
 
     if (isMock) {
-      if (process.env.NODE_ENV === 'production') {
-        logger.error('[CRITICAL_SECURITY_ALERT] Mock DigiLocker initiate invoked in production! Failing closed.', { userId, subAuthId });
+      if (process.env.NODE_ENV === 'production' || env.NODE_ENV === 'production') {
+        logger.error('[CRITICAL_SECURITY_ALERT] Mock DigiLocker initiate invoked in production! Failing closed.', { userId, subAuthId, hasVobizAuthId: Boolean(env.VOBIZ_AUTH_ID) });
         res.status(503).json({ success: false, error: 'Live DigiLocker verification required. Mock mode is disabled in production.' });
         return;
       }
@@ -861,13 +861,13 @@ router.post(['/digilocker/verify', '/verify-aadhaar'], requireAuth, requireActiv
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
     const subAccount = await subAccountService.getOrCreateSubAccount(userId, user?.email || undefined);
     const subAuthId = subAccount.authId;
-    const isMock = subAuthId.startsWith('SA_MOCK_') || (env.VOBIZ_AUTH_ID || '').includes('placeholder');
+    const isMock = subAuthId.startsWith('SA_MOCK_') || !env.VOBIZ_AUTH_ID || env.VOBIZ_AUTH_ID === 'MA_PLACEHOLDER' || env.VOBIZ_AUTH_ID.includes('placeholder');
 
     let verificationResultStatus: 'verified' | 'failed' | 'pending' = 'pending';
 
     if (isMock) {
-      if (process.env.NODE_ENV === 'production') {
-        logger.error('[CRITICAL_SECURITY_ALERT] Mock Aadhaar verify invoked in production! Failing closed.', { userId, subAuthId });
+      if (process.env.NODE_ENV === 'production' || env.NODE_ENV === 'production') {
+        logger.error('[CRITICAL_SECURITY_ALERT] Mock Aadhaar verify invoked in production! Failing closed.', { userId, subAuthId, hasVobizAuthId: Boolean(env.VOBIZ_AUTH_ID) });
         res.status(503).json({ success: false, error: 'Live DigiLocker verification required. Mock mode is disabled in production.' });
         return;
       }

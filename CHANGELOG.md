@@ -1,5 +1,9 @@
 # CHANGELOG
 
+- Fail-Loud Boot Check & Hardened Mock Prevention for Vobiz Telephony:
+  - **Production Boot Gate**: Added startup check in `server/src/index.ts` halting boot with `process.exit(1)` and logging `[BOOT_FAILURE]` if `NODE_ENV === 'production'` and `VOBIZ_AUTH_ID` or `VOBIZ_AUTH_TOKEN` are empty or contain placeholder values.
+  - **Hardened Mock Detection**: Updated `server/src/routes/kyc.ts` (`/digilocker/initiate` and `/digilocker/verify`) and `server/src/services/VobizSubAccountService.ts` to strictly evaluate empty credentials and check both `process.env.NODE_ENV` and `env.NODE_ENV` against mock fallbacks.
+
 - DigiLocker Aadhaar Verification Top-Level Redirect Flow & Route Mapping:
   - **Eliminated Blocked iFrame Modal**: Replaced in-app `<iframe>` modal with full top-level `window.location.href` navigation to official UIDAI/DigiLocker consent portal, resolving silent browser CSP `frame-ancestors 'none'` blocks.
   - **Automated Return Verification**: Added session resumption on mount in `KycComplianceSettings.tsx` using `sessionStorage.getItem('kyc_access_request_id')`, automatically executing verification upon user return to `/compliance?tab=kyc`.

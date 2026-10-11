@@ -16,7 +16,7 @@ export class VobizSubAccountService {
   }
 
   private get isMock(): boolean {
-    return this.masterAuthId === 'MA_PLACEHOLDER' || this.masterAuthId.includes('placeholder');
+    return !this.masterAuthId || this.masterAuthId === 'MA_PLACEHOLDER' || this.masterAuthId.includes('placeholder');
   }
 
   // Item 10: In-memory promise mutex per userId to collapse concurrent requests into a single creation
