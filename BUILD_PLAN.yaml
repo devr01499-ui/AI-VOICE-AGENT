@@ -1,41 +1,71 @@
-# Voice AI Agent Dashboard Build Plan
-version: "1.0"
+# Claritiy Voice Admin Console & System Platform Build Plan
+version: "2.0"
 phases:
+  0:
+    name: Backend Foundations (No UI)
+    tasks:
+      - task: 1.1 Staff Identity, Auth (AAL2/MFA), Permissions & CORS
+        status: completed
+      - task: 1.2 Admin Audit Log (withAudit transaction wrapper & customer visibility)
+        status: completed
+      - task: 1.3 Minutes Unified Source of Truth & Shadow Ledger (MinutesService)
+        status: completed
+      - task: 1.4 Razorpay Webhook & Unified Fulfillment + GST Invoicing Foundation
+        status: completed
+      - task: 1.5 Plan Catalog (additive DB table & shadow mode comparison)
+        status: completed
+      - task: 1.6 Account Status & Multi-point Suspension Enforcement
+        status: completed
+      - task: 1.7 CRM Metadata, Staff Notes, FollowUps & Search Indexes
+        status: completed
+      - task: Phase 0 Automated Security & Regression Suite
+        status: completed
   1:
-    name: Foundation
+    name: Admin App Shell
     tasks:
-      - task: Project setup (Next.js 14, Tailwind, shadcn/ui)
-        status: pending
-      - task: Authentication implementation (NextAuth.js templates)
-        status: pending
-      - task: Core Layout structure (Sidebar, Top Navigation Bar)
-        status: pending
+      - task: 2.1 Admin/ project setup (Vite + React 18 + TS + Tailwind 4 + Vercel config)
+        status: completed
+      - task: 2.2 Responsive Layout, Navigation & Ctrl+K Global Search
+        status: completed
+      - task: 2.3 Customer 360 view (/customers/:id) with server-computed lifecycle
+        status: completed
   2:
-    name: Core Features
+    name: Read-Only Console
     tasks:
-      - task: Dashboard home page (Stats cards, Recent activity)
-        status: pending
-      - task: Templates library (15+ templates & categories)
-        status: pending
-      - task: Agent configuration forms
-        status: pending
-      - task: Agents library (CRUD tables and cards)
-        status: pending
+      - task: 3.1 Overview, Metrics (IST boundaries, DailyMetric rollups) & Attention Panel
+        status: completed
+      - task: 3.2 Read-only lists (Calls, Agents, Numbers, Payments, KYC, Audit)
+        status: completed
+      - task: 3.3 System Health Dashboard (GET /admin/health)
+        status: completed
   3:
-    name: Advanced Features
+    name: Safe Write Actions
     tasks:
-      - task: Drag-and-drop builder canvas
-        status: pending
-      - task: Analytics dashboard (charts and heatmaps)
-        status: pending
-      - task: Phone number management
-        status: pending
-      - task: Integrations page (CRM, Zapier, payment)
-        status: pending
+      - task: 4.1 Staff Notes, Tags, Owner Assignment, Risk Profiling
+        status: completed
+      - task: 4.2 Account Suspension / Restriction / Restoration with preset categories
+        status: completed
+      - task: 4.3 Transactional Minutes Grants & Deductions via MinutesService
+        status: completed
+      - task: 4.4 Number Activation Queue & Wallet Funding Gating
+        status: completed
+      - task: 4.5 KYC Reset, Key Revocation, Live Call Termination & Content Auditing
+        status: completed
   4:
-    name: Polish & Testing
+    name: Plans, Custom Plans, Payment Links & Invoices
     tasks:
-      - task: Accessibility audit (WCAG AA compliance)
-        status: pending
-      - task: Performance optimization (lazy loading, virtual lists)
-        status: pending
+      - task: 5.1 Plan Catalog UI & Private Custom Plan Generation
+        status: completed
+      - task: 5.2 Razorpay Payment Link Creation & Webhook Sync
+        status: completed
+      - task: 5.3 Invoice Generation & Customer Dashboard Download Integration
+        status: completed
+      - task: 5.4 Financial CSV Exports & Accountant Views
+        status: completed
+  5:
+    name: Risk, Alerts & Governance Hardening
+    tasks:
+      - task: 6.1 Anomaly Detection & Risk Heuristics (Calls, Failures, KYC velocity)
+        status: completed
+      - task: 6.2 Admin Notifications & Operational Health Monitoring
+        status: completed

@@ -176,4 +176,75 @@ router.get('/minutes-overview', requireAuth, async (req: AuthenticatedRequest, r
   }
 });
 
+/**
+ * GET /api/v2/billing/invoices
+ * Lists all generated GST invoices for the authenticated customer.
+ */
+router.get('/invoices', requireAuth, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { InvoiceService } = await import('../services/InvoiceService');
+    const invoices = await InvoiceService.getCustomerInvoices(req.userId!);
+    res.json({ success: true, data: invoices });
+  } catch (err: any) {
+    logger.error('Billing: failed to fetch customer invoices', { error: err.message });
+    res.status(500).json({ success: false, error: 'Failed to fetch invoices' });
+  }
+});
+
+/**
+ * GET /api/v2/billing/invoices/:id/download
+ * Downloads HTML tax invoice for printing or PDF save.
+ */
+router.get('/invoices/:id/download', requireAuth, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { prisma } = await import('../lib/prisma');
+    const { InvoiceService } = await import('../services/InvoiceService');
+
+    const invoiceId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: invoiceId, userId: req.userId },
+    });
+
+    if (!invoice) {
+      res.status(404).send('Invoice not found');
+      return;
+    }
+
+    const html = InvoiceService.generateInvoiceHtml(invoice);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `inline; filename="${invoice.invoiceNumber}.html"`);
+    res.send(html);
+  } catch (err: any) {
+    logger.error('Billing: failed to download invoice', { error: err.message });
+    res.status(500).send('Failed to generate invoice document');
+  }
+});
+
+/**
+ * POST /api/v2/billing/gstin
+ * Updates user company GSTIN to be included on future invoices.
+ */
+router.post('/gstin', requireAuth, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { gstin } = req.body;
+    if (!gstin || typeof gstin !== 'string' || !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(gstin.trim().toUpperCase())) {
+      res.status(400).json({ success: false, error: 'Invalid GSTIN format (15 alphanumeric characters standard format required).' });
+      return;
+    }
+
+    const { prisma } = await import('../lib/prisma');
+    const updated = await prisma.user.update({
+      where: { id: req.userId },
+      data: { companyGstin: gstin.trim().toUpperCase() },
+      select: { id: true, companyGstin: true },
+    });
+
+    res.json({ success: true, data: updated });
+  } catch (err: any) {
+    logger.error('Billing: failed to update company GSTIN', { error: err.message });
+    res.status(500).json({ success: false, error: 'Failed to update GSTIN' });
+  }
+});
+
 export default router;
+

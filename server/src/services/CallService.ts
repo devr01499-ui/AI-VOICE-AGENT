@@ -62,6 +62,14 @@ export class CallService {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new ValidationError('User not found');
 
+    if (user.accountStatus === 'suspended') {
+      throw new ValidationError(`Account suspended: ${user.suspendedReason || 'Administrative hold'}. Please contact support@claritiy.com.`);
+    }
+
+    if (user.accountStatus === 'restricted') {
+      throw new ValidationError('Account restricted: Outbound calls are temporarily disabled. Please contact support@claritiy.com.');
+    }
+
     const effectiveRemainingSeconds = user.minutesRemainingSeconds > 0
       ? user.minutesRemainingSeconds
       : (user.callingBalanceMinutes * 60);
@@ -549,6 +557,9 @@ ${transcriptText}`;
 
   /**
    * Deducts the real elapsed call duration (in seconds) from the user's remaining minutes balance.
+   * Routes through MinutesService.debit() so every call deduction gets a ledger entry with idempotency.
+   * The GeminiLiveProvider's processSessionBalanceDeduction is a no-op on balance writes;
+   * this is the single deduction path for completed calls.
    */
   static async deductCallMinutes(callId: string, durationSeconds: number): Promise<void> {
     if (durationSeconds <= 0) return;
@@ -560,29 +571,24 @@ ${transcriptText}`;
       const user = await prisma.user.findUnique({ where: { id: call.userId } });
       if (!user || user.accountType === 'admin' || user.email === ADMIN_EMAIL) return;
 
-      const currentSecs = user.minutesRemainingSeconds > 0
-        ? user.minutesRemainingSeconds
-        : (user.callingBalanceMinutes * 60);
-
-      const newRemainingSeconds = Math.max(0, currentSecs - durationSeconds);
-      const newCallingBalanceMinutes = Math.max(0, newRemainingSeconds / 60);
-      const newTotalConsumedMinutes = user.totalMinutesConsumed + (durationSeconds / 60);
-
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          minutesRemainingSeconds: newRemainingSeconds,
-          callingBalanceMinutes: newCallingBalanceMinutes,
-          totalMinutesConsumed: newTotalConsumedMinutes,
-        },
+      // Use MinutesService for atomic ledger + balance update (idempotent by callId)
+      const { MinutesService } = await import('./MinutesService');
+      await MinutesService.debit({
+        userId: call.userId,
+        deltaSeconds: Math.round(durationSeconds),
+        reason: 'call_usage',
+        refType: 'call',
+        refId: callId,
+        note: `Call ${callId} duration: ${Math.round(durationSeconds)}s`,
+        actorType: 'system',
+        idempotencyKey: `call_usage_${callId}`,
+        allowNegative: true, // Don't fail the deduction if balance dipped during the call
       });
 
-      logger.info('[POST_CALL_DEDUCTION] Deducted call seconds from user balance', {
+      logger.info('[POST_CALL_DEDUCTION] Deducted call seconds via MinutesService ledger', {
         callId,
-        userId: user.id,
+        userId: call.userId,
         durationSeconds,
-        newRemainingSeconds,
-        newCallingBalanceMinutes,
       });
     } catch (err: any) {
       logger.error('[POST_CALL_DEDUCTION_ERROR] Failed to deduct call minutes', { callId, error: err.message });

@@ -38,4 +38,17 @@
 - **Rejected Alternative**: Trusting client-supplied `panType` or depending exclusively on asynchronous Vobiz API category parsing without statutory 4th-character validation. Reason: Remote API payloads may omit entity fields or fail during network timeouts, whereas the 4th character is an immutable NSDL statutory encoding executed locally with zero latency.
 - **Consequences**: Closes the Aadhaar bypass vulnerability entirely; guarantees compliance with carrier sub-account audit requirements; ensures individual callers are verified before phone number provisioning.
 
+## ADR-006: Claritiy Voice Admin Console & Unified Minutes Ledger Architecture
+- **Status**: Accepted
+- **Context**: Operational management of customers, plan purchases, minute grants, account restrictions, and audits currently lacks a centralized, auditable back-office system. Furthermore, minutes deduction is split across multiple asynchronous handlers (`CallService.deductCallMinutes`, `GeminiLiveProvider.clearSessionBalanceTicker`, `WebhookController`), causing double-deduction risks and drift.
+- **Decision**: 
+  1. Build an isolated administrative web application in `Admin/` (Vite + React 18 SPA) deployed to a separate Vercel project (`admin.claritiy.com`), consuming backend APIs under `/api/v2/admin/*`.
+  2. Implement an immutable, append-only `MinutesLedger` and transactional `MinutesService` (`credit`/`debit`) using idempotency keys, consolidating minutes calculation into a single authoritative source of truth.
+  3. Enforce deny-by-default role-based access control (`StaffUser` table, `requireStaff(permission)` middleware) mandating valid Supabase JWT, active staff status, and `aal2` (TOTP MFA). Non-staff tokens receive 404 responses to obscure admin endpoint existence.
+  4. Implement atomic transaction auditing (`withAudit`) pairing every mutating administrative action with an `AdminAuditLog` record containing a mandatory reason and correlation request ID.
+  5. Establish an automated sequential GST-compliant invoice generation engine linked to `PaymentTransaction` records, accessible from the customer settings dashboard.
+- **Rejected Alternative**: Embedding admin routes inside `Frontend/` and keeping column-level `User.callingBalanceMinutes` direct decrement queries. Reason: Violates boundary isolation, risks exposing internal administrative interfaces to end-users, and retains race conditions in balance calculations.
+- **Consequences**: Zero changes to the existing customer application behavior; guarantees ledgered financial consistency; provides complete operational auditability.
+
+
 

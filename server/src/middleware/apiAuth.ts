@@ -54,6 +54,33 @@ export const requireApiKey = async (req: ApiAuthenticatedRequest, res: Response,
       data: { lastUsedAt: new Date() }
     }).catch(() => {});
 
+    // Check account status of the API key owner
+    const ownerUser = await prisma.user.findUnique({
+      where: { id: apiKey.userId },
+      select: { accountStatus: true, suspendedReason: true },
+    });
+
+    if (ownerUser?.accountStatus === 'suspended') {
+      res.status(403).json({
+        success: false,
+        error: 'ACCOUNT_SUSPENDED',
+        message: 'The account owning this API key has been suspended.',
+        reason: ownerUser.suspendedReason || 'Administrative hold',
+        contactSupport: 'support@claritiy.com',
+      });
+      return;
+    }
+
+    if (ownerUser?.accountStatus === 'restricted' && req.method !== 'GET') {
+      res.status(403).json({
+        success: false,
+        error: 'ACCOUNT_RESTRICTED',
+        message: 'The account owning this API key is currently restricted. Mutating actions are blocked.',
+        contactSupport: 'support@claritiy.com',
+      });
+      return;
+    }
+
     // Attach to request
     req.userId = apiKey.userId;
     req.apiKeyId = apiKey.id;

@@ -223,44 +223,22 @@ export class BillingService {
     }
 
     try {
-      const user = await prisma.user.findUnique({ where: { id: userId } });
-      if (!user) throw new Error('User not found');
+      const { fulfillPlanPurchase } = await import('./PlanFulfillmentService');
+      const effectiveOrderId = orderId || paymentId!;
+      const effectivePaymentId = paymentId || orderId!;
 
-      // Atomic DB Transaction: Insert payment transaction record first to enforce unique constraint
-      await prisma.$transaction(async (tx) => {
-        if (paymentId || orderId) {
-          const effectiveOrderId = orderId || paymentId!;
-          const effectivePaymentId = paymentId || orderId!;
-          try {
-            await tx.paymentTransaction.create({
-              data: {
-                userId,
-                orderId: effectiveOrderId,
-                paymentId: effectivePaymentId,
-                planName,
-              }
-            });
-          } catch (dbErr: any) {
-            if (dbErr.code === 'P2002' || String(dbErr).includes('Unique constraint') || String(dbErr).includes('unique')) {
-              logger.warn('BillingService: Duplicate payment transaction blocked by DB unique constraint', { paymentId, orderId, userId });
-              throw new Error('Payment has already been redeemed.');
-            }
-            throw dbErr;
-          }
-        }
-
-        const newBalanceMinutes = user.callingBalanceMinutes + addedMinutes;
-        const newMinutesRemainingSeconds = (user.minutesRemainingSeconds || 0) + (addedMinutes * 60);
-
-        await tx.user.update({
-          where: { id: userId },
-          data: {
-            accountType,
-            callingBalanceMinutes: newBalanceMinutes,
-            minutesRemainingSeconds: newMinutesRemainingSeconds,
-          },
-        });
+      const result = await fulfillPlanPurchase({
+        userId,
+        orderId: effectiveOrderId,
+        paymentId: effectivePaymentId,
+        planKey: planName.toLowerCase(),
+        source: 'self_serve',
       });
+
+      if (result.isIdempotent) {
+        logger.warn('BillingService: Duplicate payment transaction blocked by DB unique constraint', { paymentId, orderId, userId });
+        throw new Error('Payment has already been redeemed.');
+      }
 
       logger.info(`BillingService: Provisioned ${planName} for user ${userId}. Added ${addedMinutes} mins (${addedMinutes * 60} seconds).`);
       return true;

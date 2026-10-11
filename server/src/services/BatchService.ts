@@ -32,6 +32,21 @@ export class BatchService {
         return;
       }
 
+      // Check user account status
+      const batchOwner = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { accountStatus: true }
+      });
+
+      if (batchOwner?.accountStatus === 'suspended' || batchOwner?.accountStatus === 'restricted') {
+        logger.warn(`BatchService: Batch ${batchId} halted because account is ${batchOwner.accountStatus}`);
+        await prisma.batch.update({
+          where: { id: batchId },
+          data: { status: 'paused' }
+        });
+        return;
+      }
+
       // Fetch next pending or eligible retry recipient
       const recipient = await prisma.batchRecipient.findFirst({
         where: {

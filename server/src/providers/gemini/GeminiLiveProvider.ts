@@ -270,7 +270,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         const elapsedSeconds = (Date.now() - sessionCallStartTime.value) / 1000;
         const elapsedMinutes = elapsedSeconds / 60;
         const decrementVal = parseFloat(elapsedMinutes.toFixed(4));
-        sessionCallStartTime.value = 0; // Prevent double deduction
+        sessionCallStartTime.value = 0; // Prevent double invocation
         try {
           const prismaInstance = (await import('../../lib/prisma')).prisma;
           const userRecord = await prismaInstance.user.findUnique({ where: { id: userId }, select: { email: true, accountType: true } });
@@ -279,14 +279,13 @@ export class GeminiLiveProvider implements IRealtimeProvider {
             await prismaInstance.user.update({ where: { id: userId }, data: { totalMinutesConsumed: { increment: decrementVal } } });
             logger.info('Monetization Gateway: Tracked admin usage (no balance deduction)', { userId, elapsedMinutes: decrementVal });
           } else {
-            await prismaInstance.user.update({
-              where: { id: userId },
-              data: { callingBalanceMinutes: { decrement: decrementVal }, totalMinutesConsumed: { increment: decrementVal } },
-            });
-            logger.info('Monetization Gateway: Deducted minutes from platform balance upon call termination', { userId, elapsedMinutes: decrementVal });
+            // Balance deduction is handled by CallService.deductCallMinutes → MinutesService.debit()
+            // at call end, which records a ledger entry. Do NOT decrement callingBalanceMinutes here
+            // to avoid double deduction. Only log the elapsed time for diagnostics.
+            logger.info('Monetization Gateway: Session closed; balance deduction deferred to post-call ledger path', { userId, elapsedMinutes: decrementVal });
           }
         } catch (err) {
-          logger.error('Monetization Gateway: Failed to decrement calling credits on session closure', { error: String(err) });
+          logger.error('Monetization Gateway: Failed to process session closure', { error: String(err) });
         }
       }
     };

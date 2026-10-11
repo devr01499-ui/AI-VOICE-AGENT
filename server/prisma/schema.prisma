@@ -32,6 +32,12 @@ model User {
   allowedIpRanges       String[] @default([]) @map("allowed_ip_ranges")
   maxConcurrentCalls    Int?     @default(10) @map("max_concurrent_calls")
   hasConsentedTerms    Boolean  @default(false) @map("has_consented_terms")
+  accountStatus         String   @default("active") @map("account_status") // active | restricted | suspended
+  suspendedAt           DateTime? @map("suspended_at")
+  suspendedReason       String?  @map("suspended_reason")
+  suspendedByStaffId    String?  @map("suspended_by_staff_id")
+  lastSeenAt            DateTime? @map("last_seen_at")
+  companyGstin          String?  @map("company_gstin")
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
 
@@ -56,7 +62,12 @@ model User {
   memberOfTeams        TeamMember[] @relation("WorkspaceMember")
   kycDocuments         KycDocument[]
   consents             UserConsent[]
+  invoices             Invoice[]
+  minutesLedgerEntries MinutesLedger[]
 
+  @@index([createdAt])
+  @@index([accountStatus])
+  @@index([lastSeenAt])
   @@map("users")
 }
 
@@ -198,6 +209,8 @@ model Call {
   @@index([status])
   @@index([batchId])
   @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
   @@map("calls")
 }
 
@@ -929,16 +942,24 @@ model UserIntegration {
 }
 
 model PaymentTransaction {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
-  orderId   String   @unique @map("order_id")
-  paymentId String   @unique @map("payment_id")
-  planName  String   @map("plan_name")
-  amount    Float?
-  currency  String   @default("INR")
-  createdAt DateTime @default(now()) @map("created_at")
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  orderId           String   @unique @map("order_id")
+  paymentId         String   @unique @map("payment_id")
+  planName          String   @map("plan_name")
+  amount            Float?
+  currency          String   @default("INR")
+  status            String   @default("completed")
+  source            String   @default("self_serve") // self_serve | admin
+  refundedAmount    Float    @default(0.0) @map("refunded_amount")
+  invoiceNo         String?  @map("invoice_no")
+  createdByStaffId  String?  @map("created_by_staff_id")
+  razorpayLinkId    String?  @map("razorpay_link_id")
+  invoice           Invoice?
+  createdAt         DateTime @default(now()) @map("created_at")
 
   @@index([userId])
+  @@index([status])
   @@map("payment_transactions")
 }
 
@@ -956,6 +977,207 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────
+// ADMIN CONSOLE & OPERATIONAL FOUNDATIONS
+// ─────────────────────────────────────────────
+
+model StaffUser {
+  id          String    @id @default(uuid())
+  email       String    @unique
+  name        String
+  role        String    // owner | admin | sales | support | finance
+  status      String    @default("invited") // invited | active | disabled
+  lastLoginAt DateTime? @map("last_login_at")
+  createdBy   String?   @map("created_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([role])
+  @@index([status])
+  @@map("staff_users")
+}
+
+model AdminSetting {
+  key       String   @id
+  value     Json
+  updatedBy String?  @map("updated_by")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("admin_settings")
+}
+
+model AdminAuditLog {
+  id         String   @id @default(uuid())
+  staffId    String   @map("staff_id")
+  staffEmail String   @map("staff_email")
+  staffRole  String   @map("staff_role")
+  action     String
+  targetType String   @map("target_type")
+  targetId   String   @map("target_id")
+  customerId String?  @map("customer_id")
+  reason     String
+  before     Json?
+  after      Json?
+  ip         String?
+  userAgent  String?  @map("user_agent")
+  requestId  String?  @map("request_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([customerId])
+  @@index([staffId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("admin_audit_logs")
+}
+
+model MinutesLedger {
+  id                  String   @id @default(uuid())
+  userId              String   @map("user_id")
+  deltaSeconds        Int      @map("delta_seconds")
+  reason              String   // plan_purchase | admin_grant | admin_deduct | call_usage | refund | opening_balance | adjustment
+  refType             String?  @map("ref_type")
+  refId               String?  @map("ref_id")
+  note                String?
+  actorType           String   @map("actor_type") // system | customer | staff
+  actorId             String?  @map("actor_id")
+  balanceAfterSeconds Float    @map("balance_after_seconds")
+  idempotencyKey      String   @unique @map("idempotency_key")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([reason])
+  @@index([createdAt])
+  @@map("minutes_ledger")
+}
+
+model PlanCatalog {
+  id             String   @id @default(uuid())
+  key            String   @unique
+  name           String
+  priceInr       Float    @map("price_inr")
+  minutes        Float
+  accountType    String   @map("account_type")
+  isPublic       Boolean  @default(true) @map("is_public")
+  customerUserId String?  @map("customer_user_id")
+  validityDays   Int?     @map("validity_days")
+  active         Boolean  @default(true)
+  createdBy      String?  @map("created_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([active])
+  @@index([customerUserId])
+  @@map("plan_catalog")
+}
+
+model CustomerAdminProfile {
+  userId            String   @id @map("user_id")
+  assignedStaffId   String?  @map("assigned_staff_id")
+  tags              String[] @default([])
+  riskLevel         String   @default("none") @map("risk_level") // none | watch | high
+  riskNote          String?  @map("risk_note")
+  lifecycleOverride String?  @map("lifecycle_override")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@index([assignedStaffId])
+  @@index([riskLevel])
+  @@map("customer_admin_profiles")
+}
+
+model CustomerNote {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  staffId    String   @map("staff_id")
+  staffEmail String?  @map("staff_email")
+  body       String
+  pinned     Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("customer_notes")
+}
+
+model FollowUp {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  staffId   String    @map("staff_id")
+  dueAt     DateTime  @map("due_at")
+  note      String
+  doneAt    DateTime? @map("done_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([staffId])
+  @@index([dueAt])
+  @@map("follow_ups")
+}
+
+model Invoice {
+  id                   String   @id @default(uuid())
+  invoiceNumber        String   @unique @map("invoice_number")
+  userId               String   @map("user_id")
+  paymentTransactionId String?  @unique @map("payment_transaction_id")
+  amountInr            Float    @map("amount_inr")
+  gstRate              Float    @default(18.0) @map("gst_rate")
+  gstAmountInr         Float    @default(0.0) @map("gst_amount_inr")
+  subtotalInr          Float    @map("subtotal_inr")
+  buyerGstin           String?  @map("buyer_gstin")
+  buyerName            String   @map("buyer_name")
+  buyerEmail           String   @map("buyer_email")
+  sellerGstin          String?  @map("seller_gstin")
+  planKey              String   @map("plan_key")
+  planName             String   @map("plan_name")
+  minutesCredited      Float    @map("minutes_credited")
+  status               String   @default("paid") // paid | refunded
+  pdfUrl               String?  @map("pdf_url")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paymentTransaction PaymentTransaction? @relation(fields: [paymentTransactionId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("invoices")
+}
+
+model PaymentLink {
+  id               String    @id @default(uuid())
+  userId           String    @map("user_id")
+  planKey          String?   @map("plan_key")
+  customPlanId     String?   @map("custom_plan_id")
+  amountInr        Float     @map("amount_inr")
+  minutes          Float
+  status           String    @default("created") // created | paid | expired | cancelled
+  razorpayLinkId   String    @unique @map("razorpay_link_id")
+  shortUrl         String?   @map("short_url")
+  expiresAt        DateTime? @map("expires_at")
+  createdByStaffId String    @map("created_by_staff_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([status])
+  @@map("payment_links")
+}
+
+model DailyMetric {
+  id                  String   @id @default(uuid())
+  date                String   @unique // YYYY-MM-DD (IST Asia/Kolkata)
+  newSignupsCount     Int      @default(0) @map("new_signups_count")
+  activeCustomers7d   Int      @default(0) @map("active_customers_7d")
+  callsDialedCount    Int      @default(0) @map("calls_dialed_count")
+  callsConnectedCount Int      @default(0) @map("calls_connected_count")
+  billedMinutesTotal  Float    @default(0.0) @map("billed_minutes_total")
+  revenueInrTotal     Float    @default(0.0) @map("revenue_inr_total")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@map("daily_metrics")
 }
 
 

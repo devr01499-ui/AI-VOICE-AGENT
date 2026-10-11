@@ -57,6 +57,8 @@ import integrationsRoutes from './routes/integrations';
 import auditLogRoutes from './routes/auditLog';
 import { AlertEvaluator } from './services/AlertEvaluator';
 import { requireAuthOrApiKey } from './middleware/authWrapper';
+import { adminRouter } from './routes/adminRoutes';
+import { razorpayWebhookRouter } from './routes/razorpayWebhook';
 
 // ─── Express App ─────────────────────────────────
 
@@ -82,12 +84,15 @@ app.use(
     },
   })
 );
+const adminOrigin = process.env.ADMIN_ORIGIN || 'https://admin.claritiy.com';
 const allowedOrigins = [
   'https://www.claritiy.com',
   'https://claritiy.com',
+  adminOrigin,
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:5175',
+  'http://localhost:5176',
   'http://localhost:3000'
 ];
 
@@ -112,7 +117,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-request-id', 'x-user-id']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-request-id', 'x-user-id', 'Idempotency-Key', 'idempotency-key']
 }));
 
 // ── Body Parsing ──────────────────────────────────
@@ -216,6 +221,7 @@ app.use('/api/v2/user', requireAuth, userRoutes);
 app.use('/api/v2/team', requireAuth, teamRoutes);
 app.use('/api/v2/apikeys', requireAuth, apikeysRoutes);
 app.use('/api/v2/webhooks', webhookRoutes);
+app.use('/api/v2/webhooks', razorpayWebhookRouter);
 app.use('/api/v2/calendar', calendarRoutes);
 app.post('/api/v2/telephony/webhook', WebhookController.handleTelephonyWebhook);
 app.use('/api/v2/contact', contactRoutes);
@@ -228,6 +234,20 @@ app.use('/api/v2/analytics', requireAuth, analyticsRoutes);
 app.use('/api/v2/qa', requireAuth, qaRoutes);
 app.use('/api/v2/alerting', requireAuth, alertingRoutes);
 app.use('/api/v2/audit-logs', requireAuth, auditLogRoutes);
+
+// Administrative Console API — Guarded by strict origin policy, RBAC and AAL2 MFA
+app.use('/api/v2/admin', (req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    const isLocalhostAdmin = (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) && process.env.NODE_ENV !== 'production';
+    const isProductionAdmin = origin === adminOrigin;
+    if (!isLocalhostAdmin && !isProductionAdmin) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+  }
+  next();
+}, adminRouter);
 
 // ─── 404 Handler ─────────────────────────────────
 

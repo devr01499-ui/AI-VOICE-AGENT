@@ -139,6 +139,34 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
       }
     }
 
+    // Account Suspension Check (Customer Platform Gate)
+    if (userProfile.accountStatus === 'suspended') {
+      logger.warn('[requireAuth] Blocked request from suspended customer account', {
+        userId,
+        reason: userProfile.suspendedReason,
+      });
+      res.status(403).json({
+        success: false,
+        error: 'ACCOUNT_SUSPENDED',
+        message: 'Your account has been suspended.',
+        reason: userProfile.suspendedReason || 'Terms violation or administrative hold.',
+        contactSupport: 'support@claritiy.com',
+      });
+      return;
+    }
+
+    // Throttled lastSeenAt update (at most once every 10 minutes)
+    const tenMinutesMs = 10 * 60 * 1000;
+    const lastSeen = userProfile.lastSeenAt ? new Date(userProfile.lastSeenAt).getTime() : 0;
+    if (!lastSeen || Date.now() - lastSeen > tenMinutesMs) {
+      prisma.user.update({
+        where: { id: userId },
+        data: { lastSeenAt: new Date() },
+      }).catch((updateErr) => {
+        logger.warn('[requireAuth] Failed non-blocking lastSeenAt update', { userId, error: updateErr.message });
+      });
+    }
+
     req.userId = userId;
     req.effectiveWorkspaceId = effectiveWorkspaceId;
     req.workspaceRole = workspaceRole;

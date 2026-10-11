@@ -101,6 +101,19 @@ export class InboundCallService {
         };
       }
 
+      // 1b. Check Account Suspension Gate
+      if (user.accountStatus === 'suspended') {
+        logger.warn('InboundCallService: Inbound call blocked due to account suspension', {
+          userId: user.id,
+          reason: user.suspendedReason,
+        });
+        return {
+          success: false,
+          errorMessage: 'This service is temporarily unavailable. Please contact support.',
+          statusCode: 403,
+        };
+      }
+
       // 2. Check Minute Balance Gate (Billing Engine)
       if (user.accountType !== 'admin' && user.callingBalanceMinutes <= 0) {
         logger.warn('InboundCallService: Insufficient minute balance for inbound call', {
