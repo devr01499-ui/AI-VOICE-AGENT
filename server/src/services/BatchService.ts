@@ -48,6 +48,26 @@ export class BatchService {
         break; // All recipients processed
       }
 
+      // Check DNC / opt-out filter before dial attempt
+      const cleanDigits = recipient.phoneNumber.replace(/\D/g, '');
+      const toVariants = Array.from(new Set([recipient.phoneNumber, `+${cleanDigits}`, cleanDigits]));
+      const optedOut = await prisma.contact.findFirst({
+        where: {
+          userId: batch.userId,
+          phoneNumber: { in: toVariants },
+          optedOutAt: { not: null }
+        }
+      });
+
+      if (optedOut) {
+        logger.info(`BatchService: Skipping recipient ${recipient.id} (${recipient.phoneNumber}) - opted out (DNC)`);
+        await prisma.batchRecipient.update({
+          where: { id: recipient.id },
+          data: { status: 'failed' }
+        });
+        continue;
+      }
+
       try {
         const attemptCount = recipient.attempts + 1;
         await prisma.batchRecipient.update({

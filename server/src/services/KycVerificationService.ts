@@ -16,11 +16,44 @@ export interface KycVerificationResult {
 }
 
 /**
- * Validates whether a vobiz reference is a mock generated timestamp (vob_pan_*, vob_gst_*, vob_adh_*)
+ * Hardened validation: checks whether a vobiz reference matches legitimate Vobiz response shapes.
+ * Rejects any reference that doesn't match genuine Vobiz formats (e.g. AR_xxxxxxxx for DigiLocker,
+ * VER_... or legitimate UUID/transaction IDs for PAN/GST), and proactively rejects any local
+ * synthetic timestamps, mock prefixes (vob_, doc_, mock_, test_), or Date.now() patterns.
  */
 export function isMockVobizReference(ref?: string | null): boolean {
-  if (!ref) return false;
-  return ref.startsWith('vob_pan_') || ref.startsWith('vob_gst_') || ref.startsWith('vob_adh_') || ref.startsWith('AR_MOCK_');
+  if (!ref || typeof ref !== 'string') return true;
+  const trimmed = ref.trim();
+  if (trimmed.length < 8) return true;
+
+  const lower = trimmed.toLowerCase();
+  // 1. Explicit mock markers
+  if (lower.includes('mock') || lower.startsWith('test_') || lower.startsWith('sim_')) {
+    return true;
+  }
+
+  // 2. Local synthetic timestamp patterns: doc_adh_..., vob_pan_..., vob_gst_..., or ending in 10-14 digit timestamp
+  if (/^(doc_|vob_|mock_|fake_)/i.test(trimmed)) {
+    return true;
+  }
+  if (/_\d{10,14}$/.test(trimmed)) {
+    return true;
+  }
+
+  // 3. Genuine Vobiz reference patterns:
+  // - DigiLocker: AR_[a-zA-Z0-9]{6,}
+  // - Standard Vobiz verification ID: VER_[a-zA-Z0-9_-]{6,} or standard UUID or uppercase alphanumeric
+  const isDigiLockerPattern = /^AR_[a-zA-Z0-9]{6,}$/.test(trimmed);
+  const isVobizVerPattern = /^VER_[a-zA-Z0-9_-]{6,}$/i.test(trimmed);
+  const isUuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
+  const isVobizAlnumPattern = /^[A-Z0-9]{10,40}$/i.test(trimmed);
+
+  if (isDigiLockerPattern || isVobizVerPattern || isUuidPattern || isVobizAlnumPattern) {
+    return false; // Valid genuine Vobiz reference
+  }
+
+  // Fail closed if reference does not match Vobiz provider shapes
+  return true;
 }
 
 /**

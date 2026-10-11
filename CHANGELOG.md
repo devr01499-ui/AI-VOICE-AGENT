@@ -1,5 +1,14 @@
 # CHANGELOG
 
+- In-App DigiLocker Modal, Regulatory Opt-Out (DNC), UCC Consent Records & Gemini Session Resumption:
+  - **In-App DigiLocker Modal**: Replaced new-tab redirect with embedded in-app modal & iframe inside Settings KYC (`KycComplianceSettings.tsx`). Implemented auto-detection on redirect to `redirect_url` (`compliance?tab=kyc`), automatic modal closure, and direct verification trigger with email notifications.
+  - **Inbound KYC Gate**: Strengthened `InboundCallService.ts` to match outbound `CallService.ts` defense-in-depth: checks `numberRecord.status === 'active'`, `numberRecord.kycStatus === 'verified'`, and validates sub-account KYC (`kycCallsBlocked` / `kycStatus`), blocking unverified incoming calls with HTTP 403.
+  - **Opt-Out (DNC) Enforcement**: Added `optedOutAt` and `optOutReason` to `Contact` model. Registered `end_call` tool in `CallOrchestrator.ts` and `SandboxStreamHandler.ts` to immediately record caller opt-out upon DNC keywords. Filtered opted-out contacts out of individual calls (`CallService.ts`), batch queue processing (`BatchService.ts`), and batch campaign creation (`calendar.ts`).
+  - **Proof of Consent Tracking (UCC Regulations)**: Added `consentDate`, `consentChannel`, and `consentWording` to `Contact` model. Updated `ContactsController.ts` with 6-month validity checking (`requiresReconsent` / `isConsentExpired`) and added bulk CSV import endpoint (`POST /api/v2/contacts/import`).
+  - **Mock Detection Safeguard Hardened**: Upgraded `isMockVobizReference()` in `KycVerificationService.ts` to validate against legitimate Vobiz reference shapes (`AR_[a-zA-Z0-9]{6,}`, `VER_...`, UUIDs) and proactively reject any synthetic timestamps, `doc_adh_*`, or mock formats.
+  - **Gemini Session Resumption Activated**: Wired `resumptionHandle` in `GeminiLiveProvider.ts` upon Google `goAway` events, proactively connecting a replacement WebSocket with `resumptionHandle` to preserve call continuity without dropping callers at the session-length ceiling.
+  - **Stray Test Artifact & Database Cleanup**: Executed `audit_and_reset_mock_kyc.js` to delete stray test `KycDocument` records (`Partners-SOP_digilocker.pdf`) and purges test user storage files from Supabase Storage.
+
 - Restored DigiLocker for Aadhaar with Confirmed Vobiz Schema & Parent Credential Fix:
   - Restored `POST /api/v2/kyc/digilocker/initiate` and `POST /api/v2/kyc/digilocker/verify` with exact Vobiz request/response shapes.
   - Fixed credential handling: DigiLocker endpoints authenticate strictly with parent master credentials (`X-Auth-ID: VOBIZ_AUTH_ID`, `X-Auth-Token: VOBIZ_AUTH_TOKEN`), passing `sub_auth_id` only in path parameter.

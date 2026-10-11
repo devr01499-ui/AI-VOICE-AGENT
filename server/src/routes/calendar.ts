@@ -249,16 +249,52 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, async (req, res
 
     const initialStatus = scheduleNow !== false ? 'running' : 'scheduled';
 
+    // Exclude opted-out (DNC) contacts for this workspace owner
+    const optedOutContacts = await prisma.contact.findMany({
+      where: {
+        userId,
+        optedOutAt: { not: null }
+      },
+      select: { phoneNumber: true }
+    });
+    const optedOutDigitsSet = new Set(
+      optedOutContacts.map(c => c.phoneNumber.replace(/\D/g, '')).filter(Boolean)
+    );
+
+    const eligibleRecipients = recipients.filter((r: any) => {
+      const raw = typeof r === 'string' ? r : (r.phoneNumber || r.phone || '');
+      const digits = String(raw).replace(/\D/g, '');
+      return !optedOutDigitsSet.has(digits);
+    });
+
+    if (eligibleRecipients.length === 0) {
+      res.status(400).json({
+        success: false,
+        error: 'All recipients in this batch have opted out of communications (Do Not Call list).'
+      });
+      return;
+    }
+
+    const excludedCount = recipients.length - eligibleRecipients.length;
+    if (excludedCount > 0) {
+      logger.info('Calendar batches: Excluded opted-out contacts from batch', {
+        userId,
+        totalSubmitted: recipients.length,
+        eligible: eligibleRecipients.length,
+        excludedCount
+      });
+    }
+
     const batch = await prisma.batch.create({
       data: {
         userId,
         agentId,
         name: name.trim(),
         status: initialStatus,
-        totalRecipients: recipients.length,
+        totalRecipients: eligibleRecipients.length,
         startedAt: initialStatus === 'running' ? new Date() : null,
         recipients: {
-          create: recipients.map((r: any) => ({
+          create: eligibleRecipients.map((r: any) => ({
             phoneNumber: typeof r === 'string' ? r.trim() : (r.phoneNumber || r.phone || '').trim(),
             userData: JSON.stringify(typeof r === 'object' ? r : {}),
             status: 'pending'

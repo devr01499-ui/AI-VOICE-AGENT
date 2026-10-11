@@ -66,12 +66,37 @@ export class InboundCallService {
         return { success: false, errorMessage: 'User record missing', statusCode: 404 };
       }
 
-      // 1b. Check KYC Gate: Reject if number's KYC status is 'pending' or 'failed'
-      if (numberRecord.kycStatus === 'pending' || numberRecord.kycStatus === 'failed') {
+      // 1b. Check Local KYC Gate: Match outbound defense as second line of defense
+      if (numberRecord.status !== 'active') {
+        logger.warn('InboundCallService: Inbound call blocked - number awaiting activation', { rawTo, status: numberRecord.status });
+        return {
+          success: false,
+          errorMessage: 'Phone number is awaiting activation. It will become active once KYC is verified.',
+          statusCode: 403
+        };
+      }
+
+      if (numberRecord.kycStatus !== 'verified') {
         logger.warn('InboundCallService: Inbound call blocked due to unverified KYC', { rawTo, kycStatus: numberRecord.kycStatus });
         return {
           success: false,
-          errorMessage: 'KYC verification is pending for this phone number. Please complete verification in your dashboard.',
+          errorMessage: 'Inbound calls blocked. KYC verification is pending or incomplete for this phone number.',
+          statusCode: 403
+        };
+      }
+
+      const subAccount = await prisma.vobizSubAccount.findUnique({
+        where: { userId: user.id }
+      });
+      if (subAccount && (subAccount.kycStatus !== 'verified' || subAccount.kycCallsBlocked)) {
+        logger.warn('InboundCallService: Inbound call blocked - sub-account KYC unverified or calls blocked', {
+          userId: user.id,
+          kycStatus: subAccount.kycStatus,
+          kycCallsBlocked: subAccount.kycCallsBlocked
+        });
+        return {
+          success: false,
+          errorMessage: 'Inbound calls blocked. KYC verification is required for this account before receiving calls.',
           statusCode: 403
         };
       }

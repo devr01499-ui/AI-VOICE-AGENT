@@ -6,6 +6,7 @@ const router = Router();
 
 router.get('/', requireAuth, ContactsController.listContacts);
 router.post('/', requireAuth, ContactsController.createContact);
+router.post('/import', requireAuth, ContactsController.bulkImportContacts);
 router.put('/:id', requireAuth, ContactsController.updateContact);
 router.delete('/:id', requireAuth, ContactsController.deleteContact);
 

@@ -25,31 +25,41 @@ async function main() {
     console.log(`Found ${docs.length} total KycDocument rows.`);
 
     let resetCount = 0;
+    let deletedCount = 0;
     for (const doc of docs) {
       const ref = doc.vobiz_reference || '';
-      const isMockRef = ref.startsWith('vob_pan_') || ref.startsWith('vob_gst_') || ref.startsWith('vob_adh_') || ref.startsWith('mock_') || ref.startsWith('AR_MOCK_');
-      const isStrayFile = String(doc.aadhaar_doc_url || '').includes('Partners-SOP_digilocker.pdf');
+      const isMockRef = ref.startsWith('vob_pan_') ||
+        ref.startsWith('vob_gst_') ||
+        ref.startsWith('vob_adh_') ||
+        ref.startsWith('doc_adh_') ||
+        ref.startsWith('mock_') ||
+        ref.startsWith('AR_MOCK_') ||
+        /_\d{10,14}$/.test(ref);
+      const isStrayFile = String(doc.aadhaar_doc_url || '').includes('Partners-SOP_digilocker.pdf') || doc.user_id === '1e69187e-82d5-4166-929f-4bbba90e5304';
 
       // Check if associated with mock subaccount
       const subAccounts = await prisma.$queryRawUnsafe('SELECT * FROM vobiz_sub_accounts WHERE user_id = $1', doc.user_id);
       const isMockSubAccount = subAccounts.some((s) => s.auth_id?.startsWith('SA_MOCK_') || s.auth_id?.startsWith('SA_TEST_'));
 
-      if ((doc.status === 'verified' && (isMockRef || isMockSubAccount)) || isStrayFile) {
+      if (isStrayFile) {
+        console.log(`Deleting stray test KycDocument: ID=${doc.id}, User=${doc.user_id}, Type=${doc.document_type}, Ref=${ref}`);
+        await prisma.$executeRawUnsafe('DELETE FROM kyc_documents WHERE id = $1', doc.id);
+        deletedCount++;
+      } else if (doc.status === 'verified' && (isMockRef || isMockSubAccount)) {
         console.log(`Resetting fraudulent/mock-verified KycDocument: ID=${doc.id}, User=${doc.user_id}, Type=${doc.document_type}, Ref=${ref}`);
 
         await prisma.$executeRawUnsafe(
           `UPDATE kyc_documents
            SET status = 'pending',
                verified_at = NULL,
-               failure_reason = 'Verification reset: Simulated verification detected. Please complete live verification against government records.',
-               aadhaar_doc_url = CASE WHEN aadhaar_doc_url LIKE '%Partners-SOP_digilocker.pdf%' THEN NULL ELSE aadhaar_doc_url END
+               failure_reason = 'Verification reset: Simulated verification detected. Please complete live verification against government records.'
            WHERE id = $1`,
           doc.id
         );
         resetCount++;
       }
     }
-    console.log(`Reset ${resetCount} mock-verified KycDocument rows.`);
+    console.log(`Deleted ${deletedCount} stray test records and reset ${resetCount} mock-verified KycDocument rows.`);
 
     // 2. Audit VobizSubAccount rows marked verified with mock credentials or incomplete docs
     const subAccounts = await prisma.$queryRawUnsafe('SELECT * FROM vobiz_sub_accounts');
@@ -60,7 +70,7 @@ async function main() {
       if (sub.kyc_status === 'verified' && isMockAuth) {
         console.log(`Resetting mock sub-account ${sub.auth_id} (User: ${sub.user_id}) from verified to pending.`);
         await prisma.$executeRawUnsafe(
-          "UPDATE vobiz_sub_accounts SET kyc_status = 'pending', kyc_verified_at = NULL WHERE id = $1",
+          "UPDATE vobiz_sub_accounts SET kyc_status = 'pending', kyc_verified_at = NULL, kyc_calls_blocked = true WHERE id = $1",
           sub.id
         );
       }
@@ -69,7 +79,7 @@ async function main() {
       if (sub.auth_id === 'SA_DLBISHQG' && sub.kyc_status === 'verified') {
         console.log(`Resetting SA_DLBISHQG to failed matching live Vobiz provider status.`);
         await prisma.$executeRawUnsafe(
-          "UPDATE vobiz_sub_accounts SET kyc_status = 'failed', kyc_verified_at = NULL WHERE id = $1",
+          "UPDATE vobiz_sub_accounts SET kyc_status = 'failed', kyc_verified_at = NULL, kyc_calls_blocked = true WHERE id = $1",
           sub.id
         );
         await prisma.$executeRawUnsafe(
@@ -89,6 +99,13 @@ async function main() {
           console.warn('Supabase storage removal note:', error.message);
         } else {
           console.log('Successfully removed stray artifact from Supabase Storage:', data);
+        }
+
+        const { data: listData } = await supabase.storage.from('kyc-documents').list('1e69187e-82d5-4166-929f-4bbba90e5304');
+        if (listData && listData.length > 0) {
+          const filesToDelete = listData.map((f) => `1e69187e-82d5-4166-929f-4bbba90e5304/${f.name}`);
+          console.log(`Removing remaining files from test user storage folder:`, filesToDelete);
+          await supabase.storage.from('kyc-documents').remove(filesToDelete);
         }
       } catch (storageErr) {
         console.warn('Storage removal caught non-fatal exception:', storageErr.message);

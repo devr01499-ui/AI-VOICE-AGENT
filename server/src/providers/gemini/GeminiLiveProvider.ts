@@ -77,6 +77,8 @@ interface ActiveSession {
   agentId?: string;
   userId?: string;
   resumptionHandle?: string;
+  targetModel?: string;
+  config?: RealtimeSessionConfig;
   cleanup?: () => Promise<void>;
 }
 
@@ -249,6 +251,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     const wsUrl = `${baseUrl}?key=${encodeURIComponent(selectedApiKey)}`;
 
     const sessionId = `gemini-sess-${Date.now()}`;
+    const targetModel = resolveLiveModel(config.model);
     const ws = new WebSocket(wsUrl);
 
     // ── Per-session closure state (no shared mutable instance fields) ──────
@@ -504,8 +507,6 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         systemInstructionString = `${systemInstructionString}\n\n[DNC / OPT-OUT SECURITY GATES]\nIf the caller uses any opt-out phrases such as (${callSettings.optOutKeywords.join(', ')}), acknowledge politely and invoke the end_call tool immediately to mark them as opted out. Do not attempt to negotiate or continue the call.`;
       }
 
-      const targetModel = resolveLiveModel(config.model);
-
       const setupMessage = {
         setup: {
           model: targetModel,
@@ -590,6 +591,8 @@ export class GeminiLiveProvider implements IRealtimeProvider {
             createdAt: Date.now(),
             agentId: resolvedAgentId || undefined,
             userId,
+            targetModel,
+            config,
             ...(sessionBalanceIntervalId && { balanceInterval: sessionBalanceIntervalId }),
             cleanup: async () => {
               clearSessionBalanceTicker();
@@ -958,16 +961,114 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         resumptionHandle: event.goAway.resumptionHandle,
       });
 
-      // Avoid dropping call prematurely while time remains; trigger fallback only when remaining time elapses
-      const delayMs = event.goAway.timeLeftMs ? Math.max(500, event.goAway.timeLeftMs - 1000) : 10000;
-      setTimeout(() => {
-        if (this.activeSessions.has(sessionId)) {
-          callbacks.onError?.(
-            sessionId,
-            new Error(`Session expired after ${timeLeftSeconds} seconds due to upstream resource constraints.`)
-          );
-        }
-      }, delayMs);
+      if (session.resumptionHandle) {
+        this.attemptSessionResumption(sessionId).then((resumed) => {
+          if (resumed) {
+            logger.info('GeminiLiveProvider [RESUMPTION_SUCCESS]: Call continuity preserved via resumptionHandle', { sessionId });
+          } else {
+            logger.warn('GeminiLiveProvider [RESUMPTION_FAILED]: Fallback to graceful error on GoAway expiration', { sessionId });
+            callbacks.onError?.(
+              sessionId,
+              new Error(`Session expired after ${timeLeftSeconds} seconds due to upstream resource constraints.`)
+            );
+          }
+        }).catch((err) => {
+          logger.error('GeminiLiveProvider: Resumption attempt error', { sessionId, error: String(err) });
+        });
+      } else {
+        const delayMs = event.goAway.timeLeftMs ? Math.max(500, event.goAway.timeLeftMs - 1000) : 10000;
+        setTimeout(() => {
+          if (this.activeSessions.has(sessionId)) {
+            callbacks.onError?.(
+              sessionId,
+              new Error(`Session expired after ${timeLeftSeconds} seconds due to upstream resource constraints.`)
+            );
+          }
+        }, delayMs);
+      }
+    }
+  }
+
+  private async attemptSessionResumption(sessionId: string): Promise<boolean> {
+    const session = this.activeSessions.get(sessionId);
+    if (!session || !session.resumptionHandle) return false;
+
+    logger.info('GeminiLiveProvider: Attempting session resumption with Google', {
+      sessionId,
+      resumptionHandle: session.resumptionHandle,
+    });
+
+    try {
+      const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${encodeURIComponent(this.apiKey)}`;
+      const newWs = new WebSocket(wsUrl);
+
+      return await new Promise<boolean>((resolve) => {
+        const timeout = setTimeout(() => {
+          logger.warn('GeminiLiveProvider: Resumption handshake timed out (8s)', { sessionId });
+          try { newWs.close(); } catch {}
+          resolve(false);
+        }, 8000);
+
+        newWs.on('open', () => {
+          const resumptionPayload = {
+            setup: {
+              model: session.targetModel || 'models/gemini-2.0-flash-exp',
+              resumptionHandle: session.resumptionHandle,
+            },
+          };
+          newWs.send(JSON.stringify(resumptionPayload));
+        });
+
+        newWs.on('message', (raw: WebSocket.RawData) => {
+          try {
+            const event = JSON.parse(raw.toString()) as GeminiServerEvent;
+            if (event.setupComplete) {
+              clearTimeout(timeout);
+              logger.info('GeminiLiveProvider [RESUMPTION_SUCCESS]: Handshake confirmed on replacement socket', { sessionId });
+
+              const oldWs = session.ws;
+              session.ws = newWs;
+              try {
+                oldWs.removeAllListeners();
+                oldWs.close(1000, 'RESUMED');
+              } catch {}
+
+              newWs.on('message', (msgRaw: WebSocket.RawData) => {
+                try {
+                  const ev = JSON.parse(msgRaw.toString()) as GeminiServerEvent;
+                  this.handleServerEvent(sessionId, ev);
+                } catch (e) {
+                  logger.error('GeminiLiveProvider: Resumed message parsing error', { sessionId, error: String(e) });
+                }
+              });
+
+              newWs.on('error', (err: Error) => {
+                logger.error('GeminiLiveProvider: Resumed socket error', { sessionId, error: err.message });
+                session.callbacks.onError?.(sessionId, err);
+              });
+
+              newWs.on('close', (code: number) => {
+                logger.info('GeminiLiveProvider: Resumed socket closed', { sessionId, code });
+                this.activeSessions.delete(sessionId);
+              });
+
+              resolve(true);
+            }
+          } catch {
+            clearTimeout(timeout);
+            resolve(false);
+          }
+        });
+
+        newWs.on('error', (e: Error) => {
+          clearTimeout(timeout);
+          logger.error('GeminiLiveProvider: Resumption socket connection error', { error: e.message });
+          resolve(false);
+        });
+      });
+    } catch (err: any) {
+      logger.error('GeminiLiveProvider: Resumption fatal error', { sessionId, error: err?.message || String(err) });
+      return false;
     }
   }
 }

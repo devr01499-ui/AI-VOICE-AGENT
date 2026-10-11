@@ -156,6 +156,13 @@ export class SandboxStreamHandler {
                       digits: { type: 'STRING', description: 'DTMF digits to press' },
                     },
                   };
+                } else if (fn.type === 'end_call') {
+                  parameters = {
+                    type: 'OBJECT',
+                    properties: {
+                      reason: { type: 'STRING', description: 'Reason for terminating call (e.g. opt_out, user_request, completed)' }
+                    }
+                  };
                 } else {
                   parameters = { type: 'OBJECT', properties: {} };
                 }
@@ -300,9 +307,11 @@ export class SandboxStreamHandler {
               resultOutput = { status: 'calendar_processed', calendarId: 'primary', details: args };
             }
           } else if (functionDef && functionDef.type === 'end_call') {
-            resultOutput = { status: 'call_ended', message: 'Call ended by agent tool request.' };
+            const reason = String((args as any)?.reason || '').toLowerCase();
+            const isOptOut = reason.includes('opt_out') || reason.includes('optout') || reason.includes('dnc') || reason.includes('do_not_call');
+            resultOutput = { status: 'call_ended', message: isOptOut ? 'Call ended and caller registered on Do Not Call list.' : 'Call ended by agent tool request.' };
             if (ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ event: 'transcript', text: '[Agent triggered End Call tool]', isFinal: true }));
+              ws.send(JSON.stringify({ event: 'transcript', text: isOptOut ? '[Caller opted out — registered on Do Not Call list]' : '[Agent triggered End Call tool]', isFinal: true }));
             }
           } else if (functionDef && functionDef.type === 'transfer_call') {
             resultOutput = { success: false, error: 'Call transfer capability is currently unavailable on this system.' };

@@ -437,6 +437,17 @@ export class CallOrchestrator {
           },
           {
             type: 'function' as const,
+            name: 'end_call',
+            description: 'Ends the call immediately. Include reason (e.g. "opt_out", "completed", "user_request") if caller wishes to opt out.',
+            parameters: {
+              type: 'OBJECT',
+              properties: {
+                reason: { type: 'STRING', description: 'Reason for terminating call (e.g. opt_out, dnc, caller_requested)' }
+              }
+            }
+          },
+          {
+            type: 'function' as const,
             name: 'transfer_call',
             description: 'Transfers the active call to another phone number.',
             parameters: {
@@ -468,10 +479,31 @@ export class CallOrchestrator {
       async (toolCallId: string, name: string, args: string) => {
         try {
           const parsedArgs = JSON.parse(args) as Record<string, unknown>;
-          if (name === 'hang_up') {
-            logger.info('Flow Engine: trigger hang_up tool call via Pipecat', { callId });
-            await this.endCallSession(callId, 'completed');
-            return JSON.stringify({ success: true });
+          if (name === 'hang_up' || name === 'end_call') {
+            logger.info(`Flow Engine: trigger ${name} tool call via Pipecat`, { callId, args });
+            const reason = String(parsedArgs.reason || '').toLowerCase();
+            const isOptOut = reason.includes('opt_out') || reason.includes('optout') || reason.includes('dnc') || reason.includes('do_not_call') || reason.includes('unsubscribe');
+            if (isOptOut && phoneNumber) {
+              try {
+                const cleanDigits = phoneNumber.replace(/\D/g, '');
+                const variants = Array.from(new Set([phoneNumber, `+${cleanDigits}`, cleanDigits]));
+                await prisma.contact.updateMany({
+                  where: {
+                    userId: activeAgent.userId,
+                    phoneNumber: { in: variants }
+                  },
+                  data: {
+                    optedOutAt: new Date(),
+                    optOutReason: parsedArgs.reason ? String(parsedArgs.reason) : 'Opt-out requested during call'
+                  }
+                });
+                logger.info('Flow Engine: Successfully marked contact optedOutAt in compliance with UCC regulations', { callId, phoneNumber });
+              } catch (optErr) {
+                logger.error('Flow Engine: Error updating contact opt-out state', { callId, phoneNumber, error: String(optErr) });
+              }
+            }
+            await this.endCallSession(callId, isOptOut ? ('opted_out' as any) : 'completed');
+            return JSON.stringify({ success: true, message: isOptOut ? 'Call ended and recipient registered on Do Not Call list.' : 'Call completed.' });
           }
           if (name === 'transfer_call') {
             logger.warn('Flow Engine: trigger transfer_call tool call via Pipecat - capability unavailable', { callId, args });

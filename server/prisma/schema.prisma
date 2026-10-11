@@ -379,8 +379,9 @@ model VobizSubAccount {
   authToken     String    @map("auth_token") // Encrypted
   kycMode       String    @default("customer_use") @map("kyc_mode")
   kycStatus     String    @default("pending") @map("kyc_status") // pending | verified | failed
-  businessType  String    @default("individual") @map("business_type") // individual | company
-  kycVerifiedAt DateTime? @map("kyc_verified_at")
+  businessType    String    @default("individual") @map("business_type") // individual | company
+  kycCallsBlocked Boolean   @default(true) @map("kyc_calls_blocked")
+  kycVerifiedAt   DateTime? @map("kyc_verified_at")
   walletFundedAt DateTime? @map("wallet_funded_at")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
@@ -795,6 +796,11 @@ model Contact {
   tags            String    @default("[]") // JSON array of tag strings
   notes           String?
   lastContactedAt DateTime? @map("last_contacted_at")
+  optedOutAt      DateTime? @map("opted_out_at")
+  optOutReason    String?   @map("opt_out_reason")
+  consentDate     DateTime? @map("consent_date")
+  consentChannel  String?   @map("consent_channel") // web_form | verbal | sms | api | paper
+  consentWording  String?   @map("consent_wording")
   createdAt       DateTime  @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -803,6 +809,7 @@ model Contact {
   @@index([userId])
   @@index([phoneNumber])
   @@index([lastContactedAt])
+  @@index([optedOutAt])
   @@map("contacts")
 }
 

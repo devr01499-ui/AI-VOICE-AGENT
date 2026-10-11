@@ -119,6 +119,36 @@ export class CallService {
       }
     }
 
+    // ── Enforce Opt-out / DNC Gate (TRAI / UCC compliance) ─────────
+    const cleanToDigits = phoneNumber.replace(/\D/g, '');
+    const toVariants = Array.from(new Set([
+      phoneNumber,
+      `+${cleanToDigits}`,
+      cleanToDigits,
+    ]));
+
+    const optedOutContact = await prisma.contact.findFirst({
+      where: {
+        userId,
+        phoneNumber: { in: toVariants },
+        optedOutAt: { not: null }
+      }
+    });
+
+    if (optedOutContact) {
+      logger.warn('CallService: Outbound call blocked - recipient opted out', {
+        userId,
+        phoneNumber,
+        optedOutAt: optedOutContact.optedOutAt
+      });
+      throw new ValidationError('Outbound call blocked: recipient has opted out (DNC)', [
+        {
+          field: 'phoneNumber',
+          message: `Recipient ${phoneNumber} is on the Do Not Call (DNC) list (opted out on ${optedOutContact.optedOutAt?.toISOString()}). Calling is prohibited under UCC regulations.`
+        }
+      ]);
+    }
+
     // ── Validate agent exists ──────────────────
     const agent = await AgentRepository.findById(agentId);
     if (agent.status !== 'active' && agent.status !== 'draft') {
