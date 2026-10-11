@@ -1,6 +1,14 @@
 import { supabase } from './supabase';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3001';
+const isLocal =
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+const API_BASE =
+  import.meta.env.VITE_API_BASE ||
+  (isLocal
+    ? 'http://localhost:3001'
+    : 'https://ai-voice-agent-backend-mv32.onrender.com');
 
 export class AdminApiError extends Error {
   status: number;

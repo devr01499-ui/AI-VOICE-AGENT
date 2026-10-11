@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { StaffUser, PermissionName } from '../types/admin';
-import { adminFetch, AdminApiError } from '../lib/api';
+import { adminFetch } from '../lib/api';
 
 interface AuthContextType {
   user: any | null;
@@ -34,13 +34,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setMfaRequired(false);
       }
     } catch (err: any) {
-      if (err instanceof AdminApiError && err.code === 'MFA_REQUIRED') {
+      const isMfa =
+        err?.code === 'MFA_REQUIRED' ||
+        err?.status === 403 ||
+        err?.message?.includes('MFA_REQUIRED') ||
+        err?.message?.includes('Two-factor') ||
+        err?.message?.includes('AAL2');
+      if (isMfa) {
         setMfaRequired(true);
-      } else if (err.status === 404) {
-        setError('Your account is not registered as an authorized staff member.');
+        setError(null);
+      } else if (err?.status === 404) {
+        setError('Your account is not registered as an authorized staff member in the database.');
         setStaff(null);
       } else {
-        setError(err.message || 'Failed to authenticate staff identity.');
+        setError(err?.message || 'Failed to authenticate staff identity.');
         setStaff(null);
       }
     }

@@ -64,14 +64,14 @@ const AdminRouter: React.FC = () => {
     );
   }
 
+  // Signed in but AAL2 TOTP MFA challenge needed
+  if (user && mfaRequired) {
+    return <MfaEnroll />;
+  }
+
   // Not signed in -> Login
   if (!user || !staff) {
     return <Login />;
-  }
-
-  // Signed in but AAL2 TOTP MFA challenge needed
-  if (mfaRequired) {
-    return <MfaEnroll />;
   }
 
   // Render current page content
