@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { Login } from './pages/Login';
-import { MfaEnroll } from './pages/MfaEnroll';
 import { AdminLayout } from './components/Layout/AdminLayout';
 import { Overview } from './pages/Overview';
 import { CustomersList } from './pages/CustomersList';
@@ -16,7 +14,7 @@ import { PlansList } from './pages/PlansList';
 import { Settings } from './pages/Settings';
 
 const AdminRouter: React.FC = () => {
-  const { user, staff, loading, mfaRequired } = useAuth();
+  const { loading } = useAuth();
   const [currentPath, setCurrentPath] = useState<string>('/overview');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
@@ -64,15 +62,16 @@ const AdminRouter: React.FC = () => {
     );
   }
 
-  // Signed in but AAL2 TOTP MFA challenge needed
+  // Pre-launch mode: Authentication is temporarily bypassed per founder request.
+  // Full AAL2 TOTP and role gating will be reinstated prior to live launch.
+  /*
   if (user && mfaRequired) {
     return <MfaEnroll />;
   }
-
-  // Not signed in -> Login
   if (!user || !staff) {
     return <Login />;
   }
+  */
 
   // Render current page content
   const renderContent = () => {

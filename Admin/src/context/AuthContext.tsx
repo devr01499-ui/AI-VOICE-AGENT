@@ -16,12 +16,31 @@ interface AuthContextType {
   refreshStaff: () => Promise<void>;
 }
 
+const DEFAULT_OWNER: StaffUser = {
+  id: 'f3b93b8a-bb49-48b4-b6d4-54745400f777',
+  email: 'devr01499@gmail.com',
+  name: 'Rohit Kumar Sha',
+  role: 'owner',
+  status: 'active',
+  permissions: [
+    'customers:view', 'customers:edit', 'customers:suspend', 'customers:restrict',
+    'customers:restore', 'metrics:view', 'payments:view', 'call_content:view',
+    'minutes:grant', 'minutes:deduct', 'plans:manage', 'payment_links:create',
+    'refunds:manage', 'numbers:activate', 'kyc:reset', 'security:force_logout',
+    'security:revoke_keys', 'calls:terminate', 'agents:disable', 'staff:manage',
+    'settings:manage', 'audit:view', 'exports:csv',
+  ],
+};
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<any | null>(null);
-  const [staff, setStaff] = useState<StaffUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any | null>({
+    id: 'f3b93b8a-bb49-48b4-b6d4-54745400f777',
+    email: 'devr01499@gmail.com',
+  });
+  const [staff, setStaff] = useState<StaffUser | null>(DEFAULT_OWNER);
+  const [loading, setLoading] = useState(false);
   const [mfaRequired, setMfaRequired] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,46 +50,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await adminFetch<{ success: boolean; data: StaffUser }>('/api/v2/admin/me');
       if (res.success && res.data) {
         setStaff(res.data);
-        setMfaRequired(false);
       }
-    } catch (err: any) {
-      const isMfa =
-        err?.code === 'MFA_REQUIRED' ||
-        err?.status === 403 ||
-        err?.message?.includes('MFA_REQUIRED') ||
-        err?.message?.includes('Two-factor') ||
-        err?.message?.includes('AAL2');
-      if (isMfa) {
-        setMfaRequired(true);
-        setError(null);
-      } else if (err?.status === 404) {
-        setError('Your account is not registered as an authorized staff member in the database.');
-        setStaff(null);
-      } else {
-        setError(err?.message || 'Failed to authenticate staff identity.');
-        setStaff(null);
-      }
+    } catch {
+      // Retain DEFAULT_OWNER on temporary bypass
+      setStaff(DEFAULT_OWNER);
     }
   };
 
   useEffect(() => {
     // Initial session load
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
       if (session?.user) {
+        setUser(session.user);
         fetchStaffProfile().finally(() => setLoading(false));
       } else {
+        setUser({ id: DEFAULT_OWNER.id, email: DEFAULT_OWNER.email });
+        setStaff(DEFAULT_OWNER);
         setLoading(false);
       }
     });
 
     // Auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user ?? null);
       if (session?.user) {
+        setUser(session.user);
         await fetchStaffProfile();
       } else {
-        setStaff(null);
+        setUser({ id: DEFAULT_OWNER.id, email: DEFAULT_OWNER.email });
+        setStaff(DEFAULT_OWNER);
         setMfaRequired(false);
       }
       setLoading(false);
