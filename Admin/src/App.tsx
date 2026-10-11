@@ -21,14 +21,18 @@ const AdminRouter: React.FC = () => {
   // Sync with browser URL hash or path
   useEffect(() => {
     const handlePopState = () => {
-      const path = window.location.pathname || '/overview';
+      let path = window.location.pathname || '/overview';
+      if (['/', '/login', '/signin', '/auth', '/mfa'].includes(path)) {
+        path = '/overview';
+        window.history.replaceState({}, '', '/overview');
+      }
       if (path.startsWith('/customers/')) {
         const id = path.replace('/customers/', '');
         setSelectedCustomerId(id);
         setCurrentPath('/customers');
       } else {
         setSelectedCustomerId(null);
-        setCurrentPath(path === '/' ? '/overview' : path);
+        setCurrentPath(path);
       }
     };
     handlePopState();
@@ -37,15 +41,19 @@ const AdminRouter: React.FC = () => {
   }, []);
 
   const navigate = (path: string) => {
-    if (path.startsWith('/customers/')) {
-      const id = path.replace('/customers/', '');
+    let cleanPath = path;
+    if (['/', '/login', '/signin', '/auth', '/mfa'].includes(cleanPath)) {
+      cleanPath = '/overview';
+    }
+    if (cleanPath.startsWith('/customers/')) {
+      const id = cleanPath.replace('/customers/', '');
       setSelectedCustomerId(id);
       setCurrentPath('/customers');
-      window.history.pushState({}, '', path);
+      window.history.pushState({}, '', cleanPath);
     } else {
       setSelectedCustomerId(null);
-      setCurrentPath(path);
-      window.history.pushState({}, '', path);
+      setCurrentPath(cleanPath);
+      window.history.pushState({}, '', cleanPath);
     }
   };
 
@@ -64,14 +72,6 @@ const AdminRouter: React.FC = () => {
 
   // Pre-launch mode: Authentication is temporarily bypassed per founder request.
   // Full AAL2 TOTP and role gating will be reinstated prior to live launch.
-  /*
-  if (user && mfaRequired) {
-    return <MfaEnroll />;
-  }
-  if (!user || !staff) {
-    return <Login />;
-  }
-  */
 
   // Render current page content
   const renderContent = () => {
@@ -79,6 +79,10 @@ const AdminRouter: React.FC = () => {
       return <CustomerDetail customerId={selectedCustomerId} onBack={() => navigate('/customers')} />;
     }
     switch (currentPath) {
+      case '/':
+      case '/login':
+      case '/signin':
+      case '/mfa':
       case '/overview':
         return <Overview onNavigate={navigate} />;
       case '/customers':
