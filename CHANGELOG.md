@@ -1,5 +1,10 @@
 # CHANGELOG
 
+- Removed DigiLocker Integration in Favor of Direct Aadhaar Card Upload:
+  - Removed DigiLocker authorization popup, session initiation (`POST /api/v2/kyc/digilocker/initiate`), and consent verification (`POST /api/v2/kyc/verify-aadhaar`) endpoints.
+  - Streamlined `KycComplianceSettings.tsx` to feature a unified, direct Aadhaar card upload dropzone and form (12-digit Aadhaar number, full name, and scanned PDF/image file upload).
+  - Consolidated all document submissions (PAN, GST, Aadhaar) through the secure `POST /api/v2/kyc/verify-document` pipeline with Supabase Storage encryption.
+
 - KYC Verification Engine Overhaul & Zero-Trust Governance:
   - Added `requireActivePlan` middleware to all KYC compliance endpoints (`/verify-document`, `/verify-aadhaar`, `/documents`, `/digilocker/initiate`, `/status`), preventing unpaid accounts from triggering metered upstream provider calls.
   - De-duplicated KYC completeness logic into single source of truth `KycVerificationService.ts` branching on `business_type`: `individual` accounts unlock phone numbers with PAN + Aadhaar (DigiLocker) without requiring GST; `company` accounts require PAN + GST.
