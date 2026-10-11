@@ -624,12 +624,31 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
                   <input
                     type="text"
                     value={panNumber}
-                    onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase();
+                      setPanNumber(val);
+                      if (val.length >= 4) {
+                        const fourth = val.charAt(3);
+                        if (fourth === 'P' || fourth === 'H') {
+                          setPanType('personal');
+                        } else if (['C', 'F', 'A', 'T', 'B', 'L', 'J', 'G'].includes(fourth)) {
+                          setPanType('company');
+                        }
+                      }
+                    }}
                     placeholder="e.g. ABCDE1234F"
                     maxLength={10}
                     disabled={submittingPan}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono font-bold tracking-wider uppercase text-slate-900"
                   />
+                  {panNumber.length >= 4 && (
+                    <p className="mt-1 text-xs font-medium text-slate-500">
+                      Entity category (from 4th character &quot;{panNumber.charAt(3)}&quot;):{' '}
+                      <span className="font-bold text-slate-800">
+                        {panNumber.charAt(3) === 'P' || panNumber.charAt(3) === 'H' ? 'Individual / Personal PAN' : 'Company / Business Entity PAN'}
+                      </span>
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-slate-600 font-bold mb-1">

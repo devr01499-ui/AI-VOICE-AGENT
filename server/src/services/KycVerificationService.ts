@@ -57,6 +57,35 @@ export function isMockVobizReference(ref?: string | null): boolean {
 }
 
 /**
+ * Statutory PAN 4th-character entity category derivation (NSDL / Income Tax Department rule):
+ * - Character 4 = 'P' (Person / Individual) -> 'personal'
+ * - Character 4 = 'H' (Hindu Undivided Family) -> 'personal'
+ * - Character 4 in ['C', 'F', 'A', 'T', 'B', 'L', 'J', 'G'] -> 'company'
+ *   - 'C': Company
+ *   - 'F': Firm / Partnership / Limited Liability Partnership (LLP)
+ *   - 'A': Association of Persons (AOP)
+ *   - 'T': Trust
+ *   - 'B': Body of Individuals (BOI)
+ *   - 'L': Local Authority
+ *   - 'J': Artificial Juridical Person
+ *   - 'G': Government Agency
+ * Fails closed to 'personal' (requiring Aadhaar verification) for any unmapped character.
+ */
+export function derivePanCategory(panNumber?: string | null): 'personal' | 'company' {
+  if (!panNumber || typeof panNumber !== 'string') return 'personal';
+  const clean = panNumber.trim().toUpperCase();
+  if (clean.length < 4) return 'personal';
+  const fourthChar = clean.charAt(3);
+  if (fourthChar === 'P' || fourthChar === 'H') {
+    return 'personal';
+  }
+  if (['C', 'F', 'A', 'T', 'B', 'L', 'J', 'G'].includes(fourthChar)) {
+    return 'company';
+  }
+  return 'personal';
+}
+
+/**
  * De-duplicated single source of truth for KYC completeness check across numbers and KYC routes.
  * Branches on sub-account business_type:
  * - individual -> requires PAN + Aadhaar (GST is NOT required)
@@ -75,10 +104,19 @@ export async function checkRequiredKycDocumentsVerified(
   const gstDoc = docs.find((d) => d.documentType === 'gst');
   const aadhaarDoc = docs.find((d) => d.documentType === 'aadhaar');
 
-  // Branch on sub-account's business_type (or PAN type company)
-  const isCompany =
-    (subAccount?.businessType || '').toLowerCase() === 'company' ||
-    (panDoc?.panType || '').toLowerCase() === 'company';
+  // Authoritative entity classification:
+  // Statutory PAN category derived from NSDL rules is the single source of truth.
+  // An individual PAN holder (4th character P/H) can NEVER bypass Aadhaar by declaring 'company'.
+  let isCompany = false;
+  if (panDoc) {
+    const docCategory = panDoc.panNumber && !panDoc.panNumber.includes('*')
+      ? derivePanCategory(panDoc.panNumber)
+      : (panDoc.panType || '').toLowerCase();
+    isCompany = docCategory === 'company';
+  } else if (subAccount?.businessType) {
+    isCompany = subAccount.businessType.toLowerCase() === 'company';
+  }
+
   const businessType: 'individual' | 'company' = isCompany ? 'company' : 'individual';
 
   const requiredDocs = isCompany ? ['PAN', 'GST'] : ['PAN', 'Aadhaar'];

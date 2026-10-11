@@ -1,5 +1,13 @@
 # CHANGELOG
 
+- Statutory PAN Category Derivation & Aadhaar Bypass Closure:
+  - **Statutory Entity Derivation (`derivePanCategory`)**: Implemented statutory NSDL / Income Tax Department 4th-character entity type derivation (`P` / `H` -> `personal`, `C` / `F` / `A` / `T` / `B` / `L` / `J` / `G` -> `company`). Ceased trusting client-supplied `panType` in `POST /api/v2/kyc/verify-document`.
+  - **Declaration Mismatch Rejection & Fraud Logging**: Added validation rejecting client attempts to submit Individual PANs under declared `company` type (or vice-versa) with HTTP 400 (`PAN_CATEGORY_MISMATCH`), logging `[FRAUD_SIGNAL][PAN_CATEGORY_MISMATCH]`.
+  - **Authoritative KYC Document Classification**: Updated `KycVerificationService.ts:checkRequiredKycDocumentsVerified` so the statutory PAN category is the single source of truth for `isCompany`. An individual PAN holder (4th character P) can NEVER be marked as a company, strictly enforcing Aadhaar verification via DigiLocker.
+  - **Database & Sub-Account Alignment**: Synced `vobiz_sub_accounts.business_type` with verified PAN category. Enhanced `maskPan` to preserve the 4th character (`ABCP****2D`) while masking numeric tax digits.
+  - **One-Time Backfill Migration**: Executed `server/scripts/backfill_pan_categories.js` against PostgreSQL to audit all existing PAN records, verify no individuals bypassed Aadhaar, and align sub-account business types.
+  - **Frontend Real-Time Guidance**: Updated `KycComplianceSettings.tsx` to detect entity category from 4th character on input and display real-time category guidance to users.
+
 - Fixed Vercel & Render CI/CD Deployment Pipelines:
   - **Frontend Vercel Build Compatibility**: Restored `"build": "vite build"` in `Frontend/package.json`. In Vercel's standalone pnpm environment where `typescript` is not a localized frontend dependency, invoking `tsc --noEmit` caused build failure (`'tsc' not found`), aborting deployments. Validated that `pnpm run build` succeeds cleanly and pre-renders all 108 routes.
   - **Render CI Deploy Hook Workflow Fix**: Updated `.github/workflows/deploy-render.yml` to remove unmocked browser Playwright E2E tests which prevented the deploy hook from firing.

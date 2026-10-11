@@ -3,7 +3,7 @@ import { requireAuth } from '../middleware/auth';
 import { requireActivePlan } from '../middleware/planValidation';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
-import { checkRequiredKycDocumentsVerified, checkAndApplyFullKycApproval } from '../services/KycVerificationService';
+import { checkRequiredKycDocumentsVerified, checkAndApplyFullKycApproval, derivePanCategory } from '../services/KycVerificationService';
 import { VobizSubAccountService } from '../services/VobizSubAccountService';
 import { verifyVobizWebhook } from '../middleware/vobizWebhook';
 import { Resend } from 'resend';
@@ -25,7 +25,7 @@ export function maskPan(pan?: string | null): string | null {
   if (!pan) return null;
   const p = pan.trim().toUpperCase();
   if (p.length !== 10) return p;
-  return `${p.substring(0, 2)}******${p.substring(8)}`;
+  return `${p.substring(0, 4)}****${p.substring(8)}`;
 }
 
 export function maskAadhaar(aadhaar?: string | null): string | null {
@@ -392,6 +392,45 @@ router.post('/verify-document', requireAuth, requireActivePlan, sensitiveOperati
         res.status(400).json({ success: false, error: 'Full name / Entity name is required as per PAN card.' });
         return;
       }
+
+      // 1b. Statutory PAN 4th-character category derivation & client mismatch rejection
+      const cleanPan = panNumber.trim().toUpperCase();
+      const derivedCategory = derivePanCategory(cleanPan);
+      const clientPanType = panType ? String(panType).toLowerCase().trim() : null;
+
+      if (clientPanType && (clientPanType === 'company' || clientPanType === 'corporate') && derivedCategory === 'personal') {
+        logger.warn('[FRAUD_SIGNAL][PAN_CATEGORY_MISMATCH] Individual PAN submitted with company declaration', {
+          userId,
+          subAuthId: (req as any).effectiveWorkspaceId || (req as any).userId,
+          panMasked: maskPan(cleanPan),
+          clientPanType,
+          derivedCategory,
+        });
+        res.status(400).json({
+          success: false,
+          code: 'PAN_CATEGORY_MISMATCH',
+          error: 'PAN classification mismatch: The submitted PAN is registered to an Individual (4th character "P"). It cannot be declared as a Company PAN. Please select Individual PAN and complete Aadhaar verification.',
+          derivedCategory,
+        });
+        return;
+      }
+
+      if (clientPanType && (clientPanType === 'personal' || clientPanType === 'individual') && derivedCategory === 'company') {
+        logger.warn('[FRAUD_SIGNAL][PAN_CATEGORY_MISMATCH] Company PAN submitted with individual declaration', {
+          userId,
+          subAuthId: (req as any).effectiveWorkspaceId || (req as any).userId,
+          panMasked: maskPan(cleanPan),
+          clientPanType,
+          derivedCategory,
+        });
+        res.status(400).json({
+          success: false,
+          code: 'PAN_CATEGORY_MISMATCH',
+          error: `PAN classification mismatch: The submitted PAN is registered to a business entity/company (4th character "${cleanPan.charAt(3)}"). It cannot be declared as an Individual PAN. Please select Company PAN and provide your GSTIN.`,
+          derivedCategory,
+        });
+        return;
+      }
     }
 
     let resolvedGstCertUrl: string | undefined;
@@ -608,7 +647,7 @@ router.post('/verify-document', requireAuth, requireActivePlan, sensitiveOperati
 
     // 4. Idempotent database write to KycDocument (upsert on [userId, documentType])
     const cleanPan = panNumber ? panNumber.trim().toUpperCase() : undefined;
-    const cleanPanType = panType ? String(panType).toLowerCase() : 'personal';
+    const cleanPanType = cleanPan ? derivePanCategory(cleanPan) : (panType ? String(panType).toLowerCase() : 'personal');
     const cleanName = fullName ? fullName.trim() : undefined;
     const cleanDob = dob ? dob.trim() : undefined;
     const cleanGstin = gstin ? gstin.trim().toUpperCase() : undefined;
@@ -664,6 +703,12 @@ router.post('/verify-document', requireAuth, requireActivePlan, sensitiveOperati
 
     // 7. Check if overall KYC can now be elevated to verified
     if (verificationResultStatus === 'verified') {
+      if (documentType === 'pan' && subAccount?.id) {
+        await prisma.vobizSubAccount.update({
+          where: { id: subAccount.id },
+          data: { businessType: cleanPanType === 'company' ? 'company' : 'individual' },
+        }).catch((err) => logger.warn('KYC: failed to sync subAccount.businessType', { error: String(err) }));
+      }
       await checkAndApplyFullKycApproval(userId, subAccount.id);
     }
 
