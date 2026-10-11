@@ -86,14 +86,14 @@ async function runTest() {
       },
       update: {
         name: 'HubSpot CRM',
-        config: JSON.stringify({ clientId: 'hb_client_id_998877', redirectUri: 'https://app.claritiyvoice.com/oauth/hubspot' }),
+        config: JSON.stringify({ clientId: 'hb_client_id_998877', redirectUri: 'https://app.claritiy.com/oauth/hubspot' }),
         enabled: true,
       },
       create: {
         userId: user.id,
         type: 'hubspot',
         name: 'HubSpot CRM',
-        config: JSON.stringify({ clientId: 'hb_client_id_998877', redirectUri: 'https://app.claritiyvoice.com/oauth/hubspot' }),
+        config: JSON.stringify({ clientId: 'hb_client_id_998877', redirectUri: 'https://app.claritiy.com/oauth/hubspot' }),
         enabled: true,
       },
     });

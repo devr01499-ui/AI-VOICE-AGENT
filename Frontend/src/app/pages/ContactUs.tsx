@@ -264,7 +264,7 @@ export default function ContactUs() {
               </div>
               <div>
                 <span className="font-bold text-sm text-slate-900 block">Solutions Engineering Email</span>
-                <span className="text-xs text-slate-600 block mt-0.5">support@claritiyvoice.com</span>
+                <span className="text-xs text-slate-600 block mt-0.5">support@claritiy.com</span>
                 <span className="text-[11px] text-slate-500 block mt-1">Detailed RFP and architecture questions</span>
               </div>
             </div>

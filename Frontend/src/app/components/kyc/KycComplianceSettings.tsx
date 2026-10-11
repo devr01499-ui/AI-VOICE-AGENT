@@ -61,11 +61,35 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
   const [aadhaarFile, setAadhaarFile] = useState<{ name: string; base64: string } | null>(null);
   const [submittingAadhaar, setSubmittingAadhaar] = useState(false);
   const [aadhaarError, setAadhaarError] = useState<string | null>(null);
+  const [digilockerLink, setDigilockerLink] = useState<string | null>(null);
+  const [initiatingDigiLocker, setInitiatingDigiLocker] = useState(false);
 
-  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [showHostedFallback, setShowHostedFallback] = useState(false);
   const [initiatingHosted, setInitiatingHosted] = useState(false);
   const [systemErrorMessage, setSystemErrorMessage] = useState<string | null>(null);
+
+  const handleInitiateDigiLocker = async () => {
+    setInitiatingDigiLocker(true);
+    setAadhaarError(null);
+    try {
+      const res = await apiClient.post('/api/v2/kyc/digilocker/initiate', {
+        redirect_url: window.location.origin + '/compliance?tab=kyc',
+      });
+      const resData = res.data as any;
+      if (resData?.success && (resData.auth_url || resData.link)) {
+        const link = resData.auth_url || resData.link;
+        setDigilockerLink(link);
+        window.open(link, '_blank');
+      } else {
+        setAadhaarError(resData?.error || 'Failed to initialize DigiLocker session.');
+      }
+    } catch (err: any) {
+      setAadhaarError(err?.response?.data?.error || err.message || 'DigiLocker service unavailable.');
+    } finally {
+      setInitiatingDigiLocker(false);
+    }
+  };
 
   const handleContinueHosted = async () => {
     setInitiatingHosted(true);
@@ -308,13 +332,31 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
       });
 
       if (res.data?.success) {
-        setNotification({
-          type: res.data.data.status === 'verified' ? 'success' : 'error',
-          message:
-            res.data.data.status === 'verified'
-              ? 'Aadhaar verification approved successfully!'
-              : `Aadhaar verification rejected: ${res.data.data.failureReason || 'Details could not be verified'}`,
-        });
+        const resData = res.data as any;
+        if (resData.data?.status === 'verified') {
+          setNotification({
+            type: 'success',
+            message: 'Aadhaar verification approved successfully!',
+          });
+        } else if (resData.authUrl || resData.data?.authUrl) {
+          const link = resData.authUrl || resData.data?.authUrl;
+          setDigilockerLink(link);
+          setNotification({
+            type: 'info',
+            message: 'Aadhaar details recorded! Complete instant OTP authorization on DigiLocker to complete verification.',
+          });
+          window.open(link, '_blank');
+        } else if (resData.data?.status === 'failed') {
+          setNotification({
+            type: 'error',
+            message: `Aadhaar verification rejected: ${resData.data.failureReason || 'Details could not be verified'}`,
+          });
+        } else {
+          setNotification({
+            type: 'info',
+            message: 'Aadhaar document submitted for verification.',
+          });
+        }
         setAadhaarFile(null);
         await loadDocuments();
       } else {
@@ -428,11 +470,15 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
             className={`p-4 rounded-2xl text-xs font-bold flex items-center gap-2.5 ${
               notification.type === 'success'
                 ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                : notification.type === 'info'
+                ? 'bg-blue-50 text-blue-800 border border-blue-200'
                 : 'bg-red-50 text-red-800 border border-red-200'
             }`}
           >
             {notification.type === 'success' ? (
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : notification.type === 'info' ? (
+              <InfoIcon className="w-4 h-4 text-blue-600 shrink-0" />
             ) : (
               <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
             )}
@@ -782,6 +828,65 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
             {aadhaarError && (
               <div className="p-3 rounded-xl bg-red-50 text-red-700 border border-red-200 text-xs font-semibold">
                 {aadhaarError}
+              </div>
+            )}
+
+            {digilockerLink && (
+              <div className="p-3.5 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 text-xs space-y-2">
+                <p className="font-bold flex items-center gap-1.5 text-blue-800">
+                  <ExternalLink className="w-4 h-4 text-blue-600" /> Complete DigiLocker Verification
+                </p>
+                <p className="text-[11px] text-blue-700 leading-relaxed">
+                  Your document details have been registered. Complete the official instant OTP verification on the Govt. of India DigiLocker portal.
+                </p>
+                <a
+                  href={digilockerLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-1.5 w-full py-2.5 px-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-xs"
+                >
+                  Open DigiLocker Authorization <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            )}
+
+            {aadhaarDoc?.status !== 'verified' && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" /> Instant DigiLocker Verification
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded-full">
+                    Recommended
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Fastest method: Authenticate directly via UIDAI DigiLocker OTP without uploading physical card copies.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleInitiateDigiLocker}
+                  disabled={initiatingDigiLocker}
+                  className="w-full py-2.5 px-4 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs text-xs"
+                >
+                  {initiatingDigiLocker ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Connecting to DigiLocker…
+                    </>
+                  ) : (
+                    <>
+                      Verify Instantly with DigiLocker <ExternalLink className="w-3.5 h-3.5" />
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {aadhaarDoc?.status !== 'verified' && (
+              <div className="relative flex py-1 items-center">
+                <div className="flex-grow border-t border-slate-200"></div>
+                <span className="flex-shrink mx-3 text-[10px] text-slate-400 font-bold uppercase tracking-wider">Or Manual Card Upload</span>
+                <div className="flex-grow border-t border-slate-200"></div>
               </div>
             )}
 

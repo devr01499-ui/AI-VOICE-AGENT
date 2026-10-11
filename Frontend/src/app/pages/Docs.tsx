@@ -26,7 +26,7 @@ export default function Docs() {
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.claritiyvoice.com/api/v2/calls/outbound",
+        "url": "https://api.claritiy.com/api/v2/calls/outbound",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
@@ -57,7 +57,7 @@ export default function Docs() {
 
   const makeConfigSnippet = `// Make (Integromat) HTTP "Make a request" Configuration
 Module: HTTP (Make a request)
-URL: https://api.claritiyvoice.com/api/v2/calls/outbound
+URL: https://api.claritiy.com/api/v2/calls/outbound
 Method: POST
 
 Headers:
@@ -89,7 +89,7 @@ Action App: Webhooks by Zapier
 Action Event: Custom Request (or POST)
 
 Method: POST
-URL: https://api.claritiyvoice.com/api/v2/calls/outbound
+URL: https://api.claritiy.com/api/v2/calls/outbound
 
 Data (JSON):
 {
@@ -108,7 +108,7 @@ Headers:
   Accept: application/json`;
 
   const restSnippets: Record<RestLang, string> = {
-    curl: `curl -X POST https://api.claritiyvoice.com/api/v2/calls/outbound \\
+    curl: `curl -X POST https://api.claritiy.com/api/v2/calls/outbound \\
   -H "Authorization: Bearer claritiy_live_sec_99a81f" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -125,7 +125,7 @@ Headers:
 const initiateOutboundCall = async () => {
   try {
     const response = await axios.post(
-      'https://api.claritiyvoice.com/api/v2/calls/outbound',
+      'https://api.claritiy.com/api/v2/calls/outbound',
       {
         agentId: 'tpl-1-receptionist',
         phoneNumber: '+919876543210',
@@ -155,7 +155,7 @@ const initiateOutboundCall = async () => {
 import requests
 
 def trigger_voice_call(phone: str, customer_name: str, order_id: str, amount: float):
-    url = "https://api.claritiyvoice.com/api/v2/calls/outbound"
+    url = "https://api.claritiy.com/api/v2/calls/outbound"
     headers = {
         "Authorization": f"Bearer {os.environ.get('CLARITIY_API_KEY')}",
         "Content-Type": "application/json"
@@ -203,7 +203,7 @@ func main() {
 	}
 
 	body, _ := json.Marshal(payload)
-	req, _ := http.NewRequest("POST", "https://api.claritiyvoice.com/api/v2/calls/outbound", bytes.NewBuffer(body))
+	req, _ := http.NewRequest("POST", "https://api.claritiy.com/api/v2/calls/outbound", bytes.NewBuffer(body))
 	req.Header.Set("Authorization", "Bearer "+os.Getenv("CLARITIY_API_KEY"))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -347,7 +347,7 @@ app.listen(4000, () => console.log('Webhook server active on port 4000'));`;
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-1">
                 <span className="text-[10px] font-mono font-bold text-emerald-700 uppercase">STEP 1: METHOD & URL</span>
                 <p className="text-xs text-slate-600 font-plus-jakarta">
-                  Set Method to <strong>POST</strong> and URL to <code>https://api.claritiyvoice.com/api/v2/calls/outbound</code>.
+                  Set Method to <strong>POST</strong> and URL to <code>https://api.claritiy.com/api/v2/calls/outbound</code>.
                 </p>
               </div>
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-1">

@@ -122,11 +122,11 @@ export default function Security() {
         </p>
         <div className="pt-2 flex justify-center">
           <a
-            href="mailto:security@claritiyvoice.com"
+            href="mailto:security@claritiy.com"
             className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors inline-flex items-center gap-2"
           >
             <Mail className="w-4 h-4 text-emerald-400" />
-            Contact Security Desk (security@claritiyvoice.com)
+            Contact Security Desk (security@claritiy.com)
           </a>
         </div>
       </div>

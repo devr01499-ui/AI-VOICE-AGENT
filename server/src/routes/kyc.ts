@@ -84,16 +84,12 @@ export async function notifyUserDocumentStatus(
       status,
     });
 
-    const fromAddress = process.env.RESEND_FROM_EMAIL || 'Claritiy Voice <notifications@claritiyvoice.com>';
+    const fromAddress = process.env.RESEND_FROM_EMAIL || 'Claritiy Voice <notifications@claritiy.com>';
 
-    // 2. Email Delivery via Resend
+    // 2. Email Delivery via Resend (non-fatal side effect)
     if (!process.env.RESEND_API_KEY) {
-      if (process.env.NODE_ENV === 'production') {
-        const errorMsg = 'CRITICAL CONFIG ERROR: RESEND_API_KEY is not configured in production!';
-        logger.error(errorMsg, { userId, email: user.email, status, documentType });
-        throw new Error(errorMsg);
-      }
-      logger.info('[MOCK EMAIL NOTIFICATION] KYC document status email sent to user', {
+      logger.info('[NOTIFICATION] RESEND_API_KEY is not configured, skipping document email dispatch', {
+        userId,
         email: user.email,
         documentType,
         status,
@@ -102,52 +98,57 @@ export async function notifyUserDocumentStatus(
       return;
     }
 
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    const emailResult = await resend.emails.send({
-      from: fromAddress,
-      to: user.email,
-      subject: `Claritiy Voice — ${docName} Verification ${isVerified ? 'Approved! 🎉' : 'Action Required'}`,
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #0F172A;">
-          <h2 style="color: ${isVerified ? '#059669' : '#DC2626'};">
-            Claritiy Voice — ${docName} Verification ${isVerified ? 'Approved' : 'Failed'}
-          </h2>
-          <p>Hello ${user.fullName || 'User'},</p>
-          <p>${isVerified
-            ? `Your ${docName} document has been successfully verified on Claritiy Voice.`
-            : `Your ${docName} document verification could not be completed. ${reason ? 'Reason: ' + reason : 'Please review and re-submit in Settings → KYC & Compliance.'}`
-          }</p>
-          <p style="margin-top: 24px; font-size: 12px; color: #64748B;">
-            This is an automated compliance notification from Claritiy Voice Enterprise Voice AI.
-          </p>
-        </div>
-      `,
-    });
-
-    if (emailResult.error) {
-      logger.error('KYC Document Notification: Resend returned error delivering email', {
-        userId,
-        error: emailResult.error,
+    try {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const emailResult = await resend.emails.send({
+        from: fromAddress,
+        to: user.email,
+        subject: `Claritiy Voice — ${docName} Verification ${isVerified ? 'Approved! 🎉' : 'Action Required'}`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #0F172A;">
+            <h2 style="color: ${isVerified ? '#059669' : '#DC2626'};">
+              Claritiy Voice — ${docName} Verification ${isVerified ? 'Approved' : 'Failed'}
+            </h2>
+            <p>Hello ${user.fullName || 'User'},</p>
+            <p>${isVerified
+              ? `Your ${docName} document has been successfully verified on Claritiy Voice.`
+              : `Your ${docName} document verification could not be completed. ${reason ? 'Reason: ' + reason : 'Please review and re-submit in Settings → KYC & Compliance.'}`
+            }</p>
+            <p style="margin-top: 24px; font-size: 12px; color: #64748B;">
+              This is an automated compliance notification from Claritiy Voice Enterprise Voice AI.
+            </p>
+          </div>
+        `,
       });
-      if (process.env.NODE_ENV === 'production') {
-        throw new Error(`Resend delivery failed: ${emailResult.error.message || JSON.stringify(emailResult.error)}`);
+
+      if (emailResult.error) {
+        logger.warn('KYC Document Notification: Resend returned error delivering email (non-fatal)', {
+          userId,
+          error: emailResult.error,
+          recipient: user.email,
+          documentType,
+          status,
+        });
+      } else {
+        logger.info('KYC Document Notification: Status email dispatched via Resend', {
+          userId,
+          email: user.email,
+          emailId: emailResult.data?.id,
+        });
       }
-    } else {
-      logger.info('KYC Document Notification: Status email dispatched via Resend', {
+    } catch (emailErr) {
+      logger.warn('KYC Document Notification: Failed to dispatch Resend email (non-fatal)', {
         userId,
-        email: user.email,
-        emailId: emailResult.data?.id,
+        recipient: user.email,
+        error: String(emailErr),
       });
     }
   } catch (err) {
-    logger.error('KYC Document Notification: Error dispatching document notification', {
+    logger.warn('KYC Document Notification: Error in document notification handler (non-fatal)', {
       userId,
       documentType,
       error: String(err),
     });
-    if (process.env.NODE_ENV === 'production') {
-      throw err;
-    }
   }
 }
 
@@ -179,60 +180,62 @@ export async function notifyUserKycStatus(userId: string, status: string, reason
 
     logger.info('KYC Notification: Sending status email to user', { userId, email: user.email, status });
 
-    const fromAddress = process.env.RESEND_FROM_EMAIL || 'Claritiy Voice <notifications@claritiyvoice.com>';
+    const fromAddress = process.env.RESEND_FROM_EMAIL || 'Claritiy Voice <notifications@claritiy.com>';
 
     if (!process.env.RESEND_API_KEY) {
-      if (process.env.NODE_ENV === 'production') {
-        const errorMsg = 'CRITICAL CONFIG ERROR: RESEND_API_KEY is not configured in production! Customer KYC notification email could not be delivered.';
-        logger.error(errorMsg, { userId, email: user.email, status });
-        throw new Error(errorMsg);
-      }
-      logger.info('[MOCK EMAIL NOTIFICATION] KYC status email sent to user', { email: user.email, status, from: fromAddress });
+      logger.info('[NOTIFICATION] RESEND_API_KEY not configured, skipping status email dispatch', {
+        email: user.email,
+        status,
+        from: fromAddress
+      });
       return;
     }
 
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    const emailResult = await resend.emails.send({
-      from: fromAddress,
-      to: user.email,
-      subject: `Claritiy Voice — KYC Verification ${isVerified ? 'Approved! 🎉' : 'Action Required'}`,
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #0F172A;">
-          <h2 style="color: ${isVerified ? '#059669' : '#DC2626'};">
-            Claritiy Voice — KYC Verification ${isVerified ? 'Verified' : 'Failed'}
-          </h2>
-          <p>Hello ${user.fullName || 'User'},</p>
-          <p>${isVerified
-            ? 'Your account-level KYC verification with Vobiz has been successfully approved! You can now activate and use phone numbers directly in your dashboard.'
-            : `Your account-level KYC verification could not be completed. ${reason ? 'Reason: ' + reason : 'Please retry document verification in Settings.'}`
-          }</p>
-          <p style="margin-top: 24px; font-size: 12px; color: #64748B;">
-            This is an automated notification from Claritiy Voice Enterprise Voice AI.
-          </p>
-        </div>
-      `
-    });
-
-    if (emailResult.error) {
-      logger.error('KYC Notification: Resend returned error delivering email', {
-        userId,
-        error: emailResult.error
+    try {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const emailResult = await resend.emails.send({
+        from: fromAddress,
+        to: user.email,
+        subject: `Claritiy Voice — KYC Verification ${isVerified ? 'Approved! 🎉' : 'Action Required'}`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #0F172A;">
+            <h2 style="color: ${isVerified ? '#059669' : '#DC2626'};">
+              Claritiy Voice — KYC Verification ${isVerified ? 'Verified' : 'Failed'}
+            </h2>
+            <p>Hello ${user.fullName || 'User'},</p>
+            <p>${isVerified
+              ? 'Your account-level KYC verification with Vobiz has been successfully approved! You can now activate and use phone numbers directly in your dashboard.'
+              : `Your account-level KYC verification could not be completed. ${reason ? 'Reason: ' + reason : 'Please retry document verification in Settings.'}`
+            }</p>
+            <p style="margin-top: 24px; font-size: 12px; color: #64748B;">
+              This is an automated notification from Claritiy Voice Enterprise Voice AI.
+            </p>
+          </div>
+        `
       });
-      if (process.env.NODE_ENV === 'production') {
-        throw new Error(`Resend delivery failed: ${emailResult.error.message || JSON.stringify(emailResult.error)}`);
+
+      if (emailResult.error) {
+        logger.warn('KYC Notification: Resend returned error delivering email (non-fatal)', {
+          userId,
+          recipient: user.email,
+          error: emailResult.error
+        });
+      } else {
+        logger.info('KYC Notification: Status email dispatched via Resend', {
+          userId,
+          email: user.email,
+          emailId: emailResult.data?.id
+        });
       }
-    } else {
-      logger.info('KYC Notification: Status email dispatched via Resend', {
+    } catch (emailErr) {
+      logger.warn('KYC Notification: Failed to dispatch Resend email (non-fatal)', {
         userId,
-        email: user.email,
-        emailId: emailResult.data?.id
+        recipient: user.email,
+        error: String(emailErr)
       });
     }
   } catch (err) {
-    logger.error('KYC Notification: Error dispatching status notifications', { userId, error: String(err) });
-    if (process.env.NODE_ENV === 'production') {
-      throw err;
-    }
+    logger.warn('KYC Notification: Error in status notification handler (non-fatal)', { userId, error: String(err) });
   }
 }
 
@@ -527,7 +530,10 @@ router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (
 
     const isMock = subAuthId.startsWith('SA_MOCK_') || (env.VOBIZ_AUTH_ID || '').includes('placeholder');
 
-    if (isMock || documentType === 'aadhaar') {
+    let digilockerLink: string | null = null;
+    let digilockerAccessRequestId: string | null = null;
+
+    if (isMock) {
       // Mock / local verification engine
       if (documentType === 'pan') {
         const isMockValid = PAN_REGEX.test((panNumber || '').trim().toUpperCase());
@@ -549,12 +555,12 @@ router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (
         }
       } else if (documentType === 'aadhaar') {
         const cleanAadhaarRaw = (aadhaarNumber || '').replace(/\s+/g, '');
-        if (/^[0-9]{12}$/.test(cleanAadhaarRaw)) {
+        if (/^[0-9]{12}$/.test(cleanAadhaarRaw) || resolvedAadhaarUrl) {
           verificationResultStatus = 'verified';
           vobizReference = `vob_adh_${Date.now()}`;
         } else {
           verificationResultStatus = 'failed';
-          failureReason = 'Aadhaar document verification failed.';
+          failureReason = 'Please enter a valid 12-digit Aadhaar number.';
         }
       }
     } else {
@@ -589,27 +595,45 @@ router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (
             headers,
             body: JSON.stringify({ pan: (panNumber || '').trim().toUpperCase() }),
           });
-        } else {
+        } else if (documentType === 'gst') {
           const vobizUrl = `${baseUrl}/api/v1/sub-accounts/${subAuthId}/kyc/verify-gst`;
           vobizRes = await fetch(vobizUrl, {
             method: 'POST',
             headers,
             body: JSON.stringify({ gstin: (gstin || '').trim().toUpperCase() }),
           });
+        } else {
+          // Aadhaar: Official Vobiz DigiLocker integration
+          const vobizUrl = `${baseUrl}/api/v1/sub-accounts/${subAuthId}/kyc/digilocker/initiate`;
+          vobizRes = await fetch(vobizUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              redirect_url: 'https://www.claritiy.com/compliance?tab=kyc',
+            }),
+          });
         }
 
         if (vobizRes.ok) {
           const resData = (await vobizRes.json()) as any;
-          const status = (resData.status || '').toLowerCase();
-          if (status === 'verified' || resData.verified === true) {
-            verificationResultStatus = 'verified';
-            vobizReference = resData.api_id || resData.reference || resData.id || `vob_${Date.now()}`;
-          } else if (status === 'failed' || status === 'rejected' || resData.verified === false) {
-            verificationResultStatus = 'failed';
-            failureReason = resData.message || resData.reason || 'Document verification rejected: details did not match official tax records.';
-          } else {
+          if (documentType === 'aadhaar') {
+            // DigiLocker initiate returns link and access_request_id
+            digilockerLink = resData.link || resData.auth_url || null;
+            digilockerAccessRequestId = resData.access_request_id || resData.api_id || null;
+            vobizReference = digilockerAccessRequestId;
             verificationResultStatus = 'pending';
-            vobizReference = resData.api_id || resData.reference || null;
+          } else {
+            const status = (resData.status || '').toLowerCase();
+            if (status === 'verified' || resData.verified === true) {
+              verificationResultStatus = 'verified';
+              vobizReference = resData.api_id || resData.reference || resData.id || `vob_${Date.now()}`;
+            } else if (status === 'failed' || status === 'rejected' || resData.verified === false) {
+              verificationResultStatus = 'failed';
+              failureReason = resData.message || resData.reason || 'Document verification rejected: details did not match official records.';
+            } else {
+              verificationResultStatus = 'pending';
+              vobizReference = resData.api_id || resData.reference || null;
+            }
           }
         } else {
           // Provider 401/403/5xx/404 system errors:
@@ -713,6 +737,9 @@ router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (
 
     res.json({
       success: true,
+      authUrl: digilockerLink,
+      link: digilockerLink,
+      accessRequestId: digilockerAccessRequestId,
       data: {
         id: savedDoc.id,
         documentType: savedDoc.documentType,
@@ -721,6 +748,9 @@ router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (
         verifiedAt: savedDoc.verifiedAt,
         gstCertUrl: savedDoc.gstCertUrl,
         aadhaarDocUrl: savedDoc.aadhaarDocUrl,
+        authUrl: digilockerLink,
+        link: digilockerLink,
+        accessRequestId: digilockerAccessRequestId,
       },
     });
   } catch (err) {
@@ -730,12 +760,110 @@ router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (
 });
 
 /**
- * POST /api/v2/kyc/verify-aadhaar
+ * POST /api/v2/kyc/digilocker/initiate
+ * Starts a DigiLocker-based Aadhaar verification session with Vobiz.
+ * Returns auth_url and access_request_id.
+ */
+router.post(['/digilocker/initiate', '/aadhaar/initiate'], requireAuth, sensitiveOperationsLimiter, async (req, res, next) => {
+  try {
+    const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+
+    const subAccountService = new VobizSubAccountService();
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    const subAccount = await subAccountService.getOrCreateSubAccount(userId, user?.email || undefined);
+    const subAuthId = subAccount.authId;
+    const isMock = subAuthId.startsWith('SA_MOCK_') || (env.VOBIZ_AUTH_ID || '').includes('placeholder');
+
+    if (isMock) {
+      const mockAccessRequestId = `AR_MOCK_${Date.now()}`;
+      res.json({
+        success: true,
+        auth_url: `https://www.claritiy.com/compliance?tab=kyc&mock_dl=${mockAccessRequestId}`,
+        link: `https://www.claritiy.com/compliance?tab=kyc&mock_dl=${mockAccessRequestId}`,
+        access_request_id: mockAccessRequestId,
+        message: 'Open the link to authenticate via DigiLocker. Complete Aadhaar OTP verification.',
+      });
+      return;
+    }
+
+    const baseUrl = (env.VOBIZ_API_URL || 'https://api.vobiz.ai').replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
+    const masterAuthId = env.VOBIZ_AUTH_ID;
+    const masterAuthToken = env.VOBIZ_AUTH_TOKEN;
+
+    if (!masterAuthId || !masterAuthToken || masterAuthId.includes('placeholder')) {
+      res.status(503).json({
+        success: false,
+        error: 'Verification service is temporarily unavailable, please try again shortly',
+      });
+      return;
+    }
+
+    const vobizUrl = `${baseUrl}/api/v1/sub-accounts/${subAuthId}/kyc/digilocker/initiate`;
+    const vobizRes = await fetch(vobizUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Auth-ID': masterAuthId,
+        'X-Auth-Token': masterAuthToken,
+      },
+      body: JSON.stringify({
+        redirect_url: req.body.redirect_url || 'https://www.claritiy.com/compliance?tab=kyc',
+        oauth_state: req.body.oauth_state || undefined,
+      }),
+    });
+
+    if (vobizRes.ok) {
+      const data = (await vobizRes.json()) as any;
+      const accessRequestId = data.access_request_id || data.api_id;
+      const authUrl = data.link || data.auth_url;
+
+      // Upsert pending Aadhaar document
+      await prisma.kycDocument.upsert({
+        where: { userId_documentType: { userId, documentType: 'aadhaar' } },
+        create: {
+          userId,
+          documentType: 'aadhaar',
+          status: 'pending',
+          vobizReference: accessRequestId,
+        },
+        update: {
+          status: 'pending',
+          vobizReference: accessRequestId,
+        },
+      });
+
+      res.json({
+        success: true,
+        auth_url: authUrl,
+        link: authUrl,
+        access_request_id: accessRequestId,
+        message: data.message || 'Open the link to authenticate via DigiLocker. Complete Aadhaar OTP verification.',
+      });
+    } else {
+      const errText = await vobizRes.text();
+      logger.error('KYC: DigiLocker initiate provider error', { status: vobizRes.status, errText: errText.substring(0, 300) });
+      res.status(502).json({
+        success: false,
+        error: 'DigiLocker service is temporarily unavailable. Please try again shortly or use hosted verification.',
+      });
+    }
+  } catch (err) {
+    logger.error('KYC: digilocker/initiate error', { error: String(err) });
+    next(err);
+  }
+});
+
+/**
+ * POST /api/v2/kyc/verify-aadhaar (and alias /digilocker/verify)
  * DigiLocker consent flow (access_request_id).
  * Strictly NEVER stores raw Aadhaar number or document image.
  * Only stores the verified/not-verified result returned by Vobiz.
  */
-router.post('/verify-aadhaar', requireAuth, sensitiveOperationsLimiter, async (req, res, next) => {
+router.post(['/verify-aadhaar', '/digilocker/verify'], requireAuth, sensitiveOperationsLimiter, async (req, res, next) => {
   try {
     const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
     if (!userId) {

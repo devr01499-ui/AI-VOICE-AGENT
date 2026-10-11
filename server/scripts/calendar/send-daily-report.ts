@@ -74,7 +74,7 @@ async function sendDailyReports() {
     try {
       if (process.env.RESEND_API_KEY) {
         await resend.emails.send({
-          from: 'Claritiy Voice <reports@claritiyvoice.com>',
+          from: 'Claritiy Voice <reports@claritiy.com>',
           to: user.email,
           subject: 'Your Daily Claritiy Voice Activity Report',
           html: htmlBody,

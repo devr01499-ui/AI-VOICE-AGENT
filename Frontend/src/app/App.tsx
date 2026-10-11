@@ -785,7 +785,7 @@ EDGE CASES:
 3. Off-topic questions: Respectfully bring caller back to office services.
 
 DISCLAIMER & CLOSING:
-- For emergency security concerns or system compromise, direct callers to security@claritiyvoice.com.
+- For emergency security concerns or system compromise, direct callers to security@claritiy.com.
 - Close: "Thank you for calling Claritiy Voice. Have a wonderful day ahead!"`,
     flowGraph: {
       schemaVersion: '1.0',
@@ -827,7 +827,7 @@ DISCLAIMER & CLOSING:
         { id: 'end-urgent', type: 'endCall', position: { x: 250, y: 920 }, data: { label: 'Transfer Hand-off', text: 'Connecting you directly to priority support. Please hold...' } },
         { id: 'general-support-msg', type: 'sayMessage', position: { x: 450, y: 800 }, data: { label: 'Support Ticket Logged', text: 'I have logged your support ticket for our engineering team. You will receive an update by email within 1 hour.' } },
         { id: 'end-support', type: 'endCall', position: { x: 450, y: 920 }, data: { label: 'Support Goodbye', text: 'Thank you for reaching Claritiy Voice Support!' } },
-        { id: 'billing-sms', type: 'inCallSms', position: { x: 600, y: 540 }, data: { label: 'Dispatch Billing Portal SMS', smsMessage: 'Claritiy Voice Billing: Manage invoices and update payment methods at https://claritiyvoice.com/billing' } },
+        { id: 'billing-sms', type: 'inCallSms', position: { x: 600, y: 540 }, data: { label: 'Dispatch Billing Portal SMS', smsMessage: 'Claritiy Voice Billing: Manage invoices and update payment methods at https://claritiy.com/billing' } },
         { id: 'end-billing', type: 'endCall', position: { x: 600, y: 670 }, data: { label: 'Billing Wrap Up', text: 'I have texted you our self-service billing link. Thank you for calling Claritiy Voice!' } }
       ],
       edges: [
@@ -930,7 +930,7 @@ CLOSING:
         { id: 'transfer-ae', type: 'transferCall', position: { x: 100, y: 660 }, data: { label: 'Live Transfer to AE', targetNumber: '+18005550188' } },
         { id: 'closing-ae', type: 'sayMessage', position: { x: 100, y: 790 }, data: { label: 'AE Transfer Announcement', text: 'Connecting you now with our Senior Solutions Engineer. Please hold one moment...' } },
         { id: 'end-ae', type: 'endCall', position: { x: 100, y: 910 }, data: { label: 'AE Call Hand-off', text: 'Call transferred successfully.' } },
-        { id: 'send-demo-sms', type: 'inCallSms', position: { x: 420, y: 660 }, data: { label: 'Send Demo Video SMS', smsMessage: 'Claritiy Voice: Watch our 3-minute interactive demo video & sandbox walkthrough here: https://claritiyvoice.com/demo-video' } },
+        { id: 'send-demo-sms', type: 'inCallSms', position: { x: 420, y: 660 }, data: { label: 'Send Demo Video SMS', smsMessage: 'Claritiy Voice: Watch our 3-minute interactive demo video & sandbox walkthrough here: https://claritiy.com/demo-video' } },
         { id: 'closing-sms', type: 'sayMessage', position: { x: 420, y: 790 }, data: { label: 'Self-Serve Deck Confirmation', text: 'I have texted you our starter walkthrough video and sandbox trial link. Feel free to reach back out anytime!' } },
         { id: 'end-sms', type: 'endCall', position: { x: 420, y: 910 }, data: { label: 'Sales Goodbye', text: 'Thanks for speaking with Claritiy Voice! Have a great day.' } }
       ],
@@ -1304,7 +1304,7 @@ WORKFLOW STEPS:
         },
         { id: 'transfer-concierge', type: 'transferCall', position: { x: 100, y: 660 }, data: { label: 'Transfer Event Concierge', targetNumber: '+18005550144' } },
         { id: 'end-vip', type: 'endCall', position: { x: 100, y: 790 }, data: { label: 'VIP Hand-off Goodbye', text: 'Transferring you to our VIP Event Concierge. Please hold...' } },
-        { id: 'send-badge-sms', type: 'inCallSms', position: { x: 420, y: 660 }, data: { label: 'Dispatch Digital Badge SMS', smsMessage: 'Claritiy Voice Summit: Registration confirmed! Access your digital QR badge & agenda at https://claritiyvoice.com/summit/badge' } },
+        { id: 'send-badge-sms', type: 'inCallSms', position: { x: 420, y: 660 }, data: { label: 'Dispatch Digital Badge SMS', smsMessage: 'Claritiy Voice Summit: Registration confirmed! Access your digital QR badge & agenda at https://claritiy.com/summit/badge' } },
         { id: 'pass-confirm-say', type: 'sayMessage', position: { x: 420, y: 790 }, data: { label: 'Registration Confirmation Message', text: 'You\'re all registered! I have texted your digital event pass and schedule directly to your phone.' } },
         { id: 'end-general', type: 'endCall', position: { x: 420, y: 910 }, data: { label: 'Summit Goodbye', text: 'We look forward to seeing you at the Claritiy Voice Summit! Have a great day.' } }
       ],

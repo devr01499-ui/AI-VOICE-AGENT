@@ -24,9 +24,13 @@ export class EncryptionService {
    *   2. Fallback to getWebhookSigningSecret() (Warns loudly so founder configures ENCRYPTION_KEY)
    */
   private static getPrimaryKey(): Buffer {
-    const dedicatedKey = env.ENCRYPTION_KEY;
+    const dedicatedKey = process.env.ENCRYPTION_KEY || env.ENCRYPTION_KEY;
     if (dedicatedKey && dedicatedKey.trim().length > 0) {
-      return crypto.createHash('sha256').update(dedicatedKey.trim()).digest();
+      const trimmed = dedicatedKey.trim();
+      if (trimmed.length === 64 && /^[0-9a-fA-F]+$/.test(trimmed)) {
+        return Buffer.from(trimmed, 'hex');
+      }
+      return crypto.createHash('sha256').update(trimmed).digest();
     }
 
     if (!encryptionKeyWarned) {
@@ -37,13 +41,13 @@ export class EncryptionService {
       encryptionKeyWarned = true;
     }
 
-    try {
-      const secret = getWebhookSigningSecret();
-      if (secret && secret.trim().length > 0) {
-        return crypto.createHash('sha256').update(secret.trim()).digest();
+    const explicitSecret = process.env.VOBIZ_WEBHOOK_SECRET || process.env.SIP_ENCRYPTION_KEY || env.VOBIZ_WEBHOOK_SECRET || env.SIP_ENCRYPTION_KEY;
+    if (explicitSecret && explicitSecret.trim().length > 0) {
+      const trimmed = explicitSecret.trim();
+      if (trimmed.length === 64 && /^[0-9a-fA-F]+$/.test(trimmed)) {
+        return Buffer.from(trimmed, 'hex');
       }
-    } catch {
-      // Safe fallback to prevent launch-day outage when optional secrets are unset
+      return crypto.createHash('sha256').update(trimmed).digest();
     }
 
     return Buffer.from(this.LEGACY_DEFAULT_HEX_KEY, 'hex');
@@ -75,14 +79,16 @@ export class EncryptionService {
     // 1. Primary key
     addKey(this.getPrimaryKey());
 
-    // 2. VOBIZ_WEBHOOK_SECRET
-    if (env.VOBIZ_WEBHOOK_SECRET && env.VOBIZ_WEBHOOK_SECRET.trim().length > 0) {
-      addKey(crypto.createHash('sha256').update(env.VOBIZ_WEBHOOK_SECRET.trim()).digest());
+    // 2. VOBIZ_WEBHOOK_SECRET (check both process.env and env)
+    const webhookSecret = process.env.VOBIZ_WEBHOOK_SECRET || env.VOBIZ_WEBHOOK_SECRET;
+    if (webhookSecret && webhookSecret.trim().length > 0) {
+      addKey(crypto.createHash('sha256').update(webhookSecret.trim()).digest());
     }
 
-    // 3. SIP_ENCRYPTION_KEY (sha256)
-    if (env.SIP_ENCRYPTION_KEY && env.SIP_ENCRYPTION_KEY.trim().length > 0) {
-      const trimmed = env.SIP_ENCRYPTION_KEY.trim();
+    // 3. SIP_ENCRYPTION_KEY (check both process.env and env)
+    const sipKey = process.env.SIP_ENCRYPTION_KEY || env.SIP_ENCRYPTION_KEY;
+    if (sipKey && sipKey.trim().length > 0) {
+      const trimmed = sipKey.trim();
       addKey(crypto.createHash('sha256').update(trimmed).digest());
 
       // 4. SIP_ENCRYPTION_KEY as direct hex buffer if 64 chars
@@ -95,9 +101,10 @@ export class EncryptionService {
       }
     }
 
-    // 5. Historical legacy default hex key
+    // 5. Historical legacy default hex key (both direct buffer and sha256 derived)
     try {
       addKey(Buffer.from(this.LEGACY_DEFAULT_HEX_KEY, 'hex'));
+      addKey(crypto.createHash('sha256').update(this.LEGACY_DEFAULT_HEX_KEY).digest());
     } catch {
       // ignore
     }
