@@ -31,3 +31,11 @@
   - Sub-account creation (`POST /api/v1/accounts/{auth_id}/sub-accounts/`) is available on our standard account tier and can be leveraged if per-customer KYC/number isolation is required in the future.
   - Sub-account balance funding (`POST /api/v1/partner/accounts/{customer_auth_id}/transfer-balance`) is confirmed Partner-tier only (path prefixed under `/partner/`), requiring a $100k/month minimum commitment. This validates ADR-004's decision to maintain internal credit ledgering in our database.
 
+## ADR-005: Statutory Server-Side PAN Entity Category Derivation & Aadhaar KYC Gating
+- **Status**: Accepted
+- **Context**: Users could self-declare `panType = 'company'` in client payloads to bypass statutory Aadhaar identity verification required for individuals under Indian telecommunications and KYC compliance regulations.
+- **Decision**: Authoritative entity classification is derived strictly on the server by inspecting the statutory 4th character of the PAN number (`P`/`H` = Individual/Personal requiring Aadhaar via DigiLocker; `C`/`F`/`A`/`T`/`B`/`L`/`J`/`G` = Company/Business Entity requiring GSTIN). Client submissions contradicting the derived category are rejected with HTTP 400 (`PAN_CATEGORY_MISMATCH`). The 4th character is preserved during PAN masking (`ABCP****2D`) so stored documents can be re-evaluated authoritatively without plaintext exposure.
+- **Rejected Alternative**: Trusting client-supplied `panType` or depending exclusively on asynchronous Vobiz API category parsing without statutory 4th-character validation. Reason: Remote API payloads may omit entity fields or fail during network timeouts, whereas the 4th character is an immutable NSDL statutory encoding executed locally with zero latency.
+- **Consequences**: Closes the Aadhaar bypass vulnerability entirely; guarantees compliance with carrier sub-account audit requirements; ensures individual callers are verified before phone number provisioning.
+
+
