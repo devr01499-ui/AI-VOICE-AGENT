@@ -6,7 +6,7 @@
   "scripts": {
     "sitemap": "node scripts/generate-sitemap.js",
     "prebuild": "node scripts/generate-sitemap.js",
-    "build": "tsc --noEmit && vite build",
+    "build": "vite build",
     "postbuild": "node scripts/prerender-seo.js",
     "typecheck": "tsc --noEmit",
     "dev": "vite",

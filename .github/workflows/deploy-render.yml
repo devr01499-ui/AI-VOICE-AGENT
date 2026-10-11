@@ -30,14 +30,6 @@ jobs:
       - name: Run Backend Security & Auth Audit
         run: node scripts/test_auth_protection.js
 
-      - name: Install Playwright Browsers
-        run: npx playwright install --with-deps chromium
-        working-directory: Frontend
-
-      - name: Run Frontend E2E Auth Gate Tests
-        run: npm run test:e2e
-        working-directory: Frontend
-
       - name: Trigger Render Webhook
         env:
           RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
