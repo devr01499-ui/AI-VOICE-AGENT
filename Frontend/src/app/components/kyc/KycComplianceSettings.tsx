@@ -311,14 +311,6 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
             type: 'success',
             message: 'Aadhaar verification approved successfully!',
           });
-        } else if (resData.authUrl || resData.data?.authUrl) {
-          const link = resData.authUrl || resData.data?.authUrl;
-          setDigilockerLink(link);
-          setNotification({
-            type: 'info',
-            message: 'Aadhaar details recorded! Complete instant OTP authorization on DigiLocker to complete verification.',
-          });
-          window.open(link, '_blank');
         } else if (resData.data?.status === 'failed') {
           setNotification({
             type: 'error',
@@ -327,7 +319,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
         } else {
           setNotification({
             type: 'info',
-            message: 'Aadhaar document submitted for verification.',
+            message: 'Aadhaar document submitted successfully for verification.',
           });
         }
         setAadhaarFile(null);
