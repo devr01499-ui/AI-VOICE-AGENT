@@ -1,33 +1,157 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Strict Monochrome Grayscale & Pure Obsidian / Crisp White */
+  --color-slate-950: #000000;
+  --color-slate-900: #09090b;
+  --color-slate-800: #18181b;
+  --color-slate-700: #27272a;
+  --color-slate-600: #3f3f46;
+  --color-slate-500: #71717a;
+  --color-slate-400: #a1a1aa;
+  --color-slate-300: #d4d4d8;
+  --color-slate-200: #e4e4e7;
+  --color-slate-100: #f4f4f5;
+  --color-slate-50: #ffffff;
+
+  --color-zinc-950: #000000;
+  --color-zinc-900: #09090b;
+  --color-zinc-800: #18181b;
+  --color-zinc-700: #27272a;
+  --color-zinc-600: #3f3f46;
+  --color-zinc-500: #71717a;
+  --color-zinc-400: #a1a1aa;
+  --color-zinc-300: #d4d4d8;
+  --color-zinc-200: #e4e4e7;
+  --color-zinc-100: #f4f4f5;
+  --color-zinc-50: #ffffff;
+}
+
 @layer base {
-  :root {
-    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
+  * {
+    border-color: #27272a;
   }
 
   body {
     font-family: var(--font-sans);
-    background-color: #030712; /* zinc-950 */
-    color: #f3f4f6;
+    background-color: #000000 !important;
+    color: #ffffff !important;
+  }
+
+  input, select, textarea {
+    background-color: #000000 !important;
+    border-color: #27272a !important;
+    color: #ffffff !important;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    border-color: #52525b !important;
+    outline: none !important;
   }
 }
 
-/* Custom scrollbars */
+/* ── Primary Action Buttons (High-Contrast Monochrome) ── */
+.bg-indigo-600,
+.bg-indigo-500 {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  font-weight: 600 !important;
+}
+
+.bg-indigo-600:hover,
+.bg-indigo-500:hover {
+  background-color: #e4e4e7 !important;
+  color: #000000 !important;
+}
+
+.bg-indigo-600 svg,
+.bg-indigo-500 svg {
+  color: #000000 !important;
+  stroke: #000000 !important;
+}
+
+/* ── Secondary / Dark Buttons ── */
+.bg-slate-800,
+.bg-zinc-800 {
+  background-color: #18181b !important;
+  color: #ffffff !important;
+  border-color: #27272a !important;
+}
+
+.bg-slate-800:hover,
+.bg-zinc-800:hover {
+  background-color: #27272a !important;
+  color: #ffffff !important;
+}
+
+/* ── Badge & Tag Monochrome Overrides ── */
+.bg-indigo-500\/10,
+.bg-indigo-600\/10,
+.bg-emerald-500\/10,
+.bg-blue-500\/10,
+.bg-purple-500\/10,
+.bg-amber-500\/10,
+.bg-amber-600\/20,
+.bg-rose-500\/10,
+.bg-red-500\/10 {
+  background-color: #18181b !important;
+  color: #f4f4f5 !important;
+  border-color: #27272a !important;
+}
+
+.text-indigo-400,
+.text-indigo-500,
+.text-emerald-400,
+.text-blue-400,
+.text-purple-400,
+.text-amber-400,
+.text-amber-300,
+.text-rose-400,
+.text-red-400 {
+  color: #f4f4f5 !important;
+}
+
+.border-indigo-500\/20,
+.border-emerald-500\/20,
+.border-blue-500\/20,
+.border-purple-500\/20,
+.border-amber-500\/20,
+.border-amber-500\/30,
+.border-rose-500\/20,
+.border-red-500\/20 {
+  border-color: #27272a !important;
+}
+
+/* ── Active Tab Underlines ── */
+.border-indigo-500 {
+  border-color: #ffffff !important;
+}
+
+/* ── Status Indicator Pulse ── */
+.animate-pulse.bg-emerald-400,
+.animate-pulse.bg-indigo-600,
+.animate-pulse.bg-indigo-500 {
+  background-color: #ffffff !important;
+}
+
+/* ── Custom Minimalist Monochrome Scrollbar ── */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #090d16;
+  background: #000000;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1f293d;
-  border-radius: 3px;
+  background: #27272a;
+  border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #52525b;
 }

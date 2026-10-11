@@ -66,14 +66,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose,
   ].filter((item) => !query.trim() || item.title.toLowerCase().includes(query.toLowerCase()));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150">
+      <div className="w-full max-w-2xl bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
         {/* Search Input Bar */}
-        <div className="flex items-center px-4 py-3.5 border-b border-slate-800 gap-3">
+        <div className="flex items-center px-4 py-3.5 border-b border-zinc-800 gap-3 bg-black">
           {searching ? (
-            <div className="h-4 w-4 border-2 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin shrink-0" />
+            <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin shrink-0" />
           ) : (
-            <Search className="h-5 w-5 text-slate-400 shrink-0" />
+            <Search className="h-5 w-5 text-zinc-400 shrink-0" />
           )}
           <input
             type="text"
@@ -81,27 +81,27 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose,
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search customers by email, name, phone, or jump to page... (ESC to close)"
             autoFocus
-            className="w-full bg-transparent text-white placeholder-slate-500 focus:outline-none text-sm font-sans"
+            className="w-full bg-transparent text-white placeholder-zinc-500 focus:outline-none text-sm font-sans"
           />
           {query && (
             <button
               onClick={() => setQuery('')}
-              className="text-slate-500 hover:text-slate-300 p-1 rounded-md"
+              className="text-zinc-500 hover:text-white p-1 rounded-md"
             >
               <X className="h-4 w-4" />
             </button>
           )}
-          <kbd className="hidden sm:inline-block px-2 py-0.5 text-[10px] font-mono text-slate-400 bg-slate-800 rounded border border-slate-700">
+          <kbd className="hidden sm:inline-block px-2 py-0.5 text-[10px] font-mono text-zinc-400 bg-zinc-900 rounded border border-zinc-800">
             ESC
           </kbd>
         </div>
 
         {/* Results Body */}
-        <div className="max-h-96 overflow-y-auto p-2 divide-y divide-slate-800/40">
+        <div className="max-h-96 overflow-y-auto p-2 divide-y divide-zinc-800/40">
           {/* Customers matches */}
           {customerResults.length > 0 && (
             <div className="p-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2 px-2 font-mono">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 mb-2 px-2 font-mono">
                 Matching Customers
               </p>
               <div className="space-y-1">
@@ -112,29 +112,25 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose,
                       onNavigate(`/customers/${cust.id}`);
                       onClose();
                     }}
-                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-800/60 transition-colors flex items-center justify-between group cursor-pointer"
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-zinc-900 transition-colors flex items-center justify-between group cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                      <div className="h-8 w-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-white">
                         <User className="h-4 w-4" />
                       </div>
                       <div>
                         <div className="text-sm font-medium text-white flex items-center gap-2">
                           <span>{cust.fullName || 'Anonymous'}</span>
                           <span
-                            className={`text-[10px] px-1.5 py-0.2 rounded font-mono uppercase ${
-                              cust.accountStatus === 'active'
-                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                            }`}
+                            className="text-[10px] px-1.5 py-0.2 rounded font-mono uppercase bg-zinc-900 text-zinc-300 border border-zinc-700"
                           >
                             {cust.accountStatus}
                           </span>
                         </div>
-                        <div className="text-xs text-slate-400">{cust.email}</div>
+                        <div className="text-xs text-zinc-400">{cust.email}</div>
                       </div>
                     </div>
-                    <ArrowRight className="h-4 w-4 text-slate-500 group-hover:text-indigo-400 transition-colors" />
+                    <ArrowRight className="h-4 w-4 text-zinc-600 group-hover:text-white transition-colors" />
                   </button>
                 ))}
               </div>
@@ -143,7 +139,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose,
 
           {/* Navigation matches */}
           <div className="p-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2 px-2 font-mono">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 mb-2 px-2 font-mono">
               Console Navigation
             </p>
             <div className="space-y-1">
@@ -156,17 +152,17 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose,
                       onNavigate(item.path);
                       onClose();
                     }}
-                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-800/60 transition-colors flex items-center justify-between group cursor-pointer"
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-zinc-900 transition-colors flex items-center justify-between group cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400 group-hover:text-white transition-colors">
+                      <div className="h-8 w-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 group-hover:text-white transition-colors">
                         <Icon className="h-4 w-4" />
                       </div>
-                      <span className="text-sm font-medium text-slate-200 group-hover:text-white transition-colors">
+                      <span className="text-sm font-medium text-zinc-200 group-hover:text-white transition-colors">
                         {item.title}
                       </span>
                     </div>
-                    <ArrowRight className="h-4 w-4 text-slate-600 group-hover:text-slate-300 transition-colors" />
+                    <ArrowRight className="h-4 w-4 text-zinc-600 group-hover:text-white transition-colors" />
                   </button>
                 );
               })}
@@ -175,7 +171,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose,
         </div>
 
         {/* Footer info */}
-        <div className="px-4 py-2.5 bg-slate-950/60 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between font-mono">
+        <div className="px-4 py-2.5 bg-black border-t border-zinc-800 text-[11px] text-zinc-400 flex items-center justify-between font-mono">
           <span>Claritiy Voice Command Bar</span>
           <span>Press ↑↓ to navigate, Enter to select</span>
         </div>

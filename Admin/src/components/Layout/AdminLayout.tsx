@@ -42,34 +42,26 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ currentPath, onNavigat
     { label: 'Settings', path: '/settings', icon: Settings, perm: 'settings:manage' },
   ].filter((item) => !item.perm || hasPermission(item.perm as any));
 
-  const roleColors: Record<string, string> = {
-    owner: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-    admin: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    sales: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-    support: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    finance: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
-  };
-
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col md:flex-row antialiased">
+    <div className="min-h-screen bg-black text-white flex flex-col md:flex-row antialiased font-sans">
       {/* Sidebar for Desktop */}
-      <aside className="hidden md:flex flex-col w-64 bg-slate-900/60 border-r border-slate-800/80 backdrop-blur-xl shrink-0 h-screen sticky top-0 z-30">
+      <aside className="hidden md:flex flex-col w-64 bg-black border-r border-zinc-800/90 shrink-0 h-screen sticky top-0 z-30">
         {/* Brand Header */}
-        <div className="p-5 border-b border-slate-800/80 flex items-center justify-between">
+        <div className="p-5 border-b border-zinc-800/80 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-indigo-600 flex items-center justify-center font-bold text-white shadow-md shadow-indigo-500/20 text-base">
+            <div className="h-9 w-9 rounded-xl bg-white text-black flex items-center justify-center font-extrabold text-base shadow-sm">
               C
             </div>
             <div>
               <div className="font-bold text-white text-sm tracking-tight flex items-center gap-1.5">
                 Claritiy Voice
               </div>
-              <div className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">
+              <div className="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">
                 ADMIN CONSOLE
               </div>
             </div>
           </div>
-          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-900 text-zinc-300 border border-zinc-700 font-medium">
             LIVE
           </span>
         </div>
@@ -78,13 +70,13 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ currentPath, onNavigat
         <div className="px-4 py-3">
           <button
             onClick={() => setPaletteOpen(true)}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-slate-950/60 border border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700 text-xs transition-colors cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 text-xs transition-colors cursor-pointer"
           >
             <span className="flex items-center gap-2">
-              <Search className="h-3.5 w-3.5 text-slate-500" />
+              <Search className="h-3.5 w-3.5 text-zinc-500" />
               <span>Search console...</span>
             </span>
-            <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+            <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-800">
               Ctrl+K
             </kbd>
           </button>
@@ -101,39 +93,35 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ currentPath, onNavigat
                 onClick={() => onNavigate(item.path)}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/20'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                    ? 'bg-white text-black font-semibold shadow-sm'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900/80'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <Icon className={`h-4 w-4 ${isActive ? 'text-indigo-400' : 'text-slate-500'}`} />
+                  <Icon className={`h-4 w-4 ${isActive ? 'text-black' : 'text-zinc-500'}`} />
                   <span>{item.label}</span>
                 </div>
-                {isActive && <ChevronRight className="h-3.5 w-3.5 text-indigo-400" />}
+                {isActive && <ChevronRight className="h-3.5 w-3.5 text-black" />}
               </button>
             );
           })}
         </nav>
 
         {/* Staff Profile Footer */}
-        <div className="p-4 border-t border-slate-800/80 bg-slate-950/40">
+        <div className="p-4 border-t border-zinc-800/80 bg-zinc-950">
           <div className="flex items-center justify-between mb-3">
             <div className="min-w-0 pr-2">
               <p className="text-xs font-semibold text-white truncate">{staff?.name || 'Staff'}</p>
-              <p className="text-[11px] text-slate-400 truncate">{staff?.email}</p>
+              <p className="text-[11px] text-zinc-400 truncate">{staff?.email}</p>
             </div>
-            <span
-              className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border shrink-0 ${
-                roleColors[staff?.role || 'support'] || 'bg-slate-800 text-slate-400 border-slate-700'
-              }`}
-            >
+            <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-zinc-900 text-zinc-300 border border-zinc-700 shrink-0">
               {staff?.role}
             </span>
           </div>
 
           <button
             onClick={() => signOut()}
-            className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-lg bg-slate-900 hover:bg-red-950/40 text-slate-400 hover:text-red-400 border border-slate-800 text-xs transition-colors cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 text-xs transition-colors cursor-pointer"
           >
             <LogOut className="h-3.5 w-3.5" />
             <span>Sign Out</span>
@@ -142,9 +130,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ currentPath, onNavigat
       </aside>
 
       {/* Mobile Header */}
-      <div className="md:hidden flex items-center justify-between p-4 bg-slate-900 border-b border-slate-800">
+      <div className="md:hidden flex items-center justify-between p-4 bg-black border-b border-zinc-800">
         <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white text-sm">
+          <div className="h-8 w-8 rounded-lg bg-white text-black flex items-center justify-center font-bold text-sm">
             C
           </div>
           <span className="font-bold text-sm text-white">Claritiy Voice Admin</span>
@@ -152,13 +140,13 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ currentPath, onNavigat
         <div className="flex items-center gap-2">
           <button
             onClick={() => setPaletteOpen(true)}
-            className="p-2 rounded-lg bg-slate-800 text-slate-300"
+            className="p-2 rounded-lg bg-zinc-900 text-zinc-300 border border-zinc-800"
           >
             <Search className="h-4 w-4" />
           </button>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 rounded-lg bg-slate-800 text-slate-300"
+            className="p-2 rounded-lg bg-zinc-900 text-zinc-300 border border-zinc-800"
           >
             {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </button>
@@ -167,23 +155,28 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ currentPath, onNavigat
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-slate-900 border-b border-slate-800 p-4 space-y-2 animate-in slide-in-from-top duration-150">
-          {navItems.map((item) => (
-            <button
-              key={item.path}
-              onClick={() => {
-                onNavigate(item.path);
-                setMobileMenuOpen(false);
-              }}
-              className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800"
-            >
-              {item.label}
-            </button>
-          ))}
-          <div className="pt-2 border-t border-slate-800">
+        <div className="md:hidden bg-zinc-950 border-b border-zinc-800 p-4 space-y-2 animate-in slide-in-from-top duration-150">
+          {navItems.map((item) => {
+            const isActive = currentPath.startsWith(item.path);
+            return (
+              <button
+                key={item.path}
+                onClick={() => {
+                  onNavigate(item.path);
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isActive ? 'bg-white text-black font-semibold' : 'text-zinc-300 hover:bg-zinc-900'
+                }`}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+          <div className="pt-2 border-t border-zinc-800">
             <button
               onClick={() => signOut()}
-              className="w-full text-left px-3 py-2 rounded-lg text-sm text-red-400 hover:bg-red-950/20"
+              className="w-full text-left px-3 py-2 rounded-lg text-sm text-zinc-400 hover:text-white"
             >
               Sign Out
             </button>
@@ -192,13 +185,13 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ currentPath, onNavigat
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto bg-black">
         {/* Top Navbar */}
-        <header className="hidden md:flex items-center justify-between h-14 px-8 border-b border-slate-800/80 bg-slate-950/40 backdrop-blur-md sticky top-0 z-20">
-          <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
+        <header className="hidden md:flex items-center justify-between h-14 px-8 border-b border-zinc-800/80 bg-black/80 backdrop-blur-md sticky top-0 z-20">
+          <div className="flex items-center gap-2 text-xs font-mono text-zinc-400">
             <span>CONSOLE</span>
-            <span className="text-slate-600">/</span>
-            <span className="text-slate-200 capitalize">{currentPath.replace('/', '') || 'Overview'}</span>
+            <span className="text-zinc-600">/</span>
+            <span className="text-white capitalize">{currentPath.replace('/', '') || 'Overview'}</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -206,7 +199,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ currentPath, onNavigat
               href="https://www.claritiy.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1.5 px-2.5 py-1 rounded-lg hover:bg-slate-900 transition-colors"
+              className="text-xs text-zinc-400 hover:text-white flex items-center gap-1.5 px-2.5 py-1 rounded-lg hover:bg-zinc-900 border border-transparent hover:border-zinc-800 transition-colors"
             >
               <span>Customer Portal</span>
               <ExternalLink className="h-3 w-3" />
