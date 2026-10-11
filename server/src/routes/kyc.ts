@@ -19,6 +19,26 @@ const router = Router();
 const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/i;
 const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i;
 
+export function maskPan(pan?: string | null): string | null {
+  if (!pan) return null;
+  const p = pan.trim().toUpperCase();
+  if (p.length !== 10) return p;
+  return `${p.substring(0, 2)}******${p.substring(8)}`;
+}
+
+export function maskAadhaar(aadhaar?: string | null): string | null {
+  if (!aadhaar) return null;
+  const a = aadhaar.replace(/\s+/g, '');
+  if (a.length !== 12) return a;
+  return `********${a.substring(8)}`;
+}
+
+export function maskFullName(name?: string | null): string | null {
+  if (!name) return null;
+  const parts = name.trim().split(/\s+/);
+  return parts.map((p) => (p.length <= 2 ? p : `${p[0]}***${p[p.length - 1]}`)).join(' ');
+}
+
 /**
  * Dispatches both an in-app notification and an email notification via Resend when individual document status changes.
  */
@@ -300,9 +320,9 @@ router.get('/documents', requireAuth, async (req, res, next) => {
         description: 'Authorized signatory PAN for tax & identity verification',
         required: true,
         status: panDoc?.status || 'not_submitted',
-        panNumber: panDoc?.panNumber || null,
+        panNumber: maskPan(panDoc?.panNumber),
         panType: panDoc?.panType || 'personal',
-        fullName: panDoc?.fullName || null,
+        fullName: maskFullName(panDoc?.fullName),
         failureReason: panDoc?.failureReason || null,
         verifiedAt: panDoc?.verifiedAt || null,
         updatedAt: panDoc?.updatedAt || null,
@@ -325,7 +345,7 @@ router.get('/documents', requireAuth, async (req, res, next) => {
         description: 'Authorized signatory Aadhaar card document verification',
         required: false,
         status: aadhaarDoc?.status || 'not_submitted',
-        aadhaarNumber: aadhaarDoc?.aadhaarNumber || null,
+        aadhaarNumber: maskAadhaar(aadhaarDoc?.aadhaarNumber),
         aadhaarDocUrl: aadhaarDoc?.aadhaarDocUrl || null,
         vobizReference: aadhaarDoc?.vobizReference || null,
         failureReason: aadhaarDoc?.failureReason || null,
@@ -473,13 +493,32 @@ router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (
       return;
     }
 
-    // 3. Decrypt sub-account token — NEVER use master MA_ credentials
+    // 3. Verify sub-account token decryption health — alert admin and return 503 if failed
     const subAuthId = subAccount.authId;
     let decryptedSubAuthToken = '';
     try {
-      decryptedSubAuthToken = EncryptionService.decrypt(subAccount.authToken);
-    } catch {
-      decryptedSubAuthToken = subAccount.authToken;
+      const { plaintext, needsMigration } = EncryptionService.decryptWithMetadata(subAccount.authToken);
+      decryptedSubAuthToken = plaintext;
+      if (needsMigration) {
+        const reEncrypted = EncryptionService.encrypt(plaintext);
+        prisma.vobizSubAccount.update({
+          where: { id: subAccount.id },
+          data: { authToken: reEncrypted },
+        }).catch((err) => logger.warn('KYC: lazy token migration warning', { error: String(err) }));
+      }
+    } catch (decryptErr) {
+      logger.error('[ADMIN_ALERT][CRYPTO_FAILURE] KYC: Failed to decrypt sub-account auth token', {
+        userId,
+        subAuthId,
+        error: decryptErr instanceof Error ? decryptErr.message : String(decryptErr),
+      });
+      res.status(503).json({
+        success: false,
+        outcome: 'error',
+        canFallbackHosted: true,
+        error: 'Verification is temporarily unavailable, please try again shortly',
+      });
+      return;
     }
 
     let verificationResultStatus: 'verified' | 'failed' | 'pending' = 'pending';
@@ -519,65 +558,90 @@ router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (
         }
       }
     } else {
-      // Live server-to-server call to Vobiz per-document verification API using SA_ credentials
+      // Live server-to-server call to documented Vobiz KYC API authenticated with parent credentials
       const baseUrl = (env.VOBIZ_API_URL || 'https://api.vobiz.ai').replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
-      const vobizUrl = `${baseUrl}/api/v1/accounts/${subAuthId}/kyc/verify-document`;
+      const masterAuthId = env.VOBIZ_AUTH_ID;
+      const masterAuthToken = env.VOBIZ_AUTH_TOKEN;
 
-      const payload = documentType === 'pan'
-        ? {
-            document_type: 'pan',
-            pan_number: (panNumber || '').trim().toUpperCase(),
-            name: (fullName || '').trim(),
-            pan_type: panType || 'personal',
-          }
-        : {
-            document_type: 'gst',
-            gstin: (gstin || '').trim().toUpperCase(),
-            certificate_url: resolvedGstCertUrl,
-          };
+      if (!masterAuthId || !masterAuthToken || masterAuthId.includes('placeholder')) {
+        logger.error('[ADMIN_ALERT][VOBIZ_CONFIG_ERROR] Missing VOBIZ_AUTH_ID or VOBIZ_AUTH_TOKEN in production environment');
+        res.status(503).json({
+          success: false,
+          outcome: 'error',
+          canFallbackHosted: true,
+          error: 'Verification service is temporarily unavailable, please try again shortly',
+        });
+        return;
+      }
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'X-Auth-ID': masterAuthId,
+        'X-Auth-Token': masterAuthToken,
+      };
 
       try {
-        const vobizRes = await fetch(vobizUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Auth-ID': subAuthId,
-            'X-Auth-Token': decryptedSubAuthToken,
-          },
-          body: JSON.stringify(payload),
-        });
+        let vobizRes: Response;
+        if (documentType === 'pan') {
+          const vobizUrl = `${baseUrl}/api/v1/sub-accounts/${subAuthId}/kyc/verify-pan`;
+          vobizRes = await fetch(vobizUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ pan: (panNumber || '').trim().toUpperCase() }),
+          });
+        } else {
+          const vobizUrl = `${baseUrl}/api/v1/sub-accounts/${subAuthId}/kyc/verify-gst`;
+          vobizRes = await fetch(vobizUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ gstin: (gstin || '').trim().toUpperCase() }),
+          });
+        }
 
         if (vobizRes.ok) {
           const resData = (await vobizRes.json()) as any;
-          const status = (resData.status || resData.verification_status || '').toLowerCase();
-          if (status === 'verified' || status === 'approved' || resData.verified === true) {
+          const status = (resData.status || '').toLowerCase();
+          if (status === 'verified' || resData.verified === true) {
             verificationResultStatus = 'verified';
-            vobizReference = resData.reference || resData.id || resData.request_id || `vob_${Date.now()}`;
+            vobizReference = resData.api_id || resData.reference || resData.id || `vob_${Date.now()}`;
           } else if (status === 'failed' || status === 'rejected' || resData.verified === false) {
             verificationResultStatus = 'failed';
-            failureReason = resData.failure_reason || resData.reason || resData.message || 'Document verification rejected by government records.';
+            failureReason = resData.message || resData.reason || 'Document verification rejected: details did not match official tax records.';
           } else {
             verificationResultStatus = 'pending';
-            vobizReference = resData.reference || resData.id || null;
+            vobizReference = resData.api_id || resData.reference || null;
           }
         } else {
-          // Fail closed: Any provider non-200 response sets status to failed or pending
+          // Provider 401/403/5xx/404 system errors:
+          // Do NOT count as a rejection, do NOT store 'failed', do NOT leak provider text to client.
           const errText = await vobizRes.text();
-          logger.warn('KYC: Vobiz document verification provider error (failing closed)', {
+          logger.error('[ADMIN_ALERT][VOBIZ_PROVIDER_ERROR] KYC: Vobiz document verification provider error', {
             subAuthId,
             documentType,
             status: vobizRes.status,
-            errText,
+            errText: errText.substring(0, 300),
           });
-          verificationResultStatus = 'failed';
-          failureReason = `Verification provider returned status ${vobizRes.status}: ${errText.substring(0, 120)}`;
+
+          res.status(502).json({
+            success: false,
+            outcome: 'error',
+            canFallbackHosted: true,
+            error: 'Verification provider is temporarily unavailable. Please try again shortly or continue with Vobiz hosted verification.',
+          });
+          return;
         }
       } catch (callErr: any) {
-        logger.error('KYC: Network error calling Vobiz document verification (failing closed)', {
+        logger.error('[ADMIN_ALERT][VOBIZ_PROVIDER_ERROR] KYC: Network error calling Vobiz document verification', {
           error: String(callErr?.message || callErr),
         });
-        verificationResultStatus = 'failed';
-        failureReason = 'Network error contacting verification provider. Please try again.';
+
+        res.status(502).json({
+          success: false,
+          outcome: 'error',
+          canFallbackHosted: true,
+          error: 'Network error contacting verification provider. Please try again shortly or continue with Vobiz hosted verification.',
+        });
+        return;
       }
     }
 
@@ -597,13 +661,13 @@ router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (
         userId,
         documentType,
         status: verificationResultStatus,
-        panNumber: cleanPan,
+        panNumber: cleanPan ? maskPan(cleanPan) : undefined,
         panType: cleanPanType,
-        fullName: cleanName,
+        fullName: cleanName ? maskFullName(cleanName) : undefined,
         dob: cleanDob,
         gstin: cleanGstin,
         gstCertUrl: resolvedGstCertUrl,
-        aadhaarNumber: cleanAadhaar,
+        aadhaarNumber: cleanAadhaar ? maskAadhaar(cleanAadhaar) : undefined,
         aadhaarDocUrl: resolvedAadhaarUrl,
         vobizReference,
         failureReason,
@@ -611,13 +675,13 @@ router.post('/verify-document', requireAuth, sensitiveOperationsLimiter, async (
       },
       update: {
         status: verificationResultStatus,
-        ...(cleanPan && { panNumber: cleanPan }),
+        ...(cleanPan && { panNumber: maskPan(cleanPan) }),
         ...(cleanPanType && { panType: cleanPanType }),
-        ...(cleanName && { fullName: cleanName }),
+        ...(cleanName && { fullName: maskFullName(cleanName) }),
         ...(cleanDob && { dob: cleanDob }),
         ...(cleanGstin && { gstin: cleanGstin }),
         ...(resolvedGstCertUrl && { gstCertUrl: resolvedGstCertUrl }),
-        ...(cleanAadhaar && { aadhaarNumber: cleanAadhaar }),
+        ...(cleanAadhaar && { aadhaarNumber: maskAadhaar(cleanAadhaar) }),
         ...(resolvedAadhaarUrl && { aadhaarDocUrl: resolvedAadhaarUrl }),
         vobizReference,
         failureReason,
@@ -691,15 +755,34 @@ router.post('/verify-aadhaar', requireAuth, sensitiveOperationsLimiter, async (r
 
     let decryptedSubAuthToken = '';
     try {
-      decryptedSubAuthToken = EncryptionService.decrypt(subAccount.authToken);
-    } catch {
-      decryptedSubAuthToken = subAccount.authToken;
+      const { plaintext, needsMigration } = EncryptionService.decryptWithMetadata(subAccount.authToken);
+      decryptedSubAuthToken = plaintext;
+      if (needsMigration) {
+        const reEncrypted = EncryptionService.encrypt(plaintext);
+        prisma.vobizSubAccount.update({
+          where: { id: subAccount.id },
+          data: { authToken: reEncrypted },
+        }).catch((err) => logger.warn('KYC: lazy token migration warning for Aadhaar', { error: String(err) }));
+      }
+    } catch (decryptErr) {
+      logger.error('[ADMIN_ALERT][CRYPTO_FAILURE] KYC: Failed to decrypt sub-account auth token for Aadhaar', {
+        userId,
+        subAuthId: subAccount.authId,
+        error: decryptErr instanceof Error ? decryptErr.message : String(decryptErr),
+      });
+      res.status(503).json({
+        success: false,
+        outcome: 'error',
+        canFallbackHosted: true,
+        error: 'Verification is temporarily unavailable, please try again shortly',
+      });
+      return;
     }
 
     const subAuthId = subAccount.authId;
     const isMock = subAuthId.startsWith('SA_MOCK_') || (env.VOBIZ_AUTH_ID || '').includes('placeholder');
 
-    let verificationResultStatus: 'verified' | 'failed' = 'failed';
+    let verificationResultStatus: 'verified' | 'failed' | 'pending' = 'pending';
     let failureReason: string | null = null;
 
     if (isMock) {
@@ -712,15 +795,28 @@ router.post('/verify-aadhaar', requireAuth, sensitiveOperationsLimiter, async (r
       }
     } else {
       const baseUrl = (env.VOBIZ_API_URL || 'https://api.vobiz.ai').replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
-      const vobizUrl = `${baseUrl}/api/v1/accounts/${subAuthId}/kyc/verify-aadhaar`;
+      const masterAuthId = env.VOBIZ_AUTH_ID;
+      const masterAuthToken = env.VOBIZ_AUTH_TOKEN;
+
+      if (!masterAuthId || !masterAuthToken || masterAuthId.includes('placeholder')) {
+        res.status(503).json({
+          success: false,
+          outcome: 'error',
+          canFallbackHosted: true,
+          error: 'Verification service is temporarily unavailable, please try again shortly',
+        });
+        return;
+      }
+
+      const vobizUrl = `${baseUrl}/api/v1/sub-accounts/${subAuthId}/kyc/digilocker/verify`;
 
       try {
         const vobizRes = await fetch(vobizUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Auth-ID': subAuthId,
-            'X-Auth-Token': decryptedSubAuthToken,
+            'X-Auth-ID': masterAuthId,
+            'X-Auth-Token': masterAuthToken,
           },
           body: JSON.stringify({ access_request_id }),
         });
@@ -734,14 +830,30 @@ router.post('/verify-aadhaar', requireAuth, sensitiveOperationsLimiter, async (r
             failureReason = resData.reason || resData.message || 'DigiLocker consent verification failed.';
           }
         } else {
-          // Fail closed
+          // Provider system error: separate from document rejection
           const errText = await vobizRes.text();
-          verificationResultStatus = 'failed';
-          failureReason = `DigiLocker provider error (${vobizRes.status}): ${errText.substring(0, 100)}`;
+          logger.error('[ADMIN_ALERT][VOBIZ_PROVIDER_ERROR] KYC: DigiLocker provider error', {
+            subAuthId,
+            status: vobizRes.status,
+            errText: errText.substring(0, 300),
+          });
+          res.status(502).json({
+            success: false,
+            outcome: 'error',
+            canFallbackHosted: true,
+            error: 'DigiLocker provider is temporarily unavailable. Please try again shortly or continue with Vobiz hosted verification.',
+          });
+          return;
         }
       } catch (err: any) {
-        verificationResultStatus = 'failed';
-        failureReason = 'Network error communicating with DigiLocker gateway.';
+        logger.error('[ADMIN_ALERT][VOBIZ_PROVIDER_ERROR] KYC: DigiLocker network error', { error: String(err) });
+        res.status(502).json({
+          success: false,
+          outcome: 'error',
+          canFallbackHosted: true,
+          error: 'Network error communicating with DigiLocker gateway. Please try again shortly.',
+        });
+        return;
       }
     }
 
@@ -807,7 +919,7 @@ router.post('/verify-aadhaar', requireAuth, sensitiveOperationsLimiter, async (r
  */
 router.post(['/initiate-session', '/start'], requireAuth, sensitiveOperationsLimiter, async (req, res, next) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
     if (!userId) {
       res.status(401).json({ success: false, error: 'Unauthorized' });
       return;
@@ -817,26 +929,70 @@ router.post(['/initiate-session', '/start'], requireAuth, sensitiveOperationsLim
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
     const subAccount = await subAccountService.getOrCreateSubAccount(userId, user?.email || undefined);
 
-    const hostedKycUrl = `https://console.vobiz.ai/kyc?sub_account_auth_id=${subAccount.authId}`;
+    let redirectUrl = `https://console.vobiz.ai/kyc?sub_account_auth_id=${subAccount.authId}`;
 
-    logger.info('KYC [DEPRECATED]: Initiated Vobiz Hosted KYC Session fallback', { userId, subAuthId: subAccount.authId });
+    const baseUrl = (env.VOBIZ_API_URL || 'https://api.vobiz.ai').replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
+    const masterAuthId = env.VOBIZ_AUTH_ID;
+    const masterAuthToken = env.VOBIZ_AUTH_TOKEN;
+
+    if (masterAuthId && masterAuthToken && !masterAuthId.includes('placeholder')) {
+      try {
+        const sessionUrl = `${baseUrl}/api/v1/sub-accounts/${subAccount.authId}/kyc-sessions`;
+        const sessionRes = await fetch(sessionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Auth-ID': masterAuthId,
+            'X-Auth-Token': masterAuthToken,
+          },
+          body: JSON.stringify({
+            account_auth_id: subAccount.authId,
+            flow_type: 'redirect',
+            redirect_url: `${env.FRONTEND_URL || 'https://ai-voice-agent-kohl-alpha.vercel.app'}/dashboard/compliance`,
+          }),
+        });
+
+        if (sessionRes.ok) {
+          const sessionData = (await sessionRes.json()) as any;
+          if (sessionData.widget_url) {
+            redirectUrl = sessionData.widget_url;
+            logger.info('KYC: successfully obtained Vobiz hosted KYC widget URL', {
+              userId,
+              subAuthId: subAccount.authId,
+              sessionId: sessionData.session_id,
+            });
+          }
+        } else {
+          logger.warn('KYC: Vobiz kyc-sessions returned non-200, falling back to console link', {
+            status: sessionRes.status,
+            subAuthId: subAccount.authId,
+          });
+        }
+      } catch (sessionErr) {
+        logger.warn('KYC: error contacting Vobiz kyc-sessions, falling back to console link', {
+          error: String(sessionErr),
+        });
+      }
+    }
+
+    logger.info('KYC: Initiated Vobiz Hosted KYC Session flow', { userId, subAuthId: subAccount.authId });
 
     await logAuditEvent({
       workspaceOwnerId: (req as any).effectiveWorkspaceId || userId,
       actorUserId: userId,
       action: 'kyc.initiated',
       targetId: subAccount.authId,
-      metadata: { status: 'pending', deprecated: true },
+      metadata: { status: 'pending', hostedFallback: true },
     });
 
     res.json({
       success: true,
       data: {
-        redirectUrl: hostedKycUrl,
+        redirectUrl,
         subAccountAuthId: subAccount.authId,
-        confirmationMessage: "Your KYC verification is being processed and typically takes up to 24 hours. We'll notify you once it's complete.",
-        status: "pending"
-      }
+        confirmationMessage: "Your KYC verification is being processed. Complete the verification steps on the hosted portal.",
+        status: "pending",
+      },
     });
   } catch (err) {
     logger.error('KYC: failed to initiate hosted session', { error: String(err) });

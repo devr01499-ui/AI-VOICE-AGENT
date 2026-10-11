@@ -30,6 +30,11 @@ const envSchema = z.object({
     .trim()
     .optional(),
 
+  ENCRYPTION_KEY: z
+    .string()
+    .trim()
+    .optional(),
+
   NODE_ENV: z
     .enum(['development', 'production', 'test'])
     .default('development'),

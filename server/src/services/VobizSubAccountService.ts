@@ -200,6 +200,33 @@ export class VobizSubAccountService {
         if (!subAuthId || !subAuthToken) {
           throw new ProviderError('vobiz', `Vobiz returned success but missing sub-account credentials in payload`);
         }
+
+        // Credential self-test: make one cheap authenticated request with new credentials
+        const testUrl = `${cleanBaseUrl}/api/v1/Account/${subAuthId}/Call/`;
+        try {
+          const testRes = await fetch(testUrl, {
+            method: 'GET',
+            headers: {
+              'X-Auth-ID': subAuthId,
+              'X-Auth-Token': subAuthToken,
+              'Accept': 'application/json',
+            },
+          });
+          if (testRes.status === 401 || testRes.status === 403) {
+            logger.error('[ADMIN_ALERT][VOBIZ_CREDENTIALS_INVALID] Vobiz sub-account credentials rejected by Vobiz on creation self-test', {
+              userId,
+              subAuthId,
+              statusCode: testRes.status,
+            });
+            throw new ProviderError('vobiz', `Newly created Vobiz sub-account failed credential validation (${testRes.status})`);
+          }
+        } catch (testErr) {
+          if (testErr instanceof ProviderError) throw testErr;
+          logger.warn('VobizSubAccountService: self-test network exception (continuing)', {
+            subAuthId,
+            error: testErr instanceof Error ? testErr.message : String(testErr),
+          });
+        }
       } catch (err) {
         if (err instanceof ProviderError) throw err;
         const message = err instanceof Error ? err.message : 'Unknown error';

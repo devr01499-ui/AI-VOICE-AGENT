@@ -124,9 +124,23 @@ export class VobizProvider implements ITelephonyProvider {
         where: { userId },
       });
       if (subAccount) {
+        const { plaintext, needsMigration } = EncryptionService.decryptWithMetadata(subAccount.authToken);
+        if (needsMigration) {
+          const reEncrypted = EncryptionService.encrypt(plaintext);
+          prisma.vobizSubAccount.update({
+            where: { id: subAccount.id },
+            data: { authToken: reEncrypted },
+          }).catch(migrationErr => {
+            logger.warn('VobizProvider: lazy token migration warning', {
+              userId,
+              subAuthId: subAccount.authId,
+              error: migrationErr instanceof Error ? migrationErr.message : String(migrationErr),
+            });
+          });
+        }
         return {
           authId: subAccount.authId,
-          authToken: EncryptionService.decrypt(subAccount.authToken),
+          authToken: plaintext,
         };
       }
     } catch (err) {

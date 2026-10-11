@@ -63,6 +63,25 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
   const [aadhaarError, setAadhaarError] = useState<string | null>(null);
 
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [showHostedFallback, setShowHostedFallback] = useState(false);
+  const [initiatingHosted, setInitiatingHosted] = useState(false);
+  const [systemErrorMessage, setSystemErrorMessage] = useState<string | null>(null);
+
+  const handleContinueHosted = async () => {
+    setInitiatingHosted(true);
+    try {
+      const res = await apiClient.post('/api/v2/kyc/initiate-session');
+      if (res.data?.success && res.data.data?.redirectUrl) {
+        window.location.href = res.data.data.redirectUrl;
+      } else {
+        setPanError('Unable to generate hosted verification session link. Please contact support.');
+      }
+    } catch (err: any) {
+      setPanError(err?.response?.data?.error || 'Failed to start hosted verification.');
+    } finally {
+      setInitiatingHosted(false);
+    }
+  };
 
   const loadDocuments = useCallback(async () => {
     try {
@@ -172,6 +191,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
     }
 
     setSubmittingPan(true);
+    setSystemErrorMessage(null);
     try {
       const res = await apiClient.post('/api/v2/kyc/verify-document', {
         documentType: 'pan',
@@ -193,7 +213,15 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
         setPanError((res.data as any)?.error || 'Verification failed. Please try again.');
       }
     } catch (err: any) {
-      setPanError(err?.response?.data?.error || err.message || 'PAN verification request failed.');
+      const errData = err?.response?.data;
+      if (errData?.outcome === 'error' || err?.response?.status === 502 || err?.response?.status === 503) {
+        setSystemErrorMessage(
+          errData?.error || 'Verification is temporarily undergoing maintenance. Please retry shortly or proceed with Vobiz hosted verification.'
+        );
+        setShowHostedFallback(true);
+      } else {
+        setPanError(errData?.error || err.message || 'PAN verification request failed.');
+      }
     } finally {
       setSubmittingPan(false);
     }
@@ -474,6 +502,27 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
             {/* Form */}
             {panDoc?.status !== 'verified' && (
               <form onSubmit={handleSubmitPan} className="space-y-3.5 text-xs">
+                {/* System Error & Hosted Verification Fallback Banner */}
+                {systemErrorMessage && (
+                  <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-300 text-amber-900 text-xs space-y-2.5">
+                    <div className="flex items-center gap-2 font-bold text-amber-800">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>Temporary Verification Notice</span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-amber-800">
+                      {systemErrorMessage} Your form data has been retained so you can retry directly.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleContinueHosted}
+                      disabled={initiatingHosted}
+                      className="w-full py-2 px-3 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      {initiatingHosted ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                      Continue with Vobiz Verification
+                    </button>
+                  </div>
+                )}
                 {/* Options: Personal PAN vs Company PAN */}
                 <div>
                   <label className="block text-slate-600 font-bold mb-1.5">Select PAN Card Type</label>
