@@ -233,6 +233,13 @@ async function apiFetch<T>(
     throw new Error(errorMessage as string ?? `API error ${res.status}`);
   }
 
+  // Defensive fallback: If backend returned success: true but omitted the "data" wrapper,
+  // extract top-level properties so UI callers never receive undefined.
+  if (json.data === undefined) {
+    const { success, error, message, ...rest } = json as any;
+    return (Object.keys(rest).length > 0 ? rest : json) as T;
+  }
+
   return json.data;
 }
 

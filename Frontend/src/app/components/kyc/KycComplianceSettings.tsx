@@ -303,8 +303,8 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
         redirect_url: redirectUrl,
       });
       if (res.data?.success) {
-        const authUrl = (res.data as any)?.auth_url || (res.data as any)?.link;
-        const reqId = (res.data as any)?.access_request_id;
+        const authUrl = (res.data as any)?.data?.auth_url || (res.data as any)?.data?.link || (res.data as any)?.auth_url || (res.data as any)?.link;
+        const reqId = (res.data as any)?.data?.access_request_id || (res.data as any)?.access_request_id;
         if (reqId) {
           setAccessRequestId(reqId);
           try { sessionStorage.setItem('kyc_access_request_id', reqId); } catch {}

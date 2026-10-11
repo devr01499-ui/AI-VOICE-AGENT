@@ -17,6 +17,59 @@ import { env } from '../config/env';
 
 const router = Router();
 
+// ─── Shared KYC API Response Contract & Structural Assertion Guard ──────────
+export interface KycSuccessResponse<T = Record<string, unknown>> {
+  success: true;
+  data: T;
+  message?: string;
+}
+
+export interface KycErrorResponse {
+  success: false;
+  error: string;
+  code?: string;
+  outcome?: string;
+  canFallbackHosted?: boolean;
+}
+
+export type KycApiResponse<T = Record<string, unknown>> = KycSuccessResponse<T> | KycErrorResponse;
+
+export interface KycDigiLockerInitiateData {
+  auth_url: string;
+  link: string;
+  access_request_id: string;
+}
+
+// Structural Response Guard: All KYC success responses MUST nest payloads under "data".
+// Throws in development to fail tests/build immediately if a flat shape is returned.
+// In production, logs an error and auto-nests so the frontend never gets undefined.
+router.use((req, res, next) => {
+  const originalJson = res.json.bind(res);
+  res.json = (body: any) => {
+    if (body && typeof body === 'object' && body.success === true && !('data' in body)) {
+      const flatPayloadKeys = Object.keys(body).filter((k) => k !== 'success' && k !== 'message');
+      if (flatPayloadKeys.length > 0) {
+        const errorMsg = `[KYC_CONTRACT_VIOLATION] Route ${req.method} ${req.originalUrl || req.baseUrl + req.path} returned flat payload keys [${flatPayloadKeys.join(', ')}] without nesting inside 'data'.`;
+        logger.error(errorMsg);
+        if (process.env.NODE_ENV !== 'production') {
+          throw new Error(errorMsg);
+        }
+        const nestedData: Record<string, unknown> = {};
+        for (const k of flatPayloadKeys) {
+          nestedData[k] = body[k];
+        }
+        body = {
+          success: true,
+          data: nestedData,
+          ...(body.message ? { message: body.message } : {}),
+        };
+      }
+    }
+    return originalJson(body);
+  };
+  next();
+});
+
 // Validation regexes
 const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/i;
 const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i;
@@ -758,9 +811,11 @@ router.post(['/digilocker/initiate', '/aadhaar/initiate'], requireAuth, requireA
       const mockAccessRequestId = `AR_MOCK_${Date.now()}`;
       res.json({
         success: true,
-        auth_url: `https://claritiy.com/compliance?tab=kyc&mock_dl=${mockAccessRequestId}`,
-        link: `https://claritiy.com/compliance?tab=kyc&mock_dl=${mockAccessRequestId}`,
-        access_request_id: mockAccessRequestId,
+        data: {
+          auth_url: `https://claritiy.com/compliance?tab=kyc&mock_dl=${mockAccessRequestId}`,
+          link: `https://claritiy.com/compliance?tab=kyc&mock_dl=${mockAccessRequestId}`,
+          access_request_id: mockAccessRequestId,
+        },
         message: 'Open the link to authenticate via DigiLocker. Complete Aadhaar OTP verification.',
       });
       return;
@@ -816,9 +871,11 @@ router.post(['/digilocker/initiate', '/aadhaar/initiate'], requireAuth, requireA
 
       res.json({
         success: true,
-        auth_url: authUrl,
-        link: authUrl,
-        access_request_id: accessRequestId,
+        data: {
+          auth_url: authUrl,
+          link: authUrl,
+          access_request_id: accessRequestId,
+        },
         message: data.message || 'Open the link to authenticate via DigiLocker. Complete Aadhaar OTP verification.',
       });
     } else {
