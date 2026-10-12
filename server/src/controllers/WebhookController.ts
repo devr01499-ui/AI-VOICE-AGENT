@@ -171,33 +171,16 @@ export class WebhookController {
         }
 
 
-        // Balance alignment check block
-        const userProfile = await prisma.user.findUnique({
-          where: { id: logEntry.userId }
-        });
-
-        if (userProfile && (!userProfile.geminiApiKey || userProfile.geminiApiKey.trim() === '')) {
-          const callStartTime = logEntry.startTime 
-            ? new Date(logEntry.startTime).getTime() 
-            : (logEntry.createdAt ? new Date(logEntry.createdAt).getTime() : endTime.getTime());
-          const elapsedSeconds = (endTime.getTime() - callStartTime) / 1000;
-          const elapsedMinutes = elapsedSeconds > 0 ? (elapsedSeconds / 60) : 0;
-
-          if (elapsedMinutes > 0) {
-            const decrementVal = parseFloat(elapsedMinutes.toFixed(4));
-            await prisma.user.update({
-              where: { id: logEntry.userId },
-              data: {
-                callingBalanceMinutes: {
-                  decrement: decrementVal
-                }
-              }
+        // Idempotent balance deduction via CallService -> MinutesService.
+        // Replaces legacy direct User.callingBalanceMinutes decrement that caused
+        // double-deduction when running in parallel with CallOrchestrator.
+        if (duration > 0) {
+          CallService.deductCallMinutes(logEntry.id, duration).catch((deductErr: any) => {
+            logger.error('WebhookController: Failed during post-call deduction', {
+              callId: logEntry.id,
+              error: String(deductErr),
             });
-            logger.info('WebhookController: Deducted minutes from platform balance with high-precision', {
-              userId: logEntry.userId,
-              elapsedMinutes: decrementVal
-            });
-          }
+          });
         }
       }
 

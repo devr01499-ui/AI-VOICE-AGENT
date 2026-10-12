@@ -631,13 +631,38 @@ export class CallOrchestrator {
       if (call && call.startTime) {
         durationSeconds = Math.max(1, Math.round((endTime.getTime() - call.startTime.getTime()) / 1000));
       }
+      const existingCdrDuration = call?.durationSeconds ?? null;
 
-      await CallRepository.updateStatus(callId, mappedStatus, { endTime, durationSeconds });
+      logger.info('[CALL_DURATION_AUDIT] Call session ended duration metrics', {
+        callId,
+        userId: call?.userId,
+        computedDurationSeconds: durationSeconds,
+        vobizCdrReportedDuration: existingCdrDuration,
+        discrepancySeconds: existingCdrDuration !== null ? Math.round(durationSeconds - existingCdrDuration) : null,
+        timestamps: {
+          createdAt: call?.createdAt?.toISOString(),
+          startTime: call?.startTime?.toISOString(),
+          endTime: endTime.toISOString(),
+          setupLatencyMs: (call?.startTime && call?.createdAt)
+            ? (call.startTime.getTime() - call.createdAt.getTime())
+            : null,
+          wallDurationSec: (call?.startTime)
+            ? Math.round((endTime.getTime() - call.startTime.getTime()) / 1000)
+            : null,
+        },
+      });
+
+      // If Vobiz hangup webhook already recorded the authoritative telephony CDR duration, preserve it
+      const finalDurationSeconds = (existingCdrDuration && existingCdrDuration > 0)
+        ? existingCdrDuration
+        : durationSeconds;
+
+      await CallRepository.updateStatus(callId, mappedStatus, { endTime, durationSeconds: finalDurationSeconds });
       await SessionLogger.logCallEnded(callId, reason, session?.providerSessionId || '');
 
       // Trigger post-call deduction asynchronously
       const { CallService } = await import('../../services/CallService');
-      CallService.deductCallMinutes(callId, durationSeconds).catch((deductErr: any) => {
+      CallService.deductCallMinutes(callId, finalDurationSeconds).catch((deductErr: any) => {
         logger.error('[CALL_DEDUCTION_ERROR] Failed during post-call deduction', { callId, error: String(deductErr) });
       });
     }

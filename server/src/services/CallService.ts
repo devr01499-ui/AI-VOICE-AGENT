@@ -571,6 +571,33 @@ ${transcriptText}`;
       const user = await prisma.user.findUnique({ where: { id: call.userId } });
       if (!user || user.accountType === 'admin' || user.email === ADMIN_EMAIL) return;
 
+      // Structured duration audit: compare platform computed duration vs Vobiz CDR reported duration vs timestamps
+      const vobizCdrDuration = call.durationSeconds ?? null;
+      const createdAtTs = call.createdAt ? call.createdAt.toISOString() : null;
+      const startTimeTs = call.startTime ? call.startTime.toISOString() : null;
+      const endTimeTs = call.endTime ? call.endTime.toISOString() : new Date().toISOString();
+      const setupLatencyMs = (call.startTime && call.createdAt)
+        ? (call.startTime.getTime() - call.createdAt.getTime())
+        : null;
+      const totalWallDurationSec = (call.endTime && call.startTime)
+        ? Math.round((call.endTime.getTime() - call.startTime.getTime()) / 1000)
+        : null;
+
+      logger.info('[CALL_DURATION_AUDIT] Comparing computed vs provider CDR duration metrics', {
+        callId,
+        userId: call.userId,
+        computedDurationSeconds: durationSeconds,
+        vobizCdrDurationSeconds: vobizCdrDuration,
+        discrepancySeconds: vobizCdrDuration !== null ? Math.round(durationSeconds - vobizCdrDuration) : null,
+        timestamps: {
+          createdAt: createdAtTs,
+          startTime: startTimeTs,
+          endTime: endTimeTs,
+          setupLatencyMs,
+          totalWallDurationSec,
+        },
+      });
+
       // Use MinutesService for atomic ledger + balance update (idempotent by callId)
       const { MinutesService } = await import('./MinutesService');
       await MinutesService.debit({

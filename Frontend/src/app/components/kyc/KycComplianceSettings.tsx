@@ -49,6 +49,8 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
   const [panFullName, setPanFullName] = useState('');
   const [submittingPan, setSubmittingPan] = useState(false);
   const [panError, setPanError] = useState<string | null>(null);
+  // Switch KYC Category state: when true, the PAN form re-opens even after verification
+  const [isEditingPan, setIsEditingPan] = useState(false);
 
   // Form states: GST
   const [gstin, setGstin] = useState('');
@@ -91,54 +93,80 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
   const loadDocuments = useCallback(async () => {
     try {
       setLoading(true);
-      const [docRes, statusRes] = await Promise.allSettled([
-        apiClient.get('/api/v2/kyc/documents'),
-        apiClient.get('/api/v2/kyc/status'),
-      ]);
+      // Fetch documents and status sequentially to avoid dual-setState race conditions
+      let loadedDocs: KycDocData[] = [];
+      let localOverall = 'not_submitted';
+      let localFullyVerified = false;
+      let loadedAuthId: string | null = null;
+      let loadedBusinessType: 'individual' | 'company' = 'individual';
 
-      if (docRes.status === 'fulfilled' && docRes.value.data?.success && docRes.value.data.data) {
-        const data = docRes.value.data.data;
-        setDocuments(data.documents || []);
-        setOverallStatus(data.overallStatus || 'not_submitted');
-        setIsFullyVerified(data.isFullyVerified || false);
-        setSubAccountAuthId(data.subAccountAuthId || null);
-        if (data.businessType) setBusinessType(data.businessType);
+      try {
+        const docRes = await apiClient.get('/api/v2/kyc/documents');
+        if (docRes.data?.success && docRes.data.data) {
+          const data = docRes.data.data;
+          loadedDocs = data.documents || [];
+          localOverall = data.overallStatus || 'not_submitted';
+          localFullyVerified = Boolean(data.isFullyVerified);
+          loadedAuthId = data.subAccountAuthId || null;
+          if (data.businessType) loadedBusinessType = data.businessType;
 
-        if (onStatusChange) {
-          onStatusChange(data.overallStatus || 'not_submitted');
-        }
+          setDocuments(loadedDocs);
+          setIsFullyVerified(localFullyVerified);
+          setSubAccountAuthId(loadedAuthId);
+          setBusinessType(loadedBusinessType);
 
-        // Hydrate existing fields if available
-        const panDoc = data.documents?.find((d: KycDocData) => d.documentType === 'pan');
-        if (panDoc) {
-          if (panDoc.panNumber) setPanNumber(panDoc.panNumber);
-          if (panDoc.fullName) setPanFullName(panDoc.fullName);
-          if (panDoc.panType) setPanType(panDoc.panType);
+          // Hydrate existing fields if available
+          const panDoc = loadedDocs.find((d: KycDocData) => d.documentType === 'pan');
+          if (panDoc) {
+            if (panDoc.panNumber) setPanNumber(panDoc.panNumber);
+            if (panDoc.fullName) setPanFullName(panDoc.fullName);
+            if (panDoc.panType) setPanType(panDoc.panType);
+          }
+          const gstDoc = loadedDocs.find((d: KycDocData) => d.documentType === 'gst');
+          if (gstDoc && gstDoc.gstin) {
+            setGstin(gstDoc.gstin);
+          }
+          const aadhaarDoc = loadedDocs.find((d: KycDocData) => d.documentType === 'aadhaar');
+          if (aadhaarDoc?.vobizReference && !accessRequestId) {
+            setAccessRequestId(aadhaarDoc.vobizReference);
+          }
         }
-        const gstDoc = data.documents?.find((d: KycDocData) => d.documentType === 'gst');
-        if (gstDoc && gstDoc.gstin) {
-          setGstin(gstDoc.gstin);
-        }
-        const aadhaarDoc = data.documents?.find((d: KycDocData) => d.documentType === 'aadhaar');
-        if (aadhaarDoc?.vobizReference && !accessRequestId) {
-          setAccessRequestId(aadhaarDoc.vobizReference);
-        }
+      } catch (docErr) {
+        console.warn('KYC /documents call failed:', docErr);
       }
 
-      if (statusRes.status === 'fulfilled' && statusRes.value.data?.success && statusRes.value.data.data) {
-        const sData = statusRes.value.data.data;
-        if (sData.kycCallsBlocked !== undefined) {
-          setKycCallsBlocked(sData.kycCallsBlocked);
+      // Query live Vobiz status as authoritative provider state
+      let resolvedOverall = localOverall;
+      try {
+        const statusRes = await apiClient.get('/api/v2/kyc/status');
+        if (statusRes.data?.success && statusRes.data.data) {
+          const sData = statusRes.data.data;
+          if (sData.kycCallsBlocked !== undefined) {
+            setKycCallsBlocked(sData.kycCallsBlocked);
+          }
+          if (sData.verifications) {
+            setLiveVerifications(sData.verifications);
+          }
+          if (sData.businessType) {
+            setBusinessType(sData.businessType);
+          }
+          // /status is authoritative for overallStatus
+          if (sData.overallStatus) {
+            resolvedOverall = sData.overallStatus;
+          }
         }
-        if (sData.verifications) {
-          setLiveVerifications(sData.verifications);
-        }
-        if (sData.overallStatus) {
-          setOverallStatus(sData.overallStatus);
-        }
-        if (sData.businessType) {
-          setBusinessType(sData.businessType);
-        }
+      } catch (statusErr) {
+        console.warn('KYC /status call failed:', statusErr);
+      }
+
+      // If local documents are verified, avoid showing "not_submitted"
+      if (localFullyVerified && (resolvedOverall === 'not_submitted' || !resolvedOverall)) {
+        resolvedOverall = 'pending';
+      }
+
+      setOverallStatus(resolvedOverall);
+      if (onStatusChange) {
+        onStatusChange(resolvedOverall);
       }
     } catch (err: any) {
       console.error('Failed to load KYC documents:', err);
@@ -161,6 +189,46 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
       }
     }
   }, [loadDocuments]);
+
+  // Automated short poll: When documents are verified locally but provider kycCallsBlocked is still active,
+  // re-query /api/v2/kyc/status every 10s for up to 60s so provider confirmation updates without manual refresh
+  useEffect(() => {
+    const isReadyLocally = isFullyVerified || (businessType === 'company'
+      ? (documents.find(d => d.documentType === 'pan')?.status === 'verified' && documents.find(d => d.documentType === 'gst')?.status === 'verified')
+      : (documents.find(d => d.documentType === 'pan')?.status === 'verified' && (documents.find(d => d.documentType === 'aadhaar')?.status === 'verified' || liveVerifications?.aadhaar === 'verified')));
+
+    if (!isReadyLocally || kycCallsBlocked === false) {
+      return;
+    }
+
+    let pollCount = 0;
+    const maxPolls = 6;
+    const intervalId = setInterval(async () => {
+      pollCount += 1;
+      try {
+        const res = await apiClient.get('/api/v2/kyc/status');
+        if (res.data?.success && res.data.data) {
+          const s = res.data.data;
+          if (s.kycCallsBlocked !== undefined) setKycCallsBlocked(s.kycCallsBlocked);
+          if (s.verifications) setLiveVerifications(s.verifications);
+          if (s.overallStatus) {
+            setOverallStatus(s.overallStatus);
+            if (onStatusChange) onStatusChange(s.overallStatus);
+          }
+          if (s.kycCallsBlocked === false || s.overallStatus === 'verified') {
+            clearInterval(intervalId);
+          }
+        }
+      } catch (pollErr) {
+        console.warn('KYC background status poll failed:', pollErr);
+      }
+      if (pollCount >= maxPolls) {
+        clearInterval(intervalId);
+      }
+    }, 10000);
+
+    return () => clearInterval(intervalId);
+  }, [isFullyVerified, businessType, documents, liveVerifications, kycCallsBlocked, onStatusChange]);
 
   // Handle GST File upload selection
   const handleGstFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -216,6 +284,10 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
       });
 
       if (res.data?.success) {
+        if (res.data.data.status === 'verified') {
+          // Category switch succeeded — close edit mode and reload
+          setIsEditingPan(false);
+        }
         setNotification({
           type: res.data.data.status === 'verified' ? 'success' : 'error',
           message:
@@ -372,6 +444,34 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
   const gstDoc = documents.find((d) => d.documentType === 'gst');
   const aadhaarDoc = documents.find((d) => d.documentType === 'aadhaar');
 
+  // Authoritative single derived status per document.
+  // Rule: Vobiz live status wins when it carries an affirmative verdict (verified / failed / pending).
+  // If Vobiz has no data or returns 'not_started', fall back to the local DB row.
+  // This prevents both the stale-DB-overrides-live-verified case AND the
+  // liveVerifications=not_started masking a legitimately verified local DB row.
+  const AFFIRMATIVE_VERDICTS = new Set(['verified', 'failed', 'pending']);
+
+  const effectiveAadhaarStatus = (liveVerifications?.aadhaar && AFFIRMATIVE_VERDICTS.has(liveVerifications.aadhaar))
+    ? liveVerifications.aadhaar
+    : (aadhaarDoc?.status ?? 'not_started');
+
+  const effectivePanStatus = (liveVerifications?.pan && AFFIRMATIVE_VERDICTS.has(liveVerifications.pan))
+    ? liveVerifications.pan
+    : (panDoc?.status ?? 'not_started');
+
+  const effectiveGstStatus = (liveVerifications?.gst && AFFIRMATIVE_VERDICTS.has(liveVerifications.gst))
+    ? liveVerifications.gst
+    : (gstDoc?.status ?? 'not_started');
+
+  const isAadhaarVerified = effectiveAadhaarStatus === 'verified';
+  const isPanVerified = effectivePanStatus === 'verified';
+  const isGstVerified = effectiveGstStatus === 'verified';
+
+  const requiredTotal = 2;
+  const verifiedCount = businessType === 'company'
+    ? [isPanVerified, isGstVerified].filter(Boolean).length
+    : [isPanVerified, isAadhaarVerified].filter(Boolean).length;
+
   const renderStatusBadge = (status: string) => {
     switch (status) {
       case 'verified':
@@ -399,6 +499,14 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
           </span>
         );
       default:
+        // When documents are fully verified, display Pending Review instead of misleading Pending Upload
+        if (isFullyVerified || verifiedCount === requiredTotal) {
+          return (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 border border-amber-500/30">
+              <Clock className="w-3.5 h-3.5 text-amber-600" /> Pending Review
+            </span>
+          );
+        }
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-500/10 text-slate-500 border border-slate-500/20">
             Pending Upload
@@ -417,15 +525,6 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
       </div>
     );
   }
-
-  const isAadhaarVerified = liveVerifications?.aadhaar === 'verified' || aadhaarDoc?.status === 'verified';
-  const isPanVerified = liveVerifications?.pan === 'verified' || panDoc?.status === 'verified';
-  const isGstVerified = liveVerifications?.gst === 'verified' || gstDoc?.status === 'verified';
-
-  const requiredTotal = 2;
-  const verifiedCount = businessType === 'company'
-    ? [isPanVerified, isGstVerified].filter(Boolean).length
-    : [isPanVerified, isAadhaarVerified].filter(Boolean).length;
 
   return (
     <div className="w-full space-y-8 font-sans">
@@ -474,15 +573,23 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
           <div className="md:col-span-5 bg-slate-50/90 rounded-2xl p-4 border border-slate-200/60 flex items-start gap-2.5">
             {kycCallsBlocked === false ? (
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            ) : isFullyVerified || verifiedCount === requiredTotal ? (
+              <RefreshCw className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 animate-spin" />
             ) : (
               <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
             )}
             <p className="text-[11px] text-slate-600 leading-relaxed">
               <strong className={kycCallsBlocked === false ? 'text-emerald-700' : 'text-amber-800'}>
-                {kycCallsBlocked === false ? 'Telephony Active' : 'Outbound Calling Blocked'}:
+                {kycCallsBlocked === false
+                  ? 'Telephony Active'
+                  : isFullyVerified || verifiedCount === requiredTotal
+                  ? 'Provider Confirmation In Progress'
+                  : 'Outbound Calling Blocked'}:
               </strong>{' '}
               {kycCallsBlocked === false
                 ? 'Sub-account KYC approved. Outbound voice calling and number provisioning active.'
+                : isFullyVerified || verifiedCount === requiredTotal
+                ? 'Documents verified — waiting on provider confirmation (usually under a minute).'
                 : 'Telephony calls blocked per TRAI/DoT regulation until required identity documents are verified.'}
             </p>
           </div>
@@ -528,7 +635,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
                   <p className="text-[11px] text-slate-400">Government of India Tax Identity</p>
                 </div>
               </div>
-              {renderStatusBadge(panDoc?.status || 'not_submitted')}
+              {renderStatusBadge(effectivePanStatus)}
             </div>
 
             {/* Plain-Language Rejection Reason */}
@@ -559,6 +666,40 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
                     Verified on: {new Date(panDoc.verifiedAt).toLocaleDateString()}
                   </p>
                 )}
+                {/* Switch KYC Category link */}
+                {!isEditingPan && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Pre-clear fields so user starts fresh for the new PAN
+                      setPanNumber('');
+                      setPanFullName('');
+                      setPanError(null);
+                      setSystemErrorMessage(null);
+                      setShowHostedFallback(false);
+                      setIsEditingPan(true);
+                    }}
+                    className="mt-1.5 text-[11px] font-bold text-blue-600 hover:text-blue-800 underline underline-offset-2 transition-colors cursor-pointer bg-transparent border-none p-0"
+                  >
+                    {businessType === 'individual'
+                      ? '↔ Switch to Company PAN'
+                      : '↔ Switch to Personal PAN'}
+                  </button>
+                )}
+                {isEditingPan && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditingPan(false);
+                      setPanError(null);
+                      setSystemErrorMessage(null);
+                      setShowHostedFallback(false);
+                    }}
+                    className="mt-1.5 text-[11px] font-bold text-slate-500 hover:text-slate-700 underline underline-offset-2 transition-colors cursor-pointer bg-transparent border-none p-0"
+                  >
+                    ✕ Cancel switch
+                  </button>
+                )}
               </div>
             )}
 
@@ -568,9 +709,18 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
               </div>
             )}
 
-            {/* Form */}
-            {panDoc?.status !== 'verified' && (
+            {/* Form — visible when not yet verified, or when user is switching KYC category */}
+            {(panDoc?.status !== 'verified' || isEditingPan) && (
               <form onSubmit={handleSubmitPan} className="space-y-3.5 text-xs">
+                {/* Category-switch contextual warning — shown only when re-opening a verified PAN */}
+                {isEditingPan && panDoc?.status === 'verified' && (
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11px] leading-relaxed">
+                    <span className="font-bold">⚠ Category switch: </span>
+                    {businessType === 'individual'
+                      ? 'Switching to a Company PAN will require a GST certificate instead of Aadhaar. Outbound calling may be blocked again until GST is verified.'
+                      : 'Switching to a Personal PAN will require Aadhaar verification (DigiLocker). Outbound calling may be blocked again until Aadhaar is verified.'}
+                  </div>
+                )}
                 {/* System Error & Hosted Verification Fallback Banner */}
                 {systemErrorMessage && (
                   <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-300 text-amber-900 text-xs space-y-2.5">
@@ -677,6 +827,8 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
                     <>
                       <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Verifying PAN Details…
                     </>
+                  ) : isEditingPan && panDoc?.status === 'verified' ? (
+                    'Submit New PAN & Switch Category'
                   ) : panDoc?.status === 'failed' ? (
                     'Re-submit PAN Verification'
                   ) : (
@@ -707,7 +859,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
                   <p className="text-[11px] text-slate-400">Business Goods & Services Tax ID</p>
                 </div>
               </div>
-              {renderStatusBadge(gstDoc?.status || 'not_submitted')}
+              {renderStatusBadge(effectiveGstStatus)}
             </div>
 
             {/* Plain-Language Rejection Reason */}
@@ -839,7 +991,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
                     Mandatory (Individual)
                   </span>
                 )}
-                {renderStatusBadge(liveVerifications?.aadhaar || aadhaarDoc?.status || 'not_started')}
+                {renderStatusBadge(effectiveAadhaarStatus)}
               </div>
             </div>
 
@@ -847,7 +999,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
               Instant OTP verification via Government of India DigiLocker portal. No raw Aadhaar number or document files required.
             </p>
 
-            {(liveVerifications?.aadhaar === 'failed' || aadhaarDoc?.status === 'failed') && (
+            {effectiveAadhaarStatus === 'failed' && (
               <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-800 text-xs space-y-1">
                 <p className="font-bold flex items-center gap-1.5">
                   <AlertCircle className="w-3.5 h-3.5 text-red-600" /> Aadhaar Verification Not Verified
@@ -858,7 +1010,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
               </div>
             )}
 
-            {(liveVerifications?.aadhaar === 'verified' || aadhaarDoc?.status === 'verified') && (
+            {effectiveAadhaarStatus === 'verified' && (
               <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs space-y-1.5">
                 <p className="font-bold flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Aadhaar Verified via DigiLocker
@@ -875,7 +1027,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
               </div>
             )}
 
-            {liveVerifications?.aadhaar !== 'verified' && aadhaarDoc?.status !== 'verified' && (
+            {effectiveAadhaarStatus !== 'verified' && (
               <div className="space-y-3 pt-1">
                 <button
                   type="button"
