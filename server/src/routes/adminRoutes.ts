@@ -686,6 +686,7 @@ adminRouter.get('/customers', requireStaff('customers:view'), async (req: StaffA
             select: {
               calls: true,
               agents: true,
+              batches: true,
             },
           },
         },
@@ -704,6 +705,7 @@ adminRouter.get('/customers', requireStaff('customers:view'), async (req: StaffA
       adminProfile: profileMap.get(u.id) || null,
       callsCount: u._count.calls,
       agentsCount: u._count.agents,
+      campaignsCount: u._count.batches,
     }));
 
     // Filter by risk if requested
@@ -740,8 +742,9 @@ adminRouter.get('/customers/:id', requireStaff('customers:view'), async (req: St
       include: {
         vobizSubAccount: true,
         phoneNumbers: {
-          select: { id: true, phoneNumber: true, status: true },
+          select: { id: true, phoneNumber: true, status: true, kycStatus: true },
         },
+        kycDocuments: true,
       },
     });
 
@@ -858,6 +861,150 @@ adminRouter.get('/customers/:id/ledger', requireStaff('customers:view'), async (
     res.status(500).json({ error: 'Failed to load minutes ledger' });
   }
 });
+
+/**
+ * GET /api/v2/admin/customers/:id/agents
+ * Customer's agents list for the admin detail view.
+ */
+adminRouter.get('/customers/:id/agents', requireStaff('customers:view'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const customerId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const { page = '1', limit = '20' } = req.query;
+  const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
+  const take = Math.min(50, Math.max(1, parseInt(limit as string, 10) || 20));
+  const skip = (pageNum - 1) * take;
+
+  try {
+    const [total, agents] = await Promise.all([
+      prisma.agent.count({ where: { userId: customerId } }),
+      prisma.agent.findMany({
+        where: { userId: customerId },
+        skip,
+        take,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          status: true,
+          agentType: true,
+          direction: true,
+          model: true,
+          voiceName: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: {
+            select: { calls: true, batches: true },
+          },
+        },
+      }),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: agents.map((a) => ({ ...a, callsCount: a._count.calls, campaignsCount: a._count.batches })),
+      pagination: { page: pageNum, limit: take, total, totalPages: Math.ceil(total / take) },
+    });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to get customer agents', { customerId, error: err.message });
+    res.status(500).json({ error: 'Failed to load customer agents' });
+  }
+});
+
+/**
+ * GET /api/v2/admin/customers/:id/campaigns
+ * Customer's Batch campaigns for the admin detail view.
+ */
+adminRouter.get('/customers/:id/campaigns', requireStaff('customers:view'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const customerId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const { page = '1', limit = '20' } = req.query;
+  const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
+  const take = Math.min(50, Math.max(1, parseInt(limit as string, 10) || 20));
+  const skip = (pageNum - 1) * take;
+
+  try {
+    const [total, campaigns] = await Promise.all([
+      prisma.batch.count({ where: { userId: customerId } }),
+      prisma.batch.findMany({
+        where: { userId: customerId },
+        skip,
+        take,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          totalRecipients: true,
+          completedCount: true,
+          failedCount: true,
+          createdAt: true,
+          startedAt: true,
+          completedAt: true,
+          agent: { select: { id: true, name: true } },
+        },
+      }),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: campaigns,
+      pagination: { page: pageNum, limit: take, total, totalPages: Math.ceil(total / take) },
+    });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to get customer campaigns', { customerId, error: err.message });
+    res.status(500).json({ error: 'Failed to load customer campaigns' });
+  }
+});
+
+/**
+ * GET /api/v2/admin/customers/:id/payments
+ * Customer's payment transactions and invoices for the admin detail view.
+ */
+adminRouter.get('/customers/:id/payments', requireStaff('payments:view'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const customerId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const { page = '1', limit = '20' } = req.query;
+  const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
+  const take = Math.min(50, Math.max(1, parseInt(limit as string, 10) || 20));
+  const skip = (pageNum - 1) * take;
+
+  try {
+    const [total, transactions] = await Promise.all([
+      prisma.paymentTransaction.count({ where: { userId: customerId } }),
+      prisma.paymentTransaction.findMany({
+        where: { userId: customerId },
+        skip,
+        take,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          invoice: {
+            select: {
+              id: true,
+              invoiceNumber: true,
+              amountInr: true,
+              subtotalInr: true,
+              gstRate: true,
+              gstAmountInr: true,
+              buyerGstin: true,
+              sellerGstin: true,
+              status: true,
+              pdfUrl: true,
+              createdAt: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: transactions,
+      pagination: { page: pageNum, limit: take, total, totalPages: Math.ceil(total / take) },
+    });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to get customer payments', { customerId, error: err.message });
+    res.status(500).json({ error: 'Failed to load customer payments' });
+  }
+});
+
 
 /**
  * GET /api/v2/admin/customers/:id/notes
@@ -1077,17 +1224,43 @@ adminRouter.post('/customers/:id/revoke-api-keys', requireStaff('security:revoke
 
 /**
  * GET /api/v2/admin/metrics/overview
- * Platform-wide overview counters.
+ * Platform-wide overview counters including agents, campaigns, call status breakdown.
+ * NOTE: Gemini token usage is not tracked at the provider level — reported as unavailable.
  */
 adminRouter.get('/metrics/overview', requireStaff('metrics:view'), async (_req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const [totalUsers, activeUsers, suspendedUsers, totalCalls, totalMinutesLedger] = await Promise.all([
+    const [
+      totalUsers,
+      activeUsers,
+      suspendedUsers,
+      restrictedUsers,
+      totalCalls,
+      completedCalls,
+      failedCalls,
+      inProgressCalls,
+      queuedCalls,
+      totalAgents,
+      totalCampaigns,
+      totalMinutesLedger,
+      vobizMinutesUsed,
+    ] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { accountStatus: 'active' } }),
       prisma.user.count({ where: { accountStatus: 'suspended' } }),
+      prisma.user.count({ where: { accountStatus: 'restricted' } }),
       prisma.call.count(),
+      prisma.call.count({ where: { status: 'completed' } }),
+      prisma.call.count({ where: { status: { in: ['failed', 'no_answer', 'busy'] } } }),
+      prisma.call.count({ where: { status: 'in_progress' } }),
+      prisma.call.count({ where: { status: { in: ['queued', 'ringing'] } } }),
+      prisma.agent.count(),
+      prisma.batch.count(),
       prisma.minutesLedger.aggregate({
         where: { deltaSeconds: { gt: 0 } },
+        _sum: { deltaSeconds: true },
+      }),
+      prisma.minutesLedger.aggregate({
+        where: { reason: 'call_usage', deltaSeconds: { lt: 0 } },
         _sum: { deltaSeconds: true },
       }),
     ]);
@@ -1098,13 +1271,110 @@ adminRouter.get('/metrics/overview', requireStaff('metrics:view'), async (_req: 
         totalCustomers: totalUsers,
         activeCustomers: activeUsers,
         suspendedCustomers: suspendedUsers,
+        restrictedCustomers: restrictedUsers,
+        inactiveCustomers: totalUsers - activeUsers - suspendedUsers - restrictedUsers,
         totalCallsPlaced: totalCalls,
+        callsByStatus: {
+          completed: completedCalls,
+          failed: failedCalls,
+          inProgress: inProgressCalls,
+          queued: queuedCalls,
+        },
+        totalAgents,
+        totalCampaigns,
         totalMinutesGranted: Math.round((totalMinutesLedger._sum.deltaSeconds || 0) / 60),
+        vobizMinutesUsed: Math.round(Math.abs(vobizMinutesUsed._sum.deltaSeconds || 0) / 60),
+        geminiTokenUsage: {
+          available: false,
+          note: 'Gemini token usage is not tracked at the provider level. No GeminiTokenUsage table exists in the current schema.',
+        },
+        dataSource: 'internal_ledger',
+        lastSyncedAt: new Date().toISOString(),
       },
     });
   } catch (err: any) {
     logger.error('[ADMIN_API] Failed to fetch metrics overview', { error: err.message });
     res.status(500).json({ error: 'Failed to fetch overview metrics' });
+  }
+});
+
+/**
+ * GET /api/v2/admin/usage
+ * Platform usage breakdown by customer, recent telephony ledger activity, and provider health.
+ */
+adminRouter.get('/usage', requireStaff('metrics:view'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const [topConsumers, recentUsageTransactions, totalUsageAgg, totalGrantedAgg] = await Promise.all([
+      prisma.user.findMany({
+        take: 25,
+        orderBy: { totalMinutesConsumed: 'desc' },
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          accountType: true,
+          accountStatus: true,
+          totalMinutesConsumed: true,
+          callingBalanceMinutes: true,
+          minutesRemainingSeconds: true,
+          createdAt: true,
+          _count: {
+            select: { calls: true, agents: true },
+          },
+        },
+      }),
+      prisma.minutesLedger.findMany({
+        where: { reason: 'call_usage' },
+        take: 30,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: {
+            select: { id: true, email: true, fullName: true },
+          },
+        },
+      }),
+      prisma.minutesLedger.aggregate({
+        where: { reason: 'call_usage' },
+        _sum: { deltaSeconds: true },
+        _count: true,
+      }),
+      prisma.minutesLedger.aggregate({
+        where: { deltaSeconds: { gt: 0 } },
+        _sum: { deltaSeconds: true },
+      }),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        summary: {
+          totalMinutesUsed: Math.round(Math.abs(totalUsageAgg._sum.deltaSeconds || 0) / 60),
+          totalMinutesGranted: Math.round((totalGrantedAgg._sum.deltaSeconds || 0) / 60),
+          callUsageRecordsCount: totalUsageAgg._count,
+          providerStatus: {
+            vobiz: {
+              source: 'Internal Ledger',
+              isLiveSynced: false,
+              note: 'Tracked via MinutesLedger call_usage debits. Reconciliation job with Vobiz vendor API is not yet automated.',
+            },
+            gemini: {
+              source: 'Not Tracked',
+              isLiveSynced: false,
+              note: 'Unavailable. Gemini token metrics are not intercepted or persisted in database.',
+            },
+          },
+        },
+        topConsumers: topConsumers.map((u) => ({
+          ...u,
+          callsCount: u._count.calls,
+          agentsCount: u._count.agents,
+        })),
+        recentActivity: recentUsageTransactions,
+      },
+    });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to fetch usage metrics', { error: err.message });
+    res.status(500).json({ error: 'Failed to load usage data' });
   }
 });
 
@@ -1155,6 +1425,9 @@ adminRouter.get('/calls', requireStaff('customers:view'), async (req: StaffAuthe
           summary: isOwner,
           sentiment: true,
           agent: {
+            select: { id: true, name: true },
+          },
+          batch: {
             select: { id: true, name: true },
           },
           user: {

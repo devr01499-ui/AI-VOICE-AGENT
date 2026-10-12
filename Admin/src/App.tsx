@@ -12,6 +12,7 @@ import { AuditLogsList } from './pages/AuditLogsList';
 import { StaffList } from './pages/StaffList';
 import { PlansList } from './pages/PlansList';
 import { Settings } from './pages/Settings';
+import { UsagePage } from './pages/UsagePage';
 
 const AdminRouter: React.FC = () => {
   const { loading } = useAuth();
@@ -89,6 +90,8 @@ const AdminRouter: React.FC = () => {
         return <CustomersList onSelectCustomer={(id) => navigate(`/customers/${id}`)} />;
       case '/calls':
         return <CallsList onSelectCustomer={(id) => navigate(`/customers/${id}`)} />;
+      case '/usage':
+        return <UsagePage onSelectCustomer={(id) => navigate(`/customers/${id}`)} />;
       case '/numbers':
         return <NumbersList onSelectCustomer={(id) => navigate(`/customers/${id}`)} />;
       case '/payments':

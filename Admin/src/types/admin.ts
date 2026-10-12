@@ -88,6 +88,7 @@ export interface CustomerSummary {
   adminProfile?: CustomerAdminProfile | null;
   callsCount?: number;
   agentsCount?: number;
+  campaignsCount?: number;
   totalSpentInr?: number;
 }
 

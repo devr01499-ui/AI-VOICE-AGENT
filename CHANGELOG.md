@@ -1,5 +1,14 @@
 # CHANGELOG
 
+- Admin Console Full Production Upgrade & Telemetry Hub:
+  - **Overview Page Overhaul**: Upgraded `Overview.tsx` to 8 metric cards (Total, Active, Suspended, Restricted customers, Agents, Campaigns, Total calls placed), live call status breakdown (Completed, In Progress, Ringing, Queued, Failed, Busy), and surfaced provider telemetry breakdown with explicit indicator that Gemini token usage is currently unmetered.
+  - **Customer Directory Enhancements**: Updated `CustomersList.tsx` with Plan tier badges, Last Seen timestamps, Campaigns count in the Usage column, and interactive multi-field sorting (Newest, Oldest, Highest Minutes, Most Calls).
+  - **Customer 360 Deep Inspection**: Expanded `CustomerDetail.tsx` with dedicated tabs for `Agents`, `Batch Campaigns`, and `Payments & Invoices` (with PDF links), added KYC document verification status indicators, and real-time alerts for stale call sessions (>2h without completion webhooks).
+  - **Telephony & Calls Management**: Upgraded `CallsList.tsx` with support for all schema call statuses (`completed`, `in_progress`, `ringing`, `queued`, `failed`, `no_answer`, `busy`, `canceled`), Batch Campaign identification column, and stale session reconciliation banners.
+  - **Dedicated Usage & Provider Telemetry Module**: Created `UsagePage.tsx` under `/usage`, ranking top consumers by lifetime minutes consumed with quick access to Customer 360, and displaying a live audit stream of `call_usage` debits from `MinutesLedger`.
+  - **Backend Sub-Resource & Telemetry APIs**: Added `GET /api/v2/admin/usage`, `GET /customers/:id/agents`, `GET /customers/:id/campaigns`, and `GET /customers/:id/payments` in `server/src/routes/adminRoutes.ts` with strict staff RBAC and audit protection. Enriched `GET /customers/:id` with `kycDocuments` and `kycStatus`.
+  - **Navigation & Routing Integration**: Added Usage and Payments navigation to `AdminLayout.tsx`, `CommandPalette.tsx` (`Ctrl+K`), and `App.tsx`. Verified 0 TypeScript compilation errors across both `Admin` and `server`.
+
 - Standardized DigiLocker Initiate Response Contract & Structural Assertions:
   - **Nested Response Payload**: Standardized `/digilocker/initiate` (and `/aadhaar/initiate`) mock and live routes in `server/src/routes/kyc.ts` to return nested payload under `data: { auth_url, link, access_request_id }` matching all other KYC endpoints.
   - **Clean Frontend Unwrapping**: Updated `handleInitiateDigiLocker` in `Frontend/src/app/components/kyc/KycComplianceSettings.tsx` to read `(res.data as any)?.data?.auth_url` and `reqId` directly without fallback workarounds.

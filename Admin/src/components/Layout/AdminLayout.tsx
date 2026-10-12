@@ -17,6 +17,8 @@ import {
   X,
   ExternalLink,
   ChevronRight,
+  BarChart3,
+  Receipt,
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -34,7 +36,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ currentPath, onNavigat
     { label: 'Overview', path: '/overview', icon: LayoutDashboard },
     { label: 'Customers', path: '/customers', icon: Users, perm: 'customers:view' },
     { label: 'Calls & Telephony', path: '/calls', icon: PhoneCall },
+    { label: 'Usage & Telemetry', path: '/usage', icon: BarChart3, perm: 'metrics:view' },
     { label: 'Phone Numbers', path: '/numbers', icon: Hash, perm: 'numbers:activate' },
+    { label: 'Payments & GST', path: '/payments', icon: Receipt, perm: 'payments:view' },
     { label: 'Plans & Links', path: '/plans', icon: CreditCard, perm: 'plans:manage' },
     { label: 'Staff Governance', path: '/staff', icon: ShieldCheck, perm: 'staff:manage' },
     { label: 'System Health', path: '/health', icon: Activity, perm: 'metrics:view' },

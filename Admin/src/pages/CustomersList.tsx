@@ -1,7 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { adminFetch } from '../lib/api';
 import { CustomerSummary } from '../types/admin';
-import { Search, User, Filter, AlertTriangle, ShieldAlert, ChevronLeft, ChevronRight, Phone, Eye } from 'lucide-react';
+import {
+  Search,
+  User,
+  Filter,
+  AlertTriangle,
+  ShieldAlert,
+  ChevronLeft,
+  ChevronRight,
+  Phone,
+  Eye,
+  ArrowUpDown,
+} from 'lucide-react';
 
 interface CustomersListProps {
   onSelectCustomer: (id: string) => void;
@@ -15,6 +26,7 @@ export const CustomersList: React.FC<CustomersListProps> = ({ onSelectCustomer }
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [riskFilter, setRiskFilter] = useState('all');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'minutes' | 'calls'>('newest');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -38,7 +50,15 @@ export const CustomersList: React.FC<CustomersListProps> = ({ onSelectCustomer }
       }>(`/api/v2/admin/customers?${params.toString()}`);
 
       if (res.success) {
-        setCustomers(res.data);
+        let sorted = [...res.data];
+        if (sortBy === 'oldest') {
+          sorted.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        } else if (sortBy === 'minutes') {
+          sorted.sort((a, b) => (b.minutesRemainingSeconds || 0) - (a.minutesRemainingSeconds || 0));
+        } else if (sortBy === 'calls') {
+          sorted.sort((a, b) => (b.callsCount || 0) - (a.callsCount || 0));
+        }
+        setCustomers(sorted);
         setTotalPages(res.pagination.totalPages || 1);
         setTotalCount(res.pagination.total || 0);
       }
@@ -51,12 +71,28 @@ export const CustomersList: React.FC<CustomersListProps> = ({ onSelectCustomer }
 
   useEffect(() => {
     fetchCustomers();
-  }, [page, statusFilter, riskFilter]);
+  }, [page, statusFilter, riskFilter, sortBy]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
     fetchCustomers();
+  };
+
+  const getPlanBadge = (type: string) => {
+    const t = (type || 'free').toLowerCase();
+    switch (t) {
+      case 'enterprise':
+        return 'bg-purple-900/40 text-purple-300 border-purple-700/50';
+      case 'professional':
+        return 'bg-indigo-900/40 text-indigo-300 border-indigo-700/50';
+      case 'developer':
+        return 'bg-blue-900/40 text-blue-300 border-blue-700/50';
+      case 'admin':
+        return 'bg-amber-900/40 text-amber-300 border-amber-700/50';
+      default:
+        return 'bg-zinc-800 text-zinc-400 border-zinc-700';
+    }
   };
 
   return (
@@ -69,13 +105,13 @@ export const CustomersList: React.FC<CustomersListProps> = ({ onSelectCustomer }
             <span>Customers Directory</span>
           </h1>
           <p className="text-xs text-zinc-400 mt-1">
-            Browse, search, inspect balances, and manage all customer accounts ({totalCount} total)
+            Browse, search, inspect balances, track campaigns, and manage all customer accounts ({totalCount} total)
           </p>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 flex flex-col md:flex-row items-center gap-3">
+      <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 flex flex-col lg:flex-row items-center gap-3">
         <form onSubmit={handleSearchSubmit} className="flex-1 w-full relative">
           <Search className="h-4 w-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
@@ -87,7 +123,8 @@ export const CustomersList: React.FC<CustomersListProps> = ({ onSelectCustomer }
           />
         </form>
 
-        <div className="flex items-center gap-2 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+          {/* Status Filter */}
           <div className="flex items-center gap-1.5 px-3 py-2 bg-black border border-zinc-800 rounded-xl text-xs text-zinc-300 shrink-0">
             <Filter className="h-3.5 w-3.5 text-zinc-500" />
             <select
@@ -105,6 +142,7 @@ export const CustomersList: React.FC<CustomersListProps> = ({ onSelectCustomer }
             </select>
           </div>
 
+          {/* Risk Filter */}
           <div className="flex items-center gap-1.5 px-3 py-2 bg-black border border-zinc-800 rounded-xl text-xs text-zinc-300 shrink-0">
             <AlertTriangle className="h-3.5 w-3.5 text-zinc-500" />
             <select
@@ -119,6 +157,23 @@ export const CustomersList: React.FC<CustomersListProps> = ({ onSelectCustomer }
               <option value="none" className="bg-zinc-950">Normal (None)</option>
               <option value="watch" className="bg-zinc-950">Watch</option>
               <option value="high" className="bg-zinc-950">High Risk</option>
+            </select>
+          </div>
+
+          {/* Sort By */}
+          <div className="flex items-center gap-1.5 px-3 py-2 bg-black border border-zinc-800 rounded-xl text-xs text-zinc-300 shrink-0">
+            <ArrowUpDown className="h-3.5 w-3.5 text-zinc-500" />
+            <select
+              value={sortBy}
+              onChange={(e) => {
+                setSortBy(e.target.value as any);
+              }}
+              className="bg-transparent focus:outline-none text-xs cursor-pointer text-zinc-300"
+            >
+              <option value="newest" className="bg-zinc-950">Newest First</option>
+              <option value="oldest" className="bg-zinc-950">Oldest First</option>
+              <option value="minutes" className="bg-zinc-950">Highest Minutes</option>
+              <option value="calls" className="bg-zinc-950">Most Calls</option>
             </select>
           </div>
         </div>
@@ -138,26 +193,28 @@ export const CustomersList: React.FC<CustomersListProps> = ({ onSelectCustomer }
             <thead className="bg-black text-[11px] uppercase tracking-wider text-zinc-400 font-mono border-b border-zinc-800">
               <tr>
                 <th className="px-5 py-3.5 font-semibold">Customer</th>
-                <th className="px-4 py-3.5 font-semibold">Status</th>
-                <th className="px-4 py-3.5 font-semibold">Risk</th>
+                <th className="px-3 py-3.5 font-semibold">Plan</th>
+                <th className="px-3 py-3.5 font-semibold">Status</th>
+                <th className="px-3 py-3.5 font-semibold">Risk</th>
                 <th className="px-4 py-3.5 font-semibold">Minutes Balance</th>
                 <th className="px-4 py-3.5 font-semibold">Legacy Credits</th>
-                <th className="px-4 py-3.5 font-semibold">Usage</th>
-                <th className="px-4 py-3.5 font-semibold">Joined</th>
+                <th className="px-4 py-3.5 font-semibold">Usage & Campaigns</th>
+                <th className="px-3 py-3.5 font-semibold">Last Seen</th>
+                <th className="px-3 py-3.5 font-semibold">Joined</th>
                 <th className="px-4 py-3.5 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/60">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-zinc-500">
+                  <td colSpan={10} className="text-center py-12 text-zinc-500">
                     <div className="h-5 w-5 border-2 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-2" />
                     <span>Loading customers directory...</span>
                   </td>
                 </tr>
               ) : customers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-zinc-500">
+                  <td colSpan={10} className="text-center py-12 text-zinc-500">
                     No customers found matching the query.
                   </td>
                 </tr>
@@ -165,15 +222,15 @@ export const CustomersList: React.FC<CustomersListProps> = ({ onSelectCustomer }
                 customers.map((c) => {
                   const minutesLeft = Math.round((c.minutesRemainingSeconds || 0) / 60);
                   const statusColors: Record<string, string> = {
-                    active: 'bg-zinc-900 text-white border-zinc-700',
-                    restricted: 'bg-zinc-900 text-zinc-300 border-zinc-700',
-                    suspended: 'bg-white text-black border-white font-bold',
+                    active: 'bg-emerald-950/60 text-emerald-400 border-emerald-800/60',
+                    restricted: 'bg-amber-950/60 text-amber-400 border-amber-800/60',
+                    suspended: 'bg-red-950/80 text-red-300 border-red-800 font-bold',
                   };
 
                   const riskColors: Record<string, string> = {
                     none: 'bg-zinc-900 text-zinc-400 border-zinc-800',
-                    watch: 'bg-zinc-900 text-zinc-200 border-zinc-700',
-                    high: 'bg-white text-black border-white font-bold',
+                    watch: 'bg-amber-950/50 text-amber-300 border-amber-800/60',
+                    high: 'bg-red-950/80 text-red-300 border-red-800 font-bold',
                   };
 
                   const risk = c.adminProfile?.riskLevel || 'none';
@@ -185,7 +242,7 @@ export const CustomersList: React.FC<CustomersListProps> = ({ onSelectCustomer }
                       className="hover:bg-zinc-900/50 transition-colors cursor-pointer group"
                     >
                       <td className="px-5 py-3.5">
-                        <div className="font-semibold text-white group-hover:underline transition-colors">
+                        <div className="font-semibold text-white group-hover:underline transition-colors flex items-center gap-1.5">
                           {c.fullName || 'Anonymous User'}
                         </div>
                         <div className="text-[11px] text-zinc-400 font-mono mt-0.5">{c.email}</div>
@@ -197,7 +254,19 @@ export const CustomersList: React.FC<CustomersListProps> = ({ onSelectCustomer }
                         )}
                       </td>
 
-                      <td className="px-4 py-3.5">
+                      {/* Plan Column */}
+                      <td className="px-3 py-3.5">
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded-full font-mono uppercase font-semibold border ${getPlanBadge(
+                            c.accountType
+                          )}`}
+                        >
+                          {c.accountType || 'free'}
+                        </span>
+                      </td>
+
+                      {/* Status Column */}
+                      <td className="px-3 py-3.5">
                         <span
                           className={`text-[10px] px-2 py-0.5 rounded-full font-mono uppercase font-semibold border ${
                             statusColors[c.accountStatus] || 'bg-zinc-900 text-zinc-400 border-zinc-800'
@@ -207,7 +276,8 @@ export const CustomersList: React.FC<CustomersListProps> = ({ onSelectCustomer }
                         </span>
                       </td>
 
-                      <td className="px-4 py-3.5">
+                      {/* Risk Column */}
+                      <td className="px-3 py-3.5">
                         <span
                           className={`text-[10px] px-2 py-0.5 rounded-full font-mono uppercase font-medium border ${
                             riskColors[risk] || riskColors.none
@@ -217,15 +287,20 @@ export const CustomersList: React.FC<CustomersListProps> = ({ onSelectCustomer }
                         </span>
                       </td>
 
+                      {/* Minutes Balance */}
                       <td className="px-4 py-3.5">
-                        <div className="font-mono text-white font-semibold">
-                          {minutesLeft} <span className="text-[10px] text-zinc-400">min</span>
+                        <div className="font-mono text-white font-semibold flex items-baseline gap-1">
+                          <span className={minutesLeft > 0 ? 'text-emerald-400' : 'text-zinc-400'}>
+                            {minutesLeft}
+                          </span>
+                          <span className="text-[10px] text-zinc-500 font-normal">min remaining</span>
                         </div>
-                        <div className="text-[10px] text-zinc-500 font-mono">
-                          ({c.callingBalanceMinutes.toFixed(1)} cached)
+                        <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                          {c.callingBalanceMinutes.toFixed(1)} cached
                         </div>
                       </td>
 
+                      {/* Legacy Credits */}
                       <td className="px-4 py-3.5">
                         <div className="font-mono text-zinc-200">
                           ₹{c.billingBalance.toFixed(2)}
@@ -233,19 +308,33 @@ export const CustomersList: React.FC<CustomersListProps> = ({ onSelectCustomer }
                         <div className="text-[9px] text-zinc-500 font-mono uppercase">LEGACY CREDITS</div>
                       </td>
 
+                      {/* Usage & Campaigns */}
                       <td className="px-4 py-3.5">
-                        <div className="text-zinc-200">
-                          {c.callsCount || 0} calls
+                        <div className="text-zinc-200 flex items-center gap-1 font-mono text-[11px]">
+                          <span>{c.callsCount || 0} calls</span>
                         </div>
-                        <div className="text-[10px] text-zinc-500 font-mono">
-                          {c.agentsCount || 0} agents
+                        <div className="text-[10px] text-zinc-500 font-mono flex items-center gap-2 mt-0.5">
+                          <span>{c.agentsCount || 0} agents</span>
+                          <span>•</span>
+                          <span>{c.campaignsCount || 0} campaigns</span>
                         </div>
                       </td>
 
-                      <td className="px-4 py-3.5 font-mono text-[11px] text-zinc-400">
+                      {/* Last Seen */}
+                      <td className="px-3 py-3.5 font-mono text-[10px] text-zinc-400">
+                        {c.lastSeenAt ? (
+                          <span>{new Date(c.lastSeenAt).toLocaleDateString()}</span>
+                        ) : (
+                          <span className="text-zinc-600">Never</span>
+                        )}
+                      </td>
+
+                      {/* Joined */}
+                      <td className="px-3 py-3.5 font-mono text-[11px] text-zinc-400">
                         {new Date(c.createdAt).toLocaleDateString()}
                       </td>
 
+                      {/* Actions */}
                       <td className="px-4 py-3.5 text-right">
                         <button
                           onClick={(e) => {
