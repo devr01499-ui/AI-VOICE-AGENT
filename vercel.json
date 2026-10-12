@@ -30,6 +30,8 @@
     }
   ],
   "rewrites": [
-    { "source": "/((?!assets|favicon\\.ico|sitemap\\.xml|robots\\.txt).*)", "destination": "/index.html" }
+    { "source": "/admin", "destination": "/admin/index.html" },
+    { "source": "/admin/:path*", "destination": "/admin/index.html" },
+    { "source": "/((?!assets|favicon\\.ico|sitemap\\.xml|robots\\.txt|admin).*)", "destination": "/index.html" }
   ]
 }

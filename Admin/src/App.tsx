@@ -19,13 +19,27 @@ const AdminRouter: React.FC = () => {
   const [currentPath, setCurrentPath] = useState<string>('/overview');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
+  const isSubPath = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin');
+  const basePath = isSubPath ? '/admin' : '';
+
+  const normalizePath = (rawPath: string) => {
+    let p = rawPath;
+    if (p.startsWith('/admin')) {
+      p = p.replace(/^\/admin/, '') || '/overview';
+    }
+    if (['', '/', '/login', '/signin', '/auth', '/mfa'].includes(p)) {
+      p = '/overview';
+    }
+    return p;
+  };
+
   // Sync with browser URL hash or path
   useEffect(() => {
     const handlePopState = () => {
-      let path = window.location.pathname || '/overview';
+      let path = normalizePath(window.location.pathname || '/overview');
       if (['/', '/login', '/signin', '/auth', '/mfa'].includes(path)) {
         path = '/overview';
-        window.history.replaceState({}, '', '/overview');
+        window.history.replaceState({}, '', `${basePath}/overview`);
       }
       if (path.startsWith('/customers/')) {
         const id = path.replace('/customers/', '');
@@ -39,22 +53,19 @@ const AdminRouter: React.FC = () => {
     handlePopState();
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [basePath]);
 
   const navigate = (path: string) => {
-    let cleanPath = path;
-    if (['/', '/login', '/signin', '/auth', '/mfa'].includes(cleanPath)) {
-      cleanPath = '/overview';
-    }
+    let cleanPath = normalizePath(path);
     if (cleanPath.startsWith('/customers/')) {
       const id = cleanPath.replace('/customers/', '');
       setSelectedCustomerId(id);
       setCurrentPath('/customers');
-      window.history.pushState({}, '', cleanPath);
+      window.history.pushState({}, '', `${basePath}${cleanPath}`);
     } else {
       setSelectedCustomerId(null);
       setCurrentPath(cleanPath);
-      window.history.pushState({}, '', cleanPath);
+      window.history.pushState({}, '', `${basePath}${cleanPath}`);
     }
   };
 
