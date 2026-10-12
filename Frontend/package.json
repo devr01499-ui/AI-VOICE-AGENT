@@ -1,7 +1,7 @@
 {
   "name": "claritiy-voice-frontend",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "scripts": {
     "sitemap": "node scripts/generate-sitemap.js",
