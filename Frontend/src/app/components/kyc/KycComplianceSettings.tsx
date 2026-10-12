@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { apiClient } from '../../api';
+import { apiClient, KycDigiLockerInitiateData } from '../../api';
 import {
   ShieldCheck,
   ShieldAlert,
@@ -299,12 +299,12 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
         ? `${window.location.origin}/compliance?tab=kyc`
         : 'https://claritiy.com/compliance?tab=kyc';
 
-      const res = await apiClient.post('/api/v2/kyc/digilocker/initiate', {
+      const res = await apiClient.post<KycDigiLockerInitiateData>('/api/v2/kyc/digilocker/initiate', {
         redirect_url: redirectUrl,
       });
       if (res.data?.success) {
-        const authUrl = (res.data as any)?.data?.auth_url || (res.data as any)?.data?.link || (res.data as any)?.auth_url || (res.data as any)?.link;
-        const reqId = (res.data as any)?.data?.access_request_id || (res.data as any)?.access_request_id;
+        const authUrl = (res.data as any)?.data?.auth_url || (res.data as any)?.data?.link;
+        const reqId = (res.data as any)?.data?.access_request_id;
         if (reqId) {
           setAccessRequestId(reqId);
           try { sessionStorage.setItem('kyc_access_request_id', reqId); } catch {}

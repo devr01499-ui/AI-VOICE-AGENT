@@ -584,22 +584,44 @@ export async function updateBillingConfig(geminiApiKey: string | null): Promise<
   });
 }
 
+// ─── Shared KYC API Response Contract ──────────────────────────────────────
+export interface KycSuccessResponse<T = Record<string, unknown>> {
+  success: true;
+  data: T;
+  message?: string;
+}
+
+export interface KycErrorResponse {
+  success: false;
+  error: string;
+  code?: string;
+  outcome?: string;
+}
+
+export type KycApiResponse<T = Record<string, unknown>> = KycSuccessResponse<T> | KycErrorResponse;
+
+export interface KycDigiLockerInitiateData {
+  auth_url: string;
+  link: string;
+  access_request_id: string;
+}
+
 // Harmonized Axios-like apiClient contract for cross-platform compliance
 export const apiClient = {
-  get: async (path: string, options?: RequestInit) => {
-    const result = await apiFetch<any>(path, { ...options, method: 'GET' });
+  get: async <T = any>(path: string, options?: RequestInit) => {
+    const result = await apiFetch<T>(path, { ...options, method: 'GET' });
     return { data: { success: true, data: result } };
   },
-  post: async (path: string, data?: any, options?: RequestInit) => {
-    const result = await apiFetch<any>(path, { ...options, method: 'POST', body: JSON.stringify(data) });
+  post: async <T = any>(path: string, data?: any, options?: RequestInit) => {
+    const result = await apiFetch<T>(path, { ...options, method: 'POST', body: JSON.stringify(data) });
     return { data: { success: true, data: result } };
   },
-  put: async (path: string, data?: any, options?: RequestInit) => {
-    const result = await apiFetch<any>(path, { ...options, method: 'PUT', body: JSON.stringify(data) });
+  put: async <T = any>(path: string, data?: any, options?: RequestInit) => {
+    const result = await apiFetch<T>(path, { ...options, method: 'PUT', body: JSON.stringify(data) });
     return { data: { success: true, data: result } };
   },
-  delete: async (path: string, options?: RequestInit) => {
-    const result = await apiFetch<any>(path, { ...options, method: 'DELETE' });
+  delete: async <T = any>(path: string, options?: RequestInit) => {
+    const result = await apiFetch<T>(path, { ...options, method: 'DELETE' });
     return { data: { success: true, data: result } };
   }
 };

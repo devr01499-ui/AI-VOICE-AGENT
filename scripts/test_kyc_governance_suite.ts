@@ -108,7 +108,7 @@ async function runTestSuite() {
         userId: testUserIndividual,
         documentType: 'pan',
         status: 'verified',
-        vobizReference: 'vob_live_pan_ref_123',
+        vobizReference: 'VER_LIVE_PAN_REF_123456',
         panType: 'personal',
       },
     });
@@ -125,7 +125,7 @@ async function runTestSuite() {
         userId: testUserIndividual,
         documentType: 'aadhaar',
         status: 'verified',
-        vobizReference: 'dl_live_aadhaar_ref_456',
+        vobizReference: 'AR_1234567890ABCDEF',
       },
     });
 
@@ -170,7 +170,7 @@ async function runTestSuite() {
         userId: testUserCompany,
         documentType: 'pan',
         status: 'verified',
-        vobizReference: 'vob_live_company_pan_789',
+        vobizReference: 'VER_LIVE_COMPANY_PAN_789012',
         panType: 'company',
       },
     });
@@ -187,7 +187,7 @@ async function runTestSuite() {
         userId: testUserCompany,
         documentType: 'gst',
         status: 'verified',
-        vobizReference: 'vob_live_gst_ref_101',
+        vobizReference: 'VER_LIVE_GST_REF_101112',
       },
     });
 
@@ -210,8 +210,9 @@ async function runTestSuite() {
     assert.strictEqual(isMockVobizReference('vob_pan_1791701571622'), true);
     assert.strictEqual(isMockVobizReference('vob_gst_1791701571622'), true);
     assert.strictEqual(isMockVobizReference('vob_adh_1791701571622'), true);
-    assert.strictEqual(isMockVobizReference('AR_MOCK_123'), true);
-    assert.strictEqual(isMockVobizReference('live_api_reference_uuid_123'), false);
+    assert.strictEqual(isMockVobizReference('550e8400-e29b-41d4-a716-446655440000'), false);
+    assert.strictEqual(isMockVobizReference('VER_LIVE_REF_123456'), false);
+    assert.strictEqual(isMockVobizReference('AR_LIVE12345678'), false);
     console.log('  ✓ Test (d) passed: Mock format detection accurately isolates unverified timestamps\n');
     passed++;
 

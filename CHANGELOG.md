@@ -1,5 +1,11 @@
 # CHANGELOG
 
+- Standardized DigiLocker Initiate Response Contract & Structural Assertions:
+  - **Nested Response Payload**: Standardized `/digilocker/initiate` (and `/aadhaar/initiate`) mock and live routes in `server/src/routes/kyc.ts` to return nested payload under `data: { auth_url, link, access_request_id }` matching all other KYC endpoints.
+  - **Clean Frontend Unwrapping**: Updated `handleInitiateDigiLocker` in `Frontend/src/app/components/kyc/KycComplianceSettings.tsx` to read `(res.data as any)?.data?.auth_url` and `reqId` directly without fallback workarounds.
+  - **Shared TypeScript Response Contracts**: Added `KycSuccessResponse`, `KycErrorResponse`, and `KycDigiLockerInitiateData` to `Frontend/src/app/api.ts` with generic typing on `apiClient.post<T>`, making flat response access a compile-time failure.
+  - **Express Runtime Response Guard**: Installed router-level assertion middleware on KYC routes that detects any flat success response lacking `data`, throwing loudly in dev/test and auto-nesting with error logging in production.
+
 - Claritiy Voice Admin Console & System Platform (Phases 0 through 5 Complete):
   - **Phase 0 Foundations**: Unified minutes balance and ledger (`MinutesService`), double-deduction bug eliminated between live session balances and call completion orchestrator, role caps enforced via `capEnforcement.ts` (Decision #3), `call_content:view` restricted to Owner only (Decision #4), staff self-modification/last-owner safeguards implemented, automated verification suite (25/25 PASS).
   - **Phase 1 Admin Shell**: Dedicated Vite + React 18 + Tailwind 4 web app in `Admin/`, Supabase AAL2 TOTP MFA authentication gateway, responsive layout with collapsible navigation, role badges, command palette (`Ctrl+K`), Customer 360 overview shell with ledger, call history, CRM notes and action modals.
