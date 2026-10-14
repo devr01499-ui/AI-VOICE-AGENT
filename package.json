@@ -9,7 +9,8 @@
     "start": "npm run --prefix server start",
     "build": "node scripts/build_all.js",
     "lint": "eslint .",
-    "typecheck": "npm run --prefix Frontend typecheck && npm run --prefix server typecheck"
+    "typecheck": "npm run --prefix Frontend typecheck && npm run --prefix server typecheck",
+    "test:security": "npm run --prefix server test:security"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

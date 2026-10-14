@@ -10,7 +10,8 @@
     "prisma:generate": "prisma generate",
     "prisma:check-drift": "prisma migrate status",
     "prisma:studio": "prisma studio",
-    "typecheck": "node --max-old-space-size=4096 node_modules/typescript/bin/tsc --noEmit"
+    "typecheck": "node --max-old-space-size=4096 node_modules/typescript/bin/tsc --noEmit",
+    "test:security": "node scripts/test_phase5_security_suite.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
