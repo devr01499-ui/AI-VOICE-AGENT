@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { Router } from 'express';
-import { google } from 'googleapis';
+import { OAuth2Client } from 'google-auth-library';
 import { requireAuth } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
 import { getUserIdFromRequest } from '../utils/auth';
@@ -14,7 +14,7 @@ import { requireCallingMinutes } from '../middleware/planValidation';
 const router = Router();
 
 const getOauth2Client = () => {
-  return new google.auth.OAuth2(
+  return new OAuth2Client(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
     // Provide a sensible default or environment variable for redirect URI

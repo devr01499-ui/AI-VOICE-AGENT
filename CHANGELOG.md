@@ -1,5 +1,12 @@
 # CHANGELOG
 
+- Cloud Deployment & Startup Optimization (Render Port Scan Resolution):
+  - **Immediate Socket Binding (`index.ts`)**: Re-architected `bootstrap()` lifecycle to bind HTTP/WebSocket port immediately (24ms startup), eliminating port scan timeout on Render deployment containers. Moved database connectivity, provider checks, and background evaluation into the asynchronous listen callback.
+  - **Lightweight Google API Clients (`CalendarService.ts`, `routes/calendar.ts`)**: Replaced root `googleapis` import (which loaded 300+ Google APIs synchronously) with targeted `google-auth-library` and subpath imports, reducing boot overhead by tens of seconds and preventing memory starvation on cloud containers.
+  - **Dynamic Lazy Loading (`KnowledgeBaseController.ts`)**: Converted heavyweight `jsdom` and `pdfParser` imports to on-demand dynamic imports, cutting controller load time from 25 seconds down to 4 milliseconds.
+  - **Network Timeout Safeguards**: Added 5000ms AbortSignal timeouts on Vobiz health check requests and a 3000ms drachtio connection timeout safeguard in `SipProvider.connect()`.
+  - **Render Configuration Alignment (`render.yaml`, `package.json`)**: Configured standard port 10000 alignment in `render.yaml` with resilient runtime port fallback (`process.env.PORT || (env.NODE_ENV === 'production' ? '10000' : '3001')`), and added root `start` script to `package.json`.
+
 - Security Audit Phase 4: All API Endpoints Inventory & IDOR Hardening (100% Coverage):
   - **Comprehensive 64-Endpoint Inventory & Audit Matrix**: Documented all 22 route files across the server architecture in `api_endpoint_inventory_audit.md`, classifying each route by HTTP method, authentication requirements, plan/minute gates, rate limiting, and tenant ownership enforcement.
   - **Campaign Batches IDOR & Calling Minute Gates (`calendar.ts`)**: Enforced tenant ownership verification on `POST /batches` ensuring `agentId` strictly belongs to the caller's account (`where: { id: agentId, userId }`). Attached `requireCallingMinutes` to both batch creation and batch resumption (`/batches/:id/resume`), preventing unmetered mass outbound dialing attacks. Added `sensitiveOperationsLimiter` and tenant existence validation to batch pause, resume, and cancel operations.

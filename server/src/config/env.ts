@@ -20,10 +20,11 @@ const envSchema = z.object({
 
   // ── Server ──────────────────────────────────
   PORT: z
-    .string({ required_error: 'PORT is required' })
+    .string()
     .trim()
     .regex(/^\d+$/, 'PORT must be a numeric string')
-    .transform(Number),
+    .transform(Number)
+    .default('3001'),
 
   SIP_ENCRYPTION_KEY: z
     .string()

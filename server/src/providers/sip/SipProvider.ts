@@ -51,7 +51,18 @@ export class SipProvider implements ITelephonyProvider {
         secret
       });
 
+      const timer = setTimeout(() => {
+        if (!this.isConnected) {
+          logger.warn('SipProvider: drachtio-server connection timed out after 3000ms; proceeding without SIP');
+          resolve();
+        }
+      }, 3000);
+      if (typeof timer.unref === 'function') {
+        timer.unref();
+      }
+
       this.srf.on('connect', (err: any, hostport: string) => {
+        clearTimeout(timer);
         if (err) {
           logger.error('SipProvider: failed to connect to drachtio-server', { error: err });
           return resolve(); // Resolve instead of reject so server can start without SIP
@@ -62,6 +73,7 @@ export class SipProvider implements ITelephonyProvider {
       });
 
       this.srf.on('error', (err: any) => {
+        clearTimeout(timer);
         logger.error('SipProvider: drachtio-server error', { error: err });
         // Prevent hanging if initial connection fails
         if (!this.isConnected) {

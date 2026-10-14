@@ -3,8 +3,6 @@ import { prisma } from '../lib/prisma';
 import { AuthenticatedRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
-import { JSDOM } from 'jsdom';
-import { extractTextFromPdf } from '../utils/pdfParser';
 import { getEmbedding } from '../utils/embedding';
 
 function chunkText(text: string, chunkSize = 1000, overlap = 150): string[] {
@@ -55,6 +53,7 @@ export class KnowledgeBaseController {
       let contentText = '';
 
       if (name.toLowerCase().endsWith('.pdf')) {
+        const { extractTextFromPdf } = await import('../utils/pdfParser');
         contentText = await extractTextFromPdf(buffer);
       } else {
         contentText = buffer.toString('utf8');
@@ -188,6 +187,7 @@ export class KnowledgeBaseController {
       const html = await response.text();
       
       // Boilerplate-free DOM extraction using JSDOM
+      const { JSDOM } = await import('jsdom');
       const dom = new JSDOM(html);
       const doc = dom.window.document;
       

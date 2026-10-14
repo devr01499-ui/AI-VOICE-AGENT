@@ -87,7 +87,11 @@ export class VobizProvider implements ITelephonyProvider {
     try {
       const response = await fetch(
         `${this.baseUrl}/Account/${this.authId}`,
-        { method: 'GET', headers: this.buildHeaders() }
+        {
+          method: 'GET',
+          headers: this.buildHeaders(),
+          signal: AbortSignal.timeout(5000),
+        }
       );
       const latencyMs = Date.now() - start;
 

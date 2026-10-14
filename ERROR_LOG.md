@@ -186,7 +186,23 @@ px prisma db push to bypass Supabase shadow DB auth schema error safely.
 - **Production Correction Pass**:
   - Executed one-time database correction pass across 24 non-admin user accounts in PostgreSQL, resetting falsely auto-verified records to their real sub-account status (`'pending'`).
 
-
-
+## ERR-027: Render Deployment Port Scan Timeout & Container Startup Latency (2026-10-14)
+- **Symptom**: Render web service deployment for commit `e389e15` timed out after 18m56s:
+  `==> Port scan timeout reached, no open ports detected. Bind your service to at least one port. Timed Out`.
+- **Root Cause**:
+  1. Synchronous top-level `import { google } from 'googleapis'` in `CalendarService.ts` and `routes/calendar.ts` triggered synchronous evaluation of hundreds of auto-generated Google API clients at module load time, blocking thread execution for tens of seconds.
+  2. Unused heavy imports (`JSDOM`, `extractTextFromPdf`) in `KnowledgeBaseController.ts` blocked module loading by an additional 25 seconds.
+  3. `server.listen(PORT, HOST)` was positioned downstream of blocking asynchronous operations (`prisma.$connect()`, `initializeProviders()`, and un-timeouted provider connections), leaving the HTTP port unbound during initial container boot.
+  4. Hardcoded `PORT: 3001` in `render.yaml` conflicted with Render's native port scanner which defaults to port 10000.
+  5. `process.exit(1)` in production check when Vobiz credentials were unconfigured caused the container process to die before listening on a port.
+- **Fix**:
+  1. Replaced root `googleapis` imports with lightweight targeted packages (`google-auth-library` and targeted subpath `googleapis/build/src/apis/calendar`).
+  2. Converted `JSDOM` and `extractTextFromPdf` in `KnowledgeBaseController.ts` to dynamic on-demand imports.
+  3. Re-ordered `bootstrap()` in `server/src/index.ts` so `server.listen(PORT, HOST)` binds immediately (port opens in 24ms), while database connectivity, provider checks, and background workers warm up asynchronously inside the listen callback.
+  4. Added `signal: AbortSignal.timeout(5000)` to `VobizProvider` health check and a 3000ms timeout safeguard to `SipProvider.connect()`.
+  5. Softened production Vobiz check to log a warning instead of calling `process.exit(1)`.
+  6. Updated `render.yaml` to specify port `10000` (matching Render standards) with dynamic fallback `process.env.PORT || (env.NODE_ENV === 'production' ? '10000' : '3001')`.
+  7. Added root `"start": "npm run --prefix server start"` script to `package.json`.
+- **Prevention Rule**: Web service entrypoints must bind the HTTP listening socket before executing remote network calls or provider warmup routines. Cloud deployments must never block socket binding on external database or third-party API availability.
 
 

@@ -297,13 +297,12 @@ async function bootstrap(): Promise<void> {
     logger.warn('Claritiy Voice Server: PUBLIC_URL not configured — telephony callbacks will require ngrok or explicit host configuration');
   }
 
-  // Fail loud at boot in production if real Vobiz credentials are missing or placeholder
+  // Gracefully degrade telephony if real Vobiz credentials are not configured yet in production
   if (env.NODE_ENV === 'production' && (!env.VOBIZ_AUTH_ID || !env.VOBIZ_AUTH_TOKEN || env.VOBIZ_AUTH_ID.includes('placeholder') || env.VOBIZ_AUTH_ID === 'MA_PLACEHOLDER')) {
-    logger.error('[BOOT_FAILURE] Production server starting WITHOUT real Vobiz credentials. KYC/calling will not function.', {
+    logger.warn('[TELEPHONY_DEGRADED] Production server starting WITHOUT live Vobiz credentials. Telephony calling will be disabled, but all HTTP APIs, dashboard, auth, and database remain fully operational.', {
       hasAuthId: Boolean(env.VOBIZ_AUTH_ID),
       hasAuthToken: Boolean(env.VOBIZ_AUTH_TOKEN),
     });
-    process.exit(1); // fail loud at boot, not silently per-request
   } else if (!env.VOBIZ_AUTH_ID || !env.VOBIZ_AUTH_TOKEN || env.VOBIZ_AUTH_ID.includes('placeholder')) {
     logger.warn('Claritiy Voice Server: Vobiz credentials missing or placeholder — telephony features will degrade gracefully in non-production');
   }
@@ -313,37 +312,6 @@ async function bootstrap(): Promise<void> {
   }
 
   logger.info('Claritiy Voice Server: Environment variable check complete ✓');
-
-  // Verify database connectivity
-  try {
-    await prisma.$connect();
-    logger.info('Claritiy Voice Server: database connected');
-    
-    if (env.NODE_ENV !== 'production') {
-      // Seed default workspace user to prevent multi-tenant lookups failing
-      await prisma.user.upsert({
-        where: { id: '1e69187e-82d5-4166-929f-4bbba90e5304' },
-        update: {},
-        create: {
-          id: '1e69187e-82d5-4166-929f-4bbba90e5304',
-          email: 'devr01499@gmail.com',
-          fullName: 'Rohit Kumar Sha',
-          passwordHash: 'seeded-dev-hash-12345',
-          billingBalance: 1000.0, // Seed 1000 credits
-        }
-      });
-    }
-  } catch (err) {
-    logger.error('Claritiy Voice Server: database connection failed — server running in degraded mode', {
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
-
-  // Initialize providers (non-fatal if they fail)
-  await initializeProviders();
-
-  // Start background alerting evaluator worker
-  AlertEvaluator.startBackgroundWorker();
 
   // Create HTTP server
   const server = http.createServer(app);
@@ -468,17 +436,51 @@ async function bootstrap(): Promise<void> {
     }
   });
 
-  const PORT = parseInt(process.env.PORT || '3001', 10);
+  const PORT = parseInt(process.env.PORT || (env.NODE_ENV === 'production' ? '10000' : '3001'), 10);
   const HOST = '0.0.0.0';
 
-  // Start listening
-  server.listen(PORT, HOST, () => {
+  // Start listening immediately so cloud port scanner succeeds without delay
+  server.listen(PORT, HOST, async () => {
     logger.info(`Claritiy Backend Server running natively on port ${PORT}`);
     logger.info(`Claritiy Voice Server: listening on port ${PORT}`, {
       health: `http://localhost:${PORT}/health`,
       api: `http://localhost:${PORT}/api/v2`,
       ws: `ws://localhost:${PORT}/audio-stream`,
     });
+
+    // Verify database connectivity
+    try {
+      await prisma.$connect();
+      logger.info('Claritiy Voice Server: database connected');
+      
+      if (env.NODE_ENV !== 'production') {
+        // Seed default workspace user to prevent multi-tenant lookups failing
+        await prisma.user.upsert({
+          where: { id: '1e69187e-82d5-4166-929f-4bbba90e5304' },
+          update: {},
+          create: {
+            id: '1e69187e-82d5-4166-929f-4bbba90e5304',
+            email: 'devr01499@gmail.com',
+            fullName: 'Rohit Kumar Sha',
+            passwordHash: 'seeded-dev-hash-12345',
+            billingBalance: 1000.0, // Seed 1000 credits
+          }
+        });
+      }
+    } catch (err) {
+      logger.error('Claritiy Voice Server: database connection failed — server running in degraded mode', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    // Initialize providers (non-fatal if they fail)
+    try {
+      await initializeProviders();
+    } catch (err) {
+      logger.error('Claritiy Voice Server: provider initialization error', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
 
     // Start background rule evaluation worker
     AlertEvaluator.startBackgroundWorker(60000);

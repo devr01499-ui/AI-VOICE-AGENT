@@ -1,10 +1,11 @@
-import { google } from 'googleapis';
+import { OAuth2Client } from 'google-auth-library';
+import { calendar as getCalendar } from 'googleapis/build/src/apis/calendar';
 import { prisma } from '../../lib/prisma';
 import { logger } from '../../utils/logger';
 
 export class CalendarService {
   private static getOauth2Client() {
-    return new google.auth.OAuth2(
+    return new OAuth2Client(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
       process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5174/api/v2/calendar/callback'
@@ -22,7 +23,7 @@ export class CalendarService {
       const oauth2Client = this.getOauth2Client();
       oauth2Client.setCredentials(tokens);
 
-      const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+      const calendar = (getCalendar as any)({ version: 'v3', auth: oauth2Client });
       
       const res = await calendar.freebusy.query({
         requestBody: {
@@ -51,7 +52,7 @@ export class CalendarService {
       const oauth2Client = this.getOauth2Client();
       oauth2Client.setCredentials(tokens);
 
-      const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+      const calendar = (getCalendar as any)({ version: 'v3', auth: oauth2Client });
       
       const event = await calendar.events.insert({
         calendarId: 'primary',
