@@ -13,6 +13,7 @@ import { validateParams, validateQuery } from '../middleware/validation';
 import { prisma } from '../lib/prisma';
 import { getUserIdFromRequest } from '../utils/auth';
 import { requireAuth, requireEditor } from '../middleware/auth';
+import { requireActivePlanOrBYOK, requireAgentQuota } from '../middleware/planValidation';
 import { logger } from '../utils/logger';
 import { logAuditEvent } from '../utils/auditLogger';
 import { ADMIN_EMAIL } from '../config/constants';
@@ -71,6 +72,7 @@ router.post(
   '/conversational-builder',
   requireAuth,
   requireEditor,
+  requireActivePlanOrBYOK,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;
@@ -190,6 +192,7 @@ router.post(
   '/optimize',
   requireAuth,
   requireEditor,
+  requireActivePlanOrBYOK,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;
@@ -407,6 +410,7 @@ router.post(
   '/',
   requireAuth,
   requireEditor,
+  requireAgentQuota,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const primaryUserId = (req as any).user?.id || (req as any).userId;

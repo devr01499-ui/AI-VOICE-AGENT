@@ -107,6 +107,29 @@ export class SandboxStreamHandler {
 
       const userId = verified.sub;
 
+      // 1b. Enforce server-side entitlement check (Admin, Paid Tier, Calling Minutes, or BYOK)
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) {
+        throw new Error('User not found in workspace database');
+      }
+
+      const isAdmin = user.accountType === 'admin' || user.email === ADMIN_EMAIL;
+      const isPaid = ['developer', 'professional', 'enterprise', 'growth', 'scale'].includes(user.accountType?.toLowerCase() || '');
+      const hasCallingMinutes = (user.callingBalanceMinutes ?? 0) > 0 || (user.minutesRemainingSeconds ?? 0) > 0;
+      const hasByokKey = Boolean(user.geminiApiKey);
+
+      if (!isAdmin && !isPaid && !hasCallingMinutes && !hasByokKey) {
+        logger.warn('SandboxStreamHandler: Connection rejected — unentitled account', { userId, accountType: user.accountType });
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            event: 'error',
+            error: 'Subscription required: You need an active plan, calling minutes, or a configured Gemini API key to use the live audio sandbox.',
+          }));
+        }
+        ws.close(4403, 'Subscription or Gemini API key required');
+        return;
+      }
+
       // 2. Fetch the exact agent rules
       const agent = await prisma.agent.findUnique({
         where: { id: agentId },
@@ -117,11 +140,8 @@ export class SandboxStreamHandler {
         throw new Error(`Agent with ID ${agentId} not found in workspace database`);
       }
 
-      if (agent.userId !== userId) {
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-        if (!user || (user.accountType !== 'admin' && user.email !== ADMIN_EMAIL)) {
-          throw new Error('Access denied: Agent is not associated with this workspace session context');
-        }
+      if (agent.userId !== userId && !isAdmin) {
+        throw new Error('Access denied: Agent is not associated with this workspace session context');
       }
 
       // Extract tools from agentConfig.functions & agentConfig.mcpServers

@@ -17,7 +17,7 @@ export default function BillingGateway() {
       const profile = await fetchProfile();
       if (profile) {
         setGeminiKey(profile.geminiApiKey || "");
-        setBalance(profile.callingBalanceMinutes ?? 10.0);
+        setBalance(profile.callingBalanceMinutes ?? 0.0);
       }
     } catch (err) {
       setErrorMsg("Failed to retrieve operational workspace profile parameters.");

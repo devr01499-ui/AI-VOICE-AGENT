@@ -75,7 +75,7 @@ phases:
       - task: 7.1 Phase 1 — Authentication & Signup Flows (Normalization, Duplicate Prevention, Disposable Defense, Bot Protection, Email Verification)
         status: completed
       - task: 7.2 Phase 2 — Paywall & Subscription Enforcement (Server-Side Entitlement Checks, Bypass Immunity, Usage Limits, Trial Gating)
-        status: in_progress
+        status: completed
       - task: 7.3 Phase 3 — Payment & Subscription Integration (Razorpay Sync, Real-time Status Validation, Session & Token Security)
         status: pending
       - task: 7.4 Phase 4 — All API Endpoints Inventory & IDOR Hardening

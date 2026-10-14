@@ -8,6 +8,7 @@ import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { EncryptionService } from '../utils/EncryptionService';
 import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
+import { requireCallingMinutes } from '../middleware/planValidation';
 
 const router = Router();
 
@@ -30,12 +31,7 @@ const callIdParamSchema = z.object({
 
 // ─── Routes ──────────────────────────────────────
 
-/** POST /api/v2/calls — Initiate an outbound call (mutating, protected by sensitiveOperationsLimiter). */
-router.post(
-  '/',
-  sensitiveOperationsLimiter,
-  CallController.initiateCall
-);
+
 
 /** GET /api/v2/calls — List all calls (isolated to the authenticated userId). */
 router.get(
@@ -99,6 +95,7 @@ router.get(
 /** POST /api/v2/calls — Initiate a new outbound call. */
 router.post(
   '/',
+  sensitiveOperationsLimiter,
   validateBody(initiateCallSchema),
   async (req, res, next) => {
     const userId = getUserIdFromRequest(req);
@@ -112,6 +109,7 @@ router.post(
     }
     next();
   },
+  requireCallingMinutes,
   CallController.initiateCall
 );
 

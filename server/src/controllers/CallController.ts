@@ -47,7 +47,7 @@ export class CallController {
       const phoneNumber = targetNumber;
 
       const body = req.body as any;
-      const userId = (req as any).effectiveWorkspaceId || (req as any).auth?.userId || body.userId;
+      const authenticatedUserId = (req as any).effectiveWorkspaceId || (req as any).auth?.userId || (req as any).userId || (req as any).user?.id;
       const userData = body.userData;
       const maxDuration = body.maxDuration;
       const fromPhoneNumber = body.fromPhoneNumber;
@@ -56,12 +56,13 @@ export class CallController {
         return;
       }
 
-      if (!userId) {
+      if (!authenticatedUserId) {
         res.status(401).json({ success: false, error: 'Unauthorized: User authentication context required' });
         return;
       }
 
-      const effectiveUserId = (req as any).effectiveWorkspaceId || userId;
+      const callerIsAdmin = (req as any).user?.accountType === 'admin' || (req as any).user?.email === ADMIN_EMAIL;
+      const effectiveUserId = (callerIsAdmin && body.userId) ? body.userId : authenticatedUserId;
 
       // Seed/upsert MVP User dynamically if they do not exist to prevent foreign key errors
       const prisma = (await import('../lib/prisma')).prisma;

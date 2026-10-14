@@ -178,7 +178,28 @@ export class AgentRepository {
   static async findProfileByUserId(userId: string): Promise<any | null> {
     try {
       const profile = await prisma.user.findUnique({
-        where: { id: userId }
+        where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          accountType: true,
+          billingBalance: true,
+          contactNumber: true,
+          geminiApiKey: true,
+          callingBalanceMinutes: true,
+          minutesRemainingSeconds: true,
+          totalMinutesConsumed: true,
+          numberLocked: true,
+          dataRetentionDays: true,
+          allowedIpRanges: true,
+          maxConcurrentCalls: true,
+          hasConsentedTerms: true,
+          accountStatus: true,
+          companyGstin: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       });
       return profile || { id: userId, callingBalanceMinutes: 0, geminiApiKey: null };
     } catch (error) {

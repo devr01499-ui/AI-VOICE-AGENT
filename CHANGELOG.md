@@ -1,5 +1,15 @@
 # CHANGELOG
 
+- Security Audit Phase 2: Paywall & Subscription Enforcement (100% Coverage):
+  - **Server-Side Entitlement Infrastructure (`planValidation.ts`)**: Built unified entitlement helpers `getEffectiveRemainingSeconds`, `isUserEntitled`, `requireActivePlan`, `requireCallingMinutes`, `requireAgentQuota`, and `requireActivePlanOrBYOK`. Primary remaining duration authority uses `minutesRemainingSeconds` with fallback to `callingBalanceMinutes * 60`.
+  - **Outbound Call Gate & Identity Hardening**: Attached `requireCallingMinutes` to `POST /api/v2/calls`, `POST /api/v2/calls/outbound`, and `POST /api/calls/outbound`. Eliminated duplicate router entry in `calls.ts`. Bound `effectiveUserId` in `CallController.initiateCall` strictly to authenticated workspace/session context, blocking IDOR caller spoofing (`body.userId`).
+  - **WebSocket Live Audio Sandbox Protection (`SandboxStreamHandler.ts`)**: Enforced real-time entitlement gate on incoming `/ws/sandbox` connections. Unentitled free accounts with 0 balance and without a configured Gemini BYOK key are rejected with error event and WebSocket close code 4403.
+  - **Knowledge Base Vectorization & Prompt AI Gating**: Protected `/api/v2/knowledge-base/upload`, `/api/v2/knowledge-base/scrape`, `/api/v2/agents/conversational-builder`, and `/api/v2/agents/optimize` with `requireActivePlanOrBYOK`.
+  - **Free Tier Agent Quota**: Implemented `requireAgentQuota` on `POST /api/v2/agents` capping free accounts at 2 active agents.
+  - **Sensitive Credential Shielding (`AgentRepository.ts`)**: Updated `findProfileByUserId` to explicitly project safe public fields and exclude `passwordHash` and `googleCalendarTokens` from client responses.
+  - **Frontend Fallback Correction (`BillingGateway.tsx`)**: Replaced misleading fallback `profile.callingBalanceMinutes ?? 10.0` with `0.0`.
+  - **Automated Verification**: Created `server/scripts/test_phase2_paywall_audit.js` covering 100% of entitlement, quota, BYOK, profile sanitization, and call gating test scenarios with 0 errors.
+
 - Security Audit Phase 1: Authentication & Signup Hardening (100% Coverage):
   - **Canonical Email Normalization (`emailNormalizer.ts`)**: Implemented RFC 5322 canonical normalization stripping `+` tags from Gmail, Googlemail, Outlook, iCloud, Yahoo, and Proton; removed dot-aliases in Gmail; mapped `googlemail.com` directly to `gmail.com`; eliminated duplicate account bypasses via alias manipulation.
   - **Disposable Email Blacklist Defense**: Added blocking mechanism covering known throwaway and temporary email domains (`10minutemail`, `tempmail`, `guerrillamail`, `mailinator`, etc.) across all pre-signup and consent routes.

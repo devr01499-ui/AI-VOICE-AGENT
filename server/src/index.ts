@@ -57,6 +57,7 @@ import integrationsRoutes from './routes/integrations';
 import auditLogRoutes from './routes/auditLog';
 import { AlertEvaluator } from './services/AlertEvaluator';
 import { requireAuthOrApiKey } from './middleware/authWrapper';
+import { requireCallingMinutes } from './middleware/planValidation';
 import { adminRouter } from './routes/adminRoutes';
 import { razorpayWebhookRouter } from './routes/razorpayWebhook';
 
@@ -213,8 +214,8 @@ app.use('/api/v2/', generalApiLimiter);
 // Reads (GET calls, logs, monitoring) are covered by generalApiLimiter (300/15min).
 // Mutating call initiation routes are protected by sensitiveOperationsLimiter.
 app.use('/api/v2/calls', requireAuthOrApiKey, callRoutes);
-app.post('/api/calls/outbound', requireAuthOrApiKey, sensitiveOperationsLimiter, CallController.initiateCall);
-app.post('/api/v2/calls/outbound', requireAuthOrApiKey, sensitiveOperationsLimiter, CallController.initiateCall);
+app.post('/api/calls/outbound', requireAuthOrApiKey, sensitiveOperationsLimiter, requireCallingMinutes, CallController.initiateCall);
+app.post('/api/v2/calls/outbound', requireAuthOrApiKey, sensitiveOperationsLimiter, requireCallingMinutes, CallController.initiateCall);
 app.use('/api/v2/agents', requireAuth, agentRoutes);
 app.use('/api/v2/numbers', requireAuth, numbersRoutes);
 app.use('/api/v2/knowledge-base', requireAuth, kbRoutes);

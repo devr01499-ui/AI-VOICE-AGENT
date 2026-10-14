@@ -60,6 +60,17 @@
 - **Rejected Alternative**: Relying on client-side form validation and trust of Supabase user_metadata flags. Reason: Any user with curl or DevTools can mutate client requests and user metadata directly.
 - **Consequences**: Completely closes account duplication, disposable email spam, and client privilege escalation loopholes.
 
-
-
-
+## ADR-008: Server-Side Entitlement & Paywall Enforcement Architecture
+- **Status**: Accepted
+- **Context**: A malicious actor bypassed client paywalls and accessed paid voice streaming, prompt engineering, and outbound calling capabilities without an active subscription. Audits revealed gaps where WebSocket endpoints, outbound call routes, AI prompt optimization, and Knowledge Base vectorization failed to enforce server-side balance or plan checks. Additionally, `findProfileByUserId` inadvertently exposed `passwordHash` to client callers.
+- **Decision**:
+  1. Implement comprehensive server-side entitlement middlewares (`requireActivePlan`, `requireCallingMinutes`, `requireAgentQuota`, `requireActivePlanOrBYOK`) in `server/src/middleware/planValidation.ts`.
+  2. Enforce strict outbound calling gate (`requireCallingMinutes`) on all dialer routes (`POST /api/v2/calls`, `POST /api/v2/calls/outbound`, `POST /api/calls/outbound`), verifying effective calling balance (`minutesRemainingSeconds > 0 ? minutesRemainingSeconds : (callingBalanceMinutes * 60)`) prior to any call allocation or Vobiz telephony dispatch.
+  3. Enforce strict user context binding in `CallController.initiateCall`, rejecting client-supplied `req.body.userId` unless caller is explicitly verified admin.
+  4. Enforce live audio sandbox gate in `SandboxStreamHandler.ts`: reject connections without active paid plan, positive minute balance, or configured Gemini BYOK key, terminating with WebSocket code 4403.
+  5. Protect Knowledge Base document uploads (`/api/v2/knowledge-base/upload`), web scraping (`/api/v2/knowledge-base/scrape`), conversational AI builder (`/api/v2/agents/conversational-builder`), and prompt optimization (`/api/v2/agents/optimize`) with `requireActivePlanOrBYOK`.
+  6. Enforce free tier agent quota (`requireAgentQuota`): cap free accounts at 2 active agents.
+  7. Sanitize `AgentRepository.findProfileByUserId` with explicit Prisma column projection, permanently eliminating password hash and calendar token leakage to client endpoints.
+  8. Fix UI balance fallback in `BillingGateway.tsx` from `10.0` to `0.0`.
+- **Rejected Alternative**: Client-side component gating alone or relying on post-call billing deduction. Reason: Client gates are trivially bypassed via script or direct API invocation, and post-call deduction allows zero-balance accounts to place unmetered calls without pre-authorization.
+- **Consequences**: Outbound calls, live WebSocket audio streaming, vector indexing, and generative builders are strictly immunized against subscription bypass. Sensitive credentials are fully shielded.
