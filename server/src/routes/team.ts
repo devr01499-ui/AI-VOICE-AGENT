@@ -5,6 +5,7 @@ import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { validateBody, validateParams } from '../middleware/validation';
 import { logger } from '../utils/logger';
 import { logAuditEvent } from '../utils/auditLogger';
+import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
@@ -42,7 +43,7 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response): P
   }
 });
 
-router.post('/invite', requireAuth, validateBody(inviteSchema), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.post('/invite', requireAuth, sensitiveOperationsLimiter, validateBody(inviteSchema), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const ownerId = req.effectiveWorkspaceId || req.userId;
     const { email, role } = req.body;
@@ -77,7 +78,7 @@ router.post('/invite', requireAuth, validateBody(inviteSchema), async (req: Auth
   }
 });
 
-router.put('/:memberId/role', requireAuth, validateParams(memberIdSchema), validateBody(updateRoleSchema), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.put('/:memberId/role', requireAuth, sensitiveOperationsLimiter, validateParams(memberIdSchema), validateBody(updateRoleSchema), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const ownerId = req.effectiveWorkspaceId || req.userId;
     const { memberId } = req.params;
@@ -106,7 +107,7 @@ router.put('/:memberId/role', requireAuth, validateParams(memberIdSchema), valid
   }
 });
 
-router.delete('/:memberId', requireAuth, validateParams(memberIdSchema), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.delete('/:memberId', requireAuth, sensitiveOperationsLimiter, validateParams(memberIdSchema), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const ownerId = req.effectiveWorkspaceId || req.userId;
     const { memberId } = req.params;

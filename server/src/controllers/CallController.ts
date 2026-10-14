@@ -366,6 +366,10 @@ export class CallController {
   static async endActiveCall(req: Request, res: Response): Promise<void> {
     try {
       const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'Unauthorized' });
+        return;
+      }
       const callId = String(req.params.id);
 
       const call = await prisma.call.findFirst({
@@ -399,6 +403,10 @@ export class CallController {
   static async transferActiveCall(req: Request, res: Response): Promise<void> {
     try {
       const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'Unauthorized' });
+        return;
+      }
       const callId = String(req.params.id);
       const { targetNumber } = req.body;
 

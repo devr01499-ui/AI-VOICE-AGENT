@@ -149,10 +149,23 @@ export class TelephonyController {
    */
   public static async purchaseAndAssign(req: Request, res: Response) {
     try {
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
+      if (!userId) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+      }
+
       const { numberId, subAuthId } = req.body;
       
       if (!numberId || !subAuthId) {
         return res.status(400).json({ success: false, error: 'Missing numberId or subAuthId' });
+      }
+
+      // IDOR Protection: Verify subAuthId belongs to the authenticated user
+      const userSubAccount = await prisma.vobizSubAccount.findFirst({
+        where: { authId: subAuthId, userId }
+      });
+      if (!userSubAccount) {
+        return res.status(403).json({ success: false, error: 'Forbidden: sub-account does not belong to your account' });
       }
 
       // 1. Purchase DID

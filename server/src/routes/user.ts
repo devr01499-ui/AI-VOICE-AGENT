@@ -5,7 +5,8 @@ import { logger } from '../utils/logger';
 import { logAuditEvent } from '../utils/auditLogger';
 import { CallOrchestrator } from '../core/orchestrator/CallOrchestrator';
 import { normalizeEmail, isDisposableEmail, isValidEmail } from '../utils/emailNormalizer';
-import { signupLimiter, authIpThrottleDelay } from '../middleware/rateLimiter';
+import { signupLimiter, authIpThrottleDelay, sensitiveOperationsLimiter } from '../middleware/rateLimiter';
+import { ADMIN_EMAIL } from '../config/constants';
 
 const router = Router();
 
@@ -14,7 +15,7 @@ const router = Router();
  * 
  * Saves the user's custom Gemini Live API key (BYOK mode) in the User table.
  */
-router.post('/billing-config', requireAuth, async (req: AuthenticatedRequest, res, next) => {
+router.post('/billing-config', requireAuth, sensitiveOperationsLimiter, async (req: AuthenticatedRequest, res, next) => {
   try {
     const userId = req.userId;
     if (!userId) {
@@ -66,8 +67,15 @@ router.get('/notifications', requireAuth, async (req: AuthenticatedRequest, res)
  * POST /api/v2/user/notifications
  * Allows posting a new company-wide notification (Founder/Admin feature).
  */
-router.post('/notifications', requireAuth, async (req: AuthenticatedRequest, res) => {
+router.post('/notifications', requireAuth, sensitiveOperationsLimiter, async (req: AuthenticatedRequest, res) => {
   try {
+    const adminUserId = req.userId;
+    const adminUser = await prisma.user.findUnique({ where: { id: adminUserId } });
+    if (!adminUser || (adminUser.accountType !== 'admin' && adminUser.email !== ADMIN_EMAIL)) {
+      res.status(403).json({ success: false, error: 'Access Denied: Founder admin privilege required to post system notifications.' });
+      return;
+    }
+
     const { message, isImportant } = req.body;
     if (!message || typeof message !== 'string' || !message.trim()) {
       res.status(400).json({ success: false, error: 'Message is required' });
@@ -109,7 +117,7 @@ router.get('/retention', requireAuth, async (req: AuthenticatedRequest, res) => 
  * POST /api/v2/user/retention
  * Updates workspace data retention setting (Admin-only).
  */
-router.post('/retention', requireAuth, requireRole(['admin']), async (req: AuthenticatedRequest, res) => {
+router.post('/retention', requireAuth, requireRole(['admin']), sensitiveOperationsLimiter, async (req: AuthenticatedRequest, res) => {
   try {
     const ownerId = req.effectiveWorkspaceId || req.userId;
     if (!ownerId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
@@ -173,7 +181,7 @@ router.get('/ip-allowlist', requireAuth, async (req: AuthenticatedRequest, res) 
  * POST /api/v2/user/ip-allowlist
  * Updates workspace allowed IP CIDR ranges (Admin-only).
  */
-router.post('/ip-allowlist', requireAuth, requireRole(['admin']), async (req: AuthenticatedRequest, res) => {
+router.post('/ip-allowlist', requireAuth, requireRole(['admin']), sensitiveOperationsLimiter, async (req: AuthenticatedRequest, res) => {
   try {
     const ownerId = req.effectiveWorkspaceId || req.userId;
     if (!ownerId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
@@ -251,7 +259,7 @@ router.get('/concurrency', requireAuth, async (req: AuthenticatedRequest, res) =
  * POST /api/v2/user/concurrency
  * Updates workspace configurable soft limit (Admin-only).
  */
-router.post('/concurrency', requireAuth, requireRole(['admin']), async (req: AuthenticatedRequest, res) => {
+router.post('/concurrency', requireAuth, requireRole(['admin']), sensitiveOperationsLimiter, async (req: AuthenticatedRequest, res) => {
   try {
     const ownerId = req.effectiveWorkspaceId || req.userId;
     if (!ownerId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }

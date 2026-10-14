@@ -77,7 +77,7 @@ export class ChatHistoryController {
 
   static async logMessage(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.id || (req as any).user?.userId;
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
@@ -88,6 +88,28 @@ export class ChatHistoryController {
       if (!phoneNumber || !body) {
         res.status(400).json({ success: false, error: 'phoneNumber and body are required' });
         return;
+      }
+
+      // IDOR Protection: Verify agent belongs to user
+      if (agentId) {
+        const agent = await prisma.agent.findFirst({
+          where: { id: agentId, userId }
+        });
+        if (!agent) {
+          res.status(404).json({ success: false, error: 'Agent not found' });
+          return;
+        }
+      }
+
+      // IDOR Protection: Verify call belongs to user
+      if (callId) {
+        const call = await prisma.call.findFirst({
+          where: { id: callId, userId }
+        });
+        if (!call) {
+          res.status(404).json({ success: false, error: 'Call not found' });
+          return;
+        }
       }
 
       const message = await prisma.chatMessage.create({

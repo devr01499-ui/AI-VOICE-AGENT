@@ -8,7 +8,8 @@ import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { EncryptionService } from '../utils/EncryptionService';
 import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
-import { requireCallingMinutes } from '../middleware/planValidation';
+import { requireAuth } from '../middleware/auth';
+import { requireCallingMinutes, requireActivePlan } from '../middleware/planValidation';
 
 const router = Router();
 
@@ -278,6 +279,9 @@ router.get(
 /** POST /api/v2/calls/sip-trunks — Register a new SIP Trunk. */
 router.post(
   '/sip-trunks',
+  requireAuth,
+  sensitiveOperationsLimiter,
+  requireActivePlan,
   async (req, res, next) => {
     try {
       const { name, sipUri, username, password, outboundProxy } = req.body;
@@ -341,9 +345,9 @@ router.delete(
 );
 
 /** POST /api/v2/calls/:id/end — Supervisor intervention: Terminate live active call. */
-router.post('/:id/end', CallController.endActiveCall);
+router.post('/:id/end', requireAuth, sensitiveOperationsLimiter, CallController.endActiveCall);
 
 /** POST /api/v2/calls/:id/transfer — Supervisor intervention: Force call transfer. */
-router.post('/:id/transfer', CallController.transferActiveCall);
+router.post('/:id/transfer', requireAuth, sensitiveOperationsLimiter, CallController.transferActiveCall);
 
 export default router;

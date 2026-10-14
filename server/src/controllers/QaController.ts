@@ -244,7 +244,23 @@ export class QaController {
   static async deleteCohort(req: Request, res: Response): Promise<void> {
     try {
       const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).user?.userId || (req as any).userId;
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'Unauthorized' });
+        return;
+      }
       const cohortId = String(req.params.id);
+
+      const existing = await prisma.qaCohort.findFirst({
+        where: { id: cohortId, userId: String(userId) },
+      });
+
+      if (!existing) {
+        res.status(404).json({ success: false, error: 'Cohort not found' });
+        return;
+      }
+
+      await prisma.callQaResult.deleteMany({ where: { cohortId } }).catch(() => {});
+      await prisma.qaCohort.delete({ where: { id: cohortId } });
 
       res.json({ success: true, message: 'QA Cohort deleted successfully' });
     } catch (err: any) {

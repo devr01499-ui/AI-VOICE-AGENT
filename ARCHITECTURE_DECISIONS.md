@@ -89,3 +89,22 @@
 - **Rejected Alternative**: Relying on periodic background polling for subscription cancellations or depending on client-side token expiration. Reason: Background polling creates latency windows where cancelled accounts retain paid privileges; relying on client token expiration leaves a window of up to 1 hour of unauthorized access.
 - **Consequences**: Razorpay webhooks are cryptographically secured against timing attacks, recurring renewals automatically replenish balances, cancellations immediately revoke sessions, and status synchronization is authoritative.
 
+## ADR-010: Complete API Endpoint Inventory, Route Hardening & IDOR Protection Standard
+- **Status**: Accepted
+- **Context**: Comprehensive audit of all 22 router controllers revealed subtle IDOR vulnerabilities and missing rate limiters:
+  1. `POST /api/v2/calendar/batches` accepted any client-supplied `agentId` without validating that the agent belonged to the authenticated user, and lacked outbound calling minute verification.
+  2. `InboundCallService.updateCallingConfig` allowed arbitrary `assignedAgentId` or `inboundAgentId` to be associated with phone numbers without validating agent ownership.
+  3. `POST /api/v2/calls/sip-trunks` lacked rate limiting and plan requirement (`requireActivePlan`).
+  4. `POST /:id/end` and `POST /:id/transfer` lacked explicit `requireAuth` and rate limiters.
+  5. `POST /api/v2/user/notifications` lacked admin verification, allowing any authenticated user to broadcast company-wide in-app notifications.
+  6. Mutating endpoints across contacts, chat history, QA cohorts, team management, and API keys lacked rate limiting (`sensitiveOperationsLimiter`).
+- **Decision**:
+  1. Implement strict tenant-ownership validation on all sub-resource links: `agentId` in batches, `agentId` in phone calling configurations, and `agentId`/`callId` in chat history must resolve to `{ id, userId }`.
+  2. Gated bulk dialing batch creation and batch resume with `requireCallingMinutes`.
+  3. Enforce founder admin verification on global broadcast route `POST /api/v2/user/notifications`.
+  4. Apply `sensitiveOperationsLimiter` (10 req/min) to all mutating endpoints: contacts, chat history, QA cohorts, team invites/roles, API key generation/revocation, user admin configurations, and integrations.
+  5. Require active subscription (`requireActivePlan`) for SIP trunk registration, DID purchases, and programmatic API key generation.
+  6. Document all 64 API endpoints in a complete inventory matrix (`api_endpoint_inventory_audit.md`) and verify with multi-tenant penetration suite (`test_phase4_idor_audit.js`).
+- **Rejected Alternative**: Relying on database foreign keys alone without application-level tenant filtering. Reason: Foreign keys ensure referential integrity (that the referenced agent exists in the DB), but do NOT enforce multi-tenant authorization (that the referenced agent belongs to the calling user).
+- **Consequences**: Complete immunization against IDOR attacks, cross-tenant agent hijacking, broadcast tampering, and unmetered dialing campaigns across all Claritiy Voice routes.
+

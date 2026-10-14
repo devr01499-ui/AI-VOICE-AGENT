@@ -653,7 +653,7 @@ router.get('/mine', requireAuth, async (req, res, next) => {
  * DELETE /api/v2/numbers/:id
  * Releases a phone number from the user's workspace
  */
-router.delete('/:id', requireAuth, requireEditor, async (req, res, next) => {
+router.delete('/:id', requireAuth, requireEditor, sensitiveOperationsLimiter, async (req, res, next) => {
   try {
     const userId = (req as any).userId;
     const id = req.params.id as string;
@@ -936,7 +936,7 @@ router.get('/calling-config', requireAuth, async (req, res, next) => {
  * Updates inbound and outbound calling configuration for a specific number.
  * Body: { assignedAgentId?, inboundAgentId?, inboundEnabled?, businessHours? }
  */
-router.post('/:id/calling-config', requireAuth, requireEditor, async (req, res, next) => {
+router.post('/:id/calling-config', requireAuth, requireEditor, sensitiveOperationsLimiter, async (req, res, next) => {
   try {
     const userId = (req as any).userId;
     const id = req.params.id as string;

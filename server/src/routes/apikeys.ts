@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
 import crypto from 'crypto';
+import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
+import { requireActivePlan } from '../middleware/planValidation';
 
 const router = Router();
 
@@ -30,7 +32,7 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res) => {
 });
 
 // Generate a new API key
-router.post('/', requireAuth, async (req: AuthenticatedRequest, res) => {
+router.post('/', requireAuth, sensitiveOperationsLimiter, requireActivePlan, async (req: AuthenticatedRequest, res) => {
   try {
     const { name } = req.body;
     
@@ -70,7 +72,7 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res) => {
 });
 
 // Revoke an API key
-router.delete('/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
+router.delete('/:id', requireAuth, sensitiveOperationsLimiter, async (req: AuthenticatedRequest, res) => {
   try {
     const id = req.params.id as string;
     

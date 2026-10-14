@@ -9,6 +9,7 @@ import { env } from '../config/env';
 import { getWebhookSigningSecret } from '../utils/security';
 import { scheduleCall, cancelBooking, rescheduleBooking } from '../lib/calendar/scheduler';
 import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
+import { requireCallingMinutes } from '../middleware/planValidation';
 
 const router = Router();
 
@@ -236,7 +237,7 @@ router.get('/batches', requireAuth, async (req, res) => {
  * POST /api/v2/calendar/batches
  * Create a new batch campaign with recipient list.
  */
-router.post('/batches', requireAuth, sensitiveOperationsLimiter, async (req, res) => {
+router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingMinutes, async (req, res) => {
   try {
     const userId = (req as any).effectiveWorkspaceId || getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
@@ -244,6 +245,15 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, async (req, res
     const { name, agentId, recipients, scheduleNow } = req.body;
     if (!name || !agentId || !Array.isArray(recipients) || recipients.length === 0) {
       res.status(400).json({ success: false, error: 'Name, agentId, and non-empty recipients array are required.' });
+      return;
+    }
+
+    // IDOR Protection: Verify agent belongs to the authenticated user/workspace
+    const agent = await prisma.agent.findFirst({
+      where: { id: agentId, userId }
+    });
+    if (!agent) {
+      res.status(404).json({ success: false, error: 'Agent not found or does not belong to your account.' });
       return;
     }
 
@@ -337,12 +347,19 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, async (req, res
  * POST /api/v2/calendar/batches/:id/pause
  * Pause an active batch campaign.
  */
-router.post('/batches/:id/pause', requireAuth, async (req, res) => {
+router.post('/batches/:id/pause', requireAuth, sensitiveOperationsLimiter, async (req, res) => {
   try {
     const userId = (req as any).effectiveWorkspaceId || getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const batchId = Array.isArray(req.params.id) ? req.params.id[0] : (req.params.id as string);
+    const existing = await prisma.batch.findFirst({
+      where: { id: batchId, userId }
+    });
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Batch not found.' });
+    }
+
     await prisma.batch.updateMany({
       where: { id: batchId, userId },
       data: { status: 'paused' }
@@ -359,12 +376,19 @@ router.post('/batches/:id/pause', requireAuth, async (req, res) => {
  * POST /api/v2/calendar/batches/:id/resume
  * Resume a paused batch campaign.
  */
-router.post('/batches/:id/resume', requireAuth, async (req, res) => {
+router.post('/batches/:id/resume', requireAuth, sensitiveOperationsLimiter, requireCallingMinutes, async (req, res) => {
   try {
     const userId = (req as any).effectiveWorkspaceId || getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const batchId = Array.isArray(req.params.id) ? req.params.id[0] : (req.params.id as string);
+    const existing = await prisma.batch.findFirst({
+      where: { id: batchId, userId }
+    });
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Batch not found.' });
+    }
+
     await prisma.batch.updateMany({
       where: { id: batchId, userId },
       data: { status: 'running' }
@@ -386,12 +410,19 @@ router.post('/batches/:id/resume', requireAuth, async (req, res) => {
  * POST /api/v2/calendar/batches/:id/cancel
  * Cancel/stop a batch campaign.
  */
-router.post('/batches/:id/cancel', requireAuth, async (req, res) => {
+router.post('/batches/:id/cancel', requireAuth, sensitiveOperationsLimiter, async (req, res) => {
   try {
     const userId = (req as any).effectiveWorkspaceId || getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     const batchId = Array.isArray(req.params.id) ? req.params.id[0] : (req.params.id as string);
+    const existing = await prisma.batch.findFirst({
+      where: { id: batchId, userId }
+    });
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Batch not found.' });
+    }
+
     await prisma.batch.updateMany({
       where: { id: batchId, userId },
       data: { status: 'cancelled' }

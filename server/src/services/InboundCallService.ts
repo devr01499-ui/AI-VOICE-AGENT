@@ -210,13 +210,33 @@ export class InboundCallService {
   }) {
     const { userId, phoneNumberId, assignedAgentId, inboundAgentId, inboundEnabled, businessHours } = params;
 
-    // Verify ownership
+    // Verify ownership of the phone number
     const phoneRecord = await prisma.phoneNumber.findFirst({
       where: { id: phoneNumberId, userId }
     });
 
     if (!phoneRecord) {
       throw new Error('Phone number not found or unauthorized');
+    }
+
+    // IDOR Protection: Verify assigned agent belongs to user
+    if (assignedAgentId) {
+      const assignedAgent = await prisma.agent.findFirst({
+        where: { id: assignedAgentId, userId }
+      });
+      if (!assignedAgent) {
+        throw new Error('Assigned outbound agent not found or unauthorized');
+      }
+    }
+
+    // IDOR Protection: Verify inbound agent belongs to user
+    if (inboundAgentId) {
+      const inboundAgent = await prisma.agent.findFirst({
+        where: { id: inboundAgentId, userId }
+      });
+      if (!inboundAgent) {
+        throw new Error('Inbound agent not found or unauthorized');
+      }
     }
 
     // Update PhoneNumber
