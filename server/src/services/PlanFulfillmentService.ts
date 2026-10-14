@@ -49,7 +49,17 @@ export async function fulfillPlanPurchase(params: FulfillPlanPurchaseParams) {
     accountType = staticPlan.accountType || 'developer';
   }
 
-  // 2. Atomic Transaction: Record payment, credit minutes ledger, and generate sequential GST invoice
+  // 2. Pre-verify customer user existence
+  const targetUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true },
+  });
+  if (!targetUser) {
+    logger.error('[PLAN_FULFILLMENT] Customer user ID not found in database', { userId });
+    throw new Error(`USER_NOT_FOUND: User '${userId}' does not exist.`);
+  }
+
+  // 3. Atomic Transaction: Record payment, credit minutes ledger, and generate sequential GST invoice
   const result = await prisma.$transaction(async (tx) => {
     // Check if payment transaction already exists
     const existingPayment = await tx.paymentTransaction.findFirst({
@@ -59,6 +69,15 @@ export async function fulfillPlanPurchase(params: FulfillPlanPurchaseParams) {
     });
 
     if (existingPayment) {
+      if (existingPayment.userId !== userId) {
+        logger.error('[PLAN_FULFILLMENT] Cross-user payment replay attack detected!', {
+          attemptingUserId: userId,
+          paymentOwnerUserId: existingPayment.userId,
+          paymentId,
+          orderId,
+        });
+        throw new Error('Unauthorized: This payment was already redeemed by another user.');
+      }
       logger.info('[PLAN_FULFILLMENT] Payment already recorded, idempotent return', {
         paymentId,
         orderId,

@@ -5,6 +5,8 @@ import { fulfillPlanPurchase } from '../services/PlanFulfillmentService';
 import { prisma } from '../lib/prisma';
 import { revokeUserSessions } from '../utils/sessionManager';
 import { logAuditEvent } from '../utils/auditLogger';
+import { webhookRateLimiter } from '../middleware/rateLimiter';
+import { PLAN_CONFIG } from '../config/plans';
 
 export const razorpayWebhookRouter = Router();
 
@@ -13,40 +15,37 @@ export const razorpayWebhookRouter = Router();
  * Verifies HMAC-SHA256 signature using raw body, processes payment/subscription events idempotently,
  * and maintains synchronized entitlement and session states.
  */
-razorpayWebhookRouter.post('/razorpay', async (req: Request, res: Response): Promise<void> => {
+razorpayWebhookRouter.post('/razorpay', webhookRateLimiter, async (req: Request, res: Response): Promise<void> => {
   const signature = req.headers['x-razorpay-signature'] as string;
-  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || (process.env.NODE_ENV !== 'production' ? 'test_webhook_secret' : undefined);
 
   const rawBodyBuffer = (req as any).rawBody || Buffer.from(JSON.stringify(req.body));
 
   // 1. Signature Verification with timingSafeEqual
-  if (webhookSecret) {
-    if (!signature) {
-      logger.warn('[RAZORPAY_WEBHOOK] Missing X-Razorpay-Signature header');
-      res.status(400).json({ error: 'Missing signature header' });
-      return;
-    }
+  if (!webhookSecret) {
+    logger.error('[RAZORPAY_WEBHOOK] RAZORPAY_WEBHOOK_SECRET missing in production. Rejecting webhook.');
+    res.status(500).json({ error: 'Webhook secret not configured' });
+    return;
+  }
 
-    const expectedSignature = crypto
-      .createHmac('sha256', webhookSecret)
-      .update(rawBodyBuffer)
-      .digest('hex');
+  if (!signature || typeof signature !== 'string') {
+    logger.warn('[RAZORPAY_WEBHOOK] Missing or invalid X-Razorpay-Signature header');
+    res.status(400).json({ error: 'Missing signature header' });
+    return;
+  }
 
-    const sigBuf = Buffer.from(signature, 'utf8');
-    const expBuf = Buffer.from(expectedSignature, 'utf8');
+  const expectedSignature = crypto
+    .createHmac('sha256', webhookSecret)
+    .update(rawBodyBuffer)
+    .digest('hex');
 
-    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
-      logger.warn('[RAZORPAY_WEBHOOK] Invalid signature verification failed');
-      res.status(400).json({ error: 'Invalid webhook signature' });
-      return;
-    }
-  } else {
-    if (process.env.NODE_ENV === 'production') {
-      logger.error('[RAZORPAY_WEBHOOK] RAZORPAY_WEBHOOK_SECRET missing in production. Rejecting webhook.');
-      res.status(500).json({ error: 'Webhook secret not configured' });
-      return;
-    }
-    logger.warn('[RAZORPAY_WEBHOOK] RAZORPAY_WEBHOOK_SECRET not configured, running in test mode');
+  const sigBuf = Buffer.from(signature, 'utf8');
+  const expBuf = Buffer.from(expectedSignature, 'utf8');
+
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    logger.warn('[RAZORPAY_WEBHOOK] Invalid signature verification failed');
+    res.status(400).json({ error: 'Invalid webhook signature' });
+    return;
   }
 
   // 2. Respond 200 immediately to acknowledge receipt to Razorpay
@@ -58,6 +57,26 @@ razorpayWebhookRouter.post('/razorpay', async (req: Request, res: Response): Pro
     const payload = req.body?.payload;
 
     logger.info('[RAZORPAY_WEBHOOK] Received event', { event });
+
+    // Deduplication / Idempotency Key check on event ID
+    const eventId =
+      (req.headers['x-razorpay-event-id'] as string) ||
+      req.body?.id ||
+      (payload?.payment?.entity?.id ? `evt_pay_${payload.payment.entity.id}` : null) ||
+      (payload?.order?.entity?.id ? `evt_ord_${payload.order.entity.id}` : null);
+
+    if (eventId) {
+      const existingEvent = await prisma.auditLog.findFirst({
+        where: {
+          action: 'billing.webhook.event_processed',
+          targetId: eventId,
+        },
+      });
+      if (existingEvent) {
+        logger.info('[RAZORPAY_WEBHOOK] Duplicate webhook event detected, idempotent bypass', { eventId, event });
+        return;
+      }
+    }
 
     if (event === 'payment.captured' || event === 'order.paid') {
       const paymentEntity = payload?.payment?.entity;
@@ -93,6 +112,21 @@ razorpayWebhookRouter.post('/razorpay', async (req: Request, res: Response): Pro
         return;
       }
 
+      // Check payment amount against plan configuration
+      const planConfig = (PLAN_CONFIG as any)[planKey.toLowerCase()];
+      if (planConfig && paymentEntity?.amount !== undefined) {
+        const expectedPaise = Math.round(planConfig.price * 100);
+        if (paymentEntity.amount !== expectedPaise) {
+          logger.error('[RAZORPAY_WEBHOOK] Security Alert: Webhook payment amount mismatch!', {
+            paymentId,
+            receivedPaise: paymentEntity.amount,
+            expectedPaise,
+            planKey,
+          });
+          return;
+        }
+      }
+
       await fulfillPlanPurchase({
         userId,
         orderId,
@@ -101,6 +135,20 @@ razorpayWebhookRouter.post('/razorpay', async (req: Request, res: Response): Pro
         source: source === 'admin' ? 'admin' : 'self_serve',
         staffId,
       });
+
+      if (eventId) {
+        try {
+          await prisma.auditLog.create({
+            data: {
+              workspaceOwnerId: userId,
+              actorUserId: staffId || userId,
+              action: 'billing.webhook.event_processed',
+              targetId: eventId,
+              metadata: { event, orderId, paymentId, planKey },
+            },
+          });
+        } catch {}
+      }
 
       await logAuditEvent({
         workspaceOwnerId: userId,

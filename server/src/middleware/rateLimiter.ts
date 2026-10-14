@@ -58,6 +58,24 @@ export const sensitiveOperationsLimiter = rateLimit({
 });
 
 /**
+ * Dedicated Webhook Rate Limiter: Max 100 requests per IP per 15 minutes.
+ * Defends payment gateway webhook callback ingress against denial-of-service and flood attacks.
+ */
+export const webhookRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip || '127.0.0.1',
+  validate: false,
+  message: {
+    success: false,
+    error: 'WEBHOOK_RATE_LIMIT_EXCEEDED',
+    message: 'Too many webhook requests from this IP address. Webhook ingress is rate limited to 100 requests per 15 minutes.',
+  },
+});
+
+/**
  * Strict Signup Rate Limiter: Max 5 signup / registration validation attempts per IP per hour.
  */
 export const signupLimiter = rateLimit({

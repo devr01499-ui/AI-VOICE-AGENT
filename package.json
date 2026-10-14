@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "typecheck": "npm run --prefix Frontend typecheck && npm run --prefix server typecheck",
     "test:security": "npm run --prefix server test:security",
-    "test:owasp": "npm run --prefix server test:owasp"
+    "test:owasp": "npm run --prefix server test:owasp",
+    "test:payment-security": "npm run --prefix server test:payment-security"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

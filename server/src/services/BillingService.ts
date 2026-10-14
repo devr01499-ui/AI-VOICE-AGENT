@@ -80,8 +80,9 @@ export class BillingService {
   /**
    * Creates a Razorpay order for purchasing a subscription plan.
    * Validates plan name server-side against single source of truth (PLAN_CONFIG).
+   * Attaches authentic userId in notes for strict Object-Level Authorization.
    */
-  async createPlanPurchaseOrder(planInput: string | number) {
+  async createPlanPurchaseOrder(planInput: string | number, userId?: string) {
     let planConfig = null;
 
     if (typeof planInput === 'string') {
@@ -107,10 +108,11 @@ export class BillingService {
         logger.error('BillingService: Attempted mock plan order creation in production environment without Razorpay keys');
         throw new Error('Payment Gateway Error: Razorpay production credentials missing. Plan purchase cannot proceed.');
       }
-      // Mock order with embedded plan key for verification validation
+      // Mock order with embedded plan key and user ID for tamper-evident verification
+      const mockOrderId = `order_mock_plan_${planKey}_${userId || 'usr'}_${Date.now()}`;
       return {
-        id: `order_mock_plan_${planKey}_${Date.now()}`,
-        orderId: `order_mock_plan_${planKey}_${Date.now()}`,
+        id: mockOrderId,
+        orderId: mockOrderId,
         amount: amountInPaise,
         currency: 'INR',
         keyId: env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy',
@@ -120,10 +122,15 @@ export class BillingService {
     }
 
     try {
+      const receipt = `rcpt_plan_${planKey}_${userId ? userId.slice(0, 8) : 'usr'}_${Date.now()}`;
       const order = await this.razorpay.orders.create({
         amount: amountInPaise,
         currency: 'INR',
-        receipt: `receipt_plan_${planKey}_${Date.now()}`,
+        receipt,
+        notes: {
+          userId: userId || '',
+          planKey,
+        },
       });
       return {
         ...order,
@@ -132,33 +139,45 @@ export class BillingService {
         keyId: env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy',
         key: env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy',
       };
-    } catch (err) {
+    } catch (err: any) {
       logger.error('BillingService: Failed to create plan order', { error: String(err) });
       throw new Error('Payment initialization failed');
     }
   }
 
   /**
-   * Verifies the Razorpay payment signature.
+   * Verifies the Razorpay payment signature using timingSafeEqual to prevent side-channel timing attacks.
    */
   verifyPayment(orderId: string, paymentId: string, signature: string): boolean {
-    if (!this.razorpay) {
-      if (env.NODE_ENV === 'production') {
-        logger.error('BillingService: Mock payment verification rejected in production');
-        return false;
-      }
-      return true; // Accept all in development mock mode
+    if (!orderId || !paymentId || !signature || typeof signature !== 'string') {
+      return false;
     }
 
     const crypto = require('crypto');
     const secret = env.RAZORPAY_KEY_SECRET;
-    
+
+    if (!secret) {
+      if (env.NODE_ENV === 'production') {
+        logger.error('BillingService: Mock payment verification rejected in production');
+        return false;
+      }
+      // In development / testing without secret, reject arbitrary forged signatures
+      return signature.startsWith('mock_sig_') || signature === 'test_valid_signature';
+    }
+
     const generatedSignature = crypto
       .createHmac('sha256', secret)
       .update(orderId + '|' + paymentId)
       .digest('hex');
 
-    return generatedSignature === signature;
+    const sigBuf = Buffer.from(signature, 'utf8');
+    const genBuf = Buffer.from(generatedSignature, 'utf8');
+
+    if (sigBuf.length !== genBuf.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(sigBuf, genBuf);
   }
 
   /**
@@ -192,7 +211,8 @@ export class BillingService {
 
   /**
    * Provisions a user's account after a successful plan purchase.
-   * Enforces server-side order price cross-check validation and atomic DB payment replay protection.
+   * Enforces server-side order price cross-check, Object-Level Authorization,
+   * Gateway API status verification, and atomic DB payment replay protection.
    */
   async processPlanPurchase(userId: string, planName: string, paymentId?: string, orderId?: string) {
     const planConfig = getPlanConfig(planName);
@@ -204,24 +224,68 @@ export class BillingService {
     const addedMinutes = planConfig.minutes;
     const expectedAmountInPaise = Math.round(planConfig.price * 100);
 
-    // SECURITY CHECK: Validate that the payment order matches the requested plan price
+    // SECURITY CHECK: Validate that the payment order matches the requested plan price & belongs to userId
     if (orderId) {
       if (this.razorpay && !orderId.startsWith('order_mock_')) {
         try {
           const razorpayOrder = await this.razorpay.orders.fetch(orderId);
-          if (razorpayOrder && razorpayOrder.amount !== expectedAmountInPaise) {
-            logger.error('BillingService: Security Alert — Payment order amount does not match requested plan price!', {
-              userId,
-              planName,
-              orderId,
-              paidAmountPaise: razorpayOrder.amount,
-              expectedAmountPaise: expectedAmountInPaise,
-            });
-            throw new Error('Payment order amount does not match requested plan price.');
+          if (razorpayOrder) {
+            if (razorpayOrder.amount !== expectedAmountInPaise) {
+              logger.error('BillingService: Security Alert — Payment order amount does not match requested plan price!', {
+                userId,
+                planName,
+                orderId,
+                paidAmountPaise: razorpayOrder.amount,
+                expectedAmountPaise: expectedAmountInPaise,
+              });
+              throw new Error('Payment order amount does not match requested plan price.');
+            }
+
+            // Object-Level Authorization (IDOR Defense): Check if order was created for another user
+            const orderUserId = razorpayOrder.notes?.userId || razorpayOrder.notes?.user_id;
+            if (orderUserId && orderUserId !== userId) {
+              logger.error('BillingService: Security Alert — Cross-tenant order redemption attempt blocked!', {
+                requestingUserId: userId,
+                orderOwnerUserId: orderUserId,
+                orderId,
+              });
+              throw new Error('Unauthorized: This payment order belongs to another account.');
+            }
           }
         } catch (err: any) {
-          if (err.message === 'Payment order amount does not match requested plan price.') throw err;
+          if (err.message === 'Payment order amount does not match requested plan price.' || err.message.includes('Unauthorized')) throw err;
           logger.warn('BillingService: Could not fetch Razorpay order for validation', { orderId, error: String(err) });
+        }
+
+        // Server-Side Payment Verification: Verify payment status directly with Gateway API
+        if (paymentId && !paymentId.startsWith('pay_mock_')) {
+          try {
+            const payment = await this.razorpay.payments.fetch(paymentId);
+            if (payment) {
+              if (payment.status !== 'captured' && payment.status !== 'authorized') {
+                logger.error('BillingService: Security Alert — Payment status is not captured/paid!', {
+                  paymentId,
+                  status: payment.status,
+                });
+                throw new Error(`Payment verification failed: Payment status is '${payment.status}'. Expected 'captured'.`);
+              }
+              if (payment.amount !== expectedAmountInPaise) {
+                throw new Error('Captured payment amount does not match plan price.');
+              }
+              if (payment.order_id && payment.order_id !== orderId) {
+                throw new Error('Payment order ID does not match specified order.');
+              }
+              const payUserId = payment.notes?.userId || payment.notes?.user_id;
+              if (payUserId && payUserId !== userId) {
+                throw new Error('Unauthorized: This payment belongs to another account.');
+              }
+            }
+          } catch (payErr: any) {
+            if (payErr.message.includes('Payment verification failed') || payErr.message.includes('does not match') || payErr.message.includes('Unauthorized')) {
+              throw payErr;
+            }
+            logger.warn('BillingService: Could not fetch Razorpay payment for validation', { paymentId, error: String(payErr) });
+          }
         }
       } else if (orderId.startsWith('order_mock_')) {
         const planKey = planConfig.name.toLowerCase();
@@ -233,6 +297,17 @@ export class BillingService {
             expectedPlanKey: planKey,
           });
           throw new Error('Payment order amount does not match requested plan price.');
+        }
+
+        // Object-Level Authorization on mock order
+        const parts = orderId.split('_');
+        // Format: order_mock_plan_<planKey>_<userId>_<timestamp>
+        if (parts.length >= 6 && parts[4] !== 'usr' && parts[4] !== 'anon' && parts[4] !== userId) {
+          logger.error('BillingService: Security Alert — Mock order belongs to different user!', {
+            requestingUserId: userId,
+            orderUserId: parts[4],
+          });
+          throw new Error('Unauthorized: This payment order belongs to another account.');
         }
       }
     }

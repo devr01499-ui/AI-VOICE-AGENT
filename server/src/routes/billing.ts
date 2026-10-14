@@ -11,7 +11,7 @@ import { touchUserSession } from '../utils/sessionManager';
 
 const router = Router();
 
-router.post('/create-plan-order', requireAuth, sensitiveOperationsLimiter, async (req, res) => {
+router.post('/create-plan-order', requireAuth, sensitiveOperationsLimiter, async (req: AuthenticatedRequest, res) => {
   try {
     const { planName, plan, price } = req.body;
     const targetPlan = planName || plan || price;
@@ -22,7 +22,7 @@ router.post('/create-plan-order', requireAuth, sensitiveOperationsLimiter, async
     }
 
     const billingService = new BillingService();
-    const order = await billingService.createPlanPurchaseOrder(targetPlan);
+    const order = await billingService.createPlanPurchaseOrder(targetPlan, req.userId);
     const keyId = order.keyId || order.key || env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy';
     const orderId = order.orderId || order.id;
 
@@ -114,6 +114,18 @@ async function handlePlanVerification(req: any, res: any) {
     logger.error('Billing: failed to verify plan', { error: String(err) });
     if (err.message === 'Payment has already been redeemed.') {
       res.status(400).json({ success: false, error: 'Payment has already been redeemed.' });
+      return;
+    }
+    if (err.message.includes('Unauthorized') || err.message.includes('belongs to another')) {
+      res.status(403).json({ success: false, error: err.message });
+      return;
+    }
+    if (err.message.includes('Payment order amount does not match') || err.message.includes('does not match')) {
+      res.status(400).json({ success: false, error: err.message });
+      return;
+    }
+    if (err.message.includes('Payment verification failed')) {
+      res.status(402).json({ success: false, error: err.message });
       return;
     }
     res.status(500).json({ success: false, error: err.message || 'Verification failed' });
