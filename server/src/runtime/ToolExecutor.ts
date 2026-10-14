@@ -16,6 +16,7 @@
 import { logger } from '../utils/logger';
 import { AppError } from '../types/errors';
 import type { ToolDefinition, ToolCallResult } from '../types';
+import { assertSafeUrl } from '../utils/ssrfValidator';
 
 // ─────────────────────────────────────────────
 // Executor Class
@@ -218,6 +219,9 @@ export class ToolExecutor {
       );
     }
 
+    // OWASP A10 SSRF Validation
+    await assertSafeUrl(url);
+
     const method =
       typeof tool.config.method === 'string' ? tool.config.method.toUpperCase() : 'POST';
 
@@ -259,6 +263,9 @@ export class ToolExecutor {
         `Webhook tool '${tool.name}' is missing a valid 'webhookUrl' in config`,
       );
     }
+
+    // OWASP A10 SSRF Validation
+    await assertSafeUrl(webhookUrl);
 
     const response = await fetch(webhookUrl, {
       method: 'POST',

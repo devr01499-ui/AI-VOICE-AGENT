@@ -110,7 +110,10 @@ export function errorHandler(
     refCode,
   });
 
-  const displayMessage = `An unexpected error occurred: ${err.message || 'Internal server error'} (Reference: ${refCode})`;
+  const isProd = env.NODE_ENV === 'production';
+  const displayMessage = isProd
+    ? `An unexpected error occurred. Please contact support with reference: ${refCode}`
+    : `An unexpected error occurred: ${err.message || 'Internal server error'} (Reference: ${refCode})`;
 
   const body: ErrorResponseBody = {
     success: false,
@@ -123,3 +126,6 @@ export function errorHandler(
 
   res.status(500).json(body);
 }
+
+export { AppError, ValidationError };
+

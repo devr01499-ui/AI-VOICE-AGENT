@@ -69,19 +69,43 @@ const app = express();
 // Ensures req.ip reflects real client IP from X-Forwarded-For (1st hop)
 app.set('trust proxy', 1);
 
-// ── Security ──────────────────────────────────────
+// Explicitly disable X-Powered-By header to prevent fingerprinting
+app.disable('x-powered-by');
+
+// ── Security Headers (OWASP A05 Hardening) ────────
 app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],
         connectSrc: ["'self'", 'wss:', 'ws:', 'https://api.vobiz.ai', 'https://*.supabase.co'],
         imgSrc: ["'self'", 'data:', 'https:'],
         objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'none'"],
       },
+    },
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
+    frameguard: {
+      action: 'deny',
+    },
+    referrerPolicy: {
+      policy: 'strict-origin-when-cross-origin',
+    },
+    noSniff: true,
+    dnsPrefetchControl: {
+      allow: false,
+    },
+    permittedCrossDomainPolicies: {
+      permittedPolicies: 'none',
     },
   })
 );

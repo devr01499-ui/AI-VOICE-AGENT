@@ -144,6 +144,17 @@ export class KnowledgeBaseController {
         return;
       }
 
+      // OWASP A10: Server-Side Request Forgery (SSRF) Defense — strictly disallow private/cloud IP targets
+      const { assertSafeUrl } = await import('../utils/ssrfValidator');
+      let safeTargetUrl: URL;
+      try {
+        safeTargetUrl = await assertSafeUrl(url);
+      } catch (ssrfErr: any) {
+        logger.warn('KBController: Blocked SSRF attempt during scrape', { url, error: ssrfErr.message });
+        res.status(400).json({ success: false, error: `Invalid target URL: ${ssrfErr.message}` });
+        return;
+      }
+
       // Check agent exists and belongs to user if agentId is provided
       if (agentId) {
         const agent = await prisma.agent.findFirst({
@@ -155,14 +166,14 @@ export class KnowledgeBaseController {
         }
       }
 
-      logger.info('KBController: scraping URL target', { url, agentId });
+      logger.info('KBController: scraping URL target', { url: safeTargetUrl.toString(), agentId });
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
       
       let response;
       try {
-        response = await fetch(url, {
+        response = await fetch(safeTargetUrl.toString(), {
           signal: controller.signal,
           headers: {
             'User-Agent': 'ClaritiyVoiceBot/1.0',
@@ -345,7 +356,7 @@ export class KnowledgeBaseController {
       });
 
       try {
-        await prisma.$executeRawUnsafe(`DELETE FROM "kb_chunks" WHERE "kb_id" = $1`, id);
+        await prisma.$executeRaw`DELETE FROM "kb_chunks" WHERE "kb_id" = ${id}`;
       } catch (chunkErr) {
         logger.warn('KBController: delete chunks warning', { error: String(chunkErr) });
       }

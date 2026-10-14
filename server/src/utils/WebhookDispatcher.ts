@@ -9,6 +9,7 @@
 import crypto from 'crypto';
 import { logger } from './logger';
 import { prisma } from '../lib/prisma';
+import { assertSafeUrl } from './ssrfValidator';
 
 export interface DispatchWebhookParams {
   agentId?: string;
@@ -76,6 +77,9 @@ export class WebhookDispatcher {
     customHeaders?: Record<string, string>
   ): Promise<void> {
     try {
+      // OWASP A10: SSRF Defense for user-configured webhooks
+      await assertSafeUrl(url);
+
       const body = JSON.stringify({
         event: eventType,
         timestamp: new Date().toISOString(),

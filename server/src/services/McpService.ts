@@ -6,6 +6,7 @@
  */
 
 import { logger } from '../utils/logger';
+import { assertSafeUrl } from '../utils/ssrfValidator';
 
 export interface MCPServerConfig {
   id: string;
@@ -43,6 +44,9 @@ export class McpService {
       if (!server.url) continue;
 
       try {
+        // OWASP A10: Validate external MCP server URL against SSRF
+        await assertSafeUrl(server.url);
+
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
           'User-Agent': 'Claritiy-Voice-MCP-Client/1.0',
@@ -125,6 +129,9 @@ export class McpService {
       if (discoveredTool.apiKey) {
         headers['Authorization'] = `Bearer ${discoveredTool.apiKey}`;
       }
+
+      // OWASP A10: Validate target MCP server URL against SSRF
+      await assertSafeUrl(discoveredTool.serverUrl);
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
