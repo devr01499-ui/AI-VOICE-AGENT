@@ -32,3 +32,11 @@ You are strictly bound to this zero-regression architectural contract. Before re
 - **Production Code Invocation**: All verification test scripts (`scripts/test_*.js` or `scripts/test_*.ts`) must directly import or execute production application code (compiled server modules, route controllers, middleware, or utility functions).
 - **No Hand-Written Mock Logic**: Test scripts are strictly prohibited from duplicating business logic inside the test file itself. A test pass is valid only if assertions evaluate actual production code paths.
 
+## 7. Mandatory Security Engineering & Code Review Protocols
+- **Zero Client-Side Trust Rule**: Never rely on client payload flags, request body parameters, or client headers (e.g. `isEntitled`, `x-user-tier`, `userId`) for authorization or billing decisions. Authorization must resolve solely against verified JWT claims and authoritative PostgreSQL database records.
+- **Mandatory Compound Tenant Filtering (Anti-IDOR)**: Every database read, update, or deletion targeting user-owned models (agents, calls, batches, phone numbers, QA cohorts, leads, API keys) must include `where: { id, userId }`. Single-key lookups without `userId` validation are strictly forbidden.
+- **Fail-Closed Cryptographic Webhooks**: All external webhooks (Razorpay, Vobiz) must use timing-safe signature verification (`crypto.timingSafeEqual`) against raw payload buffers. Missing secrets in production must fail closed immediately.
+- **Mandatory Rate Limiting on Mutating Endpoints**: Every `POST`, `PUT`, or `DELETE` endpoint must attach `sensitiveOperationsLimiter` or `authLimiter`.
+- **Immediate Listening Socket Binding**: Server entrypoints (`server/src/index.ts`) must bind `server.listen(PORT, HOST)` immediately on container boot. Remote database connection pools, provider health checks, and background workers must warm up asynchronously inside the listen callback to guarantee instant cloud port detection.
+- **Continuous Penetration Regression**: Before any pull request or deployment is approved, `npm run test:security` must be executed and achieve 100% test pass with zero failures.
+

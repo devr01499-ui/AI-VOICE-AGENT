@@ -108,3 +108,15 @@
 - **Rejected Alternative**: Relying on database foreign keys alone without application-level tenant filtering. Reason: Foreign keys ensure referential integrity (that the referenced agent exists in the DB), but do NOT enforce multi-tenant authorization (that the referenced agent belongs to the calling user).
 - **Consequences**: Complete immunization against IDOR attacks, cross-tenant agent hijacking, broadcast tampering, and unmetered dialing campaigns across all Claritiy Voice routes.
 
+## ADR-011: Continuous Penetration Testing, Immediate Socket Binding & Security Standards
+- **Status**: Accepted
+- **Context**: Deployment of Phase 3 to Render timed out due to delayed HTTP socket binding caused by synchronous heavy imports (`googleapis`, `jsdom`, `pdfParser`) and asynchronous database connection blocks. Additionally, platform security across Phases 1–4 required an ongoing, automated regression harness to prevent regressions in authorization, billing, and tenant boundaries.
+- **Decision**:
+  1. Re-architect server entrypoints (`server/src/index.ts`) to bind `server.listen(PORT, HOST)` immediately on container boot (24ms startup time), guaranteeing instant cloud port scanner pass. Move database pooling, provider connections, and background evaluation into the asynchronous listen callback.
+  2. Replace root `googleapis` imports with lightweight targeted packages (`google-auth-library` and subpath `googleapis/build/src/apis/calendar`), and convert heavy controller utilities (`jsdom`, `pdfParser`) to dynamic `await import()` calls.
+  3. Build an automated, continuous penetration testing suite (`server/scripts/test_phase5_security_suite.js`) executing 19 end-to-end attack scenarios across duplicate email aliases, throwaway email domains, client paywall bypasses, multi-tenant IDOR access, HMAC webhook forgery, and idempotent payment replay.
+  4. Establish `npm run test:security` in root and server `package.json` as a mandatory pre-commit and CI/CD verification gate.
+  5. Codify comprehensive security documentation (`SECURITY_MODEL.md`) and operational protocols (`GOVERNANCE_RULES.md`).
+- **Rejected Alternative**: Running tests only in staging environments or relying on manual post-deployment QA. Reason: Manual testing is prone to oversight and does not prevent regressions from merging into production branches.
+- **Consequences**: Container deployments on Render succeed immediately, memory footprints during startup drop significantly, and every pull request is continuously guarded by 19 automated penetration tests.
+
