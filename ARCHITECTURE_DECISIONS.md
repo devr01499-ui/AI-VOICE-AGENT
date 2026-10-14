@@ -74,3 +74,18 @@
   8. Fix UI balance fallback in `BillingGateway.tsx` from `10.0` to `0.0`.
 - **Rejected Alternative**: Client-side component gating alone or relying on post-call billing deduction. Reason: Client gates are trivially bypassed via script or direct API invocation, and post-call deduction allows zero-balance accounts to place unmetered calls without pre-authorization.
 - **Consequences**: Outbound calls, live WebSocket audio streaming, vector indexing, and generative builders are strictly immunized against subscription bypass. Sensitive credentials are fully shielded.
+
+## ADR-009: Timing-Safe Webhook Signatures, Idempotent Subscription Lifecycle & Session Revocation Architecture
+- **Status**: Accepted
+- **Context**: Razorpay webhook processing lacked timing-safe comparison, subscription lifecycle event handling (`subscription.charged`, `subscription.cancelled`, `subscription.paused`, `subscription.halted`), and immediate session invalidation when subscriptions were downgraded or cancelled.
+- **Decision**:
+  1. Enforce timing-safe signature comparison (`crypto.timingSafeEqual`) against raw request body buffers in `razorpayWebhookRouter.post('/razorpay')`. In production, fail-closed if `RAZORPAY_WEBHOOK_SECRET` is missing.
+  2. Implement full subscription lifecycle processing:
+     - `subscription.charged`: Automatically credit cycle minutes and keep plan active via `fulfillPlanPurchase`.
+     - `subscription.cancelled` / `subscription.paused` / `subscription.halted`: Downgrade user account to `free` tier in PostgreSQL and trigger immediate global session revocation.
+  3. Create `sessionManager.ts` (`revokeUserSessions`) to globally invalidate all active Supabase refresh tokens and sessions upon account downgrade or suspension, preventing stale client tokens from continuing to access paid endpoints.
+  4. Build real-time subscription validation endpoints in `server/src/routes/billing.ts` (`GET /subscription-status` and `POST /sync-entitlements`) ensuring client UIs bypass stale local state and synchronize directly with authoritative database entitlements.
+  5. Harden plan configuration fallback in `PlanFulfillmentService.ts` to support case-insensitive key resolution (`planKey.toLowerCase()`).
+- **Rejected Alternative**: Relying on periodic background polling for subscription cancellations or depending on client-side token expiration. Reason: Background polling creates latency windows where cancelled accounts retain paid privileges; relying on client token expiration leaves a window of up to 1 hour of unauthorized access.
+- **Consequences**: Razorpay webhooks are cryptographically secured against timing attacks, recurring renewals automatically replenish balances, cancellations immediately revoke sessions, and status synchronization is authoritative.
+

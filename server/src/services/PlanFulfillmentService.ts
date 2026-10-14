@@ -39,7 +39,7 @@ export async function fulfillPlanPurchase(params: FulfillPlanPurchaseParams) {
     accountType = catalogPlan.accountType;
   } else {
     // Fallback to existing PLAN_CONFIG constant
-    const staticPlan = (PLAN_CONFIG as any)[planKey.toUpperCase()];
+    const staticPlan = (PLAN_CONFIG as any)[planKey.toLowerCase()] || (PLAN_CONFIG as any)[planKey.toUpperCase()];
     if (!staticPlan) {
       throw new Error(`INVALID_PLAN: Plan key '${planKey}' not recognized.`);
     }

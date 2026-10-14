@@ -6,6 +6,8 @@ import { env } from '../config/env';
 import { ADMIN_EMAIL } from '../config/constants';
 import { logAuditEvent } from '../utils/auditLogger';
 import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
+import { getEffectiveRemainingSeconds, isUserEntitled } from '../middleware/planValidation';
+import { touchUserSession } from '../utils/sessionManager';
 
 const router = Router();
 
@@ -243,6 +245,126 @@ router.post('/gstin', requireAuth, async (req: AuthenticatedRequest, res) => {
   } catch (err: any) {
     logger.error('Billing: failed to update company GSTIN', { error: err.message });
     res.status(500).json({ success: false, error: 'Failed to update GSTIN' });
+  }
+});
+
+/**
+ * GET /api/v2/billing/subscription-status
+ * Real-time authoritative subscription status check (bypasses stale client state).
+ */
+router.get('/subscription-status', requireAuth, async (req: AuthenticatedRequest, res) => {
+  try {
+    const userId = req.effectiveWorkspaceId || req.userId;
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+
+    const { prisma } = await import('../lib/prisma');
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        accountType: true,
+        accountStatus: true,
+        callingBalanceMinutes: true,
+        minutesRemainingSeconds: true,
+        totalMinutesConsumed: true,
+        suspendedAt: true,
+        suspendedReason: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!user) {
+      res.status(404).json({ success: false, error: 'User not found' });
+      return;
+    }
+
+    const effectiveRemainingSeconds = getEffectiveRemainingSeconds(user);
+    const entitled = isUserEntitled(user);
+
+    const latestTx = await prisma.paymentTransaction.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        orderId: true,
+        paymentId: true,
+        planName: true,
+        amount: true,
+        currency: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        userId: user.id,
+        email: user.email,
+        accountType: user.accountType,
+        accountStatus: user.accountStatus,
+        isEntitled: entitled,
+        callingBalanceMinutes: user.callingBalanceMinutes,
+        minutesRemainingSeconds: user.minutesRemainingSeconds,
+        effectiveRemainingSeconds,
+        effectiveRemainingMinutes: Math.round((effectiveRemainingSeconds / 60) * 100) / 100,
+        latestTransaction: latestTx,
+        verifiedAt: new Date().toISOString(),
+      },
+    });
+  } catch (err: any) {
+    logger.error('Billing: failed to verify real-time subscription status', { error: err.message });
+    res.status(500).json({ success: false, error: 'Failed to verify subscription status' });
+  }
+});
+
+/**
+ * POST /api/v2/billing/sync-entitlements
+ * Re-validates server-side entitlements and touches session freshness for client token refresh.
+ */
+router.post('/sync-entitlements', requireAuth, async (req: AuthenticatedRequest, res) => {
+  try {
+    const userId = req.effectiveWorkspaceId || req.userId;
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+
+    await touchUserSession(userId);
+
+    const { prisma } = await import('../lib/prisma');
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        accountType: true,
+        callingBalanceMinutes: true,
+        minutesRemainingSeconds: true,
+        accountStatus: true,
+      },
+    });
+
+    const effectiveRemainingSeconds = user ? getEffectiveRemainingSeconds(user) : 0;
+    const entitled = user ? isUserEntitled(user) : false;
+
+    res.json({
+      success: true,
+      data: {
+        synced: true,
+        accountType: user?.accountType || 'free',
+        isEntitled: entitled,
+        effectiveRemainingSeconds,
+        refreshedAt: new Date().toISOString(),
+      },
+    });
+  } catch (err: any) {
+    logger.error('Billing: failed to sync user entitlements', { error: err.message });
+    res.status(500).json({ success: false, error: 'Failed to sync entitlements' });
   }
 });
 

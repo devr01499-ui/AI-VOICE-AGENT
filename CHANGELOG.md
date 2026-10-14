@@ -1,5 +1,13 @@
 # CHANGELOG
 
+- Security Audit Phase 3: Payment & Subscription Integration (100% Coverage):
+  - **Timing-Safe Webhook Verification (`razorpayWebhook.ts`)**: Upgraded HMAC-SHA256 signature verification to use `crypto.timingSafeEqual` with buffer length validation against raw request body buffers (`req.rawBody`). Configured strict fail-closed rejection in production when `RAZORPAY_WEBHOOK_SECRET` is missing.
+  - **Comprehensive Subscription Lifecycle Processing**: Implemented handlers for `subscription.charged` (automatic renewal and cycle minute replenishment), `subscription.cancelled` (downgrading to free tier and revoking user sessions), `subscription.paused` and `subscription.halted` (account downgrade and session termination), `payment.failed` (auditable failed transaction persistence), and `payment_link.paid`.
+  - **Global Session Revocation Engine (`sessionManager.ts`)**: Built `revokeUserSessions(userId)` integrating with `supabaseAdmin.auth.admin.signOut(userId, 'global')` to immediately invalidate all active refresh tokens upon subscription cancellation or downgrade, preventing stale token reuse.
+  - **Authoritative Real-Time Entitlement Synchronization (`billing.ts`)**: Added `GET /api/v2/billing/subscription-status` and `POST /api/v2/billing/sync-entitlements` providing real-time database-backed entitlement calculations and session touching for frontend refresh.
+  - **Plan Configuration Case-Insensitive Fallback (`PlanFulfillmentService.ts`)**: Fixed case resolution in plan catalog lookup (`planKey.toLowerCase()`), ensuring consistent plan provisioning across all Razorpay webhook and self-serve checkout flows.
+  - **Automated Verification Suite**: Created `server/scripts/test_phase3_payment_audit.js` verifying timing-safe signatures, payload tampering defense, idempotent payment replay prevention, subscription downgrade lifecycle, and session invalidation with 100% test pass.
+
 - Security Audit Phase 2: Paywall & Subscription Enforcement (100% Coverage):
   - **Server-Side Entitlement Infrastructure (`planValidation.ts`)**: Built unified entitlement helpers `getEffectiveRemainingSeconds`, `isUserEntitled`, `requireActivePlan`, `requireCallingMinutes`, `requireAgentQuota`, and `requireActivePlanOrBYOK`. Primary remaining duration authority uses `minutesRemainingSeconds` with fallback to `callingBalanceMinutes * 60`.
   - **Outbound Call Gate & Identity Hardening**: Attached `requireCallingMinutes` to `POST /api/v2/calls`, `POST /api/v2/calls/outbound`, and `POST /api/calls/outbound`. Eliminated duplicate router entry in `calls.ts`. Bound `effectiveUserId` in `CallController.initiateCall` strictly to authenticated workspace/session context, blocking IDOR caller spoofing (`body.userId`).
