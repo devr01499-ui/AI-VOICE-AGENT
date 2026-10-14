@@ -1,5 +1,8 @@
 # CHANGELOG
 
+- Privacy Policy Compliance Update:
+  - **Google Account Information (Sign-In & Login)**: Added dedicated Google OAuth 2.0 user data disclosures to `Frontend/src/app/pages/Privacy.tsx` detailing accessed scopes (name, email, avatar), purpose limitations, storage/encryption on Render US-West, sharing restrictions, Google Limited Use compliance, user access/deletion rights, and revocation procedures via Google Account Permissions.
+
 - Admin Console Full Production Upgrade & Telemetry Hub:
   - **Overview Page Overhaul**: Upgraded `Overview.tsx` to 8 metric cards (Total, Active, Suspended, Restricted customers, Agents, Campaigns, Total calls placed), live call status breakdown (Completed, In Progress, Ringing, Queued, Failed, Busy), and surfaced provider telemetry breakdown with explicit indicator that Gemini token usage is currently unmetered.
   - **Customer Directory Enhancements**: Updated `CustomersList.tsx` with Plan tier badges, Last Seen timestamps, Campaigns count in the Usage column, and interactive multi-field sorting (Newest, Oldest, Highest Minutes, Most Calls).
