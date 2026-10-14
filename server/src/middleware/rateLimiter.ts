@@ -56,3 +56,64 @@ export const sensitiveOperationsLimiter = rateLimit({
     error: 'Rate limit exceeded for sensitive operation. Please wait before retrying.',
   },
 });
+
+/**
+ * Strict Signup Rate Limiter: Max 5 signup / registration validation attempts per IP per hour.
+ */
+export const signupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip || '127.0.0.1',
+  validate: false,
+  message: {
+    success: false,
+    error: 'SIGNUP_RATE_LIMIT_EXCEEDED',
+    message: 'Too many signup attempts from this IP address. Please wait an hour before trying again.',
+  },
+});
+
+/**
+ * Strict Login / Auth Rate Limiter: Max 10 authentication attempts per IP per hour.
+ */
+export const loginLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip || '127.0.0.1',
+  validate: false,
+  message: {
+    success: false,
+    error: 'AUTH_RATE_LIMIT_EXCEEDED',
+    message: 'Too many authentication attempts. Please wait before trying again.',
+  },
+});
+
+// In-memory atomic tracker to prevent simultaneous race condition signups from the same IP
+const lastIpSignupAttempt = new Map<string, number>();
+
+/**
+ * IP Throttle Delay: Enforces a 1.5-second pacing delay between signup submissions
+ * and serializes concurrent race conditions from the same IP address.
+ */
+export const authIpThrottleDelay = async (req: any, res: any, next: any) => {
+  const ip = req.ip || '127.0.0.1';
+  const now = Date.now();
+  const lastAttempt = lastIpSignupAttempt.get(ip) || 0;
+
+  if (now - lastAttempt < 1500) {
+    res.status(429).json({
+      success: false,
+      error: 'RACE_CONDITION_THROTTLED',
+      message: 'Signup requests are being submitted too rapidly. Please wait 2 seconds.',
+    });
+    return;
+  }
+
+  lastIpSignupAttempt.set(ip, now);
+  // Add a defensive 1000ms delay to thwart automated race scripts
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  next();
+};

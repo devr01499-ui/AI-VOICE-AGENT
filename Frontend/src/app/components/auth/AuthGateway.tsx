@@ -234,6 +234,7 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [honeypot, setHoneypot] = useState('');
 
   // Terms and Conditions & Terms of Use Consent Modal States
   const [showConsentModal, setShowConsentModal] = useState(false);
@@ -276,31 +277,44 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
     setError('');
     setMessage('');
     try {
-      // 1. Record legal consent in the database
+      // 1. Authoritative Pre-validation Gate (Normalization, Duplicate Detection, Disposable Email Blocking & Honeypot)
+      const validateRes = await apiClient.post('/api/v2/user/validate-signup', {
+        email: email.trim(),
+        fullName: fullName.trim(),
+        honeypot: honeypot.trim(),
+      });
+
+      if (!validateRes.data?.success && validateRes.data?.error) {
+        throw new Error(validateRes.data?.error);
+      }
+
+      const canonicalEmail = validateRes.data?.data?.normalizedEmail || email.trim().toLowerCase();
+
+      // 2. Record legal consent with canonical email
       try {
         await apiClient.post('/api/v2/user/consent', {
-          email: email.trim().toLowerCase(),
+          email: canonicalEmail,
           fullName: fullName.trim(),
           termsAndConditions: true,
           termsOfUse: true,
           privacyPolicy: true,
           consentVersion: 'v1.0',
+          honeypot: honeypot.trim(),
         });
-      } catch (consentErr) {
+      } catch (consentErr: any) {
         console.warn('Consent logging warning:', consentErr);
       }
 
-      // 2. Perform Supabase registration
+      // 3. Perform Supabase registration with canonical normalized email
       const redirectUrl = `${window.location.origin}/dashboard`;
       const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
+        email: canonicalEmail,
         password,
         options: {
           emailRedirectTo: redirectUrl,
           data: {
-            full_name: fullName,
-            account_type: accountType,
-            contact_number: contactNumber,
+            full_name: fullName.trim(),
+            contact_number: contactNumber.trim(),
             has_consented_terms: true,
           },
         },
@@ -486,6 +500,17 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
 
               {/* Form */}
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Anti-Bot Honeypot — Hidden from legitimate human users */}
+                <div style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, pointerEvents: 'none' }} aria-hidden="true">
+                  <input
+                    type="text"
+                    name="_claritiy_voice_agent_hp"
+                    tabIndex={-1}
+                    autoComplete="off"
+                    value={honeypot}
+                    onChange={e => setHoneypot(e.target.value)}
+                  />
+                </div>
                 <AnimatePresence>
                   {mode === 'signup' && (
                     <motion.div

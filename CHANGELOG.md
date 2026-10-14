@@ -1,5 +1,14 @@
 # CHANGELOG
 
+- Security Audit Phase 1: Authentication & Signup Hardening (100% Coverage):
+  - **Canonical Email Normalization (`emailNormalizer.ts`)**: Implemented RFC 5322 canonical normalization stripping `+` tags from Gmail, Googlemail, Outlook, iCloud, Yahoo, and Proton; removed dot-aliases in Gmail; mapped `googlemail.com` directly to `gmail.com`; eliminated duplicate account bypasses via alias manipulation.
+  - **Disposable Email Blacklist Defense**: Added blocking mechanism covering known throwaway and temporary email domains (`10minutemail`, `tempmail`, `guerrillamail`, `mailinator`, etc.) across all pre-signup and consent routes.
+  - **Privilege Escalation Closure in `requireAuth`**: Removed vulnerability where `user_metadata.account_type` directly updated `User.accountType` in PostgreSQL/SQLite. Defaulted new signups to `free` (unless `ADMIN_EMAIL`), and removed `accountType` from upsert updates so client metadata cannot escalate privileges.
+  - **Seeded Balance Vulnerability Fixed**: Corrected `requireAuth` upsert logic which granted `1000.0` billing balance on creation, setting initial billing balance to `0.0`.
+  - **Email Verification Bypass Sealed**: Removed client-controlled `userMetadata?.email_confirmed_at` check in `requireAuth`, enforcing genuine Supabase token `user.email_confirmed_at` verification before permitting access.
+  - **Bot & Race Condition Defenses**: Added `signupLimiter` (5 attempts/IP/hour), `loginLimiter` (10 attempts/IP/hour), `authIpThrottleDelay` (1.5s IP debounce), and honeypot field detection (`_claritiy_voice_agent_hp`) on signup forms and `/api/v2/user/validate-signup`.
+  - **Automated Verification**: Created `server/scripts/test_phase1_auth_audit.js` and confirmed 100% test pass with zero compilation errors (`tsc --noEmit` exit code 0).
+
 - Privacy Policy Compliance Update:
   - **Google Account Information (Sign-In & Login)**: Added dedicated Google OAuth 2.0 user data disclosures to `Frontend/src/app/pages/Privacy.tsx` detailing accessed scopes (name, email, avatar), purpose limitations, storage/encryption on Render US-West, sharing restrictions, Google Limited Use compliance, user access/deletion rights, and revocation procedures via Google Account Permissions.
 

@@ -4,6 +4,8 @@ import { requireAuth, requireRole, AuthenticatedRequest } from '../middleware/au
 import { logger } from '../utils/logger';
 import { logAuditEvent } from '../utils/auditLogger';
 import { CallOrchestrator } from '../core/orchestrator/CallOrchestrator';
+import { normalizeEmail, isDisposableEmail, isValidEmail } from '../utils/emailNormalizer';
+import { signupLimiter, authIpThrottleDelay } from '../middleware/rateLimiter';
 
 const router = Router();
 
@@ -286,13 +288,90 @@ router.post('/concurrency', requireAuth, requireRole(['admin']), async (req: Aut
 });
 
 /**
+ * POST /api/v2/user/validate-signup
+ * Pre-registration gate enforcing email normalization, disposable domain filtering,
+ * bot honeypot detection, and duplicate email prevention.
+ */
+router.post('/validate-signup', signupLimiter, authIpThrottleDelay, async (req, res) => {
+  try {
+    const { email, fullName, honeypot } = req.body;
+
+    // 1. Honeypot check: If the hidden honeypot input contains any text, drop silently
+    if (honeypot && String(honeypot).trim() !== '') {
+      logger.warn('[validate-signup] Automated bot caught by honeypot trigger', {
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      });
+      res.status(400).json({ success: false, error: 'Signup validation rejected.' });
+      return;
+    }
+
+    if (!email || typeof email !== 'string') {
+      res.status(400).json({ success: false, error: 'Email address is required.' });
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      res.status(400).json({ success: false, error: 'Invalid email address syntax.' });
+      return;
+    }
+
+    // 2. Disposable Email Blocking
+    if (isDisposableEmail(email)) {
+      res.status(403).json({
+        success: false,
+        error: 'DISPOSABLE_EMAIL_PROHIBITED',
+        message: 'Registration from temporary or disposable email domains is not allowed. Please use your permanent email.',
+      });
+      return;
+    }
+
+    // 3. Email Normalization
+    const canonicalEmail = normalizeEmail(email);
+
+    // 4. Duplicate Account Check in database
+    const existingUser = await prisma.user.findUnique({
+      where: { email: canonicalEmail },
+      select: { id: true },
+    });
+
+    if (existingUser) {
+      res.status(409).json({
+        success: false,
+        error: 'DUPLICATE_EMAIL',
+        message: 'An account with this email address already exists. Please sign in instead.',
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        normalizedEmail: canonicalEmail,
+        valid: true,
+      },
+    });
+  } catch (err: any) {
+    logger.error('validate-signup error', { error: String(err?.message || err) });
+    res.status(500).json({ success: false, error: 'Failed to validate signup request.' });
+  }
+});
+
+/**
  * POST /api/v2/user/consent
  * Stores user legal consent for Terms and Conditions, Terms of Use, and Acceptable Calling policies.
  * Can be invoked during initial signup or by logged-in users.
  */
-router.post('/consent', async (req, res) => {
+router.post('/consent', signupLimiter, authIpThrottleDelay, async (req, res) => {
   try {
-    const { email, fullName, termsAndConditions, termsOfUse, privacyPolicy, consentVersion } = req.body;
+    const { email, fullName, termsAndConditions, termsOfUse, privacyPolicy, consentVersion, honeypot } = req.body;
+
+    // Honeypot bot protection
+    if (honeypot && String(honeypot).trim() !== '') {
+      logger.warn('[user/consent] Bot rejected via honeypot', { ip: req.ip });
+      res.status(400).json({ success: false, error: 'Registration failed.' });
+      return;
+    }
 
     if (!email || typeof email !== 'string') {
       res.status(400).json({ success: false, error: 'Email is required to record legal consent.' });
@@ -307,7 +386,23 @@ router.post('/consent', async (req, res) => {
       return;
     }
 
-    const cleanEmail = email.trim().toLowerCase();
+    // Disposable email check
+    if (isDisposableEmail(email)) {
+      res.status(403).json({
+        success: false,
+        error: 'DISPOSABLE_EMAIL_PROHIBITED',
+        message: 'Disposable email domains are not permitted.',
+      });
+      return;
+    }
+
+    let cleanEmail: string;
+    try {
+      cleanEmail = normalizeEmail(email);
+    } catch {
+      cleanEmail = email.trim().toLowerCase();
+    }
+
     const userAgent = (req.headers['user-agent'] as string) || null;
     const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || null;
 

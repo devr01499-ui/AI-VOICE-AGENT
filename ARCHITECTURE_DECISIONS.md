@@ -48,7 +48,18 @@
   4. Implement atomic transaction auditing (`withAudit`) pairing every mutating administrative action with an `AdminAuditLog` record containing a mandatory reason and correlation request ID.
   5. Establish an automated sequential GST-compliant invoice generation engine linked to `PaymentTransaction` records, accessible from the customer settings dashboard.
 - **Rejected Alternative**: Embedding admin routes inside `Frontend/` and keeping column-level `User.callingBalanceMinutes` direct decrement queries. Reason: Violates boundary isolation, risks exposing internal administrative interfaces to end-users, and retains race conditions in balance calculations.
-- **Consequences**: Zero changes to the existing customer application behavior; guarantees ledgered financial consistency; provides complete operational auditability.
+## ADR-007: Canonical Email Normalization, Anti-Bot Gating, and Authoritative Server-Side Account State Preservation
+- **Status**: Accepted
+- **Context**: Users exploited client-controlled Supabase user metadata (`user_metadata.account_type`) to escalate privileges to paid tiers without payment, and created duplicate trial accounts using Gmail `+` tags, dot-aliases, and disposable email domains.
+- **Decision**:
+  1. Implement canonical email normalization (`emailNormalizer.ts`) stripping `+` tags for Gmail/Googlemail/Outlook/Yahoo/iCloud/Proton, stripping dot aliases in Gmail, and mapping `googlemail.com` to `gmail.com`.
+  2. Maintain a strict disposable email domain blacklist blocking signups from temporary services.
+  3. Strip `accountType` modification out of `requireAuth` upserts. The database is the sole authoritative source of truth for `accountType`, modifiable exclusively through `BillingService` payment fulfillment or staff administrative actions.
+  4. Enforce strict email verification checking only `user.email_confirmed_at` on the verified Supabase user record, completely discarding client-controlled metadata.
+  5. Add bot honeypots and IP rate limiting (5 attempts/hour for signup, 10 attempts/hour for login) with a 1.5s delay to prevent automated race attacks.
+- **Rejected Alternative**: Relying on client-side form validation and trust of Supabase user_metadata flags. Reason: Any user with curl or DevTools can mutate client requests and user metadata directly.
+- **Consequences**: Completely closes account duplication, disposable email spam, and client privilege escalation loopholes.
+
 
 
 

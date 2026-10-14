@@ -182,14 +182,19 @@ async function apiFetch<T>(
     token = sessionResult?.data?.session?.access_token || null;
   }
 
-  if (!token || token === 'undefined' || token === 'null' || token.startsWith('{')) {
+  const isPublicPath =
+    path.startsWith('/api/v2/user/consent') ||
+    path.startsWith('/api/v2/user/validate-signup') ||
+    path.startsWith('/health');
+
+  if ((!token || token === 'undefined' || token === 'null' || token.startsWith('{')) && !isPublicPath) {
     await supabase.auth.signOut().catch(() => {});
     throw new Error("UNAUTHORIZED_ACCESS");
   }
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    "Authorization": `Bearer ${token}`,
+    ...(token && token !== 'undefined' && token !== 'null' ? { "Authorization": `Bearer ${token}` } : {}),
     ...(options.headers as Record<string, string> | undefined),
   };
 

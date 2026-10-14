@@ -6,6 +6,7 @@ import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { ADMIN_EMAIL } from '../config/constants';
 import { isIpAllowed, getTrustedClientIp } from '../utils/ipChecker';
+import { normalizeEmail, isDisposableEmail } from '../utils/emailNormalizer';
 
 export interface AuthenticatedRequest extends Request {
   userId?: string;
@@ -56,49 +57,86 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     }
 
     userId = user.id;
-    email = user.email || '';
+    const rawEmail = user.email || '';
     userMetadata = user.user_metadata || {};
 
+    let normalizedEmail = '';
+    if (rawEmail) {
+      try {
+        normalizedEmail = normalizeEmail(rawEmail);
+      } catch (err: any) {
+        res.status(400).json({ success: false, error: 'Malformed email address in session context' });
+        return;
+      }
+    }
+
+    // Block disposable email addresses immediately
+    if (rawEmail && isDisposableEmail(rawEmail)) {
+      res.status(403).json({
+        success: false,
+        error: 'DISPOSABLE_EMAIL_PROHIBITED',
+        message: 'Signups using temporary or disposable email domains are blocked. Please use a permanent email address.',
+      });
+      return;
+    }
 
     const existingUser = await prisma.user.findUnique({ where: { id: userId }, select: { accountType: true } });
     const isExistingAdmin = existingUser?.accountType === 'admin';
 
-    // 3. THE EXPLICIT IDENTITY BIND
-    if (!isExistingAdmin && email !== ADMIN_EMAIL) {
-      // Block unverified multi-tenant access
-      if (!user.email_confirmed_at && !userMetadata?.email_confirmed_at) {
+    // 3. THE EXPLICIT IDENTITY BIND — Require genuine email confirmation (never trust client metadata)
+    if (!isExistingAdmin && normalizedEmail !== ADMIN_EMAIL) {
+      if (!user.email_confirmed_at) {
         res.status(403).json({ 
-          error: "Access Denied: Please verify your email address via the sent security link to activate this workspace environment." 
+          success: false,
+          error: 'EMAIL_NOT_VERIFIED',
+          message: 'Access Denied: Please verify your email address via the link sent to your inbox before accessing workspace features.' 
         });
         return;
       }
     }
 
-    // Extract metadata attributes directly with admin privilege guard
-    const fullName = userMetadata.full_name || (email ? email.split('@')[0] : 'Supabase User');
-    const requestedAccountType = userMetadata.account_type || 'free';
-    const accountType = (isExistingAdmin || email === ADMIN_EMAIL) 
-      ? 'admin' 
-      : (requestedAccountType === 'admin' ? 'free' : requestedAccountType);
+    // 4. DUPLICATE EMAIL PREVENTION — Check if normalized email is registered under a different UUID
+    if (normalizedEmail) {
+      const existingUserWithEmail = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+        select: { id: true },
+      });
+      if (existingUserWithEmail && existingUserWithEmail.id !== userId) {
+        logger.warn('[requireAuth] Blocked duplicate account signup attempt via alias', {
+          incomingUserId: userId,
+          existingUserId: existingUserWithEmail.id,
+          normalizedEmail,
+        });
+        res.status(409).json({
+          success: false,
+          error: 'DUPLICATE_ACCOUNT',
+          message: 'An account associated with this email address already exists. Duplicate alias signups are blocked.',
+        });
+        return;
+      }
+    }
+
+    // Extract profile attributes
+    const fullName = userMetadata.full_name || (normalizedEmail ? normalizedEmail.split('@')[0] : 'Supabase User');
     const contactNumber = userMetadata.contact_number || null;
 
     activePhase = 'database_upsert';
-    // Auto-upsert locally in PostgreSQL schemas to prevent relation constraints failures
+    // Auto-upsert locally: NEVER allow client metadata to set or escalate accountType!
+    // accountType is exclusively modified by authoritative BillingService transactions or Staff Admin.
     const userProfile = await prisma.user.upsert({
       where: { id: userId },
       update: {
         fullName: fullName,
-        accountType: accountType,
         contactNumber: contactNumber,
       },
       create: {
         id: userId,
-        email: email || `user-${userId}@supabase.io`,
+        email: normalizedEmail || `user-${userId}@supabase.io`,
         fullName: fullName,
-        accountType: accountType,
+        accountType: normalizedEmail === ADMIN_EMAIL ? 'admin' : 'free',
         contactNumber: contactNumber,
         passwordHash: 'seeded-supabase-auth-placeholder',
-        billingBalance: 1000.0,
+        billingBalance: 0.0,
         callingBalanceMinutes: 0.0,
       }
     });
