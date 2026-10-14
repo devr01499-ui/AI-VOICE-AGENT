@@ -110,13 +110,23 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
         } catch {}
       }
 
+      const razorpayKey =
+        orderData.data?.keyId ||
+        orderData.data?.key ||
+        (import.meta as any).env?.VITE_RAZORPAY_KEY_ID ||
+        'rzp_test_TO7mXkVkl4AFCy';
+
+      const razorpayOrderId =
+        orderData.data?.orderId ||
+        orderData.data?.id;
+
       const options = {
-        key: orderData.data.keyId,
+        key: razorpayKey,
         amount: orderData.data.amount,
         currency: orderData.data.currency || 'INR',
         name: 'Claritiy Voice',
         description: `${planName} Plan Subscription`,
-        order_id: orderData.data.orderId,
+        order_id: razorpayOrderId,
         prefill: {
           email: profileEmail || '',
         },
@@ -125,18 +135,24 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
         },
         handler: async function (response: any) {
           try {
-            const verifyRes = await fetch(`${API_BASE}/api/v2/billing/verify-plan-payment`, {
+            const verifyPayload = {
+              plan: planName,
+              planName,
+              orderId: response.razorpay_order_id,
+              paymentId: response.razorpay_payment_id,
+              signature: response.razorpay_signature,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            };
+
+            const verifyRes = await fetch(`${API_BASE}/api/v2/billing/verify-plan`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('token') : ''}`,
               },
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                planName,
-              })
+              body: JSON.stringify(verifyPayload)
             });
             const verifyData = await verifyRes.json();
             if (verifyData.success) {

@@ -23,8 +23,19 @@ router.post('/create-plan-order', requireAuth, sensitiveOperationsLimiter, async
 
     const billingService = new BillingService();
     const order = await billingService.createPlanPurchaseOrder(targetPlan);
-    
-    res.json({ success: true, data: order });
+    const keyId = order.keyId || order.key || env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy';
+    const orderId = order.orderId || order.id;
+
+    res.json({
+      success: true,
+      data: {
+        ...order,
+        id: orderId,
+        orderId,
+        keyId,
+        key: keyId,
+      }
+    });
   } catch (err: any) {
     logger.error('Billing: failed to create plan order', { error: String(err) });
     if (err.message === 'Invalid or unknown plan name' || err.message === 'Minimum amount must be at least 100 paise') {
@@ -35,12 +46,18 @@ router.post('/create-plan-order', requireAuth, sensitiveOperationsLimiter, async
   }
 });
 
-router.post('/verify-plan', requireAuth, sensitiveOperationsLimiter, async (req: any, res: any) => {
+/**
+ * Shared verification handler supporting both /verify-plan and /verify-plan-payment.
+ */
+async function handlePlanVerification(req: any, res: any) {
   try {
-    const { plan, orderId, paymentId, signature } = req.body;
+    const plan = req.body.plan || req.body.planName;
+    const orderId = req.body.orderId || req.body.razorpay_order_id;
+    const paymentId = req.body.paymentId || req.body.razorpay_payment_id;
+    const signature = req.body.signature || req.body.razorpay_signature;
 
     if (!plan || !orderId || !paymentId || !signature) {
-      res.status(400).json({ success: false, error: 'Missing required fields' });
+      res.status(400).json({ success: false, error: 'Missing required payment verification fields' });
       return;
     }
 
@@ -101,6 +118,22 @@ router.post('/verify-plan', requireAuth, sensitiveOperationsLimiter, async (req:
     }
     res.status(500).json({ success: false, error: err.message || 'Verification failed' });
   }
+}
+
+router.post('/verify-plan', requireAuth, sensitiveOperationsLimiter, handlePlanVerification);
+router.post('/verify-plan-payment', requireAuth, sensitiveOperationsLimiter, handlePlanVerification);
+
+/**
+ * GET /api/v2/billing/config
+ * Exposes active public payment gateway key for client-side checkout hydration.
+ */
+router.get('/config', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      razorpayKeyId: env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy',
+    },
+  });
 });
 
 /**

@@ -270,8 +270,19 @@ router.post('/create-order', requireAuth, requireEditor, requireActivePlan, sens
 
     const billingService = new BillingService();
     const order = await billingService.createNumberPurchaseOrder(userId, baseCost, setupFee, currency);
+    const keyId = order.keyId || order.key || process.env.RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy';
+    const orderId = order.orderId || order.id;
 
-    res.json({ success: true, data: order });
+    res.json({
+      success: true,
+      data: {
+        ...order,
+        id: orderId,
+        orderId,
+        keyId,
+        key: keyId,
+      }
+    });
   } catch (err: any) {
     const errorMsg = err?.message || String(err);
     logger.error('[NUMBERS_CREATE_ORDER_ERROR] Failed to create Razorpay order', {

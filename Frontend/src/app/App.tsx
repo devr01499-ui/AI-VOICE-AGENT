@@ -3677,13 +3677,20 @@ function DashNumbers({ profile, onNavigateToBilling, onNavigateToKyc }: { profil
         // Real Razorpay Flow
         if (!window.Razorpay) throw new Error('Payment system not loaded. Please disable adblockers and refresh.');
         
+        const razorpayKey =
+          order.keyId ||
+          order.key ||
+          import.meta.env.VITE_RAZORPAY_KEY_ID ||
+          'rzp_test_TO7mXkVkl4AFCy';
+        const razorpayOrderId = order.orderId || order.id;
+
         const options = {
-          key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+          key: razorpayKey,
           amount: order.amount,
           currency: order.currency,
           name: 'Claritiy Voice',
           description: `Phone Number Subscription`,
-          order_id: order.id,
+          order_id: razorpayOrderId,
           prefill: { email: '' },
           handler: async function (response: any) {
             try {

@@ -57,7 +57,13 @@ export class BillingService {
         currency: 'INR', // Razorpay India account requires INR
         receipt: `num_${userId.slice(0, 8)}_${Date.now()}`,
       });
-      return order;
+      return {
+        ...order,
+        id: order.id,
+        orderId: order.id,
+        keyId: env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy',
+        key: env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy',
+      };
     } catch (err: any) {
       const errorMsg = err?.description || err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err));
       logger.error('BillingService: Failed to create order in Razorpay', {
@@ -104,8 +110,11 @@ export class BillingService {
       // Mock order with embedded plan key for verification validation
       return {
         id: `order_mock_plan_${planKey}_${Date.now()}`,
+        orderId: `order_mock_plan_${planKey}_${Date.now()}`,
         amount: amountInPaise,
         currency: 'INR',
+        keyId: env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy',
+        key: env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy',
         mock: true,
       };
     }
@@ -116,7 +125,13 @@ export class BillingService {
         currency: 'INR',
         receipt: `receipt_plan_${planKey}_${Date.now()}`,
       });
-      return order;
+      return {
+        ...order,
+        id: order.id,
+        orderId: order.id,
+        keyId: env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy',
+        key: env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy',
+      };
     } catch (err) {
       logger.error('BillingService: Failed to create plan order', { error: String(err) });
       throw new Error('Payment initialization failed');
