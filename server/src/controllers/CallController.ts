@@ -267,7 +267,7 @@ export class CallController {
 
       const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Stream streamTimeout="1800" keepCallAlive="true" bidirectional="true" contentType="audio/x-l16;rate=16000">${streamUrl}</Stream>
+  <Stream streamTimeout="1800" keepCallAlive="true" bidirectional="true" contentType="audio/x-l16;rate=16000" extraHeaders="callId=${encodeURIComponent(callId)};token=${encodeURIComponent(token)};ts=${ts}">${streamUrl}</Stream>
 </Response>`;
 
       res.set('Content-Type', 'application/xml');

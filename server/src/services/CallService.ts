@@ -385,8 +385,10 @@ export class CallService {
   static async handleStatusUpdate(callId: string, vobizStatus: string): Promise<void> {
     const statusMap: Record<string, CallStatus> = {
       ringing: 'ringing',
+      progressing: 'ringing',
       answered: 'connected',
       in_progress: 'in_progress',
+      'in-progress': 'in_progress',
       completed: 'completed',
       failed: 'failed',
       busy: 'busy',
