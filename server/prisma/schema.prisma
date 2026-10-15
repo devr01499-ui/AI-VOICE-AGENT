@@ -49,6 +49,7 @@ model User {
   batches              Batch[]
   subAccounts          SubAccount[]
   vobizSubAccount      VobizSubAccount?
+  plivoSubAccount      PlivoSubAccount?
   webhooks             Webhook[]
   providerCredentials  ProviderCredential[]
   callSessions         CallSession[]
@@ -252,6 +253,8 @@ model PhoneNumber {
   currency              String    @default("USD")
   aadhaarRequired       Boolean   @default(false) @map("aadhaar_required")
   vobizNumberId         String?   @map("vobiz_number_id") // ID from Vobiz inventory
+  plivoNumberId         String?   @map("plivo_number_id") // Number/ID from Plivo inventory
+  plivoSubAuthId        String?   @map("plivo_sub_auth_id") // Subaccount Auth ID
   nextBillingDate       DateTime? @map("next_billing_date")
   purchasedAt           DateTime  @default(now()) @map("purchased_at")
 
@@ -402,6 +405,22 @@ model VobizSubAccount {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("vobiz_sub_accounts")
+}
+
+model PlivoSubAccount {
+  id            String    @id @default(uuid())
+  userId        String    @unique @map("user_id")
+  authId        String    @unique @map("auth_id") // Subaccount Auth ID (e.g. SAxxxxxxxx)
+  authToken     String    @map("auth_token") // Encrypted using EncryptionService
+  name          String    @map("name")
+  enabled       Boolean   @default(true)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([authId])
+  @@map("plivo_sub_accounts")
 }
 
 model KycDocument {

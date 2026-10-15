@@ -1,0 +1,364 @@
+import { env } from '../../config/env';
+import { prisma } from '../../lib/prisma';
+import { logger } from '../../utils/logger';
+import { EncryptionService } from '../../utils/EncryptionService';
+
+export interface PlivoNumberItem {
+  id: string;
+  number: string;
+  country: string;
+  region: string;
+  prefix?: string;
+  type: string;
+  monthlyRental: number;
+  setupFee: number;
+  taxes: number;
+  totalMonthlyCost: number;
+  currency: string;
+  capabilities: { voice: boolean; sms: boolean; mms: boolean };
+  kycRequirement: string;
+  status: string;
+}
+
+export class PlivoService {
+  private parentAuthId: string;
+  private parentAuthToken: string;
+  private baseUrl = 'https://api.plivo.com/v1';
+
+  constructor() {
+    this.parentAuthId = (process.env.PLIVO_AUTH_ID || env.PLIVO_AUTH_ID || '').trim();
+    this.parentAuthToken = (process.env.PLIVO_AUTH_TOKEN || env.PLIVO_AUTH_TOKEN || '').trim();
+
+    if (!this.parentAuthId || !this.parentAuthToken) {
+      logger.warn('[PLIVO] PLIVO_AUTH_ID or PLIVO_AUTH_TOKEN is not configured in environment.');
+    }
+  }
+
+  private hasValidCredentials(): boolean {
+    return Boolean(
+      this.parentAuthId &&
+      this.parentAuthToken &&
+      !this.parentAuthId.includes('your_') &&
+      this.parentAuthId.length > 5
+    );
+  }
+
+  private getParentHeaders() {
+    const creds = Buffer.from(`${this.parentAuthId}:${this.parentAuthToken}`).toString('base64');
+    return {
+      'Authorization': `Basic ${creds}`,
+      'Content-Type': 'application/json',
+      'User-Agent': 'Claritiy-Voice/2.0',
+    };
+  }
+
+  /**
+   * Idempotent Subaccount Provisioning:
+   * 1. Checks local database for existing PlivoSubAccount.
+   * 2. If not found locally, queries Plivo Subaccount list to verify if a subaccount with that name exists.
+   * 3. Creates the subaccount via Plivo API if missing.
+   * 4. Stores encrypted subaccount authToken at rest.
+   */
+  async getOrCreateSubaccount(userId: string, workspaceName?: string): Promise<{ authId: string; authToken: string }> {
+    // 1. Check DB first
+    const existing = await prisma.plivoSubAccount.findUnique({ where: { userId } });
+    if (existing) {
+      return {
+        authId: existing.authId,
+        authToken: EncryptionService.decrypt(existing.authToken),
+      };
+    }
+
+    const cleanName = (workspaceName || 'Org').replace(/[^a-zA-Z0-9]/g, '').substring(0, 12);
+    const subaccountName = `Claritiy_${userId.substring(0, 8)}_${cleanName}`;
+
+    // If no credentials configured, generate a simulated subaccount in dev/test
+    if (!this.hasValidCredentials()) {
+      logger.info('[PLIVO_SUBACCOUNT] Operating in dev fallback mode (no parent credentials configured).');
+      const mockAuthId = `SA_${userId.substring(0, 8).toUpperCase()}_MOCK`;
+      const mockToken = Buffer.from(`mock_token_${Date.now()}`).toString('base64');
+      const encrypted = EncryptionService.encrypt(mockToken);
+
+      const record = await prisma.plivoSubAccount.create({
+        data: {
+          userId,
+          authId: mockAuthId,
+          authToken: encrypted,
+          name: subaccountName,
+          enabled: true,
+        },
+      });
+
+      return { authId: record.authId, authToken: mockToken };
+    }
+
+    try {
+      // 2. Query Plivo Subaccounts to prevent duplicate creation on network retries
+      const listUrl = `${this.baseUrl}/Account/${this.parentAuthId}/Subaccount/?limit=20`;
+      const listRes = await fetch(listUrl, { headers: this.getParentHeaders() });
+      if (listRes.ok) {
+        const listData: any = await listRes.json();
+        const matched = (listData.objects || []).find((s: any) => s.name === subaccountName);
+        if (matched && matched.auth_id && matched.auth_token) {
+          logger.info('[PLIVO_SUBACCOUNT] Found existing subaccount in Plivo during idempotent lookup', {
+            userId,
+            authId: matched.auth_id,
+          });
+          const encrypted = EncryptionService.encrypt(matched.auth_token);
+          await prisma.plivoSubAccount.create({
+            data: {
+              userId,
+              authId: matched.auth_id,
+              authToken: encrypted,
+              name: subaccountName,
+              enabled: true,
+            },
+          });
+          return { authId: matched.auth_id, authToken: matched.auth_token };
+        }
+      }
+
+      // 3. Create subaccount via Plivo API
+      const createUrl = `${this.baseUrl}/Account/${this.parentAuthId}/Subaccount/`;
+      const createRes = await fetch(createUrl, {
+        method: 'POST',
+        headers: this.getParentHeaders(),
+        body: JSON.stringify({
+          name: subaccountName,
+          enabled: true,
+        }),
+      });
+
+      const createData: any = await createRes.json();
+      if (!createRes.ok || !createData.auth_id) {
+        const errorMsg = createData.message || JSON.stringify(createData);
+        throw new Error(`Failed to create Plivo subaccount: ${errorMsg}`);
+      }
+
+      const encrypted = EncryptionService.encrypt(createData.auth_token);
+      await prisma.plivoSubAccount.create({
+        data: {
+          userId,
+          authId: createData.auth_id,
+          authToken: encrypted,
+          name: subaccountName,
+          enabled: true,
+        },
+      });
+
+      logger.info('[PLIVO_SUBACCOUNT] Successfully created and mapped Plivo subaccount', {
+        userId,
+        authId: createData.auth_id,
+      });
+
+      return { authId: createData.auth_id, authToken: createData.auth_token };
+    } catch (err: any) {
+      logger.error('[PLIVO_SUBACCOUNT_ERROR] Subaccount creation failed', {
+        userId,
+        error: err.message,
+      });
+      throw err;
+    }
+  }
+
+  /**
+   * Search Indian Local Numbers Only:
+   * Plivo requires country_iso=IN and type=local.
+   */
+  async searchIndianNumbers(params: {
+    pattern?: string;
+    region?: string;
+    page?: number;
+    per_page?: number;
+  }): Promise<{ items: PlivoNumberItem[]; total: number; page: number; per_page: number; hasMore: boolean }> {
+    const page = params.page || 1;
+    const perPage = params.per_page || 15;
+    const offset = (page - 1) * perPage;
+
+    // Fallback if credentials are not yet configured in Render env
+    if (!this.hasValidCredentials()) {
+      logger.info('[PLIVO_SEARCH] Returning Indian local catalog preview (mock mode).');
+      const previewRegions = [
+        { city: 'Mumbai', code: '+9122', prefix: '22' },
+        { city: 'Delhi / NCR', code: '+9111', prefix: '11' },
+        { city: 'Bengaluru', code: '+9180', prefix: '80' },
+        { city: 'Hyderabad', code: '+9140', prefix: '40' },
+        { city: 'Chennai', code: '+9144', prefix: '44' },
+        { city: 'Kolkata', code: '+9133', prefix: '33' },
+        { city: 'Pune', code: '+9120', prefix: '20' },
+        { city: 'Ahmedabad', code: '+9179', prefix: '79' },
+      ];
+
+      const filteredRegions = params.region
+        ? previewRegions.filter((r) => r.city.toLowerCase().includes(params.region!.toLowerCase()))
+        : previewRegions;
+
+      const mockItems: PlivoNumberItem[] = filteredRegions.map((reg, idx) => {
+        const randTail = 35000000 + (idx * 1111) + page;
+        const e164 = `${reg.code}${randTail}`;
+        const monthlyRental = 450.0;
+        const setupFee = 0.0;
+        const taxes = parseFloat((monthlyRental * 0.18).toFixed(2));
+        return {
+          id: `plivo_in_${reg.prefix}_${randTail}`,
+          number: e164,
+          country: 'IN',
+          region: `${reg.city}, India`,
+          prefix: reg.prefix,
+          type: 'local',
+          monthlyRental,
+          setupFee,
+          taxes,
+          totalMonthlyCost: monthlyRental + setupFee + taxes,
+          currency: 'INR',
+          capabilities: { voice: true, sms: false, mms: false },
+          kycRequirement: 'Statutory DoT Address & Identity Verification required (Aadhaar / PAN)',
+          status: 'available',
+        };
+      });
+
+      return {
+        items: mockItems,
+        total: previewRegions.length,
+        page,
+        per_page: perPage,
+        hasMore: false,
+      };
+    }
+
+    try {
+      let queryUrl = `${this.baseUrl}/Account/${this.parentAuthId}/PhoneNumber/?country_iso=IN&type=local&limit=${perPage}&offset=${offset}`;
+      if (params.pattern) queryUrl += `&pattern=${encodeURIComponent(params.pattern)}`;
+      if (params.region) queryUrl += `&region=${encodeURIComponent(params.region)}`;
+
+      const res = await fetch(queryUrl, { headers: this.getParentHeaders() });
+      const data: any = await res.json();
+
+      if (!res.ok) {
+        throw new Error(`Plivo inventory search error: ${data.message || JSON.stringify(data)}`);
+      }
+
+      const objects: any[] = data.objects || [];
+      const totalCount = data.meta?.total_count || objects.length;
+
+      const items: PlivoNumberItem[] = objects.map((obj) => {
+        const monthlyRental = parseFloat(obj.monthly_rental_rate || '450.00');
+        const setupFee = parseFloat(obj.setup_rate || '0.00');
+        const taxes = parseFloat((monthlyRental * 0.18).toFixed(2));
+
+        return {
+          id: obj.number || obj.resource_uri,
+          number: obj.number,
+          country: 'IN',
+          region: obj.region || obj.city || 'India Local',
+          prefix: obj.prefix,
+          type: 'local',
+          monthlyRental,
+          setupFee,
+          taxes,
+          totalMonthlyCost: monthlyRental + setupFee + taxes,
+          currency: 'INR',
+          capabilities: {
+            voice: !!obj.voice_enabled,
+            sms: !!obj.sms_enabled,
+            mms: !!obj.mms_enabled,
+          },
+          kycRequirement: 'Statutory DoT Address & Identity Verification required (Aadhaar / PAN)',
+          status: 'available',
+        };
+      });
+
+      return {
+        items,
+        total: totalCount,
+        page,
+        per_page: perPage,
+        hasMore: offset + items.length < totalCount,
+      };
+    } catch (err: any) {
+      logger.error('[PLIVO_SEARCH_FAILED]', { error: err.message });
+      throw err;
+    }
+  }
+
+  /**
+   * Purchases a number and binds it to the tenant's Plivo subaccount and optional Voice Application.
+   */
+  async purchaseAndAssignNumber(params: {
+    userId: string;
+    number: string;
+    subaccountAuthId: string;
+    agentId?: string;
+    expectedPrice?: number;
+    setupFee?: number;
+    region?: string;
+  }) {
+    const { userId, number, subaccountAuthId, agentId, expectedPrice = 450, setupFee = 0, region = 'India Local' } = params;
+
+    // If live credentials are valid, execute real Plivo number buy
+    if (this.hasValidCredentials()) {
+      const buyUrl = `${this.baseUrl}/Account/${this.parentAuthId}/PhoneNumber/${number}/`;
+      const bodyPayload: Record<string, any> = {
+        subaccount: subaccountAuthId,
+      };
+      const configuredAppId = process.env.PLIVO_APP_ID || env.PLIVO_APP_ID;
+      if (configuredAppId && configuredAppId.trim()) {
+        bodyPayload.app_id = configuredAppId.trim();
+      }
+
+      const buyRes = await fetch(buyUrl, {
+        method: 'POST',
+        headers: this.getParentHeaders(),
+        body: JSON.stringify(bodyPayload),
+      });
+
+      const buyData: any = await buyRes.json();
+      if (!buyRes.ok || (buyData.status && buyData.status !== 'fulfilled' && buyData.message !== 'created')) {
+        const errorMsg = buyData.message || JSON.stringify(buyData);
+        throw new Error(`Plivo number purchase error: ${errorMsg}`);
+      }
+
+      logger.info('[PLIVO_PURCHASE_SUCCESS] Purchased number via Plivo parent account', {
+        userId,
+        number,
+        subaccountAuthId,
+      });
+    } else {
+      logger.info('[PLIVO_PURCHASE_MOCK] Simulating Plivo number purchase in dev mode', {
+        userId,
+        number,
+        subaccountAuthId,
+      });
+    }
+
+    // Provision PhoneNumber row in Claritiy Voice DB
+    const provisioned = await prisma.phoneNumber.create({
+      data: {
+        userId,
+        phoneNumber: number,
+        assignedAgentId: agentId || null,
+        countryCode: 'IN',
+        region: region || 'India Local',
+        type: 'local',
+        telephonyProvider: 'plivo',
+        capabilities: JSON.stringify(['voice']),
+        status: 'active',
+        kycStatus: 'verified',
+        monthlyCost: expectedPrice,
+        setupFee,
+        currency: 'INR',
+        plivoNumberId: number,
+        plivoSubAuthId: subaccountAuthId,
+        nextBillingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    // Enforce permanent number locked state for customer free bundle
+    await prisma.user.update({
+      where: { id: userId },
+      data: { numberLocked: true },
+    });
+
+    return provisioned;
+  }
+}

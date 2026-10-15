@@ -13,6 +13,7 @@ import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
 
 import { requireActivePlan } from '../middleware/planValidation';
 import { checkRequiredKycDocumentsVerified } from '../services/KycVerificationService';
+import { PlivoService } from '../core/telephony/PlivoService';
 
 export { checkRequiredKycDocumentsVerified };
 
@@ -979,6 +980,252 @@ router.post('/:id/calling-config', requireAuth, requireEditor, sensitiveOperatio
   } catch (err: any) {
     logger.error('Numbers: failed to update calling config', { error: String(err) });
     res.status(400).json({ success: false, error: err.message || 'Failed to update calling configuration' });
+  }
+});
+
+// ─────────────────────────────────────────────
+// PLIVO TELEPHONY INTEGRATION (INDIAN NUMBERS)
+// ─────────────────────────────────────────────
+
+/**
+ * POST /api/v2/numbers/plivo/onboard
+ * Automatically creates and maps a Plivo subaccount for the workspace when the customer
+ * first initiates Plivo onboarding. Retry-safe & idempotent.
+ * Never exposes tokens to the browser.
+ */
+router.post('/plivo/onboard', requireAuth, sensitiveOperationsLimiter, async (req, res, next) => {
+  try {
+    const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      res.status(404).json({ success: false, error: 'User not found' });
+      return;
+    }
+
+    const plivoService = new PlivoService();
+    const subaccount = await plivoService.getOrCreateSubaccount(userId, user.fullName || user.email);
+
+    res.json({
+      success: true,
+      data: {
+        subaccountMapped: true,
+        authId: subaccount.authId, // Safe to return subaccount identifier (not secret token)
+        message: 'Plivo workspace subaccount ready for number provisioning.',
+      },
+    });
+  } catch (err: any) {
+    logger.error('[PLIVO_ONBOARD_ERROR] Failed to map subaccount', { error: err.message });
+    res.status(500).json({ success: false, error: err.message || 'Failed to onboard Plivo subaccount' });
+  }
+});
+
+/**
+ * GET /api/v2/numbers/plivo/search
+ * Browses available Indian local numbers (+91).
+ * Gated strictly to Indian local numbers (no US or unsupported toll-free).
+ */
+router.get('/plivo/search', requireAuth, async (req, res, next) => {
+  try {
+    const { pattern, region, page = '1', per_page = '15' } = req.query;
+    const pageNum = parseInt(page as string, 10) || 1;
+    const perPageNum = parseInt(per_page as string, 10) || 15;
+
+    const plivoService = new PlivoService();
+    const result = await plivoService.searchIndianNumbers({
+      pattern: pattern as string,
+      region: region as string,
+      page: pageNum,
+      per_page: perPageNum,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        results: result.items,
+        total: result.total,
+        page: result.page,
+        per_page: result.per_page,
+        hasMore: result.hasMore,
+        provider: 'plivo',
+        country: 'IN',
+      },
+    });
+  } catch (err: any) {
+    logger.error('[PLIVO_SEARCH_ROUTE_ERROR]', { error: err.message });
+    res.status(502).json({ success: false, error: err.message || 'Failed to search Plivo Indian numbers' });
+  }
+});
+
+/**
+ * POST /api/v2/numbers/plivo/claim
+ * Claims an Indian local Plivo number as the 1 free bundled number included with plan.
+ * Body: { number, region?, agentId? }
+ */
+router.post('/plivo/claim', requireAuth, requireEditor, requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
+  const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
+  const { number, region, agentId } = req.body;
+
+  if (!number) {
+    res.status(400).json({ success: false, error: 'Phone number is required.' });
+    return;
+  }
+
+  // 1. Guard check: number locked
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    res.status(401).json({ success: false, error: 'User not found' });
+    return;
+  }
+  if (user.numberLocked) {
+    res.status(403).json({
+      success: false,
+      error: 'Phone number selection is locked for your account. You have already claimed your 1 free bundled phone number.',
+      numberLocked: true,
+    });
+    return;
+  }
+
+  // 2. KYC verification gate
+  const kycCheck = await checkRequiredKycDocumentsVerified(userId);
+  if (!kycCheck.verified) {
+    res.status(403).json({
+      success: false,
+      error: kycCheck.error,
+      kycRequired: true,
+      missing: kycCheck.missing,
+      actionUrl: '/settings',
+    });
+    return;
+  }
+
+  try {
+    // 3. Ensure Plivo Subaccount is provisioned
+    const plivoService = new PlivoService();
+    const subaccount = await plivoService.getOrCreateSubaccount(userId, user.fullName || user.email);
+
+    // 4. Purchase and assign number to subaccount
+    const provisioned = await plivoService.purchaseAndAssignNumber({
+      userId,
+      number,
+      subaccountAuthId: subaccount.authId,
+      agentId,
+      region: region || 'India Local',
+      expectedPrice: 450,
+    });
+
+    await logAuditEvent({
+      workspaceOwnerId: userId,
+      actorUserId: (req as any).userId,
+      action: 'number.purchased',
+      targetId: provisioned.id,
+      metadata: { provider: 'plivo', phoneNumber: number, subaccountAuthId: subaccount.authId },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        message: 'Plivo Indian number successfully provisioned and assigned.',
+        phoneNumberId: provisioned.id,
+        number: provisioned.phoneNumber,
+        status: 'Active',
+        provider: 'plivo',
+        monthlyCost: provisioned.monthlyCost,
+        currency: provisioned.currency,
+        numberLocked: true,
+      },
+    });
+  } catch (err: any) {
+    logger.error('[PLIVO_CLAIM_ERROR]', { error: err.message, stack: err.stack });
+    res.status(500).json({ success: false, error: err.message || 'Failed to claim Plivo number' });
+  }
+});
+
+/**
+ * POST /api/v2/numbers/plivo/purchase
+ * Paid purchase with Razorpay verified payment.
+ * Body: { number, region?, expectedPrice, orderId, paymentId, signature, agentId? }
+ */
+router.post('/plivo/purchase', requireAuth, requireEditor, requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
+  const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
+  const { number, region, expectedPrice, orderId, paymentId, signature, agentId } = req.body;
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    res.status(401).json({ success: false, error: 'User not found' });
+    return;
+  }
+  if (user.numberLocked) {
+    res.status(403).json({
+      success: false,
+      error: 'Phone number selection is locked for your account.',
+      numberLocked: true,
+    });
+    return;
+  }
+
+  // Gate on KYC
+  const kycCheck = await checkRequiredKycDocumentsVerified(userId);
+  if (!kycCheck.verified) {
+    res.status(403).json({
+      success: false,
+      error: kycCheck.error,
+      kycRequired: true,
+      missing: kycCheck.missing,
+      actionUrl: '/settings',
+    });
+    return;
+  }
+
+  if (!number || expectedPrice === undefined || !orderId || !paymentId || !signature) {
+    res.status(400).json({ success: false, error: 'Missing required purchase fields.' });
+    return;
+  }
+
+  // Verify Razorpay payment signature
+  const billingService = new BillingService();
+  const isValid = billingService.verifyPayment(orderId, paymentId, signature);
+  if (!isValid) {
+    res.status(400).json({ success: false, error: 'Payment verification failed. No charge was made.' });
+    return;
+  }
+
+  try {
+    const plivoService = new PlivoService();
+    const subaccount = await plivoService.getOrCreateSubaccount(userId, user.fullName || user.email);
+
+    const provisioned = await plivoService.purchaseAndAssignNumber({
+      userId,
+      number,
+      subaccountAuthId: subaccount.authId,
+      agentId,
+      region: region || 'India Local',
+      expectedPrice,
+    });
+
+    await logAuditEvent({
+      workspaceOwnerId: userId,
+      actorUserId: (req as any).userId,
+      action: 'number.purchased',
+      targetId: provisioned.id,
+      metadata: { provider: 'plivo', phoneNumber: number, orderId, paymentId },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        message: 'Plivo Indian number successfully purchased and assigned.',
+        phoneNumberId: provisioned.id,
+        number: provisioned.phoneNumber,
+        status: 'Active',
+        provider: 'plivo',
+        monthlyCost: provisioned.monthlyCost,
+        currency: provisioned.currency,
+        numberLocked: true,
+      },
+    });
+  } catch (err: any) {
+    logger.error('[PLIVO_PURCHASE_ERROR]', { error: err.message });
+    res.status(500).json({ success: false, error: err.message || 'Failed to complete Plivo number purchase' });
   }
 });
 

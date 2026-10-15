@@ -62,6 +62,13 @@ const envSchema = z.object({
 
   VOBIZ_WEBHOOK_SECRET: z.string().trim().optional(),
 
+  // ── Plivo Telephony ────────────────────────
+  PLIVO_AUTH_ID: z.string().trim().default(''),
+
+  PLIVO_AUTH_TOKEN: z.string().trim().default(''),
+
+  PLIVO_APP_ID: z.string().trim().default(''),
+
   // ── OpenAI ──────────────────────────────────
   OPENAI_API_KEY: z.string().trim().optional(),
 

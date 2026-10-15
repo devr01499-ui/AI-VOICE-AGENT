@@ -1,5 +1,13 @@
 # CHANGELOG
 
+- Plivo Multi-Provider Telephony Integration (Indian Local Numbers):
+  - **Zero-Impact Decoupled Architecture (`VobizService.ts`, `PlivoService.ts`)**: Preserved 100% of the existing Vobiz telephony integration, call routing, and number provisioning flows without modification. Introduced `PlivoService` as an independent secondary provider.
+  - **Tenant Subaccount Isolation (`server/prisma/schema.prisma`)**: Added `PlivoSubAccount` model and mapped workspaces 1:1 to isolated Plivo subaccounts. Subaccount tokens are encrypted at rest with AES-256-GCM via `EncryptionService`. Subaccount creation is idempotent and lazy-initialized upon customer's first Plivo onboarding.
+  - **Indian Local Numbers API (`server/src/routes/numbers.ts`)**: Added `/api/v2/numbers/plivo/onboard`, `/search`, `/claim`, and `/purchase` endpoints, strictly scoped to Indian local (+91) numbers with transparent itemization of monthly rental (₹450), 18% GST (₹81), and setup fees.
+  - **Upgraded Buy Number UI (`NumberSearchAndPurchase.tsx`)**: Added a top-level provider selector (Vobiz Network vs Plivo Carrier), Indian city/region filters, capability indicators, cost transparency breakdowns, and statutory DoT KYC requirement badges.
+  - **Cloud Infrastructure Alignment (`render.yaml`, `server/.env.example`)**: Added `PLIVO_AUTH_ID`, `PLIVO_AUTH_TOKEN`, and `PLIVO_APP_ID` environment variables for Render deployments.
+  - **Architecture Decision Record (`ARCHITECTURE_DECISIONS.md`)**: Codified ADR-013 documenting subaccount isolation, parent billing consolidation, and Indian regulatory compliance.
+
 - Critical Billing Fix: Permanent Elimination of "No key passed" Checkout Error:
   - **Authoritative Key & Order Propagation (`BillingService.ts`, `routes/billing.ts`)**: `BillingService.createPlanPurchaseOrder` and `createNumberPurchaseOrder` now explicitly inject `keyId`, `key`, `orderId`, and `id` into order responses. This ensures client-side Razorpay options receive the valid publishable key (`rzp_test_TO7mXkVkl4AFCy`) regardless of environment variables.
   - **Defensive Multi-Layer Client Key Resolution (`Pricing.tsx`, `App.tsx`)**: In `Pricing.tsx` and `App.tsx`, Razorpay options now resolve through a bulletproof hierarchy: `orderData.data.keyId` -> `orderData.data.key` -> `import.meta.env.VITE_RAZORPAY_KEY_ID` -> authoritative platform key fallback. This permanently prevents `options.key` from evaluating to `undefined` and completely eliminates the Razorpay checkout `No key passed` crash.

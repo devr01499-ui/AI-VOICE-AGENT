@@ -34,3 +34,9 @@ services:
         sync: false
       - key: VOBIZ_API_URL
         sync: false
+      - key: PLIVO_AUTH_ID
+        sync: false
+      - key: PLIVO_AUTH_TOKEN
+        sync: false
+      - key: PLIVO_APP_ID
+        sync: false

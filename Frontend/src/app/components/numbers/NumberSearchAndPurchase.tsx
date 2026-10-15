@@ -29,6 +29,9 @@ interface CarrierPhoneNumber {
   currency: string;
   capabilities?: { voice?: boolean; sms?: boolean; fax?: boolean };
   aadhaar_verification_required?: boolean;
+  taxes?: number;
+  kyc_requirement?: string;
+  provider?: 'vobiz' | 'plivo';
 }
 
 interface AgentOption {
@@ -65,6 +68,11 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
   const [accountKycStatus, setAccountKycStatus] = useState<string>('none');
   const [isKycVerified, setIsKycVerified] = useState<boolean>(false);
   const [isKycBlocked, setIsKycBlocked] = useState<boolean>(false);
+
+  // Provider Selection State ('vobiz' | 'plivo')
+  const [provider, setProvider] = useState<'vobiz' | 'plivo'>('vobiz');
+  const [plivoRegion, setPlivoRegion] = useState('');
+  const [plivoSubaccountMapped, setPlivoSubaccountMapped] = useState(false);
 
   // Filters
   const [selectedCountry, setSelectedCountry] = useState('IN');
@@ -155,7 +163,31 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
     fetchAgents();
   }, []);
 
-  const handleSearch = useCallback(async (country: string, type: string, targetPage: number = 1, append: boolean = false) => {
+  // Trigger Plivo subaccount onboarding transparently in background
+  const triggerPlivoOnboard = useCallback(async () => {
+    try {
+      const apiBase = getRuntimeUrl();
+      const res = await fetch(`${apiBase}/api/v2/numbers/plivo/onboard`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPlivoSubaccountMapped(true);
+      }
+    } catch {
+      // Non-critical background call
+    }
+  }, []);
+
+  const handleSearch = useCallback(async (
+    country: string,
+    type: string,
+    targetPage: number = 1,
+    append: boolean = false,
+    activeProvider: 'vobiz' | 'plivo' = provider,
+    regionFilter: string = plivoRegion
+  ) => {
     if (append) {
       setLoadingMore(true);
     } else {
@@ -164,34 +196,85 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
     setError(null);
 
     try {
-      const qParams = new URLSearchParams({
-        country,
-        type,
-        page: targetPage.toString(),
-        per_page: '15',
-      });
-
       const apiBase = getRuntimeUrl();
-      const res = await fetch(`${apiBase}/api/v2/numbers/search?${qParams}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
-      });
-      const data = await res.json();
 
-      if (!data.success) throw new Error(data.error || 'Failed to fetch available numbers');
+      if (activeProvider === 'plivo') {
+        const qParams = new URLSearchParams({
+          page: targetPage.toString(),
+          per_page: '15',
+        });
+        if (regionFilter && regionFilter !== 'all') {
+          qParams.append('region', regionFilter);
+        }
 
-      const items: CarrierPhoneNumber[] = data.data.results || [];
-      const total = data.data.total || items.length;
-      const moreAvailable = data.data.hasMore ?? (items.length === 15);
+        const res = await fetch(`${apiBase}/api/v2/numbers/plivo/search?${qParams}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+        });
+        const data = await res.json();
 
-      if (append) {
-        setResults((prev) => [...prev, ...items]);
+        if (!data.success) throw new Error(data.error || 'Failed to fetch Plivo Indian numbers');
+
+        const items: CarrierPhoneNumber[] = (data.data.results || []).map((p: any) => ({
+          id: p.id || p.number,
+          e164: p.number,
+          country: 'India',
+          region: p.region,
+          status: p.status || 'available',
+          setup_fee: p.setupFee || 0,
+          monthly_fee: p.monthlyRental || 450,
+          currency: p.currency || 'INR',
+          taxes: p.taxes || 81,
+          kyc_requirement: p.kycRequirement || 'Identity & Address Proof required',
+          capabilities: p.capabilities || { voice: true, sms: false, fax: false },
+          aadhaar_verification_required: true,
+          provider: 'plivo',
+        }));
+
+        const total = data.data.total || items.length;
+        const moreAvailable = data.data.hasMore ?? (items.length === 15);
+
+        if (append) {
+          setResults((prev) => [...prev, ...items]);
+        } else {
+          setResults(items);
+        }
+
+        setTotalCount(total);
+        setPage(targetPage);
+        setHasMore(moreAvailable);
       } else {
-        setResults(items);
-      }
+        // Vobiz Flow — 100% UNCHANGED
+        const qParams = new URLSearchParams({
+          country,
+          type,
+          page: targetPage.toString(),
+          per_page: '15',
+        });
 
-      setTotalCount(total);
-      setPage(targetPage);
-      setHasMore(moreAvailable);
+        const res = await fetch(`${apiBase}/api/v2/numbers/search?${qParams}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+        });
+        const data = await res.json();
+
+        if (!data.success) throw new Error(data.error || 'Failed to fetch available numbers');
+
+        const items: CarrierPhoneNumber[] = (data.data.results || []).map((v: any) => ({
+          ...v,
+          provider: 'vobiz',
+        }));
+        const total = data.data.total || items.length;
+        const moreAvailable = data.data.hasMore ?? (items.length === 15);
+
+        if (append) {
+          setResults((prev) => [...prev, ...items]);
+        } else {
+          setResults(items);
+        }
+
+        setTotalCount(total);
+        setPage(targetPage);
+        setHasMore(moreAvailable);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Search failed. Please try again.');
       if (!append) setResults([]);
@@ -199,11 +282,35 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
       setLoading(false);
       setLoadingMore(false);
     }
-  }, []);
+  }, [provider, plivoRegion]);
+
+  const handleProviderChange = (newProvider: 'vobiz' | 'plivo') => {
+    if (newProvider === provider) return;
+    setProvider(newProvider);
+    setSelectedNumber(null);
+    setConfirmedWarning(false);
+    setResults([]);
+    setPage(1);
+
+    if (newProvider === 'plivo') {
+      setSelectedCountry('IN');
+      setSelectedType('local');
+      triggerPlivoOnboard();
+      handleSearch('IN', 'local', 1, false, 'plivo', plivoRegion);
+    } else {
+      handleSearch(selectedCountry, selectedType, 1, false, 'vobiz', '');
+    }
+  };
+
+  const handlePlivoRegionFilter = (region: string) => {
+    setPlivoRegion(region);
+    setPage(1);
+    handleSearch('IN', 'local', 1, false, 'plivo', region);
+  };
 
   useEffect(() => {
     if (!numberLocked) {
-      handleSearch(selectedCountry, selectedType, 1, false);
+      handleSearch(selectedCountry, selectedType, 1, false, provider, plivoRegion);
     }
   }, [selectedCountry, selectedType, numberLocked, handleSearch]);
 
@@ -226,16 +333,30 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
 
     try {
       const apiBase = getRuntimeUrl();
-      const res = await fetch(`${apiBase}/api/v2/numbers/claim`, {
+      const isPlivo = selectedNumber.provider === 'plivo' || provider === 'plivo';
+
+      const endpoint = isPlivo
+        ? `${apiBase}/api/v2/numbers/plivo/claim`
+        : `${apiBase}/api/v2/numbers/claim`;
+
+      const reqBody = isPlivo
+        ? {
+            number: selectedNumber.e164,
+            region: selectedNumber.region,
+            agentId: selectedAgentId || undefined,
+          }
+        : {
+            vobizNumberId: selectedNumber.id,
+            agentId: selectedAgentId || undefined,
+          };
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
         },
-        body: JSON.stringify({
-          vobizNumberId: selectedNumber.id,
-          agentId: selectedAgentId || undefined,
-        }),
+        body: JSON.stringify(reqBody),
       });
 
       const data = await res.json();
@@ -391,20 +512,57 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
 
           {/* Selected Number Card */}
           <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-emerald-500/10 rounded-3xl p-6 mb-6 border border-emerald-500/20">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/20 shrink-0">
                   <Phone className="w-6 h-6" />
                 </div>
                 <div>
                   <p className="font-mono text-2xl font-black text-gray-900 tracking-tight">{selectedNumber.e164}</p>
-                  <p className="text-xs font-semibold text-emerald-800 mt-0.5">{selectedNumber.region || selectedNumber.country} · {selectedNumber.country}</p>
+                  <p className="text-xs font-semibold text-emerald-800 mt-0.5">
+                    {selectedNumber.region || selectedNumber.country} · {selectedNumber.country}
+                    {selectedNumber.provider === 'plivo' && (
+                      <span className="ml-2 font-bold text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                        Plivo Subaccount
+                      </span>
+                    )}
+                  </p>
                 </div>
               </div>
               <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 bg-white/80 text-emerald-700 rounded-full border border-emerald-200">
                 Covered by Plan
               </span>
             </div>
+
+            {/* Provider-Specific Transparency Breakdown */}
+            {selectedNumber.provider === 'plivo' && (
+              <div className="pt-4 border-t border-emerald-500/10 space-y-2 text-xs">
+                <div className="flex justify-between text-gray-600">
+                  <span>Customer Monthly Rental:</span>
+                  <span className="font-bold text-gray-800">₹{selectedNumber.monthly_fee || 450}.00 / month</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span>Applicable Indian Taxes (18% GST):</span>
+                  <span className="font-bold text-gray-800">₹{selectedNumber.taxes || 81}.00</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span>Carrier Setup Fee:</span>
+                  <span className="font-bold text-emerald-700">₹{selectedNumber.setup_fee || 0}.00 (Waived)</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span>KYC Compliance:</span>
+                  <span className="font-semibold text-amber-700">DoT Statutory ID & Address Verification</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span>Activation Status:</span>
+                  <span className="font-bold text-emerald-700">Immediate Assignment upon Claim</span>
+                </div>
+                <div className="pt-2 border-t border-emerald-500/10 flex justify-between font-bold text-emerald-900">
+                  <span>Billed to Customer Today:</span>
+                  <span className="text-emerald-700 font-black">₹0 (Included in Platform Plan)</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Mandatory Permanent Lock Warning Box */}
@@ -523,6 +681,52 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
           </div>
         </div>
 
+        {/* Provider Selection Tabs */}
+        <div className="bg-white p-4 md:p-6 rounded-[28px] border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block mb-2">Telephony Provider</span>
+            <div className="flex items-center gap-2 p-1.5 bg-gray-100 rounded-2xl border border-gray-200/80 w-fit">
+              <button
+                type="button"
+                id="provider-vobiz-btn"
+                onClick={() => handleProviderChange('vobiz')}
+                className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  provider === 'vobiz'
+                    ? 'bg-white text-gray-900 shadow-sm border border-gray-200/60'
+                    : 'text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                <span>Vobiz Network</span>
+                <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-semibold">Standard</span>
+              </button>
+              <button
+                type="button"
+                id="provider-plivo-btn"
+                onClick={() => handleProviderChange('plivo')}
+                className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  provider === 'plivo'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                <span>Plivo Carrier</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${provider === 'plivo' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'}`}>
+                  India Local Only
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div className="text-xs text-gray-500 flex items-center gap-2 bg-gray-50 p-3.5 rounded-2xl border border-gray-100 max-w-md">
+            <Info className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>
+              {provider === 'plivo'
+                ? 'Plivo integration provisions Indian local (+91) numbers into dedicated, customer-isolated subaccounts with centralized parent billing.'
+                : 'Vobiz provides high-throughput SIP trunks and global voice routing. Unchanged and fully active.'}
+            </span>
+          </div>
+        </div>
+
         {/* KYC Account Verification Prompt Banner */}
         {!isKycVerified && (
           <div className="bg-amber-50 border border-amber-200 rounded-3xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -575,61 +779,97 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
             <SlidersHorizontal className="w-4 h-4 text-emerald-600" /> Filters
           </div>
 
-          {/* Country Dropdown */}
-          <div className="relative">
-            <button
-              id="country-picker-btn"
-              onClick={() => { setCountryOpen((o) => !o); setTypeOpen(false); }}
-              className="flex items-center gap-2.5 px-5 py-3 rounded-2xl border-2 border-gray-200 hover:border-emerald-500 bg-white text-sm font-bold text-gray-800 transition-colors shadow-sm"
-            >
-              <Globe className="w-4 h-4 text-emerald-600" />
-              <span>{currentCountry.flag} {currentCountry.name}</span>
-              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${countryOpen ? 'rotate-180' : ''}`} />
-            </button>
-            {countryOpen && (
-              <div className="absolute top-full left-0 mt-2 z-30 bg-white border border-gray-100 rounded-2xl shadow-xl p-2 min-w-[200px]">
-                {COUNTRIES.map((c) => (
-                  <button
-                    key={c.code}
-                    onClick={() => { setSelectedCountry(c.code); setCountryOpen(false); }}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-left transition-colors ${
-                      c.code === selectedCountry ? 'bg-emerald-50 text-emerald-700' : 'hover:bg-gray-50 text-gray-700'
-                    }`}
-                  >
-                    <span>{c.flag}</span>
-                    <span>{c.name}</span>
-                  </button>
-                ))}
+          {provider === 'plivo' ? (
+            /* Plivo-specific Filters: Locked to India Local Only + City Filter */
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border-2 border-emerald-500/30 bg-emerald-50/50 text-sm font-bold text-emerald-800 shadow-sm">
+                <span>🇮🇳 India (Local Only)</span>
               </div>
-            )}
-          </div>
 
-          {/* Type Dropdown */}
-          <div className="relative">
-            <button
-              id="type-picker-btn"
-              onClick={() => { setTypeOpen((o) => !o); setCountryOpen(false); }}
-              className="flex items-center gap-2.5 px-5 py-3 rounded-2xl border-2 border-gray-200 hover:border-emerald-500 bg-white text-sm font-bold text-gray-800 transition-colors shadow-sm"
-            >
-              <span>Type: {currentType.name}</span>
-              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${typeOpen ? 'rotate-180' : ''}`} />
-            </button>
-            {typeOpen && (
-              <div className="absolute top-full left-0 mt-2 z-30 bg-white border border-gray-100 rounded-2xl shadow-xl p-2 min-w-[180px]">
-                {NUMBER_TYPES.map((t) => (
+              {/* Plivo City/Region Quick Selector */}
+              <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-2xl border border-gray-200">
+                {[
+                  { label: 'All Cities', value: '' },
+                  { label: 'Bengaluru', value: 'Bengaluru' },
+                  { label: 'Mumbai', value: 'Mumbai' },
+                  { label: 'Delhi', value: 'Delhi' },
+                  { label: 'Hyderabad', value: 'Hyderabad' },
+                  { label: 'Chennai', value: 'Chennai' },
+                ].map((reg) => (
                   <button
-                    key={t.code}
-                    onClick={() => { setSelectedType(t.code); setTypeOpen(false); }}
-                    className={`w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-left transition-colors ${
-                      t.code === selectedType ? 'bg-emerald-50 text-emerald-700' : 'hover:bg-gray-50 text-gray-700'
+                    key={reg.label}
+                    onClick={() => handlePlivoRegionFilter(reg.value)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      plivoRegion === reg.value
+                        ? 'bg-white text-emerald-700 shadow-xs'
+                        : 'text-gray-500 hover:text-gray-900'
                     }`}
                   >
-                    <span>{t.name}</span>
+                    {reg.label}
                   </button>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            /* Existing Vobiz Country & Type Dropdowns - UNCHANGED */
+            <>
+              {/* Country Dropdown */}
+              <div className="relative">
+                <button
+                  id="country-picker-btn"
+                  onClick={() => { setCountryOpen((o) => !o); setTypeOpen(false); }}
+                  className="flex items-center gap-2.5 px-5 py-3 rounded-2xl border-2 border-gray-200 hover:border-emerald-500 bg-white text-sm font-bold text-gray-800 transition-colors shadow-sm"
+                >
+                  <Globe className="w-4 h-4 text-emerald-600" />
+                  <span>{currentCountry.flag} {currentCountry.name}</span>
+                  <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${countryOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {countryOpen && (
+                  <div className="absolute top-full left-0 mt-2 z-30 bg-white border border-gray-100 rounded-2xl shadow-xl p-2 min-w-[200px]">
+                    {COUNTRIES.map((c) => (
+                      <button
+                        key={c.code}
+                        onClick={() => { setSelectedCountry(c.code); setCountryOpen(false); }}
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-left transition-colors ${
+                          c.code === selectedCountry ? 'bg-emerald-50 text-emerald-700' : 'hover:bg-gray-50 text-gray-700'
+                        }`}
+                      >
+                        <span>{c.flag}</span>
+                        <span>{c.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Type Dropdown */}
+              <div className="relative">
+                <button
+                  id="type-picker-btn"
+                  onClick={() => { setTypeOpen((o) => !o); setCountryOpen(false); }}
+                  className="flex items-center gap-2.5 px-5 py-3 rounded-2xl border-2 border-gray-200 hover:border-emerald-500 bg-white text-sm font-bold text-gray-800 transition-colors shadow-sm"
+                >
+                  <span>Type: {currentType.name}</span>
+                  <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${typeOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {typeOpen && (
+                  <div className="absolute top-full left-0 mt-2 z-30 bg-white border border-gray-100 rounded-2xl shadow-xl p-2 min-w-[180px]">
+                    {NUMBER_TYPES.map((t) => (
+                      <button
+                        key={t.code}
+                        onClick={() => { setSelectedType(t.code); setTypeOpen(false); }}
+                        className={`w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-left transition-colors ${
+                          t.code === selectedType ? 'bg-emerald-50 text-emerald-700' : 'hover:bg-gray-50 text-gray-700'
+                        }`}
+                      >
+                        <span>{t.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Results Compact Table Layout */}
@@ -642,7 +882,9 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
               <Globe className="w-12 h-12 mx-auto mb-4 text-emerald-600/40" />
               <h3 className="text-lg font-bold text-gray-800 mb-1">No numbers found</h3>
               <p className="text-xs text-gray-400 max-w-md mx-auto">
-                No phone numbers match the selected criteria. Try changing your country or number type filters.
+                {provider === 'plivo'
+                  ? 'No Indian local numbers match your region filter. Try selecting "All Cities" or clearing filters.'
+                  : 'No phone numbers match the selected criteria. Try changing your country or number type filters.'}
               </p>
             </div>
           ) : (
@@ -653,9 +895,9 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50/50 text-gray-400 font-mono text-[11px] uppercase tracking-wider">
                       <th className="text-left px-6 py-4 font-bold">Phone Number</th>
-                      <th className="text-left px-5 py-4 font-bold">Region & Country</th>
+                      <th className="text-left px-5 py-4 font-bold">Region & Provider</th>
                       <th className="text-left px-5 py-4 font-bold">Capabilities</th>
-                      <th className="text-left px-5 py-4 font-bold">Rate / Plan</th>
+                      <th className="text-left px-5 py-4 font-bold">Customer Rate & Taxes</th>
                       <th className="text-left px-5 py-4 font-bold">Requirements</th>
                       <th className="text-right px-6 py-4 font-bold">Action</th>
                     </tr>
@@ -664,6 +906,7 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
                     {results.map((num, idx) => {
                       const isAadhaar = !!num.aadhaar_verification_required;
                       const caps = num.capabilities;
+                      const isPlivo = num.provider === 'plivo' || provider === 'plivo';
 
                       return (
                         <tr key={num.id || idx} className="hover:bg-emerald-50/30 transition-all">
@@ -672,7 +915,13 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
                           </td>
                           <td className="px-5 py-3.5 whitespace-nowrap">
                             <div className="text-xs font-semibold text-gray-700">{num.region || 'National'}</div>
-                            <div className="text-[10px] text-gray-400 font-mono">{num.country}</div>
+                            <div className="text-[10px] text-gray-400 font-mono flex items-center gap-1 mt-0.5">
+                              <span>{num.country}</span>
+                              <span>·</span>
+                              <span className={`font-semibold ${isPlivo ? 'text-emerald-700' : 'text-gray-500'}`}>
+                                {isPlivo ? 'Plivo Carrier' : 'Vobiz Network'}
+                              </span>
+                            </div>
                           </td>
                           <td className="px-5 py-3.5 whitespace-nowrap">
                             <div className="flex items-center gap-1.5">
@@ -685,11 +934,24 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
                             </div>
                           </td>
                           <td className="px-5 py-3.5 whitespace-nowrap">
-                            <div className="text-xs font-extrabold text-emerald-600">Included in Plan</div>
-                            <div className="text-[10px] text-gray-400">₹0 additional charge</div>
+                            {isPlivo ? (
+                              <div>
+                                <div className="text-xs font-extrabold text-emerald-600">Included in Plan</div>
+                                <div className="text-[10px] text-gray-500 font-medium">₹450/mo + ₹81 GST (Waived)</div>
+                              </div>
+                            ) : (
+                              <div>
+                                <div className="text-xs font-extrabold text-emerald-600">Included in Plan</div>
+                                <div className="text-[10px] text-gray-400">₹0 additional charge</div>
+                              </div>
+                            )}
                           </td>
                           <td className="px-5 py-3.5 whitespace-nowrap">
-                            {isAadhaar ? (
+                            {isPlivo ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                                <ShieldAlert className="w-3 h-3 text-amber-600" /> Statutory DoT KYC
+                              </span>
+                            ) : isAadhaar ? (
                               <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
                                 <ShieldAlert className="w-3 h-3 text-amber-600" /> Aadhaar KYC
                               </span>
@@ -700,7 +962,7 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
                             )}
                           </td>
                           <td className="px-6 py-3.5 whitespace-nowrap text-right">
-                            {isAadhaar && !isKycVerified ? (
+                            {(isAadhaar || isPlivo) && !isKycVerified ? (
                               <button
                                 onClick={handleTriggerKyc}
                                 className="px-4 py-2 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition-all shadow-sm flex items-center gap-1 ml-auto cursor-pointer"

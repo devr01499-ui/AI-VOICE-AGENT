@@ -138,4 +138,19 @@
 - **Rejected Alternative**: Relying on perimeter network firewalls or cloud VPC security groups alone without application-level SSRF defense. Reason: Cloud VPCs and edge firewalls do not inspect dynamic HTTP fetch destinations initiated by backend Node processes, and cannot prevent internal requests to `169.254.169.254` or container loopback ports without application-level DNS/IP validation.
 - **Consequences**: Claritiy Voice achieves zero open OWASP Top 10 vulnerabilities, complete immunity against SSRF and cloud metadata theft, sanitized production error reporting, A+ grade HTTP security headers, and automated continuous regression testing.
 
+## ADR-013: Plivo Multi-Provider Telephony Integration & Tenant-Isolated Subaccounts Architecture
+- **Status**: Accepted
+- **Context**: Customers require the capability to browse and purchase Indian local (+91) phone numbers with transparent monthly rental, setup fee, and 18% GST breakdowns directly within Claritiy Voice. The existing Vobiz provider integration is fully operational and must remain completely untouched. Plivo provides isolated subaccount capabilities under a parent account with centralized billing.
+- **Decision**:
+  1. Maintain complete decoupling: Vobiz routes, models, and services (`VobizService`, `VobizInventoryService`, `VobizPhoneNumberService`, `VobizSubAccount`) remain 100% unchanged.
+  2. Implement `PlivoService` (`server/src/core/telephony/PlivoService.ts`) for dedicated Plivo operations:
+     - Retry-safe, idempotent subaccount provisioning (`PlivoSubAccount` model) created lazily on customer's first Plivo onboarding interaction. Subaccount tokens are encrypted at rest with AES-256-GCM via `EncryptionService` and never exposed to the client.
+     - Indian local number search restricted strictly to `country_iso=IN` and `type=local` (excluding US numbers or unsupported toll-free).
+     - Parent account executes purchases and binds numbers to customer subaccounts (`subaccount: subaccountAuthId`) and application routing (`app_id: PLIVO_APP_ID`).
+  3. Frontend: Upgrade `NumberSearchAndPurchase.tsx` with a top-level provider selector (Vobiz Network vs Plivo Carrier) and detailed cost/tax/KYC transparency breakdown.
+  4. Environment: Add `PLIVO_AUTH_ID`, `PLIVO_AUTH_TOKEN`, and `PLIVO_APP_ID` to `render.yaml` and `.env.example`.
+- **Rejected Alternative**: Storing all customer numbers in a single shared Plivo master account without subaccount isolation. Reason: Subaccounts provide complete CDR, call log, recording, and tenant data segregation while keeping all financial charges centralized under the parent account.
+- **Consequences**: Zero risk to existing Vobiz numbers, seamless multi-provider coexistence, robust tenant isolation, and strict compliance with Indian DoT KYC requirements.
+
+
 
