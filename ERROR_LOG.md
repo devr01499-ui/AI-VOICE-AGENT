@@ -205,4 +205,15 @@ px prisma db push to bypass Supabase shadow DB auth schema error safely.
   7. Added root `"start": "npm run --prefix server start"` script to `package.json`.
 - **Prevention Rule**: Web service entrypoints must bind the HTTP listening socket before executing remote network calls or provider warmup routines. Cloud deployments must never block socket binding on external database or third-party API availability.
 
+## ERR-027: Missing `plivo_sub_accounts` Table in PostgreSQL Database
+- **Date**: 2026-10-15
+- **Symptom**: `Invalid prisma.plivoSubAccount.findUnique() invocation: The table public.plivo_sub_accounts does not exist in the current database.`
+- **Root Cause**: `PlivoSubAccount` model was added to `schema.prisma` and compiled into the TypeScript client via `prisma generate`, but the DDL table creation was not applied to the active PostgreSQL database (`aws-1-us-east-1.pooler.supabase.com`). Furthermore, `render.yaml` lacked a schema migration or `prisma db push` step in its build pipeline.
+- **Fix**:
+  1. Executed `npx prisma db push` directly to synchronize and create `public.plivo_sub_accounts` table and add `plivo_number_id`/`plivo_sub_auth_id` columns to `phone_numbers` in Supabase PostgreSQL.
+  2. Created versioned migration file `server/prisma/migrations/20261015195000_add_plivo_sub_accounts/migration.sql`.
+  3. Permanently updated `buildCommand` in `render.yaml` to: `npm install --include=dev && npx prisma generate && npx prisma db push --skip-generate && npm run build`.
+- **Prevention Rule**: Adding a new Prisma model requires both client generation (`prisma generate`) and database schema synchronization (`prisma db push` / `prisma migrate deploy`). Cloud build configurations must include automated schema migration to ensure runtime database tables always match the active codebase before the server boots.
+
+
 
