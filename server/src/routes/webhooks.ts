@@ -44,27 +44,27 @@ router.post('/vobiz/hangup', verifyVobizWebhook, CallController.handleVobizHangu
  */
 
 /**
- * POST /api/v2/webhooks/plivo/answer
- * Returns Plivo XML <Stream> directive to connect bidirectional audio to Claritiy Voice WebSocket engine.
+ * ALL /api/v2/webhooks/plivo/answer
+ * Returns Plivo XML <Stream> directive with clean WebSocket URL and extraHeaders.
  */
-router.post('/plivo/answer', CallController.handleVobizAnswer);
+router.all('/plivo/answer', CallController.handlePlivoAnswer);
 
 /**
- * POST /api/v2/webhooks/plivo/status
- * Plivo call status transitions: ringing, answered, etc.
+ * ALL /api/v2/webhooks/plivo/status
+ * Plivo call status transitions: ringing, answered, in-progress, etc.
  */
-router.post('/plivo/status', CallController.handleVobizStatus);
+router.all('/plivo/status', CallController.handlePlivoStatus);
 
 /**
- * POST /api/v2/webhooks/plivo/hangup
+ * ALL /api/v2/webhooks/plivo/hangup
  * Plivo call termination: triggers session cleanup, metrics, and transcript finalization.
  */
-router.post('/plivo/hangup', CallController.handleVobizHangup);
+router.all('/plivo/hangup', CallController.handlePlivoHangup);
 
 /**
- * POST /api/v2/webhooks/plivo/fallback
+ * ALL /api/v2/webhooks/plivo/fallback
  * Plivo fallback route if primary Answer URL encounters network timeout.
  */
-router.post('/plivo/fallback', CallController.handleVobizAnswer);
+router.all('/plivo/fallback', CallController.handlePlivoAnswer);
 
 export default router;

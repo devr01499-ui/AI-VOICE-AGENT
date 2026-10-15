@@ -267,11 +267,164 @@ export class CallController {
 
       const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Stream streamTimeout="1800" keepCallAlive="true" bidirectional="true" contentType="audio/x-l16;rate=16000" extraHeaders="callId=${encodeURIComponent(callId)};token=${encodeURIComponent(token)};ts=${ts}">${streamUrl}</Stream>
+  <Stream streamTimeout="1800" keepCallAlive="true" bidirectional="true" contentType="audio/x-l16;rate=16000"><![CDATA[${streamUrl}]]></Stream>
 </Response>`;
 
-      res.set('Content-Type', 'application/xml');
+      res.set('Content-Type', 'application/xml; charset=utf-8');
       res.send(xml);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * POST/GET /api/v2/webhooks/plivo/answer
+   *
+   * Dedicated Plivo answer webhook handler. Returns clean, valid Plivo XML
+   * with bidirectional streaming enabled and extraHeaders containing call session context.
+   */
+  static async handlePlivoAnswer(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const queryCallId = (req.query.callId || req.body?.callId) as string;
+      const requestUuid = (req.body?.RequestUUID || req.query.RequestUUID || req.body?.ALegRequestUUID || req.query.ALegRequestUUID) as string;
+      const callUuid = (req.body?.CallUUID || req.query.CallUUID) as string;
+      const alegUuid = (req.body?.ALegUUID || req.query.ALegUUID) as string;
+
+      logger.info('CallController: Plivo answer webhook received', {
+        method: req.method,
+        query: req.query,
+        body: req.body,
+      });
+
+      // Search database for active call session
+      let callSession = await prisma.call.findFirst({
+        where: {
+          OR: [
+            ...(queryCallId ? [{ id: queryCallId }] : []),
+            ...(requestUuid ? [{ telemetryId: requestUuid }] : []),
+            ...(callUuid ? [{ telemetryId: callUuid }] : []),
+            ...(alegUuid ? [{ telemetryId: alegUuid }] : []),
+          ],
+        },
+      });
+
+      if (!callSession) {
+        // Fallback: check most recently initiated call in last 5 minutes
+        callSession = await prisma.call.findFirst({
+          where: {
+            createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) },
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+      }
+
+      if (!callSession) {
+        logger.error('handlePlivoAnswer: Session mismatch — no call session found in DB', { queryCallId, requestUuid, callUuid });
+        res.set('Content-Type', 'application/xml; charset=utf-8');
+        res.status(200).send('<?xml version="1.0" encoding="UTF-8"?><Response><Speak>Session mismatch</Speak></Response>');
+        return;
+      }
+
+      const callId = callSession.id;
+
+      // Update call telemetryId with active CallUUID if provided
+      if (callUuid && callSession.telemetryId !== callUuid) {
+        await prisma.call.update({
+          where: { id: callId },
+          data: { telemetryId: callUuid },
+        }).catch(() => {});
+      }
+
+      await CallService.handleStatusUpdate(callId, 'answered');
+
+      const rawPublicUrl = (env.PUBLIC_URL || (req.headers.host ? `${req.protocol}://${req.headers.host}` : '')).replace(/\/+$/, '');
+      const wsUrl = rawPublicUrl.replace(/^http/, 'ws');
+      const secret = getWebhookSigningSecret();
+      const ts = Date.now();
+      const token = crypto.createHmac('sha256', secret).update(`${callId}:${ts}`).digest('hex');
+      const cleanWsEndpoint = `${wsUrl}/audio-stream`;
+
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/x-l16;rate=16000" extraHeaders="callId=${encodeURIComponent(callId)};token=${encodeURIComponent(token)};ts=${ts}">${cleanWsEndpoint}</Stream>
+</Response>`;
+
+      logger.info('CallController: Plivo answer webhook returning Stream XML', { callId, cleanWsEndpoint });
+
+      res.set('Content-Type', 'application/xml; charset=utf-8');
+      res.status(200).send(xml);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * POST/GET /api/v2/webhooks/plivo/status
+   */
+  static async handlePlivoStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const queryCallId = (req.query.callId || req.body?.callId) as string;
+      const requestUuid = (req.body?.RequestUUID || req.query.RequestUUID || req.body?.ALegRequestUUID || req.query.ALegRequestUUID) as string;
+      const callUuid = (req.body?.CallUUID || req.query.CallUUID) as string;
+      const callStatus = (req.body?.CallStatus || req.query.CallStatus || req.body?.Event || 'unknown') as string;
+
+      logger.info('CallController: Plivo status webhook', { query: req.query, body: req.body });
+
+      const callSession = await prisma.call.findFirst({
+        where: {
+          OR: [
+            ...(queryCallId ? [{ id: queryCallId }] : []),
+            ...(requestUuid ? [{ telemetryId: requestUuid }] : []),
+            ...(callUuid ? [{ telemetryId: callUuid }] : []),
+          ],
+        },
+      });
+
+      if (callSession) {
+        await CallService.handleStatusUpdate(callSession.id, callStatus);
+      }
+
+      res.json({ success: true });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * POST/GET /api/v2/webhooks/plivo/hangup
+   */
+  static async handlePlivoHangup(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const queryCallId = (req.query.callId || req.body?.callId) as string;
+      const requestUuid = (req.body?.RequestUUID || req.query.RequestUUID || req.body?.ALegRequestUUID || req.query.ALegRequestUUID) as string;
+      const callUuid = (req.body?.CallUUID || req.query.CallUUID) as string;
+      const duration = req.body?.Duration ? parseInt(req.body.Duration as string, 10) : (req.query.Duration ? parseInt(req.query.Duration as string, 10) : 0);
+
+      logger.info('CallController: Plivo hangup webhook', { query: req.query, body: req.body, duration });
+
+      const callSession = await prisma.call.findFirst({
+        where: {
+          OR: [
+            ...(queryCallId ? [{ id: queryCallId }] : []),
+            ...(requestUuid ? [{ telemetryId: requestUuid }] : []),
+            ...(callUuid ? [{ telemetryId: callUuid }] : []),
+          ],
+        },
+      });
+
+      if (callSession) {
+        const callId = callSession.id;
+        if (duration > 0) {
+          await prisma.call.update({
+            where: { id: callId },
+            data: { durationSeconds: duration },
+          }).catch(() => {});
+        }
+        await callOrchestrator.endCallSession(callId, 'user_hangup');
+      }
+
+      res.set('Content-Type', 'application/xml; charset=utf-8');
+      res.status(200).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
     } catch (err) {
       next(err);
     }

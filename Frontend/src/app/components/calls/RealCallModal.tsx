@@ -270,7 +270,11 @@ export function RealCallModal({
       await terminateCall(activeCallId);
       setCallStatus('completed');
     } catch (err: any) {
-      setErrorMessage('Failed to terminate call: ' + (err?.message || String(err)));
+      if (err?.message?.includes('terminal state') || err?.message?.includes('completed') || err?.message?.includes('already')) {
+        setCallStatus('completed');
+      } else {
+        setErrorMessage('Failed to terminate call: ' + (err?.message || String(err)));
+      }
     }
   };
 

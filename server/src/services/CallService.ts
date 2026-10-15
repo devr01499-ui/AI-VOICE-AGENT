@@ -313,10 +313,11 @@ export class CallService {
   static async terminateCall(callId: string): Promise<void> {
     const call = await CallRepository.findById(callId);
 
-    // Can't terminate a call that's already in a terminal state
+    // Idempotent: If call is already in terminal state, return gracefully
     const terminalStates: CallStatus[] = ['completed', 'failed', 'no_answer', 'busy', 'cancelled'];
     if (terminalStates.includes(call.status as CallStatus)) {
-      throw new CallError(callId, `Call is already in terminal state: ${call.status}`, 400);
+      logger.info('CallService: terminateCall called on already terminated call, returning idempotently', { callId, status: call.status });
+      return;
     }
 
     // End runtime session
