@@ -213,22 +213,55 @@ export class CallOrchestrator {
         } catch {}
       }
 
-      const providerName = 'vobiz';
-      const telephonyProvider = ProviderManager.instance.getProvider<any>(providerName);
+      // Determine provider from caller ID (Plivo vs Vobiz)
+      const cleanFromDigits = fromPhoneNumber.replace(/\D/g, '');
+      const fromVariants = Array.from(new Set([
+        fromPhoneNumber,
+        `+${cleanFromDigits}`,
+        cleanFromDigits,
+      ]));
 
-      const result = await telephonyProvider.initiateCall({
-        to: phoneNumber,
-        from: fromPhoneNumber,
-        answerUrl: `${publicUrl}/api/v2/webhooks/vobiz/answer?callId=${call.id}`,
-        ringUrl: `${publicUrl}/api/v2/webhooks/vobiz/status?callId=${call.id}`,
-        hangupUrl: `${publicUrl}/api/v2/webhooks/vobiz/hangup?callId=${call.id}`,
-        userId,
-        record,
+      const { prisma } = await import('../../lib/prisma');
+      const fromNumberRecord = await prisma.phoneNumber.findFirst({
+        where: { phoneNumber: { in: fromVariants } },
+        select: { telephonyProvider: true, plivoSubAuthId: true },
       });
 
-      if (result && result.requestUuid) {
-        await CallRepository.update(call.id, { telemetryId: result.requestUuid });
-        logger.info('CallOrchestrator: call telemetryId updated', { callId: call.id, requestUuid: result.requestUuid });
+      const isPlivo = fromNumberRecord?.telephonyProvider === 'plivo';
+
+      let result: any;
+      if (isPlivo) {
+        const { PlivoService } = await import('../telephony/PlivoService');
+        const plivo = new PlivoService();
+        result = await plivo.initiateCall({
+          to: phoneNumber,
+          from: fromPhoneNumber,
+          answerUrl: `${publicUrl}/api/v2/webhooks/plivo/answer?callId=${call.id}`,
+          ringUrl: `${publicUrl}/api/v2/webhooks/plivo/status?callId=${call.id}`,
+          hangupUrl: `${publicUrl}/api/v2/webhooks/plivo/hangup?callId=${call.id}`,
+          userId,
+          record,
+          subaccountAuthId: fromNumberRecord?.plivoSubAuthId || undefined,
+        });
+      } else {
+        const providerName = 'vobiz';
+        const telephonyProvider = ProviderManager.instance.getProvider<any>(providerName);
+
+        result = await telephonyProvider.initiateCall({
+          to: phoneNumber,
+          from: fromPhoneNumber,
+          answerUrl: `${publicUrl}/api/v2/webhooks/vobiz/answer?callId=${call.id}`,
+          ringUrl: `${publicUrl}/api/v2/webhooks/vobiz/status?callId=${call.id}`,
+          hangupUrl: `${publicUrl}/api/v2/webhooks/vobiz/hangup?callId=${call.id}`,
+          userId,
+          record,
+        });
+      }
+
+      const requestUuid = result?.requestUuid || result?.request_uuid;
+      if (requestUuid) {
+        await CallRepository.update(call.id, { telemetryId: requestUuid });
+        logger.info('CallOrchestrator: call telemetryId updated', { callId: call.id, requestUuid });
       }
 
       stateMachine.transitionTo('ringing');

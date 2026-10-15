@@ -361,4 +361,84 @@ export class PlivoService {
 
     return provisioned;
   }
+
+  /**
+   * Initiates an outbound phone call using Plivo Voice API.
+   * POST https://api.plivo.com/v1/Account/{auth_id}/Call/
+   */
+  async initiateCall(params: {
+    to: string;
+    from: string;
+    answerUrl: string;
+    hangupUrl?: string;
+    ringUrl?: string;
+    record?: boolean;
+    userId?: string;
+    subaccountAuthId?: string;
+  }): Promise<{ requestUuid: string }> {
+    const { to, from, answerUrl, hangupUrl, ringUrl } = params;
+
+    if (!this.hasValidCredentials()) {
+      logger.info('[PLIVO_OUTBOUND_MOCK] Simulating Plivo outbound call in dev mode', { to, from });
+      return { requestUuid: `plivo_mock_${Date.now()}` };
+    }
+
+    let authId = this.parentAuthId;
+    let authHeaders = this.getParentHeaders();
+
+    if (params.subaccountAuthId) {
+      const sub = await prisma.plivoSubAccount.findFirst({
+        where: { authId: params.subaccountAuthId },
+      });
+      if (sub && sub.authToken !== 'DIRECT_PARENT_ACCOUNT') {
+        authId = sub.authId;
+        const decryptedToken = EncryptionService.decrypt(sub.authToken);
+        const creds = Buffer.from(`${authId}:${decryptedToken}`).toString('base64');
+        authHeaders = {
+          'Authorization': `Basic ${creds}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'Claritiy-Voice/2.0',
+        };
+      }
+    }
+
+    const callEndpoint = `${this.baseUrl}/Account/${authId}/Call/`;
+    const payload: Record<string, any> = {
+      from,
+      to,
+      answer_url: answerUrl,
+      answer_method: 'POST',
+    };
+
+    if (hangupUrl) {
+      payload.hangup_url = hangupUrl;
+      payload.hangup_method = 'POST';
+    }
+
+    if (ringUrl) {
+      payload.ring_url = ringUrl;
+      payload.ring_method = 'POST';
+    }
+
+    logger.info('[PLIVO_OUTBOUND_CALL] Dispatching call via Plivo API', { endpoint: callEndpoint, from, to });
+
+    const response = await fetch(callEndpoint, {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify(payload),
+    });
+
+    const data: any = await response.json();
+    const requestUuid = data.request_uuid || (Array.isArray(data.request_uuid) ? data.request_uuid[0] : null);
+
+    if (!response.ok || !requestUuid) {
+      const errorMsg = data.message || JSON.stringify(data);
+      logger.error('[PLIVO_OUTBOUND_ERROR] Call initiation failed', { status: response.status, data });
+      throw new Error(`Plivo call initiation failed: ${errorMsg}`);
+    }
+
+    logger.info('[PLIVO_OUTBOUND_SUCCESS] Outbound call fired', { requestUuid });
+    return { requestUuid };
+  }
 }
+
