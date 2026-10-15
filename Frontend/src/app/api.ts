@@ -114,7 +114,9 @@ export interface ApiResponse<T> {
 export interface InitiateCallPayload {
   phoneNumber: string;
   agentId: string;
-  userId: string;
+  userId?: string;
+  fromPhoneNumber?: string;
+  record?: boolean;
   userData?: Record<string, unknown>;
   maxDuration?: number;
 }
@@ -450,6 +452,8 @@ export async function initiateCall(payload: InitiateCallPayload): Promise<ApiCal
       phoneNumber: payload.phoneNumber,
       agentId: payload.agentId,
       userId: payload.userId ?? DEV_USER_ID,
+      ...(payload.fromPhoneNumber ? { fromPhoneNumber: payload.fromPhoneNumber } : {}),
+      ...(payload.record !== undefined ? { record: payload.record } : {}),
       ...(payload.userData ? { userData: payload.userData } : {}),
       ...(payload.maxDuration ? { maxDuration: payload.maxDuration } : {}),
     }),

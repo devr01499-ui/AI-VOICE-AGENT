@@ -109,6 +109,7 @@ export class CallController {
         userData,
         maxDuration,
         fromPhoneNumber,
+        record: typeof body.record === 'boolean' ? body.record : (typeof body.isRecordingEnabled === 'boolean' ? body.isRecordingEnabled : undefined),
       });
 
       res.status(201).json({

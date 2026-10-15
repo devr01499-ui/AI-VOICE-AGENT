@@ -180,7 +180,8 @@ export class CallOrchestrator {
     agentId: string,
     userId: string,
     fromPhoneNumber: string,
-    maxDuration: number
+    maxDuration: number,
+    isRecordingEnabled?: boolean
   ): Promise<string> {
     // 1. Create Call database records
     const call = await CallRepository.create({
@@ -203,8 +204,8 @@ export class CallOrchestrator {
       }
 
       const agent = await AgentRepository.findById(agentId);
-      let record = true;
-      if (agent && agent.agentConfig) {
+      let record = isRecordingEnabled !== undefined ? isRecordingEnabled : true;
+      if (isRecordingEnabled === undefined && agent && agent.agentConfig) {
         try {
           const parsedConfig = JSON.parse(agent.agentConfig);
           if (typeof parsedConfig.isRecordingEnabled === 'boolean') {

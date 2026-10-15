@@ -22,6 +22,9 @@ const initiateCallSchema = z.object({
     .max(16, 'Phone number too long'),
   agentId: z.string().uuid('agentId must be a valid UUID'),
   userId: z.string().optional(),
+  fromPhoneNumber: z.string().optional(),
+  record: z.boolean().optional(),
+  isRecordingEnabled: z.boolean().optional(),
   userData: z.record(z.unknown()).optional(),
   maxDuration: z.number().int().min(30).max(7200).optional(),
 });

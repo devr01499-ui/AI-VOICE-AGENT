@@ -32,6 +32,7 @@ interface CreateCallInput {
   userData?: Record<string, unknown>;
   maxDuration?: number;
   fromPhoneNumber?: string;
+  record?: boolean;
 }
 
 // ─── Service Implementation ───────────────────────
@@ -227,7 +228,8 @@ export class CallService {
         agentId,
         userId,
         effectiveFromNumber,
-        maxDuration ?? 1800
+        maxDuration ?? 1800,
+        input.record
       );
 
       const call = await CallRepository.findById(callId);
@@ -321,9 +323,27 @@ export class CallService {
 
     // Terminate via telephony provider
     try {
-      await VobizService.terminateCall(call.telemetryId || call.id, call.userId);
+      const cleanFromDigits = (call.fromPhoneNumber || '').replace(/\D/g, '');
+      const fromVariants = Array.from(new Set([
+        call.fromPhoneNumber,
+        `+${cleanFromDigits}`,
+        cleanFromDigits,
+      ].filter(Boolean)));
+
+      const numberRecord = await prisma.phoneNumber.findFirst({
+        where: { phoneNumber: { in: fromVariants as string[] } },
+        select: { telephonyProvider: true }
+      });
+
+      if (numberRecord?.telephonyProvider === 'plivo') {
+        const { PlivoService } = await import('../core/telephony/PlivoService');
+        const plivo = new PlivoService();
+        await plivo.terminateCall(call.telemetryId || call.id);
+      } else {
+        await VobizService.terminateCall(call.telemetryId || call.id, call.userId);
+      }
     } catch (err) {
-      logger.warn('CallService: Vobiz termination failed (call may already be ended)', {
+      logger.warn('CallService: telephony termination failed (call may already be ended)', {
         callId,
         error: err instanceof Error ? err.message : String(err),
       });

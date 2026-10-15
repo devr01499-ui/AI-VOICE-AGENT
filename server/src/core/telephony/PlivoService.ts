@@ -440,5 +440,24 @@ export class PlivoService {
     logger.info('[PLIVO_OUTBOUND_SUCCESS] Outbound call fired', { requestUuid });
     return { requestUuid };
   }
+
+  /**
+   * Terminates an active Plivo call session immediately.
+   * DELETE https://api.plivo.com/v1/Account/{auth_id}/Call/{call_uuid}/
+   */
+  async terminateCall(callUuid: string): Promise<void> {
+    if (!this.hasValidCredentials() || !callUuid) return;
+    try {
+      const endpoint = `${this.baseUrl}/Account/${this.parentAuthId}/Call/${callUuid}/`;
+      const response = await fetch(endpoint, {
+        method: 'DELETE',
+        headers: this.getParentHeaders(),
+      });
+      logger.info('[PLIVO_TERMINATE_CALL]', { callUuid, status: response.status });
+    } catch (err: any) {
+      logger.warn('[PLIVO_TERMINATE_FAILED]', { callUuid, error: err.message });
+    }
+  }
 }
+
 

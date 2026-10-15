@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { PhoneCall, PhoneIncoming, PhoneOutgoing, Bot, CheckCircle2, AlertCircle, Clock, ShieldCheck, RefreshCw } from 'lucide-react';
 import { apiClient } from '../../api';
+import { RealCallModal } from '../calls/RealCallModal';
 
 interface CallingNumberConfig {
   id: string;
@@ -28,6 +29,7 @@ export function DashCallingConfig({ onNavigateToKyc }: { onNavigateToKyc?: () =>
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [realCallModal, setRealCallModal] = useState<{ open: boolean; agentId?: string; fromNumber?: string }>({ open: false });
 
   const loadData = async () => {
     setLoading(true);
@@ -197,6 +199,17 @@ export function DashCallingConfig({ onNavigateToKyc }: { onNavigateToKyc?: () =>
                   </div>
 
                   <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setRealCallModal({ 
+                        open: true, 
+                        fromNumber: item.phoneNumber, 
+                        agentId: item.assignedAgentId || item.inboundAgentId || undefined 
+                      })}
+                      className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <PhoneCall className="w-3.5 h-3.5" />
+                      <span>Test Call</span>
+                    </button>
                     {/* Status Badge */}
                     <div className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 ${item.inboundEnabled ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
                       <span className={`w-2 h-2 rounded-full ${item.inboundEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
@@ -290,6 +303,16 @@ export function DashCallingConfig({ onNavigateToKyc }: { onNavigateToKyc?: () =>
           })}
         </div>
       )}
+
+      <RealCallModal
+        open={realCallModal.open}
+        onClose={() => setRealCallModal({ open: false })}
+        initialAgentId={realCallModal.agentId}
+        initialFromNumber={realCallModal.fromNumber}
+        onNavigateToLiveMonitoring={() => {
+          window.dispatchEvent(new CustomEvent('navigate_section', { detail: 'live_monitoring' }));
+        }}
+      />
     </div>
   );
 }

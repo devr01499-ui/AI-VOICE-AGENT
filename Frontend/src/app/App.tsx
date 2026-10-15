@@ -45,6 +45,7 @@ import { DashAIQualityAssurance } from "./components/qa/DashAIQualityAssurance";
 import { DashAlerting } from "./components/alerting/DashAlerting";
 import { DashIntegrations } from "./components/integrations/DashIntegrations";
 import { KycComplianceSettings } from "./components/kyc/KycComplianceSettings";
+import { RealCallModal } from "./components/calls/RealCallModal";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 const Home = lazy(() => import("./pages/Home"));
@@ -1859,6 +1860,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
   const [searchQuery, setSearchQuery] = useState("");
   const [createType, setCreateType] = useState<"prompt"|"conversational">("prompt");
   const [detailTab, setDetailTab] = useState<"config"|"prompt"|"knowledge"|"calls">("config");
+  const [realCallModal, setRealCallModal] = useState<{ open: boolean; agentId?: string; fromNumber?: string }>({ open: false });
   const [form, setForm] = useState({name:"",lang:"EN",voice:"Aoede",model:"gemini-2.5-flash",systemPrompt:"",welcomeMsg:"",endPhrase:"goodbye",temperature:"0.7",maxTurns:"20",kb:[] as string[],steps:[{id:"s1",label:"Greet caller",cond:""},{id:"s2",label:"Verify identity",cond:"if account found"},{id:"s3",label:"Handle intent",cond:""}]});
   const [testCallStatus, setTestCallStatus] = useState<'idle'|'calling'|'done'|'error'>('idle');
   const [saveStatus, setSaveStatus] = useState<'idle'|'saving'|'done'|'error'>('idle');
@@ -3068,6 +3070,14 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
+                        onClick={() => setRealCallModal({ open: true, agentId: a.id as string })}
+                        title="Test Real Call with this Agent"
+                        className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 font-semibold rounded-md hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      >
+                        <PhoneCall className="w-3.5 h-3.5" />
+                        <span>Call</span>
+                      </button>
+                      <button
                         onClick={async () => {
                           const fullAgent = await fetchAgent(a.id as string);
                           if (a.type === 'conversational' || fullAgent.flowGraph) {
@@ -3130,6 +3140,16 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
           </table>
         </div>
       </div>
+
+      <RealCallModal
+        open={realCallModal.open}
+        onClose={() => setRealCallModal({ open: false })}
+        initialAgentId={realCallModal.agentId}
+        initialFromNumber={realCallModal.fromNumber}
+        onNavigateToLiveMonitoring={() => {
+          window.dispatchEvent(new CustomEvent('navigate_section', { detail: 'live_monitoring' }));
+        }}
+      />
     </div>
   );
 }
@@ -3621,6 +3641,7 @@ function DashNumbers({ profile, onNavigateToBilling, onNavigateToKyc }: { profil
   const [viewMode, setViewMode] = useState<'list' | 'buy'>('list');
   const [purchaseLoading, setPurchaseLoading] = useState<string | null>(null);
   const [buyAgentId, setBuyAgentId] = useState<string>("");
+  const [realCallModal, setRealCallModal] = useState<{ open: boolean; agentId?: string; fromNumber?: string }>({ open: false });
 
   const [showSip, setShowSip] = useState(false);
   const [showPass, setShowPass] = useState(false);
@@ -3838,6 +3859,13 @@ function DashNumbers({ profile, onNavigateToBilling, onNavigateToKyc }: { profil
                     </div>
                   </td>
                   <td className="px-5 py-4"><div className="flex gap-2">
+                    <DBtn 
+                      size="sm" 
+                      onClick={() => setRealCallModal({ open: true, fromNumber: n.number, agentId: n.agentId || undefined })}
+                      title="Test Real Telephony Call"
+                    >
+                      <PhoneCall className="w-3.5 h-3.5 mr-1" /> Call
+                    </DBtn>
                     {(n.kycStatus === 'pending' || n.kycStatus === 'failed') && (
                       <DBtn size="sm" variant="secondary" onClick={() => { if (onNavigateToKyc) onNavigateToKyc(); }}>
                         {n.kycStatus === 'failed' ? 'Fix KYC' : 'View KYC'}
@@ -3886,6 +3914,16 @@ function DashNumbers({ profile, onNavigateToBilling, onNavigateToKyc }: { profil
           <div className="flex gap-3 mt-4"><DBtn disabled><Check className="w-4 h-4"/> Save &amp; test connection</DBtn><DBtn variant="secondary" onClick={()=>setShowSip(false)}>Cancel</DBtn></div>
         </div>
       </DModal>
+
+      <RealCallModal
+        open={realCallModal.open}
+        onClose={() => setRealCallModal({ open: false })}
+        initialAgentId={realCallModal.agentId}
+        initialFromNumber={realCallModal.fromNumber}
+        onNavigateToLiveMonitoring={() => {
+          window.dispatchEvent(new CustomEvent('navigate_section', { detail: 'live_monitoring' }));
+        }}
+      />
     </div>
   );
 }
@@ -5823,7 +5861,16 @@ function DashboardPage({ session }: { session: Session }) {
       }
     };
     window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
+    const handleNavEvent = (e: any) => {
+      if (e?.detail) {
+        setSection(e.detail as DashSection);
+      }
+    };
+    window.addEventListener("navigate_section", handleNavEvent);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("navigate_section", handleNavEvent);
+    };
   }, []);
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
