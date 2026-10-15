@@ -237,6 +237,7 @@ export class CallService {
       ContactsController.upsertContactOnCall(userId, phoneNumber).catch(() => {});
 
       return {
+        id: call.id,
         callId: call.id,
         status: call.status as CallStatus,
         phoneNumber: call.recipientPhoneNumber,

@@ -364,10 +364,11 @@ async function bootstrap(): Promise<void> {
   // Handle server upgrades manually to route requests to the correct WebSocket server
   server.on('upgrade', (request, socket, head) => {
     try {
-      const url = new URL(request.url ?? '', `http://${request.headers.host || 'localhost'}`);
-      const pathname = url.pathname;
+      const rawUrl = (request.url ?? '').replace(/&amp;/g, '&');
+      const url = new URL(rawUrl, `http://${request.headers.host || 'localhost'}`);
+      const pathname = url.pathname.replace(/\/+$/, '') || '/';
 
-      if (pathname === '/audio-stream') {
+      if (pathname === '/audio-stream' || pathname.endsWith('/audio-stream')) {
         wss.handleUpgrade(request, socket, head, (ws) => {
           wss.emit('connection', ws, request);
         });

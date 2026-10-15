@@ -115,7 +115,11 @@ export class CallController {
       res.status(201).json({
         success: true,
         callId: result.callId,
-        data: result,
+        id: result.callId,
+        data: {
+          ...result,
+          id: result.callId,
+        },
       });
     } catch (err) {
       next(err);
@@ -253,19 +257,17 @@ export class CallController {
 
       logger.info('CallController: Vobiz answer webhook sending Stream XML', { callId, isNewInbound: !callSession });
 
-      // Return XML to tell Vobiz to stream audio to our WebSocket with signed timestamped token
-      const publicUrl = env.PUBLIC_URL;
+      // Return XML to tell telephony provider to stream audio to our WebSocket with signed timestamped token
+      const publicUrl = (env.PUBLIC_URL || (req.headers.host ? `${req.protocol}://${req.headers.host}` : '')).replace(/\/+$/, '');
       const wsUrl = publicUrl.replace(/^http/, 'ws');
       const secret = getWebhookSigningSecret();
       const ts = Date.now();
       const token = crypto.createHmac('sha256', secret).update(`${callId}:${ts}`).digest('hex');
-      const streamUrl = `${wsUrl}/audio-stream?callId=${callId}&amp;token=${token}&amp;ts=${ts}`;
+      const streamUrl = `${wsUrl}/audio-stream?callId=${encodeURIComponent(callId)}&token=${encodeURIComponent(token)}&ts=${ts}`;
 
       const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Stream streamTimeout="1800" keepCallAlive="true" bidirectional="true" contentType="audio/x-l16;rate=16000">
-    ${streamUrl}
-  </Stream>
+  <Stream streamTimeout="1800" keepCallAlive="true" bidirectional="true" contentType="audio/x-l16;rate=16000">${streamUrl}</Stream>
 </Response>`;
 
       res.set('Content-Type', 'application/xml');

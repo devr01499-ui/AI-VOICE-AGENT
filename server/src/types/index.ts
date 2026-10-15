@@ -149,6 +149,7 @@ export interface InitiateCallRequest {
 }
 
 export interface CallResponse {
+  id?: string;
   callId: string;
   status: CallStatus;
   phoneNumber: string;

@@ -245,8 +245,10 @@ export function RealCallModal({
         record: recordCall,
       });
 
-      if (res && res.id) {
-        setActiveCallId(res.id);
+      const returnedCallId = (res as any)?.callId || (res as any)?.id || (res as any)?.data?.callId || (res as any)?.data?.id;
+
+      if (returnedCallId) {
+        setActiveCallId(returnedCallId);
         setCallStatus('ringing');
         setInCall(true);
         setCallDuration(0);

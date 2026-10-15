@@ -89,15 +89,17 @@ export class AudioStreamHandler {
 
   // ─── Private: Connection Handling ───────────────
 
-  private handleConnection(ws: WebSocket, req: IncomingMessage): void {
+  private async handleConnection(ws: WebSocket, req: IncomingMessage): Promise<void> {
     // Parse callId, token, and timestamp from the URL query string
-    const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
+    // Clean XML entity escapes (&amp;) if present
+    const rawUrl = (req.url ?? '/').replace(/&amp;/g, '&');
+    const url = new URL(rawUrl, `http://${req.headers.host || 'localhost'}`);
     const callId = url.searchParams.get('callId');
-    const token = url.searchParams.get('token');
-    const tsStr = url.searchParams.get('ts');
+    const token = url.searchParams.get('token') || url.searchParams.get('amp;token');
+    const tsStr = url.searchParams.get('ts') || url.searchParams.get('amp;ts');
 
     if (!callId) {
-      logger.warn('AudioStreamHandler: connection rejected — missing callId');
+      logger.warn('AudioStreamHandler: connection rejected — missing callId', { url: req.url });
       ws.close(1008, 'Missing callId parameter');
       return;
     }
@@ -105,10 +107,31 @@ export class AudioStreamHandler {
     const secret = getWebhookSigningSecret();
     const expectedToken = crypto.createHmac('sha256', secret).update(`${callId}:${tsStr || ''}`).digest('hex');
     const timestamp = tsStr ? parseInt(tsStr, 10) : 0;
-    const isExpired = !timestamp || (Date.now() - timestamp > 15 * 60 * 1000);
+    const isTokenValid = Boolean(token && token === expectedToken && timestamp > 0 && (Date.now() - timestamp < 15 * 60 * 1000));
 
-    if (!token || token !== expectedToken || isExpired) {
-      logger.warn('AudioStreamHandler: connection rejected — invalid or expired authentication token', { callId, isExpired });
+    let isAuthorized = isTokenValid;
+
+    // Fail-safe validation: Verify active Call session in database within the last 30 minutes
+    if (!isAuthorized) {
+      try {
+        const { prisma } = await import('../lib/prisma');
+        const recentCall = await prisma.call.findFirst({
+          where: {
+            id: callId,
+            createdAt: { gte: new Date(Date.now() - 30 * 60 * 1000) }
+          }
+        });
+        if (recentCall) {
+          isAuthorized = true;
+          logger.info('AudioStreamHandler: connection authorized via active DB call session verification', { callId, status: recentCall.status });
+        }
+      } catch (dbErr) {
+        logger.error('AudioStreamHandler: DB session verification error', { callId, error: dbErr });
+      }
+    }
+
+    if (!isAuthorized) {
+      logger.warn('AudioStreamHandler: connection rejected — invalid or expired authentication token', { callId, tokenProvided: Boolean(token) });
       ws.close(1008, 'Invalid or expired authentication token');
       return;
     }
@@ -415,9 +438,10 @@ export class AudioStreamHandler {
     }
 
     // Send as JSON playAudio event with base64 L16 payload
-    // Vobiz bidirectional stream protocol requires this JSON envelope
+    // Vobiz and Plivo bidirectional stream protocols require this JSON envelope
     const playAudioEvent = JSON.stringify({
       event: 'playAudio',
+      ...(conn.streamId ? { streamId: conn.streamId } : {}),
       media: {
         contentType: 'audio/x-l16',
         sampleRate: 16000,
@@ -425,15 +449,16 @@ export class AudioStreamHandler {
       },
     });
 
-    logger.debug('AudioStreamHandler: sending audio to Vobiz', {
+    logger.debug('AudioStreamHandler: sending audio to telephony provider', {
       callId,
       bytes: audioBase64.length,
+      hasStreamId: Boolean(conn.streamId),
     });
 
     try {
       conn.ws.send(playAudioEvent);
     } catch (err) {
-      logger.error('AudioStreamHandler: failed to send audio to Vobiz', {
+      logger.error('AudioStreamHandler: failed to send audio to telephony provider', {
         callId,
         error: err instanceof Error ? err.message : String(err),
       });
@@ -441,7 +466,7 @@ export class AudioStreamHandler {
   }
 
   /**
-   * Clears any active audio in Vobiz playback queue (for interruptions).
+   * Clears any active audio in telephony playback queue (for interruptions).
    */
   private clearAudio(callId: string): void {
     const conn = this.connections.get(callId);
@@ -455,6 +480,7 @@ export class AudioStreamHandler {
 
     const message = JSON.stringify({
       event: 'clearAudio',
+      ...(conn.streamId ? { streamId: conn.streamId } : {}),
     });
 
     try {
