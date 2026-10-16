@@ -1,5 +1,11 @@
 # CHANGELOG
 
+- Dashboard Architecture: Elimination of Redundant Overview Page & Default to Agents:
+  - **Surgical Deprecation (`Frontend/src/app/App.tsx`)**: Removed redundant `DashOverview` component (248 lines deleted), deleted `overview` from `DashSection` type union, deleted sidebar navigation item, and stripped unused `LayoutDashboard` import.
+  - **Seamless Navigation & Bookmark Compatibility**: Configured `getInitialDashSection`, `setSection`, and popstate listeners to default cleanly to `agents`. Legacy visits and bookmarks targeting `/dashboard` and `/dashboard/overview` automatically and safely resolve to the Agents view with zero flicker, blank page, or 404 errors.
+  - **Zero Loss of Functionality**: Audited all telemetry widgets (Calls Today, Live Calls, Concurrency, Recent Completed, Batch Campaigns) and confirmed 100% data presence in their respective dedicated tabs (Analytics, Live Monitoring, Calling Config, Call History, Batch Calls).
+
+
 - Plivo Multi-Provider Telephony Integration (Indian Local Numbers):
   - **Zero-Impact Decoupled Architecture (`VobizService.ts`, `PlivoService.ts`)**: Preserved 100% of the existing Vobiz telephony integration, call routing, and number provisioning flows without modification. Introduced `PlivoService` as an independent secondary provider.
   - **Tenant Subaccount Isolation (`server/prisma/schema.prisma`)**: Added `PlivoSubAccount` model and mapped workspaces 1:1 to isolated Plivo subaccounts. Subaccount tokens are encrypted at rest with AES-256-GCM via `EncryptionService`. Subaccount creation is idempotent and lazy-initialized upon customer's first Plivo onboarding.

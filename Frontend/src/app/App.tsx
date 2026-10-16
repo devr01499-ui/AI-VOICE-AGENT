@@ -22,7 +22,7 @@ import {
   PhoneCall, PhoneOff, Mic, BarChart3, Settings, ChevronRight,
   Play, Pause, Check, ArrowRight, Globe, HeartPulse, ShoppingBag,
   Landmark, GraduationCap, Truck, Building2, Hotel, Activity,
-  Clock, TrendingUp, Plus, Search, Bell, LayoutDashboard, Bot,
+  Clock, TrendingUp, Plus, Search, Bell, Bot,
   PhoneIncoming, CircleDot, X, Menu, Zap, Shield, Volume2,
   Phone, Radio, BookOpen, Mic2, Network, FileText, Upload, Link,
   Cpu, MessageSquare, Eye, EyeOff, Copy, RefreshCw, Trash2,
@@ -623,7 +623,7 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
-type DashSection = "overview"|"agents"|"calling"|"batch"|"calls"|"numbers"|"knowledge"|"voices"|"calendar"|"settings"|"billing"|"companion"|"chat_history"|"contacts"|"analytics"|"live_monitoring"|"qa"|"alerting"|"integrations";
+type DashSection = "agents"|"calling"|"batch"|"calls"|"numbers"|"knowledge"|"voices"|"calendar"|"settings"|"billing"|"companion"|"chat_history"|"contacts"|"analytics"|"live_monitoring"|"qa"|"alerting"|"integrations";
 
 
 // Shared tiny helpers
@@ -1493,254 +1493,7 @@ CLOSING: 'If you have any questions, you can reach [Insurance Company Name]'s cu
   }
 ];
 
-// ── Overview ──
-function DashOverview() {
-  const [apiAgents, setApiAgents] = useState<ApiAgent[]>([]);
-  const [apiCalls, setApiCalls] = useState<ApiCall[]>([]);
-  const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [concurrencyData, setConcurrencyData] = useState<{ activeCallCount: number; softLimit: number }>({ activeCallCount: 0, softLimit: 10 });
-  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchAgents().then(setApiAgents).catch(err => {
-      setFetchError("Could not connect to voice agent services.");
-    });
-    fetchCalls({ limit: 100 }).then(setApiCalls).catch(err => {
-      setFetchError("Could not retrieve recent call telemetry.");
-    });
-    fetchCalendarBatches().then(setCampaigns).catch(() => {});
-    fetchConcurrencyTelemetry().then(res => {
-      if (res && res.softLimit) {
-        setConcurrencyData(res);
-      }
-    }).catch(() => {});
-  }, []);
-
-  const totalCallCount = apiCalls.length;
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-
-  const callsToday = apiCalls.filter(c => {
-    if (!c.createdAt) return false;
-    const callDate = new Date(c.createdAt);
-    return !isNaN(callDate.getTime()) && callDate >= startOfToday;
-  });
-
-  const activeCalls = apiCalls.filter(c => c.status === 'ringing' || c.status === 'in_progress');
-  const liveCalls = activeCalls.map(c => ({
-    name: c.phoneNumber ?? 'Unknown caller',
-    number: c.phoneNumber ?? '—',
-    intent: 'Voice Call',
-    dur: c.duration != null ? `${Math.floor(c.duration/60)}:${String(c.duration%60).padStart(2, '0')}` : '0:00',
-    sent: 'Neutral',
-    agent: c.agent?.name ?? '—',
-  }));
-
-  const completedCalls = apiCalls.filter(c => c.status !== 'ringing' && c.status !== 'in_progress');
-  const recent = completedCalls.slice(0, 5).map(c => {
-    let ago = 'Recently';
-    if (c.createdAt) {
-      try {
-        const d = new Date(c.createdAt);
-        if (!isNaN(d.getTime())) {
-          ago = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        }
-      } catch {}
-    }
-    return {
-      name: c.phoneNumber ?? 'Unknown caller',
-      intent: 'Voice Call',
-      dur: c.duration != null ? `${Math.floor(c.duration/60)}m ${c.duration%60}s` : '0s',
-      result: c.status === 'completed' ? 'Resolved' : 'Failed',
-      ago,
-    };
-  });
-
-  // Calculate average duration strictly from calls with valid positive duration
-  const callsWithDuration = apiCalls.filter(c => (c.duration != null && c.duration > 0) || c.status === 'completed');
-  const averageDuration = callsWithDuration.length > 0 
-    ? Math.round(callsWithDuration.reduce((sum, c) => sum + (c.duration || 0), 0) / callsWithDuration.length)
-    : 0;
-  const formattedAvgDur = averageDuration > 0
-    ? `${Math.floor(averageDuration/60)}m ${averageDuration%60}s`
-    : '0s';
-
-  const stats = [
-    {label:"Calls Today",value:callsToday.length.toLocaleString(),delta:`${callsToday.length} calls today (${totalCallCount} total)`,icon:PhoneCall,live:false, accent: "border-l-4 border-l-emerald-500"},
-    {label:"Active Now",value:activeCalls.length.toString(),delta:"live calls",icon:CircleDot,live:activeCalls.length > 0, accent: "border-l-4 border-l-amber-500"},
-    {label:"Avg Duration",value:formattedAvgDur,delta:"completed calls average",icon:Clock,live:false, accent: "border-l-4 border-l-blue-500"},
-    {label:"Completion Rate",value:completedCalls.length > 0 ? `${Math.round((completedCalls.filter(c=>c.status==='completed').length / completedCalls.length)*100)}%` : "—",delta:completedCalls.length > 0 ? `${completedCalls.filter(c=>c.status==='completed').length} / ${completedCalls.length} calls completed` : "no telemetry yet",icon:Star,live:false, accent: "border-l-4 border-l-purple-500"},
-  ];
-
-  return (
-    <div className="space-y-6 font-sans">
-      {fetchError && (
-        <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 text-sm font-medium flex items-center justify-between">
-          <span>{fetchError} Network telemetry is updating...</span>
-          <button onClick={() => window.location.reload()} className="text-xs font-bold underline">Retry</button>
-        </div>
-      )}
-      {/* Overview Top Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {stats.map(s => {
-          const Icon = s.icon;
-          return (
-            <div key={s.label} className={`nm-card p-6 rounded-2xl ${s.accent} hover:-translate-y-0.5 transition-all duration-200 shadow-sm hover:shadow-md`}>
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500" style={{fontFamily:"'Outfit', sans-serif"}}>{s.label}</span>
-                <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                  <Icon className="w-4 h-4" strokeWidth={2}/>
-                </div>
-              </div>
-              <p className="text-4xl font-extrabold text-slate-900 mb-1 tracking-tight" style={{fontFamily:"'Clash Display', 'Instrument Serif', serif"}}>{s.value}</p>
-              <p className={`text-xs font-medium flex items-center gap-2 ${s.live ? "text-emerald-600 font-bold" : "text-slate-500"}`} style={{fontFamily:"'Outfit', sans-serif"}}>
-                {s.live && <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"/>}
-                {s.delta}
-              </p>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Real-time Concurrency Telemetry Widget */}
-      <div className="nm-card p-5 space-y-3 border-l-4 border-l-emerald-500 rounded-2xl">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl nm-raised flex items-center justify-center text-emerald-500">
-              <Activity className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Real-Time Telephony Concurrency</h4>
-              <p className="text-xs text-[var(--nm-text)] opacity-70" style={{fontFamily:"'Outfit', sans-serif"}}>Workspace soft limit & active telephony channel utilization</p>
-            </div>
-          </div>
-          <div className="text-right">
-            <span className="text-xl font-extrabold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>
-              {concurrencyData.activeCallCount} <span className="text-xs font-bold text-slate-400">/ {concurrencyData.softLimit} soft limit</span>
-            </span>
-          </div>
-        </div>
-
-        <div className="w-full bg-slate-800/40 rounded-full h-2 overflow-hidden">
-          <div
-            className={`h-full transition-all duration-500 ${
-              (concurrencyData.activeCallCount / concurrencyData.softLimit) >= 0.9
-                ? "bg-rose-500"
-                : (concurrencyData.activeCallCount / concurrencyData.softLimit) >= 0.7
-                ? "bg-amber-500"
-                : "bg-emerald-500"
-            }`}
-            style={{ width: `${Math.min(100, Math.max(5, (concurrencyData.activeCallCount / Math.max(1, concurrencyData.softLimit)) * 100))}%` }}
-          />
-        </div>
-      </div>
-
-      {/* Agents Quick Strip */}
-      <div className="nm-raised rounded-2xl p-5 border border-slate-200/60 shadow-sm">
-        <div className="flex items-center justify-between mb-3 px-1">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500" style={{fontFamily:"'Outfit', sans-serif"}}>Active AI Agents ({apiAgents.length})</h3>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-          {apiAgents.map(a => (
-            <div key={a.id} className="nm-raised rounded-xl px-4 py-3 flex items-center gap-3 hover:nm-pressed transition-all">
-              <SDot status={a.status}/>
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-slate-900 truncate" style={{fontFamily:"'Outfit', sans-serif"}}>{a.name}</p>
-                <p className="text-[11px] text-slate-500 capitalize" style={{fontFamily:"'Outfit', sans-serif"}}>{a.agentType || 'Voice Agent'}</p>
-              </div>
-            </div>
-          ))}
-          {apiAgents.length === 0 && (
-            <div className="col-span-full nm-pressed rounded-xl p-6 text-center text-sm font-medium text-slate-500" style={{fontFamily:"'Outfit', sans-serif"}}>
-              You haven't created any agents yet. Go to the Agents tab to create one.
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Live Calls Section */}
-      <div className="nm-raised rounded-2xl overflow-hidden shadow-sm border border-slate-200/60">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-          <div className="flex items-center gap-3">
-            <SDot status={liveCalls.length > 0 ? "active" : "inactive"}/>
-            <p className="text-sm font-bold text-slate-900 uppercase tracking-wider" style={{fontFamily:"'Outfit', sans-serif"}}>Live Calls</p>
-            <DBadge v={liveCalls.length > 0 ? "success" : "neutral"}>{liveCalls.length}</DBadge>
-          </div>
-        </div>
-        <div className="divide-y divide-slate-100">
-          {liveCalls.map((c, idx) => (
-            <div key={idx} className="px-6 py-4 flex items-center gap-4 hover:bg-slate-50 transition-all cursor-pointer">
-              <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0">{c.name[0]}</div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-slate-900 truncate" style={{fontFamily:"'Outfit', sans-serif"}}>{c.name}</p>
-                <p className="text-xs text-slate-500 truncate" style={{fontFamily:"'Outfit', sans-serif"}}>{c.agent}</p>
-              </div>
-              <span className="hidden md:block text-xs font-semibold text-slate-600 bg-slate-100 rounded-full px-3 py-1" style={{fontFamily:"'Outfit', sans-serif"}}>{c.intent}</span>
-              <span className="text-sm font-extrabold font-mono text-emerald-600 flex-shrink-0">{c.dur}</span>
-              <div className="w-12 hidden sm:flex text-emerald-500"><MiniWave bars={8}/></div>
-            </div>
-          ))}
-          {liveCalls.length === 0 && (
-            <div className="p-8 text-center text-sm font-medium text-slate-500" style={{fontFamily:"'Outfit', sans-serif"}}>
-              No live calls active at the moment.
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Grid: Recent Completed & Active Batch Campaigns */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <div className="nm-raised rounded-2xl overflow-hidden shadow-sm border border-slate-200/60">
-          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-            <p className="text-sm font-bold text-slate-900 uppercase tracking-wider" style={{fontFamily:"'Outfit', sans-serif"}}>Recent Completed</p>
-          </div>
-          <div className="divide-y divide-slate-100">
-            {recent.map(c => (
-              <div key={c.name} className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-slate-50 transition-all cursor-pointer">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-slate-900 truncate" style={{fontFamily:"'Outfit', sans-serif"}}>{c.name}</p>
-                  <p className="text-xs text-slate-500 truncate" style={{fontFamily:"'Outfit', sans-serif"}}>{c.intent} • {c.dur}</p>
-                </div>
-                <DBadge v={c.result === "Resolved" ? "success" : "error"}>{c.result}</DBadge>
-                <span className="text-xs font-medium text-slate-400 hidden sm:block" style={{fontFamily:"'Outfit', sans-serif"}}>{c.ago}</span>
-              </div>
-            ))}
-            {recent.length === 0 && (
-              <div className="p-8 text-center text-sm font-medium text-slate-500" style={{fontFamily:"'Outfit', sans-serif"}}>
-                No recent calls completed yet.
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="nm-raised rounded-2xl overflow-hidden shadow-sm border border-slate-200/60">
-          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-            <p className="text-sm font-bold text-slate-900 uppercase tracking-wider" style={{fontFamily:"'Outfit', sans-serif"}}>Active Batch Campaigns</p>
-          </div>
-          <div className="p-6 space-y-5">
-            {campaigns.filter(c => c.status === "running" || c.status === "scheduled" || c.status === "completed").map(c => (
-              <div key={c.id} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-bold text-slate-900" style={{fontFamily:"'Outfit', sans-serif"}}>{c.name}</p>
-                  <DBadge v={c.status === "running" ? "success" : c.status === "completed" ? "info" : "warning"}>{c.status}</DBadge>
-                </div>
-                <DProg v={c.completedCount || c.called || 0} max={c.totalContacts || c.total || 1} />
-                <p className="text-xs font-medium text-slate-500" style={{fontFamily:"'Outfit', sans-serif"}}>
-                  {(c.completedCount || c.called || 0).toLocaleString()} / {(c.totalContacts || c.total || 0).toLocaleString()} recipients processed
-                </p>
-              </div>
-            ))}
-            {campaigns.length === 0 && (
-              <div className="text-center py-8 text-sm font-medium text-slate-500" style={{fontFamily:"'Outfit', sans-serif"}}>
-                No active campaigns. Go to the Batch Calls tab to launch one.
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── Web Audio Sandbox Conversion Helpers ──
 function floatTo16BitPCM(input: Float32Array): ArrayBuffer {
@@ -5832,10 +5585,10 @@ function DashboardPage({ session }: { session: Session }) {
       }
       if (path.startsWith("/dashboard/")) {
         const sub = path.replace("/dashboard/", "").trim() as DashSection;
-        if (sub) return sub;
+        if (sub && (sub as string) !== "overview") return sub;
       }
     }
-    return "overview";
+    return "agents";
   };
 
   const [section, setSectionState] = useState<DashSection>(getInitialDashSection);
@@ -5843,7 +5596,7 @@ function DashboardPage({ session }: { session: Session }) {
   const setSection = (s: DashSection) => {
     setSectionState(s);
     if (typeof window !== "undefined") {
-      const targetPath = s === "overview" ? "/dashboard" : `/dashboard/${s}`;
+      const targetPath = s === "agents" ? "/dashboard" : `/dashboard/${s}`;
       if (window.location.pathname !== targetPath) {
         window.history.pushState(null, "", targetPath);
       }
@@ -5856,7 +5609,7 @@ function DashboardPage({ session }: { session: Session }) {
         const path = window.location.pathname;
         if (path.startsWith("/dashboard")) {
           const sub = path.replace(/^\/dashboard\/?/, "").trim() as DashSection;
-          setSectionState((sub as DashSection) || "overview");
+          setSectionState(sub && (sub as string) !== "overview" ? (sub as DashSection) : "agents");
         }
       }
     };
@@ -6049,7 +5802,6 @@ function DashboardPage({ session }: { session: Session }) {
     {
       label: "WORKSPACE",
       items: [
-        { id: "overview", icon: LayoutDashboard, label: "Overview" },
         { id: "agents", icon: Bot, label: "Agents" },
         { id: "knowledge", icon: BookOpen, label: "Knowledge Base" },
       ]
@@ -6090,7 +5842,6 @@ function DashboardPage({ session }: { session: Session }) {
   ];
 
   const titles: Record<string, string> = {
-    overview: "Overview",
     agents: "Agents",
     calling: "Calling Config",
     batch: "Batch Calls",
@@ -6224,7 +5975,6 @@ function DashboardPage({ session }: { session: Session }) {
         <div className="flex-1 overflow-y-auto p-3 sm:p-5">
           <AnimatePresence mode="wait">
             <motion.div key={section} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0}} transition={{duration:0.18}}>
-              {section==="overview"&&<DashOverview/>}
               {section==="agents"&&<DashAgents session={session} profile={profile} setApiAgents={setApiAgents} setStudioAgent={setStudioAgent} setSinglePromptStudioAgent={setSinglePromptStudioAgent} />}
               {section==="calling"&&<DashCallingConfig onNavigateToKyc={() => { localStorage.setItem('open_settings_tab', 'kyc'); setSection("settings"); }} />}
               {section==="batch"&&<DashBatch/>}
