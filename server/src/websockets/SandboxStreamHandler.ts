@@ -10,6 +10,7 @@ import { CalendarService } from '../core/orchestrator/CalendarService';
 import { extractToolsFromFlowGraph } from '../core/orchestrator/CallOrchestrator';
 import { resolveLiveModel } from '../utils/modelResolver';
 import { buildGreetingText, formatGreetingTurnPrompt } from '../utils/greetingUtils';
+import { injectVoicePersonaDirective } from '../utils/personaPrompt';
 
 interface ActiveSandboxSession {
   ws: WebSocket;
@@ -223,7 +224,7 @@ export class SandboxStreamHandler {
         agentId: agentId,
         model: resolveLiveModel(agent.model),
         voice: agent.voiceName || 'Aoede',
-        instructions: sandboxInstructions,
+        instructions: injectVoicePersonaDirective(sandboxInstructions),
         tools: tools.length > 0 ? tools : undefined,
         userId: userId,
         agent: agent,

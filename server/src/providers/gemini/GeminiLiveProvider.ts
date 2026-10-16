@@ -20,6 +20,7 @@ import { env } from '../../config/env';
 import { ADMIN_EMAIL } from '../../config/constants';
 import { resolveLiveModel } from '../../utils/modelResolver';
 import { callTimingTracker } from '../../utils/CallTimingTracker';
+import { injectVoicePersonaDirective } from '../../utils/personaPrompt';
 import type {
   IRealtimeProvider,
   HealthCheckResult,
@@ -397,6 +398,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       }
 
       let systemInstructionString = callData.agent?.systemPrompt || callData.agent?.instruction || config.instructions || "Default assistant prompt";
+      systemInstructionString = injectVoicePersonaDirective(systemInstructionString);
 
       if (hasKbDocs) {
         systemInstructionString = `${systemInstructionString}\n\n[KNOWLEDGE BASE GATES]\nYou have access to a knowledge base search tool 'search_knowledge_base'. If the user asks questions about facts, documents, websites, or details that you do not know, you MUST call this tool with a relevant search query to find the answer. Do not guess.`;

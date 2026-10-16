@@ -1,8 +1,21 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Sliders, Sparkles, MessageSquare, Bot, Settings2, Calendar, Download } from "lucide-react";
+import { Sliders, Sparkles, MessageSquare, Bot, Settings2, Calendar, Download, Play, Volume2 } from "lucide-react";
 import { updateAgent, getCalendarStatus, getAuthToken, API_BASE, exportAgentAsJson } from "../../api";
 import ConversationalBuilder from "./ConversationalBuilder";
 import VisualFlowCanvas from "./VisualFlowCanvas";
+
+const RECOMMENDED_VOICES_BY_LANG: Record<string, string[]> = {
+  auto: ['Puck', 'Kore', 'Aoede', 'Charon'],
+  en: ['Puck', 'Kore', 'Aoede', 'Charon', 'Fenrir'],
+  hi: ['Puck', 'Kore', 'Aoede', 'Charon'],
+  bn: ['Kore', 'Puck', 'Aoede'],
+  kn: ['Kore', 'Puck'],
+  ml: ['Kore', 'Puck'],
+  gu: ['Kore', 'Puck'],
+  ta: ['Kore', 'Puck'],
+  zh: ['Kore', 'Puck', 'Aoede'],
+  ar: ['Kore', 'Puck', 'Charon'],
+};
 
 interface AgentConfigPanelProps {
   agent: any;
@@ -18,6 +31,47 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
   const [languageMode, setLanguageMode] = useState(agent.languageMode || "auto");
   const [isPiiRedactionEnabled, setIsPiiRedactionEnabled] = useState(agent.isPiiRedactionEnabled || false);
   const [calendarConnected, setCalendarConnected] = useState(false);
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+  const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (audioPreviewRef.current) {
+        audioPreviewRef.current.pause();
+        audioPreviewRef.current = null;
+      }
+    };
+  }, []);
+
+  const toggleVoicePreview = () => {
+    if (isPlayingPreview && audioPreviewRef.current) {
+      audioPreviewRef.current.pause();
+      audioPreviewRef.current.currentTime = 0;
+      setIsPlayingPreview(false);
+      return;
+    }
+    if (audioPreviewRef.current) {
+      audioPreviewRef.current.pause();
+    }
+    const cleanVoice = voice.toLowerCase();
+    const cleanLang = (languageMode || 'en').toLowerCase();
+    const primarySrc = `/previews/${cleanVoice}_${cleanLang}.wav`;
+    const fallbackSrc = `/previews/${cleanVoice}.wav`;
+
+    const audio = new Audio(primarySrc);
+    audioPreviewRef.current = audio;
+    setIsPlayingPreview(true);
+    audio.onended = () => setIsPlayingPreview(false);
+    audio.onerror = () => {
+      if (audio.src.endsWith(primarySrc)) {
+        audio.src = fallbackSrc;
+        audio.play().catch(() => setIsPlayingPreview(false));
+      } else {
+        setIsPlayingPreview(false);
+      }
+    };
+    audio.play().catch(() => setIsPlayingPreview(false));
+  };
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -185,23 +239,49 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
           </p>
         </div>
 
-        {/* Voice dropdown selector */}
+        {/* Voice dropdown selector with preview and curated recommendations */}
         <div className="space-y-3">
-          <label className="text-xs font-bold text-[var(--nm-text)] block" style={{ fontFamily: "'DM Mono', monospace" }}>
-            SYSTEM NATIVE VOICE PROFILE
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-[var(--nm-text)] block" style={{ fontFamily: "'DM Mono', monospace" }}>
+              SYSTEM NATIVE VOICE PROFILE
+            </label>
+            <button
+              type="button"
+              onClick={toggleVoicePreview}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                isPlayingPreview
+                  ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300 animate-pulse'
+                  : 'nm-raised hover:nm-pressed text-[var(--nm-text)]'
+              }`}
+              title="Play audio preview of selected voice"
+            >
+              {isPlayingPreview ? <Volume2 className="w-3.5 h-3.5 text-purple-600 dark:text-purple-300" /> : <Play className="w-3.5 h-3.5 text-[var(--nm-accent)]" />}
+              <span>{isPlayingPreview ? 'Playing Preview...' : 'Preview Voice'}</span>
+            </button>
+          </div>
           <div className="relative">
             <select
               value={voice}
               onChange={(e) => {
                 setVoice(e.target.value);
+                if (isPlayingPreview && audioPreviewRef.current) {
+                  audioPreviewRef.current.pause();
+                  setIsPlayingPreview(false);
+                }
                 triggerDebouncedSave({ systemVoice: e.target.value, voice: e.target.value });
               }}
               className="nm-input w-full px-5 py-3 text-sm focus:outline-none"
               style={{ fontFamily: "'Figtree', sans-serif" }}
             >
-              {/* All 30 Gemini built-in voices — single select, one voice per agent */}
-              <option value="Puck">Puck — Upbeat, lively, energetic</option>
+              <optgroup label={`Top Picks for ${languageMode.toUpperCase()}`}>
+                {(RECOMMENDED_VOICES_BY_LANG[languageMode] || RECOMMENDED_VOICES_BY_LANG.en).map((recName) => (
+                  <option key={`rec-${recName}`} value={recName}>
+                    ★ {recName} (Curated Best Pick)
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="All Prebuilt Voices">
+                <option value="Puck">Puck — Upbeat, lively, energetic</option>
               <option value="Aoede">Aoede — Breezy, natural, conversational</option>
               <option value="Charon">Charon — Calm, informative, professional</option>
               <option value="Fenrir">Fenrir — Excitable, dynamic, passionate</option>
@@ -231,6 +311,7 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
               <option value="Deneb">Deneb — Crisp, precise, clear</option>
               <option value="Eltanin">Eltanin — Smooth, calm, comforting</option>
               <option value="Mizar">Mizar — Warm, rich, professional</option>
+              </optgroup>
             </select>
           </div>
         </div>

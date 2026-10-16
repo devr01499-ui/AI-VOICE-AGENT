@@ -17,6 +17,7 @@ import { bookFollowUpCallTool, executeBookFollowUpCall } from '../../lib/calenda
 import { resolveLiveModel } from '../../utils/modelResolver';
 import { callTimingTracker } from '../../utils/CallTimingTracker';
 import { formatGreetingTurnPrompt } from '../../utils/greetingUtils';
+import { injectVoicePersonaDirective } from '../../utils/personaPrompt';
 
 export function extractToolsFromFlowGraph(flowGraphInput: string | object | null | undefined): any[] {
   if (!flowGraphInput) return [];
@@ -359,7 +360,7 @@ export class CallOrchestrator {
       ];
 
       agentConfig = {
-        prompt: systemInstructions,
+        prompt: injectVoicePersonaDirective(systemInstructions),
         voice: finalVoice,
         llm: {
           provider: llmProvider,
@@ -388,7 +389,7 @@ export class CallOrchestrator {
       };
 
       agentConfig = {
-        prompt: activeAgent.systemPrompt,
+        prompt: injectVoicePersonaDirective(activeAgent.systemPrompt),
         voice: activeAgent.voiceName,
         llm: {
           provider: 'gemini',

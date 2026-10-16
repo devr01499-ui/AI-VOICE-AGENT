@@ -79,6 +79,19 @@ export const GEMINI_VOICES = [
   { name: 'Mizar', desc: 'Mizar (Male • Direct, Smooth)' },
 ];
 
+export const RECOMMENDED_VOICES_BY_LANG: Record<string, string[]> = {
+  auto: ['Puck', 'Kore', 'Aoede', 'Charon'],
+  en: ['Puck', 'Kore', 'Aoede', 'Charon', 'Fenrir'],
+  hi: ['Puck', 'Kore', 'Aoede', 'Charon'],
+  bn: ['Kore', 'Puck', 'Aoede'],
+  kn: ['Kore', 'Puck'],
+  ml: ['Kore', 'Puck'],
+  gu: ['Kore', 'Puck'],
+  ta: ['Kore', 'Puck'],
+  zh: ['Kore', 'Puck', 'Aoede'],
+  ar: ['Kore', 'Puck', 'Charon'],
+};
+
 export const LANGUAGE_OPTIONS = [
   { code: 'auto', label: 'Automatic / Multilingual' },
   { code: 'en', label: 'English' },
@@ -245,6 +258,47 @@ export default function SinglePromptStudio({
   const [welcomeMessageMode, setWelcomeMessageMode] = useState<'user_first' | 'agent_first'>('user_first');
   const [customWelcomeText, setCustomWelcomeText] = useState('Hello! Thank you for calling Claritiy Voice.');
   const [silenceStartEnabled, setSilenceStartEnabled] = useState(false);
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+  const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (audioPreviewRef.current) {
+        audioPreviewRef.current.pause();
+        audioPreviewRef.current = null;
+      }
+    };
+  }, []);
+
+  const toggleVoicePreview = () => {
+    if (isPlayingPreview && audioPreviewRef.current) {
+      audioPreviewRef.current.pause();
+      audioPreviewRef.current.currentTime = 0;
+      setIsPlayingPreview(false);
+      return;
+    }
+    if (audioPreviewRef.current) {
+      audioPreviewRef.current.pause();
+    }
+    const cleanVoice = voice.toLowerCase();
+    const cleanLang = (language || 'en').toLowerCase();
+    const primarySrc = `/previews/${cleanVoice}_${cleanLang}.wav`;
+    const fallbackSrc = `/previews/${cleanVoice}.wav`;
+
+    const audio = new Audio(primarySrc);
+    audioPreviewRef.current = audio;
+    setIsPlayingPreview(true);
+    audio.onended = () => setIsPlayingPreview(false);
+    audio.onerror = () => {
+      if (audio.src.endsWith(primarySrc)) {
+        audio.src = fallbackSrc;
+        audio.play().catch(() => setIsPlayingPreview(false));
+      } else {
+        setIsPlayingPreview(false);
+      }
+    };
+    audio.play().catch(() => setIsPlayingPreview(false));
+  };
 
   const [handbookPresets, setHandbookPresets] = useState<string[]>(
     initialAgent?.agentConfig && Array.isArray((initialAgent.agentConfig as any).handbookPresets)
@@ -1425,22 +1479,54 @@ export default function SinglePromptStudio({
           {/* Voice, Language & Handbook Toolbar (Item 2: Model selector removed) */}
           <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 flex-wrap bg-slate-50/50 dark:bg-slate-900 relative">
             <div className="flex items-center gap-2">
-              {/* Voice Selector (Item 4: All 30 canonical Gemini voices) */}
+              {/* Voice Selector (Item 4: All 30 canonical Gemini voices with curated Top Picks & Preview) */}
               <div className="flex items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 gap-1.5">
                 <div className="w-4 h-4 rounded-full bg-purple-100 text-purple-700 font-bold text-[9px] flex items-center justify-center">
                   {voice.charAt(0)}
                 </div>
                 <select
                   value={voice}
-                  onChange={(e) => setVoice(e.target.value)}
+                  onChange={(e) => {
+                    setVoice(e.target.value);
+                    if (isPlayingPreview && audioPreviewRef.current) {
+                      audioPreviewRef.current.pause();
+                      setIsPlayingPreview(false);
+                    }
+                  }}
                   className="bg-transparent text-xs font-semibold focus:outline-none max-w-[210px] truncate"
                 >
-                  {GEMINI_VOICES.map((v) => (
-                    <option key={v.name} value={v.name}>
-                      {v.desc}
-                    </option>
-                  ))}
+                  <optgroup label={`Top Picks for ${(LANGUAGE_OPTIONS.find(l => l.code === language)?.label || 'Language')}`}>
+                    {(RECOMMENDED_VOICES_BY_LANG[language] || RECOMMENDED_VOICES_BY_LANG.en).map((recName) => {
+                      const match = GEMINI_VOICES.find(v => v.name === recName);
+                      return (
+                        <option key={`rec-${recName}`} value={recName}>
+                          ★ {match ? match.desc : recName}
+                        </option>
+                      );
+                    })}
+                  </optgroup>
+                  <optgroup label="All Prebuilt Voices">
+                    {GEMINI_VOICES.map((v) => (
+                      <option key={v.name} value={v.name}>
+                        {v.desc}
+                      </option>
+                    ))}
+                  </optgroup>
                 </select>
+
+                <button
+                  type="button"
+                  onClick={toggleVoicePreview}
+                  className={`px-1.5 py-0.5 rounded text-[11px] font-semibold flex items-center gap-1 transition-all ${
+                    isPlayingPreview
+                      ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300 animate-pulse'
+                      : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'
+                  }`}
+                  title="Play audio preview of selected voice"
+                >
+                  {isPlayingPreview ? <Volume2 className="w-3 h-3 text-purple-600 dark:text-purple-300" /> : <Play className="w-3 h-3 text-purple-600" />}
+                  <span>{isPlayingPreview ? 'Playing' : 'Preview'}</span>
+                </button>
               </div>
 
               {/* Language Selector (Item 3: 2-letter codes) */}
