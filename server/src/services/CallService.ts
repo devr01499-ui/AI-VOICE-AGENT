@@ -506,6 +506,7 @@ export class CallService {
       const prompt = `You are an expert AI call intelligence analyst. Analyze the following transcript.
 
 Summary Instructions: ${customSummaryPrompt}
+Note: If the caller asked for information to be sent via SMS, WhatsApp, or email, or requested a callback or follow-up, explicitly note "[Callback requested: <reason>]" in the summary.
 ${fieldInstructions}
 
 Return a single raw JSON object with no markdown formatting or backticks, formatted as:
@@ -535,7 +536,11 @@ ${transcriptText}`;
       }
 
       const sentiment = parsedResult.sentiment || 'Neutral';
-      const summary = parsedResult.summary || responseText;
+      let summary = parsedResult.summary || responseText;
+      const isCallbackRequested = /callback|call back|follow up|reach out|contact me|call me|send.*(sms|text|whatsapp|email|detail|link)/i.test(transcriptText);
+      if (isCallbackRequested && !summary.toLowerCase().includes('callback')) {
+        summary = `${summary} [Callback requested: caller requested follow-up / details]`;
+      }
       const extractedFields = parsedResult.extractedFields || {};
 
       // Merge extracted fields into call.userData JSON

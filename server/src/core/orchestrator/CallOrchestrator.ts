@@ -18,6 +18,7 @@ import { resolveLiveModel } from '../../utils/modelResolver';
 import { callTimingTracker } from '../../utils/CallTimingTracker';
 import { formatGreetingTurnPrompt } from '../../utils/greetingUtils';
 import { injectVoicePersonaDirective } from '../../utils/personaPrompt';
+import { buildCapabilitiesBlock, filterActiveTools } from '../../utils/capabilities';
 
 export function extractToolsFromFlowGraph(flowGraphInput: string | object | null | undefined): any[] {
   if (!flowGraphInput) return [];
@@ -465,12 +466,12 @@ export class CallOrchestrator {
       {
         model: agentConfig.llm.model,
         voice: agentConfig.voice,
-        instructions: agentConfig.prompt,
+        instructions: `${agentConfig.prompt}\n\n${buildCapabilitiesBlock()}`,
         userId: activeAgent.userId,
         agentId: agentId,
         isRecordingEnabled: agentConfig.settings?.isRecordingEnabled || false,
         isTranscriptionEnabled: agentConfig.settings?.isTranscriptionEnabled || false,
-        tools: [
+        tools: filterActiveTools([
           ...(agentConfig.tools?.map((t) => ({
             type: 'function' as const,
             name: t.name,
@@ -494,32 +495,7 @@ export class CallOrchestrator {
               }
             }
           },
-          {
-            type: 'function' as const,
-            name: 'transfer_call',
-            description: 'Transfers the active call to another phone number.',
-            parameters: {
-              type: 'OBJECT',
-              properties: {
-                phoneNumber: { type: 'STRING', description: 'The phone number to transfer the call to in E.164 format' }
-              },
-              required: ['phoneNumber']
-            }
-          },
-          {
-            type: 'function' as const,
-            name: 'send_sms',
-            description: 'Sends a transaction text message/SMS during the call.',
-            parameters: {
-              type: 'OBJECT',
-              properties: {
-                phoneNumber: { type: 'STRING', description: 'Destination E.164 phone number' },
-                message: { type: 'STRING', description: 'Body text content of the SMS' }
-              },
-              required: ['phoneNumber', 'message']
-            }
-          }
-        ],
+        ]),
       },
       (audioBase64: string) => {
         onAudioDelta?.(audioBase64);

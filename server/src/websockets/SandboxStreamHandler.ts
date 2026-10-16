@@ -11,6 +11,7 @@ import { extractToolsFromFlowGraph } from '../core/orchestrator/CallOrchestrator
 import { resolveLiveModel } from '../utils/modelResolver';
 import { buildGreetingText, formatGreetingTurnPrompt } from '../utils/greetingUtils';
 import { injectVoicePersonaDirective } from '../utils/personaPrompt';
+import { buildCapabilitiesBlock, filterActiveTools } from '../utils/capabilities';
 
 interface ActiveSandboxSession {
   ws: WebSocket;
@@ -219,13 +220,15 @@ export class SandboxStreamHandler {
         }
       }
 
+      const activeTools = filterActiveTools(tools);
+
       const config = {
         callId: connectionId,
         agentId: agentId,
         model: resolveLiveModel(agent.model),
         voice: agent.voiceName || 'Aoede',
-        instructions: injectVoicePersonaDirective(sandboxInstructions),
-        tools: tools.length > 0 ? tools : undefined,
+        instructions: `${injectVoicePersonaDirective(sandboxInstructions)}\n\n${buildCapabilitiesBlock()}`,
+        tools: activeTools.length > 0 ? activeTools : undefined,
         userId: userId,
         agent: agent,
       };
