@@ -3,6 +3,8 @@ import { Radio, PhoneOff, PhoneForwarded, Volume2, Mic, Activity, Clock, ShieldA
 import { apiClient, fetchCalls, fetchAgents, getLiveTranscriptWsUrl, type ApiCall, type ApiAgent } from '../../api';
 
 interface LiveTranscriptMessage {
+  turnId?: string;
+  seq?: number;
   speaker: string;
   text: string;
   isFinal: boolean;
@@ -86,15 +88,32 @@ export function DashLiveMonitoring() {
         try {
           const data = JSON.parse(event.data);
           if (data.event === 'transcript') {
-            setTranscripts((prev) => [
-              ...prev,
-              {
-                speaker: data.speaker || 'agent',
-                text: data.text || '',
-                isFinal: !!data.isFinal,
-                timestamp: new Date().toLocaleTimeString(),
-              },
-            ]);
+            const turnId = data.turnId;
+            setTranscripts((prev) => {
+              if (turnId) {
+                const existingIdx = prev.findIndex((t) => t.turnId === turnId);
+                if (existingIdx !== -1) {
+                  const updated = [...prev];
+                  updated[existingIdx] = {
+                    ...updated[existingIdx],
+                    text: data.text || updated[existingIdx].text,
+                    isFinal: Boolean(data.isFinal),
+                  };
+                  return updated;
+                }
+              }
+              return [
+                ...prev,
+                {
+                  turnId: data.turnId || `turn_${Date.now()}_${Math.random()}`,
+                  seq: data.seq,
+                  speaker: data.speaker || 'agent',
+                  text: data.text || '',
+                  isFinal: Boolean(data.isFinal),
+                  timestamp: new Date().toLocaleTimeString(),
+                },
+              ];
+            });
           }
         } catch {}
       };
@@ -325,24 +344,28 @@ export function DashLiveMonitoring() {
                   ) : (
                     transcripts.map((t, idx) => (
                       <div
-                        key={idx}
-                        className={`p-2.5 rounded-lg border text-xs leading-relaxed ${
+                        key={t.turnId || idx}
+                        className={`p-2.5 rounded-lg border text-xs leading-relaxed transition-all ${
                           t.speaker === 'agent' || t.speaker === 'assistant'
                             ? 'bg-indigo-950/50 border-indigo-800/60 text-indigo-200 ml-4'
                             : 'bg-slate-900 border-slate-800 text-slate-200 mr-4'
                         }`}
                       >
                         <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1 font-sans">
-                          <span className="font-bold uppercase tracking-wider text-indigo-400">
-                            {t.speaker === 'agent' ? 'AI Agent' : 'Caller'}
+                          <span className="font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                            {t.speaker === 'agent' || t.speaker === 'assistant' ? 'AI Agent' : 'Caller'}
+                            {!t.isFinal && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
                           </span>
                           <span>{t.timestamp}</span>
                         </div>
-                        <p className="font-sans">{t.text}</p>
+                        <p className="font-sans whitespace-pre-wrap">{t.text}</p>
                       </div>
                     ))
                   )}
                   <div ref={transcriptEndRef} />
+                </div>
+                <div className="pt-2 text-[10px] text-slate-500 border-t border-slate-800/50 font-sans text-center">
+                  Live transcripts reflect acoustic transcription from Gemini native audio recognition.
                 </div>
               </div>
             </div>

@@ -30,6 +30,7 @@ export class TranscriptManager {
    * @param startTime - Seconds from call start when speech began
    * @param endTime - Seconds from call start when speech ended (optional)
    * @param confidence - ASR confidence score 0-1 (optional)
+   * @param sequenceNumber - Explicit sequence number (optional)
    */
   async addUtterance(
     callId: string,
@@ -37,7 +38,8 @@ export class TranscriptManager {
     text: string,
     startTime: number,
     endTime?: number,
-    confidence?: number
+    confidence?: number,
+    sequenceNumber?: number
   ): Promise<void> {
     if (!text.trim()) {
       logger.debug('TranscriptManager: skipping empty utterance', { callId, speaker });
@@ -52,6 +54,7 @@ export class TranscriptManager {
         startTime,
         endTime,
         confidence,
+        sequenceNumber,
       });
 
       logger.debug('TranscriptManager: utterance saved', {
@@ -59,6 +62,7 @@ export class TranscriptManager {
         speaker,
         contentLength: text.trim().length,
         startTime,
+        sequenceNumber,
       });
     } catch (err) {
       // Log but don't throw — transcript failures should not crash the call

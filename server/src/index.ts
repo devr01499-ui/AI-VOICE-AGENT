@@ -427,9 +427,11 @@ async function bootstrap(): Promise<void> {
         if (payload.callId === callId) {
           ws.send(JSON.stringify({
             event: 'transcript',
+            turnId: payload.turnId,
+            seq: payload.seq,
             speaker: payload.speaker,
             text: payload.text,
-            isFinal: payload.isFinal
+            isFinal: Boolean(payload.isFinal)
           }));
         }
       };

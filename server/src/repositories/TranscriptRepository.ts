@@ -18,6 +18,7 @@ interface AddSegmentData {
   endTime?: number;
   confidence?: number;
   metadata?: string;
+  sequenceNumber?: number;
 }
 
 export function applyPiiRedaction(text: string, categories: string[] = []): string {
@@ -51,7 +52,7 @@ export class TranscriptRepository {
    * Add a new transcript segment to a call.
    *
    * The `sequenceNumber` is determined automatically by counting existing
-   * segments for the same call and incrementing by one.
+   * segments for the same call and incrementing by one unless explicitly supplied.
    *
    * @param data - Segment payload (callId, speaker, content, timing, etc.).
    * @param piiCategories - Optional list of PII categories to redact before saving.
@@ -59,7 +60,7 @@ export class TranscriptRepository {
    */
   static async addSegment(data: AddSegmentData, piiCategories?: string[]) {
     try {
-      const sequenceNumber = await TranscriptRepository.getNextSequenceNumber(
+      const sequenceNumber = data.sequenceNumber ?? await TranscriptRepository.getNextSequenceNumber(
         data.callId
       );
 

@@ -2,6 +2,7 @@ import { GeminiLiveLLMService } from './gemini';
 import { GeminiLiveProvider } from '../../../providers/gemini/GeminiLiveProvider';
 import { logger } from '../../../utils/logger';
 import { eventBus, PROVIDER_EVENTS } from '../../provider-sdk/provider.events';
+import { TurnAggregator } from '../../../runtime/TurnAggregator';
 
 export class Pipeline {
   private readonly service: GeminiLiveLLMService;
@@ -10,6 +11,7 @@ export class Pipeline {
   private sessionStartTime: number = Date.now();
   private onAudioOutputCallback: ((frame: { type: string; data: Buffer }) => void) | null = null;
   private onVadSpeechStartedCallback: ((speechStarted: boolean) => void) | null = null;
+  private turnAggregator: TurnAggregator | null = null;
 
   constructor(
     services: any[],
@@ -53,6 +55,8 @@ export class Pipeline {
 
   async run(): Promise<void> {
     this.sessionStartTime = Date.now();
+    this.turnAggregator = new TurnAggregator(this.callId, this.sessionStartTime);
+
     const config = {
       callId: this.callId,
       model: this.service.config.model,
@@ -73,32 +77,18 @@ export class Pipeline {
         }
       },
       onTranscriptDelta: (sessId: string, text: string, isFinal: boolean, isUser?: boolean) => {
-        // 1. Pipe to the socket event stream
-        eventBus.publish(PROVIDER_EVENTS.TRANSCRIPT_UPDATED, {
-          callId: this.callId,
-          speaker: isUser ? 'user' : 'agent',
-          text,
-          isFinal: isFinal !== undefined ? isFinal : true,
-        });
-
-        // 2. Commit to database dynamically via TranscriptManager
-        import('../../../runtime/TranscriptManager').then(({ TranscriptManager }) => {
-          const transcriptManager = new TranscriptManager();
-          transcriptManager.addUtterance(
-            this.callId,
-            isUser ? 'user' : 'agent',
-            text,
-            Math.max(0, Math.floor((Date.now() - this.sessionStartTime) / 1000))
-          ).catch(err => {
-            logger.error('Pipeline: Failed to create transcript segment', { callId: this.callId, error: err.message });
-          });
-        }).catch(err => {
-          logger.error('Pipeline: Failed to load TranscriptManager', { callId: this.callId, error: err.message });
-        });
+        if (this.turnAggregator) {
+          this.turnAggregator.handleFragment(isUser ? 'user' : 'agent', text, isFinal);
+        }
       },
       onSpeechStopped: (sessId: string, interrupted?: boolean) => {
-        if (interrupted && this.onVadSpeechStartedCallback) {
-          this.onVadSpeechStartedCallback(true);
+        if (interrupted) {
+          if (this.turnAggregator) {
+            this.turnAggregator.handleInterruption();
+          }
+          if (this.onVadSpeechStartedCallback) {
+            this.onVadSpeechStartedCallback(true);
+          }
         }
       },
       onFunctionCall: async (sessId: string, toolCallId: string, name: string, args: string) => {
@@ -132,9 +122,14 @@ export class Pipeline {
   }
 
   async stop(): Promise<void> {
+    if (this.turnAggregator) {
+      this.turnAggregator.destroy();
+      this.turnAggregator = null;
+    }
     if (this.sessionId) {
       await this.provider.closeSession(this.sessionId);
       this.sessionId = null;
     }
   }
 }
+
