@@ -278,64 +278,121 @@ export class CallController {
   }
 
   /**
+   * Helper adapter function to normalize incoming Plivo webhook payloads.
+   * Tolerates variations in casing, query vs body, and ALeg/B-leg parameter names.
+   */
+  static normalizePlivoPayload(req: Request): {
+    callId?: string;
+    callUuid: string;
+    requestUuid?: string;
+    alegUuid?: string;
+    from: string;
+    to: string;
+    direction: 'inbound' | 'outbound';
+    callStatus: string;
+  } {
+    const data = { ...req.query, ...req.body };
+    const queryCallId = ((data.callId || data.CallId || '') as string).trim();
+    const requestUuid = ((data.RequestUUID || data.requestUUID || data.request_uuid || data.ALegRequestUUID || '') as string).trim();
+    const callUuid = ((data.CallUUID || data.callUUID || data.call_uuid || '') as string).trim();
+    const alegUuid = ((data.ALegUUID || data.alegUUID || data.aleg_uuid || '') as string).trim();
+    const from = ((data.From || data.from || '') as string).trim();
+    const to = ((data.To || data.to || '') as string).trim();
+    const directionRaw = ((data.Direction || data.direction || '') as string).toLowerCase().trim();
+    const callStatus = ((data.CallStatus || data.callStatus || data.Event || data.event || 'unknown') as string).trim();
+
+    // Inbound if explicitly flagged or if no outbound call session identifier exists and 'To' is specified
+    const direction: 'inbound' | 'outbound' = directionRaw === 'inbound' || (!queryCallId && !requestUuid && !!to) ? 'inbound' : 'outbound';
+
+    return {
+      callId: queryCallId || undefined,
+      callUuid: callUuid || requestUuid || alegUuid,
+      requestUuid: requestUuid || undefined,
+      alegUuid: alegUuid || undefined,
+      from,
+      to,
+      direction,
+      callStatus,
+    };
+  }
+
+  /**
    * POST/GET /api/v2/webhooks/plivo/answer
    *
-   * Dedicated Plivo answer webhook handler. Returns clean, valid Plivo XML
-   * with bidirectional streaming enabled and extraHeaders containing call session context.
+   * Dedicated Plivo answer webhook handler. Supports both inbound and outbound calls.
+   * Inbound calls are routed via InboundCallService.handleInboundCall.
+   * Returns clean, valid Plivo XML with bidirectional streaming enabled.
    */
   static async handlePlivoAnswer(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const queryCallId = (req.query.callId || req.body?.callId) as string;
-      const requestUuid = (req.body?.RequestUUID || req.query.RequestUUID || req.body?.ALegRequestUUID || req.query.ALegRequestUUID) as string;
-      const callUuid = (req.body?.CallUUID || req.query.CallUUID) as string;
-      const alegUuid = (req.body?.ALegUUID || req.query.ALegUUID) as string;
+      const norm = CallController.normalizePlivoPayload(req);
 
       logger.info('CallController: Plivo answer webhook received', {
         method: req.method,
+        normalized: norm,
         query: req.query,
         body: req.body,
       });
 
-      // Search database for active call session
-      let callSession = await prisma.call.findFirst({
-        where: {
-          OR: [
-            ...(queryCallId ? [{ id: queryCallId }] : []),
-            ...(requestUuid ? [{ telemetryId: requestUuid }] : []),
-            ...(callUuid ? [{ telemetryId: callUuid }] : []),
-            ...(alegUuid ? [{ telemetryId: alegUuid }] : []),
-          ],
-        },
-      });
+      let callId = '';
+      let callSession = null;
 
-      if (!callSession) {
-        // Fallback: check most recently initiated call in last 5 minutes
+      // 1. If not explicitly inbound, attempt to find an existing outbound call session
+      if (norm.direction !== 'inbound') {
         callSession = await prisma.call.findFirst({
           where: {
-            createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) },
+            OR: [
+              ...(norm.callId ? [{ id: norm.callId }] : []),
+              ...(norm.requestUuid ? [{ telemetryId: norm.requestUuid }] : []),
+              ...(norm.callUuid ? [{ telemetryId: norm.callUuid }] : []),
+              ...(norm.alegUuid ? [{ telemetryId: norm.alegUuid }] : []),
+            ],
           },
-          orderBy: { createdAt: 'desc' },
         });
       }
 
+      // 2. If no existing outbound call session match, route as inbound call via InboundCallService
       if (!callSession) {
-        logger.error('handlePlivoAnswer: Session mismatch — no call session found in DB', { queryCallId, requestUuid, callUuid });
-        res.set('Content-Type', 'application/xml; charset=utf-8');
-        res.status(200).send('<?xml version="1.0" encoding="UTF-8"?><Response><Speak>Session mismatch</Speak></Response>');
-        return;
+        logger.info('CallController: Routing Plivo call to InboundCallService', {
+          callUuid: norm.callUuid,
+          from: norm.from,
+          to: norm.to,
+        });
+
+        const inboundResult = await InboundCallService.handleInboundCall({
+          CallUUID: norm.callUuid,
+          RequestUUID: norm.requestUuid,
+          From: norm.from,
+          To: norm.to,
+          CallStatus: norm.callStatus,
+        });
+
+        if (!inboundResult.success) {
+          logger.warn('CallController: Plivo inbound call handling failed', {
+            error: inboundResult.errorMessage,
+            to: norm.to,
+            from: norm.from,
+          });
+
+          res.set('Content-Type', 'application/xml; charset=utf-8');
+          res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?><Response><Speak>${inboundResult.errorMessage || 'Unable to connect call.'}</Speak><Hangup/></Response>`);
+          return;
+        }
+
+        callId = inboundResult.callId!;
+      } else {
+        callId = callSession.id;
+
+        // Update call telemetryId with active CallUUID if provided
+        if (norm.callUuid && callSession.telemetryId !== norm.callUuid) {
+          await prisma.call.update({
+            where: { id: callId },
+            data: { telemetryId: norm.callUuid },
+          }).catch(() => {});
+        }
+
+        await CallService.handleStatusUpdate(callId, 'answered');
       }
-
-      const callId = callSession.id;
-
-      // Update call telemetryId with active CallUUID if provided
-      if (callUuid && callSession.telemetryId !== callUuid) {
-        await prisma.call.update({
-          where: { id: callId },
-          data: { telemetryId: callUuid },
-        }).catch(() => {});
-      }
-
-      await CallService.handleStatusUpdate(callId, 'answered');
 
       const rawPublicUrl = (env.PUBLIC_URL || (req.headers.host ? `${req.protocol}://${req.headers.host}` : '')).replace(/\/+$/, '');
       const wsUrl = rawPublicUrl.replace(/^http/, 'ws');
@@ -363,25 +420,23 @@ export class CallController {
    */
   static async handlePlivoStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const queryCallId = (req.query.callId || req.body?.callId) as string;
-      const requestUuid = (req.body?.RequestUUID || req.query.RequestUUID || req.body?.ALegRequestUUID || req.query.ALegRequestUUID) as string;
-      const callUuid = (req.body?.CallUUID || req.query.CallUUID) as string;
-      const callStatus = (req.body?.CallStatus || req.query.CallStatus || req.body?.Event || 'unknown') as string;
+      const norm = CallController.normalizePlivoPayload(req);
 
-      logger.info('CallController: Plivo status webhook', { query: req.query, body: req.body });
+      logger.info('CallController: Plivo status webhook', { query: req.query, body: req.body, normalized: norm });
 
       const callSession = await prisma.call.findFirst({
         where: {
           OR: [
-            ...(queryCallId ? [{ id: queryCallId }] : []),
-            ...(requestUuid ? [{ telemetryId: requestUuid }] : []),
-            ...(callUuid ? [{ telemetryId: callUuid }] : []),
+            ...(norm.callId ? [{ id: norm.callId }] : []),
+            ...(norm.requestUuid ? [{ telemetryId: norm.requestUuid }] : []),
+            ...(norm.callUuid ? [{ telemetryId: norm.callUuid }] : []),
+            ...(norm.alegUuid ? [{ telemetryId: norm.alegUuid }] : []),
           ],
         },
       });
 
       if (callSession) {
-        await CallService.handleStatusUpdate(callSession.id, callStatus);
+        await CallService.handleStatusUpdate(callSession.id, norm.callStatus);
       }
 
       res.json({ success: true });
@@ -395,19 +450,18 @@ export class CallController {
    */
   static async handlePlivoHangup(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const queryCallId = (req.query.callId || req.body?.callId) as string;
-      const requestUuid = (req.body?.RequestUUID || req.query.RequestUUID || req.body?.ALegRequestUUID || req.query.ALegRequestUUID) as string;
-      const callUuid = (req.body?.CallUUID || req.query.CallUUID) as string;
+      const norm = CallController.normalizePlivoPayload(req);
       const duration = req.body?.Duration ? parseInt(req.body.Duration as string, 10) : (req.query.Duration ? parseInt(req.query.Duration as string, 10) : 0);
 
-      logger.info('CallController: Plivo hangup webhook', { query: req.query, body: req.body, duration });
+      logger.info('CallController: Plivo hangup webhook', { query: req.query, body: req.body, duration, normalized: norm });
 
       const callSession = await prisma.call.findFirst({
         where: {
           OR: [
-            ...(queryCallId ? [{ id: queryCallId }] : []),
-            ...(requestUuid ? [{ telemetryId: requestUuid }] : []),
-            ...(callUuid ? [{ telemetryId: callUuid }] : []),
+            ...(norm.callId ? [{ id: norm.callId }] : []),
+            ...(norm.requestUuid ? [{ telemetryId: norm.requestUuid }] : []),
+            ...(norm.callUuid ? [{ telemetryId: norm.callUuid }] : []),
+            ...(norm.alegUuid ? [{ telemetryId: norm.alegUuid }] : []),
           ],
         },
       });

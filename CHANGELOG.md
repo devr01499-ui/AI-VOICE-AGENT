@@ -1,5 +1,12 @@
 # CHANGELOG
 
+- Telephony: Plivo Inbound Call Routing & Payload Normalization (Item 0):
+  - **Payload Normalization Adapter (`CallController.ts`)**: Implemented `normalizePlivoPayload(req)` handling case variance, query vs body, and ALeg/B-leg identifiers to resolve `callUuid`, `direction`, `from`, `to`, and `callStatus`.
+  - **Inbound Service Integration (`CallController.ts`, `InboundCallService.ts`)**: Connected Plivo inbound answer webhooks directly to `InboundCallService.handleInboundCall`. Confirmed automatic creation of `Call` row with `callDirection='inbound'`, `fromPhoneNumber`=business number, and `recipientPhoneNumber`=caller.
+  - **Provider-Aware KYC Verification Gate (`InboundCallService.ts`)**: Scoped Vobiz sub-account checks strictly to `telephonyProvider === 'vobiz'`, ensuring Plivo carrier numbers verify against statutory Plivo sub-account status without false Vobiz blockers.
+  - **Automated Verification (`server/scripts/test_item0_plivo_inbound.js`)**: End-to-end execution verified HTTP 200 Stream XML generation, database Call persistence, and accurate direction metadata.
+
+
 - Dashboard Sidebar: Removal of Bottom Profile Card & Streamlined Navigation:
   - **Sidebar Decluttering (`Frontend/src/app/App.tsx`)**: Removed the curved user profile card at the bottom of the sidebar (`nm-raised` box displaying user name, email `devr01499@gmail.com`, and initial avatar).
   - **Eliminated Navigation Crowding**: This permanently unblocks and frees up vertical breathing room for the bottom-most navigation items ("Billing" and "Settings"), preventing the profile card from covering or compressing them.

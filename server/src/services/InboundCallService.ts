@@ -85,20 +85,36 @@ export class InboundCallService {
         };
       }
 
-      const subAccount = await prisma.vobizSubAccount.findUnique({
-        where: { userId: user.id }
-      });
-      if (subAccount && (subAccount.kycStatus !== 'verified' || subAccount.kycCallsBlocked)) {
-        logger.warn('InboundCallService: Inbound call blocked - sub-account KYC unverified or calls blocked', {
-          userId: user.id,
-          kycStatus: subAccount.kycStatus,
-          kycCallsBlocked: subAccount.kycCallsBlocked
+      if (numberRecord.telephonyProvider === 'vobiz' || !numberRecord.telephonyProvider) {
+        const subAccount = await prisma.vobizSubAccount.findUnique({
+          where: { userId: user.id }
         });
-        return {
-          success: false,
-          errorMessage: 'Inbound calls blocked. KYC verification is required for this account before receiving calls.',
-          statusCode: 403
-        };
+        if (subAccount && (subAccount.kycStatus !== 'verified' || subAccount.kycCallsBlocked)) {
+          logger.warn('InboundCallService: Inbound call blocked - sub-account KYC unverified or calls blocked', {
+            userId: user.id,
+            kycStatus: subAccount.kycStatus,
+            kycCallsBlocked: subAccount.kycCallsBlocked
+          });
+          return {
+            success: false,
+            errorMessage: 'Inbound calls blocked. KYC verification is required for this account before receiving calls.',
+            statusCode: 403
+          };
+        }
+      } else if (numberRecord.telephonyProvider === 'plivo') {
+        const plivoSub = await prisma.plivoSubAccount.findUnique({
+          where: { userId: user.id }
+        });
+        if (plivoSub && !plivoSub.enabled) {
+          logger.warn('InboundCallService: Inbound call blocked - Plivo sub-account disabled', {
+            userId: user.id,
+          });
+          return {
+            success: false,
+            errorMessage: 'Inbound calls blocked. Carrier account is disabled.',
+            statusCode: 403
+          };
+        }
       }
 
       // 1b. Check Account Suspension Gate
