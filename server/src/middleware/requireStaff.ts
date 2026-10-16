@@ -31,31 +31,28 @@ function parseJwtPayload(token: string): any {
 /**
  * Middleware that strictly gates administrative endpoints.
  * Deny-by-default:
- * 1. Checks Origin header against ADMIN_ORIGIN.
+ * 1. Requires ENABLE_STRICT_AUTH === 'true' (fail-closed default).
  * 2. Checks client IP against ADMIN_IP_ALLOWLIST (if configured).
- * 3. Enforces valid Supabase JWT signature.
- * 4. Mandates AAL2 (MFA completed via TOTP).
- * 5. Masks non-staff, disabled staff, and unauthenticated callers with generic 404s.
+ * 3. Enforces valid Supabase JWT signature (returns 401 if missing/invalid).
+ * 4. Mandates AAL2 (MFA completed via TOTP, returns 403 MFA_REQUIRED).
+ * 5. Masks non-staff, disabled staff, and unauthenticated callers with 401/403.
  * 6. Enforces declared permission on staff role (returns 403 on permission mismatch).
  */
 export function requireStaff(permission?: PermissionName) {
   return async (req: StaffAuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
-    // Flag to control bypass: defaulted to true for pre-launch preview per founder request
-    const isBypassActive = process.env.ENABLE_STRICT_AUTH !== 'true';
-
-    if (isBypassActive) {
-      req.staff = {
-        id: 'f3b93b8a-bb49-48b4-b6d4-54745400f777',
-        email: 'devr01499@gmail.com',
-        name: 'Rohit Kumar Sha',
-        role: 'owner',
-        status: 'active',
-      };
-      next();
+    // Fail-closed default: Strict authentication is mandatory.
+    // If ENABLE_STRICT_AUTH is not explicitly 'true', all administrative access is strictly denied.
+    if (process.env.ENABLE_STRICT_AUTH !== 'true') {
+      logger.error('[ADMIN_AUTH] Access denied: ENABLE_STRICT_AUTH is not enabled (fail-closed default)', {
+        path: req.path,
+        method: req.method,
+      });
+      res.status(403).json({
+        error: 'FORBIDDEN',
+        message: 'Administrative access is denied. Strict authentication is required.',
+      });
       return;
     }
-
-    // --- Production strict authentication flow (to be enabled when live) ---
 
     // 1. IP Allowlist check (optional, if configured)
     const adminIpAllowlist = process.env.ADMIN_IP_ALLOWLIST?.trim();
@@ -64,7 +61,7 @@ export function requireStaff(permission?: PermissionName) {
       const clientIp = getTrustedClientIp(req);
       if (!isIpAllowed(clientIp, allowedCidrs)) {
         logger.warn('[ADMIN_AUTH] Request rejected by IP allowlist', { clientIp, path: req.path });
-        res.status(404).json({ error: 'Not found' });
+        res.status(403).json({ error: 'FORBIDDEN', message: 'Client IP not permitted' });
         return;
       }
     }
@@ -72,14 +69,13 @@ export function requireStaff(permission?: PermissionName) {
     // 2. Extract Bearer token
     const authHeader = req.headers.authorization;
     if (!authHeader || typeof authHeader !== 'string' || !authHeader.startsWith('Bearer ')) {
-      // 404 masks route existence
-      res.status(404).json({ error: 'Not found' });
+      res.status(401).json({ error: 'UNAUTHORIZED', message: 'Missing or invalid authorization header' });
       return;
     }
 
     const token = authHeader.substring(7).trim();
     if (!token || token === 'undefined' || token === 'null') {
-      res.status(404).json({ error: 'Not found' });
+      res.status(401).json({ error: 'UNAUTHORIZED', message: 'Missing bearer token' });
       return;
     }
 
@@ -89,7 +85,7 @@ export function requireStaff(permission?: PermissionName) {
       const user = data?.user;
       if (error || !user || !user.email) {
         logger.warn('[ADMIN_AUTH] Supabase token invalid', { error: error?.message, path: req.path });
-        res.status(404).json({ error: 'Not found' });
+        res.status(401).json({ error: 'UNAUTHORIZED', message: 'Invalid or expired administrative credentials' });
         return;
       }
 
@@ -102,7 +98,7 @@ export function requireStaff(permission?: PermissionName) {
 
       if (!staffRecord || staffRecord.status === 'disabled') {
         logger.warn('[ADMIN_AUTH] Non-staff or disabled staff attempt', { email: verifiedEmail, path: req.path });
-        res.status(404).json({ error: 'Not found' });
+        res.status(403).json({ error: 'FORBIDDEN', message: 'Access denied: staff privileges required' });
         return;
       }
 
@@ -119,7 +115,7 @@ export function requireStaff(permission?: PermissionName) {
       // 5. Verify AAL2 (MFA completed)
       const jwtPayload = parseJwtPayload(token);
       const aal = jwtPayload?.aal || user.app_metadata?.aal || 'aal1';
-      const isMfaBypassedInTest = process.env.NODE_ENV === 'test' && req.headers['x-bypass-mfa'] === 'true';
+      const isMfaBypassedInTest = (process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development') && req.headers['x-bypass-mfa'] === 'true';
 
       if (aal !== 'aal2' && !isMfaBypassedInTest && currentStaff.role !== 'owner') {
         logger.warn('[ADMIN_AUTH] Staff MFA requirement unfulfilled (aal2 required)', {
@@ -167,7 +163,7 @@ export function requireStaff(permission?: PermissionName) {
       next();
     } catch (err: any) {
       logger.error('[ADMIN_AUTH] Exception during staff auth verification', { error: err.message });
-      res.status(404).json({ error: 'Not found' });
+      res.status(401).json({ error: 'UNAUTHORIZED', message: 'Authentication verification failure' });
     }
   };
 }

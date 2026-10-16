@@ -16,33 +16,29 @@ interface AuthContextType {
   refreshStaff: () => Promise<void>;
 }
 
-const DEFAULT_OWNER: StaffUser = {
-  id: 'f3b93b8a-bb49-48b4-b6d4-54745400f777',
-  email: 'devr01499@gmail.com',
-  name: 'Rohit Kumar Sha',
-  role: 'owner',
-  status: 'active',
-  permissions: [
-    'customers:view', 'customers:edit', 'customers:suspend', 'customers:restrict',
-    'customers:restore', 'metrics:view', 'payments:view', 'call_content:view',
-    'minutes:grant', 'minutes:deduct', 'plans:manage', 'payment_links:create',
-    'refunds:manage', 'numbers:activate', 'kyc:reset', 'security:force_logout',
-    'security:revoke_keys', 'calls:terminate', 'agents:disable', 'staff:manage',
-    'settings:manage', 'audit:view', 'exports:csv',
-  ],
-};
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<any | null>({
-    id: 'f3b93b8a-bb49-48b4-b6d4-54745400f777',
-    email: 'devr01499@gmail.com',
-  });
-  const [staff, setStaff] = useState<StaffUser | null>(DEFAULT_OWNER);
-  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState<any | null>(null);
+  const [staff, setStaff] = useState<StaffUser | null>(null);
+  const [loading, setLoading] = useState(true);
   const [mfaRequired, setMfaRequired] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const checkMfaStatus = async (): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (!error && data) {
+        const needsMfa = data.currentLevel === 'aal1' && data.nextLevel === 'aal2';
+        setMfaRequired(needsMfa);
+        return needsMfa;
+      }
+    } catch {
+      // MFA evaluation failed
+    }
+    setMfaRequired(false);
+    return false;
+  };
 
   const fetchStaffProfile = async () => {
     try {
@@ -50,34 +46,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await adminFetch<{ success: boolean; data: StaffUser }>('/api/v2/admin/me');
       if (res.success && res.data) {
         setStaff(res.data);
+      } else {
+        setStaff(null);
       }
-    } catch {
-      // Retain DEFAULT_OWNER on temporary bypass
-      setStaff(DEFAULT_OWNER);
+    } catch (err: any) {
+      console.warn('[ADMIN_AUTH] Failed to fetch staff profile', err);
+      setStaff(null);
+      setError(err?.message || 'Failed to verify staff permissions');
     }
   };
 
   useEffect(() => {
     // Initial session load
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
         setUser(session.user);
-        fetchStaffProfile().finally(() => setLoading(false));
+        const needsMfa = await checkMfaStatus();
+        if (!needsMfa) {
+          await fetchStaffProfile();
+        }
       } else {
-        setUser({ id: DEFAULT_OWNER.id, email: DEFAULT_OWNER.email });
-        setStaff(DEFAULT_OWNER);
-        setLoading(false);
+        setUser(null);
+        setStaff(null);
       }
+      setLoading(false);
     });
 
     // Auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         setUser(session.user);
-        await fetchStaffProfile();
+        const needsMfa = await checkMfaStatus();
+        if (!needsMfa) {
+          await fetchStaffProfile();
+        }
       } else {
-        setUser({ id: DEFAULT_OWNER.id, email: DEFAULT_OWNER.email });
-        setStaff(DEFAULT_OWNER);
+        setUser(null);
+        setStaff(null);
         setMfaRequired(false);
       }
       setLoading(false);
@@ -113,7 +118,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
     if (error) throw error;
     setUser(data.user);
-    await fetchStaffProfile();
+    const needsMfa = await checkMfaStatus();
+    if (!needsMfa) {
+      await fetchStaffProfile();
+    }
   };
 
   const signOut = async () => {

@@ -13,9 +13,11 @@ import { StaffList } from './pages/StaffList';
 import { PlansList } from './pages/PlansList';
 import { Settings } from './pages/Settings';
 import { UsagePage } from './pages/UsagePage';
+import { Login } from './pages/Login';
+import { MfaEnroll } from './pages/MfaEnroll';
 
 const AdminRouter: React.FC = () => {
-  const { loading } = useAuth();
+  const { user, mfaRequired, loading } = useAuth();
   const [currentPath, setCurrentPath] = useState<string>('/overview');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
@@ -27,7 +29,7 @@ const AdminRouter: React.FC = () => {
     if (p.startsWith('/admin')) {
       p = p.replace(/^\/admin/, '') || '/overview';
     }
-    if (['', '/', '/login', '/signin', '/auth', '/mfa'].includes(p)) {
+    if (['', '/'].includes(p)) {
       p = '/overview';
     }
     return p;
@@ -37,7 +39,7 @@ const AdminRouter: React.FC = () => {
   useEffect(() => {
     const handlePopState = () => {
       let path = normalizePath(window.location.pathname || '/overview');
-      if (['/', '/login', '/signin', '/auth', '/mfa'].includes(path)) {
+      if (['', '/'].includes(path)) {
         path = '/overview';
         window.history.replaceState({}, '', `${basePath}/overview`);
       }
@@ -82,8 +84,15 @@ const AdminRouter: React.FC = () => {
     );
   }
 
-  // Pre-launch mode: Authentication is temporarily bypassed per founder request.
-  // Full AAL2 TOTP and role gating will be reinstated prior to live launch.
+  // Strict Authentication Gate: Unauthenticated users are served the Login portal
+  if (!user) {
+    return <Login onSuccess={() => navigate('/overview')} />;
+  }
+
+  // Strict MFA Gate: AAL2 step-up required before accessing internal console
+  if (mfaRequired) {
+    return <MfaEnroll onVerified={() => navigate('/overview')} />;
+  }
 
   // Render current page content
   const renderContent = () => {

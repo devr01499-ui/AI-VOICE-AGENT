@@ -130,9 +130,7 @@ app.use(cors({
 
     const frontendOrigin = env.FRONTEND_URL ? (() => { try { return new URL(env.FRONTEND_URL).origin; } catch { return null; } })() : null;
     const isAllowedList = allowedOrigins.includes(origin) || (frontendOrigin !== null && origin === frontendOrigin);
-    const isAnchoredDomain = /^https:\/\/(www\.)?claritiy\.com$/.test(origin) ||
-                             /^https:\/\/([a-zA-Z0-9-]+\.)?claritiy\.com$/.test(origin) ||
-                             /^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/.test(origin) ||
+    const isAnchoredDomain = /^https:\/\/(www\.|app\.|admin\.)?claritiy\.com$/.test(origin) ||
                              /^https:\/\/ai-voice-agent-backend-mv32\.onrender\.com$/.test(origin);
 
     if (isAllowedList || isAnchoredDomain) {
@@ -469,6 +467,11 @@ async function bootstrap(): Promise<void> {
   // Start listening immediately so cloud port scanner succeeds without delay
   server.listen(PORT, HOST, async () => {
     logger.info(`Claritiy Backend Server running natively on port ${PORT}`);
+    const isStrictAuth = process.env.ENABLE_STRICT_AUTH === 'true';
+    logger.info(`[ADMIN_AUTH] Strict administrative authentication configured: ${isStrictAuth ? 'ENABLED (fail-closed)' : 'DISABLED (FAIL-CLOSED: STRICT_AUTH MANDATORY)'}`, {
+      ENABLE_STRICT_AUTH: process.env.ENABLE_STRICT_AUTH || 'unset',
+      strictMode: isStrictAuth,
+    });
     logger.info(`Claritiy Voice Server: listening on port ${PORT}`, {
       health: `http://localhost:${PORT}/health`,
       api: `http://localhost:${PORT}/api/v2`,
