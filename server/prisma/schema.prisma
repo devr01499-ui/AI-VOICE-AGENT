@@ -1199,8 +1199,20 @@ model DailyMetric {
 
   @@map("daily_metrics")
 }
+model SystemAlert {
+  id         String   @id @default(uuid())
+  userId     String?  @map("user_id")
+  type       String   @default("FAILED_PROVISIONING") // FAILED_PROVISIONING | KYC_PENDING_NUMBER | SYSTEM
+  title      String
+  message    String
+  severity   String   @default("warning") // info | warning | error | critical
+  metadata   String?  @default("{}") // JSON string for orderId, number, step, reason
+  isResolved Boolean  @default(false) @map("is_resolved")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
-
-
-
+  @@index([userId])
+  @@index([type, isResolved])
+  @@map("system_alerts")
+}
 

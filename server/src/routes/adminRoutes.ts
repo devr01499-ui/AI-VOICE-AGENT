@@ -1944,3 +1944,109 @@ adminRouter.get('/exports/:type', requireStaff('exports:csv'), async (req: Staff
     res.status(500).json({ error: 'Failed to generate CSV export' });
   }
 });
+
+/**
+ * GET /api/v2/admin/provisioning-alerts
+ * Lists failed phone number orders, KYC-verified users with no number, and system alerts.
+ */
+adminRouter.get('/provisioning-alerts', requireStaff('customers:view'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const failedOrders = await prisma.phoneNumberOrder.findMany({
+      where: {
+        orderStatus: { in: ['failed', 'assignment_failed'] },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    const userIds = [...new Set(failedOrders.map(o => o.userId))];
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, email: true, fullName: true },
+    });
+    const userMap = new Map(users.map(u => [u.id, u]));
+
+    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+    const verifiedUsersWithoutNumber = await prisma.user.findMany({
+      where: {
+        kycDocuments: {
+          some: {
+            status: 'verified',
+            updatedAt: { lte: fifteenMinutesAgo },
+          },
+        },
+        phoneNumbers: {
+          none: {},
+        },
+      },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        createdAt: true,
+        kycDocuments: {
+          where: { status: 'verified' },
+          select: { updatedAt: true },
+          take: 1,
+        },
+      },
+      take: 50,
+    });
+
+    const systemAlerts = await prisma.systemAlert.findMany({
+      where: {
+        type: 'FAILED_PROVISIONING',
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        failedOrders: failedOrders.map(o => ({
+          ...o,
+          user: userMap.get(o.userId) || null,
+        })),
+        verifiedUsersWithoutNumber: verifiedUsersWithoutNumber.map(u => ({
+          userId: u.id,
+          email: u.email,
+          fullName: u.fullName,
+          verifiedAt: u.kycDocuments[0]?.updatedAt || u.createdAt,
+        })),
+        systemAlerts,
+      },
+    });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to fetch provisioning alerts', { error: err.message });
+    res.status(500).json({ success: false, error: 'Failed to fetch provisioning alerts' });
+  }
+});
+
+/**
+ * POST /api/v2/admin/orders/:orderId/retry
+ * Resets a failed phone number order for retry.
+ */
+adminRouter.post('/orders/:orderId/retry', requireStaff('customers:view'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const orderId = String(req.params.orderId);
+    const order = await prisma.phoneNumberOrder.findUnique({ where: { id: orderId } });
+    if (!order) {
+      res.status(404).json({ success: false, error: 'Order not found' });
+      return;
+    }
+
+    await prisma.phoneNumberOrder.update({
+      where: { id: orderId },
+      data: { orderStatus: 'validating', failureReason: null },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Order ${orderId} reset to validating status for retry.`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || 'Retry initiation failed' });
+  }
+});
+

@@ -100,6 +100,12 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
   const [purchasing, setPurchasing] = useState(false);
   const [purchasedData, setPurchasedData] = useState<{ id: string; number: string; status: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [claimFailure, setClaimFailure] = useState<{
+    code: string;
+    message: string;
+    orderId?: string | null;
+    retryable?: boolean;
+  } | null>(null);
 
   // Fetch account-level KYC status
   const fetchKycStatus = useCallback(async () => {
@@ -363,8 +369,14 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
       setPurchasing(false);
 
       if (!data.success) {
-        setError(data.error || 'Failed to claim phone number.');
-        if (data.kycRequired || (data.error && data.error.toLowerCase().includes('kyc'))) {
+        setError(data.message || data.error || 'Failed to claim phone number.');
+        setClaimFailure({
+          code: data.code || 'PROVIDER_ERROR',
+          message: data.message || data.error || 'Failed to claim phone number.',
+          orderId: data.orderId || null,
+          retryable: data.retryable !== false,
+        });
+        if (data.code === 'KYC_NOT_VERIFIED' || data.kycRequired || (data.error && data.error.toLowerCase().includes('kyc'))) {
           setIsKycBlocked(true);
         }
         if (data.numberLocked) {
@@ -490,23 +502,97 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
             </span>
           </div>
 
-          {/* Error Banner */}
-          {error && (
+          {/* Structured Failure Card */}
+          {claimFailure && (
+            <div className="mb-6 p-6 rounded-2xl border bg-red-50/90 text-red-900 border-red-200/80 shadow-sm space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-red-600" />
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-red-200/60 text-red-800">
+                        {claimFailure.code}
+                      </span>
+                      {claimFailure.retryable && (
+                        <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                          Retryable
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm font-bold text-red-950">{claimFailure.message}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setClaimFailure(null); setError(null); }}
+                  className="text-gray-400 hover:text-gray-600 text-xs font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Next Steps Card */}
+              <div className="p-4 bg-white/80 rounded-xl border border-red-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                <div>
+                  <span className="font-bold text-gray-900 block mb-0.5">Recommended Next Step:</span>
+                  <span className="text-gray-600">
+                    {claimFailure.code === 'KYC_NOT_VERIFIED'
+                      ? 'Submit required business and identity documents in Compliance Settings.'
+                      : claimFailure.code === 'NUMBER_UNAVAILABLE'
+                      ? 'Return to the carrier inventory catalogue to select an alternative number.'
+                      : claimFailure.retryable
+                      ? 'Verify your network connectivity and retry the claim.'
+                      : 'Please review account balance and subscription state.'}
+                  </span>
+                </div>
+
+                {claimFailure.code === 'KYC_NOT_VERIFIED' ? (
+                  <button
+                    onClick={handleTriggerKyc}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+                  >
+                    <ShieldCheck className="w-4 h-4" /> Complete KYC in Settings →
+                  </button>
+                ) : claimFailure.code === 'NUMBER_UNAVAILABLE' ? (
+                  <button
+                    onClick={() => { setSelectedNumber(null); setClaimFailure(null); }}
+                    className="px-4 py-2 bg-gray-900 hover:bg-black text-white font-bold rounded-xl shadow-xs transition-all shrink-0 cursor-pointer"
+                  >
+                    Choose Another Number
+                  </button>
+                ) : claimFailure.retryable ? (
+                  <button
+                    onClick={handleExecuteClaim}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-xs transition-all shrink-0 cursor-pointer"
+                  >
+                    Retry Claim
+                  </button>
+                ) : null}
+              </div>
+
+              {/* Reference ID and Support Link */}
+              {claimFailure.orderId && (
+                <div className="pt-2 border-t border-red-200/50 flex flex-wrap items-center justify-between gap-2 text-xs text-red-800 font-mono">
+                  <span>
+                    Reference ID: <strong className="font-bold">{claimFailure.orderId}</strong>
+                  </span>
+                  <a
+                    href={`mailto:support@claritiy.com?subject=Number Claim Assistance: ${claimFailure.orderId}&body=Hello Support, my number claim failed with code ${claimFailure.code} for reference order ${claimFailure.orderId}.`}
+                    className="font-bold underline hover:text-red-950 font-sans"
+                  >
+                    Contact Support with Reference →
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Fallback simple error banner if no structured claim failure */}
+          {error && !claimFailure && (
             <div className="mb-6 p-4 rounded-2xl flex flex-col gap-2 border bg-red-50 text-red-700 border-red-100">
               <div className="flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-red-500" />
                 <p className="text-sm font-semibold">{error}</p>
               </div>
-              {(isKycBlocked || error.toLowerCase().includes('kyc')) && (
-                <div className="pt-2 pl-8">
-                  <button
-                    onClick={handleTriggerKyc}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <ShieldCheck className="w-4 h-4" /> Complete KYC & Compliance in Settings →
-                  </button>
-                </div>
-              )}
             </div>
           )}
 

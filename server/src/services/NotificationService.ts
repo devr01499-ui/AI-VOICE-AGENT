@@ -1,8 +1,5 @@
-import fs from 'fs';
-import path from 'path';
+import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
-
-const notificationsFilePath = path.join(__dirname, '../../data/company_notifications.json');
 
 export interface InAppNotification {
   id: string;
@@ -13,61 +10,88 @@ export interface InAppNotification {
 }
 
 export class NotificationService {
-  public static getAll(): InAppNotification[] {
+  public static async getAll(): Promise<InAppNotification[]> {
     try {
-      if (fs.existsSync(notificationsFilePath)) {
-        const data = fs.readFileSync(notificationsFilePath, 'utf8');
-        return JSON.parse(data);
-      }
+      const alerts = await prisma.systemAlert.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      });
+      return alerts.map(a => ({
+        id: a.id,
+        userId: a.userId,
+        message: a.message,
+        createdAt: a.createdAt.toISOString(),
+        isImportant: a.severity === 'critical' || a.severity === 'error',
+      }));
     } catch (e) {
-      logger.error('NotificationService: Failed to read notifications', { error: String(e) });
+      logger.error('NotificationService: Failed to read notifications from DB', { error: String(e) });
+      return [];
     }
-    return [
-      {
-        id: 'notif-default-1',
-        userId: null,
-        message: '📢 Claritiy Voice System Announcement: Outbound telephony engine operational across all channels.',
+  }
+
+  public static async getForUser(userId?: string): Promise<InAppNotification[]> {
+    try {
+      const alerts = await prisma.systemAlert.findMany({
+        where: userId ? { OR: [{ userId: null }, { userId }] } : { userId: null },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      });
+      return alerts.map(a => ({
+        id: a.id,
+        userId: a.userId,
+        message: a.message,
+        createdAt: a.createdAt.toISOString(),
+        isImportant: a.severity === 'critical' || a.severity === 'error',
+      }));
+    } catch (e) {
+      logger.error('NotificationService: Failed to get user notifications from DB', { error: String(e) });
+      return [];
+    }
+  }
+
+  public static async createInAppNotification(data: {
+    userId?: string | null;
+    message: string;
+    isImportant?: boolean;
+    type?: string;
+    title?: string;
+    severity?: string;
+    metadata?: any;
+  }): Promise<InAppNotification> {
+    try {
+      const alert = await prisma.systemAlert.create({
+        data: {
+          userId: data.userId || null,
+          title: data.title || (data.isImportant ? 'Important Alert' : 'System Notification'),
+          message: data.message,
+          type: data.type || 'SYSTEM',
+          severity: data.severity || (data.isImportant ? 'error' : 'info'),
+          metadata: data.metadata ? (typeof data.metadata === 'string' ? data.metadata : JSON.stringify(data.metadata)) : '{}',
+        }
+      });
+
+      logger.info('NotificationService: In-app notification created in DB', {
+        userId: alert.userId,
+        message: alert.message,
+        id: alert.id
+      });
+
+      return {
+        id: alert.id,
+        userId: alert.userId,
+        message: alert.message,
+        createdAt: alert.createdAt.toISOString(),
+        isImportant: alert.severity === 'critical' || alert.severity === 'error',
+      };
+    } catch (e: any) {
+      logger.error('NotificationService: Failed to save notification to DB', { error: e?.message || String(e) });
+      return {
+        id: `fallback_${Date.now()}`,
+        userId: data.userId || null,
+        message: data.message,
         createdAt: new Date().toISOString(),
-        isImportant: true,
-      }
-    ];
-  }
-
-  public static getForUser(userId?: string): InAppNotification[] {
-    const all = this.getAll();
-    if (!userId) {
-      return all.filter(n => !n.userId);
+        isImportant: !!data.isImportant,
+      };
     }
-    return all.filter(n => !n.userId || n.userId === userId);
-  }
-
-  public static saveAll(notifs: InAppNotification[]): void {
-    try {
-      const dir = path.dirname(notificationsFilePath);
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(notificationsFilePath, JSON.stringify(notifs, null, 2), 'utf8');
-    } catch (e) {
-      logger.error('NotificationService: Failed to save notifications', { error: String(e) });
-    }
-  }
-
-  public static createInAppNotification(data: { userId?: string | null; message: string; isImportant?: boolean }): InAppNotification {
-    const current = this.getAll();
-    const newNotif: InAppNotification = {
-      id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      userId: data.userId || null,
-      message: data.message,
-      createdAt: new Date().toISOString(),
-      isImportant: !!data.isImportant,
-    };
-
-    const updated = [newNotif, ...current].slice(0, 50);
-    this.saveAll(updated);
-    logger.info('NotificationService: In-app notification created', {
-      userId: newNotif.userId,
-      message: newNotif.message,
-      id: newNotif.id
-    });
-    return newNotif;
   }
 }

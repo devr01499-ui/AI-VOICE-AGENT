@@ -14,6 +14,7 @@ import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
 import { requireActivePlan } from '../middleware/planValidation';
 import { checkRequiredKycDocumentsVerified } from '../services/KycVerificationService';
 import { PlivoService } from '../core/telephony/PlivoService';
+import { NotificationService } from '../services/NotificationService';
 
 export { checkRequiredKycDocumentsVerified };
 
@@ -616,9 +617,58 @@ router.post('/claim', requireAuth, requireEditor, requireActivePlan, sensitiveOp
       }
     });
   } catch (err: any) {
-    const errorMsg = err?.message || String(err);
-    logger.error('[NUMBERS_CLAIM_ERROR] Failed to claim bundled number', { userId, vobizNumberId, error: errorMsg });
-    res.status(500).json({ success: false, error: 'Failed to claim phone number. Please contact support.' });
+    const rawError = err?.message || String(err);
+    const orderId = err?.orderId || null;
+    logger.error('[NUMBERS_CLAIM_ERROR] Failed to claim bundled number', { userId, vobizNumberId, error: rawError, orderId });
+
+    let code = 'PROVIDER_ERROR';
+    let message = 'Unable to complete phone number provisioning. Please try again.';
+    let retryable = true;
+
+    if (rawError.includes('KYC') || rawError.includes('kyc') || rawError.includes('Aadhaar')) {
+      code = 'KYC_NOT_VERIFIED';
+      message = 'Your KYC verification is required before claiming an Indian phone number. Please complete KYC verification in Settings.';
+      retryable = false;
+    } else if (rawError.includes('assignment') || rawError.includes('DID') || rawError.includes('assign')) {
+      code = 'ASSIGNMENT_FAILED';
+      message = 'Phone number was acquired but carrier assignment failed. Our operations team has been alerted.';
+      retryable = true;
+    } else if (rawError.includes('SubAccount') || rawError.includes('sub-account') || rawError.includes('subaccount')) {
+      code = 'VOBIZ_SUBACCOUNT_FAILED';
+      message = 'Failed to configure telephony sub-account. Please retry in a few moments.';
+      retryable = true;
+    } else if (rawError.includes('not found') || rawError.includes('inventory') || rawError.includes('Price changed') || rawError.includes('unavailable')) {
+      code = 'NUMBER_UNAVAILABLE';
+      message = 'This phone number is no longer available in carrier inventory. Please select another number.';
+      retryable = true;
+    } else if (rawError.includes('balance') || rawError.includes('funds') || rawError.includes('credit')) {
+      code = 'INSUFFICIENT_FUNDS';
+      message = 'Account billing threshold reached. Please add balance or contact support.';
+      retryable = false;
+    }
+
+    // Persist alert in DB for admin dashboard visibility
+    NotificationService.createInAppNotification({
+      userId,
+      type: 'FAILED_PROVISIONING',
+      title: `Number Claim Error: ${code}`,
+      message: `${message} (Reference: ${orderId || 'N/A'})`,
+      severity: 'error',
+      metadata: {
+        code,
+        orderId,
+        vobizNumberId,
+        reason: rawError,
+      }
+    }).catch(() => {});
+
+    res.status(400).json({
+      success: false,
+      code,
+      message,
+      orderId,
+      retryable,
+    });
   }
 });
 

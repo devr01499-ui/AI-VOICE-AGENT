@@ -64,8 +64,8 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
       const currentSetupFee = numberDetails.setup_fee || 0;
       const currentTotalCost = currentMonthlyFee + currentSetupFee;
 
-      // If price has changed by more than 0.01 (floating point tolerance), reject
-      if (Math.abs(currentMonthlyFee - params.expectedPrice) > 0.01 && Math.abs(currentTotalCost - params.expectedPrice) > 0.01) {
+      // If price has changed by more than 0.01 (floating point tolerance), reject (unless bundled claim where expectedPrice is 0)
+      if (params.expectedPrice > 0 && Math.abs(currentMonthlyFee - params.expectedPrice) > 0.01 && Math.abs(currentTotalCost - params.expectedPrice) > 0.01) {
         throw new Error(`Price changed from ₹${params.expectedPrice} to ₹${currentTotalCost}. Please refresh and try again.`);
       }
 
@@ -180,8 +180,8 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
 
       return { order: successOrder, phoneNumber: newPhone };
 
-    } catch (err) {
-      const error = err as Error;
+    } catch (err: any) {
+      const error = err as any;
       const currentOrder = await prisma.phoneNumberOrder.findUnique({ where: { id: order.id } });
       const finalOrderStatus = currentOrder?.orderStatus === 'assignment_failed' ? 'assignment_failed' : 'failed';
       await prisma.phoneNumberOrder.update({
@@ -190,7 +190,8 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
           orderStatus: finalOrderStatus, 
           failureReason: error.message || 'Unknown error' 
         }
-      });
+      }).catch(() => {});
+      error.orderId = order.id;
       throw error;
     }
   }
