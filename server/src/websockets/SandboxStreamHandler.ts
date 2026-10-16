@@ -9,20 +9,7 @@ import { ADMIN_EMAIL } from '../config/constants';
 import { CalendarService } from '../core/orchestrator/CalendarService';
 import { extractToolsFromFlowGraph } from '../core/orchestrator/CallOrchestrator';
 import { resolveLiveModel } from '../utils/modelResolver';
-
-function getGreetingTextForLanguage(languageMode: string | null | undefined): string {
-  const map: Record<string, string> = {
-    en: 'Please greet me warmly, introduce yourself, and ask how you can help me today.',
-    hi: 'कृपया मेरा अभिवादन करें, अपना परिचय दें और पूछें कि आज आप मेरी क्या सहायता कर सकते हैं।',
-    bn: 'অনুগ্রহ করে আমাকে অভিবাদন জানান, নিজের পরিচয় দিন এবং জিজ্ঞাসা করুন কীভাবে সাহায্য করতে পারেন।',
-    kn: 'ದಯವಿಟ್ಟು ನನ್ನನ್ನು ಸ್ವಾಗತಿಸಿ, ನಿಮ್ಮನ್ನು ಪರಿಚಯಿಸಿಕೊಳ್ಳಿ ಮತ್ತು ನಾನು ಹೇಗೆ ಸಹಾಯ ಮಾಡಲಿ ಎಂದು ಕೇಳಿ।',
-    ml: 'ദയവായി എന്നെ സ്വാഗതം ചെയ്യുക, സ്വയം പരിചയപ്പെടുത്തുക, ഞാൻ എങ്ങനെ സഹായിക്കണമെന്ന് ചോദിക്കുക।',
-    gu: 'કૃપા કરીને મારું સ્વાગત કરો, તમારો પરિચય આપો અને પૂછો કે તમે કેવી રીતે મદદ કરી શકો.',
-    zh: '请向我热情问好，做简短自我介绍，并询问今天有什么可以帮助我的。',
-    ar: 'يرجى الترحيب بي بحرارة، وتقديم نفسك، والسؤال عما يمكنك المساعدة به اليوم.',
-  };
-  return (languageMode && map[languageMode]) || map.en;
-}
+import { buildGreetingText, formatGreetingTurnPrompt } from '../utils/greetingUtils';
 
 interface ActiveSandboxSession {
   ws: WebSocket;
@@ -364,8 +351,14 @@ export class SandboxStreamHandler {
       logger.info('SandboxStreamHandler: Session handshake confirmed. Sending greeting.', { connectionId });
       
       // Trigger dynamic greeting turn
-      const greetingText = getGreetingTextForLanguage(agent.languageMode);
-      this.provider.triggerGreeting(result.sessionId, greetingText);
+      const greetingText = buildGreetingText({
+        languageMode: agent.languageMode,
+        direction: 'inbound',
+        agentName: agent.name,
+        businessName: 'Claritiy Voice',
+        firstMessage: (agent as any).firstMessage,
+      });
+      this.provider.triggerGreeting(result.sessionId, formatGreetingTurnPrompt(greetingText));
 
       // Max Call Duration Enforcement
       try {

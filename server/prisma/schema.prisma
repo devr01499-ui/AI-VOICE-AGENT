@@ -127,6 +127,7 @@ model Agent {
   direction      String?  @default("outbound") @map("direction") // inbound | outbound | both
   temperature    Float?   @default(0.7)
   systemPrompt   String?  @map("system_prompt")
+  firstMessage   String?  @map("first_message")
   version        Int      @default(1)
   tags           String   @default("[]") // JSON array
   flowGraph      String?  @map("flow_graph")

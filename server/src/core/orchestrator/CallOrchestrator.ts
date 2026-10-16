@@ -14,8 +14,9 @@ import { prisma } from '../../lib/prisma';
 import { ADMIN_EMAIL } from '../../config/constants';
 import { CalendarService } from './CalendarService';
 import { bookFollowUpCallTool, executeBookFollowUpCall } from '../../lib/calendar/bookingTool';
-import { McpService } from '../../services/McpService';
 import { resolveLiveModel } from '../../utils/modelResolver';
+import { callTimingTracker } from '../../utils/CallTimingTracker';
+import { formatGreetingTurnPrompt } from '../../utils/greetingUtils';
 
 export function extractToolsFromFlowGraph(flowGraphInput: string | object | null | undefined): any[] {
   if (!flowGraphInput) return [];
@@ -140,9 +141,21 @@ class ConversationState implements IConversationState {
   }
 }
 
+interface PrewarmedSession {
+  callId: string;
+  agentId: string;
+  phoneNumber: string;
+  pipecatRunner: PipecatRunner;
+  callSession: CallSession;
+  readyPromise: Promise<string>;
+  bufferedAudio: string[];
+  ttlTimeout: NodeJS.Timeout;
+}
+
 export class CallOrchestrator {
   private static _instance: CallOrchestrator | null = null;
   private readonly activeCalls = new Map<string, CallSession>();
+  private readonly prewarmedSessions = new Map<string, PrewarmedSession>();
   private readonly stateMachines = new Map<string, CallStateMachine>();
   private readonly toolExecutor = new ToolExecutor();
 
@@ -598,6 +611,101 @@ export class CallOrchestrator {
   }
 
   /**
+   * Prewarms the voice session (Google Gemini Live WebSocket connection + Setup Complete handshake)
+   * in background while the telephony carrier answers and establishes the media stream.
+   * Session has a 15-second TTL cleanup if telephony never opens the stream.
+   */
+  async prewarmVoiceSession(
+    callId: string,
+    agentId: string,
+    phoneNumber: string
+  ): Promise<void> {
+    if (this.activeCalls.has(callId) || this.prewarmedSessions.has(callId)) {
+      return;
+    }
+
+    logger.info('CallOrchestrator: prewarming voice session', { callId, agentId });
+    const bufferedAudio: string[] = [];
+
+    const ttlTimeout = setTimeout(() => {
+      const pw = this.prewarmedSessions.get(callId);
+      if (pw) {
+        logger.info('CallOrchestrator: prewarmed session expired TTL, cleaning up', { callId });
+        this.prewarmedSessions.delete(callId);
+        pw.pipecatRunner.stop().catch(() => {});
+      }
+    }, 15000);
+
+    const readyPromise = this.startVoiceSession(
+      callId,
+      agentId,
+      phoneNumber,
+      (audioBase64: string) => {
+        const pw = this.prewarmedSessions.get(callId);
+        if (pw) {
+          pw.bufferedAudio.push(audioBase64);
+        }
+      }
+    );
+
+    readyPromise.then((sessionId) => {
+      const session = this.activeCalls.get(callId);
+      if (session && session.pipecatRunner) {
+        // Move from activeCalls to prewarmedSessions until telephony stream connects
+        this.activeCalls.delete(callId);
+        this.prewarmedSessions.set(callId, {
+          callId,
+          agentId,
+          phoneNumber,
+          pipecatRunner: session.pipecatRunner,
+          callSession: session,
+          readyPromise,
+          bufferedAudio,
+          ttlTimeout,
+        });
+        logger.info('CallOrchestrator: voice session prewarmed and standing by', { callId, sessionId });
+      }
+    }).catch((err) => {
+      clearTimeout(ttlTimeout);
+      this.prewarmedSessions.delete(callId);
+      logger.warn('CallOrchestrator: prewarm failed, will fallback to on-demand start', { callId, error: String(err) });
+    });
+  }
+
+  /**
+   * Attaches telephony stream to prewarmed session, or creates standard session if none exists.
+   */
+  async attachPrewarmedVoiceSession(
+    callId: string,
+    agentId: string,
+    phoneNumber: string,
+    onAudioDelta: (audioBase64: string) => void
+  ): Promise<string> {
+    const pw = this.prewarmedSessions.get(callId);
+    if (pw) {
+      clearTimeout(pw.ttlTimeout);
+      this.prewarmedSessions.delete(callId);
+
+      const sessionId = await pw.readyPromise;
+      pw.pipecatRunner.setOutputSink(onAudioDelta);
+      this.activeCalls.set(callId, pw.callSession);
+
+      if (pw.bufferedAudio.length > 0) {
+        logger.info('CallOrchestrator: delivering pre-buffered audio chunks to telephony', { callId, count: pw.bufferedAudio.length });
+        for (const chunk of pw.bufferedAudio) {
+          onAudioDelta(chunk);
+        }
+        pw.bufferedAudio.length = 0;
+      }
+
+      logger.info('CallOrchestrator: prewarmed voice session successfully attached to telephony', { callId, sessionId });
+      return sessionId;
+    }
+
+    return this.startVoiceSession(callId, agentId, phoneNumber, onAudioDelta);
+  }
+
+  /**
    * Streams inbound audio from SIP channel to the provider.
    */
   processAudioStream(callId: string, audioBase64: string): void {
@@ -617,14 +725,12 @@ export class CallOrchestrator {
   triggerGreeting(callId: string, sessionId: string, greetingText?: string): void {
     const session = this.activeCalls.get(callId);
     if (session?.pipecatRunner) {
-      let finalGreeting = greetingText;
-      if (session.isRecordingEnabled) {
-        finalGreeting = "Please note this call is being recorded for quality assurance. " + (greetingText || "");
-      }
-      session.pipecatRunner.triggerGreeting(finalGreeting);
+      callTimingTracker.mark(callId, 'greeting_requested');
+      const finalPrompt = formatGreetingTurnPrompt(greetingText || 'Thank you for calling. How can I help you today?');
+      session.pipecatRunner.triggerGreeting(finalPrompt);
     }
 
-    // Enable inbound audio streaming and mark as listening after 1.5 seconds
+    // Enable inbound audio streaming and mark as listening after 350ms (reduced from 1500ms to eliminate awkward silence)
     setTimeout(() => {
       const session = this.activeCalls.get(callId);
       if (session) {
@@ -634,7 +740,7 @@ export class CallOrchestrator {
         }
         logger.info('Now listening for user input and streaming audio to Gemini', { callId });
       }
-    }, 1500);  // Wait 1.5 seconds after greeting
+    }, 350);
   }
 
   /**
@@ -642,6 +748,13 @@ export class CallOrchestrator {
    */
   async endCallSession(callId: string, reason: string): Promise<void> {
     logger.info('CallOrchestrator: endCallSession', { callId, reason });
+
+    const prewarmed = this.prewarmedSessions.get(callId);
+    if (prewarmed) {
+      clearTimeout(prewarmed.ttlTimeout);
+      prewarmed.pipecatRunner.stop().catch(() => {});
+      this.prewarmedSessions.delete(callId);
+    }
 
     const session = this.activeCalls.get(callId);
     if (session) {

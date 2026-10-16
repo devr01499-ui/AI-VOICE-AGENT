@@ -25,7 +25,7 @@ export class PipecatRunner {
       isTranscriptionEnabled?: boolean;
       tools?: any[];
     },
-    private readonly onAudioOutput: (audioBase64: string) => void,
+    private onAudioOutput: (audioBase64: string) => void,
     onFunctionCall?: (toolCallId: string, name: string, args: string) => Promise<string>
   ) {
     this.isRecordingEnabled = config.isRecordingEnabled || false;
@@ -120,6 +120,13 @@ export class PipecatRunner {
       type: 'text',
       data: Buffer.from(textPrompt)
     });
+  }
+
+  /**
+   * Dynamically attaches a new output audio sink (used when attaching prewarmed sessions to telephony sockets).
+   */
+  setOutputSink(callback: (audioBase64: string) => void): void {
+    this.onAudioOutput = callback;
   }
 
   /**

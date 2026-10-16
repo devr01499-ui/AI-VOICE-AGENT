@@ -19,6 +19,7 @@ import { CallError } from '../../utils/CallError';
 import { env } from '../../config/env';
 import { ADMIN_EMAIL } from '../../config/constants';
 import { resolveLiveModel } from '../../utils/modelResolver';
+import { callTimingTracker } from '../../utils/CallTimingTracker';
 import type {
   IRealtimeProvider,
   HealthCheckResult,
@@ -80,6 +81,8 @@ interface ActiveSession {
   targetModel?: string;
   config?: RealtimeSessionConfig;
   cleanup?: () => Promise<void>;
+  callId?: string;
+  hasEmittedFirstAudio?: boolean;
 }
 
 export class GeminiLiveProvider implements IRealtimeProvider {
@@ -357,6 +360,9 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     });
 
     ws.on('open', async () => {
+      if (config.callId) {
+        callTimingTracker.mark(config.callId, 'gemini_ws_open');
+      }
       logger.info('GeminiLiveProvider: WebSocket successfully opened. Transmission of strict snake_case setup payload initiated.');
 
       resolvedAgentId = callData.agentId || config.agentId;
@@ -582,11 +588,15 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
         // Handshake complete once setupComplete is received
         if (event.setupComplete) {
+          if (config.callId) {
+            callTimingTracker.mark(config.callId, 'gemini_setup_complete');
+          }
           logger.info('GeminiLiveProvider [HANDSHAKE]: setupComplete received from Google.', { sessionId, event: JSON.stringify(event) });
           sessionCallStartTime.value = Date.now();
           this.activeSessions.set(sessionId, {
             ws,
             callbacks,
+            callId: config.callId,
             createdAt: Date.now(),
             agentId: resolvedAgentId || undefined,
             userId,
@@ -880,7 +890,11 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       for (const part of event.serverContent.modelTurn.parts) {
         // Audio output chunk
         if (part.inlineData && part.inlineData.data) {
-          logger.info('[LATENCY_TEST] First audio chunk sent back from Gemini', {
+          if (session.callId && !session.hasEmittedFirstAudio) {
+            session.hasEmittedFirstAudio = true;
+            callTimingTracker.mark(session.callId, 'first_audio_chunk_from_gemini');
+          }
+          logger.info('[LATENCY_TEST] Audio chunk sent back from Gemini', {
             sessionId,
             timestamp: Date.now(),
             bytes: part.inlineData.data.length,

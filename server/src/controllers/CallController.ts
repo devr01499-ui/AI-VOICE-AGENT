@@ -16,6 +16,7 @@ import { env } from '../config/env';
 import { prisma } from '../lib/prisma';
 import { ADMIN_EMAIL } from '../config/constants';
 import { getWebhookSigningSecret } from '../utils/security';
+import { callTimingTracker } from '../utils/CallTimingTracker';
 
 /**
  * Handles all call-related HTTP endpoints.
@@ -217,8 +218,9 @@ export class CallController {
       }
 
       // If no outbound session match or direction is inbound, process via InboundCallService
+      let inboundResult: any = null;
       if (!callSession) {
-        const inboundResult = await InboundCallService.handleInboundCall({
+        inboundResult = await InboundCallService.handleInboundCall({
           CallUUID: callUuid || requestUuid,
           RequestUUID: requestUuid,
           From: req.body?.From,
@@ -253,6 +255,15 @@ export class CallController {
 
         // Update status to connected
         await CallService.handleStatusUpdate(callId, 'answered');
+      }
+
+      callTimingTracker.mark(callId, 'answer_webhook_received');
+      const targetAgentId = callSession?.agentId || (inboundResult as any)?.agentId;
+      const targetRecipient = callSession?.recipientPhoneNumber || req.body?.From || 'Anonymous';
+      if (targetAgentId) {
+        callOrchestrator.prewarmVoiceSession(callId, targetAgentId, targetRecipient).catch((err) => {
+          logger.warn('CallController: prewarm session background error', { callId, error: String(err) });
+        });
       }
 
       logger.info('CallController: Vobiz answer webhook sending Stream XML', { callId, isNewInbound: !callSession });
@@ -352,6 +363,7 @@ export class CallController {
       }
 
       // 2. If no existing outbound call session match, route as inbound call via InboundCallService
+      let inboundResult: any = null;
       if (!callSession) {
         logger.info('CallController: Routing Plivo call to InboundCallService', {
           callUuid: norm.callUuid,
@@ -359,7 +371,7 @@ export class CallController {
           to: norm.to,
         });
 
-        const inboundResult = await InboundCallService.handleInboundCall({
+        inboundResult = await InboundCallService.handleInboundCall({
           CallUUID: norm.callUuid,
           RequestUUID: norm.requestUuid,
           From: norm.from,
@@ -392,6 +404,15 @@ export class CallController {
         }
 
         await CallService.handleStatusUpdate(callId, 'answered');
+      }
+
+      callTimingTracker.mark(callId, 'answer_webhook_received');
+      const targetAgentId = callSession?.agentId || (inboundResult as any)?.agentId;
+      const targetRecipient = callSession?.recipientPhoneNumber || norm.from || 'Anonymous';
+      if (targetAgentId) {
+        callOrchestrator.prewarmVoiceSession(callId, targetAgentId, targetRecipient).catch((err) => {
+          logger.warn('CallController: Plivo prewarm session background error', { callId, error: String(err) });
+        });
       }
 
       const rawPublicUrl = (env.PUBLIC_URL || (req.headers.host ? `${req.protocol}://${req.headers.host}` : '')).replace(/\/+$/, '');

@@ -14,22 +14,10 @@ import { callOrchestrator } from '../core/orchestrator/CallOrchestrator';
 import { providerManagerSDK } from '../core/provider-sdk/provider.manager';
 import { eventBus, PROVIDER_EVENTS } from '../core/provider-sdk/provider.events';
 import type { VobizStreamEvent } from '../types';
+import { callTimingTracker } from '../utils/CallTimingTracker';
+import { buildGreetingText, getGreetingTextForLanguage } from '../utils/greetingUtils';
 
 // ─── Active Connection Tracking ───────────────────────
-
-function getGreetingTextForLanguage(languageMode: string | null | undefined): string {
-  const map: Record<string, string> = {
-    en: 'Please greet me warmly and ask how you can help me today.',
-    hi: 'कृपया मेरा गर्मजोशी से स्वागत करें और पूछें कि आज आप मेरी क्या मदद कर सकते हैं।',
-    bn: 'অনুগ্রহ করে আমাকে উষ্ণ অভিনন্দন জানান এবং জিজ্ঞাসা করুন আজ আমি আপনাকে কীভাবে সাহায্য করতে পারি।',
-    kn: 'ದಯವಿಟ್ಟು ನನ್ನನ್ನು ಶ್ರದ್ಧೆಯಿಂದ ಅಭಿನಂದಿಸಿ ಮತ್ತು ಇಂದು ನಾನು ನಿಮಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು ಎಂದು ಕೇಳಿ।',
-    ml: 'ദയവായി എന്നെ സ്നേഹത്തോടെ സ്വീകരിക്കുക, ഇന്ന് എനിക്ക് എങ്ങനെ സഹായിക്കാനാകുമെന്ന് ചോദിക്കുക।',
-    gu: 'કૃપા કરીને મારું ઉષ્માભર્યું સ્વાગત કરો અને પૂછો કે આજે હું તમને કેવી રીતે મદદ કરી શકું।',
-    zh: '请热情地向我打招呼，并问我今天能为您提供什么帮助。',
-    ar: 'يرجى الترحيب بي بحرارة وسؤالي كيف يمكنني مساعدتك اليوم.',
-  };
-  return (languageMode && map[languageMode]) || map.en;
-}
 
 interface ActiveConnection {
   ws: WebSocket;
@@ -47,6 +35,7 @@ interface ActiveConnection {
   isPlayoutActive: boolean;
   sessionReady: boolean;       // True once Gemini session setup is confirmed
   inboundAudioBuffer: string[]; // Buffer audio packets arriving before session is ready
+  hasSentFirstAudio?: boolean;
 }
 
 // ─── Handler Implementation ──────────────────────────
@@ -307,6 +296,8 @@ export class AudioStreamHandler {
   private handleStreamStart(callId: string, event: VobizStreamEvent): void {
     if (event.event !== 'start') return;
 
+    callTimingTracker.mark(callId, 'ws_stream_started');
+
     const conn = this.connections.get(callId);
     const rawEvent = event as any;
     const streamId = rawEvent.streamId || rawEvent.start?.streamId || null;
@@ -323,8 +314,6 @@ export class AudioStreamHandler {
       streamId,
     });
 
-
-
     const orchestrator = callOrchestrator;
 
     import('../repositories/CallRepository').then(({ CallRepository }) => {
@@ -333,9 +322,9 @@ export class AudioStreamHandler {
           const prismaInstance = (await import('../lib/prisma')).prisma;
           const agent = await prismaInstance.agent.findUnique({
             where: { id: call.agentId },
-            select: { languageMode: true }
+            select: { name: true, languageMode: true, firstMessage: true }
           });
-          const sessionId = await orchestrator.startVoiceSession(
+          const sessionId = await orchestrator.attachPrewarmedVoiceSession(
             callId,
             call.agentId,
             call.recipientPhoneNumber,
@@ -343,9 +332,9 @@ export class AudioStreamHandler {
               this.sendAudioToVobiz(callId, audioBase64);
             }
           );
-          return { sessionId, agent };
+          return { sessionId, agent, call };
         })
-        .then(({ sessionId, agent }) => {
+        .then(({ sessionId, agent, call }) => {
           logger.info('AudioStreamHandler: CallOrchestrator session started', { callId, sessionId });
 
           const currentConn = this.connections.get(callId);
@@ -386,10 +375,16 @@ export class AudioStreamHandler {
             }
           });
 
-          // Trigger initial greeting — immediately once session is up (no delay needed since setup already took time)
+          // Trigger initial greeting — immediately once session is up
           try {
             logger.info('AudioStreamHandler: triggering greeting', { callId, sessionId });
-            const greetingText = getGreetingTextForLanguage(agent?.languageMode);
+            const greetingText = buildGreetingText({
+              languageMode: agent?.languageMode,
+              direction: (call as any)?.callDirection || (call as any)?.direction,
+              agentName: agent?.name,
+              businessName: 'Claritiy Voice',
+              firstMessage: agent?.firstMessage,
+            });
             callOrchestrator.triggerGreeting(callId, sessionId, greetingText);
             logger.info('AudioStreamHandler: greeting triggered', { callId, sessionId });
           } catch (err) {
@@ -534,6 +529,11 @@ export class AudioStreamHandler {
     if (!conn || conn.ws.readyState !== WebSocket.OPEN) {
       logger.warn('AudioStreamHandler: cannot send audio - no connection', { callId });
       return;
+    }
+
+    if (!conn.hasSentFirstAudio) {
+      conn.hasSentFirstAudio = true;
+      callTimingTracker.mark(callId, 'first_audio_sent_to_telephony');
     }
 
     // Send as JSON playAudio event with base64 L16 payload
