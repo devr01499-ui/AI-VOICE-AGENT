@@ -1,5 +1,10 @@
 # CHANGELOG
 
+- Dashboard Sidebar: Removal of Bottom Profile Card & Streamlined Navigation:
+  - **Sidebar Decluttering (`Frontend/src/app/App.tsx`)**: Removed the curved user profile card at the bottom of the sidebar (`nm-raised` box displaying user name, email `devr01499@gmail.com`, and initial avatar).
+  - **Eliminated Navigation Crowding**: This permanently unblocks and frees up vertical breathing room for the bottom-most navigation items ("Billing" and "Settings"), preventing the profile card from covering or compressing them.
+  - **Streamlined Sign Out Action**: Replaced the cluttered container with a clean, compact Sign Out action button with `LogOut` icon that remains accessible in both expanded and collapsed drawer states.
+
 - Dashboard Architecture: Elimination of Redundant Overview Page & Default to Agents:
   - **Surgical Deprecation (`Frontend/src/app/App.tsx`)**: Removed redundant `DashOverview` component (248 lines deleted), deleted `overview` from `DashSection` type union, deleted sidebar navigation item, and stripped unused `LayoutDashboard` import.
   - **Seamless Navigation & Bookmark Compatibility**: Configured `getInitialDashSection`, `setSection`, and popstate listeners to default cleanly to `agents`. Legacy visits and bookmarks targeting `/dashboard` and `/dashboard/overview` automatically and safely resolve to the Agents view with zero flicker, blank page, or 404 errors.

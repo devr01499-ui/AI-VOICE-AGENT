@@ -22,7 +22,7 @@ import {
   PhoneCall, PhoneOff, Mic, BarChart3, Settings, ChevronRight,
   Play, Pause, Check, ArrowRight, Globe, HeartPulse, ShoppingBag,
   Landmark, GraduationCap, Truck, Building2, Hotel, Activity,
-  Clock, TrendingUp, Plus, Search, Bell, Bot,
+  Clock, TrendingUp, Plus, Search, Bell, Bot, LogOut,
   PhoneIncoming, CircleDot, X, Menu, Zap, Shield, Volume2,
   Phone, Radio, BookOpen, Mic2, Network, FileText, Upload, Link,
   Cpu, MessageSquare, Eye, EyeOff, Copy, RefreshCw, Trash2,
@@ -5932,22 +5932,15 @@ function DashboardPage({ session }: { session: Session }) {
             </div>
           ))}
         </nav>
-        <div className={`p-4 mt-auto flex-col gap-3 flex-shrink-0 ${sidebarOpen ? "flex" : "hidden md:hidden"}`}>
-          <div className="flex items-center gap-3 nm-raised p-2 rounded-xl">
-            <div className="w-8 h-8 nm-pressed rounded-full flex items-center justify-center flex-shrink-0">
-              <span className="text-sm text-[var(--nm-accent)] font-bold">{(profile?.fullName ?? profile?.email ?? 'U').charAt(0).toUpperCase()}</span>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold truncate" style={{ fontFamily: "'Outfit', sans-serif" }}>{profile?.fullName ?? profile?.email ?? 'User'}</p>
-              <p className="text-[10px] font-medium text-[var(--nm-accent)] truncate">{profile?.email || 'devr01499@gmail.com'}</p>
-            </div>
-          </div>
+        <div className="p-3 mt-auto flex flex-col gap-2 flex-shrink-0">
           <button
             onClick={() => supabase.auth.signOut()}
-            className="text-center text-[11px] font-bold py-2 nm-button w-full nm-state-error"
+            className="flex items-center justify-center gap-2 text-center text-[11px] font-bold py-2 nm-button w-full nm-state-error rounded-xl"
+            title="Sign Out"
             style={{ fontFamily: "'Outfit', sans-serif" }}
           >
-            Sign Out
+            <LogOut className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className={!sidebarOpen ? "hidden md:hidden" : ""}>Sign Out</span>
           </button>
         </div>
       </div>
