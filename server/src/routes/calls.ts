@@ -48,50 +48,131 @@ router.get(
         return;
       }
 
-      const { status } = req.query as {
+      const { status, direction, search, agentId, dateRange, startDate, endDate } = req.query as {
         status?: string;
+        direction?: string;
+        search?: string;
+        agentId?: string;
+        dateRange?: string;
+        startDate?: string;
+        endDate?: string;
       };
 
       const limitParam = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
-      const safeLimit = isNaN(limitParam) ? 50 : limitParam;
+      const safeLimit = Math.min(isNaN(limitParam) ? 50 : Math.max(1, limitParam), 500);
 
       const offsetParam = req.query.offset ? parseInt(req.query.offset as string, 10) : 0;
-      const safeOffset = isNaN(offsetParam) ? 0 : offsetParam;
+      const safeOffset = isNaN(offsetParam) ? 0 : Math.max(0, offsetParam);
 
-      let calls = [];
-      try {
-        calls = await prisma.call.findMany({
-          where: {
-            userId: userId,
-            ...(status ? { status } : {}),
-          },
+      const where: any = {
+        userId: userId,
+      };
+
+      if (direction === 'inbound' || direction === 'outbound') {
+        where.callDirection = direction;
+      }
+
+      if (status && status !== 'all') {
+        where.status = status;
+      }
+
+      if (agentId && agentId !== 'all') {
+        where.agentId = agentId;
+      }
+
+      if (search && search.trim()) {
+        const q = search.trim();
+        where.OR = [
+          { recipientPhoneNumber: { contains: q } },
+          { fromPhoneNumber: { contains: q } },
+          { summary: { contains: q } },
+        ];
+      }
+
+      if (dateRange && dateRange !== 'all') {
+        const now = new Date();
+        const start = new Date();
+        if (dateRange === 'today') {
+          start.setHours(0, 0, 0, 0);
+        } else if (dateRange === '7d') {
+          start.setDate(now.getDate() - 7);
+        } else if (dateRange === '30d') {
+          start.setDate(now.getDate() - 30);
+        }
+        where.createdAt = { gte: start };
+      } else if (startDate || endDate) {
+        where.createdAt = {};
+        if (startDate) where.createdAt.gte = new Date(startDate);
+        if (endDate) where.createdAt.lte = new Date(endDate);
+      }
+
+      const [totalCount, calls] = await Promise.all([
+        prisma.call.count({ where }),
+        prisma.call.findMany({
+          where,
           include: {
             agent: {
               select: {
-                name: true
-              }
-            }
+                name: true,
+              },
+            },
+            transcriptSegments: {
+              select: { id: true },
+              take: 1,
+            },
+            execution: {
+              select: { transcript: true, recordingUrl: true },
+            },
           },
           orderBy: { createdAt: 'desc' },
           take: safeLimit,
           skip: safeOffset,
-        });
-        res.status(200).json({
-          success: true,
-          data: calls || [],
-        });
-        return;
-      } catch (error: any) {
-        logger.error("Handled Gracefully - Call Ingestion Runtime Exception:", { error: error?.message || String(error) });
-        // Unified fallback matching success contract
-        res.status(200).json({
-          success: true,
-          data: [],
-        });
-        return;
-      }
-    } catch (err) {
-      next(err);
+        }),
+      ]);
+
+      const normalizedCalls = calls.map((c) => {
+        const durationSec = c.durationSeconds ?? 0;
+        const billedMins = Math.ceil(durationSec / 60);
+        const hasTrans = (c.transcriptSegments && c.transcriptSegments.length > 0) ||
+          Boolean(c.execution && c.execution.transcript && c.execution.transcript !== '[]' && c.execution.transcript !== '');
+        const recUrl = c.recordingUrl || c.execution?.recordingUrl || null;
+
+        return {
+          id: c.id,
+          direction: (c.callDirection === 'inbound' ? 'inbound' : 'outbound') as 'inbound' | 'outbound',
+          contactNumber: c.recipientPhoneNumber || '—',
+          businessNumber: c.fromPhoneNumber || '—',
+          agentName: c.agent?.name || 'Voice Agent',
+          status: c.status,
+          startedAt: c.startTime ? c.startTime.toISOString() : (c.createdAt ? c.createdAt.toISOString() : null),
+          endedAt: c.endTime ? c.endTime.toISOString() : null,
+          durationSeconds: durationSec,
+          billedMinutes: billedMins,
+          hasTranscript: hasTrans,
+          hasRecording: Boolean(recUrl),
+          recordingUrl: recUrl,
+          summary: c.summary || null,
+          sentiment: c.sentiment || null,
+          createdAt: c.createdAt.toISOString(),
+        };
+      });
+
+      res.status(200).json({
+        success: true,
+        data: normalizedCalls,
+        pagination: {
+          total: totalCount,
+          limit: safeLimit,
+          offset: safeOffset,
+          hasMore: safeOffset + normalizedCalls.length < totalCount,
+        },
+      });
+    } catch (err: any) {
+      logger.error('calls route: GET / failure', { error: err?.message || String(err) });
+      res.status(500).json({
+        success: false,
+        error: err?.message || 'Failed to fetch call history records',
+      });
     }
   }
 );

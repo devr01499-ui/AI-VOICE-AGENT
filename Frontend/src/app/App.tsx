@@ -3143,6 +3143,8 @@ function DashCallLogs() {
   const [transcriptOpen, setTranscriptOpen] = useState<string|null>(null);
   const [transcriptText, setTranscriptText] = useState<{role:string;text:string}[]>([]);
   const [transcriptLoading, setTranscriptLoading] = useState(false);
+  const [transcriptError, setTranscriptError] = useState<string|null>(null);
+
   const [liveCalls, setLiveCalls] = useState<ApiCall[]>(() => {
     try {
       const cached = localStorage.getItem('cache_live_calls');
@@ -3151,6 +3153,9 @@ function DashCallLogs() {
     return [];
   });
   const [callsLoading, setCallsLoading] = useState(liveCalls.length === 0);
+  const [callsError, setCallsError] = useState<string|null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+
   const [liveAgents, setLiveAgents] = useState<ApiAgent[]>(() => {
     try {
       const cached = localStorage.getItem('cache_live_agents');
@@ -3159,18 +3164,39 @@ function DashCallLogs() {
     return [];
   });
 
-  // Fallback static transcript
-  const staticTranscript = [{role:"agent",text:"Thank you for calling. My name is Nova. How can I help you today?"},{role:"caller",text:"Hi, I wanted to check on my recent claim. The claim number is 847291."},{role:"agent",text:"Of course! To verify your identity, could you please confirm the last four digits of your Social Security number?"},{role:"caller",text:"Sure, it's 6284."},{role:"agent",text:"Thank you. I can see your claim 847291 is currently in review. The estimated completion date is July 14th. Would you like me to send you an email update when the status changes?"},{role:"caller",text:"Yes, please. That would be great."},{role:"agent",text:"I've set up email alerts for you. Is there anything else I can help you with today?"},{role:"caller",text:"No, that's everything. Thanks!"},{role:"agent",text:"You're welcome. Have a great day. Goodbye!"}];
+  const [searchQuery, setSearchQuery] = useState('');
+  const [directionFilter, setDirectionFilter] = useState<'all' | 'inbound' | 'outbound'>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [agentFilter, setAgentFilter] = useState<string>('all');
+  const [dateRangeFilter, setDateRangeFilter] = useState<string>('all');
+
+  const loadCalls = useCallback(async () => {
+    try {
+      setCallsLoading(true);
+      setCallsError(null);
+      const data = await fetchCalls({
+        limit: 100,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        direction: directionFilter !== 'all' ? directionFilter : undefined,
+        search: searchQuery.trim() ? searchQuery.trim() : undefined,
+        agentId: agentFilter !== 'all' ? agentFilter : undefined,
+        dateRange: dateRangeFilter !== 'all' ? dateRangeFilter : undefined,
+      });
+      setLiveCalls(data);
+      setLastUpdated(new Date());
+      localStorage.setItem('cache_live_calls', JSON.stringify(data));
+    } catch (err: any) {
+      setCallsError(err?.message || "Failed to load calls");
+    } finally {
+      setCallsLoading(false);
+    }
+  }, [statusFilter, directionFilter, searchQuery, agentFilter, dateRangeFilter]);
 
   useEffect(() => {
-    if (liveCalls.length === 0) setCallsLoading(true);
-    fetchCalls({ limit: 50 })
-      .then((data) => {
-        setLiveCalls(data);
-        localStorage.setItem('cache_live_calls', JSON.stringify(data));
-      })
-      .catch(() => {})
-      .finally(() => setCallsLoading(false));
+    loadCalls();
+  }, [loadCalls]);
+
+  useEffect(() => {
     fetchAgents().then(data => {
       setLiveAgents(data);
       localStorage.setItem('cache_live_agents', JSON.stringify(data));
@@ -3181,11 +3207,11 @@ function DashCallLogs() {
   useEffect(() => {
     if (!transcriptOpen || !/^[0-9a-f-]{36}$/.test(transcriptOpen)) return;
 
-    // Check if the selected call is active (in_progress or ringing)
     const selectedCall = liveCalls.find(c => c.id === transcriptOpen);
     if (!selectedCall || (selectedCall.status !== 'in_progress' && selectedCall.status !== 'ringing')) return;
 
     setTranscriptLoading(true);
+    setTranscriptError(null);
 
     const wsUrl = getLiveTranscriptWsUrl(transcriptOpen);
     const ws = new WebSocket(wsUrl);
@@ -3230,19 +3256,31 @@ function DashCallLogs() {
 
   function openTranscript(callId: string) {
     setTranscriptOpen(callId);
+    setTranscriptError(null);
     if (/^[0-9a-f-]{36}$/.test(callId)) {
       setTranscriptLoading(true);
       setTranscriptText([]);
       getCallTranscript(callId)
         .then((data) => {
-          if (typeof data.transcript === 'string' && data.transcript.length > 0) {
+          if (Array.isArray(data.turns) && data.turns.length > 0) {
+            setTranscriptText(data.turns.map(t => ({
+              role: t.speaker === 'agent' ? 'agent' : 'caller',
+              text: t.text,
+            })));
+          } else if (typeof data.transcript === 'string' && data.transcript.length > 0) {
             const lines = data.transcript.split('\n').filter(Boolean);
-            setTranscriptText(lines.map(l => ({ role: l.startsWith('Agent:') ? 'agent' : 'caller', text: l.replace(/^(Agent:|Caller:)\s*/, '') })));
+            setTranscriptText(lines.map(l => ({
+              role: l.startsWith('Agent:') ? 'agent' : 'caller',
+              text: l.replace(/^(Agent:|Caller:)\s*/, '')
+            })));
           } else {
             setTranscriptText([]);
           }
         })
-        .catch(() => setTranscriptText([]))
+        .catch((err: any) => {
+          setTranscriptError(err?.message || "Failed to fetch call transcript");
+          setTranscriptText([]);
+        })
         .finally(() => setTranscriptLoading(false));
     } else {
       setTranscriptText([]);
@@ -3252,22 +3290,37 @@ function DashCallLogs() {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
-  const calls = liveCalls.map(c => ({
-    id: c.id,
-    name: c.phoneNumber ?? 'Unknown caller',
-    number: c.phoneNumber ?? '—',
-    agent: c.agent?.name ?? '—',
-    dur: c.duration != null ? `${Math.floor(c.duration/60)}m ${c.duration%60}s` : '—',
-    result: c.status === 'completed' ? 'Resolved' : c.status === 'failed' ? 'Failed' : c.status === 'active' ? 'Active' : c.status,
-    sent: c.sentiment ?? 'N/A',
-    date: new Date(c.createdAt).toLocaleString(),
-    rec: !!c.recordingUrl,
-    recordingUrl: c.recordingUrl,
-    summary: c.summary,
-  }));
+  const normalizedRows = liveCalls.map(c => {
+    const durSec = c.durationSeconds ?? c.duration ?? 0;
+    const billedMins = c.billedMinutes ?? Math.ceil(durSec / 60);
+    const mins = Math.floor(durSec / 60);
+    const secs = durSec % 60;
+    const durStr = durSec > 0 ? `${mins}m ${secs}s` : '0s';
+    const contact = c.contactNumber || c.recipientPhoneNumber || c.phoneNumber || '—';
+    const business = c.businessNumber || c.fromPhoneNumber || '—';
+    const dir = c.direction || (c.callDirection === 'inbound' ? 'inbound' : 'outbound');
 
-  const totalPages = Math.ceil(calls.length / pageSize) || 1;
-  const paginatedCalls = calls.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+    return {
+      id: c.id,
+      direction: dir,
+      contact,
+      business,
+      agent: c.agentName || c.agent?.name || 'Voice Agent',
+      durSec,
+      billedMins,
+      durDisplay: `${durStr} (${billedMins}m billed)`,
+      status: c.status || 'unknown',
+      sent: c.sentiment ?? 'N/A',
+      date: new Date(c.startedAt || c.createdAt).toLocaleString(),
+      rec: !!(c.recordingUrl || c.hasRecording),
+      recordingUrl: c.recordingUrl,
+      summary: c.summary,
+      hasTranscript: c.hasTranscript,
+    };
+  });
+
+  const totalPages = Math.ceil(normalizedRows.length / pageSize) || 1;
+  const paginatedCalls = normalizedRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const [deleteModal, setDeleteModal] = useState<{ open: boolean, id: string }>({ open: false, id: '' });
 
@@ -3288,6 +3341,36 @@ function DashCallLogs() {
     }
   }
 
+  function handleExportCsv() {
+    if (normalizedRows.length === 0) {
+      alert("No call records to export.");
+      return;
+    }
+    const headers = ["Call ID", "Direction", "Contact Number", "Business Number", "Agent", "Status", "Duration (Seconds)", "Billed Minutes", "Date / Time", "Summary"];
+    const rows = normalizedRows.map(r => [
+      `"${r.id}"`,
+      `"${r.direction}"`,
+      `"${r.contact}"`,
+      `"${r.business}"`,
+      `"${r.agent.replace(/"/g, '""')}"`,
+      `"${r.status}"`,
+      r.durSec,
+      r.billedMins,
+      `"${r.date}"`,
+      `"${(r.summary || '').replace(/"/g, '""')}"`
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `claritiy_voice_calls_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  const selectedCallRow = normalizedRows.find(c => c.id === transcriptOpen);
+
   return (
     <div className="space-y-4">
       <ConfirmDeleteModal 
@@ -3298,25 +3381,128 @@ function DashCallLogs() {
         message="Are you sure you want to delete this call log? It will be removed permanently from the system." 
       />
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--nm-text)]"/><DInput className="pl-10 w-56" placeholder="Search caller…"/></div>
-          <select className="nm-input rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--nm-text)] outline-none" style={{fontFamily:"'Outfit', sans-serif"}}><option>All agents</option>{liveAgents.map(a=><option key={a.id}>{a.name}</option>)}</select>
-          <select className="nm-input rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--nm-text)] outline-none" style={{fontFamily:"'Outfit', sans-serif"}}><option>Today</option><option>Last 7 days</option><option>Last 30 days</option></select>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--nm-text)]"/>
+            <DInput 
+              className="pl-10 w-52" 
+              placeholder="Search contact/summary…" 
+              value={searchQuery}
+              onChange={(e: any) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <select 
+            className="nm-input rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--nm-text)] outline-none" 
+            style={{fontFamily:"'Outfit', sans-serif"}}
+            value={directionFilter}
+            onChange={(e: any) => setDirectionFilter(e.target.value)}
+          >
+            <option value="all">All Directions</option>
+            <option value="inbound">Inbound ↓</option>
+            <option value="outbound">Outbound ↑</option>
+          </select>
+          <select 
+            className="nm-input rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--nm-text)] outline-none" 
+            style={{fontFamily:"'Outfit', sans-serif"}}
+            value={statusFilter}
+            onChange={(e: any) => setStatusFilter(e.target.value)}
+          >
+            <option value="all">All Statuses</option>
+            <option value="completed">Completed</option>
+            <option value="in_progress">In Progress</option>
+            <option value="failed">Failed</option>
+            <option value="no_answer">No Answer</option>
+            <option value="busy">Busy</option>
+            <option value="canceled">Canceled</option>
+          </select>
+          <select 
+            className="nm-input rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--nm-text)] outline-none" 
+            style={{fontFamily:"'Outfit', sans-serif"}}
+            value={agentFilter}
+            onChange={(e: any) => setAgentFilter(e.target.value)}
+          >
+            <option value="all">All Agents</option>
+            {liveAgents.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+          <select 
+            className="nm-input rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--nm-text)] outline-none" 
+            style={{fontFamily:"'Outfit', sans-serif"}}
+            value={dateRangeFilter}
+            onChange={(e: any) => setDateRangeFilter(e.target.value)}
+          >
+            <option value="all">All Time</option>
+            <option value="today">Today</option>
+            <option value="7d">Last 7 days</option>
+            <option value="30d">Last 30 days</option>
+          </select>
         </div>
-        <DBtn size="sm" variant="secondary"><Download className="w-3.5 h-3.5"/> Export CSV</DBtn>
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-bold text-[var(--nm-text)] opacity-70">
+            Updated {lastUpdated ? `${lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : ''}
+          </span>
+          <DBtn size="sm" variant="secondary" onClick={handleExportCsv}>
+            <Download className="w-3.5 h-3.5"/> Export CSV
+          </DBtn>
+        </div>
       </div>
+
+      {callsError && (
+        <div className="p-4 rounded-xl nm-pressed border border-red-500/20 text-red-400 flex items-center justify-between text-sm font-bold">
+          <span>Failed to load call logs: {callsError}</span>
+          <DBtn size="sm" variant="secondary" onClick={loadCalls}>Retry</DBtn>
+        </div>
+      )}
+
       <div className="nm-raised rounded-2xl overflow-hidden mt-6">
         <table className="w-full">
-          <thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Caller","Agent","Duration","Result","Sentiment","Recording","Time","Actions"].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>)}</tr></thead>
+          <thead>
+            <tr className="border-b border-transparent text-[var(--nm-text)]">
+              {["Direction", "Contact", "Agent", "Duration (Billed)", "Status", "Recording", "Time", "Actions"].map(h=>(
+                <th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>
+              ))}
+            </tr>
+          </thead>
           <tbody className="divide-y divide-transparent">
             {paginatedCalls.map(c=>(
               <tr key={c.id} className="hover:nm-pressed transition-all">
-                <td className="px-5 py-4"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.name}</p><p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.number}</p></td>
+                <td className="px-5 py-4">
+                  {c.direction === 'inbound' ? (
+                    <DBadge v="info">
+                      <span className="flex items-center gap-1 font-bold">Inbound ↓</span>
+                    </DBadge>
+                  ) : (
+                    <DBadge v="neutral">
+                      <span className="flex items-center gap-1 font-bold">Outbound ↑</span>
+                    </DBadge>
+                  )}
+                </td>
+                <td className="px-5 py-4">
+                  <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.contact}</p>
+                  {c.business !== '—' && (
+                    <p className="text-xs font-bold opacity-60 text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>via {c.business}</p>
+                  )}
+                </td>
                 <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)] hidden md:table-cell" style={{fontFamily:"'Outfit', sans-serif"}}>{c.agent}</td>
-                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)] hidden lg:table-cell" style={{fontFamily:"'Outfit', sans-serif"}}>{c.dur}</td>
-                <td className="px-5 py-4"><DBadge v={c.result==="Resolved"||c.result==="Scheduled"?"success":c.result==="Transferred"?"warning":c.result==="Voicemail"?"neutral":"info"}>{c.result}</DBadge></td>
-                <td className="px-5 py-4 text-sm font-bold hidden lg:table-cell"><span className={c.sent==="Positive"?"text-emerald-500":c.sent==="Negative"?"text-[var(--nm-accent)]":"text-[var(--nm-text)]"} style={{fontFamily:"'Outfit', sans-serif"}}>{c.sent}</span></td>
-                <td className="px-5 py-4 hidden lg:table-cell">{c.rec?<DBtn size="sm" variant="ghost"><Play className="w-4 h-4"/></DBtn>:<span className="text-sm font-bold text-[var(--nm-text)]">—</span>}</td>
+                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)] hidden lg:table-cell" style={{fontFamily:"'Outfit', sans-serif"}}>{c.durDisplay}</td>
+                <td className="px-5 py-4">
+                  <DBadge v={
+                    c.status === "completed" ? "success" : 
+                    c.status === "in_progress" || c.status === "active" ? "info" : 
+                    c.status === "failed" ? "danger" : 
+                    c.status === "busy" || c.status === "no_answer" ? "warning" : "neutral"
+                  }>
+                    {c.status}
+                  </DBadge>
+                </td>
+                <td className="px-5 py-4 hidden lg:table-cell">
+                  {c.rec ? (
+                    <DBtn size="sm" variant="ghost" onClick={() => openTranscript(c.id)}>
+                      <Play className="w-4 h-4"/>
+                    </DBtn>
+                  ) : (
+                    <span className="text-sm font-bold text-[var(--nm-text)] opacity-40">—</span>
+                  )}
+                </td>
                 <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)] hidden md:table-cell" style={{fontFamily:"'Outfit', sans-serif"}}>{c.date}</td>
                 <td className="px-5 py-4">
                   <div className="flex gap-2">
@@ -3326,19 +3512,26 @@ function DashCallLogs() {
                 </td>
               </tr>
             ))}
-            {paginatedCalls.length === 0 && (
+            {paginatedCalls.length === 0 && !callsLoading && (
               <tr>
                 <td colSpan={8} className="text-center py-12 text-sm text-[var(--nm-text)] font-bold">
-                  No call logs recorded yet.
+                  No call logs match the selected filters.
+                </td>
+              </tr>
+            )}
+            {callsLoading && paginatedCalls.length === 0 && (
+              <tr>
+                <td colSpan={8} className="text-center py-12 text-sm text-[var(--nm-text)] font-bold">
+                  Loading call history…
                 </td>
               </tr>
             )}
           </tbody>
         </table>
-        {calls.length > pageSize && (
+        {normalizedRows.length > pageSize && (
           <div className="flex items-center justify-between px-6 py-4 border-t border-transparent nm-pressed">
             <span className="text-xs font-bold text-[var(--nm-text)]">
-              Showing Page {currentPage} of {totalPages} ({calls.length} total calls)
+              Showing Page {currentPage} of {totalPages} ({normalizedRows.length} total calls)
             </span>
             <div className="flex gap-2">
               <DBtn size="sm" variant="secondary" disabled={currentPage === 1} onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}>
@@ -3351,32 +3544,67 @@ function DashCallLogs() {
           </div>
         )}
       </div>
-      <DModal open={!!transcriptOpen} onClose={()=>{setTranscriptOpen(null);setTranscriptText([]);}} title={"Call transcript — " + calls.find(c=>c.id===transcriptOpen)?.name}>
+
+      <DModal 
+        open={!!transcriptOpen} 
+        onClose={() => { setTranscriptOpen(null); setTranscriptText([]); setTranscriptError(null); }} 
+        title={"Call Transcript — " + (selectedCallRow ? `${selectedCallRow.contact} (${selectedCallRow.direction})` : 'Call Details')}
+      >
         <div className="space-y-4">
           <div className="p-4 nm-pressed rounded-2xl text-sm font-bold text-[var(--nm-text)] flex justify-between items-center" style={{fontFamily:"'Outfit', sans-serif"}}>
-            <span>{calls.find(c=>c.id===transcriptOpen)?.date} · {calls.find(c=>c.id===transcriptOpen)?.dur} · {calls.find(c=>c.id===transcriptOpen)?.result}</span>
-            <span className={calls.find(c=>c.id===transcriptOpen)?.sent==="Positive"?"text-emerald-500":calls.find(c=>c.id===transcriptOpen)?.sent==="Negative"?"text-[var(--nm-accent)]":"text-[var(--nm-text)]"} style={{fontFamily:"'Outfit', sans-serif"}}>Sentiment: {calls.find(c=>c.id===transcriptOpen)?.sent}</span>
+            <span>{selectedCallRow?.date} · {selectedCallRow?.durDisplay} · Status: {selectedCallRow?.status}</span>
+            <span className={selectedCallRow?.sent==="Positive"?"text-emerald-500":selectedCallRow?.sent==="Negative"?"text-[var(--nm-accent)]":"text-[var(--nm-text)]"} style={{fontFamily:"'Outfit', sans-serif"}}>
+              Sentiment: {selectedCallRow?.sent}
+            </span>
           </div>
           
-          {calls.find(c=>c.id===transcriptOpen)?.summary && (
+          {selectedCallRow?.summary && (
             <div className="p-4 nm-raised rounded-2xl text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>
               <p className="mb-2 uppercase text-xs opacity-50" style={{fontFamily:"'Outfit', sans-serif"}}>Call Summary</p>
-              {calls.find(c=>c.id===transcriptOpen)?.summary}
+              {selectedCallRow.summary}
             </div>
           )}
 
-          {calls.find(c=>c.id===transcriptOpen)?.recordingUrl && (
+          {selectedCallRow?.recordingUrl && (
             <div className="nm-raised rounded-2xl p-4">
-              <audio controls src={calls.find(c=>c.id===transcriptOpen)?.recordingUrl!} className="w-full h-10" />
+              <audio controls src={selectedCallRow.recordingUrl} className="w-full h-10" />
             </div>
           )}
 
-          {transcriptLoading && <p className="text-sm font-bold text-[var(--nm-text)] text-center py-4" style={{fontFamily:"'Outfit', sans-serif"}}>Loading transcript…</p>}
+          {transcriptLoading && (
+            <p className="text-sm font-bold text-[var(--nm-text)] text-center py-6" style={{fontFamily:"'Outfit', sans-serif"}}>
+              Loading transcript…
+            </p>
+          )}
+
+          {transcriptError && (
+            <div className="p-4 rounded-xl nm-pressed text-center text-sm font-bold text-red-400">
+              <p>{transcriptError}</p>
+              <DBtn size="sm" variant="secondary" className="mt-2" onClick={() => transcriptOpen && openTranscript(transcriptOpen)}>
+                Retry
+              </DBtn>
+            </div>
+          )}
+
+          {!transcriptLoading && !transcriptError && transcriptText.length === 0 && (
+            <div className="p-6 rounded-2xl nm-pressed text-center text-sm font-bold text-[var(--nm-text)] opacity-70">
+              No transcript available for this call.
+              <p className="text-xs font-normal mt-1 opacity-60">Either the call was not answered or did not produce dialogue.</p>
+            </div>
+          )}
+
           <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-            {(transcriptText.length > 0 ? transcriptText : staticTranscript).map((m,i)=>(
-              <div key={i} className={`flex gap-3 ${m.role==="caller"?"justify-end":""}`}>
-                {m.role==="agent"&&<div className="w-8 h-8 nm-pressed rounded-full flex items-center justify-center flex-shrink-0 mt-1"><Bot className="w-4 h-4 text-[var(--nm-accent)]"/></div>}
-                <div className={`rounded-2xl px-5 py-3 max-w-[80%] ${m.role==="agent"?"nm-raised rounded-tl-none":"nm-pressed text-[var(--nm-accent)] rounded-tr-none"}`}><p className="text-sm font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{m.text}</p></div>
+            {transcriptText.map((m, i) => (
+              <div key={i} className={`flex gap-3 ${m.role === "caller" ? "justify-end" : ""}`}>
+                {m.role === "agent" && (
+                  <div className="w-8 h-8 nm-pressed rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                    <Bot className="w-4 h-4 text-[var(--nm-accent)]"/>
+                  </div>
+                )}
+                <div className={`rounded-2xl px-5 py-3 max-w-[80%] ${m.role === "agent" ? "nm-raised rounded-tl-none" : "nm-pressed text-[var(--nm-accent)] rounded-tr-none"}`}>
+                  <p className="text-xs opacity-50 mb-1">{m.role === "agent" ? "AI Agent" : "Caller"}</p>
+                  <p className="text-sm font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{m.text}</p>
+                </div>
               </div>
             ))}
           </div>

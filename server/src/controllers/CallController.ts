@@ -173,11 +173,52 @@ export class CallController {
   static async getCallTranscript(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const callId = req.params.callId as string;
-      const transcript = await CallService.getCallTranscript(callId);
+      const transcriptSegments = await CallService.getCallTranscript(callId);
+
+      const turns = transcriptSegments.map((seg) => ({
+        id: seg.id,
+        speaker: seg.speaker === 'agent' ? ('agent' as const) : ('caller' as const),
+        role: seg.speaker === 'agent' ? ('agent' as const) : ('caller' as const),
+        text: seg.content,
+        startTime: seg.startTime,
+        endTime: seg.endTime,
+        sequenceNumber: seg.sequenceNumber,
+      }));
+
+      // Fallback to Execution.transcript if TranscriptSegment rows are not populated
+      if (turns.length === 0) {
+        const execution = await prisma.execution.findUnique({ where: { callId } });
+        if (execution && execution.transcript && execution.transcript !== '[]') {
+          try {
+            const parsed = JSON.parse(execution.transcript);
+            if (Array.isArray(parsed)) {
+              parsed.forEach((turn: any, idx: number) => {
+                const spk = turn.role === 'agent' || turn.speaker === 'agent' ? ('agent' as const) : ('caller' as const);
+                turns.push({
+                  id: turn.id || `exec_${idx}`,
+                  speaker: spk,
+                  role: spk,
+                  text: turn.text || turn.content || '',
+                  startTime: turn.startTime ?? idx * 2,
+                  endTime: turn.endTime,
+                  sequenceNumber: turn.sequenceNumber ?? idx + 1,
+                });
+              });
+            }
+          } catch {}
+        }
+      }
+
+      const formattedString = turns.map(t => `${t.speaker === 'agent' ? 'Agent' : 'Caller'}: ${t.text}`).join('\n');
 
       res.json({
         success: true,
-        data: transcript,
+        data: {
+          callId,
+          transcript: formattedString,
+          turns,
+          totalTurns: turns.length,
+        },
       });
     } catch (err) {
       next(err);

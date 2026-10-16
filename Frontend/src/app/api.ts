@@ -74,22 +74,31 @@ export interface ApiAgent {
 
 export interface ApiCall {
   id: string;
+  direction?: 'inbound' | 'outbound';
+  callDirection?: string;
   status: string;
+  contactNumber?: string;
+  businessNumber?: string;
   phoneNumber?: string;
   recipientPhoneNumber?: string;
   fromPhoneNumber?: string;
-  callDirection?: string;
+  agentName?: string;
+  agentId?: string;
+  agent?: { name: string } | null;
+  startedAt?: string | null;
+  endedAt?: string | null;
   duration?: number | null;
   durationSeconds?: number | null;
-  agentId?: string;
-  createdAt: string;
-  updatedAt: string;
-  agent?: { name: string } | null;
-  transcript?: string | null;
+  billedMinutes?: number;
+  hasTranscript?: boolean;
+  hasRecording?: boolean;
   recordingUrl?: string | null;
+  transcript?: string | null;
   sentiment?: string | null;
   summary?: string | null;
   userId?: string;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export interface ApiProfile {
@@ -425,11 +434,23 @@ export async function fetchProfile(): Promise<ApiProfile> {
 /** GET /api/v2/calls — List all calls for the authenticated user */
 export async function fetchCalls(filters?: {
   status?: string;
+  direction?: string;
+  search?: string;
+  agentId?: string;
+  dateRange?: string;
+  startDate?: string;
+  endDate?: string;
   limit?: number;
   offset?: number;
 }): Promise<ApiCall[]> {
   const params = new URLSearchParams();
-  if (filters?.status) params.set("status", filters.status);
+  if (filters?.status && filters.status !== 'all') params.set("status", filters.status);
+  if (filters?.direction && filters.direction !== 'all') params.set("direction", filters.direction);
+  if (filters?.search && filters.search.trim()) params.set("search", filters.search.trim());
+  if (filters?.agentId && filters.agentId !== 'all') params.set("agentId", filters.agentId);
+  if (filters?.dateRange && filters.dateRange !== 'all') params.set("dateRange", filters.dateRange);
+  if (filters?.startDate) params.set("startDate", filters.startDate);
+  if (filters?.endDate) params.set("endDate", filters.endDate);
   if (filters?.limit !== undefined) params.set("limit", String(filters.limit));
   if (filters?.offset !== undefined) params.set("offset", String(filters.offset));
   const qs = params.toString();
@@ -472,12 +493,26 @@ export async function terminateCall(callId: string): Promise<void> {
   });
 }
 
-/** GET /api/v2/calls/:callId/transcript — Fetch call transcript */
-export async function getCallTranscript(callId: string): Promise<{
+export interface CallTranscriptTurn {
+  id: string;
+  speaker: 'agent' | 'caller';
+  role: 'agent' | 'caller';
+  text: string;
+  startTime?: number;
+  endTime?: number;
+  sequenceNumber?: number;
+}
+
+export interface CallTranscriptResponse {
+  callId: string;
   transcript: string | null;
-  turns?: unknown[];
-}> {
-  return apiFetch(`/api/v2/calls/${callId}/transcript`);
+  turns?: CallTranscriptTurn[];
+  totalTurns?: number;
+}
+
+/** GET /api/v2/calls/:callId/transcript — Fetch call transcript */
+export async function getCallTranscript(callId: string): Promise<CallTranscriptResponse> {
+  return apiFetch<CallTranscriptResponse>(`/api/v2/calls/${callId}/transcript`);
 }
 
 // ─── WebSocket Helper ─────────────────────────────────────────────────────────
