@@ -10,6 +10,8 @@ import { getWebhookSigningSecret } from '../utils/security';
 import { scheduleCall, cancelBooking, rescheduleBooking } from '../lib/calendar/scheduler';
 import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
 import { requireCallingMinutes } from '../middleware/planValidation';
+import { CallService } from '../services/CallService';
+import { ADMIN_EMAIL } from '../config/constants';
 
 const router = Router();
 
@@ -195,6 +197,8 @@ router.get('/bookings', requireAuth, async (req, res) => {
 
 /**
  * GET /api/v2/calendar/batches
+/**
+ * GET /api/v2/calendar/batches
  * List user's batch calling campaigns.
  */
 router.get('/batches', requireAuth, async (req, res) => {
@@ -206,7 +210,8 @@ router.get('/batches', requireAuth, async (req, res) => {
       where: { userId },
       orderBy: { createdAt: 'desc' },
       include: {
-        agent: { select: { name: true } }
+        agent: { select: { name: true } },
+        fromPhoneNumber: { select: { id: true, phoneNumber: true } }
       }
     });
 
@@ -215,7 +220,10 @@ router.get('/batches', requireAuth, async (req, res) => {
       name: b.name,
       agentId: b.agentId,
       agentName: b.agent?.name || 'Default Agent',
+      fromPhoneNumberId: b.fromPhoneNumberId,
+      fromPhoneNumber: b.fromPhoneNumber?.phoneNumber || null,
       status: b.status,
+      statusReason: b.statusReason,
       total: b.totalRecipients,
       called: b.completedCount + b.failedCount,
       connected: b.completedCount,
@@ -234,6 +242,66 @@ router.get('/batches', requireAuth, async (req, res) => {
 });
 
 /**
+ * GET /api/v2/calendar/batches/:id
+ * Get single batch with recipient summary, failures, and caller ID.
+ */
+router.get('/batches/:id', requireAuth, async (req, res) => {
+  try {
+    const userId = (req as any).effectiveWorkspaceId || getUserIdFromRequest(req);
+    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const batchId = Array.isArray(req.params.id) ? req.params.id[0] : (req.params.id as string);
+    const batch = await prisma.batch.findFirst({
+      where: { id: batchId, userId },
+      include: {
+        agent: { select: { name: true } },
+        fromPhoneNumber: { select: { id: true, phoneNumber: true } },
+        recipients: {
+          orderBy: { id: 'asc' }
+        }
+      }
+    });
+
+    if (!batch) {
+      return res.status(404).json({ success: false, error: 'Batch not found.' });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        id: batch.id,
+        name: batch.name,
+        agentId: batch.agentId,
+        agentName: batch.agent?.name || 'Default Agent',
+        fromPhoneNumberId: batch.fromPhoneNumberId,
+        fromPhoneNumber: batch.fromPhoneNumber?.phoneNumber || null,
+        status: batch.status,
+        statusReason: batch.statusReason,
+        total: batch.totalRecipients,
+        called: batch.completedCount + batch.failedCount,
+        connected: batch.completedCount,
+        failed: batch.failedCount,
+        converted: Math.floor(batch.completedCount * 0.25),
+        created: batch.createdAt.toISOString().slice(0, 10),
+        recipients: batch.recipients.map(r => ({
+          id: r.id,
+          phoneNumber: r.phoneNumber,
+          status: r.status,
+          attempts: r.attempts,
+          lastAttemptAt: r.lastAttemptAt?.toISOString() || null,
+          lastError: r.lastError,
+          lastErrorCode: r.lastErrorCode,
+          callId: r.callId
+        }))
+      }
+    });
+  } catch (error) {
+    logger.error('Failed to get batch detail', { error: String(error) });
+    res.status(500).json({ success: false, error: 'Failed to get batch detail' });
+  }
+});
+
+/**
  * POST /api/v2/calendar/batches
  * Create a new batch campaign with recipient list.
  */
@@ -242,7 +310,7 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
     const userId = (req as any).effectiveWorkspaceId || getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
-    const { name, agentId, recipients, scheduleNow } = req.body;
+    const { name, agentId, numberId, recipients, scheduleNow, scheduleConfig } = req.body;
     if (!name || !agentId || !Array.isArray(recipients) || recipients.length === 0) {
       res.status(400).json({ success: false, error: 'Name, agentId, and non-empty recipients array are required.' });
       return;
@@ -255,6 +323,26 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
     if (!agent) {
       res.status(404).json({ success: false, error: 'Agent not found or does not belong to your account.' });
       return;
+    }
+
+    // Validate Caller ID (PhoneNumber) ownership, active status, KYC status
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(401).json({ success: false, error: 'User not found' });
+    const isAdmin = user.accountType === 'admin' || user.email === ADMIN_EMAIL;
+
+    let validatedNumberRecord: any = null;
+    let validatedFromNumber: string | null = null;
+    try {
+      const valRes = await CallService.validateCallerNumber(userId, numberId, isAdmin);
+      validatedFromNumber = valRes.effectiveFromNumber;
+      validatedNumberRecord = valRes.numberRecord;
+    } catch (err: any) {
+      const errMsg = err?.message || 'Invalid caller phone number';
+      return res.status(400).json({
+        success: false,
+        error: errMsg,
+        details: err?.details || undefined
+      });
     }
 
     const initialStatus = scheduleNow !== false ? 'running' : 'scheduled';
@@ -299,8 +387,10 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
       data: {
         userId,
         agentId,
+        fromPhoneNumberId: validatedNumberRecord?.id || null,
         name: name.trim(),
         status: initialStatus,
+        scheduleConfig: JSON.stringify(scheduleConfig || {}),
         totalRecipients: eligibleRecipients.length,
         startedAt: initialStatus === 'running' ? new Date() : null,
         recipients: {
@@ -310,13 +400,18 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
             status: 'pending'
           }))
         }
+      },
+      include: {
+        fromPhoneNumber: {
+          select: { id: true, phoneNumber: true }
+        }
       }
     });
 
     if (initialStatus === 'running') {
       // Trigger background batch processing
       const { BatchService } = await import('../services/BatchService');
-      BatchService.processBatchOneAtATime(batch.id, userId).catch(err => {
+      BatchService.processBatch(batch.id, userId).catch(err => {
         logger.error('BatchService execution error', { batchId: batch.id, error: String(err) });
       });
     }
@@ -329,7 +424,10 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
         id: batch.id,
         name: batch.name,
         agentId: batch.agentId,
+        fromPhoneNumberId: batch.fromPhoneNumberId,
+        fromPhoneNumber: batch.fromPhoneNumber?.phoneNumber || validatedFromNumber,
         status: batch.status,
+        statusReason: batch.statusReason,
         total: batch.totalRecipients,
         called: 0,
         connected: 0,
@@ -362,7 +460,7 @@ router.post('/batches/:id/pause', requireAuth, sensitiveOperationsLimiter, async
 
     await prisma.batch.updateMany({
       where: { id: batchId, userId },
-      data: { status: 'paused' }
+      data: { status: 'paused', statusReason: 'User paused' }
     });
 
     res.json({ success: true, message: 'Batch campaign paused.' });
@@ -389,13 +487,19 @@ router.post('/batches/:id/resume', requireAuth, sensitiveOperationsLimiter, requ
       return res.status(404).json({ success: false, error: 'Batch not found.' });
     }
 
+    // One worker per batch check:
+    // If already running and locked with fresh lock, resume is a no-op
+    if (existing.status === 'running' && existing.lockedBy && existing.lockedAt && (Date.now() - existing.lockedAt.getTime() < 60000)) {
+      return res.json({ success: true, message: 'Batch campaign is already running.' });
+    }
+
     await prisma.batch.updateMany({
       where: { id: batchId, userId },
-      data: { status: 'running' }
+      data: { status: 'running', statusReason: null }
     });
 
     const { BatchService } = await import('../services/BatchService');
-    BatchService.processBatchOneAtATime(batchId, userId).catch(err => {
+    BatchService.processBatch(batchId, userId).catch(err => {
       logger.error('BatchService resume error', { batchId, error: String(err) });
     });
 

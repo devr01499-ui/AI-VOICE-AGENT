@@ -597,6 +597,11 @@ export async function fetchCalendarBatches(): Promise<any> {
   return res?.success && Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
 }
 
+export async function fetchCalendarBatchDetail(id: string): Promise<any> {
+  const res = await apiFetch<any>(`/api/v2/calendar/batches/${id}`);
+  return res?.success && res.data ? res.data : null;
+}
+
 export async function createBatchCampaign(data: { name: string; agentId: string; numberId?: string; scheduleNow?: boolean; recipients: any[] }): Promise<any> {
   return apiFetch<any>('/api/v2/calendar/batches', {
     method: 'POST',

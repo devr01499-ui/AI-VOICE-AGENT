@@ -13,7 +13,8 @@ export type CallStatus =
   | 'failed'
   | 'no_answer'
   | 'busy'
-  | 'cancelled';
+  | 'cancelled'
+  | 'timeout';
 
 export type CallDirection = 'inbound' | 'outbound';
 

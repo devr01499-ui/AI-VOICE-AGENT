@@ -43,15 +43,16 @@ export class CallStateMachine {
 
   private validateTransition(from: CallStatus, to: CallStatus): boolean {
     const transitions: Record<CallStatus, CallStatus[]> = {
-      queued: ['ringing', 'connected', 'failed'],
-      ringing: ['connected', 'completed', 'failed'],
-      connected: ['in_progress', 'completed', 'failed'],
-      in_progress: ['completed', 'failed'],
+      queued: ['ringing', 'connected', 'failed', 'timeout', 'cancelled'],
+      ringing: ['connected', 'completed', 'failed', 'no_answer', 'busy', 'timeout', 'cancelled'],
+      connected: ['in_progress', 'completed', 'failed', 'timeout', 'cancelled'],
+      in_progress: ['completed', 'failed', 'timeout', 'cancelled'],
       completed: [],
       failed: [],
       no_answer: [],
       busy: [],
       cancelled: [],
+      timeout: [],
     };
     return transitions[from]?.includes(to) || false;
   }

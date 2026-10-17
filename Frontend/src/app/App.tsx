@@ -12,7 +12,7 @@ import {
   fetchAgents, fetchAgent, fetchCalls, fetchProfile, createAgent, updateAgent, deleteAgent, chatWithAgent,
   exportAgentAsJson, importAgentFromJson,
   initiateCall, getCallTranscript, getLiveTranscriptWsUrl,
-  fetchKBList, uploadKBDocument, scrapeKBUrl, deleteKBDocument, fetchCalendarBatches, createBatchCampaign, pauseBatchCampaign, resumeBatchCampaign, cancelBatchCampaign,
+  fetchKBList, uploadKBDocument, scrapeKBUrl, deleteKBDocument, fetchCalendarBatches, fetchCalendarBatchDetail, createBatchCampaign, pauseBatchCampaign, resumeBatchCampaign, cancelBatchCampaign,
   fetchAuditLogs, fetchDataRetention, updateDataRetention, fetchIpAllowlist, updateIpAllowlist, fetchConcurrencyTelemetry, updateConcurrencyLimit,
   DEV_USER_ID, DEFAULT_AGENT_ID, API_BASE, apiClient,
   type ApiAgent, type ApiCall, type ApiProfile, type ApiKnowledgeBase, type ApiAuditLog,
@@ -2914,11 +2914,22 @@ function DashBatch() {
   const [numbersList, setNumbersList] = useState<any[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [selected, setSelected] = useState<any|null>(null);
+  const [selectedDetail, setSelectedDetail] = useState<any|null>(null);
   const [parsedRecipients, setParsedRecipients] = useState<any[]>([]);
   const [creating, setCreating] = useState(false);
   const [batchError, setBatchError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({name:"",agentId:"",numberId:"",scheduleNow:true,scheduledAt:"",csvRows:0});
+
+  useEffect(() => {
+    if (selected?.id) {
+      fetchCalendarBatchDetail(selected.id).then((data) => {
+        if (data) setSelectedDetail(data);
+      }).catch(() => {});
+    } else {
+      setSelectedDetail(null);
+    }
+  }, [selected?.id]);
 
   const loadBatches = useCallback(() => {
     fetchCalendarBatches().then((data) => {
@@ -3029,8 +3040,15 @@ function DashBatch() {
   };
 
   const handleExport = (campaign: any) => {
-    const content = "data:text/csv;charset=utf-8,Name,Status,Total,Completed,Failed\n" +
-      `"${campaign.name}","${campaign.status}",${campaign.total||campaign.totalContacts||0},${campaign.completedCount||campaign.called||0},${campaign.failedCount||0}\n`;
+    const recipients = selectedDetail?.recipients || [];
+    let content: string;
+    if (recipients.length > 0) {
+      content = "data:text/csv;charset=utf-8,Phone Number,Status,Attempts,Last Error,Last Error Code,Last Attempt,Call ID\n" +
+        recipients.map((r: any) => `"${r.phoneNumber}","${r.status}",${r.attempts},"${(r.lastError || '').replace(/"/g, '""')}","${r.lastErrorCode || ''}","${r.lastAttemptAt || ''}","${r.callId || ''}"`).join("\n");
+    } else {
+      content = "data:text/csv;charset=utf-8,Name,Status,Total,Completed,Failed\n" +
+        `"${campaign.name}","${campaign.status}",${campaign.total||campaign.totalContacts||0},${campaign.completedCount||campaign.called||0},${campaign.failedCount||0}\n`;
+    }
     const encodedUri = encodeURI(content);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -3116,15 +3134,66 @@ function DashBatch() {
         </div>
       </DModal>
 
-      <DModal open={!!selected} onClose={()=>setSelected(null)} title={selected?.name??""} width="max-w-xl">
+      <DModal open={!!selected} onClose={()=>setSelected(null)} title={selected?.name??""} width="max-w-2xl">
         {selected&&(
           <div className="space-y-6">
+            {(selectedDetail?.statusReason || selected.statusReason) && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-semibold">
+                Status note: {selectedDetail?.statusReason || selected.statusReason}
+              </div>
+            )}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              {(selectedDetail?.fromPhoneNumber || selected.fromPhoneNumber) && (
+                <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                  <span>Caller ID:</span>
+                  <span className="font-mono text-[var(--nm-text)] px-2 py-0.5 rounded bg-[var(--nm-card-bg)] border border-[var(--nm-border)]">
+                    {selectedDetail?.fromPhoneNumber || selected.fromPhoneNumber}
+                  </span>
+                </div>
+              )}
+              <DBadge v={selected.status==="running"?"success":selected.status==="paused"?"warning":selected.status==="completed"?"info":selected.status==="failed"?"error":"neutral"}>
+                <SDot status={selected.status}/> {selected.status}
+              </DBadge>
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[{label:"Total",value:(selected.total||selected.totalContacts||0).toLocaleString()},{label:"Called",value:(selected.called||selected.completedCount||0).toLocaleString()},{label:"Connected",value:(selected.connected||selected.completedCount||0).toLocaleString()},{label:"Converted",value:(selected.converted||0).toLocaleString()}].map(s=>(
                 <div key={s.label} className="nm-card p-4 text-center"><p className="text-xs font-bold text-[var(--nm-text)] mb-2" style={{fontFamily:"'Outfit', sans-serif"}}>{s.label.toUpperCase()}</p><p className="text-2xl font-bold" style={{fontFamily:"'Instrument Serif',serif"}}>{s.value}</p></div>
               ))}
             </div>
             <div className="nm-card"><p className="text-xs font-bold text-[var(--nm-text)] mb-3" style={{fontFamily:"'Outfit', sans-serif"}}>PROGRESS — {Math.round(((selected.called||selected.completedCount||0)/(selected.total||selected.totalContacts||1))*100)}%</p><DProg v={selected.called||selected.completedCount||0} max={selected.total||selected.totalContacts||1}/></div>
+
+            {selectedDetail?.recipients && selectedDetail.recipients.filter((r: any) => r.status === 'failed').length > 0 && (
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <p className="text-xs font-bold text-red-500 uppercase tracking-wider" style={{fontFamily:"'Outfit', sans-serif"}}>
+                    Failed Contacts ({selectedDetail.recipients.filter((r: any) => r.status === 'failed').length})
+                  </p>
+                </div>
+                <div className="nm-raised rounded-xl overflow-hidden max-h-56 overflow-y-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="border-b border-transparent text-muted-foreground font-bold">
+                      <tr>
+                        <th className="px-3 py-2">Phone</th>
+                        <th className="px-3 py-2">Attempts</th>
+                        <th className="px-3 py-2">Failure Reason</th>
+                        <th className="px-3 py-2">Code</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-transparent">
+                      {selectedDetail.recipients.filter((r: any) => r.status === 'failed').map((r: any) => (
+                        <tr key={r.id}>
+                          <td className="px-3 py-2 font-mono font-medium text-[var(--nm-text)]">{r.phoneNumber}</td>
+                          <td className="px-3 py-2 text-[var(--nm-text)]">{r.attempts}</td>
+                          <td className="px-3 py-2 text-red-500 font-medium truncate max-w-xs" title={r.lastError}>{r.lastError || 'Call failed'}</td>
+                          <td className="px-3 py-2 font-mono text-[10px] text-muted-foreground">{r.lastErrorCode || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2">
               {selected.status==="running"&&<DBtn variant="secondary" onClick={() => { handlePause(selected.id); setSelected(null); }}><PauseCircle className="w-4 h-4"/> Pause</DBtn>}
               {selected.status==="paused"&&<DBtn onClick={() => { handleResume(selected.id); setSelected(null); }}><PlayCircle className="w-4 h-4"/> Resume</DBtn>}

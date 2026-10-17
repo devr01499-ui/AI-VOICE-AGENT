@@ -168,58 +168,7 @@ export class CallService {
 
     // ── Caller ID resolution and ownership gate ──
     const isAdmin = user.accountType === 'admin' || user.email === ADMIN_EMAIL;
-    let effectiveFromNumber: string;
-
-    if (isAdmin) {
-      // Admin users may explicitly provide a number or fall back to platform default
-      effectiveFromNumber = (fromPhoneNumber && fromPhoneNumber.trim()) || env.VOBIZ_FROM_NUMBER;
-      if (!effectiveFromNumber) {
-        throw new ValidationError('Missing caller ID', [
-          { field: 'fromPhoneNumber', message: 'No caller ID provided and VOBIZ_FROM_NUMBER is not configured.' }
-        ]);
-      }
-    } else {
-      // Non-admin users: require fromPhoneNumber to be explicitly provided; NEVER fall back to VOBIZ_FROM_NUMBER
-      if (!fromPhoneNumber || !fromPhoneNumber.trim()) {
-        throw new ValidationError('Caller ID required', [
-          { field: 'fromPhoneNumber', message: 'Caller ID is required. Please specify one of your active purchased phone numbers.' }
-        ]);
-      }
-
-      effectiveFromNumber = fromPhoneNumber.trim();
-
-      const cleanFromDigits = effectiveFromNumber.replace(/\D/g, '');
-      const fromVariants = Array.from(new Set([
-        effectiveFromNumber,
-        `+${cleanFromDigits}`,
-        cleanFromDigits,
-      ]));
-
-      const numberRecord = await prisma.phoneNumber.findFirst({
-        where: {
-          userId,
-          phoneNumber: { in: fromVariants }
-        }
-      });
-
-      if (!numberRecord) {
-        throw new ValidationError('Unauthorized caller ID', [
-          { field: 'fromPhoneNumber', message: `Phone number ${effectiveFromNumber} does not exist or belong to your account. Please assign a valid active phone number.` }
-        ]);
-      }
-
-      if (numberRecord.status !== 'active') {
-        throw new ValidationError('Your number is awaiting activation', [
-          { field: 'fromPhoneNumber', message: 'Your number is awaiting activation. It will become active once KYC is verified and wallet funding is confirmed.' }
-        ]);
-      }
-
-      if (numberRecord.kycStatus === 'pending' || numberRecord.kycStatus === 'failed') {
-        throw new ValidationError('Outbound call blocked due to unverified KYC', [
-          { field: 'fromPhoneNumber', message: `KYC verification is ${numberRecord.kycStatus} for caller ID ${effectiveFromNumber}. Please complete KYC verification in your dashboard before placing outbound calls.` }
-        ]);
-      }
-    }
+    const { effectiveFromNumber } = await CallService.validateCallerNumber(userId, fromPhoneNumber, isAdmin);
 
     // ── Initiate via CallOrchestrator ──────────
     try {
@@ -380,7 +329,83 @@ export class CallService {
   }
 
   /**
-   * Updates call status based on a Vobiz webhook callback.
+   * Validates that a caller ID / phone number belongs to the user,
+   * is active, and has passed KYC verification.
+   * Reused across individual calls and batch campaign creation.
+   */
+  static async validateCallerNumber(
+    userId: string,
+    numberIdentifier: string | undefined | null,
+    isAdmin: boolean
+  ): Promise<{ effectiveFromNumber: string; numberRecord?: any }> {
+    if (isAdmin) {
+      const effectiveFromNumber = (numberIdentifier && numberIdentifier.trim()) || env.VOBIZ_FROM_NUMBER;
+      if (!effectiveFromNumber) {
+        throw new ValidationError('Missing caller ID', [
+          { field: 'fromPhoneNumber', message: 'No caller ID provided and VOBIZ_FROM_NUMBER is not configured.' }
+        ]);
+      }
+      const numberRecord = await prisma.phoneNumber.findFirst({
+        where: {
+          OR: [
+            { id: numberIdentifier?.trim() },
+            { phoneNumber: numberIdentifier?.trim() }
+          ]
+        }
+      });
+      return { effectiveFromNumber: numberRecord?.phoneNumber || effectiveFromNumber, numberRecord };
+    }
+
+    if (!numberIdentifier || !numberIdentifier.trim()) {
+      throw new ValidationError('Caller ID required', [
+        { field: 'fromPhoneNumber', message: 'Caller ID is required. Please specify one of your active purchased phone numbers.' }
+      ]);
+    }
+
+    const trimmed = numberIdentifier.trim();
+    const cleanFromDigits = trimmed.replace(/\D/g, '');
+    const fromVariants = Array.from(new Set([
+      trimmed,
+      `+${cleanFromDigits}`,
+      cleanFromDigits,
+    ])).filter(Boolean);
+
+    const numberRecord = await prisma.phoneNumber.findFirst({
+      where: {
+        userId,
+        OR: [
+          { id: trimmed },
+          { phoneNumber: { in: fromVariants } }
+        ]
+      }
+    });
+
+    if (!numberRecord) {
+      throw new ValidationError('Unauthorized caller ID', [
+        { field: 'fromPhoneNumber', message: `Phone number ${trimmed} does not exist or belong to your account. Please assign a valid active phone number.` }
+      ]);
+    }
+
+    if (numberRecord.status !== 'active') {
+      throw new ValidationError('Your number is awaiting activation', [
+        { field: 'fromPhoneNumber', message: 'Your number is awaiting activation. It will become active once KYC is verified and wallet funding is confirmed.' }
+      ]);
+    }
+
+    if (numberRecord.kycStatus === 'pending' || numberRecord.kycStatus === 'failed') {
+      throw new ValidationError('Outbound call blocked due to unverified KYC', [
+        { field: 'fromPhoneNumber', message: `KYC verification is ${numberRecord.kycStatus} for caller ID ${numberRecord.phoneNumber}. Please complete KYC verification in your dashboard before placing outbound calls.` }
+      ]);
+    }
+
+    return {
+      effectiveFromNumber: numberRecord.phoneNumber,
+      numberRecord
+    };
+  }
+
+  /**
+   * Updates call status based on a Vobiz or Plivo webhook callback.
    * This is called from the webhook route handlers.
    */
   static async handleStatusUpdate(callId: string, vobizStatus: string): Promise<void> {
@@ -394,24 +419,29 @@ export class CallService {
       failed: 'failed',
       busy: 'busy',
       no_answer: 'no_answer',
+      'no-answer': 'no_answer',
       hangup: 'completed',
+      timeout: 'timeout',
+      cancelled: 'cancelled',
+      canceled: 'cancelled',
+      rejected: 'failed',
     };
 
     const mappedStatus = statusMap[vobizStatus.toLowerCase()];
     if (!mappedStatus) {
-      logger.warn('CallService: unknown Vobiz status', { callId, vobizStatus });
+      logger.warn('CallService: unknown telephony status', { callId, vobizStatus });
       return;
     }
 
     await CallRepository.updateStatus(callId, mappedStatus);
-    logger.info('CallService: status updated from Vobiz webhook', {
+    logger.info('CallService: status updated from webhook', {
       callId,
       vobizStatus,
       mappedStatus,
     });
 
     // Sync linked BatchRecipient status if call reached a terminal state
-    const terminalStatuses = ['completed', 'failed', 'busy', 'no_answer', 'cancelled'];
+    const terminalStatuses: CallStatus[] = ['completed', 'failed', 'busy', 'no_answer', 'cancelled', 'timeout'];
     if (terminalStatuses.includes(mappedStatus)) {
       try {
         const recipient = await prisma.batchRecipient.findFirst({ where: { callId } });
@@ -419,7 +449,11 @@ export class CallService {
           const recipientStatus = mappedStatus === 'completed' ? 'completed' : 'failed';
           await prisma.batchRecipient.update({
             where: { id: recipient.id },
-            data: { status: recipientStatus }
+            data: {
+              status: recipientStatus,
+              lastError: mappedStatus === 'completed' ? null : `Call ended with status: ${mappedStatus}`,
+              lastErrorCode: mappedStatus === 'completed' ? null : mappedStatus.toUpperCase(),
+            }
           });
           const completedCount = await prisma.batchRecipient.count({ where: { batchId: recipient.batchId, status: 'completed' } });
           const failedCount = await prisma.batchRecipient.count({ where: { batchId: recipient.batchId, status: 'failed' } });

@@ -56,6 +56,7 @@ import alertingRoutes from './routes/alerting';
 import integrationsRoutes from './routes/integrations';
 import auditLogRoutes from './routes/auditLog';
 import { AlertEvaluator } from './services/AlertEvaluator';
+import { BatchService } from './services/BatchService';
 import { requireAuthOrApiKey } from './middleware/authWrapper';
 import { requireCallingMinutes } from './middleware/planValidation';
 import { adminRouter } from './routes/adminRoutes';
@@ -514,6 +515,16 @@ async function bootstrap(): Promise<void> {
 
     // Start background rule evaluation worker
     AlertEvaluator.startBackgroundWorker(60000);
+
+    // Boot recovery & 60s background cycle for batch campaigns
+    BatchService.recoverStaleBatches().catch(err => {
+      logger.error('Claritiy Voice Server: boot batch recovery error', { error: String(err) });
+    });
+    setInterval(() => {
+      BatchService.recoverStaleBatches().catch(err => {
+        logger.error('Claritiy Voice Server: background batch recovery error', { error: String(err) });
+      });
+    }, 60000);
 
     // Call this method within the server listen block
     if (process.env.SEED_TEST_DATA === 'true') {

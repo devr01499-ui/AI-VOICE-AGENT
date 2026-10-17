@@ -263,6 +263,7 @@ model PhoneNumber {
   agent Agent? @relation(fields: [assignedAgentId], references: [id], onDelete: SetNull)
 
   inboundConfigs InboundConfig[]
+  batches        Batch[]
 
   @@index([userId])
   @@index([assignedAgentId])
@@ -323,28 +324,34 @@ model KnowledgeBaseChunk {
 // ─────────────────────────────────────────────
 
 model Batch {
-  id              String    @id @default(uuid())
-  userId          String    @map("user_id")
-  agentId         String    @map("agent_id")
-  name            String
-  status          String    @default("scheduled") // scheduled | running | paused | completed | cancelled
-  totalRecipients Int       @default(0) @map("total_recipients")
-  completedCount  Int       @default(0) @map("completed_count")
-  failedCount     Int       @default(0) @map("failed_count")
-  scheduleConfig  String    @default("{}") @map("schedule_config") // JSON
-  throttleConfig  String    @default("{}") @map("throttle_config") // JSON
-  retryConfig     String    @default("{}") @map("retry_config") // JSON
-  createdAt       DateTime  @default(now()) @map("created_at")
-  startedAt       DateTime? @map("started_at")
-  completedAt     DateTime? @map("completed_at")
+  id                String    @id @default(uuid())
+  userId            String    @map("user_id")
+  agentId           String    @map("agent_id")
+  fromPhoneNumberId String?   @map("from_phone_number_id")
+  name              String
+  status            String    @default("scheduled") // scheduled | running | paused | completed | cancelled | failed
+  statusReason      String?   @map("status_reason")
+  lockedBy          String?   @map("locked_by")
+  lockedAt          DateTime? @map("locked_at")
+  totalRecipients   Int       @default(0) @map("total_recipients")
+  completedCount    Int       @default(0) @map("completed_count")
+  failedCount       Int       @default(0) @map("failed_count")
+  scheduleConfig    String    @default("{}") @map("schedule_config") // JSON
+  throttleConfig    String    @default("{}") @map("throttle_config") // JSON
+  retryConfig       String    @default("{}") @map("retry_config") // JSON
+  createdAt         DateTime  @default(now()) @map("created_at")
+  startedAt         DateTime? @map("started_at")
+  completedAt       DateTime? @map("completed_at")
 
-  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agent      Agent            @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  recipients BatchRecipient[]
-  calls      Call[]
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent           Agent            @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  fromPhoneNumber PhoneNumber?     @relation(fields: [fromPhoneNumberId], references: [id], onDelete: SetNull)
+  recipients      BatchRecipient[]
+  calls           Call[]
 
   @@index([userId])
   @@index([agentId])
+  @@index([fromPhoneNumberId])
   @@index([status])
   @@map("batches")
 }
@@ -358,6 +365,8 @@ model BatchRecipient {
   callId        String?   @map("call_id")
   attempts      Int       @default(0)
   lastAttemptAt DateTime? @map("last_attempt_at")
+  lastError     String?   @map("last_error")
+  lastErrorCode String?   @map("last_error_code")
 
   batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
 
