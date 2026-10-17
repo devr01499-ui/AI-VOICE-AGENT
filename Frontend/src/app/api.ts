@@ -602,7 +602,17 @@ export async function fetchCalendarBatchDetail(id: string): Promise<any> {
   return res?.success && res.data ? res.data : null;
 }
 
-export async function createBatchCampaign(data: { name: string; agentId: string; numberId?: string; scheduleNow?: boolean; recipients: any[] }): Promise<any> {
+export async function createBatchCampaign(data: {
+  name: string;
+  agentId: string;
+  numberId?: string;
+  scheduleNow?: boolean;
+  recipients: any[];
+  idempotencyKey?: string;
+  consentConfirmed?: boolean;
+  consentConfirmedBy?: string;
+  estimatedMinutes?: number;
+}): Promise<any> {
   return apiFetch<any>('/api/v2/calendar/batches', {
     method: 'POST',
     body: JSON.stringify(data),

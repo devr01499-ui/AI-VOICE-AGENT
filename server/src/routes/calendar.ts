@@ -257,7 +257,18 @@ router.get('/batches/:id', requireAuth, async (req, res) => {
         agent: { select: { name: true } },
         fromPhoneNumber: { select: { id: true, phoneNumber: true } },
         recipients: {
-          orderBy: { id: 'asc' }
+          orderBy: { position: 'asc' },
+          include: {
+            call: {
+              select: {
+                id: true,
+                fromPhoneNumber: true,
+                durationSeconds: true,
+                callDirection: true,
+                status: true
+              }
+            }
+          }
         }
       }
     });
@@ -277,21 +288,31 @@ router.get('/batches/:id', requireAuth, async (req, res) => {
         fromPhoneNumber: batch.fromPhoneNumber?.phoneNumber || null,
         status: batch.status,
         statusReason: batch.statusReason,
+        idempotencyKey: batch.idempotencyKey,
+        consentConfirmed: batch.consentConfirmed,
+        consentConfirmedBy: batch.consentConfirmedBy,
+        consentConfirmedAt: batch.consentConfirmedAt?.toISOString() || null,
+        estimatedMinutes: batch.estimatedMinutes,
         total: batch.totalRecipients,
         called: batch.completedCount + batch.failedCount,
         connected: batch.completedCount,
         failed: batch.failedCount,
         converted: Math.floor(batch.completedCount * 0.25),
         created: batch.createdAt.toISOString().slice(0, 10),
-        recipients: batch.recipients.map(r => ({
+        recipients: batch.recipients.map((r, index) => ({
           id: r.id,
+          position: r.position ?? index,
+          rowOrder: (r.position ?? index) + 1,
           phoneNumber: r.phoneNumber,
+          callerPhoneNumber: r.callerPhoneNumber || r.call?.fromPhoneNumber || batch.fromPhoneNumber?.phoneNumber || '—',
           status: r.status,
           attempts: r.attempts,
           lastAttemptAt: r.lastAttemptAt?.toISOString() || null,
           lastError: r.lastError,
           lastErrorCode: r.lastErrorCode,
-          callId: r.callId
+          callId: r.callId || r.call?.id || null,
+          direction: r.call?.callDirection || 'outbound',
+          durationSeconds: r.call?.durationSeconds != null ? r.call.durationSeconds : null
         }))
       }
     });
@@ -303,16 +324,73 @@ router.get('/batches/:id', requireAuth, async (req, res) => {
 
 /**
  * POST /api/v2/calendar/batches
- * Create a new batch campaign with recipient list.
+ * Create a new batch campaign with recipient list, idempotency, caller ID truth, and explicit consent.
  */
 router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingMinutes, async (req, res) => {
   try {
     const userId = (req as any).effectiveWorkspaceId || getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
-    const { name, agentId, numberId, recipients, scheduleNow, scheduleConfig } = req.body;
+    const {
+      name,
+      agentId,
+      numberId,
+      recipients,
+      scheduleNow,
+      scheduleConfig,
+      idempotencyKey: bodyIdempotencyKey,
+      consentConfirmed,
+      consentConfirmedBy,
+      estimatedMinutes
+    } = req.body;
+
+    const idempotencyKey = bodyIdempotencyKey || (req.headers['idempotency-key'] as string) || (req.headers['x-idempotency-key'] as string);
+    if (!idempotencyKey || typeof idempotencyKey !== 'string') {
+      res.status(400).json({
+        success: false,
+        error: 'Idempotency key is required to create a batch campaign.'
+      });
+      return;
+    }
+
+    // Double-submit protection: check for existing batch with this idempotency key
+    const existingBatch = await prisma.batch.findFirst({
+      where: { idempotencyKey }
+    });
+    if (existingBatch) {
+      res.status(409).json({
+        success: false,
+        error: 'Duplicate submission: A batch campaign with this idempotency key already exists.',
+        existingBatchId: existingBatch.id,
+        data: {
+          id: existingBatch.id,
+          name: existingBatch.name,
+          status: existingBatch.status
+        }
+      });
+      return;
+    }
+
     if (!name || !agentId || !Array.isArray(recipients) || recipients.length === 0) {
       res.status(400).json({ success: false, error: 'Name, agentId, and non-empty recipients array are required.' });
+      return;
+    }
+
+    // Consent confirmation check (Item 18)
+    if (!consentConfirmed) {
+      res.status(400).json({
+        success: false,
+        error: 'Explicit consent confirmation required: "I confirm these contacts have agreed to receive this call."'
+      });
+      return;
+    }
+
+    // Caller ID Truth (Item 16): numberId is strictly required for ALL users, including admin accounts
+    if (!numberId) {
+      res.status(400).json({
+        success: false,
+        error: 'Caller ID (numberId) is required for all batch campaigns. Please select a verified outbound number.'
+      });
       return;
     }
 
@@ -328,12 +406,12 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
     // Validate Caller ID (PhoneNumber) ownership, active status, KYC status
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(401).json({ success: false, error: 'User not found' });
-    const isAdmin = user.accountType === 'admin' || user.email === ADMIN_EMAIL;
 
     let validatedNumberRecord: any = null;
     let validatedFromNumber: string | null = null;
     try {
-      const valRes = await CallService.validateCallerNumber(userId, numberId, isAdmin);
+      // Pass isAdmin = false to enforce that admins must use their real verified numbers
+      const valRes = await CallService.validateCallerNumber(userId, numberId, false);
       validatedFromNumber = valRes.effectiveFromNumber;
       validatedNumberRecord = valRes.numberRecord;
     } catch (err: any) {
@@ -383,6 +461,41 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
       });
     }
 
+    // Check if the same user has an identical recipient list already running (Item 14)
+    const incomingNormalized = eligibleRecipients
+      .map((r: any) => String(typeof r === 'string' ? r : (r.phoneNumber || r.phone || '')).replace(/\D/g, ''))
+      .filter(Boolean)
+      .sort();
+
+    const runningBatches = await prisma.batch.findMany({
+      where: { userId, status: 'running' },
+      include: { recipients: { select: { phoneNumber: true } } }
+    });
+
+    let duplicateRunningWarning: string | null = null;
+    for (const rb of runningBatches) {
+      const runningNormalized = rb.recipients
+        .map(r => r.phoneNumber.replace(/\D/g, ''))
+        .filter(Boolean)
+        .sort();
+
+      if (
+        incomingNormalized.length > 0 &&
+        incomingNormalized.length === runningNormalized.length &&
+        incomingNormalized.every((val, idx) => val === runningNormalized[idx])
+      ) {
+        duplicateRunningWarning = `Warning: An identical recipient list (${incomingNormalized.length} contacts) is currently running in active batch '${rb.name}' (${rb.id}).`;
+        logger.warn('Calendar batches: Duplicate running recipient list detected', {
+          userId,
+          activeBatchId: rb.id,
+          activeBatchName: rb.name
+        });
+        break;
+      }
+    }
+
+    const calculatedEstimatedMinutes = Number(estimatedMinutes) || Math.ceil(eligibleRecipients.length * 2);
+
     const batch = await prisma.batch.create({
       data: {
         userId,
@@ -390,11 +503,17 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
         fromPhoneNumberId: validatedNumberRecord?.id || null,
         name: name.trim(),
         status: initialStatus,
+        idempotencyKey,
+        consentConfirmed: true,
+        consentConfirmedBy: consentConfirmedBy || user.email || user.id,
+        consentConfirmedAt: new Date(),
+        estimatedMinutes: calculatedEstimatedMinutes,
         scheduleConfig: JSON.stringify(scheduleConfig || {}),
         totalRecipients: eligibleRecipients.length,
         startedAt: initialStatus === 'running' ? new Date() : null,
         recipients: {
-          create: eligibleRecipients.map((r: any) => ({
+          create: eligibleRecipients.map((r: any, index: number) => ({
+            position: index,
             phoneNumber: typeof r === 'string' ? r.trim() : (r.phoneNumber || r.phone || '').trim(),
             userData: JSON.stringify(typeof r === 'object' ? r : {}),
             status: 'pending'
@@ -416,7 +535,13 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
       });
     }
 
-    logger.info(`Batch created successfully`, { batchId: batch.id, userId, totalRecipients: recipients.length });
+    logger.info(`Batch created successfully`, {
+      batchId: batch.id,
+      userId,
+      totalRecipients: recipients.length,
+      idempotencyKey,
+      consentConfirmed: true
+    });
 
     res.status(201).json({
       success: true,
@@ -432,6 +557,8 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
         called: 0,
         connected: 0,
         converted: 0,
+        estimatedMinutes: batch.estimatedMinutes,
+        warning: duplicateRunningWarning || undefined,
         created: batch.createdAt.toISOString().slice(0, 10)
       }
     });

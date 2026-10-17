@@ -205,6 +205,7 @@ model Call {
   transcriptSegments TranscriptSegment[]
   callEvents         CallEvent[]
   qaResults          CallQaResult[]
+  batchRecipients    BatchRecipient[]
 
   @@index([agentId])
   @@index([userId])
@@ -333,6 +334,11 @@ model Batch {
   statusReason      String?   @map("status_reason")
   lockedBy          String?   @map("locked_by")
   lockedAt          DateTime? @map("locked_at")
+  idempotencyKey    String?   @map("idempotency_key")
+  consentConfirmed  Boolean   @default(false) @map("consent_confirmed")
+  consentConfirmedBy String?  @map("consent_confirmed_by")
+  consentConfirmedAt DateTime? @map("consent_confirmed_at")
+  estimatedMinutes  Int?      @map("estimated_minutes")
   totalRecipients   Int       @default(0) @map("total_recipients")
   completedCount    Int       @default(0) @map("completed_count")
   failedCount       Int       @default(0) @map("failed_count")
@@ -353,25 +359,31 @@ model Batch {
   @@index([agentId])
   @@index([fromPhoneNumberId])
   @@index([status])
+  @@index([idempotencyKey])
   @@map("batches")
 }
 
 model BatchRecipient {
-  id            String    @id @default(uuid())
-  batchId       String    @map("batch_id")
-  phoneNumber   String    @map("phone_number")
-  userData      String    @default("{}") @map("user_data") // JSON
-  status        String    @default("pending") // pending | in_progress | completed | failed
-  callId        String?   @map("call_id")
-  attempts      Int       @default(0)
-  lastAttemptAt DateTime? @map("last_attempt_at")
-  lastError     String?   @map("last_error")
-  lastErrorCode String?   @map("last_error_code")
+  id                String    @id @default(uuid())
+  batchId           String    @map("batch_id")
+  position          Int       @default(0) @map("position")
+  phoneNumber       String    @map("phone_number")
+  callerPhoneNumber String?   @map("caller_phone_number")
+  userData          String    @default("{}") @map("user_data") // JSON
+  status            String    @default("pending") // pending | in_progress | completed | failed
+  callId            String?   @map("call_id")
+  attempts          Int       @default(0)
+  lastAttemptAt     DateTime? @map("last_attempt_at")
+  lastError         String?   @map("last_error")
+  lastErrorCode     String?   @map("last_error_code")
 
   batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  call  Call? @relation(fields: [callId], references: [id], onDelete: SetNull)
 
   @@index([batchId])
+  @@index([batchId, position])
   @@index([status])
+  @@index([callId])
   @@map("batch_recipients")
 }
 

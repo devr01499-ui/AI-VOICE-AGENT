@@ -184,27 +184,23 @@ export class BatchService {
         return;
       }
 
-      // ── Batch-level validation: Caller ID ──
-      let effectiveFromNumber: string | null = null;
-      if (isAdmin) {
-        effectiveFromNumber = batch.fromPhoneNumber?.phoneNumber || process.env.VOBIZ_FROM_NUMBER || '+918035316244';
-      } else {
-        if (!batch.fromPhoneNumberId || !batch.fromPhoneNumber?.phoneNumber) {
-          const reason = 'Caller ID required. Please assign a verified phone number to this campaign.';
-          logger.warn(`BatchService: Batch ${batchId} paused: ${reason}`);
-          await releaseLock({ status: 'paused', statusReason: reason });
-          return;
-        }
+      // ── Batch-level validation: Caller ID (Item 16: Admin accounts must not silently fall back) ──
+      if (!batch.fromPhoneNumberId || !batch.fromPhoneNumber?.phoneNumber) {
+        const reason = 'Caller ID required. Please assign a verified phone number to this campaign.';
+        logger.warn(`BatchService: Batch ${batchId} paused: ${reason}`);
+        await releaseLock({ status: 'paused', statusReason: reason });
+        return;
+      }
 
-        try {
-          const validated = await CallService.validateCallerNumber(userId, batch.fromPhoneNumber.phoneNumber, false);
-          effectiveFromNumber = validated.effectiveFromNumber;
-        } catch (valErr: any) {
-          const reason = valErr.message || 'Invalid caller ID assigned to campaign';
-          logger.warn(`BatchService: Batch ${batchId} paused due to caller ID validation failure: ${reason}`);
-          await releaseLock({ status: 'paused', statusReason: reason });
-          return;
-        }
+      let effectiveFromNumber: string | null = null;
+      try {
+        const validated = await CallService.validateCallerNumber(userId, batch.fromPhoneNumber.phoneNumber, false);
+        effectiveFromNumber = validated.effectiveFromNumber;
+      } catch (valErr: any) {
+        const reason = valErr.message || 'Invalid caller ID assigned to campaign';
+        logger.warn(`BatchService: Batch ${batchId} paused due to caller ID validation failure: ${reason}`);
+        await releaseLock({ status: 'paused', statusReason: reason });
+        return;
       }
 
       // Concurrency limits configuration
@@ -314,8 +310,7 @@ export class BatchService {
             ]
           },
           orderBy: [
-            { lastAttemptAt: 'asc' },
-            { id: 'asc' }
+            { position: 'asc' }
           ],
           take: Math.max(1, availableSlots)
         });
@@ -353,6 +348,7 @@ export class BatchService {
                     data: {
                       status: 'failed',
                       attempts: maxAttempts,
+                      callerPhoneNumber: effectiveFromNumber,
                       lastError: 'Recipient has opted out of communications (DNC)',
                       lastErrorCode: 'DNC_OPT_OUT',
                       lastAttemptAt: new Date()
@@ -366,6 +362,7 @@ export class BatchService {
                   where: { id: recipient.id },
                   data: {
                     status: 'in_progress',
+                    callerPhoneNumber: effectiveFromNumber,
                     attempts: attemptCount,
                     lastAttemptAt: new Date(),
                     lastError: null,
@@ -388,7 +385,10 @@ export class BatchService {
 
                 await prisma.batchRecipient.update({
                   where: { id: recipient.id },
-                  data: { callId: callResult.callId }
+                  data: {
+                    callId: callResult.callId,
+                    callerPhoneNumber: effectiveFromNumber
+                  }
                 });
 
                 logger.info(`BatchService: Call initiated for recipient ${recipient.id}`, { callId: callResult.callId });
