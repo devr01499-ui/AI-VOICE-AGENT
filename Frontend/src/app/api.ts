@@ -97,6 +97,10 @@ export interface ApiCall {
   sentiment?: string | null;
   summary?: string | null;
   userId?: string;
+  batchId?: string | null;
+  batchName?: string | null;
+  lastError?: string | null;
+  lastErrorCode?: string | null;
   createdAt: string;
   updatedAt?: string;
 }
@@ -437,6 +441,7 @@ export async function fetchCalls(filters?: {
   direction?: string;
   search?: string;
   agentId?: string;
+  batchId?: string;
   dateRange?: string;
   startDate?: string;
   endDate?: string;
@@ -448,6 +453,7 @@ export async function fetchCalls(filters?: {
   if (filters?.direction && filters.direction !== 'all') params.set("direction", filters.direction);
   if (filters?.search && filters.search.trim()) params.set("search", filters.search.trim());
   if (filters?.agentId && filters.agentId !== 'all') params.set("agentId", filters.agentId);
+  if (filters?.batchId && filters.batchId !== 'all') params.set("batchId", filters.batchId);
   if (filters?.dateRange && filters.dateRange !== 'all') params.set("dateRange", filters.dateRange);
   if (filters?.startDate) params.set("startDate", filters.startDate);
   if (filters?.endDate) params.set("endDate", filters.endDate);
@@ -607,11 +613,14 @@ export async function createBatchCampaign(data: {
   agentId: string;
   numberId?: string;
   scheduleNow?: boolean;
+  scheduledAt?: string;
   recipients: any[];
   idempotencyKey?: string;
   consentConfirmed?: boolean;
   consentConfirmedBy?: string;
   estimatedMinutes?: number;
+  dialMode?: 'sequential' | 'concurrent';
+  interCallDelaySeconds?: number;
 }): Promise<any> {
   return apiFetch<any>('/api/v2/calendar/batches', {
     method: 'POST',
@@ -627,8 +636,11 @@ export async function resumeBatchCampaign(id: string): Promise<any> {
   return apiFetch<any>(`/api/v2/calendar/batches/${id}/resume`, { method: 'POST' });
 }
 
-export async function cancelBatchCampaign(id: string): Promise<any> {
-  return apiFetch<any>(`/api/v2/calendar/batches/${id}/cancel`, { method: 'POST' });
+export async function cancelBatchCampaign(id: string, options?: { endCurrentCall?: boolean }): Promise<any> {
+  return apiFetch<any>(`/api/v2/calendar/batches/${id}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify(options || {}),
+  });
 }
 
 export async function getCalendarStatus(): Promise<{ connected?: boolean; email?: string }> {

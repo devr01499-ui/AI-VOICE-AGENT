@@ -2908,7 +2908,11 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
 }
 
 // ── Batch Calls ──
-function DashBatch() {
+interface DashBatchProps {
+  onNavigate?: (section: string) => void;
+}
+
+function DashBatch({ onNavigate }: DashBatchProps) {
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [liveAgents, setLiveAgents] = useState<ApiAgent[]>([]);
   const [numbersList, setNumbersList] = useState<any[]>([]);
@@ -2916,47 +2920,21 @@ function DashBatch() {
   const [showConfirmStep, setShowConfirmStep] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
   const [idempotencyKey, setIdempotencyKey] = useState<string>(() => crypto.randomUUID());
-  const [selected, setSelected] = useState<any|null>(null);
-  const [selectedDetail, setSelectedDetail] = useState<any|null>(null);
-  const [parsedRecipients, setParsedRecipients] = useState<any[]>([]);
+  const [parsedRecipients, setParsedRecipients] = useState<{ phoneNumber: string; name: string }[]>([]);
   const [creating, setCreating] = useState(false);
   const [batchError, setBatchError] = useState<string | null>(null);
-  const [batchSuccess, setBatchSuccess] = useState<string | null>(null);
+  const [lastLaunchedBatch, setLastLaunchedBatch] = useState<{ id: string; count: number; name: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [form, setForm] = useState({ name: "", agentId: "", numberId: "", scheduleNow: true, scheduledAt: "", csvRows: 0 });
-
-  // Live polling for selected batch detail while in running state
-  useEffect(() => {
-    if (!selected?.id) {
-      setSelectedDetail(null);
-      return;
-    }
-
-    let active = true;
-    const fetchDetail = () => {
-      fetchCalendarBatchDetail(selected.id).then((data) => {
-        if (active && data) {
-          setSelectedDetail(data);
-          if (data.status !== selected.status) {
-            setSelected((s: any) => s ? { ...s, ...data } : s);
-          }
-        }
-      }).catch(() => {});
-    };
-
-    fetchDetail();
-    const interval = setInterval(() => {
-      if (selected?.status === 'running') {
-        fetchDetail();
-        loadBatches();
-      }
-    }, 3000);
-
-    return () => {
-      active = false;
-      clearInterval(interval);
-    };
-  }, [selected?.id, selected?.status]);
+  const [form, setForm] = useState({
+    name: "",
+    agentId: "",
+    numberId: "",
+    scheduleNow: true,
+    scheduledAt: "",
+    csvRows: 0,
+    dialMode: "sequential" as "sequential" | "concurrent",
+    interCallDelaySeconds: 10,
+  });
 
   const loadBatches = useCallback(() => {
     fetchCalendarBatches().then((data) => {
@@ -2983,6 +2961,10 @@ function DashBatch() {
         }
       }
     }).catch(() => {});
+
+    // Poll campaigns list while on this page
+    const interval = setInterval(loadBatches, 4000);
+    return () => clearInterval(interval);
   }, [loadBatches]);
 
   const handleOpenCreate = () => {
@@ -2991,6 +2973,16 @@ function DashBatch() {
     setConsentChecked(false);
     setIdempotencyKey(crypto.randomUUID());
     setBatchError(null);
+    setForm(f => ({
+      ...f,
+      name: "",
+      scheduleNow: true,
+      scheduledAt: "",
+      csvRows: 0,
+      dialMode: "sequential",
+      interCallDelaySeconds: 10,
+    }));
+    setParsedRecipients([]);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -3002,16 +2994,61 @@ function DashBatch() {
       if (!text) return;
       const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
       if (lines.length === 0) return;
-      
-      const recipients: any[] = [];
-      lines.forEach((line, idx) => {
-        if (idx === 0 && line.toLowerCase().includes('phone')) return; // skip header line
-        const cols = line.split(/[,;\t]/).map(c => c.trim().replace(/^["']|["']$/g, ''));
-        const phone = cols.find(c => /^\+?[0-9]{7,15}$/.test(c.replace(/[\s-]/g, '')));
-        if (phone) {
-          recipients.push({ phoneNumber: phone.replace(/[\s-]/g, ''), name: cols[0] || 'Recipient' });
+
+      let phoneIdx = -1;
+      let nameIdx = -1;
+      let startRow = 0;
+
+      const headerCols = lines[0].split(/[,;\t]/).map(c => c.trim().toLowerCase().replace(/^["']|["']$/g, ''));
+      phoneIdx = headerCols.findIndex(c => c.includes('phone') || c.includes('mobile') || c.includes('number') || c.includes('contact'));
+      nameIdx = headerCols.findIndex(c => c === 'name' || c.includes('contact name') || c.includes('recipient'));
+
+      if (phoneIdx !== -1) {
+        startRow = 1;
+      } else {
+        // Fallback: look at first line to see if it's text header or numbers
+        const hasDigits = /\d{7,}/.test(lines[0]);
+        if (!hasDigits) {
+          startRow = 1;
+          phoneIdx = 0;
+          nameIdx = 1;
+        } else {
+          startRow = 0;
+          phoneIdx = 0;
+          nameIdx = 1;
         }
-      });
+      }
+
+      const seen = new Set<string>();
+      const recipients: { phoneNumber: string; name: string }[] = [];
+
+      for (let i = startRow; i < lines.length; i++) {
+        const cols = lines[i].split(/[,;\t]/).map(c => c.trim().replace(/^["']|["']$/g, ''));
+        let rawPhone = cols[phoneIdx !== -1 ? phoneIdx : 0] || '';
+        let rawName = nameIdx !== -1 && cols[nameIdx] ? cols[nameIdx] : (cols[0] !== rawPhone ? cols[0] : 'Recipient');
+
+        // Sanitize phone
+        const cleanDigits = rawPhone.replace(/[^\d+]/g, '');
+        if (!cleanDigits) continue;
+
+        let normalized = cleanDigits;
+        if (!normalized.startsWith('+')) {
+          if (normalized.length === 10 && /^[6-9]/.test(normalized)) {
+            normalized = `+91${normalized}`;
+          } else if (normalized.length === 11 && normalized.startsWith('0')) {
+            normalized = `+91${normalized.slice(1)}`;
+          } else {
+            normalized = `+${normalized}`;
+          }
+        }
+
+        if (/^\+[1-9]\d{6,14}$/.test(normalized)) {
+          if (!seen.has(normalized)) {
+            seen.add(normalized);
+            recipients.push({ phoneNumber: normalized, name: rawName.trim() || 'Recipient' });
+          }
+        }
+      }
 
       setParsedRecipients(recipients);
       setForm(f => ({ ...f, csvRows: recipients.length }));
@@ -3047,40 +3084,42 @@ function DashBatch() {
     try {
       const estimatedMin = Math.ceil(parsedRecipients.length * 2);
       const res = await createBatchCampaign({
-        name: form.name || "Untitled Campaign",
+        name: form.name.trim() || `Campaign ${new Date().toLocaleDateString()}`,
         agentId: form.agentId,
         numberId: form.numberId,
         scheduleNow: form.scheduleNow,
+        scheduledAt: form.scheduleNow ? undefined : form.scheduledAt,
         recipients: parsedRecipients,
         idempotencyKey,
         consentConfirmed: true,
         consentConfirmedBy: 'Authenticated Workspace User',
-        estimatedMinutes: estimatedMin
+        estimatedMinutes: estimatedMin,
+        dialMode: form.dialMode,
+        interCallDelaySeconds: form.interCallDelaySeconds,
       });
 
-      // Item 13 Fix: Check res.id (apiFetch unwrapped data) or res.success
       if (res && (res.id || res.success)) {
         const batchData = res.id ? res : (res.data || res);
         setShowCreate(false);
         setShowConfirmStep(false);
         setConsentChecked(false);
-        setBatchSuccess(`Batch started: ${parsedRecipients.length} contacts${batchData.warning ? ` (${batchData.warning})` : ''}`);
+        setLastLaunchedBatch({
+          id: batchData.id,
+          count: parsedRecipients.length,
+          name: form.name.trim() || "Batch Campaign",
+        });
         setForm({
           name: "",
           agentId: liveAgents[0]?.id || "",
           numberId: numbersList[0]?.id || "",
           scheduleNow: true,
           scheduledAt: "",
-          csvRows: 0
+          csvRows: 0,
+          dialMode: "sequential",
+          interCallDelaySeconds: 10,
         });
         setParsedRecipients([]);
         loadBatches();
-        
-        // Automatically open batch detail modal for immediate visibility
-        setSelected(batchData);
-        fetchCalendarBatchDetail(batchData.id).then(detail => {
-          if (detail) setSelectedDetail(detail);
-        });
       } else {
         setBatchError(res?.error || "Failed to launch batch campaign");
       }
@@ -3091,16 +3130,11 @@ function DashBatch() {
     }
   };
 
-  // Item 13 Audit: Do not swallow errors in pause/resume/cancel
   const handlePause = async (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     try {
       await pauseBatchCampaign(id);
       loadBatches();
-      if (selected?.id === id) {
-        const d = await fetchCalendarBatchDetail(id);
-        if (d) setSelectedDetail(d);
-      }
     } catch (err: any) {
       setBatchError(err?.message || "Failed to pause batch campaign");
     }
@@ -3111,10 +3145,6 @@ function DashBatch() {
     try {
       await resumeBatchCampaign(id);
       loadBatches();
-      if (selected?.id === id) {
-        const d = await fetchCalendarBatchDetail(id);
-        if (d) setSelectedDetail(d);
-      }
     } catch (err: any) {
       setBatchError(err?.message || "Failed to resume batch campaign");
     }
@@ -3122,75 +3152,67 @@ function DashBatch() {
 
   const handleCancel = async (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
+    if (!window.confirm("Are you sure you want to cancel this batch campaign? Remaining pending calls will be cancelled.")) {
+      return;
+    }
     try {
-      await cancelBatchCampaign(id);
+      await cancelBatchCampaign(id, { endCurrentCall: true });
       loadBatches();
-      if (selected?.id === id) {
-        const d = await fetchCalendarBatchDetail(id);
-        if (d) setSelectedDetail(d);
-      }
     } catch (err: any) {
       setBatchError(err?.message || "Failed to stop batch campaign");
     }
   };
 
-  const handleExport = (campaign: any) => {
-    const recipients = selectedDetail?.recipients || [];
-    let content: string;
-    if (recipients.length > 0) {
-      content = "data:text/csv;charset=utf-8,Row,Phone Number,Status,Attempts,Caller Number Used,Direction,Duration (s),Last Error,Last Error Code,Last Attempt,Call ID\n" +
-        recipients.map((r: any, idx: number) => {
-          const rowOrder = r.rowOrder ?? (r.position != null ? r.position + 1 : idx + 1);
-          const callerNum = r.callerPhoneNumber || selectedDetail?.fromPhoneNumber || '';
-          const dur = r.durationSeconds != null ? r.durationSeconds : '';
-          const err = (r.lastError || '').replace(/"/g, '""');
-          return `${rowOrder},"${r.phoneNumber}","${r.status}",${r.attempts},"${callerNum}","${r.direction || 'outbound'}","${dur}","${err}","${r.lastErrorCode || ''}","${r.lastAttemptAt || ''}","${r.callId || ''}"`;
-        }).join("\n");
-    } else {
-      content = "data:text/csv;charset=utf-8,Name,Status,Total,Completed,Failed\n" +
-        `"${campaign.name}","${campaign.status}",${campaign.total||campaign.totalContacts||0},${campaign.completedCount||campaign.called||0},${campaign.failedCount||0}\n`;
+  const handleNavigateLive = (batchId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    try {
+      sessionStorage.setItem('live_monitoring_batch_id', batchId);
+    } catch {}
+    if (onNavigate) {
+      onNavigate('live_monitoring');
     }
-    const encodedUri = encodeURI(content);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `campaign_${campaign.id || 'export'}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
-  // Item 17 Live progress calculation
-  const recipientsList = selectedDetail?.recipients || [];
-  const totalRecipientsCount = recipientsList.length || selected?.total || 0;
-  const doneCount = recipientsList.filter((r: any) => r.status === 'completed' || r.status === 'failed').length;
-  const inProgressRecipient = recipientsList.find((r: any) => r.status === 'in_progress');
-  const liveProgressText = inProgressRecipient
-    ? `${doneCount} of ${totalRecipientsCount} done, calling #${inProgressRecipient.rowOrder || ((inProgressRecipient.position ?? 0) + 1)} (${inProgressRecipient.phoneNumber})`
-    : (selected?.status === 'running'
-      ? `${doneCount} of ${totalRecipientsCount} done (dispatching...)`
-      : `${doneCount} of ${totalRecipientsCount} done`);
+  const handleNavigateResults = (batchId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    try {
+      sessionStorage.setItem('calls_batch_id', batchId);
+    } catch {}
+    if (onNavigate) {
+      onNavigate('calls');
+    }
+  };
 
   const selectedAgentObj = liveAgents.find(a => a.id === form.agentId);
   const selectedNumberObj = numbersList.find(n => n.id === form.numberId);
 
   return (
     <div className="space-y-4">
-      {batchSuccess && (
-        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-sm font-semibold flex items-center justify-between">
+      {/* Post-launch Inline Notice with Direct Deep Links */}
+      {lastLaunchedBatch && (
+        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-sm font-semibold flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-            <span>{batchSuccess}</span>
+            <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+            <span>Batch started: {lastLaunchedBatch.count} contacts. First call starting now.</span>
           </div>
-          <button onClick={() => setBatchSuccess(null)} className="text-muted-foreground hover:text-foreground">
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <DBtn size="sm" variant="secondary" onClick={() => handleNavigateLive(lastLaunchedBatch.id)}>
+              <Activity className="w-3.5 h-3.5 mr-1" /> Live view
+            </DBtn>
+            <DBtn size="sm" variant="secondary" onClick={() => handleNavigateResults(lastLaunchedBatch.id)}>
+              <Eye className="w-3.5 h-3.5 mr-1" /> Results
+            </DBtn>
+            <button onClick={() => setLastLaunchedBatch(null)} className="text-muted-foreground hover:text-foreground p-1">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
 
       {batchError && !showCreate && (
         <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-sm font-semibold flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-red-500" />
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
             <span>{batchError}</span>
           </div>
           <button onClick={() => setBatchError(null)} className="text-muted-foreground hover:text-foreground">
@@ -3204,10 +3226,24 @@ function DashBatch() {
         <DBtn onClick={handleOpenCreate}><Plus className="w-4 h-4"/> New campaign</DBtn>
       </div>
 
+      {/* Real Derived Metrics — Zero Fabricated Data */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-6">
-        {[{label:"Total contacts",value:campaigns.reduce((s,c)=>s+(c.total||c.totalContacts||0),0).toLocaleString(),icon:Users},{label:"Connected",value:campaigns.reduce((s,c)=>s+(c.connected||c.completedCount||0),0).toLocaleString(),icon:CheckCircle2},{label:"Converted",value:campaigns.reduce((s,c)=>s+(c.converted||0),0).toLocaleString(),icon:TrendingUp},{label:"Running now",value:campaigns.filter(c=>c.status==="running").length,icon:Activity}].map(s=>{
-          const Icon=s.icon;
-          return (<div key={s.label} className="nm-card p-6"><div className="flex justify-between mb-3"><span className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{s.label.toUpperCase()}</span><Icon className="w-5 h-5 text-[var(--nm-accent)]" strokeWidth={1.5}/></div><p className="text-3xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Instrument Serif',serif"}}>{s.value}</p></div>);
+        {[
+          { label: "Total contacts", value: campaigns.reduce((s, c) => s + (c.total || c.totalContacts || 0), 0).toLocaleString(), icon: Users },
+          { label: "Connected", value: campaigns.reduce((s, c) => s + (c.connected || c.completedCount || 0), 0).toLocaleString(), icon: CheckCircle2 },
+          { label: "Failed", value: campaigns.reduce((s, c) => s + (c.failedCount || 0), 0).toLocaleString(), icon: AlertCircle },
+          { label: "Running now", value: campaigns.filter(c => c.status === "running").length, icon: Activity }
+        ].map(s => {
+          const Icon = s.icon;
+          return (
+            <div key={s.label} className="nm-card p-6">
+              <div className="flex justify-between mb-3">
+                <span className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{s.label.toUpperCase()}</span>
+                <Icon className="w-5 h-5 text-[var(--nm-accent)]" strokeWidth={1.5}/>
+              </div>
+              <p className="text-3xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Instrument Serif',serif"}}>{s.value}</p>
+            </div>
+          );
         })}
       </div>
 
@@ -3215,7 +3251,7 @@ function DashBatch() {
         <div className="p-12 text-center nm-card">
           <Radio className="w-10 h-10 text-[var(--nm-text)] mx-auto mb-4"/>
           <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>You haven't created any campaigns yet</p>
-          <p className="text-sm font-bold text-[var(--nm-text)] mt-2 mb-6" style={{fontFamily:"'Outfit', sans-serif"}}>Launch a batch calling campaign to place simultaneous outbound calls using your agents.</p>
+          <p className="text-sm font-bold text-[var(--nm-text)] mt-2 mb-6" style={{fontFamily:"'Outfit', sans-serif"}}>Launch an outbound batch calling campaign with sequential pacing and verified recipient consent.</p>
           <DBtn onClick={handleOpenCreate} size="sm"><Plus className="w-4 h-4"/> Create Campaign</DBtn>
         </div>
       ) : (
@@ -3223,29 +3259,59 @@ function DashBatch() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-transparent text-[var(--nm-text)]">
-                {["Campaign","Status","Progress","Connected","Converted","Created",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>)}
+                {["Campaign", "Status", "Progress", "Connected", "Failed", "Created", "Actions"].map(h => (
+                  <th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-transparent">
-              {campaigns.map(c=>{
+              {campaigns.map(c => {
                 const total = c.total || c.totalContacts || 0;
                 const called = c.called || c.completedCount || 0;
                 const connected = c.connected || c.completedCount || 0;
-                const converted = c.converted || 0;
-                const pct=total>0?Math.round((called/total)*100):0;
+                const failed = c.failedCount || 0;
+                const pct = total > 0 ? Math.round((called / total) * 100) : 0;
                 return (
-                  <tr key={c.id} className="hover:nm-pressed transition-all cursor-pointer" onClick={()=>setSelected(c)}>
-                    <td className="px-5 py-4"><p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.name}</p><p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.agentName || liveAgents.find(a=>a.id===c.agentId)?.name || 'Default Agent'}</p></td>
-                    <td className="px-5 py-4"><DBadge v={c.status==="running"?"success":c.status==="paused"?"warning":c.status==="completed"?"info":c.status==="failed"?"error":"neutral"}><SDot status={c.status}/> {c.status}</DBadge></td>
-                    <td className="px-5 py-4 w-40"><DProg v={called} max={total} className="mb-2"/><p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{called.toLocaleString()} / {total.toLocaleString()} ({pct}%)</p></td>
+                  <tr key={c.id} className="hover:nm-pressed transition-all">
+                    <td className="px-5 py-4">
+                      <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.name}</p>
+                      <p className="text-xs font-bold opacity-70 text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.agentName || liveAgents.find(a => a.id === c.agentId)?.name || 'Default Agent'}</p>
+                    </td>
+                    <td className="px-5 py-4">
+                      <DBadge v={c.status === "running" ? "success" : c.status === "paused" ? "warning" : c.status === "completed" ? "info" : c.status === "failed" ? "error" : "neutral"}>
+                        <SDot status={c.status}/> {c.status}
+                      </DBadge>
+                    </td>
+                    <td className="px-5 py-4 w-40">
+                      <DProg v={called} max={total} className="mb-2"/>
+                      <p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{called.toLocaleString()} / {total.toLocaleString()} ({pct}%)</p>
+                    </td>
                     <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{connected.toLocaleString()}</td>
-                    <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{converted.toLocaleString()}</td>
+                    <td className="px-5 py-4 text-sm font-bold text-red-500" style={{fontFamily:"'Outfit', sans-serif"}}>{failed.toLocaleString()}</td>
                     <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.created || (c.createdAt ? new Date(c.createdAt).toLocaleDateString() : '—')}</td>
-                    <td className="px-5 py-4" onClick={e=>e.stopPropagation()}>
-                      <div className="flex gap-2">
-                        {c.status==="running"&&<DBtn size="sm" variant="secondary" onClick={() => handlePause(c.id)}><PauseCircle className="w-4 h-4"/></DBtn>}
-                        {c.status==="paused"&&<DBtn size="sm" variant="secondary" onClick={() => handleResume(c.id)}><PlayCircle className="w-4 h-4"/></DBtn>}
-                        {(c.status==="running"||c.status==="paused"||c.status==="scheduled")&&<DBtn size="sm" variant="ghost" onClick={() => handleCancel(c.id)}><StopCircle className="w-4 h-4"/></DBtn>}
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <DBtn size="sm" variant="secondary" onClick={() => handleNavigateLive(c.id)} title="Open in Live Monitoring">
+                          <Activity className="w-3.5 h-3.5 mr-1" /> Live view
+                        </DBtn>
+                        <DBtn size="sm" variant="secondary" onClick={() => handleNavigateResults(c.id)} title="Open in Call History">
+                          <Eye className="w-3.5 h-3.5 mr-1" /> Results
+                        </DBtn>
+                        {c.status === "running" && (
+                          <DBtn size="sm" variant="secondary" onClick={(e) => handlePause(c.id, e)} title="Pause Campaign">
+                            <PauseCircle className="w-4 h-4 text-amber-500" />
+                          </DBtn>
+                        )}
+                        {c.status === "paused" && (
+                          <DBtn size="sm" variant="secondary" onClick={(e) => handleResume(c.id, e)} title="Resume Campaign">
+                            <PlayCircle className="w-4 h-4 text-emerald-500" />
+                          </DBtn>
+                        )}
+                        {(c.status === "running" || c.status === "paused" || c.status === "scheduled") && (
+                          <DBtn size="sm" variant="ghost" onClick={(e) => handleCancel(c.id, e)} title="Stop Campaign">
+                            <StopCircle className="w-4 h-4 text-red-500" />
+                          </DBtn>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -3256,37 +3322,99 @@ function DashBatch() {
         </div>
       )}
 
-      {/* Item 18 & 14: Verification Screen Before Launch Modal */}
-      <DModal open={showCreate} onClose={()=>setShowCreate(false)} title={showConfirmStep ? "Review & Confirm Campaign Launch" : "Create batch campaign"} width="max-w-xl">
+      {/* Campaign Launch Modal */}
+      <DModal open={showCreate} onClose={() => setShowCreate(false)} title={showConfirmStep ? "Review & Confirm Campaign Launch" : "Create batch campaign"} width="max-w-xl">
         <div className="space-y-4">
           {batchError && <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-bold">{batchError}</div>}
           
           {!showConfirmStep ? (
             <>
-              <DField label="Campaign name"><DInput placeholder="Q3 Insurance Renewal" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></DField>
-              <DField label="AI Agent"><DSelect value={form.agentId} onChange={e=>setForm(f=>({...f,agentId:e.target.value}))}>{liveAgents.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</DSelect></DField>
+              <DField label="Campaign name">
+                <DInput placeholder="Q3 Insurance Renewal" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}/>
+              </DField>
+              <DField label="AI Agent">
+                <DSelect value={form.agentId} onChange={e => setForm(f => ({ ...f, agentId: e.target.value }))}>
+                  {liveAgents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </DSelect>
+              </DField>
               <DField label="Outbound number (Caller ID)">
-                <DSelect value={form.numberId} onChange={e=>setForm(f=>({...f,numberId:e.target.value}))}>
-                  {numbersList.map(n=><option key={n.id} value={n.id}>{n.phoneNumber} — {n.label || 'Provisioned'}</option>)}
+                <DSelect value={form.numberId} onChange={e => setForm(f => ({ ...f, numberId: e.target.value }))}>
+                  {numbersList.map(n => <option key={n.id} value={n.id}>{n.phoneNumber} — {n.label || 'Provisioned'}</option>)}
                   {numbersList.length === 0 && <option value="">No numbers provisioned</option>}
                 </DSelect>
               </DField>
-              <DField label="Contact list (CSV)" hint="Must include a phone column with valid phone numbers.">
-                <div className="nm-card p-6 text-center cursor-pointer hover:nm-pressed transition-all" onClick={()=>fileRef.current?.click()}>
+
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider" style={{fontFamily:"'Outfit', sans-serif"}}>Dial Mode & Pacing</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className={`p-3 rounded-xl border cursor-pointer transition-all ${form.dialMode === 'sequential' ? 'border-[var(--nm-accent)] bg-[var(--nm-accent)]/5' : 'border-[var(--nm-border)]'}`}>
+                    <input
+                      type="radio"
+                      name="dialMode"
+                      checked={form.dialMode === 'sequential'}
+                      onChange={() => setForm(f => ({ ...f, dialMode: 'sequential' }))}
+                      className="hidden"
+                    />
+                    <span className="text-xs font-bold block mb-1">Sequential (Recommended)</span>
+                    <span className="text-[11px] text-muted-foreground block">Calls 1-by-1 with gap. Zero concurrency collision.</span>
+                  </label>
+                  <label className={`p-3 rounded-xl border cursor-pointer transition-all ${form.dialMode === 'concurrent' ? 'border-[var(--nm-accent)] bg-[var(--nm-accent)]/5' : 'border-[var(--nm-border)]'}`}>
+                    <input
+                      type="radio"
+                      name="dialMode"
+                      checked={form.dialMode === 'concurrent'}
+                      onChange={() => setForm(f => ({ ...f, dialMode: 'concurrent' }))}
+                      className="hidden"
+                    />
+                    <span className="text-xs font-bold block mb-1">Concurrent</span>
+                    <span className="text-[11px] text-muted-foreground block">Dials up to account concurrency limit simultaneously.</span>
+                  </label>
+                </div>
+              </div>
+
+              {form.dialMode === 'sequential' && (
+                <DField label={`Inter-call Delay: ${form.interCallDelaySeconds}s`} hint="Wait time in seconds after previous call completes before dialing the next recipient (5 - 300s).">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={5}
+                      max={300}
+                      step={5}
+                      value={form.interCallDelaySeconds}
+                      onChange={e => setForm(f => ({ ...f, interCallDelaySeconds: Number(e.target.value) }))}
+                      className="w-full accent-[var(--nm-accent)] cursor-pointer"
+                    />
+                    <span className="font-mono text-sm font-bold w-12 text-right">{form.interCallDelaySeconds}s</span>
+                  </div>
+                </DField>
+              )}
+
+              <DField label="Contact list (CSV)" hint="Must include a phone column. 10-digit numbers without country code have +91 applied automatically.">
+                <div className="nm-card p-6 text-center cursor-pointer hover:nm-pressed transition-all" onClick={() => fileRef.current?.click()}>
                   <Upload className="w-6 h-6 text-[var(--nm-text)] mx-auto mb-3"/>
-                  <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{form.csvRows>0?`${form.csvRows.toLocaleString()} contacts loaded`:"Click to upload CSV"}</p>
+                  <p className="text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>
+                    {form.csvRows > 0 ? `${form.csvRows.toLocaleString()} contacts loaded & deduplicated` : "Click to upload CSV"}
+                  </p>
                   <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFileUpload}/>
                 </div>
               </DField>
+
               <div className="space-y-2">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider" style={{fontFamily:"'Outfit', sans-serif"}}>Schedule</p>
-                <label className="flex items-center gap-2 cursor-pointer"><input type="radio" checked={form.scheduleNow} onChange={()=>setForm(f=>({...f,scheduleNow:true}))} className="accent-foreground"/><span className="text-sm" style={{fontFamily:"'Outfit', sans-serif"}}>Start immediately</span></label>
-                <label className="flex items-center gap-2 cursor-pointer"><input type="radio" checked={!form.scheduleNow} onChange={()=>setForm(f=>({...f,scheduleNow:false}))} className="accent-foreground"/><span className="text-sm" style={{fontFamily:"'Outfit', sans-serif"}}>Schedule for later</span></label>
-                {!form.scheduleNow&&<DInput type="datetime-local" value={form.scheduledAt} onChange={e=>setForm(f=>({...f,scheduledAt:e.target.value}))}/>}
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" checked={form.scheduleNow} onChange={() => setForm(f => ({ ...f, scheduleNow: true }))} className="accent-foreground"/>
+                  <span className="text-sm" style={{fontFamily:"'Outfit', sans-serif"}}>Start immediately</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" checked={!form.scheduleNow} onChange={() => setForm(f => ({ ...f, scheduleNow: false }))} className="accent-foreground"/>
+                  <span className="text-sm" style={{fontFamily:"'Outfit', sans-serif"}}>Schedule for later</span>
+                </label>
+                {!form.scheduleNow && <DInput type="datetime-local" value={form.scheduledAt} onChange={e => setForm(f => ({ ...f, scheduledAt: e.target.value }))}/>}
               </div>
+
               <div className="flex gap-3 pt-2">
                 <DBtn onClick={handleProceedToVerification}><Send className="w-4 h-4"/> Review & Launch</DBtn>
-                <DBtn variant="secondary" onClick={()=>setShowCreate(false)}>Cancel</DBtn>
+                <DBtn variant="secondary" onClick={() => setShowCreate(false)}>Cancel</DBtn>
               </div>
             </>
           ) : (
@@ -3310,12 +3438,49 @@ function DashBatch() {
                   </span>
                 </div>
                 <div className="nm-card p-3.5">
-                  <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Est. Minutes</span>
+                  <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Est. Duration</span>
                   <span className="text-lg font-bold text-amber-500 font-mono">~{Math.ceil(parsedRecipients.length * 2)} min</span>
                 </div>
               </div>
 
-              {/* Item 18 Consent Confirmation Checkbox */}
+              {/* Pacing & Window Notice */}
+              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs space-y-1">
+                <p className="font-bold text-blue-600 dark:text-blue-400">
+                  Mode: {form.dialMode === 'sequential' ? `Sequential Pacing (${form.interCallDelaySeconds}s delay between calls)` : 'Concurrent Dialing'}
+                </p>
+                <p className="text-muted-foreground">
+                  Statutory calling hours (09:00 - 21:00 IST) and DNC registry filters are enforced automatically.
+                </p>
+              </div>
+
+              {/* Preview Table of first 5 contacts */}
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">
+                  Preview (First {Math.min(5, parsedRecipients.length)} of {parsedRecipients.length})
+                </span>
+                <div className="nm-raised rounded-xl overflow-hidden max-h-40 overflow-y-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-[var(--nm-card-bg)] text-muted-foreground font-bold border-b border-[var(--nm-border)]">
+                      <tr>
+                        <th className="px-3 py-2">#</th>
+                        <th className="px-3 py-2">Name</th>
+                        <th className="px-3 py-2">E.164 Number</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--nm-border)]">
+                      {parsedRecipients.slice(0, 5).map((r, idx) => (
+                        <tr key={idx}>
+                          <td className="px-3 py-1.5 font-mono text-muted-foreground">{idx + 1}</td>
+                          <td className="px-3 py-1.5 font-medium">{r.name}</td>
+                          <td className="px-3 py-1.5 font-mono">{r.phoneNumber}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Mandatory Consent Checkbox */}
               <div className="p-4 rounded-xl border border-[var(--nm-border)] bg-[var(--nm-card-bg)] space-y-2">
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input
@@ -3333,141 +3498,17 @@ function DashBatch() {
                 </p>
               </div>
 
-              {/* Item 14 Double submit protection on start button */}
               <div className="flex gap-3 pt-2">
                 <DBtn onClick={handleCreate} disabled={!consentChecked || creating}>
                   <Send className="w-4 h-4"/> {creating ? "Launching..." : "Confirm & Start Batch"}
                 </DBtn>
-                <DBtn variant="secondary" onClick={()=>setShowConfirmStep(false)} disabled={creating}>
+                <DBtn variant="secondary" onClick={() => setShowConfirmStep(false)} disabled={creating}>
                   Back
                 </DBtn>
               </div>
             </div>
           )}
         </div>
-      </DModal>
-
-      {/* Item 17: Comprehensive Batch Detail Modal with Live Progress and Complete Recipient Table */}
-      <DModal open={!!selected} onClose={()=>setSelected(null)} title={selected?.name??""} width="max-w-4xl">
-        {selected&&(
-          <div className="space-y-6">
-            {(selectedDetail?.statusReason || selected.statusReason) && (
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-semibold flex items-center justify-between">
-                <span>Status note: {selectedDetail?.statusReason || selected.statusReason}</span>
-              </div>
-            )}
-
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                {(selectedDetail?.fromPhoneNumber || selected.fromPhoneNumber) && (
-                  <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                    <span>Caller ID:</span>
-                    <span className="font-mono text-[var(--nm-text)] px-2 py-0.5 rounded bg-[var(--nm-card-bg)] border border-[var(--nm-border)]">
-                      {selectedDetail?.fromPhoneNumber || selected.fromPhoneNumber}
-                    </span>
-                  </div>
-                )}
-                <DBadge v={selected.status==="running"?"success":selected.status==="paused"?"warning":selected.status==="completed"?"info":selected.status==="failed"?"error":"neutral"}>
-                  <SDot status={selected.status}/> {selected.status}
-                </DBadge>
-              </div>
-
-              {/* Item 17: Live Progress Indicator */}
-              <div className="text-xs font-bold text-[var(--nm-text)] flex items-center gap-2">
-                {selected.status === 'running' && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
-                <span className="font-mono">{liveProgressText}</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[{label:"Total",value:(selected.total||selected.totalContacts||0).toLocaleString()},{label:"Called",value:(selected.called||selected.completedCount||0).toLocaleString()},{label:"Connected",value:(selected.connected||selected.completedCount||0).toLocaleString()},{label:"Converted",value:(selected.converted||0).toLocaleString()}].map(s=>(
-                <div key={s.label} className="nm-card p-4 text-center"><p className="text-xs font-bold text-[var(--nm-text)] mb-2" style={{fontFamily:"'Outfit', sans-serif"}}>{s.label.toUpperCase()}</p><p className="text-2xl font-bold" style={{fontFamily:"'Instrument Serif',serif"}}>{s.value}</p></div>
-              ))}
-            </div>
-
-            <div className="nm-card">
-              <div className="flex justify-between items-center mb-2">
-                <p className="text-xs font-bold text-[var(--nm-text)] uppercase" style={{fontFamily:"'Outfit', sans-serif"}}>Progress</p>
-                <span className="text-xs font-bold font-mono text-[var(--nm-text)]">
-                  {Math.round(((selected.called||selected.completedCount||0)/(selected.total||selected.totalContacts||1))*100)}%
-                </span>
-              </div>
-              <DProg v={selected.called||selected.completedCount||0} max={selected.total||selected.totalContacts||1}/>
-            </div>
-
-            {/* Item 17: Comprehensive Recipient List with Row Order, Number, Status, Attempts, Call ID, Direction, Caller Number Used, Duration, Failure Reason */}
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <p className="text-xs font-bold text-[var(--nm-text)] uppercase tracking-wider" style={{fontFamily:"'Outfit', sans-serif"}}>
-                  Recipient Contacts ({recipientsList.length})
-                </p>
-                <div className="text-[11px] text-muted-foreground">
-                  Ordered deterministically by upload sequence
-                </div>
-              </div>
-
-              <div className="nm-raised rounded-xl overflow-hidden max-h-72 overflow-y-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="border-b border-[var(--nm-border)] bg-[var(--nm-card-bg)] text-muted-foreground font-bold sticky top-0 z-10">
-                    <tr>
-                      <th className="px-3 py-2.5 w-10">#</th>
-                      <th className="px-3 py-2.5">Recipient Number</th>
-                      <th className="px-3 py-2.5">Caller ID Used</th>
-                      <th className="px-3 py-2.5">Status</th>
-                      <th className="px-3 py-2.5">Attempts</th>
-                      <th className="px-3 py-2.5">Duration</th>
-                      <th className="px-3 py-2.5">Call ID</th>
-                      <th className="px-3 py-2.5">Failure Reason</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--nm-border)]">
-                    {recipientsList.length === 0 ? (
-                      <tr>
-                        <td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">
-                          Loading recipient details...
-                        </td>
-                      </tr>
-                    ) : (
-                      recipientsList.map((r: any, idx: number) => {
-                        const rowOrder = r.rowOrder ?? (r.position != null ? r.position + 1 : idx + 1);
-                        const callerNum = r.callerPhoneNumber || selectedDetail?.fromPhoneNumber || '—';
-                        return (
-                          <tr key={r.id || idx} className="hover:bg-[var(--nm-card-bg)]/50 transition-colors">
-                            <td className="px-3 py-2.5 font-mono text-muted-foreground">{rowOrder}</td>
-                            <td className="px-3 py-2.5 font-mono font-medium text-[var(--nm-text)]">{r.phoneNumber}</td>
-                            <td className="px-3 py-2.5 font-mono text-[11px] text-[var(--nm-text)]">{callerNum}</td>
-                            <td className="px-3 py-2.5">
-                              <DBadge v={r.status==="completed"?"success":r.status==="in_progress"?"info":r.status==="failed"?"error":"neutral"}>
-                                {r.status}
-                              </DBadge>
-                            </td>
-                            <td className="px-3 py-2.5 font-mono text-center">{r.attempts}</td>
-                            <td className="px-3 py-2.5 font-mono">
-                              {r.durationSeconds != null ? `${r.durationSeconds}s` : '—'}
-                            </td>
-                            <td className="px-3 py-2.5 font-mono text-[10px] text-muted-foreground truncate max-w-[100px]" title={r.callId || ''}>
-                              {r.callId ? r.callId.slice(0, 8) + '...' : '—'}
-                            </td>
-                            <td className="px-3 py-2.5 text-red-500 font-medium truncate max-w-xs" title={r.lastError || ''}>
-                              {r.lastError || (r.status === 'failed' ? (r.lastErrorCode || 'Failed') : '—')}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              {selected.status==="running"&&<DBtn variant="secondary" onClick={() => { handlePause(selected.id); setSelected(null); }}><PauseCircle className="w-4 h-4"/> Pause</DBtn>}
-              {selected.status==="paused"&&<DBtn onClick={() => { handleResume(selected.id); setSelected(null); }}><PlayCircle className="w-4 h-4"/> Resume</DBtn>}
-              <DBtn variant="secondary" onClick={() => handleExport(selected)}><Download className="w-4 h-4"/> Export CSV</DBtn>
-              {selected.status!=="completed"&&<DBtn variant="danger" onClick={() => { handleCancel(selected.id); setSelected(null); }}><StopCircle className="w-4 h-4"/> Stop</DBtn>}
-            </div>
-          </div>
-        )}
       </DModal>
     </div>
   );
@@ -3504,6 +3545,13 @@ function DashCallLogs() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [agentFilter, setAgentFilter] = useState<string>('all');
   const [dateRangeFilter, setDateRangeFilter] = useState<string>('all');
+  const [batchFilter, setBatchFilter] = useState<string>(() => {
+    try {
+      return sessionStorage.getItem('calls_batch_id') || 'all';
+    } catch {
+      return 'all';
+    }
+  });
 
   const loadCalls = useCallback(async () => {
     try {
@@ -3515,6 +3563,7 @@ function DashCallLogs() {
         direction: directionFilter !== 'all' ? directionFilter : undefined,
         search: searchQuery.trim() ? searchQuery.trim() : undefined,
         agentId: agentFilter !== 'all' ? agentFilter : undefined,
+        batchId: batchFilter !== 'all' ? batchFilter : undefined,
         dateRange: dateRangeFilter !== 'all' ? dateRangeFilter : undefined,
       });
       setLiveCalls(data);
@@ -3525,7 +3574,7 @@ function DashCallLogs() {
     } finally {
       setCallsLoading(false);
     }
-  }, [statusFilter, directionFilter, searchQuery, agentFilter, dateRangeFilter]);
+  }, [statusFilter, directionFilter, searchQuery, agentFilter, batchFilter, dateRangeFilter]);
 
   useEffect(() => {
     loadCalls();
@@ -3637,6 +3686,10 @@ function DashCallLogs() {
 
     return {
       id: c.id,
+      batchId: c.batchId,
+      batchName: c.batchName,
+      lastError: c.lastError,
+      lastErrorCode: c.lastErrorCode,
       direction: dir,
       contact,
       business,
@@ -3681,9 +3734,10 @@ function DashCallLogs() {
       alert("No call records to export.");
       return;
     }
-    const headers = ["Call ID", "Direction", "Contact Number", "Business Number", "Agent", "Status", "Duration (Seconds)", "Billed Minutes", "Date / Time", "Summary"];
+    const headers = ["Call ID", "Campaign", "Direction", "Contact Number", "Business Number", "Agent", "Status", "Duration (Seconds)", "Billed Minutes", "Failure Reason", "Date / Time", "Summary"];
     const rows = normalizedRows.map(r => [
       `"${r.id}"`,
+      `"${(r.batchName || '').replace(/"/g, '""')}"`,
       `"${r.direction}"`,
       `"${r.contact}"`,
       `"${r.business}"`,
@@ -3691,6 +3745,7 @@ function DashCallLogs() {
       `"${r.status}"`,
       r.durSec,
       r.billedMins,
+      `"${(r.lastError || r.lastErrorCode || '').replace(/"/g, '""')}"`,
       `"${r.date}"`,
       `"${(r.summary || '').replace(/"/g, '""')}"`
     ]);
@@ -3770,6 +3825,21 @@ function DashCallLogs() {
             <option value="7d">Last 7 days</option>
             <option value="30d">Last 30 days</option>
           </select>
+          {batchFilter !== 'all' && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-bold border border-blue-500/20">
+              <span>Filtered by Campaign</span>
+              <button
+                onClick={() => {
+                  setBatchFilter('all');
+                  try { sessionStorage.removeItem('calls_batch_id'); } catch {}
+                }}
+                className="hover:opacity-70 ml-1"
+                title="Clear campaign filter"
+              >
+                ✕
+              </button>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs font-bold text-[var(--nm-text)] opacity-70">
@@ -3792,7 +3862,7 @@ function DashCallLogs() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-transparent text-[var(--nm-text)]">
-              {["Direction", "Contact", "Agent", "Duration (Billed)", "Status", "Recording", "Time", "Actions"].map(h=>(
+              {["Direction", "Contact", "Campaign", "Agent", "Duration (Billed)", "Status", "Recording", "Time", "Actions"].map(h=>(
                 <th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>
               ))}
             </tr>
@@ -3815,6 +3885,15 @@ function DashCallLogs() {
                   <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.contact}</p>
                   {c.business !== '—' && (
                     <p className="text-xs font-bold opacity-60 text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>via {c.business}</p>
+                  )}
+                </td>
+                <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]">
+                  {c.batchName ? (
+                    <span className="px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 truncate max-w-[140px] block" title={c.batchName}>
+                      {c.batchName}
+                    </span>
+                  ) : (
+                    <span className="opacity-40">—</span>
                   )}
                 </td>
                 <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)] hidden md:table-cell" style={{fontFamily:"'Outfit', sans-serif"}}>{c.agent}</td>
@@ -6533,7 +6612,7 @@ function DashboardPage({ session }: { session: Session }) {
             <motion.div key={section} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0}} transition={{duration:0.18}}>
               {section==="agents"&&<DashAgents session={session} profile={profile} setApiAgents={setApiAgents} setStudioAgent={setStudioAgent} setSinglePromptStudioAgent={setSinglePromptStudioAgent} />}
               {section==="calling"&&<DashCallingConfig onNavigateToKyc={() => { localStorage.setItem('open_settings_tab', 'kyc'); setSection("settings"); }} />}
-              {section==="batch"&&<DashBatch/>}
+              {section==="batch"&&<DashBatch onNavigate={(sec) => setSection(sec)}/>}
               {section==="calls"&&<DashCallLogs/>}
               {section==="numbers"&&<DashNumbers profile={profile} onNavigateToKyc={() => { localStorage.setItem('open_settings_tab', 'kyc'); setSection("settings"); }} />}
               {section==="knowledge"&&<DashKnowledge apiAgents={apiAgents}/>}

@@ -1,3 +1,4 @@
+import { EventEmitter } from 'events';
 import { PipecatRunner } from '../pipeline/PipecatRunner';
 import { eventBus, PROVIDER_EVENTS } from '../provider-sdk/provider.events';
 import { CallSession, IConversationState } from './CallSession';
@@ -154,7 +155,7 @@ interface PrewarmedSession {
   ttlTimeout: NodeJS.Timeout;
 }
 
-export class CallOrchestrator {
+export class CallOrchestrator extends EventEmitter {
   private static _instance: CallOrchestrator | null = null;
   private readonly activeCalls = new Map<string, CallSession>();
   private readonly prewarmedSessions = new Map<string, PrewarmedSession>();
@@ -162,8 +163,30 @@ export class CallOrchestrator {
   private readonly toolExecutor = new ToolExecutor();
 
   private constructor() {
+    super();
     this.subscribeToEventBus();
     this.startMidCallEnforcementMonitor();
+  }
+
+  waitForCallEnd(callId: string, timeoutMs: number): Promise<{ reason: string; durationSeconds?: number }> {
+    return new Promise((resolve) => {
+      let timer: NodeJS.Timeout | null = null;
+
+      const handler = (event: { callId: string; reason: string; durationSeconds?: number }) => {
+        if (event.callId === callId) {
+          if (timer) clearTimeout(timer);
+          this.off('callEnded', handler);
+          resolve(event);
+        }
+      };
+
+      this.on('callEnded', handler);
+
+      timer = setTimeout(() => {
+        this.off('callEnded', handler);
+        resolve({ reason: 'timeout' });
+      }, timeoutMs);
+    });
   }
 
   static get instance(): CallOrchestrator {
@@ -196,12 +219,14 @@ export class CallOrchestrator {
     userId: string,
     fromPhoneNumber: string,
     maxDuration: number,
-    isRecordingEnabled?: boolean
+    isRecordingEnabled?: boolean,
+    batchId?: string
   ): Promise<string> {
     // 1. Create Call database records
     const call = await CallRepository.create({
       agentId,
       userId,
+      batchId,
       recipientPhoneNumber: phoneNumber,
       fromPhoneNumber,
       userData: '{}',
@@ -790,6 +815,8 @@ export class CallOrchestrator {
         logger.error('[CALL_DEDUCTION_ERROR] Failed during post-call deduction', { callId, error: String(deductErr) });
       });
     }
+
+    this.emit('callEnded', { callId, reason });
   }
 
   private startMidCallEnforcementMonitor() {

@@ -345,6 +345,10 @@ model Batch {
   scheduleConfig    String    @default("{}") @map("schedule_config") // JSON
   throttleConfig    String    @default("{}") @map("throttle_config") // JSON
   retryConfig       String    @default("{}") @map("retry_config") // JSON
+  dialMode          String    @default("sequential") @map("dial_mode") // sequential | parallel
+  interCallDelaySeconds Int   @default(10) @map("inter_call_delay_seconds")
+  nextDispatchAt    DateTime? @map("next_dispatch_at")
+  consentListHash   String?   @map("consent_list_hash")
   createdAt         DateTime  @default(now()) @map("created_at")
   startedAt         DateTime? @map("started_at")
   completedAt       DateTime? @map("completed_at")

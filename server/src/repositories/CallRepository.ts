@@ -19,6 +19,7 @@ interface CreateCallData {
   userData?: string;
   webhookUrl?: string;
   maxDuration?: number;
+  batchId?: string;
 }
 
 /**
@@ -68,6 +69,7 @@ interface FindByUserOptions {
   status?: CallStatus;
   limit?: number;
   offset?: number;
+  batchId?: string;
 }
 
 /**
@@ -92,6 +94,7 @@ export class CallRepository {
         data: {
           agentId: data.agentId,
           userId: data.userId,
+          batchId: data.batchId,
           recipientPhoneNumber: data.recipientPhoneNumber,
           fromPhoneNumber: data.fromPhoneNumber,
           userData: data.userData ?? '{}',
@@ -155,13 +158,14 @@ export class CallRepository {
    * @returns Array of Calls with their Executions.
    */
   static async findByUserId(userId: string, options: FindByUserOptions = {}) {
-    const { status, limit = 50, offset = 0 } = options;
+    const { status, limit = 50, offset = 0, batchId } = options;
 
     try {
       const calls = await prisma.call.findMany({
         where: {
           userId,
           ...(status ? { status } : {}),
+          ...(batchId ? { batchId } : {}),
         },
         include: { execution: true },
         orderBy: { createdAt: 'desc' },

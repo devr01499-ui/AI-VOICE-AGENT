@@ -4,27 +4,207 @@ import { CallService } from './CallService';
 import { callOrchestrator } from '../core/orchestrator/CallOrchestrator';
 import { logger } from '../utils/logger';
 import { ADMIN_EMAIL } from '../config/constants';
-import type { CallStatus } from '../types';
+import { countActiveCalls, countGlobalActiveCalls } from '../utils/concurrency';
 
 const ACCOUNT_TELEPHONY_CAP = 50; // Plivo India account-wide telephony cap
-const MIN_CALL_INTERVAL_MS = 500; // 2 calls per second dial rate limit
 const LOCK_TIMEOUT_MS = 60000; // 60s stale worker lock threshold
 const STUCK_RECIPIENT_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes in_progress threshold
 
-const TRANSIENT_ERROR_CODES = new Set([
+const TRANSIENT_CALL_ERROR_CODES = new Set([
   'BUSY',
   'NO_ANSWER',
-  'TIMEOUT',
   'CALL_TIMEOUT',
   'CARRIER_ERROR',
   'PROVIDER_ERROR',
-  'CONCURRENCY_LIMIT',
   'TRANSIENT_ERROR'
 ]);
 
+export interface BatchCounters {
+  total: number;
+  attempted: number;
+  answered: number;
+  notAnswered: number;
+  busy: number;
+  failed: number;
+  skipped: number;
+  cancelled: number;
+  remaining: number;
+  progressPercent: number;
+  totalDurationSeconds: number;
+  totalBilledMinutes: number;
+}
+
 export class BatchService {
   /**
-   * Helper to check if current time is within legal/permitted calling hours.
+   * Universal Single Source of Truth Counter Function.
+   * Every number shown to customer is computed strictly from real database rows.
+   * No hardcoded or estimated numbers.
+   */
+  static async computeBatchCounters(batchId: string): Promise<BatchCounters> {
+    const recipients = await prisma.batchRecipient.findMany({
+      where: { batchId },
+      include: {
+        call: {
+          select: {
+            id: true,
+            status: true,
+            startTime: true,
+            durationSeconds: true
+          }
+        }
+      }
+    });
+
+    const total = recipients.length;
+    let attempted = 0;
+    let answered = 0;
+    let notAnswered = 0;
+    let busy = 0;
+    let failed = 0;
+    let skipped = 0;
+    let cancelled = 0;
+    let remaining = 0;
+    let totalDurationSeconds = 0;
+    let finalStateCount = 0;
+
+    for (const r of recipients) {
+      const isDnc = r.lastErrorCode === 'DNC_OPT_OUT' || r.lastErrorCode === 'DNC_SKIPPED';
+      const isCancelled = r.status === 'cancelled';
+      const hasRealCall = !!r.callId || r.attempts > 0;
+
+      if (isDnc) {
+        skipped++;
+        finalStateCount++;
+      } else if (isCancelled) {
+        cancelled++;
+        finalStateCount++;
+      } else if (r.status === 'pending') {
+        remaining++;
+      } else {
+        if (hasRealCall) {
+          attempted++;
+        }
+
+        const dur = r.call?.durationSeconds || 0;
+        totalDurationSeconds += dur;
+
+        const isAnswered = (r.call?.startTime && dur > 0) || (r.status === 'completed' && dur > 0);
+        const isBusy = r.lastErrorCode === 'BUSY' || r.call?.status === 'busy';
+        const isNoAnswer = r.lastErrorCode === 'NO_ANSWER' || r.call?.status === 'no_answer';
+
+        if (isAnswered) {
+          answered++;
+          finalStateCount++;
+        } else if (isBusy) {
+          busy++;
+          if (r.attempts >= 3 || r.status === 'failed') finalStateCount++;
+        } else if (isNoAnswer) {
+          notAnswered++;
+          if (r.attempts >= 3 || r.status === 'failed') finalStateCount++;
+        } else if (r.status === 'failed') {
+          failed++;
+          finalStateCount++;
+        } else if (r.status === 'completed') {
+          answered++;
+          finalStateCount++;
+        }
+      }
+    }
+
+    const progressPercent = total > 0 ? Math.round((finalStateCount / total) * 100) : 0;
+    const totalBilledMinutes = Math.ceil(totalDurationSeconds / 60);
+
+    return {
+      total,
+      attempted,
+      answered,
+      notAnswered,
+      busy,
+      failed,
+      skipped,
+      cancelled,
+      remaining,
+      progressPercent,
+      totalDurationSeconds,
+      totalBilledMinutes
+    };
+  }
+
+  /**
+   * Single-Writer Idempotent Outcome Resolver:
+   * Maps call outcome from real telephony CDR / hangup signals into recipient state.
+   */
+  static async resolveRecipientOutcome(callId: string, hangupCause?: string): Promise<void> {
+    const recipient = await prisma.batchRecipient.findFirst({
+      where: { callId }
+    });
+    if (!recipient) return;
+
+    const call = await prisma.call.findUnique({
+      where: { id: callId }
+    });
+    if (!call) return;
+
+    let targetStatus = 'failed';
+    let lastError: string | null = null;
+    let lastErrorCode: string | null = null;
+
+    const dur = call.durationSeconds ?? 0;
+    const hasAnswerTime = !!call.startTime;
+    const cause = (hangupCause || '').toLowerCase();
+
+    if (call.status === 'cancelled') {
+      targetStatus = 'cancelled';
+      lastErrorCode = 'CANCELLED';
+      lastError = 'Call cancelled by user';
+    } else if (call.status === 'timeout' || cause === 'timeout' || cause === 'safety_timeout') {
+      targetStatus = 'failed';
+      lastErrorCode = 'TIMEOUT';
+      lastError = 'Safety timeout reached';
+    } else if (call.status === 'busy' || cause.includes('busy')) {
+      targetStatus = 'failed';
+      lastErrorCode = 'BUSY';
+      lastError = 'Line busy';
+    } else if (call.status === 'no_answer' || cause.includes('no_answer') || cause.includes('no-answer') || cause.includes('timeout')) {
+      targetStatus = 'failed';
+      lastErrorCode = 'NO_ANSWER';
+      lastError = 'No answer';
+    } else if (call.status === 'rejected' || cause.includes('reject')) {
+      targetStatus = 'failed';
+      lastErrorCode = 'REJECTED';
+      lastError = 'Carrier rejected call';
+    } else if ((hasAnswerTime && dur > 0) || (call.status === 'completed' && dur > 0)) {
+      targetStatus = 'completed';
+      lastErrorCode = null;
+      lastError = null;
+    } else {
+      targetStatus = 'failed';
+      lastErrorCode = 'FAILED';
+      lastError = `Call ended without connection (duration: ${dur}s)`;
+    }
+
+    await prisma.batchRecipient.update({
+      where: { id: recipient.id },
+      data: {
+        status: targetStatus,
+        lastError,
+        lastErrorCode
+      }
+    });
+
+    // Reconcile parent batch counters from rows
+    const counters = await BatchService.computeBatchCounters(recipient.batchId);
+    await prisma.batch.update({
+      where: { id: recipient.batchId },
+      data: {
+        completedCount: counters.answered,
+        failedCount: counters.failed + counters.busy + counters.notAnswered
+      }
+    }).catch(() => {});
+  }
+
+  /**
+   * Checks if current time is within permitted calling hours.
    * Default: 09:00 - 21:00 IST (UTC+5:30).
    */
   static isWithinCallingWindow(scheduleConfigRaw?: string | null): { allowed: boolean; reason?: string } {
@@ -61,7 +241,7 @@ export class BatchService {
       const pad = (n: number) => n.toString().padStart(2, '0');
       return {
         allowed: false,
-        reason: `Outside permitted calling window (${pad(startHour)}:00 - ${pad(endHour)}:00 IST). Current IST time: ${pad(istHour)}:${pad(istMinute)}`
+        reason: `Outside permitted calling window (${pad(startHour)}:00 - ${pad(endHour)}:00 IST). Resumes at 09:00 IST.`
       };
     }
 
@@ -89,8 +269,9 @@ export class BatchService {
   }
 
   /**
-   * Processes a batch campaign respecting concurrency, caller ID, retry backoff,
-   * calling hours, and atomic worker locking.
+   * Processes a batch campaign: Sequential by default with persistent interCallDelaySeconds,
+   * deterministic CSV order (position ASC), retry queue discipline, universal concurrency checks,
+   * single-writer lifecycle resolution, and fail-loud semantics.
    */
   static async processBatch(batchId: string, userId: string): Promise<void> {
     const workerId = `${process.pid}_${crypto.randomUUID()}`;
@@ -184,7 +365,7 @@ export class BatchService {
         return;
       }
 
-      // ── Batch-level validation: Caller ID (Item 16: Admin accounts must not silently fall back) ──
+      // ── Batch-level validation: Caller ID ──
       if (!batch.fromPhoneNumberId || !batch.fromPhoneNumber?.phoneNumber) {
         const reason = 'Caller ID required. Please assign a verified phone number to this campaign.';
         logger.warn(`BatchService: Batch ${batchId} paused: ${reason}`);
@@ -213,16 +394,27 @@ export class BatchService {
         }
       }
 
-      // Pacing and retry configs
+      const isSequential = batch.dialMode !== 'parallel';
+      const interCallDelaySeconds = Math.max(5, Math.min(300, batch.interCallDelaySeconds ?? 10));
+
       const retryConfig = typeof batch.retryConfig === 'string' ? JSON.parse(batch.retryConfig || '{}') : (batch.retryConfig || {});
       const maxAttempts = typeof retryConfig.maxAttempts === 'number' ? retryConfig.maxAttempts : 3;
       const retryIntervalMs = typeof retryConfig.intervalMinutes === 'number'
         ? retryConfig.intervalMinutes * 60 * 1000
         : (typeof retryConfig.intervalMs === 'number' ? retryConfig.intervalMs : 30 * 60 * 1000);
 
-      const inFlightRecipientIds = new Set<string>();
+      // Check if resuming from an inter-call delay
+      if (batch.nextDispatchAt && batch.nextDispatchAt.getTime() > Date.now()) {
+        const remainingDelayMs = batch.nextDispatchAt.getTime() - Date.now();
+        logger.info(`BatchService: Resuming batch ${batchId}. Respecting remaining inter-call delay (${Math.round(remainingDelayMs / 1000)}s)...`);
+        await new Promise(r => setTimeout(r, remainingDelayMs));
+        await prisma.batch.update({
+          where: { id: batchId },
+          data: { nextDispatchAt: null }
+        });
+      }
 
-      // Main dispatch & monitor loop
+      // ── Main Dispatch Loop ──
       while (true) {
         // Heartbeat lock renewal
         await prisma.batch.updateMany({
@@ -230,27 +422,27 @@ export class BatchService {
           data: { lockedAt: new Date() }
         });
 
-        // Check if batch was paused/cancelled externally
+        // Check if batch was paused or cancelled externally
         const stateCheck = await prisma.batch.findUnique({
           where: { id: batchId },
           select: { status: true }
         });
 
         if (!stateCheck || stateCheck.status === 'cancelled' || stateCheck.status === 'paused') {
-          logger.info(`BatchService: Batch ${batchId} stopping due to status change: ${stateCheck?.status}`);
+          logger.info(`BatchService: Batch ${batchId} stopping due to status: ${stateCheck?.status}`);
           await releaseLock();
           return;
         }
 
-        // Mid-batch calling hours check
+        // Calling hours check mid-batch
         const currentWindowCheck = this.isWithinCallingWindow(batch.scheduleConfig);
         if (!currentWindowCheck.allowed) {
-          logger.info(`BatchService: Batch ${batchId} reached end of calling window: ${currentWindowCheck.reason}`);
+          logger.info(`BatchService: Batch ${batchId} outside calling window: ${currentWindowCheck.reason}`);
           await releaseLock({ status: 'paused', statusReason: currentWindowCheck.reason });
           return;
         }
 
-        // Mid-batch account and minutes check
+        // Minutes check mid-batch
         const freshUser = await prisma.user.findUnique({
           where: { id: userId },
           select: { accountStatus: true, minutesRemainingSeconds: true, callingBalanceMinutes: true }
@@ -272,247 +464,208 @@ export class BatchService {
           return;
         }
 
-        // Calculate available concurrency capacity
-        const userActiveCalls = await prisma.call.count({
-          where: {
-            userId,
-            status: { in: ['queued', 'ringing', 'in_progress'] }
-          }
-        });
-
-        const globalActiveCalls = await prisma.call.count({
-          where: {
-            status: { in: ['queued', 'ringing', 'in_progress'] }
-          }
-        });
-
-        const availableSlots = Math.max(
-          0,
-          Math.min(userMaxConcurrency - userActiveCalls, ACCOUNT_TELEPHONY_CAP - globalActiveCalls)
-        );
-
-        const now = new Date();
-        const retryThreshold = new Date(now.getTime() - retryIntervalMs);
-
-        // Fetch eligible recipients: pending OR transient failed whose backoff expired
-        const candidateRecipients = await prisma.batchRecipient.findMany({
+        // Candidate Selection with Strict Queue Discipline:
+        // Rule: All first attempts run in position order first. Only then retry-eligible contacts run in order.
+        let nextRecipient = await prisma.batchRecipient.findFirst({
           where: {
             batchId,
-            id: { notIn: Array.from(inFlightRecipientIds) },
-            OR: [
-              { status: 'pending' },
-              {
-                status: 'failed',
-                attempts: { lt: maxAttempts },
-                lastErrorCode: { in: Array.from(TRANSIENT_ERROR_CODES) },
-                lastAttemptAt: { lte: retryThreshold }
-              }
-            ]
+            status: 'pending',
+            attempts: 0
           },
-          orderBy: [
-            { position: 'asc' }
-          ],
-          take: Math.max(1, availableSlots)
+          orderBy: { position: 'asc' }
         });
 
-        if (candidateRecipients.length === 0 && inFlightRecipientIds.size === 0) {
-          // No more recipients to process and no active calls in-flight
+        if (!nextRecipient) {
+          // If no first attempts remaining, look for any pending with attempts > 0 (re-queued from concurrency)
+          nextRecipient = await prisma.batchRecipient.findFirst({
+            where: {
+              batchId,
+              status: 'pending',
+              attempts: { gt: 0 }
+            },
+            orderBy: { position: 'asc' }
+          });
+        }
+
+        if (!nextRecipient) {
+          // Check retry-eligible contacts whose 30-minute backoff has elapsed
+          const now = new Date();
+          const retryThreshold = new Date(now.getTime() - retryIntervalMs);
+
+          nextRecipient = await prisma.batchRecipient.findFirst({
+            where: {
+              batchId,
+              status: 'failed',
+              attempts: { lt: maxAttempts },
+              lastErrorCode: { in: Array.from(TRANSIENT_CALL_ERROR_CODES) },
+              lastAttemptAt: { lte: retryThreshold }
+            },
+            orderBy: { position: 'asc' }
+          });
+        }
+
+        // No more eligible contacts to process
+        if (!nextRecipient) {
           break;
         }
 
-        // If capacity available, dial candidates up to available slots
-        if (availableSlots > 0 && candidateRecipients.length > 0) {
-          const toDial = candidateRecipients.slice(0, availableSlots);
+        // Concurrency Check (Universal Helper)
+        const userActiveCalls = await countActiveCalls(userId);
+        const globalActiveCalls = await countGlobalActiveCalls();
 
-          for (const recipient of toDial) {
-            inFlightRecipientIds.add(recipient.id);
+        const concurrencyLimit = isSequential ? 1 : userMaxConcurrency;
+        if (userActiveCalls >= concurrencyLimit || globalActiveCalls >= ACCOUNT_TELEPHONY_CAP) {
+          logger.info(`BatchService: Concurrency limit active (${userActiveCalls}/${concurrencyLimit}). Waiting 8s before retry.`);
+          await new Promise(r => setTimeout(r, 8000));
+          continue;
+        }
 
-            // Dial asynchronously with a tracking wrapper
-            (async () => {
-              try {
-                // Pre-dial Opt-out / DNC Gate
-                const cleanDigits = recipient.phoneNumber.replace(/\D/g, '');
-                const toVariants = Array.from(new Set([recipient.phoneNumber, `+${cleanDigits}`, cleanDigits]));
-                const optedOut = await prisma.contact.findFirst({
-                  where: {
-                    userId: batch.userId,
-                    phoneNumber: { in: toVariants },
-                    optedOutAt: { not: null }
-                  }
-                });
-
-                if (optedOut) {
-                  logger.info(`BatchService: Skipping recipient ${recipient.id} (${recipient.phoneNumber}) - opted out (DNC)`);
-                  await prisma.batchRecipient.update({
-                    where: { id: recipient.id },
-                    data: {
-                      status: 'failed',
-                      attempts: maxAttempts,
-                      callerPhoneNumber: effectiveFromNumber,
-                      lastError: 'Recipient has opted out of communications (DNC)',
-                      lastErrorCode: 'DNC_OPT_OUT',
-                      lastAttemptAt: new Date()
-                    }
-                  });
-                  return;
-                }
-
-                const attemptCount = recipient.attempts + 1;
-                await prisma.batchRecipient.update({
-                  where: { id: recipient.id },
-                  data: {
-                    status: 'in_progress',
-                    callerPhoneNumber: effectiveFromNumber,
-                    attempts: attemptCount,
-                    lastAttemptAt: new Date(),
-                    lastError: null,
-                    lastErrorCode: null
-                  }
-                });
-
-                let parsedUserData = {};
-                try {
-                  parsedUserData = typeof recipient.userData === 'string' ? JSON.parse(recipient.userData) : recipient.userData;
-                } catch {}
-
-                const callResult = await CallService.createCall({
-                  phoneNumber: recipient.phoneNumber,
-                  agentId: batch.agentId,
-                  userId: batch.userId,
-                  fromPhoneNumber: effectiveFromNumber!,
-                  userData: parsedUserData
-                });
-
-                await prisma.batchRecipient.update({
-                  where: { id: recipient.id },
-                  data: {
-                    callId: callResult.callId,
-                    callerPhoneNumber: effectiveFromNumber
-                  }
-                });
-
-                logger.info(`BatchService: Call initiated for recipient ${recipient.id}`, { callId: callResult.callId });
-
-                // Wait for call completion (terminal status or 5-min timeout)
-                const terminalStatuses: string[] = ['completed', 'failed', 'busy', 'no_answer', 'cancelled', 'timeout'];
-                const pollInterval = 2000;
-                const maxWaitMs = 5 * 60 * 1000;
-                const startTime = Date.now();
-                let callFinished = false;
-
-                while (Date.now() - startTime < maxWaitMs) {
-                  const callRecord = await prisma.call.findUnique({
-                    where: { id: callResult.callId },
-                    select: { status: true }
-                  });
-
-                  if (callRecord && terminalStatuses.includes(callRecord.status)) {
-                    callFinished = true;
-                    const finalStatus = callRecord.status === 'completed' ? 'completed' : 'failed';
-                    await prisma.batchRecipient.update({
-                      where: { id: recipient.id },
-                      data: {
-                        status: finalStatus,
-                        lastError: callRecord.status === 'completed' ? null : `Call ended with status: ${callRecord.status}`,
-                        lastErrorCode: callRecord.status === 'completed' ? null : callRecord.status.toUpperCase()
-                      }
-                    });
-                    logger.info(`BatchService: Call ${callResult.callId} resolved with status ${callRecord.status}`);
-                    break;
-                  }
-
-                  await new Promise(r => setTimeout(r, pollInterval));
-                }
-
-                if (!callFinished) {
-                  // Timed out after 5 minutes: terminate call session and record failure
-                  logger.warn(`BatchService: Call ${callResult.callId} timed out after 5 minutes. Terminating session.`);
-                  try {
-                    await callOrchestrator.endCallSession(callResult.callId, 'timeout');
-                  } catch (termErr) {
-                    logger.warn('BatchService: Error ending timed-out call session', { error: String(termErr) });
-                  }
-
-                  await prisma.call.update({
-                    where: { id: callResult.callId },
-                    data: { status: 'timeout', endTime: new Date() }
-                  }).catch(() => {});
-
-                  await prisma.batchRecipient.update({
-                    where: { id: recipient.id },
-                    data: {
-                      status: 'failed',
-                      lastError: 'Call resolution timed out after 5 minutes',
-                      lastErrorCode: 'TIMEOUT'
-                    }
-                  });
-                }
-
-              } catch (callErr: any) {
-                const errMsg = callErr?.message || String(callErr);
-                logger.error(`BatchService: Error placing call for recipient ${recipient.id}`, { error: errMsg });
-
-                // Check for batch-level error
-                if (BatchService.isBatchLevelError(errMsg)) {
-                  // Reset recipient so it isn't marked as failed due to account configuration
-                  await prisma.batchRecipient.update({
-                    where: { id: recipient.id },
-                    data: {
-                      status: 'pending',
-                      attempts: Math.max(0, recipient.attempts),
-                      lastError: errMsg,
-                      lastErrorCode: 'BATCH_PAUSED'
-                    }
-                  });
-
-                  // Pause the whole batch immediately with visible reason
-                  await prisma.batch.updateMany({
-                    where: { id: batchId },
-                    data: {
-                      status: 'paused',
-                      statusReason: errMsg
-                    }
-                  });
-                  return;
-                }
-
-                // Check transient vs permanent error
-                const isTransient = errMsg.includes('Concurrency limit') || errMsg.includes('50') || errMsg.includes('network');
-                await prisma.batchRecipient.update({
-                  where: { id: recipient.id },
-                  data: {
-                    status: 'failed',
-                    attempts: isTransient ? recipient.attempts + 1 : maxAttempts,
-                    lastError: errMsg,
-                    lastErrorCode: isTransient ? 'CONCURRENCY_LIMIT' : 'PERMANENT_ERROR'
-                  }
-                });
-              } finally {
-                inFlightRecipientIds.delete(recipient.id);
-
-                // Update batch live counters
-                const completedCount = await prisma.batchRecipient.count({ where: { batchId, status: 'completed' } });
-                const failedCount = await prisma.batchRecipient.count({ where: { batchId, status: 'failed' } });
-
-                await prisma.batch.updateMany({
-                  where: { id: batchId },
-                  data: { completedCount, failedCount }
-                }).catch(() => {});
-              }
-            })();
-
-            // Rate limit throttle: 2 calls per second
-            await new Promise(r => setTimeout(r, MIN_CALL_INTERVAL_MS));
+        // ── Pre-dial Opt-out / DNC Gate ──
+        const cleanDigits = nextRecipient.phoneNumber.replace(/\D/g, '');
+        const toVariants = Array.from(new Set([nextRecipient.phoneNumber, `+${cleanDigits}`, cleanDigits]));
+        const optedOut = await prisma.contact.findFirst({
+          where: {
+            userId: batch.userId,
+            phoneNumber: { in: toVariants },
+            optedOutAt: { not: null }
           }
-        } else {
-          // No slots available right now or waiting on in-flight calls: poll interval
-          await new Promise(r => setTimeout(r, 2000));
+        });
+
+        if (optedOut) {
+          logger.info(`BatchService: Skipping recipient ${nextRecipient.id} (${nextRecipient.phoneNumber}) - opted out (DNC)`);
+          await prisma.batchRecipient.update({
+            where: { id: nextRecipient.id },
+            data: {
+              status: 'failed',
+              attempts: maxAttempts,
+              callerPhoneNumber: effectiveFromNumber,
+              lastError: 'Recipient has opted out of communications (DNC)',
+              lastErrorCode: 'DNC_OPT_OUT',
+              lastAttemptAt: new Date()
+            }
+          });
+          continue;
+        }
+
+        // ── Place the Call ──
+        let parsedUserData = {};
+        try {
+          parsedUserData = typeof nextRecipient.userData === 'string' ? JSON.parse(nextRecipient.userData) : nextRecipient.userData;
+        } catch {}
+
+        let callResult: { callId: string } | null = null;
+        try {
+          callResult = await CallService.createCall({
+            phoneNumber: nextRecipient.phoneNumber,
+            agentId: batch.agentId,
+            userId: batch.userId,
+            fromPhoneNumber: effectiveFromNumber!,
+            batchId: batch.id,
+            userData: parsedUserData
+          });
+        } catch (callErr: any) {
+          const errMsg = callErr?.message || String(callErr);
+
+          if (BatchService.isBatchLevelError(errMsg)) {
+            logger.warn(`BatchService: Pausing batch ${batchId} due to batch-level error: ${errMsg}`);
+            await prisma.batchRecipient.update({
+              where: { id: nextRecipient.id },
+              data: {
+                status: 'pending',
+                lastError: errMsg,
+                lastErrorCode: 'BATCH_PAUSED'
+              }
+            });
+            await releaseLock({ status: 'paused', statusReason: errMsg });
+            return;
+          }
+
+          if (errMsg.includes('Concurrency limit')) {
+            // Concurrency refusal is NOT a failure: requeue as pending, do not consume attempt, short sleep
+            logger.info(`BatchService: Concurrency refusal for recipient ${nextRecipient.id}. Requeueing without consuming attempt.`);
+            await prisma.batchRecipient.update({
+              where: { id: nextRecipient.id },
+              data: {
+                status: 'pending',
+                lastError: 'Concurrency limit reached - waiting for slot',
+                lastErrorCode: 'CONCURRENCY_WAIT'
+              }
+            });
+            await new Promise(r => setTimeout(r, 8000));
+            continue;
+          }
+
+          // Permanent or unrecoverable error
+          logger.error(`BatchService: Non-concurrency error placing call for recipient ${nextRecipient.id}: ${errMsg}`);
+          await prisma.batchRecipient.update({
+            where: { id: nextRecipient.id },
+            data: {
+              status: 'failed',
+              attempts: nextRecipient.attempts + 1,
+              lastError: errMsg,
+              lastErrorCode: 'FAILED',
+              lastAttemptAt: new Date()
+            }
+          });
+          continue;
+        }
+
+        // Call successfully initiated
+        await prisma.batchRecipient.update({
+          where: { id: nextRecipient.id },
+          data: {
+            callId: callResult.callId,
+            status: 'in_progress',
+            callerPhoneNumber: effectiveFromNumber,
+            attempts: nextRecipient.attempts + 1,
+            lastAttemptAt: new Date(),
+            lastError: null,
+            lastErrorCode: null
+          }
+        });
+
+        logger.info(`BatchService: Call initiated for recipient ${nextRecipient.id}`, { callId: callResult.callId });
+
+        // ── Await Call Completion (Event-driven with safety timeout) ──
+        // Safety timeout = call's max duration (default 1800s) + 30s grace period
+        const safetyTimeoutMs = (1800 + 30) * 1000;
+        const callEndResult = await callOrchestrator.waitForCallEnd(callResult.callId, safetyTimeoutMs);
+
+        if (callEndResult.reason === 'timeout') {
+          logger.warn(`BatchService: Call ${callResult.callId} reached safety timeout. Terminating session.`);
+          try {
+            await callOrchestrator.endCallSession(callResult.callId, 'timeout');
+          } catch {}
+          await prisma.call.update({
+            where: { id: callResult.callId },
+            data: { status: 'timeout', endTime: new Date() }
+          }).catch(() => {});
+        }
+
+        // Single-writer: Resolve recipient outcome derived from Call record
+        await BatchService.resolveRecipientOutcome(callResult.callId, callEndResult.reason);
+
+        // ── Inter-call Delay Pacing ──
+        // Next call starts at previous call end time + delay
+        if (isSequential) {
+          const nextDispatchAt = new Date(Date.now() + interCallDelaySeconds * 1000);
+          await prisma.batch.update({
+            where: { id: batchId },
+            data: { nextDispatchAt }
+          });
+
+          logger.info(`BatchService: Call completed. Pausing ${interCallDelaySeconds}s before next call...`);
+          await new Promise(r => setTimeout(r, interCallDelaySeconds * 1000));
+
+          await prisma.batch.update({
+            where: { id: batchId },
+            data: { nextDispatchAt: null }
+          });
         }
       }
 
       // Compute final honest status from recipient rows
-      const completedCount = await prisma.batchRecipient.count({ where: { batchId, status: 'completed' } });
-      const failedCount = await prisma.batchRecipient.count({ where: { batchId, status: 'failed' } });
+      const counters = await BatchService.computeBatchCounters(batchId);
       const inProgressCount = await prisma.batchRecipient.count({ where: { batchId, status: 'in_progress' } });
       const pendingCount = await prisma.batchRecipient.count({ where: { batchId, status: 'pending' } });
 
@@ -521,26 +674,22 @@ export class BatchService {
 
       if (inProgressCount > 0 || pendingCount > 0) {
         finalStatus = 'running';
-      } else if (completedCount > 0) {
+      } else if (counters.answered > 0) {
         finalStatus = 'completed';
       } else {
-        // Honest final status: completed ONLY if at least 1 call placed!
         finalStatus = 'failed';
-        finalReason = 'Batch concluded with 0 successful calls placed.';
+        finalReason = 'Batch concluded with 0 answered calls placed.';
       }
 
       await releaseLock({
-        completedCount,
-        failedCount,
+        completedCount: counters.answered,
+        failedCount: counters.failed + counters.busy + counters.notAnswered,
         status: finalStatus,
         statusReason: finalReason,
         ...(finalStatus === 'completed' || finalStatus === 'failed' ? { completedAt: new Date() } : {})
       });
 
-      logger.info(`BatchService: Finished processing batch ${batchId}. Status: ${finalStatus}`, {
-        completedCount,
-        failedCount
-      });
+      logger.info(`BatchService: Concluded batch ${batchId}. Status: ${finalStatus}`, { counters });
 
     } catch (unexpectedErr) {
       logger.error(`BatchService: Unexpected error in batch runner for ${batchId}`, { error: String(unexpectedErr) });

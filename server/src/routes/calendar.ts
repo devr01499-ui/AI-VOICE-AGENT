@@ -199,7 +199,7 @@ router.get('/bookings', requireAuth, async (req, res) => {
  * GET /api/v2/calendar/batches
 /**
  * GET /api/v2/calendar/batches
- * List user's batch calling campaigns.
+ * List user's batch calling campaigns with accurate, row-computed counters.
  */
 router.get('/batches', requireAuth, async (req, res) => {
   try {
@@ -215,23 +215,40 @@ router.get('/batches', requireAuth, async (req, res) => {
       }
     });
 
-    const formatted = batches.map(b => ({
-      id: b.id,
-      name: b.name,
-      agentId: b.agentId,
-      agentName: b.agent?.name || 'Default Agent',
-      fromPhoneNumberId: b.fromPhoneNumberId,
-      fromPhoneNumber: b.fromPhoneNumber?.phoneNumber || null,
-      status: b.status,
-      statusReason: b.statusReason,
-      total: b.totalRecipients,
-      called: b.completedCount + b.failedCount,
-      connected: b.completedCount,
-      failed: b.failedCount,
-      converted: Math.floor(b.completedCount * 0.25),
-      created: b.createdAt.toISOString().slice(0, 10),
-      totalContacts: b.totalRecipients,
-      completedCount: b.completedCount,
+    const { BatchService } = await import('../services/BatchService');
+
+    const formatted = await Promise.all(batches.map(async b => {
+      const counters = await BatchService.computeBatchCounters(b.id);
+      return {
+        id: b.id,
+        name: b.name,
+        agentId: b.agentId,
+        agentName: b.agent?.name || 'Default Agent',
+        fromPhoneNumberId: b.fromPhoneNumberId,
+        fromPhoneNumber: b.fromPhoneNumber?.phoneNumber || null,
+        status: b.status,
+        statusReason: b.statusReason,
+        dialMode: b.dialMode,
+        interCallDelaySeconds: b.interCallDelaySeconds,
+        nextDispatchAt: b.nextDispatchAt?.toISOString() || null,
+        total: counters.total,
+        totalContacts: counters.total,
+        attempted: counters.attempted,
+        called: counters.attempted,
+        answered: counters.answered,
+        connected: counters.answered,
+        notAnswered: counters.notAnswered,
+        busy: counters.busy,
+        failed: counters.failed,
+        skipped: counters.skipped,
+        cancelled: counters.cancelled,
+        remaining: counters.remaining,
+        progressPercent: counters.progressPercent,
+        totalDurationSeconds: counters.totalDurationSeconds,
+        totalBilledMinutes: counters.totalBilledMinutes,
+        created: b.createdAt.toISOString().slice(0, 10),
+        createdAt: b.createdAt.toISOString()
+      };
     }));
 
     res.json({ success: true, data: formatted });
@@ -243,7 +260,7 @@ router.get('/batches', requireAuth, async (req, res) => {
 
 /**
  * GET /api/v2/calendar/batches/:id
- * Get single batch with recipient summary, failures, and caller ID.
+ * Get single batch with recipient summary, true outcome derivations, and caller ID.
  */
 router.get('/batches/:id', requireAuth, async (req, res) => {
   try {
@@ -265,7 +282,8 @@ router.get('/batches/:id', requireAuth, async (req, res) => {
                 fromPhoneNumber: true,
                 durationSeconds: true,
                 callDirection: true,
-                status: true
+                status: true,
+                startTime: true
               }
             }
           }
@@ -276,6 +294,9 @@ router.get('/batches/:id', requireAuth, async (req, res) => {
     if (!batch) {
       return res.status(404).json({ success: false, error: 'Batch not found.' });
     }
+
+    const { BatchService } = await import('../services/BatchService');
+    const counters = await BatchService.computeBatchCounters(batch.id);
 
     res.json({
       success: true,
@@ -288,16 +309,30 @@ router.get('/batches/:id', requireAuth, async (req, res) => {
         fromPhoneNumber: batch.fromPhoneNumber?.phoneNumber || null,
         status: batch.status,
         statusReason: batch.statusReason,
+        dialMode: batch.dialMode,
+        interCallDelaySeconds: batch.interCallDelaySeconds,
+        nextDispatchAt: batch.nextDispatchAt?.toISOString() || null,
         idempotencyKey: batch.idempotencyKey,
         consentConfirmed: batch.consentConfirmed,
         consentConfirmedBy: batch.consentConfirmedBy,
         consentConfirmedAt: batch.consentConfirmedAt?.toISOString() || null,
+        consentListHash: batch.consentListHash,
         estimatedMinutes: batch.estimatedMinutes,
-        total: batch.totalRecipients,
-        called: batch.completedCount + batch.failedCount,
-        connected: batch.completedCount,
-        failed: batch.failedCount,
-        converted: Math.floor(batch.completedCount * 0.25),
+        total: counters.total,
+        totalContacts: counters.total,
+        attempted: counters.attempted,
+        called: counters.attempted,
+        answered: counters.answered,
+        connected: counters.answered,
+        notAnswered: counters.notAnswered,
+        busy: counters.busy,
+        failed: counters.failed,
+        skipped: counters.skipped,
+        cancelled: counters.cancelled,
+        remaining: counters.remaining,
+        progressPercent: counters.progressPercent,
+        totalDurationSeconds: counters.totalDurationSeconds,
+        totalBilledMinutes: counters.totalBilledMinutes,
         created: batch.createdAt.toISOString().slice(0, 10),
         recipients: batch.recipients.map((r, index) => ({
           id: r.id,
@@ -338,6 +373,8 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
       recipients,
       scheduleNow,
       scheduleConfig,
+      dialMode = 'sequential',
+      interCallDelaySeconds = 10,
       idempotencyKey: bodyIdempotencyKey,
       consentConfirmed,
       consentConfirmedBy,
@@ -495,6 +532,10 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
     }
 
     const calculatedEstimatedMinutes = Number(estimatedMinutes) || Math.ceil(eligibleRecipients.length * 2);
+    const delaySecs = Math.max(5, Math.min(300, Number(interCallDelaySeconds) || 10));
+
+    // Immutable consent list hash (who, when, list hash)
+    const consentListHash = crypto.createHash('sha256').update(JSON.stringify(eligibleRecipients)).digest('hex');
 
     const batch = await prisma.batch.create({
       data: {
@@ -507,6 +548,9 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
         consentConfirmed: true,
         consentConfirmedBy: consentConfirmedBy || user.email || user.id,
         consentConfirmedAt: new Date(),
+        consentListHash,
+        dialMode: dialMode === 'parallel' ? 'parallel' : 'sequential',
+        interCallDelaySeconds: delaySecs,
         estimatedMinutes: calculatedEstimatedMinutes,
         scheduleConfig: JSON.stringify(scheduleConfig || {}),
         totalRecipients: eligibleRecipients.length,
@@ -526,6 +570,23 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
         }
       }
     });
+
+    // Record audit log
+    await prisma.auditLog.create({
+      data: {
+        workspaceOwnerId: userId,
+        actorUserId: userId,
+        action: 'batch.started',
+        targetId: batch.id,
+        metadata: JSON.stringify({
+          batchName: batch.name,
+          totalContacts: batch.totalRecipients,
+          dialMode: batch.dialMode,
+          interCallDelaySeconds: batch.interCallDelaySeconds,
+          consentListHash
+        })
+      }
+    }).catch(err => logger.warn('Failed to record batch.started audit log', { error: String(err) }));
 
     if (initialStatus === 'running') {
       // Trigger background batch processing
@@ -553,13 +614,16 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
         fromPhoneNumber: batch.fromPhoneNumber?.phoneNumber || validatedFromNumber,
         status: batch.status,
         statusReason: batch.statusReason,
+        dialMode: batch.dialMode,
+        interCallDelaySeconds: batch.interCallDelaySeconds,
         total: batch.totalRecipients,
+        totalContacts: batch.totalRecipients,
         called: 0,
         connected: 0,
-        converted: 0,
         estimatedMinutes: batch.estimatedMinutes,
         warning: duplicateRunningWarning || undefined,
-        created: batch.createdAt.toISOString().slice(0, 10)
+        created: batch.createdAt.toISOString().slice(0, 10),
+        createdAt: batch.createdAt.toISOString()
       }
     });
   } catch (error) {
@@ -570,7 +634,7 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
 
 /**
  * POST /api/v2/calendar/batches/:id/pause
- * Pause an active batch campaign.
+ * Pause an active batch campaign. Finishes current call, dials nothing new.
  */
 router.post('/batches/:id/pause', requireAuth, sensitiveOperationsLimiter, async (req, res) => {
   try {
@@ -585,10 +649,28 @@ router.post('/batches/:id/pause', requireAuth, sensitiveOperationsLimiter, async
       return res.status(404).json({ success: false, error: 'Batch not found.' });
     }
 
+    if (existing.status !== 'running' && existing.status !== 'scheduled') {
+      return res.status(400).json({
+        success: false,
+        error: `Cannot pause batch in '${existing.status}' status.`
+      });
+    }
+
     await prisma.batch.updateMany({
       where: { id: batchId, userId },
       data: { status: 'paused', statusReason: 'User paused' }
     });
+
+    // Record audit log
+    await prisma.auditLog.create({
+      data: {
+        workspaceOwnerId: userId,
+        actorUserId: userId,
+        action: 'batch.paused',
+        targetId: batchId,
+        metadata: JSON.stringify({ batchName: existing.name })
+      }
+    }).catch(() => {});
 
     res.json({ success: true, message: 'Batch campaign paused.' });
   } catch (error) {
@@ -599,7 +681,7 @@ router.post('/batches/:id/pause', requireAuth, sensitiveOperationsLimiter, async
 
 /**
  * POST /api/v2/calendar/batches/:id/resume
- * Resume a paused batch campaign.
+ * Resume a paused batch campaign. Allowed only from paused; cancelled is final.
  */
 router.post('/batches/:id/resume', requireAuth, sensitiveOperationsLimiter, requireCallingMinutes, async (req, res) => {
   try {
@@ -614,9 +696,15 @@ router.post('/batches/:id/resume', requireAuth, sensitiveOperationsLimiter, requ
       return res.status(404).json({ success: false, error: 'Batch not found.' });
     }
 
+    if (existing.status !== 'paused') {
+      return res.status(400).json({
+        success: false,
+        error: `Cannot resume batch with status '${existing.status}'. Resuming is only permitted from paused state.`
+      });
+    }
+
     // One worker per batch check:
-    // If already running and locked with fresh lock, resume is a no-op
-    if (existing.status === 'running' && existing.lockedBy && existing.lockedAt && (Date.now() - existing.lockedAt.getTime() < 60000)) {
+    if (existing.lockedBy && existing.lockedAt && (Date.now() - existing.lockedAt.getTime() < 60000)) {
       return res.json({ success: true, message: 'Batch campaign is already running.' });
     }
 
@@ -624,6 +712,17 @@ router.post('/batches/:id/resume', requireAuth, sensitiveOperationsLimiter, requ
       where: { id: batchId, userId },
       data: { status: 'running', statusReason: null }
     });
+
+    // Record audit log
+    await prisma.auditLog.create({
+      data: {
+        workspaceOwnerId: userId,
+        actorUserId: userId,
+        action: 'batch.resumed',
+        targetId: batchId,
+        metadata: JSON.stringify({ batchName: existing.name })
+      }
+    }).catch(() => {});
 
     const { BatchService } = await import('../services/BatchService');
     BatchService.processBatch(batchId, userId).catch(err => {
@@ -639,7 +738,8 @@ router.post('/batches/:id/resume', requireAuth, sensitiveOperationsLimiter, requ
 
 /**
  * POST /api/v2/calendar/batches/:id/cancel
- * Cancel/stop a batch campaign.
+ * Cancel/stop a batch campaign. Marks all pending recipients as cancelled.
+ * Optionally ends current live call via provider if endCurrentCall is true.
  */
 router.post('/batches/:id/cancel', requireAuth, sensitiveOperationsLimiter, async (req, res) => {
   try {
@@ -654,10 +754,62 @@ router.post('/batches/:id/cancel', requireAuth, sensitiveOperationsLimiter, asyn
       return res.status(404).json({ success: false, error: 'Batch not found.' });
     }
 
+    const { endCurrentCall = false } = req.body || {};
+
+    // 1. Mark batch as cancelled
     await prisma.batch.updateMany({
       where: { id: batchId, userId },
-      data: { status: 'cancelled' }
+      data: { status: 'cancelled', completedAt: new Date() }
     });
+
+    // 2. Mark not-yet-dialed pending recipients as cancelled
+    await prisma.batchRecipient.updateMany({
+      where: { batchId, status: 'pending' },
+      data: {
+        status: 'cancelled',
+        lastError: 'Batch cancelled by user',
+        lastErrorCode: 'CANCELLED'
+      }
+    });
+
+    // 3. If requested, terminate any active call for this batch
+    if (endCurrentCall) {
+      const activeCalls = await prisma.call.findMany({
+        where: {
+          batchId,
+          userId,
+          status: { in: ['queued', 'ringing', 'in_progress', 'connected'] }
+        }
+      });
+
+      const { callOrchestrator } = await import('../core/orchestrator/CallOrchestrator');
+      for (const call of activeCalls) {
+        try {
+          await callOrchestrator.endCallSession(call.id, 'user_cancelled');
+        } catch (termErr) {
+          logger.warn('Failed to terminate active call on batch cancel', { callId: call.id, error: String(termErr) });
+        }
+        await prisma.batchRecipient.updateMany({
+          where: { callId: call.id },
+          data: {
+            status: 'cancelled',
+            lastError: 'Call terminated on batch cancellation',
+            lastErrorCode: 'CANCELLED'
+          }
+        });
+      }
+    }
+
+    // Record audit log
+    await prisma.auditLog.create({
+      data: {
+        workspaceOwnerId: userId,
+        actorUserId: userId,
+        action: 'batch.cancelled',
+        targetId: batchId,
+        metadata: JSON.stringify({ batchName: existing.name, endCurrentCall })
+      }
+    }).catch(() => {});
 
     res.json({ success: true, message: 'Batch campaign cancelled.' });
   } catch (error) {

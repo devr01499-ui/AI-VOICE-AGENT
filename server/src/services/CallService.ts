@@ -22,6 +22,7 @@ import { ADMIN_EMAIL } from '../config/constants';
 import { WebhookDispatcher } from '../utils/WebhookDispatcher';
 import { ContactsController } from '../controllers/ContactsController';
 import { redactPii } from '../utils/piiRedactor';
+import { countActiveCalls } from '../utils/concurrency';
 
 // ─── Input Shapes ─────────────────────────────────
 
@@ -33,6 +34,7 @@ interface CreateCallInput {
   maxDuration?: number;
   fromPhoneNumber?: string;
   record?: boolean;
+  batchId?: string;
 }
 
 // ─── Service Implementation ───────────────────────
@@ -88,30 +90,13 @@ export class CallService {
       }
     }
 
-    const orchestratorActiveCount = callOrchestrator.getActiveCallCountForUser(userId);
-    const dbCallCount = await prisma.call.count({
-      where: {
-        userId,
-        status: { in: ['queued', 'ringing', 'in_progress'] },
-      }
-    });
-    const dbSessionCount = await prisma.callSession.count({
-      where: {
-        userId,
-        status: { in: ['IN_PROGRESS', 'initiated', 'queued', 'active'] },
-      }
-    });
-
-    const activeCallCount = Math.max(orchestratorActiveCount, dbCallCount, dbSessionCount);
+    const activeCallCount = await countActiveCalls(userId);
 
     if (activeCallCount >= maxConcurrency) {
       logger.warn('[CallService] Concurrency limit exceeded before placing call', {
         userId,
         activeCallCount,
         maxConcurrency,
-        orchestratorActiveCount,
-        dbCallCount,
-        dbSessionCount,
       });
       throw new ValidationError('Concurrency limit exceeded', [
         { field: 'concurrency', message: `Max allowed concurrent calls (${maxConcurrency}) reached. You currently have ${activeCallCount} active call(s).` }
@@ -178,7 +163,8 @@ export class CallService {
         userId,
         effectiveFromNumber,
         maxDuration ?? 1800,
-        input.record
+        input.record,
+        input.batchId
       );
 
       const call = await CallRepository.findById(callId);
@@ -444,24 +430,9 @@ export class CallService {
     const terminalStatuses: CallStatus[] = ['completed', 'failed', 'busy', 'no_answer', 'cancelled', 'timeout'];
     if (terminalStatuses.includes(mappedStatus)) {
       try {
-        const recipient = await prisma.batchRecipient.findFirst({ where: { callId } });
-        if (recipient) {
-          const recipientStatus = mappedStatus === 'completed' ? 'completed' : 'failed';
-          await prisma.batchRecipient.update({
-            where: { id: recipient.id },
-            data: {
-              status: recipientStatus,
-              lastError: mappedStatus === 'completed' ? null : `Call ended with status: ${mappedStatus}`,
-              lastErrorCode: mappedStatus === 'completed' ? null : mappedStatus.toUpperCase(),
-            }
-          });
-          const completedCount = await prisma.batchRecipient.count({ where: { batchId: recipient.batchId, status: 'completed' } });
-          const failedCount = await prisma.batchRecipient.count({ where: { batchId: recipient.batchId, status: 'failed' } });
-          await prisma.batch.update({
-            where: { id: recipient.batchId },
-            data: { completedCount, failedCount }
-          });
-        }
+        callOrchestrator.emit('callEnded', { callId, status: mappedStatus, reason: vobizStatus });
+        const { BatchService } = await import('./BatchService');
+        await BatchService.resolveRecipientOutcome(callId, vobizStatus);
       } catch (batchSyncErr) {
         logger.warn('CallService: failed to sync BatchRecipient status', { callId, error: String(batchSyncErr) });
       }

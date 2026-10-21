@@ -16,6 +16,13 @@ export function DashLiveMonitoring() {
   const [loading, setLoading] = useState(true);
   const [selectedCall, setSelectedCall] = useState<ApiCall | null>(null);
   const [agents, setAgents] = useState<ApiAgent[]>([]);
+  const [batchFilter, setBatchFilter] = useState<string | null>(() => {
+    try {
+      return sessionStorage.getItem('live_monitoring_batch_id');
+    } catch {
+      return null;
+    }
+  });
 
   // Live WebSocket transcript state
   const [transcripts, setTranscripts] = useState<LiveTranscriptMessage[]>([]);
@@ -31,7 +38,10 @@ export function DashLiveMonitoring() {
   const fetchActiveCalls = async () => {
     try {
       setLoading(true);
-      const allCalls = await fetchCalls({ limit: 50 });
+      const allCalls = await fetchCalls({
+        limit: 50,
+        batchId: batchFilter || undefined,
+      });
       const inProgress = allCalls.filter(
         (c) => c.status === 'in_progress' || c.status === 'ringing' || c.status === 'queued'
       );
@@ -57,7 +67,7 @@ export function DashLiveMonitoring() {
     // Auto refresh active call list every 5 seconds
     const interval = setInterval(fetchActiveCalls, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [batchFilter]);
 
   // Connect WebSocket when selectedCall changes
   useEffect(() => {
@@ -230,6 +240,23 @@ export function DashLiveMonitoring() {
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
           </div>
 
+          {batchFilter && (
+            <div className="p-2.5 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-xs font-semibold flex items-center justify-between text-indigo-700 dark:text-indigo-300">
+              <span className="truncate pr-2">Campaign filter active</span>
+              <button
+                onClick={() => {
+                  setBatchFilter(null);
+                  try {
+                    sessionStorage.removeItem('live_monitoring_batch_id');
+                  } catch {}
+                }}
+                className="underline hover:no-underline text-xs flex-shrink-0"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+
           {loading ? (
             <div className="p-8 text-center text-xs text-slate-400">Checking active sessions...</div>
           ) : activeCalls.length === 0 ? (
@@ -258,10 +285,17 @@ export function DashLiveMonitoring() {
                       <span className="font-mono font-bold text-xs text-slate-800 dark:text-slate-200">
                         {call.recipientPhoneNumber}
                       </span>
-                      <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold rounded-full flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        {call.status}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {call.batchName && (
+                          <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-[10px] font-bold rounded-full truncate max-w-[100px]" title={call.batchName}>
+                            {call.batchName}
+                          </span>
+                        )}
+                        <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold rounded-full flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          {call.status}
+                        </span>
+                      </div>
                     </div>
 
                     <div className="flex items-center justify-between text-[11px] text-slate-500">

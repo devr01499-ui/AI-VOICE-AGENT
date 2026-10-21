@@ -48,11 +48,12 @@ router.get(
         return;
       }
 
-      const { status, direction, search, agentId, dateRange, startDate, endDate } = req.query as {
+      const { status, direction, search, agentId, batchId, dateRange, startDate, endDate } = req.query as {
         status?: string;
         direction?: string;
         search?: string;
         agentId?: string;
+        batchId?: string;
         dateRange?: string;
         startDate?: string;
         endDate?: string;
@@ -67,6 +68,10 @@ router.get(
       const where: any = {
         userId: userId,
       };
+
+      if (batchId && batchId !== 'all') {
+        where.batchId = batchId;
+      }
 
       if (direction === 'inbound' || direction === 'outbound') {
         where.callDirection = direction;
@@ -116,6 +121,19 @@ router.get(
                 name: true,
               },
             },
+            batch: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            batchRecipients: {
+              select: {
+                lastError: true,
+                lastErrorCode: true,
+              },
+              take: 1,
+            },
             transcriptSegments: {
               select: { id: true },
               take: 1,
@@ -136,9 +154,12 @@ router.get(
         const hasTrans = (c.transcriptSegments && c.transcriptSegments.length > 0) ||
           Boolean(c.execution && c.execution.transcript && c.execution.transcript !== '[]' && c.execution.transcript !== '');
         const recUrl = c.recordingUrl || c.execution?.recordingUrl || null;
+        const recipientRecord = c.batchRecipients?.[0];
 
         return {
           id: c.id,
+          batchId: c.batchId || null,
+          batchName: c.batch?.name || null,
           direction: (c.callDirection === 'inbound' ? 'inbound' : 'outbound') as 'inbound' | 'outbound',
           contactNumber: c.recipientPhoneNumber || '—',
           businessNumber: c.fromPhoneNumber || '—',
@@ -153,6 +174,8 @@ router.get(
           recordingUrl: recUrl,
           summary: c.summary || null,
           sentiment: c.sentiment || null,
+          lastError: recipientRecord?.lastError || null,
+          lastErrorCode: recipientRecord?.lastErrorCode || null,
           createdAt: c.createdAt.toISOString(),
         };
       });
