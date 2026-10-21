@@ -79,6 +79,73 @@ export function buildGreetingText(options: GreetingOptions): string {
   return baseGreeting;
 }
 
+export interface ResolvedGreeting {
+  mode: 'agent_first' | 'user_first';
+  text: string;
+  silenceStart: {
+    enabled: boolean;
+    seconds: number;
+  };
+}
+
+/**
+ * Single source of truth for resolving greeting behavior across all telephony channels.
+ * Hydrates and prioritizes agentConfig.greeting { mode, text, silenceStart },
+ * with fallback to agent.firstMessage and localized defaults.
+ */
+export function resolveGreeting(
+  agent: any,
+  direction?: string | null,
+  isRecordingEnabled: boolean = false
+): ResolvedGreeting {
+  let mode: 'agent_first' | 'user_first' = 'user_first';
+  let text = '';
+  let silenceStart = { enabled: false, seconds: 4 };
+
+  let agentConfig: any = {};
+  if (agent?.agentConfig) {
+    try {
+      agentConfig = typeof agent.agentConfig === 'string' ? JSON.parse(agent.agentConfig) : agent.agentConfig;
+    } catch {}
+  }
+
+  const greetingConfig = agentConfig?.greeting;
+  if (greetingConfig) {
+    if (greetingConfig.mode === 'agent_first' || greetingConfig.mode === 'user_first') {
+      mode = greetingConfig.mode;
+    }
+    if (typeof greetingConfig.text === 'string' && greetingConfig.text.trim()) {
+      text = greetingConfig.text.trim();
+    }
+    if (greetingConfig.silenceStart) {
+      silenceStart = {
+        enabled: Boolean(greetingConfig.silenceStart.enabled),
+        seconds: Math.max(2, Math.min(15, Number(greetingConfig.silenceStart.seconds) || 4)),
+      };
+    }
+  } else if (agent?.firstMessage && agent.firstMessage.trim()) {
+    mode = 'agent_first';
+    text = agent.firstMessage.trim();
+  }
+
+  if (!text) {
+    text = buildGreetingText({
+      languageMode: agent?.languageMode,
+      direction: direction || agent?.direction || 'outbound',
+      agentName: agent?.name,
+      businessName: 'Claritiy Voice',
+      firstMessage: agent?.firstMessage,
+      isRecordingEnabled: false,
+    });
+  }
+
+  if (isRecordingEnabled && !text.includes('recorded for quality')) {
+    text = `${text} Please note this call is recorded for quality and compliance.`;
+  }
+
+  return { mode, text, silenceStart };
+}
+
 /**
  * Returns exact model steering instruction so Gemini native-audio outputs
  * the greeting verbatim without conversational improvisation or pretending to be the user.

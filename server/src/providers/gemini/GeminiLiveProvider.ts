@@ -478,6 +478,16 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         systemInstructionString = `${systemInstructionString}\n\n[BACKCHANNELING INSTRUCTION]\nOccasionally use brief natural acknowledgments (mm-hmm, I see, got it) while the caller is speaking, without interrupting them.`;
       }
 
+      if (typeof speechSettings.speed === 'number' && speechSettings.speed !== 1.0) {
+        const paceDesc = speechSettings.speed < 1.0 ? 'slower, deliberate pace' : 'brisk, energetic pace';
+        systemInstructionString = `${systemInstructionString}\n\n[SPEECH PACE]\nSpeak at a natural ${paceDesc}.`;
+      }
+
+      if (typeof speechSettings.volume === 'number' && speechSettings.volume !== 1.0) {
+        const volDesc = speechSettings.volume < 1.0 ? 'soft, gentle tone' : 'confident, projected tone';
+        systemInstructionString = `${systemInstructionString}\n\n[SPEECH PROJECTION]\nDeliver your responses in a ${volDesc}.`;
+      }
+
       let transcriptionSettings: any = {};
       if (callData.agent && callData.agent.agentConfig) {
         try {
@@ -512,6 +522,10 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
       if (Array.isArray(callSettings.optOutKeywords) && callSettings.optOutKeywords.length > 0) {
         systemInstructionString = `${systemInstructionString}\n\n[DNC / OPT-OUT SECURITY GATES]\nIf the caller uses any opt-out phrases such as (${callSettings.optOutKeywords.join(', ')}), acknowledge politely and invoke the end_call tool immediately to mark them as opted out. Do not attempt to negotiate or continue the call.`;
+      }
+
+      if (typeof callSettings.endCallOnSilenceSeconds === 'number' && callSettings.endCallOnSilenceSeconds > 0) {
+        systemInstructionString = `${systemInstructionString}\n\n[SILENCE CUTOFF POLICY]\nIf the caller remains completely silent without speaking for more than ${callSettings.endCallOnSilenceSeconds} seconds, politely state you are disconnecting due to prolonged silence and invoke the hang_up tool.`;
       }
 
       const setupMessage = {

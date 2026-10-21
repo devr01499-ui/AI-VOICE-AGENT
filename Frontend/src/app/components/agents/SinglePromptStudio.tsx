@@ -255,9 +255,72 @@ export default function SinglePromptStudio({
     initialAgent?.systemPrompt ||
       'You are an energetic and friendly outbound sales agent for a dental clinic. Your primary goal is to engage potential new patients, inform them about the clinic\'s services, and schedule a consultation.'
   );
-  const [welcomeMessageMode, setWelcomeMessageMode] = useState<'user_first' | 'agent_first'>('user_first');
-  const [customWelcomeText, setCustomWelcomeText] = useState('Hello! Thank you for calling Claritiy Voice.');
-  const [silenceStartEnabled, setSilenceStartEnabled] = useState(false);
+  const initialGreeting = useMemo(() => {
+    const raw = initialAgent?.agentConfig;
+    const cfg = typeof raw === 'string' ? (() => { try { return JSON.parse(raw); } catch { return {}; } })() : (raw || {});
+    if (cfg?.greeting) {
+      return {
+        mode: (cfg.greeting.mode === 'agent_first' ? 'agent_first' : 'user_first') as 'user_first' | 'agent_first',
+        text: typeof cfg.greeting.text === 'string' ? cfg.greeting.text : '',
+        silenceStartEnabled: Boolean(cfg.greeting.silenceStart?.enabled),
+        silenceStartSeconds: typeof cfg.greeting.silenceStart?.seconds === 'number' ? cfg.greeting.silenceStart.seconds : 4,
+      };
+    }
+    if (initialAgent?.firstMessage && initialAgent.firstMessage.trim()) {
+      return {
+        mode: 'agent_first' as const,
+        text: initialAgent.firstMessage.trim(),
+        silenceStartEnabled: false,
+        silenceStartSeconds: 4,
+      };
+    }
+    return {
+      mode: 'user_first' as const,
+      text: 'Hello! Thank you for calling Claritiy Voice.',
+      silenceStartEnabled: false,
+      silenceStartSeconds: 4,
+    };
+  }, [initialAgent?.id, initialAgent?.agentConfig, initialAgent?.firstMessage]);
+
+  const [welcomeMessageMode, setWelcomeMessageMode] = useState<'user_first' | 'agent_first'>(initialGreeting.mode);
+  const [customWelcomeText, setCustomWelcomeText] = useState(initialGreeting.text);
+  const [silenceStartEnabled, setSilenceStartEnabled] = useState(initialGreeting.silenceStartEnabled);
+  const [silenceStartSeconds, setSilenceStartSeconds] = useState(initialGreeting.silenceStartSeconds);
+  const [mobileStudioTab, setMobileStudioTab] = useState<'prompt' | 'settings' | 'test'>('prompt');
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setWelcomeMessageMode(initialGreeting.mode);
+    setCustomWelcomeText(initialGreeting.text);
+    setSilenceStartEnabled(initialGreeting.silenceStartEnabled);
+    setSilenceStartSeconds(initialGreeting.silenceStartSeconds);
+  }, [initialGreeting]);
+
+  const isDirty = useMemo(() => {
+    const origName = initialAgent?.name || initialAgentName;
+    const origVoice = initialAgent?.voiceName || initialAgent?.systemVoice || 'Puck';
+    const origLang = normalizeLangCode(initialAgent?.languageMode || undefined);
+    const origDir = initialAgent?.direction === 'inbound' || initialAgent?.direction === 'both' ? initialAgent.direction : 'outbound';
+    const origPrompt = initialAgent?.systemPrompt || 'You are an energetic and friendly outbound sales agent for a dental clinic. Your primary goal is to engage potential new patients, inform them about the clinic\'s services, and schedule a consultation.';
+
+    return (
+      agentName !== origName ||
+      voice !== origVoice ||
+      language !== origLang ||
+      direction !== origDir ||
+      systemPrompt !== origPrompt ||
+      welcomeMessageMode !== initialGreeting.mode ||
+      customWelcomeText !== initialGreeting.text ||
+      silenceStartEnabled !== initialGreeting.silenceStartEnabled ||
+      silenceStartSeconds !== initialGreeting.silenceStartSeconds
+    );
+  }, [
+    agentName, voice, language, direction, systemPrompt,
+    welcomeMessageMode, customWelcomeText, silenceStartEnabled, silenceStartSeconds,
+    initialAgent, initialGreeting, initialAgentName
+  ]);
+
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
 
@@ -1151,8 +1214,18 @@ export default function SinglePromptStudio({
       welcomeMessageMode,
       customWelcomeText,
       silenceStartEnabled,
+      silenceStartSeconds,
+      firstMessage: welcomeMessageMode === 'agent_first' ? customWelcomeText : null,
       agentConfig: {
         ...initialConfig,
+        greeting: {
+          mode: welcomeMessageMode,
+          text: customWelcomeText,
+          silenceStart: {
+            enabled: silenceStartEnabled,
+            seconds: silenceStartSeconds,
+          },
+        },
         handbookPresets,
         functions,
         knowledgeBaseIds: assignedKbIds,
@@ -1207,7 +1280,27 @@ export default function SinglePromptStudio({
     };
   };
 
+  const validateStudio = (): string | null => {
+    if (!systemPrompt.trim()) {
+      return 'Universal prompt cannot be empty. Please provide instructions for your agent.';
+    }
+    if (welcomeMessageMode === 'agent_first' && !customWelcomeText.trim()) {
+      return 'Welcome message text cannot be empty when Agent speaks first.';
+    }
+    if (silenceStartEnabled && (silenceStartSeconds < 2 || silenceStartSeconds > 15)) {
+      return 'Silence duration must be between 2 and 15 seconds.';
+    }
+    return null;
+  };
+
   const handleSave = async () => {
+    const error = validateStudio();
+    if (error) {
+      setValidationError(error);
+      return;
+    }
+    setValidationError(null);
+
     try {
       setIsSaving(true);
       setPublishError(null);
@@ -1218,8 +1311,9 @@ export default function SinglePromptStudio({
       } else {
         await onSave(payload);
       }
+      setLastSavedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       setShowSavedToast(true);
-      setTimeout(() => setShowSavedToast(false), 2000);
+      setTimeout(() => setShowSavedToast(false), 2500);
     } catch (err: any) {
       console.error('Failed to save agent state:', err);
       setPublishError(err?.message || 'Failed to save agent configuration.');
@@ -1229,10 +1323,18 @@ export default function SinglePromptStudio({
   };
 
   const handlePublish = async () => {
+    const error = validateStudio();
+    if (error) {
+      setValidationError(error);
+      return;
+    }
+    setValidationError(null);
+
     try {
       setIsPublishing(true);
       setPublishError(null);
       await onSave(getStudioPayload());
+      setLastSavedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     } catch (err: any) {
       console.error('Failed to publish agent:', err);
       setPublishError(err?.message || 'Failed to publish agent.');
@@ -1285,12 +1387,20 @@ export default function SinglePromptStudio({
     2
   );
 
+  const handleSafeBack = () => {
+    if (isDirty) {
+      const confirmLeave = window.confirm('You have unsaved changes in Agent Studio. Are you sure you want to exit without saving?');
+      if (!confirmLeave) return;
+    }
+    onBack();
+  };
+
   return (
-    <div className="fixed inset-0 z-[9999] bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden font-sans text-slate-900 dark:text-slate-100">
+    <div className="fixed inset-0 z-[9999] bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden font-sans text-slate-900 dark:text-slate-100 min-h-[100dvh] h-[100dvh]">
       <header className="h-14 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 flex items-center justify-between gap-4 z-20 flex-shrink-0">
         <div className="flex items-center gap-3">
           <button
-            onClick={onBack}
+            onClick={handleSafeBack}
             className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors"
             title="Back to dashboard"
           >
@@ -1414,6 +1524,17 @@ export default function SinglePromptStudio({
             QA: {qaScore.status} {qaScore.score}/100
           </div>
 
+          {isDirty && (
+            <span className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-bold border border-amber-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+              Unsaved changes
+            </span>
+          )}
+          {lastSavedAt && !isDirty && (
+            <span className="hidden sm:inline text-[11px] text-slate-400 font-medium">
+              Saved at {lastSavedAt}
+            </span>
+          )}
           {showSavedToast && (
             <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-md transition-all animate-pulse">
               Saved ✓
@@ -1421,8 +1542,8 @@ export default function SinglePromptStudio({
           )}
           <button
             onClick={handleSave}
-            disabled={isSaving}
-            className="px-4 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm transition-all disabled:opacity-50"
+            disabled={isSaving || (!isDirty && Boolean(lastSavedAt))}
+            className="px-4 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {isSaving ? 'Saving...' : 'Save'}
           </button>
@@ -1435,6 +1556,16 @@ export default function SinglePromptStudio({
           </button>
         </div>
       </header>
+
+      {validationError && (
+        <div className="bg-rose-50 dark:bg-rose-950/60 border-b border-rose-200 dark:border-rose-900/60 px-4 py-2 text-xs font-bold text-rose-700 dark:text-rose-300 flex items-center justify-between z-30 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-500 flex-shrink-0" />
+            <span>{validationError}</span>
+          </div>
+          <button onClick={() => setValidationError(null)} className="p-1 hover:opacity-70 text-rose-500">✕</button>
+        </div>
+      )}
 
       {publishError && (
         <div className="bg-rose-500/10 border-b border-rose-500/20 px-4 py-2.5 flex items-center justify-between text-xs text-rose-600 dark:text-rose-400 z-30 flex-shrink-0">
@@ -1453,10 +1584,49 @@ export default function SinglePromptStudio({
         </div>
       )}
 
-      {/* ── 2. MAIN 3-COLUMN SPLIT STUDIO LAYOUT ──────────────────────────── */}
-      <div className="flex-1 grid grid-cols-12 overflow-hidden relative bg-slate-100/40 dark:bg-slate-950">
-        {/* ── COLUMN 1: UNIVERSAL PROMPT EDITOR (LEFT 6 COLS = 50%) ──────────────────────────── */}
-        <div className="col-span-6 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col overflow-hidden">
+      {/* ── Mobile/Tablet Viewport Tab Switcher (<1280px) ── */}
+      <div className="xl:hidden flex items-center justify-around border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 py-1.5 z-10 flex-shrink-0">
+        <button
+          type="button"
+          onClick={() => setMobileStudioTab('prompt')}
+          className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all text-center min-h-[40px] flex items-center justify-center ${
+            mobileStudioTab === 'prompt'
+              ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shadow-sm border border-indigo-200/60 dark:border-indigo-800/60'
+              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          1. Universal Prompt
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileStudioTab('settings')}
+          className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all text-center min-h-[40px] flex items-center justify-center ${
+            mobileStudioTab === 'settings'
+              ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shadow-sm border border-indigo-200/60 dark:border-indigo-800/60'
+              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          2. Settings & Tools
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileStudioTab('test')}
+          className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all text-center min-h-[40px] flex items-center justify-center ${
+            mobileStudioTab === 'test'
+              ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shadow-sm border border-indigo-200/60 dark:border-indigo-800/60'
+              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          3. Test Audio & LLM
+        </button>
+      </div>
+
+      {/* ── 2. MAIN 3-COLUMN SPLIT STUDIO LAYOUT ── */}
+      <div className="flex-1 grid grid-cols-1 xl:grid-cols-12 overflow-hidden relative bg-slate-100/40 dark:bg-slate-950">
+        {/* ── COLUMN 1: UNIVERSAL PROMPT EDITOR (LEFT 6 COLS = 50% ON DESKTOP) ── */}
+        <div className={`xl:col-span-6 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex-col overflow-hidden ${
+          mobileStudioTab === 'prompt' ? 'flex' : 'hidden xl:flex'
+        }`}>
           {/* Metadata Ribbon Header (Item 1: Cost/Latency/Tokens removed; Item 7: Copy Agent ID) */}
           <div className="p-2.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-end text-[11px] text-slate-500 bg-slate-50/30 dark:bg-slate-900/30">
             <button
@@ -1675,57 +1845,110 @@ export default function SinglePromptStudio({
           </div>
 
           {/* Bottom Prompt Controls: Welcome Message & Silence Toggle */}
-          <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 space-y-3">
+          <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/70 space-y-3.5">
             <div>
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                Welcome Message
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <span>Welcome Message & Call Turn Mode</span>
+                </label>
+                <span className="text-[10px] text-slate-400 font-medium">
+                  {welcomeMessageMode === 'agent_first' ? 'Verbatim AI spoken greeting' : 'Caller initiates conversation'}
+                </span>
+              </div>
               <select
                 value={welcomeMessageMode}
                 onChange={(e) => setWelcomeMessageMode(e.target.value as any)}
-                className="w-full px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium focus:outline-none"
+                className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
               >
-                <option value="user_first">User speaks first</option>
-                <option value="agent_first">Agent speaks custom message first</option>
+                <option value="user_first">User speaks first (AI listens upon answer)</option>
+                <option value="agent_first">Agent speaks custom message first (Verbatim greeting)</option>
               </select>
             </div>
 
-            {welcomeMessageMode === 'agent_first' && (
-              <div>
-                <input
-                  type="text"
+            {welcomeMessageMode === 'agent_first' ? (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] text-slate-500">
+                  <span className="font-semibold text-slate-600 dark:text-slate-300">
+                    Spoken Greeting Text ({language.toUpperCase()})
+                  </span>
+                  <span className="font-mono text-[10px]">
+                    {customWelcomeText.length} chars • supports {'{{name}}'}, {'{{company}}'}
+                  </span>
+                </div>
+                <textarea
+                  rows={3}
                   value={customWelcomeText}
                   onChange={(e) => setCustomWelcomeText(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium focus:outline-none"
-                  placeholder="Enter greeting spoken by agent..."
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 leading-relaxed resize-none"
+                  placeholder="Enter verbatim greeting spoken by the agent upon call connection..."
                 />
+                <p className="text-[10px] text-slate-400">
+                  ⚡ Spoken verbatim without LLM improvisation. Automatically adapts to selected language.
+                </p>
+              </div>
+            ) : (
+              <div className="p-3 bg-slate-100/70 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/80 text-xs text-slate-600 dark:text-slate-300 flex items-start gap-2">
+                <HelpCircle className="w-4 h-4 text-indigo-500 flex-shrink-0 mt-0.5" />
+                <p className="text-[11px] leading-relaxed">
+                  The AI listens silently upon call connection until the caller speaks. No greeting audio is played upfront.
+                </p>
               </div>
             )}
 
-            <div className="flex items-center justify-between pt-1">
-              <div className="flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300">
-                <span>AI starts speaking after silence</span>
-                <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
-              </div>
-              <button
-                type="button"
-                onClick={() => setSilenceStartEnabled(!silenceStartEnabled)}
-                className={`w-9 h-5 rounded-full transition-colors relative ${
-                  silenceStartEnabled ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
-                }`}
-              >
-                <span
-                  className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform ${
-                    silenceStartEnabled ? 'left-4.5' : 'left-0.5'
+            {/* AI starts speaking after silence */}
+            <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  <span>AI starts speaking after silence</span>
+                  <span
+                    className="cursor-help text-slate-400"
+                    title="If user_first is active and the caller stays silent after connection, the AI initiates conversation automatically after N seconds."
+                  >
+                    <HelpCircle className="w-3.5 h-3.5" />
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSilenceStartEnabled(!silenceStartEnabled)}
+                  className={`w-9 h-5 rounded-full transition-colors relative ${
+                    silenceStartEnabled ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
                   }`}
-                />
-              </button>
+                  aria-label="Toggle silence start"
+                >
+                  <span
+                    className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform ${
+                      silenceStartEnabled ? 'left-4.5' : 'left-0.5'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {silenceStartEnabled && (
+                <div className="flex items-center justify-between p-2.5 bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 rounded-lg text-xs">
+                  <span className="text-slate-600 dark:text-slate-300 text-[11px]">
+                    Trigger greeting after silence:
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min={2}
+                      max={15}
+                      value={silenceStartSeconds}
+                      onChange={(e) => setSilenceStartSeconds(Math.max(2, Math.min(15, parseInt(e.target.value, 10) || 4)))}
+                      className="w-14 px-2 py-1 bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800 rounded font-bold text-center text-xs font-mono"
+                    />
+                    <span className="text-[11px] text-slate-500 font-semibold">seconds (2–15s)</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* ── COLUMN 2: EXPANDABLE ACCORDIONS CONFIGURATION PANEL (MIDDLE 3 COLS = 25%) ──────────────────────────── */}
-        <div className="col-span-3 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+        {/* ── COLUMN 2: EXPANDABLE ACCORDIONS CONFIGURATION PANEL (MIDDLE 3 COLS ON DESKTOP) ── */}
+        <div className={`xl:col-span-3 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex-col overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 ${
+          mobileStudioTab === 'settings' ? 'flex' : 'hidden xl:flex'
+        }`}>
           {/* Accordion 1: Functions */}
           <div className="p-3">
             <button
@@ -2097,38 +2320,27 @@ export default function SinglePromptStudio({
                   )}
                 </div>
 
-                {/* Voicemail Detection */}
-                <div className="pt-1">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="font-semibold text-slate-700 dark:text-slate-300">Answering Machine / Voicemail Detection</span>
+                {/* Voicemail Detection (Honesty: Telephony carrier AMD integration pending) */}
+                <div className="pt-1 opacity-80">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">Answering Machine / Voicemail</span>
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                        Coming soon
+                      </span>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => setVoicemailEnabled(!voicemailEnabled)}
-                      className={`w-9 h-5 rounded-full transition-colors relative ${
-                        voicemailEnabled ? 'bg-green-600' : 'bg-slate-300 dark:bg-slate-700'
-                      }`}
+                      disabled
+                      className="w-9 h-5 rounded-full bg-slate-300 dark:bg-slate-700 relative opacity-50 cursor-not-allowed"
+                      title="Carrier AMD integration in progress"
                     >
-                      <span
-                        className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform ${
-                          voicemailEnabled ? 'left-4.5' : 'left-0.5'
-                        }`}
-                      />
+                      <span className="w-4 h-4 rounded-full bg-white absolute top-0.5 left-0.5" />
                     </button>
                   </div>
-                  {voicemailEnabled && (
-                    <div className="mt-1">
-                      <label className="block text-[10px] text-slate-400 mb-1">When Voicemail Tone / Machine Detected:</label>
-                      <select
-                        value={voicemailAction}
-                        onChange={(e) => setVoicemailAction(e.target.value as any)}
-                        className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-green-500"
-                      >
-                        <option value="hangup">Hang Up Immediately</option>
-                        <option value="leave_message">Leave Pre-recorded / Custom Message</option>
-                        <option value="ignore">Continue Normal Conversation</option>
-                      </select>
-                    </div>
-                  )}
+                  <p className="text-[10px] text-slate-400">
+                    Carrier-level tone & beep detection is currently in beta pipeline and will be available in the upcoming release.
+                  </p>
                 </div>
 
                 {/* DNC Opt-Out Keywords */}
@@ -2566,7 +2778,9 @@ export default function SinglePromptStudio({
         </div>
 
         {/* ── COLUMN 3: INTERACTIVE PLAYGROUND & TEST SUITE (RIGHT 3 COLS = 25%) ──────────────────────────── */}
-        <div className="col-span-3 bg-white dark:bg-slate-900 flex flex-col overflow-hidden">
+        <div className={`xl:col-span-3 bg-white dark:bg-slate-900 flex-col overflow-hidden ${
+          mobileStudioTab === 'test' ? 'flex' : 'hidden xl:flex'
+        }`}>
           {/* Playground Header Tabs */}
           <div className="p-2 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-1 bg-slate-50/50 dark:bg-slate-900">
             <div className="flex gap-1">
@@ -2693,6 +2907,41 @@ export default function SinglePromptStudio({
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* ── Mobile Sticky Save & Publish Footer (<1280px) ── */}
+      <div className="xl:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 flex items-center justify-between gap-2 z-20 flex-shrink-0">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {isDirty && (
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-bold border border-amber-500/20 truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+              Unsaved
+            </span>
+          )}
+          {lastSavedAt && !isDirty && (
+            <span className="text-[10px] text-slate-400 font-medium truncate">
+              Saved {lastSavedAt}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving || (!isDirty && Boolean(lastSavedAt))}
+            className="px-3.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg disabled:opacity-40"
+          >
+            {isSaving ? 'Saving...' : 'Save'}
+          </button>
+          <button
+            type="button"
+            onClick={handlePublish}
+            disabled={isPublishing || isSaving}
+            className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm disabled:opacity-50"
+          >
+            {isPublishing ? 'Publishing...' : 'Publish'}
+          </button>
         </div>
       </div>
       {/* ── FUNCTION CONFIGURE MODAL ────────────────────────────────────── */}

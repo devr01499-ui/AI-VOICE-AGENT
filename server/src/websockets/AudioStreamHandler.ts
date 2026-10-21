@@ -15,7 +15,7 @@ import { providerManagerSDK } from '../core/provider-sdk/provider.manager';
 import { eventBus, PROVIDER_EVENTS } from '../core/provider-sdk/provider.events';
 import type { VobizStreamEvent } from '../types';
 import { callTimingTracker } from '../utils/CallTimingTracker';
-import { buildGreetingText, getGreetingTextForLanguage } from '../utils/greetingUtils';
+import { buildGreetingText, getGreetingTextForLanguage, resolveGreeting } from '../utils/greetingUtils';
 
 // ─── Active Connection Tracking ───────────────────────
 
@@ -36,6 +36,8 @@ interface ActiveConnection {
   sessionReady: boolean;       // True once Gemini session setup is confirmed
   inboundAudioBuffer: string[]; // Buffer audio packets arriving before session is ready
   hasSentFirstAudio?: boolean;
+  silenceTimer?: NodeJS.Timeout;
+  greetingResolved?: boolean;
 }
 
 // ─── Handler Implementation ──────────────────────────
@@ -375,20 +377,55 @@ export class AudioStreamHandler {
             }
           });
 
-          // Trigger initial greeting — immediately once session is up
+          // Trigger greeting or start silence timer based on unified greeting resolution
           try {
-            logger.info('AudioStreamHandler: triggering greeting', { callId, sessionId });
-            const greetingText = buildGreetingText({
-              languageMode: agent?.languageMode,
-              direction: (call as any)?.callDirection || (call as any)?.direction,
-              agentName: agent?.name,
-              businessName: 'Claritiy Voice',
-              firstMessage: agent?.firstMessage,
+            const direction = (call as any)?.callDirection || (call as any)?.direction;
+            const isRecording = Boolean((call as any)?.isRecordingEnabled || (call as any)?.record);
+            const resolved = resolveGreeting(agent, direction, isRecording);
+
+            logger.info('AudioStreamHandler: greeting resolved', {
+              callId,
+              sessionId,
+              mode: resolved.mode,
+              silenceStart: resolved.silenceStart,
+              greetingLength: resolved.text.length,
             });
-            callOrchestrator.triggerGreeting(callId, sessionId, greetingText);
-            logger.info('AudioStreamHandler: greeting triggered', { callId, sessionId });
+
+            const activeConn = this.connections.get(callId);
+            if (resolved.mode === 'agent_first') {
+              if (activeConn) {
+                activeConn.greetingResolved = true;
+              }
+              callOrchestrator.triggerGreeting(callId, sessionId, resolved.text);
+              logger.info('AudioStreamHandler: agent_first greeting triggered immediately', { callId, sessionId });
+            } else {
+              // Mode is user_first: caller speaks first upon connection
+              callOrchestrator.enableInboundAudio(callId);
+              logger.info('AudioStreamHandler: user_first mode active; listening for caller speech', { callId });
+
+              if (resolved.silenceStart?.enabled) {
+                const silenceSec = resolved.silenceStart.seconds || 4;
+                logger.info(`AudioStreamHandler: silence timer started (${silenceSec}s)`, { callId, seconds: silenceSec });
+                const timer = setTimeout(() => {
+                  const currentActiveConn = this.connections.get(callId);
+                  if (currentActiveConn && !currentActiveConn.greetingResolved) {
+                    currentActiveConn.greetingResolved = true;
+                    logger.info(`[SILENCE_START] User remained silent for ${silenceSec}s; AI initiated greeting`, {
+                      callId,
+                      sessionId,
+                      silenceSec,
+                    });
+                    callOrchestrator.triggerGreeting(callId, sessionId, resolved.text);
+                  }
+                }, silenceSec * 1000);
+
+                if (activeConn) {
+                  activeConn.silenceTimer = timer;
+                }
+              }
+            }
           } catch (err) {
-            logger.error('AudioStreamHandler: failed to trigger greeting', {
+            logger.error('AudioStreamHandler: failed to process greeting configuration', {
               callId,
               error: err instanceof Error ? err.message : String(err),
             });
@@ -399,6 +436,11 @@ export class AudioStreamHandler {
             callId,
             error: err instanceof Error ? err.message : String(err),
           });
+
+          if (conn?.silenceTimer) {
+            clearTimeout(conn.silenceTimer);
+            conn.silenceTimer = undefined;
+          }
 
           // ✅ Immediately close WebSocket
           if (conn && conn.ws.readyState === WebSocket.OPEN) {
@@ -443,6 +485,14 @@ export class AudioStreamHandler {
       conn.audioStats.packetsReceived++;
       conn.audioStats.bytesReceived += audioPayload.length;
 
+      // If user sends audio before silence timer fires, cancel timer and let conversation flow
+      if (conn.silenceTimer) {
+        clearTimeout(conn.silenceTimer);
+        conn.silenceTimer = undefined;
+        conn.greetingResolved = true;
+        logger.info('[SILENCE_START] Caller activity detected before timeout, silence timer cancelled', { callId });
+      }
+
       // If session not ready yet, buffer the audio
       if (!conn.sessionReady) {
         conn.inboundAudioBuffer.push(audioPayload);
@@ -468,6 +518,11 @@ export class AudioStreamHandler {
    */
   private handleStreamStop(callId: string, _event: VobizStreamEvent): void {
     const conn = this.connections.get(callId);
+    if (conn?.silenceTimer) {
+      clearTimeout(conn.silenceTimer);
+      conn.silenceTimer = undefined;
+    }
+
     logger.info('AudioStreamHandler: stream stopped', {
       callId,
       stats: conn?.audioStats,

@@ -293,12 +293,12 @@ function IndustriesPage({ setPage }: { setPage: (p: Page) => void }) {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-6">
-                  <div className="hidden md:block text-right">
-                    <p className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Instrument Serif', serif" }}>
+                <div className="flex items-center gap-3 md:gap-6">
+                  <div className="text-right">
+                    <p className="text-lg md:text-2xl font-bold text-foreground" style={{ fontFamily: "'Instrument Serif', serif" }}>
                       {ind.stat}
                     </p>
-                    <p className="text-xs text-muted-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
+                    <p className="text-[10px] md:text-xs text-muted-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
                       {ind.statLabel}
                     </p>
                   </div>
@@ -1752,13 +1752,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
           flowGraph: parsedFlowGraph,
         });
       } else if (setSinglePromptStudioAgent) {
-        setSinglePromptStudioAgent({
-          id: newAgent.id,
-          name: newAgent.name,
-          systemPrompt: newAgent.systemPrompt ?? undefined,
-          model: newAgent.model ?? undefined,
-          voiceName: newAgent.voiceName ?? undefined,
-        });
+        setSinglePromptStudioAgent(newAgent);
       }
     } catch (err: any) {
       console.error("[Agent Import Error]:", err);
@@ -2841,13 +2835,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
                               flowGraph: fullAgent.flowGraph ?? undefined,
                             });
                           } else if (setSinglePromptStudioAgent) {
-                            setSinglePromptStudioAgent({
-                              id: a.id as string,
-                              name: a.name as string,
-                              systemPrompt: fullAgent.systemPrompt ?? undefined,
-                              model: fullAgent.model ?? undefined,
-                              voiceName: fullAgent.voiceName ?? undefined,
-                            });
+                            setSinglePromptStudioAgent(fullAgent);
                           }
                         }}
                         className="px-3 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-semibold rounded-md hover:bg-indigo-100 transition-colors"
@@ -3859,46 +3847,104 @@ function DashCallLogs() {
       )}
 
       <div className="nm-raised rounded-2xl overflow-hidden mt-6">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-transparent text-[var(--nm-text)]">
-              {["Direction", "Contact", "Campaign", "Agent", "Duration (Billed)", "Status", "Recording", "Time", "Actions"].map(h=>(
-                <th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>
+        {/* Desktop / Tablet Table View (>= 768px) */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-transparent text-[var(--nm-text)]">
+                {["Direction", "Contact", "Campaign", "Agent", "Duration (Billed)", "Status", "Recording", "Time", "Actions"].map(h=>(
+                  <th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-transparent">
+              {paginatedCalls.map(c=>(
+                <tr key={c.id} className="hover:nm-pressed transition-all">
+                  <td className="px-5 py-4">
+                    {c.direction === 'inbound' ? (
+                      <DBadge v="info">
+                        <span className="flex items-center gap-1 font-bold">Inbound ↓</span>
+                      </DBadge>
+                    ) : (
+                      <DBadge v="neutral">
+                        <span className="flex items-center gap-1 font-bold">Outbound ↑</span>
+                      </DBadge>
+                    )}
+                  </td>
+                  <td className="px-5 py-4">
+                    <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.contact}</p>
+                    {c.business !== '—' && (
+                      <p className="text-xs font-bold opacity-60 text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>via {c.business}</p>
+                    )}
+                  </td>
+                  <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]">
+                    {c.batchName ? (
+                      <span className="px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 truncate max-w-[140px] block" title={c.batchName}>
+                        {c.batchName}
+                      </span>
+                    ) : (
+                      <span className="opacity-40">—</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.agent}</td>
+                  <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.durDisplay}</td>
+                  <td className="px-5 py-4">
+                    <DBadge v={
+                      c.status === "completed" ? "success" : 
+                      c.status === "in_progress" || c.status === "active" ? "info" : 
+                      c.status === "failed" ? "danger" : 
+                      c.status === "busy" || c.status === "no_answer" ? "warning" : "neutral"
+                    }>
+                      {c.status}
+                    </DBadge>
+                  </td>
+                  <td className="px-5 py-4">
+                    {c.rec ? (
+                      <DBtn size="sm" variant="ghost" onClick={() => openTranscript(c.id)}>
+                        <Play className="w-4 h-4"/>
+                      </DBtn>
+                    ) : (
+                      <span className="text-sm font-bold text-[var(--nm-text)] opacity-40">—</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.date}</td>
+                  <td className="px-5 py-4">
+                    <div className="flex gap-2">
+                      <DBtn size="sm" variant="ghost" onClick={()=>openTranscript(c.id)}><Eye className="w-4 h-4"/> Transcript</DBtn>
+                      <DBtn size="sm" variant="ghost" onClick={() => setDeleteModal({ open: true, id: c.id })}><Trash2 className="w-4 h-4 text-red-400"/></DBtn>
+                    </div>
+                  </td>
+                </tr>
               ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-transparent">
-            {paginatedCalls.map(c=>(
-              <tr key={c.id} className="hover:nm-pressed transition-all">
-                <td className="px-5 py-4">
+              {paginatedCalls.length === 0 && !callsLoading && (
+                <tr>
+                  <td colSpan={9} className="text-center py-12 text-sm text-[var(--nm-text)] font-bold">
+                    No call logs match the selected filters.
+                  </td>
+                </tr>
+              )}
+              {callsLoading && paginatedCalls.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="text-center py-12 text-sm text-[var(--nm-text)] font-bold">
+                    Loading call history…
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Stacked Card View (< 768px) - Full Data Integrity, Zero Hidden Columns */}
+        <div className="block md:hidden p-3 space-y-3">
+          {paginatedCalls.map((c) => (
+            <div key={c.id} className="nm-raised rounded-xl p-4 space-y-3 border border-slate-200/40 dark:border-slate-800/40">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
                   {c.direction === 'inbound' ? (
-                    <DBadge v="info">
-                      <span className="flex items-center gap-1 font-bold">Inbound ↓</span>
-                    </DBadge>
+                    <DBadge v="info"><span className="font-bold">Inbound ↓</span></DBadge>
                   ) : (
-                    <DBadge v="neutral">
-                      <span className="flex items-center gap-1 font-bold">Outbound ↑</span>
-                    </DBadge>
+                    <DBadge v="neutral"><span className="font-bold">Outbound ↑</span></DBadge>
                   )}
-                </td>
-                <td className="px-5 py-4">
-                  <p className="text-base font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.contact}</p>
-                  {c.business !== '—' && (
-                    <p className="text-xs font-bold opacity-60 text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>via {c.business}</p>
-                  )}
-                </td>
-                <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]">
-                  {c.batchName ? (
-                    <span className="px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 truncate max-w-[140px] block" title={c.batchName}>
-                      {c.batchName}
-                    </span>
-                  ) : (
-                    <span className="opacity-40">—</span>
-                  )}
-                </td>
-                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)] hidden md:table-cell" style={{fontFamily:"'Outfit', sans-serif"}}>{c.agent}</td>
-                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)] hidden lg:table-cell" style={{fontFamily:"'Outfit', sans-serif"}}>{c.durDisplay}</td>
-                <td className="px-5 py-4">
                   <DBadge v={
                     c.status === "completed" ? "success" : 
                     c.status === "in_progress" || c.status === "active" ? "info" : 
@@ -3907,41 +3953,72 @@ function DashCallLogs() {
                   }>
                     {c.status}
                   </DBadge>
-                </td>
-                <td className="px-5 py-4 hidden lg:table-cell">
+                </div>
+                <span className="text-[11px] font-bold text-[var(--nm-text)] opacity-70">{c.date}</span>
+              </div>
+
+              <div>
+                <p className="text-base font-bold text-[var(--nm-text)]">{c.contact}</p>
+                {c.business !== '—' && (
+                  <p className="text-xs font-semibold opacity-60 text-[var(--nm-text)]">via {c.business}</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-100 dark:border-slate-800/60">
+                <div>
+                  <span className="block text-[10px] uppercase font-bold text-slate-400">Campaign</span>
+                  <span className="font-semibold text-[var(--nm-text)] truncate block">
+                    {c.batchName || '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-[10px] uppercase font-bold text-slate-400">Agent</span>
+                  <span className="font-semibold text-[var(--nm-text)] truncate block">
+                    {c.agent}
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-[10px] uppercase font-bold text-slate-400">Duration (Billed)</span>
+                  <span className="font-semibold text-[var(--nm-text)]">{c.durDisplay}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] uppercase font-bold text-slate-400">Recording</span>
                   {c.rec ? (
-                    <DBtn size="sm" variant="ghost" onClick={() => openTranscript(c.id)}>
-                      <Play className="w-4 h-4"/>
-                    </DBtn>
+                    <button
+                      type="button"
+                      onClick={() => openTranscript(c.id)}
+                      className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-current" /> Listen
+                    </button>
                   ) : (
-                    <span className="text-sm font-bold text-[var(--nm-text)] opacity-40">—</span>
+                    <span className="opacity-40">—</span>
                   )}
-                </td>
-                <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)] hidden md:table-cell" style={{fontFamily:"'Outfit', sans-serif"}}>{c.date}</td>
-                <td className="px-5 py-4">
-                  <div className="flex gap-2">
-                    <DBtn size="sm" variant="ghost" onClick={()=>openTranscript(c.id)}><Eye className="w-4 h-4"/> Transcript</DBtn>
-                    <DBtn size="sm" variant="ghost" onClick={() => setDeleteModal({ open: true, id: c.id })}><Trash2 className="w-4 h-4 text-red-400"/></DBtn>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {paginatedCalls.length === 0 && !callsLoading && (
-              <tr>
-                <td colSpan={8} className="text-center py-12 text-sm text-[var(--nm-text)] font-bold">
-                  No call logs match the selected filters.
-                </td>
-              </tr>
-            )}
-            {callsLoading && paginatedCalls.length === 0 && (
-              <tr>
-                <td colSpan={8} className="text-center py-12 text-sm text-[var(--nm-text)] font-bold">
-                  Loading call history…
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/60">
+                <DBtn size="sm" variant="ghost" className="flex-1 justify-center min-h-[44px]" onClick={() => openTranscript(c.id)}>
+                  <Eye className="w-4 h-4 mr-1"/> View Transcript
+                </DBtn>
+                <DBtn size="sm" variant="ghost" className="min-h-[44px] px-3 text-red-500 hover:text-red-600" onClick={() => setDeleteModal({ open: true, id: c.id })}>
+                  <Trash2 className="w-4 h-4 text-red-400"/>
+                </DBtn>
+              </div>
+            </div>
+          ))}
+
+          {paginatedCalls.length === 0 && !callsLoading && (
+            <div className="text-center py-10 text-sm text-[var(--nm-text)] font-bold">
+              No call logs match the selected filters.
+            </div>
+          )}
+          {callsLoading && paginatedCalls.length === 0 && (
+            <div className="text-center py-10 text-sm text-[var(--nm-text)] font-bold">
+              Loading call history…
+            </div>
+          )}
+        </div>
         {normalizedRows.length > pageSize && (
           <div className="flex items-center justify-between px-6 py-4 border-t border-transparent nm-pressed">
             <span className="text-xs font-bold text-[var(--nm-text)]">
@@ -6270,7 +6347,7 @@ function DashboardPage({ session }: { session: Session }) {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [studioAgent, setStudioAgent] = useState<{ id?: string; name: string; systemPrompt?: string; flowGraph?: any } | null>(null);
-  const [singlePromptStudioAgent, setSinglePromptStudioAgent] = useState<{ id?: string; name: string; systemPrompt?: string; model?: string; voiceName?: string } | null>(null);
+  const [singlePromptStudioAgent, setSinglePromptStudioAgent] = useState<ApiAgent | any | null>(null);
   const [profile, setProfile] = useState<ApiProfile | null>(() => {
     try {
       const cached = localStorage.getItem('cache_user_profile');
@@ -6336,8 +6413,17 @@ function DashboardPage({ session }: { session: Session }) {
           const baseName = source?.name || singlePromptStudioAgent?.name || 'Agent';
           const newName = baseName.endsWith('(Copy)') ? baseName : `${baseName} (Copy)`;
           const sourceConfig = typeof source?.agentConfig === 'object' && source?.agentConfig !== null
-            ? source.agentConfig
+            ? { ...source.agentConfig }
             : (typeof source?.agentConfig === 'string' ? (() => { try { return JSON.parse(source.agentConfig); } catch { return {}; } })() : {});
+
+          const greeting = sourceConfig?.greeting || {
+            mode: source?.welcomeMessageMode || (source?.firstMessage ? 'agent_first' : 'user_first'),
+            text: source?.customWelcomeText || source?.firstMessage || '',
+            silenceStart: {
+              enabled: Boolean(source?.silenceStartEnabled),
+              seconds: 4,
+            },
+          };
 
           await createAgent({
             name: newName,
@@ -6351,17 +6437,16 @@ function DashboardPage({ session }: { session: Session }) {
             direction: source?.direction || 'outbound',
             temperature: source?.temperature !== undefined && source?.temperature !== null ? Number(source.temperature) : 0.7,
             systemPrompt: source?.systemPrompt || null,
+            firstMessage: (greeting.mode === 'agent_first' && greeting.text) ? greeting.text : (source?.firstMessage || null),
             flowGraph: source?.flowGraph || null,
             tags: source?.tags || [],
-            welcomeMessageMode: source?.welcomeMessageMode,
-            customWelcomeText: source?.customWelcomeText,
-            silenceStartEnabled: source?.silenceStartEnabled,
+            welcomeMessageMode: greeting.mode,
+            customWelcomeText: greeting.text,
+            silenceStartEnabled: greeting.silenceStart?.enabled,
+            silenceStartSeconds: greeting.silenceStart?.seconds,
             agentConfig: {
               ...sourceConfig,
-              ...(source?.handbookPresets ? { handbookPresets: source.handbookPresets } : {}),
-              ...(source?.welcomeMessageMode ? { welcomeMessageMode: source.welcomeMessageMode } : {}),
-              ...(source?.customWelcomeText ? { customWelcomeText: source.customWelcomeText } : {}),
-              ...(source?.silenceStartEnabled !== undefined ? { silenceStartEnabled: source.silenceStartEnabled } : {}),
+              greeting,
             },
           } as any);
           fetchAgents().then(setApiAgents).catch(() => {});
@@ -6609,7 +6694,7 @@ function DashboardPage({ session }: { session: Session }) {
         </div>
         <div className="flex-1 overflow-y-auto p-3 sm:p-5">
           <AnimatePresence mode="wait">
-            <motion.div key={section} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0}} transition={{duration:0.18}}>
+            <motion.div key={section} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0}} transition={{duration:0.18}} className="max-w-[1600px] mx-auto w-full">
               {section==="agents"&&<DashAgents session={session} profile={profile} setApiAgents={setApiAgents} setStudioAgent={setStudioAgent} setSinglePromptStudioAgent={setSinglePromptStudioAgent} />}
               {section==="calling"&&<DashCallingConfig onNavigateToKyc={() => { localStorage.setItem('open_settings_tab', 'kyc'); setSection("settings"); }} />}
               {section==="batch"&&<DashBatch onNavigate={(sec) => setSection(sec)}/>}

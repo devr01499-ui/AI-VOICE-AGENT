@@ -392,6 +392,8 @@ router.get(
           direction: agent.direction || 'outbound',
           temperature: agent.temperature,
           systemPrompt: agent.systemPrompt,
+          firstMessage: agent.firstMessage,
+          isPiiRedactionEnabled: Boolean(agent.isPiiRedactionEnabled),
           flowGraph: parsedFlowGraph,
           agentConfig: parsedConfig,
           tags: JSON.parse(agent.tags || '[]'),
@@ -404,6 +406,51 @@ router.get(
     }
   }
 );
+
+function normalizeGreetingConfig(inputConfig: any, body: any): { greeting: any; firstMessage: string | null; config: any } {
+  let cfg = typeof inputConfig === 'string'
+    ? (() => { try { return JSON.parse(inputConfig); } catch { return {}; } })()
+    : { ...(inputConfig || {}) };
+
+  const mode = body.welcomeMessageMode || cfg?.greeting?.mode || (body.firstMessage ? 'agent_first' : 'user_first');
+  const text = (typeof body.customWelcomeText === 'string' && body.customWelcomeText.trim())
+    ? body.customWelcomeText.trim()
+    : (typeof cfg?.greeting?.text === 'string' && cfg.greeting.text.trim())
+    ? cfg.greeting.text.trim()
+    : (typeof body.firstMessage === 'string' && body.firstMessage.trim())
+    ? body.firstMessage.trim()
+    : (mode === 'agent_first' ? 'Hello! Thank you for calling Claritiy Voice.' : '');
+
+  const silenceEnabled = body.silenceStartEnabled !== undefined
+    ? Boolean(body.silenceStartEnabled)
+    : cfg?.greeting?.silenceStart?.enabled !== undefined
+    ? Boolean(cfg.greeting.silenceStart.enabled)
+    : false;
+
+  const silenceSeconds = body.silenceStartSeconds !== undefined
+    ? Math.max(2, Math.min(15, Number(body.silenceStartSeconds) || 4))
+    : cfg?.greeting?.silenceStart?.seconds !== undefined
+    ? Math.max(2, Math.min(15, Number(cfg.greeting.silenceStart.seconds) || 4))
+    : 4;
+
+  const greeting = {
+    mode: mode === 'agent_first' ? 'agent_first' : 'user_first',
+    text,
+    silenceStart: {
+      enabled: silenceEnabled,
+      seconds: silenceSeconds,
+    },
+  };
+
+  cfg.greeting = greeting;
+  const syncedFirstMessage = (mode === 'agent_first' && text) ? text : null;
+
+  return {
+    greeting,
+    firstMessage: syncedFirstMessage,
+    config: cfg,
+  };
+}
 
 /** POST /api/v2/agents — Create a new agent. */
 router.post(
@@ -433,11 +480,30 @@ router.post(
         }
       }
 
-      const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, systemVoice, temperature, systemPrompt, firstMessage, flowGraph, languageMode, direction, isPiiRedactionEnabled } = req.body;
+      const {
+        name,
+        description,
+        agentType,
+        status,
+        agentConfig,
+        tags,
+        workspaceId,
+        model,
+        voiceName,
+        systemVoice,
+        temperature,
+        systemPrompt,
+        flowGraph,
+        languageMode,
+        direction,
+        isPiiRedactionEnabled,
+      } = req.body;
 
       const safeName = (typeof name === 'string' && name.trim()) ? name.trim() : 'Single-Prompt Agent';
       const parsedTemp = Number(temperature);
       const safeTemp = (temperature !== undefined && temperature !== null && !isNaN(parsedTemp)) ? parsedTemp : 0.7;
+
+      const { firstMessage: syncedFirstMessage, config: finalConfig } = normalizeGreetingConfig(agentConfig, req.body);
 
       const newAgent = await prisma.agent.create({
         data: {
@@ -445,7 +511,7 @@ router.post(
           description: description || null,
           agentType: agentType || 'conversational',
           status: status || 'draft',
-          agentConfig: typeof agentConfig === 'string' ? agentConfig : JSON.stringify(agentConfig || {}),
+          agentConfig: JSON.stringify(finalConfig),
           tags: typeof tags === 'string' ? tags : JSON.stringify(Array.isArray(tags) ? tags : []),
           userId: userId,
           workspaceId: workspaceId || null,
@@ -454,7 +520,7 @@ router.post(
           systemVoice: systemVoice || voiceName || 'Puck',
           temperature: safeTemp,
           systemPrompt: systemPrompt || null,
-          firstMessage: (typeof firstMessage === 'string' && firstMessage.trim()) ? firstMessage.trim() : null,
+          firstMessage: syncedFirstMessage,
           flowGraph: typeof flowGraph === 'string' ? flowGraph : flowGraph ? JSON.stringify(flowGraph) : null,
           languageMode: languageMode || 'auto',
           direction: direction || 'outbound',
@@ -472,11 +538,36 @@ router.post(
 
       const qaEvaluation = QaController.runLightweightQaCheck(newAgent.systemPrompt, newAgent.flowGraph);
 
+      let parsedFlow = null;
+      try {
+        parsedFlow = typeof newAgent.flowGraph === 'string' ? JSON.parse(newAgent.flowGraph) : newAgent.flowGraph;
+      } catch {}
+
       res.status(201).json({
         success: true,
         data: {
-          ...newAgent,
+          id: newAgent.id,
+          name: newAgent.name,
+          description: newAgent.description,
+          agentType: newAgent.agentType,
+          status: newAgent.status,
+          version: newAgent.version,
+          workspaceId: newAgent.workspaceId,
+          model: newAgent.model,
+          voiceName: newAgent.voiceName,
+          systemVoice: newAgent.systemVoice,
+          languageMode: newAgent.languageMode,
+          direction: newAgent.direction || 'outbound',
+          temperature: newAgent.temperature,
+          systemPrompt: newAgent.systemPrompt,
+          firstMessage: newAgent.firstMessage,
+          isPiiRedactionEnabled: Boolean(newAgent.isPiiRedactionEnabled),
+          flowGraph: parsedFlow,
+          agentConfig: finalConfig,
+          tags: JSON.parse(newAgent.tags || '[]'),
           qaEvaluation,
+          createdAt: newAgent.createdAt.toISOString(),
+          updatedAt: newAgent.updatedAt.toISOString(),
         },
       });
     } catch (err) {
@@ -505,7 +596,29 @@ router.put(
       }
 
       const agentId = req.params.agentId as string;
-      const { name, description, agentType, status, agentConfig, tags, workspaceId, model, voiceName, systemVoice, temperature, systemPrompt, firstMessage, flowGraph, languageMode, direction, isPiiRedactionEnabled } = req.body;
+      const {
+        name,
+        description,
+        agentType,
+        status,
+        agentConfig,
+        tags,
+        workspaceId,
+        model,
+        voiceName,
+        systemVoice,
+        temperature,
+        systemPrompt,
+        firstMessage,
+        flowGraph,
+        languageMode,
+        direction,
+        isPiiRedactionEnabled,
+        welcomeMessageMode,
+        customWelcomeText,
+        silenceStartEnabled,
+        silenceStartSeconds,
+      } = req.body;
 
       // Verify ownership before updating
       let exists = await prisma.agent.findFirst({
@@ -529,6 +642,24 @@ router.put(
       const parsedTemp = Number(temperature);
       const safeTemp = (temperature !== undefined && temperature !== null && !isNaN(parsedTemp)) ? parsedTemp : 0.7;
 
+      let finalConfigToSave: string | undefined = undefined;
+      let syncedFirstMessage: string | null | undefined = firstMessage !== undefined
+        ? ((typeof firstMessage === 'string' && firstMessage.trim()) ? firstMessage.trim() : null)
+        : undefined;
+
+      if (
+        agentConfig !== undefined ||
+        welcomeMessageMode !== undefined ||
+        customWelcomeText !== undefined ||
+        silenceStartEnabled !== undefined ||
+        silenceStartSeconds !== undefined
+      ) {
+        const baseConfig = agentConfig !== undefined ? agentConfig : exists.agentConfig;
+        const normalized = normalizeGreetingConfig(baseConfig, req.body);
+        finalConfigToSave = JSON.stringify(normalized.config);
+        syncedFirstMessage = normalized.firstMessage;
+      }
+
       // Explicitly update matching record
       await prisma.agent.updateMany({
         where: { id: agentId, userId: userId },
@@ -537,9 +668,7 @@ router.put(
           ...(description !== undefined && { description }),
           ...(agentType !== undefined && { agentType }),
           ...(status !== undefined && { status }),
-          ...(agentConfig !== undefined && {
-            agentConfig: typeof agentConfig === 'string' ? agentConfig : JSON.stringify(agentConfig || {})
-          }),
+          ...(finalConfigToSave !== undefined && { agentConfig: finalConfigToSave }),
           ...(tags !== undefined && {
             tags: typeof tags === 'string' ? tags : JSON.stringify(Array.isArray(tags) ? tags : [])
           }),
@@ -549,7 +678,7 @@ router.put(
           ...(systemVoice !== undefined && { systemVoice, voiceName: systemVoice }),
           ...(temperature !== undefined && { temperature: safeTemp }),
           ...(systemPrompt !== undefined && { systemPrompt }),
-          ...(firstMessage !== undefined && { firstMessage: (typeof firstMessage === 'string' && firstMessage.trim()) ? firstMessage.trim() : null }),
+          ...(syncedFirstMessage !== undefined && { firstMessage: syncedFirstMessage }),
           ...(flowGraph !== undefined && { flowGraph: typeof flowGraph === 'string' ? flowGraph : flowGraph ? JSON.stringify(flowGraph) : null }),
           ...(languageMode !== undefined && { languageMode }),
           ...(direction !== undefined && { direction }),
@@ -576,6 +705,16 @@ router.put(
 
       const qaEvaluation = QaController.runLightweightQaCheck(updatedAgent.systemPrompt, updatedAgent.flowGraph);
 
+      let parsedConfig = {};
+      try {
+        parsedConfig = typeof updatedAgent.agentConfig === 'string' ? JSON.parse(updatedAgent.agentConfig) : (updatedAgent.agentConfig || {});
+      } catch {}
+
+      let parsedFlow = null;
+      try {
+        parsedFlow = typeof updatedAgent.flowGraph === 'string' ? JSON.parse(updatedAgent.flowGraph) : updatedAgent.flowGraph;
+      } catch {}
+
       res.json({
         success: true,
         data: {
@@ -590,9 +729,13 @@ router.put(
           voiceName: updatedAgent.voiceName,
           systemVoice: updatedAgent.systemVoice,
           languageMode: updatedAgent.languageMode,
+          direction: updatedAgent.direction || 'outbound',
           temperature: updatedAgent.temperature,
           systemPrompt: updatedAgent.systemPrompt,
-          flowGraph: updatedAgent.flowGraph,
+          firstMessage: updatedAgent.firstMessage,
+          isPiiRedactionEnabled: Boolean(updatedAgent.isPiiRedactionEnabled),
+          flowGraph: parsedFlow,
+          agentConfig: parsedConfig,
           tags: JSON.parse(updatedAgent.tags || '[]'),
           qaEvaluation,
           createdAt: updatedAgent.createdAt.toISOString(),

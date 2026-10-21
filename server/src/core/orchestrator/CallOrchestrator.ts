@@ -745,6 +745,17 @@ export class CallOrchestrator extends EventEmitter {
     }, 350);
   }
 
+  enableInboundAudio(callId: string): void {
+    const session = this.activeCalls.get(callId);
+    if (session) {
+      session.inboundAudioAllowed = true;
+      if (session.conversationState) {
+        session.conversationState.markAsListening();
+      }
+      logger.info('CallOrchestrator: Inbound audio immediately enabled for user-first interaction', { callId });
+    }
+  }
+
   /**
    * Ends a session, clean up resources, and records session metrics.
    */
