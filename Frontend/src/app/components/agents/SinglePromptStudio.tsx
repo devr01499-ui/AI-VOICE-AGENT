@@ -141,6 +141,12 @@ export function compilePromptWithHandbook(
   enabledPresets: string[] = [],
   direction: string = 'outbound'
 ): string {
+  // Strip any pre-existing handbook / call direction sections to avoid recursive accumulation
+  let cleanPrompt = (prompt || '')
+    .replace(/\n*\[CALL DIRECTION INSTRUCTION\][\s\S]*?(?=\n*\[[A-Z\s_]+\]|$)/g, '')
+    .replace(/\n*\[AGENT HANDBOOK INSTRUCTIONS\][\s\S]*?(?=\n*\[[A-Z\s_]+\]|$)/g, '')
+    .trim();
+
   let directionText = '';
   if (direction === 'inbound') {
     directionText = "This is an inbound call — the caller reached out to you. Never introduce an unprompted sales pitch or reason for calling, as the caller already has a reason for reaching out. Open by identifying the business/agent and inviting them to share what they need. Listen for and directly address what they say before offering anything else. If they seem to be waiting or the greeting overlaps with hold time, keep the opening brief and get to 'how can I help' quickly.";
@@ -151,7 +157,7 @@ export function compilePromptWithHandbook(
   }
 
   const active = HANDBOOK_PRESETS.filter(p => enabledPresets.includes(p.id));
-  let result = prompt;
+  let result = cleanPrompt;
 
   if (directionText) {
     result += `\n\n[CALL DIRECTION INSTRUCTION]\n${directionText}`;

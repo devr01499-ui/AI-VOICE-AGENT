@@ -101,4 +101,20 @@ phases:
         status: completed
       - task: 8.7 OWASP Top 10 Security Audit Report & ADR-012 Documentation
         status: completed
+  8:
+    name: Per-Reply Latency Optimization & Per-Turn Metrics Engine
+    tasks:
+      - task: 9.1 Per-turn timing instrumentation (user_speech_end, TTFT, telephony frame, tool call breakdown)
+        status: completed
+      - task: 9.2 Knowledge Base vector search sub-300ms optimization (embedding caching, pgvector indexes, small KB fact inlining)
+        status: completed
+      - task: 9.3 VAD tuning (silenceDurationMs 500ms default, prefixPaddingMs 50ms, endSensitivity HIGH)
+        status: completed
+      - task: 9.4 Real-time model A/B evaluation (Gemini 2.5 vs Gemini 3.8 Live with thinking constraints)
+        status: completed
+      - task: 9.5 System prompt deduplication and token optimization (SinglePromptStudio fix & 70% token trim)
+        status: completed
+      - task: 9.6 Infrastructure & geographical region latency optimization analysis & documentation
+        status: completed
+
 

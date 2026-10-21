@@ -20,8 +20,8 @@ export function resolveLiveModel(value: string | null | undefined): string {
   const trimmed = value.trim();
   if (!trimmed) return DEFAULT_LIVE_MODEL;
 
-  // If the value contains "native-audio" it's a valid Live model name
-  if (trimmed.includes('native-audio')) {
+  // If the value contains "native-audio" or live designation it's a valid Live model name
+  if (trimmed.includes('native-audio') || trimmed.includes('live') || trimmed.includes('flash-exp')) {
     return trimmed.startsWith('models/') ? trimmed : `models/${trimmed}`;
   }
 

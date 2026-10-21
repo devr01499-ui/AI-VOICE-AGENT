@@ -21,6 +21,7 @@ import { ADMIN_EMAIL } from '../../config/constants';
 import { resolveLiveModel } from '../../utils/modelResolver';
 import { callTimingTracker } from '../../utils/CallTimingTracker';
 import { injectVoicePersonaDirective } from '../../utils/personaPrompt';
+import { deduplicateSystemPrompt } from '../../utils/promptOptimizer';
 import type {
   IRealtimeProvider,
   HealthCheckResult,
@@ -84,6 +85,7 @@ interface ActiveSession {
   cleanup?: () => Promise<void>;
   callId?: string;
   hasEmittedFirstAudio?: boolean;
+  turnIndex?: number;
 }
 
 export class GeminiLiveProvider implements IRealtimeProvider {
@@ -368,9 +370,46 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
       resolvedAgentId = callData.agentId || config.agentId;
 
+      let systemInstructionString = callData.agent?.systemPrompt || callData.agent?.instruction || config.instructions || "Default assistant prompt";
+      systemInstructionString = deduplicateSystemPrompt(systemInstructionString);
+      systemInstructionString = injectVoicePersonaDirective(systemInstructionString);
+
       let hasKbDocs = false;
-      if (callData.agent && callData.agent.kbLinks && callData.agent.kbLinks.length > 0) {
-        hasKbDocs = true;
+      if (callData.agent && callData.agent.kbLinks && callData.agent.kbLinks.length > 0 && resolvedAgentId) {
+        try {
+          const prismaInst = (await import('../../lib/prisma')).prisma;
+          const chunks = await prismaInst.knowledgeBaseChunk.findMany({
+            where: {
+              kb: {
+                agentLinks: {
+                  some: { agentId: resolvedAgentId }
+                }
+              }
+            },
+            select: { content: true },
+            take: 12
+          });
+
+          if (chunks.length > 0) {
+            const totalChars = chunks.reduce((sum, c) => sum + (c.content?.length || 0), 0);
+            if (totalChars <= 4000) {
+              const factsList = chunks
+                .map((c, i) => `${i + 1}. ${c.content.trim()}`)
+                .join('\n\n');
+              systemInstructionString = `${systemInstructionString}\n\n[KNOWLEDGE BASE VERIFIED FACTS]\nUse the following verified facts to answer any factual inquiries immediately without calling external search tools:\n${factsList}`;
+              logger.info('GeminiLiveProvider: Small KB facts inlined into prompt (0ms tool latency)', {
+                agentId: resolvedAgentId,
+                chunkCount: chunks.length,
+                totalChars,
+              });
+            } else {
+              hasKbDocs = true;
+            }
+          }
+        } catch (kbErr) {
+          logger.warn('GeminiLiveProvider: Error inlining KB facts, defaulting to tool search', { error: String(kbErr) });
+          hasKbDocs = true;
+        }
       }
 
       // Map tools cleanly to Gemini wire function_declarations format
@@ -395,12 +434,6 @@ export class GeminiLiveProvider implements IRealtimeProvider {
             required: ['query']
           }
         });
-      }
-
-      let systemInstructionString = callData.agent?.systemPrompt || callData.agent?.instruction || config.instructions || "Default assistant prompt";
-      systemInstructionString = injectVoicePersonaDirective(systemInstructionString);
-
-      if (hasKbDocs) {
         systemInstructionString = `${systemInstructionString}\n\n[KNOWLEDGE BASE GATES]\nYou have access to a knowledge base search tool 'search_knowledge_base'. If the user asks questions about facts, documents, websites, or details that you do not know, you MUST call this tool with a relevant search query to find the answer. Do not guess.`;
         logger.info('GeminiLiveProvider: Exposing search_knowledge_base tool to agent', { agentId: resolvedAgentId });
       }
@@ -468,11 +501,12 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
       const silenceDurationVal = typeof speechSettings.responsivenessMs === 'number'
         ? Math.max(100, Math.min(2000, speechSettings.responsivenessMs))
-        : 600;
+        : 500;
 
       const isInterruptionLow = speechSettings.interruptionSensitivity === 'LOW';
       const startSensitivity = isInterruptionLow ? "START_SENSITIVITY_LOW" : "START_SENSITIVITY_HIGH";
-      const endSensitivity = isInterruptionLow ? "END_SENSITIVITY_HIGH" : "END_SENSITIVITY_LOW";
+      // Invert endSensitivity: when interruptionSensitivity is HIGH or default (not LOW), set endSensitivity to HIGH for fast turn handover
+      const endSensitivity = isInterruptionLow ? "END_SENSITIVITY_LOW" : "END_SENSITIVITY_HIGH";
 
       if (speechSettings.backchanneling === true) {
         systemInstructionString = `${systemInstructionString}\n\n[BACKCHANNELING INSTRUCTION]\nOccasionally use brief natural acknowledgments (mm-hmm, I see, got it) while the caller is speaking, without interrupting them.`;
@@ -552,7 +586,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
               disabled: false,
               startOfSpeechSensitivity: startSensitivity,
               endOfSpeechSensitivity: endSensitivity,
-              prefixPaddingMs: 200,
+              prefixPaddingMs: 50,
               silenceDurationMs: silenceDurationVal,
             },
             activityHandling: "START_OF_ACTIVITY_INTERRUPTS",
@@ -618,6 +652,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
             userId,
             targetModel,
             config,
+            turnIndex: 0,
             ...(sessionBalanceIntervalId && { balanceInterval: sessionBalanceIntervalId }),
             cleanup: async () => {
               clearSessionBalanceTicker();
@@ -849,36 +884,55 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     }
 
     const tStartKb = Date.now();
-    logger.info('[LATENCY_TEST] Knowledge base tool invoked', { sessionId, query, agentId, timestamp: tStartKb });
+    const currentTurn = session.turnIndex || 0;
+    if (session.callId) {
+      callTimingTracker.markTurnToolStart(session.callId, currentTurn, 'search_knowledge_base');
+    }
+    logger.info('[LATENCY_TEST] Knowledge base tool invoked', { sessionId, query, agentId, turnIndex: currentTurn, timestamp: tStartKb });
 
     try {
       const { getEmbedding } = await import('../../utils/embedding');
+      const tStartEmbed = Date.now();
       const queryVector = await getEmbedding(query);
+      const embedding_ms = Date.now() - tStartEmbed;
 
       const prismaInstance = (await import('../../lib/prisma')).prisma;
-
+      const tStartDb = Date.now();
       const results: any[] = await prismaInstance.$queryRawUnsafe(
         `SELECT c.id, c.content, (c.embedding <=> cast($1 as vector)) as distance 
          FROM "kb_chunks" c 
          JOIN "agent_knowledge_bases" akb ON c."kb_id" = akb."kb_id" 
          WHERE akb."agent_id" = $2 
-         ORDER BY distance ASC LIMIT 3`,
+         ORDER BY distance ASC LIMIT 2`,
         `[${queryVector.join(',')}]`,
         agentId
       );
+      const db_query_ms = Date.now() - tStartDb;
+      const total_ms = Date.now() - tStartKb;
+
+      if (session.callId) {
+        callTimingTracker.markTurnToolEnd(session.callId, currentTurn, {
+          embedding_ms,
+          db_query_ms,
+          total_ms,
+        });
+      }
 
       const formattedResults = results.map(r => ({
-        content: r.content,
+        content: (r.content || '').slice(0, 350),
         score: 1 - r.distance
       }));
 
       logger.info('GeminiLiveProvider: pgvector search success', {
         sessionId,
         resultsCount: formattedResults.length,
-        topScore: formattedResults[0]?.score
+        topScore: formattedResults[0]?.score,
+        embedding_ms,
+        db_query_ms,
+        total_ms,
       });
 
-      logger.info('[LATENCY_TEST] Knowledge base tool result returning', { sessionId, timestamp: Date.now(), durationMs: Date.now() - tStartKb });
+      logger.info('[LATENCY_TEST] Knowledge base tool result returning', { sessionId, timestamp: Date.now(), durationMs: total_ms });
       this.sendFunctionResult(sessionId, callId, JSON.stringify({ results: formattedResults }));
     } catch (err) {
       logger.error('GeminiLiveProvider: Failed pgvector search', { sessionId, error: String(err) });
@@ -897,18 +951,30 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     // CRITICAL GATE: Handle immediate user barge-in interruption
     if (event.serverContent?.interrupted === true) {
       logger.info('Gemini Session: User barge-in detected. Purging active playback buffers.', { sessionId });
+      if (session.callId) {
+        callTimingTracker.completeTurn(session.callId, session.turnIndex);
+        session.turnIndex = (session.turnIndex || 0) + 1;
+      }
       callbacks.onSpeechStopped?.(sessionId, true);
       return;
     }
 
     // 1. Text or Audio output from model
     if (event.serverContent?.modelTurn?.parts) {
+      const currentTurn = session.turnIndex || 0;
+      if (session.callId) {
+        callTimingTracker.startTurn(session.callId, currentTurn, session.agentId, Date.now(), 'plain');
+      }
+
       for (const part of event.serverContent.modelTurn.parts) {
         // Audio output chunk
         if (part.inlineData && part.inlineData.data) {
-          if (session.callId && !session.hasEmittedFirstAudio) {
-            session.hasEmittedFirstAudio = true;
-            callTimingTracker.mark(session.callId, 'first_audio_chunk_from_gemini');
+          if (session.callId) {
+            if (!session.hasEmittedFirstAudio) {
+              session.hasEmittedFirstAudio = true;
+              callTimingTracker.mark(session.callId, 'first_audio_chunk_from_gemini');
+            }
+            callTimingTracker.markTurnFirstAudioReceived(session.callId, currentTurn);
           }
           logger.info('[LATENCY_TEST] Audio chunk sent back from Gemini', {
             sessionId,
@@ -930,6 +996,9 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         sessionId,
         text: event.serverContent.inputTranscription.text,
       });
+      if (session.callId) {
+        callTimingTracker.startTurn(session.callId, session.turnIndex || 0, session.agentId, Date.now(), 'plain');
+      }
       callbacks.onTranscriptDelta?.(sessionId, event.serverContent.inputTranscription.text, false, true);
     }
 
@@ -944,12 +1013,19 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
     // 2. Turn Complete
     if (event.serverContent?.turnComplete) {
+      if (session.callId) {
+        callTimingTracker.completeTurn(session.callId, session.turnIndex || 0);
+        session.turnIndex = (session.turnIndex || 0) + 1;
+      }
       callbacks.onTranscriptDelta?.(sessionId, '', true, false);
       callbacks.onResponseDone?.(sessionId);
     }
 
     // 4. Function call requested
     if (event.toolCall?.functionCalls) {
+      if (session.callId) {
+        callTimingTracker.startTurn(session.callId, session.turnIndex || 0, session.agentId, Date.now(), 'kb_query');
+      }
       for (const call of event.toolCall.functionCalls) {
         if (call.name === 'search_knowledge_base') {
           this.handleVectorSearch(sessionId, call.id, call.args)

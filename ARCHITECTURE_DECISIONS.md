@@ -152,5 +152,20 @@
 - **Rejected Alternative**: Storing all customer numbers in a single shared Plivo master account without subaccount isolation. Reason: Subaccounts provide complete CDR, call log, recording, and tenant data segregation while keeping all financial charges centralized under the parent account.
 - **Consequences**: Zero risk to existing Vobiz numbers, seamless multi-provider coexistence, robust tenant isolation, and strict compliance with Indian DoT KYC requirements.
 
+## ADR-014: Per-Turn Real-Time Latency Telemetry & Telephony Egress Tracking Architecture
+- **Status**: Accepted
+- **Context**: Conversational voice bots require target per-reply latency (p50 <= 1.2s, p95 <= 2.0s) measured from caller speech termination (`user_speech_end`) to first AI audio frame dispatch to the telephony provider (`first_audio_frame_sent_to_provider`). Prior instrumentation in `CallTimingTracker` measured only coarse call-setup and greeting milestones, with zero visibility into conversational turn degradation, tool execution overhead (embedding vs pgvector query), or playout queue buffering.
+- **Decision**:
+  1. Expand `CallTimingTracker` to track fine-grained per-turn lifecycle states keyed by `callId` + `turnIndex`:
+     - `user_speech_end`: captured upon Gemini user input transcription or turn start signal.
+     - `model_first_token`: captured upon first audio chunk/token generation from Gemini Live.
+     - `first_audio_frame_sent_to_provider`: captured on first frame egress to telephony WebSocket (Vobiz/Plivo).
+     - `search_knowledge_base` instrumentation: captures `tool_call_start`, `embedding_ms`, `db_query_ms`, and `tool_call_end`.
+  2. Implement ring-buffered in-memory storage of completed turn records with agent-scoped percentile aggregation (`getAgentTurnStats(agentId)` returning p50, p95, min, max, avg).
+  3. Emit high-density structured JSON logs (`[PER_TURN_TIMING]` and `[TURN_LATENCY_SUMMARY]`) without altering WebSocket transport or media codec (`audio/x-l16;rate=16000`).
+- **Rejected Alternative**: Storing raw high-frequency audio packet timestamps in PostgreSQL synchronously on every packet. Reason: Adding synchronous database writes during real-time 20ms audio streaming loops would inject significant disk and network I/O jitter directly into conversational latency.
+- **Consequences**: Zero behavioral disruption, granular turn-by-turn latency attribution across models and tool invocations, and immediate visibility into bottleneck sources (embedding API roundtrip, cross-continental database queries, playout queues).
+
+
 
 

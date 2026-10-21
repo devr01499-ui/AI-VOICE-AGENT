@@ -590,6 +590,7 @@ export class AudioStreamHandler {
       conn.hasSentFirstAudio = true;
       callTimingTracker.mark(callId, 'first_audio_sent_to_telephony');
     }
+    callTimingTracker.markTurnFirstAudioSentToTelephony(callId);
 
     // Send as JSON playAudio event with base64 L16 payload
     // Vobiz and Plivo bidirectional stream protocols require this JSON envelope
