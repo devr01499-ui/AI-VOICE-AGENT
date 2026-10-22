@@ -647,15 +647,18 @@ ${transcriptText}`;
         },
       });
 
+      const billableMinutes = Math.max(1, Math.ceil(durationSeconds / 60));
+      const billableSeconds = billableMinutes * 60;
+
       // Use MinutesService for atomic ledger + balance update (idempotent by callId)
       const { MinutesService } = await import('./MinutesService');
       await MinutesService.debit({
         userId: call.userId,
-        deltaSeconds: Math.round(durationSeconds),
+        deltaSeconds: billableSeconds,
         reason: 'call_usage',
         refType: 'call',
         refId: callId,
-        note: `Call ${callId} duration: ${Math.round(durationSeconds)}s`,
+        note: `Call ${callId} duration: ${Math.round(durationSeconds)}s (billed: ${billableMinutes}m)`,
         actorType: 'system',
         idempotencyKey: `call_usage_${callId}`,
         allowNegative: true, // Don't fail the deduction if balance dipped during the call

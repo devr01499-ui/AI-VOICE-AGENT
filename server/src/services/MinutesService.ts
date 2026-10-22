@@ -63,7 +63,7 @@ export class MinutesService {
         throw new Error(`USER_NOT_FOUND: User ${userId} not found.`);
       }
 
-      const currentSeconds = user.minutesRemainingSeconds > 0
+      const currentSeconds = typeof user.minutesRemainingSeconds === 'number'
         ? user.minutesRemainingSeconds
         : (user.callingBalanceMinutes * 60);
 
@@ -147,20 +147,22 @@ export class MinutesService {
         throw new Error(`USER_NOT_FOUND: User ${userId} not found.`);
       }
 
-      const currentSeconds = user.minutesRemainingSeconds > 0
+      const currentSeconds = typeof user.minutesRemainingSeconds === 'number'
         ? user.minutesRemainingSeconds
         : (user.callingBalanceMinutes * 60);
 
-      if (!allowNegative && currentSeconds < deltaSeconds) {
+      const effectiveAllowNegative = allowNegative || reason === 'call_usage';
+
+      if (!effectiveAllowNegative && currentSeconds < deltaSeconds) {
         throw new Error(
           `INSUFFICIENT_BALANCE: Current balance is ${Math.round(currentSeconds)}s, requested debit is ${Math.round(deltaSeconds)}s.`
         );
       }
 
-      const newBalanceSeconds = allowNegative
+      const newBalanceSeconds = effectiveAllowNegative
         ? Math.round(currentSeconds - deltaSeconds)
         : Math.max(0, Math.round(currentSeconds - deltaSeconds));
-      const newCallingBalanceMinutes = parseFloat((Math.max(0, newBalanceSeconds) / 60).toFixed(4));
+      const newCallingBalanceMinutes = parseFloat((newBalanceSeconds / 60).toFixed(4));
       const deltaMinutes = deltaSeconds / 60;
       const newTotalConsumed = (user.totalMinutesConsumed || 0) + (reason === 'call_usage' ? deltaMinutes : 0);
 

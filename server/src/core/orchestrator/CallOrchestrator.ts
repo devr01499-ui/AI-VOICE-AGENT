@@ -856,13 +856,11 @@ export class CallOrchestrator extends EventEmitter {
               elapsedSeconds,
               remainingSeconds,
             });
-            await this.endCallSession(callId, 'minutes_exhausted');
-            try {
-              const { VobizService } = await import('../telephony/VobizService');
-              await VobizService.terminateCall(callId);
-            } catch (vobizErr) {
-              logger.warn('[MID_CALL_CUTOFF] Vobiz termination call warning', { callId, error: String(vobizErr) });
-            }
+            const { CallService } = await import('../../services/CallService');
+            await CallService.terminateCall(callId).catch(async (termErr) => {
+              logger.warn('[MID_CALL_CUTOFF] CallService.terminateCall error, falling back to endCallSession', { callId, error: String(termErr) });
+              await this.endCallSession(callId, 'minutes_exhausted');
+            });
           }
         } catch (monitorErr) {
           logger.error('[MID_CALL_MONITOR_ERROR] Failed during mid-call check', { callId, error: String(monitorErr) });
