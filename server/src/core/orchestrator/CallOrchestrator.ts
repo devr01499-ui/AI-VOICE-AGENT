@@ -19,6 +19,7 @@ import { resolveLiveModel } from '../../utils/modelResolver';
 import { callTimingTracker } from '../../utils/CallTimingTracker';
 import { formatGreetingTurnPrompt } from '../../utils/greetingUtils';
 import { injectVoicePersonaDirective } from '../../utils/personaPrompt';
+import { buildFinalSystemInstruction } from '../../utils/systemInstructionBuilder';
 import { buildCapabilitiesBlock, filterActiveTools } from '../../utils/capabilities';
 
 export function extractToolsFromFlowGraph(flowGraphInput: string | object | null | undefined): any[] {
@@ -386,7 +387,7 @@ export class CallOrchestrator extends EventEmitter {
       ];
 
       agentConfig = {
-        prompt: injectVoicePersonaDirective(systemInstructions),
+        prompt: buildFinalSystemInstruction(agent, { callId }),
         voice: finalVoice,
         llm: {
           provider: llmProvider,
@@ -415,7 +416,7 @@ export class CallOrchestrator extends EventEmitter {
       };
 
       agentConfig = {
-        prompt: injectVoicePersonaDirective(activeAgent.systemPrompt),
+        prompt: buildFinalSystemInstruction(activeAgent, { callId }),
         voice: activeAgent.voiceName,
         llm: {
           provider: 'gemini',
@@ -481,6 +482,9 @@ export class CallOrchestrator extends EventEmitter {
     this.stateMachines.set(callId, stateMachine);
     stateMachine.transitionTo('in_progress');
 
+    if (activeAgent) {
+      activeAgent.systemPrompt = agentConfig.prompt;
+    }
     const callSession = new CallSession(callId, agentId, phoneNumber, activeAgent);
     callSession.isRecordingEnabled = agentConfig.settings?.isRecordingEnabled || false;
     callSession.conversationState = new ConversationState();

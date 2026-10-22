@@ -19,6 +19,7 @@ import { logAuditEvent } from '../utils/auditLogger';
 import { ADMIN_EMAIL } from '../config/constants';
 import { QaController } from '../controllers/QaController';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import { detectIndustry } from '../utils/systemInstructionBuilder';
 
 const router = Router();
 
@@ -280,6 +281,7 @@ router.get(
             languageMode: true,
             direction: true,
             temperature: true,
+            industry: true,
             createdAt: true,
             updatedAt: true,
           }
@@ -308,6 +310,8 @@ router.get(
           languageMode: agent?.languageMode,
           direction: agent?.direction || 'outbound',
           temperature: agent?.temperature,
+          industry: agent?.industry || 'auto',
+          detectedIndustry: detectIndustry(agent?.systemPrompt, agent?.name, agent?.flowGraph),
           createdAt: agent?.createdAt instanceof Date ? agent.createdAt.toISOString() : (agent?.createdAt ? new Date(agent.createdAt).toISOString() : new Date().toISOString()),
           updatedAt: agent?.updatedAt instanceof Date ? agent.updatedAt.toISOString() : (agent?.updatedAt ? new Date(agent.updatedAt).toISOString() : new Date().toISOString()),
         }));
@@ -391,6 +395,8 @@ router.get(
           languageMode: agent.languageMode,
           direction: agent.direction || 'outbound',
           temperature: agent.temperature,
+          industry: agent.industry || 'auto',
+          detectedIndustry: detectIndustry(agent.systemPrompt, agent.name, agent.flowGraph),
           systemPrompt: agent.systemPrompt,
           firstMessage: agent.firstMessage,
           isPiiRedactionEnabled: Boolean(agent.isPiiRedactionEnabled),
@@ -497,6 +503,7 @@ router.post(
         languageMode,
         direction,
         isPiiRedactionEnabled,
+        industry,
       } = req.body;
 
       const safeName = (typeof name === 'string' && name.trim()) ? name.trim() : 'Single-Prompt Agent';
@@ -525,6 +532,7 @@ router.post(
           languageMode: languageMode || 'auto',
           direction: direction || 'outbound',
           isPiiRedactionEnabled: Boolean(isPiiRedactionEnabled),
+          industry: industry || 'auto',
         },
       });
 
@@ -559,6 +567,8 @@ router.post(
           languageMode: newAgent.languageMode,
           direction: newAgent.direction || 'outbound',
           temperature: newAgent.temperature,
+          industry: newAgent.industry || 'auto',
+          detectedIndustry: detectIndustry(newAgent.systemPrompt, newAgent.name, newAgent.flowGraph),
           systemPrompt: newAgent.systemPrompt,
           firstMessage: newAgent.firstMessage,
           isPiiRedactionEnabled: Boolean(newAgent.isPiiRedactionEnabled),
@@ -614,6 +624,7 @@ router.put(
         languageMode,
         direction,
         isPiiRedactionEnabled,
+        industry,
         welcomeMessageMode,
         customWelcomeText,
         silenceStartEnabled,
@@ -683,6 +694,7 @@ router.put(
           ...(languageMode !== undefined && { languageMode }),
           ...(direction !== undefined && { direction }),
           ...(isPiiRedactionEnabled !== undefined && { isPiiRedactionEnabled: Boolean(isPiiRedactionEnabled) }),
+          ...(industry !== undefined && { industry }),
         },
       });
 
@@ -731,6 +743,8 @@ router.put(
           languageMode: updatedAgent.languageMode,
           direction: updatedAgent.direction || 'outbound',
           temperature: updatedAgent.temperature,
+          industry: updatedAgent.industry || 'auto',
+          detectedIndustry: detectIndustry(updatedAgent.systemPrompt, updatedAgent.name, updatedAgent.flowGraph),
           systemPrompt: updatedAgent.systemPrompt,
           firstMessage: updatedAgent.firstMessage,
           isPiiRedactionEnabled: Boolean(updatedAgent.isPiiRedactionEnabled),

@@ -124,6 +124,7 @@ model Agent {
   voiceName      String?  @map("voice_name")
   systemVoice    String   @default("Puck") @map("system_voice")
   languageMode   String   @default("auto") @map("language_mode")
+  industry       String?  @default("auto") @map("industry") // auto | sales | support | bfsi | healthcare | real_estate | other
   direction      String?  @default("outbound") @map("direction") // inbound | outbound | both
   temperature    Float?   @default(0.7)
   systemPrompt   String?  @map("system_prompt")

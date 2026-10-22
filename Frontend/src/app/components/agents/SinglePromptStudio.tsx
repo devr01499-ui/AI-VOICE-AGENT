@@ -265,6 +265,25 @@ export default function SinglePromptStudio({
   const [direction, setDirection] = useState<'outbound' | 'inbound' | 'both'>(
     initialAgent?.direction === 'inbound' || initialAgent?.direction === 'both' ? initialAgent.direction : 'outbound'
   );
+  const [industry, setIndustry] = useState<string>(
+    initialAgent?.industry || (typeof initialAgent?.agentConfig === 'string' ? (() => { try { return JSON.parse(initialAgent.agentConfig)?.industry; } catch { return 'auto'; } })() : initialAgent?.agentConfig?.industry) || 'auto'
+  );
+
+  const detectedIndustry = useMemo(() => {
+    const text = `${agentName} ${initialAgent?.name || ''} ${initialAgent?.systemPrompt || ''}`.toLowerCase();
+    const bfsiKw = ['loan', 'emi', 'credit card', 'insurance', 'policy', 'premium', 'mutual fund', 'investment', 'kyc', 'collections', 'bank', 'nbfc'];
+    if (bfsiKw.some(kw => text.includes(kw))) return 'bfsi';
+    const healthKw = ['clinic', 'doctor', 'hospital', 'patient', 'appointment', 'dentist', 'dental', 'medical', 'prescription'];
+    if (healthKw.some(kw => text.includes(kw))) return 'healthcare';
+    const reKw = ['real estate', 'property', 'builder', 'developer', 'flat', 'apartment', 'villa', 'plot', 'bhk'];
+    if (reKw.some(kw => text.includes(kw))) return 'real_estate';
+    const suppKw = ['support', 'ticket', 'customer service', 'troubleshoot', 'complaint', 'refund'];
+    if (suppKw.some(kw => text.includes(kw))) return 'support';
+    const salesKw = ['sales', 'lead', 'pitch', 'pricing', 'discount', 'demo'];
+    if (salesKw.some(kw => text.includes(kw))) return 'sales';
+    return 'other';
+  }, [agentName, initialAgent]);
+
   const [systemPrompt, setSystemPrompt] = useState(
     initialAgent?.systemPrompt ||
       'You are an energetic and friendly outbound sales agent for a dental clinic. Your primary goal is to engage potential new patients, inform them about the clinic\'s services, and schedule a consultation.'
@@ -1316,6 +1335,7 @@ export default function SinglePromptStudio({
       systemVoice: voice,
       languageMode: language,
       direction,
+      industry: industry || 'auto',
       systemPrompt: compilePromptWithHandbook(systemPrompt, handbookPresets, direction),
       welcomeMessageMode,
       customWelcomeText,
@@ -1324,6 +1344,7 @@ export default function SinglePromptStudio({
       firstMessage: welcomeMessageMode === 'agent_first' ? customWelcomeText : null,
       agentConfig: {
         ...initialConfig,
+        industry: industry || 'auto',
         responseStyle,
         intelligenceMode,
         greeting: {
@@ -1837,6 +1858,25 @@ export default function SinglePromptStudio({
                   <option value="both">Both Directions</option>
                 </select>
               </div>
+
+              {/* Industry Overlay Selector */}
+              <div className="flex items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 gap-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                <select
+                  value={industry}
+                  onChange={(e) => setIndustry(e.target.value)}
+                  className="bg-transparent text-xs font-semibold focus:outline-none"
+                  title="Industry Sector & Street-Smart Conversation Skills"
+                >
+                  <option value="auto">Auto-detect ({detectedIndustry})</option>
+                  <option value="sales">Sales / Lead-gen</option>
+                  <option value="support">Customer Support</option>
+                  <option value="bfsi">BFSI (Banking / Loans / Insurance)</option>
+                  <option value="healthcare">Healthcare</option>
+                  <option value="real_estate">Real Estate</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
             </div>
 
             {/* Agent Handbook Button & Prompt History */}
@@ -2279,6 +2319,46 @@ export default function SinglePromptStudio({
                       <div className="text-[11px] font-bold">🧠 Smart Mode</div>
                       <div className="text-[9px] text-slate-400 font-normal mt-0.5">Deep objection analysis</div>
                     </button>
+                  </div>
+                </div>
+
+                {/* Built-in Conversation Skills & Industry Overlay */}
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">Industry & Conversation Skills Layer</span>
+                    <span className="text-[10px] font-mono text-emerald-600 font-bold uppercase">v1.0.0 Built-in</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500">
+                    Platform-level intelligence (active listening, objection handling, closing) is automatically injected for every call.
+                  </p>
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1">
+                      Industry Sector
+                    </label>
+                    <select
+                      value={industry}
+                      onChange={(e) => setIndustry(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-medium focus:outline-none"
+                    >
+                      <option value="auto">Auto-detect (Recommended)</option>
+                      <option value="sales">Sales / Lead-gen</option>
+                      <option value="support">Customer Support</option>
+                      <option value="bfsi">BFSI (Banking, Financial Services & Insurance)</option>
+                      <option value="healthcare">Healthcare</option>
+                      <option value="real_estate">Real Estate</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div className="p-2 bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/40 rounded-md text-[11px] text-emerald-800 dark:text-emerald-300">
+                    <div className="font-semibold flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                      Active Overlay: {industry === 'auto' ? `Auto-detected (${detectedIndustry.toUpperCase()})` : industry.toUpperCase()}
+                    </div>
+                    {((industry === 'auto' && detectedIndustry === 'bfsi') || industry === 'bfsi') && (
+                      <div className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-1">
+                        Strict BFSI compliance active: OTP protection, no guaranteed returns, debt distress escalation.
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

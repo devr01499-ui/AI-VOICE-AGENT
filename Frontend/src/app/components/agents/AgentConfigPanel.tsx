@@ -29,10 +29,26 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
   const [voice, setVoice] = useState(agent.systemVoice || agent.voice || "Puck");
   const [temp, setTemp] = useState(agent.temperature ?? 0.7);
   const [languageMode, setLanguageMode] = useState(agent.languageMode || "auto");
+  const [industry, setIndustry] = useState(agent.industry || "auto");
   const [isPiiRedactionEnabled, setIsPiiRedactionEnabled] = useState(agent.isPiiRedactionEnabled || false);
   const [calendarConnected, setCalendarConnected] = useState(false);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
+
+  const detectedIndustry = React.useMemo(() => {
+    const text = `${agent.name || ''} ${prompt || ''}`.toLowerCase();
+    const bfsiKw = ['loan', 'emi', 'credit card', 'insurance', 'policy', 'premium', 'mutual fund', 'investment', 'kyc', 'collections', 'bank', 'nbfc'];
+    if (bfsiKw.some(kw => text.includes(kw))) return 'bfsi';
+    const healthKw = ['clinic', 'doctor', 'hospital', 'patient', 'appointment', 'dentist', 'dental', 'medical', 'prescription'];
+    if (healthKw.some(kw => text.includes(kw))) return 'healthcare';
+    const reKw = ['real estate', 'property', 'builder', 'developer', 'flat', 'apartment', 'villa', 'plot', 'bhk'];
+    if (reKw.some(kw => text.includes(kw))) return 'real_estate';
+    const suppKw = ['support', 'ticket', 'customer service', 'troubleshoot', 'complaint', 'refund'];
+    if (suppKw.some(kw => text.includes(kw))) return 'support';
+    const salesKw = ['sales', 'lead', 'pitch', 'pricing', 'discount', 'demo'];
+    if (salesKw.some(kw => text.includes(kw))) return 'sales';
+    return 'other';
+  }, [agent.name, prompt]);
 
   useEffect(() => {
     return () => {
@@ -343,6 +359,40 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
               <option value="ar">Arabic only</option>
             </select>
           </div>
+        </div>
+
+        {/* Industry Sector Overlay */}
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <label className="text-xs font-bold text-[var(--nm-text)] block" style={{ fontFamily: "'DM Mono', monospace" }}>
+              INDUSTRY OVERLAY & CONVERSATION SKILLS
+            </label>
+            <span className="text-[10px] font-mono text-emerald-600 font-bold uppercase">
+              {industry === 'auto' ? `Auto (${detectedIndustry})` : industry}
+            </span>
+          </div>
+          <div className="relative">
+            <select
+              value={industry}
+              onChange={(e) => {
+                setIndustry(e.target.value);
+                triggerDebouncedSave({ industry: e.target.value });
+              }}
+              className="nm-input w-full px-5 py-3 text-sm focus:outline-none"
+              style={{ fontFamily: "'Figtree', sans-serif" }}
+            >
+              <option value="auto">Auto-detect (recommended: {detectedIndustry})</option>
+              <option value="sales">Sales / Lead-gen</option>
+              <option value="support">Customer Support</option>
+              <option value="bfsi">BFSI (Banking / Loans / Insurance)</option>
+              <option value="healthcare">Healthcare</option>
+              <option value="real_estate">Real Estate</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <p className="text-[11px] text-slate-500">
+            Automatically injects platform conversation skills (active listening, objection handling, closing) and industry guardrails.
+          </p>
         </div>
 
         {/* Temperature slider */}
