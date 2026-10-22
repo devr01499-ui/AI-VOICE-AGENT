@@ -33,12 +33,19 @@ interface ActiveConnection {
   sessionId?: string;
   playbackQueue: string[]; // Sequential array buffer for outbound payloads
   isPlayoutActive: boolean;
+  playoutTimeout?: NodeJS.Timeout;
   sessionReady: boolean;       // True once Gemini session setup is confirmed
   inboundAudioBuffer: string[]; // Buffer audio packets arriving before session is ready
   hasSentFirstAudio?: boolean;
   silenceTimer?: NodeJS.Timeout;
   greetingResolved?: boolean;
+  isFallingBack?: boolean;
 }
+
+// ─── Pipeline Safety Limits ───────────────────────────
+const MAX_INBOUND_BUFFER_CHUNKS = 50;  // Max ~1 second of buffered audio before session ready
+const MAX_PLAYBACK_QUEUE_CHUNKS = 50;  // Max ~1.5 seconds of outbound playback buffer to prevent jitter lag & OOM
+
 
 // ─── Handler Implementation ──────────────────────────
 
@@ -515,6 +522,13 @@ export class AudioStreamHandler {
 
           // ✅ Clean up connection reference
           this.connections.delete(callId);
+
+          // ✅ Terminate carrier call to prevent stranded PSTN leg
+          import('../services/CallService').then(({ CallService }) => {
+            CallService.terminateCall(callId).catch((termErr) => {
+              logger.warn('AudioStreamHandler: failed to terminate carrier call on session startup error', { callId, error: String(termErr) });
+            });
+          }).catch(() => {});
         });
     }).catch((err) => {
       logger.error('AudioStreamHandler: failed to import CallRepository', {
@@ -547,8 +561,11 @@ export class AudioStreamHandler {
         logger.info('[SILENCE_START] Caller activity detected before timeout, silence timer cancelled', { callId });
       }
 
-      // If session not ready yet, buffer the audio
+      // If session not ready yet, buffer the audio with boundary cap against OOM/jitter
       if (!conn.sessionReady) {
+        if (conn.inboundAudioBuffer.length >= MAX_INBOUND_BUFFER_CHUNKS) {
+          conn.inboundAudioBuffer.shift(); // Drop oldest to avoid lag and memory bloat
+        }
         conn.inboundAudioBuffer.push(audioPayload);
         return;
       }
@@ -597,6 +614,15 @@ export class AudioStreamHandler {
     const conn = this.connections.get(callId);
     if (!conn) return;
 
+    // Buffer overrun and jitter defense: cap queue size to prevent unbounded memory growth and creeping latency
+    if (conn.playbackQueue.length >= MAX_PLAYBACK_QUEUE_CHUNKS) {
+      logger.warn('AudioStreamHandler: playback queue threshold reached, dropping oldest chunk to prevent jitter lag', {
+        callId,
+        queueLength: conn.playbackQueue.length,
+      });
+      conn.playbackQueue.shift();
+    }
+
     conn.playbackQueue.push(audioBase64);
 
     if (!conn.isPlayoutActive) {
@@ -622,7 +648,10 @@ export class AudioStreamHandler {
     const pcmBytes = Math.floor((nextChunkBase64.length * 3) / 4);
     const durationMs = Math.max(10, Math.min(200, Math.round(pcmBytes / 32)));
 
-    setTimeout(() => this.flushNextAudioChunk(callId), durationMs || 30);
+    if (conn.playoutTimeout) {
+      clearTimeout(conn.playoutTimeout);
+    }
+    conn.playoutTimeout = setTimeout(() => this.flushNextAudioChunk(callId), durationMs || 30);
   }
 
   /**
@@ -686,6 +715,10 @@ export class AudioStreamHandler {
     // Clear buffer queue immediately to drop any pending outbound frames on user barge-in!
     conn.playbackQueue = [];
     conn.isPlayoutActive = false;
+    if (conn.playoutTimeout) {
+      clearTimeout(conn.playoutTimeout);
+      conn.playoutTimeout = undefined;
+    }
 
     const message = JSON.stringify({
       event: 'clearAudio',
@@ -708,11 +741,27 @@ export class AudioStreamHandler {
    */
   private playFallbackAndEndCall(callId: string): void {
     const conn = this.connections.get(callId);
-    if (!conn || conn.ws.readyState !== WebSocket.OPEN) return;
-    if ((conn as any).isFallingBack) return;
-    (conn as any).isFallingBack = true;
+    if (!conn) {
+      // Connection already gone: ensure session and carrier call are ended
+      callOrchestrator.endCallSession(callId, 'fallback_completed').catch(() => {});
+      import('../services/CallService').then(({ CallService }) => {
+        CallService.terminateCall(callId).catch(() => {});
+      }).catch(() => {});
+      return;
+    }
+
+    if (conn.isFallingBack) return;
+    conn.isFallingBack = true;
 
     this.clearAudio(callId);
+
+    if (conn.ws.readyState !== WebSocket.OPEN) {
+      callOrchestrator.endCallSession(callId, 'fallback_completed').catch(() => {});
+      import('../services/CallService').then(({ CallService }) => {
+        CallService.terminateCall(callId).catch(() => {});
+      }).catch(() => {});
+      return;
+    }
 
     // Synthesize a 1.5-second 440Hz PCM16 mono tone at 16kHz sample rate with exponential decay for a clean chime
     const sampleRate = 16000;
@@ -730,7 +779,7 @@ export class AudioStreamHandler {
     const fallbackBase64 = pcmBuffer.toString('base64');
     this.sendAudioToVobiz(callId, fallbackBase64);
 
-    // After playout finishes (~1.8s), close connection cleanly and end call session
+    // After playout finishes (~1.8s), close connection cleanly, end call session, and terminate carrier leg
     setTimeout(() => {
       const activeConn = this.connections.get(callId);
       if (activeConn && activeConn.ws.readyState === WebSocket.OPEN) {
@@ -740,11 +789,25 @@ export class AudioStreamHandler {
       callOrchestrator.endCallSession(callId, 'fallback_completed').catch((err) => {
         logger.error('AudioStreamHandler: failed to end session after fallback', { callId, error: err });
       });
+      import('../services/CallService').then(({ CallService }) => {
+        CallService.terminateCall(callId).catch((termErr) => {
+          logger.warn('AudioStreamHandler: failed to terminate carrier call after fallback playout', { callId, error: String(termErr) });
+        });
+      }).catch(() => {});
     }, 1800);
   }
 
   private handleClose(callId: string, code: number, reason: string): void {
     const conn = this.connections.get(callId);
+    if (conn?.playoutTimeout) {
+      clearTimeout(conn.playoutTimeout);
+      conn.playoutTimeout = undefined;
+    }
+    if (conn?.silenceTimer) {
+      clearTimeout(conn.silenceTimer);
+      conn.silenceTimer = undefined;
+    }
+
     logger.info('AudioStreamHandler: connection closed', {
       callId,
       code,

@@ -13,43 +13,43 @@ import { logger } from './logger';
 
 /**
  * μ-law (mu-law) decode table - ITU G.711 standard
- * Maps each μ-law byte value to its PCM16 equivalent
- * This is the standard 256-entry lookup table
+ * Maps each μ-law byte value (0..255) to its PCM16 equivalent.
+ * Canonical 256-entry lookup table: 0..127 negative (-32124..0), 128..255 positive (32124..0).
  */
-const MU_LAW_DECODE_TABLE = [
+export const MU_LAW_DECODE_TABLE: readonly number[] = Object.freeze([
   -32124, -31100, -30076, -29052, -28028, -27004, -25980, -24956,
   -23932, -22908, -21884, -20860, -19836, -18812, -17788, -16764,
   -15996, -15484, -14972, -14460, -13948, -13436, -12924, -12412,
   -11900, -11388, -10876, -10364, -9852, -9340, -8828, -8316,
   -7932, -7676, -7420, -7164, -6908, -6652, -6396, -6140,
   -5884, -5628, -5372, -5116, -4860, -4604, -4348, -4092,
-  -3836, -3580, -3324, -3068, -2812, -2556, -2300, -2044,
-  -1788, -1532, -1276, -1020, -764, -508, -252, 0,
+  -3900, -3772, -3644, -3516, -3388, -3260, -3132, -3004,
+  -2876, -2748, -2620, -2492, -2364, -2236, -2108, -1980,
+  -1884, -1820, -1756, -1692, -1628, -1564, -1500, -1436,
+  -1372, -1308, -1244, -1180, -1116, -1052, -988, -924,
+  -876, -844, -812, -780, -748, -716, -684, -652,
+  -620, -588, -556, -524, -492, -460, -428, -396,
+  -372, -356, -340, -324, -308, -292, -276, -260,
+  -244, -228, -212, -196, -180, -164, -148, -132,
+  -120, -112, -104, -96, -88, -80, -72, -64,
+  -56, -48, -40, -32, -24, -16, -8, 0,
   32124, 31100, 30076, 29052, 28028, 27004, 25980, 24956,
   23932, 22908, 21884, 20860, 19836, 18812, 17788, 16764,
   15996, 15484, 14972, 14460, 13948, 13436, 12924, 12412,
   11900, 11388, 10876, 10364, 9852, 9340, 8828, 8316,
   7932, 7676, 7420, 7164, 6908, 6652, 6396, 6140,
   5884, 5628, 5372, 5116, 4860, 4604, 4348, 4092,
-  3836, 3580, 3324, 3068, 2812, 2556, 2300, 2044,
-  1788, 1532, 1276, 1020, 764, 508, 252, 0,
-  -32124, -31100, -30076, -29052, -28028, -27004, -25980, -24956,
-  -23932, -22908, -21884, -20860, -19836, -18812, -17788, -16764,
-  -15996, -15484, -14972, -14460, -13948, -13436, -12924, -12412,
-  -11900, -11388, -10876, -10364, -9852, -9340, -8828, -8316,
-  -7932, -7676, -7420, -7164, -6908, -6652, -6396, -6140,
-  -5884, -5628, -5372, -5116, -4860, -4604, -4348, -4092,
-  -3836, -3580, -3324, -3068, -2812, -2556, -2300, -2044,
-  -1788, -1532, -1276, -1020, -764, -508, -252, 0,
-  32124, 31100, 30076, 29052, 28028, 27004, 25980, 24956,
-  23932, 22908, 21884, 20860, 19836, 18812, 17788, 16764,
-  15996, 15484, 14972, 14460, 13948, 13436, 12924, 12412,
-  11900, 11388, 10876, 10364, 9852, 9340, 8828, 8316,
-  7932, 7676, 7420, 7164, 6908, 6652, 6396, 6140,
-  5884, 5628, 5372, 5116, 4860, 4604, 4348, 4092,
-  3836, 3580, 3324, 3068, 2812, 2556, 2300, 2044,
-  1788, 1532, 1276, 1020, 764, 508, 252, 0,
-];
+  3900, 3772, 3644, 3516, 3388, 3260, 3132, 3004,
+  2876, 2748, 2620, 2492, 2364, 2236, 2108, 1980,
+  1884, 1820, 1756, 1692, 1628, 1564, 1500, 1436,
+  1372, 1308, 1244, 1180, 1116, 1052, 988, 924,
+  876, 844, 812, 780, 748, 716, 684, 652,
+  620, 588, 556, 524, 492, 460, 428, 396,
+  372, 356, 340, 324, 308, 292, 276, 260,
+  244, 228, 212, 196, 180, 164, 148, 132,
+  120, 112, 104, 96, 88, 80, 72, 64,
+  56, 48, 40, 32, 24, 16, 8, 0
+]);
 
 /**
  * Converts μ-law encoded audio (from Vobiz) to PCM16 format.
@@ -157,32 +157,7 @@ export function pcm16ToUlaw(pcm16Samples: Int16Array): Uint8Array {
   const ulawBytes = new Uint8Array(size);
 
   for (let i = 0; i < size; i++) {
-    let pcm = pcm16Samples[i]!;
-
-    // Extract sign bit
-    const sign = (pcm & 0x8000) >> 8;
-    if (pcm < 0) {
-      pcm = -pcm;
-    }
-
-    // Clip to max PCM16 range
-    if (pcm > 32635) {
-      pcm = 32635;
-    }
-
-    // G.711 compression logic
-    pcm += 132;
-    let exponent = 7;
-    let mask = 0x4000;
-    while ((pcm & mask) === 0 && exponent > 0) {
-      exponent--;
-      mask >>= 1;
-    }
-    const mantissa = (pcm >> (exponent + 3)) & 0x0f;
-    const ulawByte = ~(sign | (exponent << 4) | mantissa) & 0xff;
-
-    // Avoid 0x00 to prevent signaling anomalies in some carrier nodes
-    ulawBytes[i] = ulawByte === 0 ? 0x02 : ulawByte;
+    ulawBytes[i] = encodeMuLawSample(pcm16Samples[i]!);
   }
 
   return ulawBytes;
@@ -277,45 +252,39 @@ export function convertInboundAudio(base64MuLaw: string): string {
 }
 
 /**
- * Standalone Named Helper: Decodes a single 8-bit G.711 mu-law byte to a 16-bit linear PCM sample.
+ * Standalone Named Helper: Decodes a single 8-bit G.711 mu-law byte to a 16-bit linear PCM sample
+ * using the canonical ITU-T G.711 lookup table.
  */
-function decodeMuLawSample(muLawByte: number): number {
-  // Flip the bits as G.711 mu-law inherently complements data bits
-  const sign = (muLawByte & 0x80) === 0 ? -1 : 1;
-  const exponent = (muLawByte & 0x70) >> 4;
-  const mantissa = muLawByte & 0x0F;
-  
-  let sample = (mantissa << 3) + 132;
-  sample <<= exponent;
-  sample -= 132;
-  
-  return sign * sample;
+export function decodeMuLawSample(muLawByte: number): number {
+  return MU_LAW_DECODE_TABLE[muLawByte & 0xFF]!;
 }
 
 /**
  * Encodes a single 16-bit PCM sample to a G.711 mu-law byte.
- * Extracted as a named helper so it can be unit-tested independently.
+ * Adheres strictly to the ITU-T G.711 specification with:
+ * - 14-bit linear dynamic range
+ * - Bias offset of 132 (0x84)
+ * - Logarithmic chord compression
+ * - Bit inversion for transmission
+ * - Zero-byte protection (0x00 -> 0x02 to prevent carrier signalling drops)
  */
 export function encodeMuLawSample(pcm: number): number {
   let sample = pcm;
+  let sign = 0;
+  if (sample < 0) {
+    sign = 0x80;
+    sample = -sample;
+  }
 
-  // Extract and strip sign
-  const sign = (sample & 0x8000) >> 8;
-  if (sample < 0) sample = -sample;
-
-  // Clip to valid range
+  // Clip to max 14-bit magnitude
   if (sample > 32635) sample = 32635;
 
-  // G.711 bias + segment encoding
   sample += 132;
   let exponent = 7;
-  let mask = 0x4000;
-  while ((sample & mask) === 0 && exponent > 0) {
-    exponent--;
-    mask >>= 1;
-  }
-  const mantissa = (sample >> (exponent + 3)) & 0x0f;
-  const ulawByte = ~(sign | (exponent << 4) | mantissa) & 0xff;
+  for (let expMask = 0x4000; (sample & expMask) === 0 && exponent > 0; exponent--, expMask >>= 1) {}
+
+  const mantissa = (sample >> (exponent + 3)) & 0x0F;
+  const ulawByte = ~(sign | (exponent << 4) | mantissa) & 0xFF;
 
   // Avoid 0x00 to prevent signaling anomalies in some carrier nodes
   return ulawByte === 0 ? 0x02 : ulawByte;

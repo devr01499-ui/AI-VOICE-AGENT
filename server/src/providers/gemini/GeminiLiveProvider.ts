@@ -720,10 +720,10 @@ export class GeminiLiveProvider implements IRealtimeProvider {
           : `WebSocket closed before setup complete (code=${code}, reason=${reason.toString()})`;
         handler.reject(new CallError(callId, errMsg, 'NETWORK_ERROR'));
         this.setupCompletePromises.delete(sessionId);
-      } else {
+      } else if (code !== 1000 && code !== 1005) {
         callbacks.onError?.(
           sessionId,
-          new Error(`Upstream connection closed by Gemini. Code: ${code}. Reason: ${reason.toString() || 'No reason provided'}`)
+          new Error(`Upstream connection closed unexpectedly by Gemini. Code: ${code}. Reason: ${reason.toString() || 'No reason provided'}`)
         );
       }
     });
