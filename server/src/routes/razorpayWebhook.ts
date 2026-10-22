@@ -10,6 +10,28 @@ import { PLAN_CONFIG } from '../config/plans';
 
 export const razorpayWebhookRouter = Router();
 
+// In-flight concurrency claim set and sliding window replay cache
+const inFlightWebhookEvents = new Set<string>();
+const razorpayReplayCache = new Map<string, number>();
+const REPLAY_TTL_MS = 15 * 60 * 1000; // 15 minutes
+
+function cleanupExpiredRazorpayEvents(): void {
+  const now = Date.now();
+  for (const [key, expiresAt] of razorpayReplayCache.entries()) {
+    if (now >= expiresAt) {
+      razorpayReplayCache.delete(key);
+    }
+  }
+}
+
+/**
+ * Clears the in-memory cache for automated testing.
+ */
+export function clearRazorpayReplayCacheForTesting(): void {
+  inFlightWebhookEvents.clear();
+  razorpayReplayCache.clear();
+}
+
 /**
  * Razorpay Webhook Handler
  * Verifies HMAC-SHA256 signature using raw body, processes payment/subscription events idempotently,
@@ -48,22 +70,39 @@ razorpayWebhookRouter.post('/razorpay', webhookRateLimiter, async (req: Request,
     return;
   }
 
+  // Deduplication / Idempotency Key check on event ID
+  const event = req.body?.event;
+  const payload = req.body?.payload;
+  const eventId =
+    (req.headers['x-razorpay-event-id'] as string) ||
+    req.body?.id ||
+    (payload?.payment?.entity?.id ? `evt_pay_${payload.payment.entity.id}` : null) ||
+    (payload?.order?.entity?.id ? `evt_ord_${payload.order.entity.id}` : null);
+
+  cleanupExpiredRazorpayEvents();
+
+  if (eventId) {
+    if (razorpayReplayCache.has(eventId)) {
+      logger.info('[RAZORPAY_WEBHOOK] Duplicate webhook event detected in sliding memory cache, idempotent bypass', { eventId, event });
+      res.status(200).json({ status: 'ok', idempotent: true });
+      return;
+    }
+
+    if (inFlightWebhookEvents.has(eventId)) {
+      logger.info('[RAZORPAY_WEBHOOK] Concurrent in-flight webhook event detected, idempotent bypass', { eventId, event });
+      res.status(200).json({ status: 'ok', idempotent: true });
+      return;
+    }
+
+    inFlightWebhookEvents.add(eventId);
+  }
+
   // 2. Respond 200 immediately to acknowledge receipt to Razorpay
   res.status(200).json({ status: 'ok' });
 
   // 3. Process event asynchronously
   try {
-    const event = req.body?.event;
-    const payload = req.body?.payload;
-
-    logger.info('[RAZORPAY_WEBHOOK] Received event', { event });
-
-    // Deduplication / Idempotency Key check on event ID
-    const eventId =
-      (req.headers['x-razorpay-event-id'] as string) ||
-      req.body?.id ||
-      (payload?.payment?.entity?.id ? `evt_pay_${payload.payment.entity.id}` : null) ||
-      (payload?.order?.entity?.id ? `evt_ord_${payload.order.entity.id}` : null);
+    logger.info('[RAZORPAY_WEBHOOK] Received event', { event, eventId });
 
     if (eventId) {
       const existingEvent = await prisma.auditLog.findFirst({
@@ -73,7 +112,7 @@ razorpayWebhookRouter.post('/razorpay', webhookRateLimiter, async (req: Request,
         },
       });
       if (existingEvent) {
-        logger.info('[RAZORPAY_WEBHOOK] Duplicate webhook event detected, idempotent bypass', { eventId, event });
+        logger.info('[RAZORPAY_WEBHOOK] Duplicate webhook event detected in audit log, idempotent bypass', { eventId, event });
         return;
       }
     }
@@ -369,5 +408,10 @@ razorpayWebhookRouter.post('/razorpay', webhookRateLimiter, async (req: Request,
     }
   } catch (err: any) {
     logger.error('[RAZORPAY_WEBHOOK_ERROR] Failed processing webhook payload', { error: err.message });
+  } finally {
+    if (eventId) {
+      inFlightWebhookEvents.delete(eventId);
+      razorpayReplayCache.set(eventId, Date.now() + REPLAY_TTL_MS);
+    }
   }
 });

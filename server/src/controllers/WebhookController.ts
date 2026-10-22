@@ -5,6 +5,8 @@ import { env } from '../config/env';
 import crypto from 'crypto';
 import { ProviderError } from '../types/errors';
 import { CallService } from '../services/CallService';
+import { CallRepository } from '../repositories/CallRepository';
+import type { CallStatus } from '../types';
 
 export class WebhookController {
   private static validateTelephonySignature(req: Request): boolean {
@@ -13,7 +15,11 @@ export class WebhookController {
     const authToken = process.env.TELEPHONY_AUTH_TOKEN;
 
     if (!authToken) {
-      logger.warn('WebhookController: TELEPHONY_AUTH_TOKEN is not configured in the environment. Bypassing signature verification.');
+      if (process.env.NODE_ENV === 'production') {
+        logger.error('WebhookController: TELEPHONY_AUTH_TOKEN is not configured in production. Rejecting webhook (fail closed).');
+        return false;
+      }
+      logger.warn('WebhookController: TELEPHONY_AUTH_TOKEN is not configured in the environment. Permitting bypass in non-production.');
       return true;
     }
 
@@ -120,18 +126,11 @@ export class WebhookController {
       const normalizedStatus = String(status).toLowerCase();
 
       if (normalizedStatus === 'ringing') {
-        await prisma.call.update({
-          where: { id: logEntry.id, userId: logEntry.userId },
-          data: { status: 'ringing' }
-        });
+        await CallRepository.updateStatus(logEntry.id, 'ringing');
         logger.info('WebhookController: transition status to ringing', { callId: logEntry.id });
       } else if (normalizedStatus === 'answered' || normalizedStatus === 'in-progress' || normalizedStatus === 'in_progress') {
-        await prisma.call.update({
-          where: { id: logEntry.id, userId: logEntry.userId },
-          data: {
-            status: 'in_progress',
-            startTime: logEntry.startTime || new Date()
-          }
+        await CallRepository.updateStatus(logEntry.id, 'in_progress', {
+          startTime: logEntry.startTime || new Date(),
         });
         logger.info('WebhookController: transition status to in-progress', { callId: logEntry.id });
       } else if (
@@ -153,16 +152,16 @@ export class WebhookController {
           duration = 0;
         }
 
-        await prisma.call.update({
-          where: { id: logEntry.id, userId: logEntry.userId },
-          data: {
-            status: 'completed',
-            endTime,
-            durationSeconds: duration,
-            ...(recordingUrl ? { recordingUrl } : {})
-          }
+        const terminalStatus: CallStatus = normalizedStatus === 'completed' ? 'completed' : 'failed';
+        await CallRepository.updateStatus(logEntry.id, terminalStatus, {
+          endTime,
+          durationSeconds: duration,
         });
-        logger.info('WebhookController: transition status to completed', { callId: logEntry.id, durationSeconds: duration });
+
+        if (recordingUrl) {
+          await CallRepository.update(logEntry.id, { recordingUrl }).catch(() => {});
+        }
+        logger.info('WebhookController: transition status to terminal', { callId: logEntry.id, status: terminalStatus, durationSeconds: duration });
 
         if (normalizedStatus === 'completed') {
           CallService.generatePostCallIntelligence(logEntry.id).catch(err => {

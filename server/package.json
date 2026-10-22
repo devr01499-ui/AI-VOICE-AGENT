@@ -20,7 +20,8 @@
     "test:batch-a": "node scripts/test_plivo_webhook_security.js && node scripts/test_audiostream_isolation.js && node scripts/test_live_transcript_auth.js",
     "test:batch-b": "node scripts/test_call_statemachine_concurrency.js",
     "test:batch-c": "node scripts/test_monetization_ledger.js",
-    "test:batch-d": "node scripts/test_audio_pipeline_reliability.js"
+    "test:batch-d": "node scripts/test_audio_pipeline_reliability.js",
+    "test:batch-e": "node scripts/test_webhook_idempotency_replay.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
