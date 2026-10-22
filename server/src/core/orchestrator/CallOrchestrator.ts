@@ -476,7 +476,8 @@ export class CallOrchestrator extends EventEmitter {
       this.toolExecutor.registerTools(agentConfig.tools);
     }
 
-    const stateMachine = this.stateMachines.get(callId) || new CallStateMachine(callId);
+    const existingCall = await CallRepository.findById(callId).catch(() => null);
+    const stateMachine = this.stateMachines.get(callId) || new CallStateMachine(callId, (existingCall?.status as CallStatus) || 'queued');
     this.stateMachines.set(callId, stateMachine);
     stateMachine.transitionTo('in_progress');
 
@@ -777,55 +778,56 @@ export class CallOrchestrator extends EventEmitter {
       this.activeCalls.delete(callId);
     }
 
+    const mappedStatus: CallStatus = reason === 'completed' || reason === 'user_hangup' || reason === 'stream_stopped'
+      ? 'completed'
+      : 'failed';
+
     const stateMachine = this.stateMachines.get(callId);
     if (stateMachine) {
-      const mappedStatus: CallStatus = reason === 'completed' || reason === 'user_hangup' || reason === 'stream_stopped'
-        ? 'completed'
-        : 'failed';
       stateMachine.transitionTo(mappedStatus);
       this.stateMachines.delete(callId);
-
-      const endTime = new Date();
-      const call = await prisma.call.findUnique({ where: { id: callId } });
-      let durationSeconds = 0;
-      if (call && call.startTime) {
-        durationSeconds = Math.max(1, Math.round((endTime.getTime() - call.startTime.getTime()) / 1000));
-      }
-      const existingCdrDuration = call?.durationSeconds ?? null;
-
-      logger.info('[CALL_DURATION_AUDIT] Call session ended duration metrics', {
-        callId,
-        userId: call?.userId,
-        computedDurationSeconds: durationSeconds,
-        vobizCdrReportedDuration: existingCdrDuration,
-        discrepancySeconds: existingCdrDuration !== null ? Math.round(durationSeconds - existingCdrDuration) : null,
-        timestamps: {
-          createdAt: call?.createdAt?.toISOString(),
-          startTime: call?.startTime?.toISOString(),
-          endTime: endTime.toISOString(),
-          setupLatencyMs: (call?.startTime && call?.createdAt)
-            ? (call.startTime.getTime() - call.createdAt.getTime())
-            : null,
-          wallDurationSec: (call?.startTime)
-            ? Math.round((endTime.getTime() - call.startTime.getTime()) / 1000)
-            : null,
-        },
-      });
-
-      // If Vobiz hangup webhook already recorded the authoritative telephony CDR duration, preserve it
-      const finalDurationSeconds = (existingCdrDuration && existingCdrDuration > 0)
-        ? existingCdrDuration
-        : durationSeconds;
-
-      await CallRepository.updateStatus(callId, mappedStatus, { endTime, durationSeconds: finalDurationSeconds });
-      await SessionLogger.logCallEnded(callId, reason, session?.providerSessionId || '');
-
-      // Trigger post-call deduction asynchronously
-      const { CallService } = await import('../../services/CallService');
-      CallService.deductCallMinutes(callId, finalDurationSeconds).catch((deductErr: any) => {
-        logger.error('[CALL_DEDUCTION_ERROR] Failed during post-call deduction', { callId, error: String(deductErr) });
-      });
     }
+
+    const endTime = new Date();
+    const call = await prisma.call.findUnique({ where: { id: callId } });
+    let durationSeconds = 0;
+    if (call && call.startTime) {
+      durationSeconds = Math.max(1, Math.round((endTime.getTime() - call.startTime.getTime()) / 1000));
+    }
+    const existingCdrDuration = call?.durationSeconds ?? null;
+
+    logger.info('[CALL_DURATION_AUDIT] Call session ended duration metrics', {
+      callId,
+      userId: call?.userId,
+      computedDurationSeconds: durationSeconds,
+      vobizCdrReportedDuration: existingCdrDuration,
+      discrepancySeconds: existingCdrDuration !== null ? Math.round(durationSeconds - existingCdrDuration) : null,
+      timestamps: {
+        createdAt: call?.createdAt?.toISOString(),
+        startTime: call?.startTime?.toISOString(),
+        endTime: endTime.toISOString(),
+        setupLatencyMs: (call?.startTime && call?.createdAt)
+          ? (call.startTime.getTime() - call.createdAt.getTime())
+          : null,
+        wallDurationSec: (call?.startTime)
+          ? Math.round((endTime.getTime() - call.startTime.getTime()) / 1000)
+          : null,
+      },
+    });
+
+    // If Vobiz hangup webhook already recorded the authoritative telephony CDR duration, preserve it
+    const finalDurationSeconds = (existingCdrDuration && existingCdrDuration > 0)
+      ? existingCdrDuration
+      : durationSeconds;
+
+    await CallRepository.updateStatus(callId, mappedStatus, { endTime, durationSeconds: finalDurationSeconds });
+    await SessionLogger.logCallEnded(callId, reason, session?.providerSessionId || '');
+
+    // Trigger post-call deduction asynchronously
+    const { CallService } = await import('../../services/CallService');
+    CallService.deductCallMinutes(callId, finalDurationSeconds).catch((deductErr: any) => {
+      logger.error('[CALL_DEDUCTION_ERROR] Failed during post-call deduction', { callId, error: String(deductErr) });
+    });
 
     this.emit('callEnded', { callId, reason });
   }

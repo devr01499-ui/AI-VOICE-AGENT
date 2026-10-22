@@ -5,25 +5,30 @@ import { logger } from '../../utils/logger';
 export class CallStateMachine {
   private currentStatus: CallStatus = 'queued';
 
-  constructor(private readonly callId: string) {}
+  constructor(private readonly callId: string, initialStatus?: CallStatus) {
+    if (initialStatus) {
+      this.currentStatus = initialStatus;
+    }
+  }
 
   getCurrentStatus(): CallStatus {
     return this.currentStatus;
   }
 
-  transitionTo(nextStatus: CallStatus): void {
+  transitionTo(nextStatus: CallStatus): boolean {
     const prevStatus = this.currentStatus;
-    if (prevStatus === nextStatus) return;
+    if (prevStatus === nextStatus) return true;
 
     // Validate states transitions
     const valid = this.validateTransition(prevStatus, nextStatus);
     if (!valid) {
-      logger.warn('CallStateMachine: Invalid state transition attempted', {
+      logger.warn('CallStateMachine: Invalid state transition rejected', {
         callId: this.callId,
         from: prevStatus,
         to: nextStatus,
       });
-      // Permissive in dev to avoid hard failures
+      // Fail closed: do NOT mutate current status
+      return false;
     }
 
     this.currentStatus = nextStatus;
@@ -39,12 +44,14 @@ export class CallStateMachine {
     } else if (nextStatus === 'completed' || nextStatus === 'failed') {
       eventBus.publish(PROVIDER_EVENTS.CALL_ENDED, { callId: this.callId, status: nextStatus });
     }
+
+    return true;
   }
 
   private validateTransition(from: CallStatus, to: CallStatus): boolean {
     const transitions: Record<CallStatus, CallStatus[]> = {
-      queued: ['ringing', 'connected', 'failed', 'timeout', 'cancelled'],
-      ringing: ['connected', 'completed', 'failed', 'no_answer', 'busy', 'timeout', 'cancelled'],
+      queued: ['ringing', 'connected', 'in_progress', 'failed', 'timeout', 'cancelled'],
+      ringing: ['connected', 'in_progress', 'completed', 'failed', 'no_answer', 'busy', 'timeout', 'cancelled'],
       connected: ['in_progress', 'completed', 'failed', 'timeout', 'cancelled'],
       in_progress: ['completed', 'failed', 'timeout', 'cancelled'],
       completed: [],

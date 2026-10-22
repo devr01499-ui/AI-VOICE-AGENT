@@ -64,6 +64,7 @@ import { requireAuthOrApiKey } from './middleware/authWrapper';
 import { requireCallingMinutes } from './middleware/planValidation';
 import { adminRouter } from './routes/adminRoutes';
 import { razorpayWebhookRouter } from './routes/razorpayWebhook';
+import { reapStuckCalls } from './utils/concurrency';
 
 // ─── Express App ─────────────────────────────────
 
@@ -620,13 +621,19 @@ async function bootstrap(): Promise<void> {
     // Start background rule evaluation worker
     AlertEvaluator.startBackgroundWorker(60000);
 
-    // Boot recovery & 60s background cycle for batch campaigns
-    BatchService.recoverStaleBatches().catch(err => {
-      logger.error('Claritiy Voice Server: boot batch recovery error', { error: String(err) });
+    // Boot recovery & 60s background cycle for batch campaigns & stuck calls
+    Promise.all([
+      BatchService.recoverStaleBatches(),
+      reapStuckCalls()
+    ]).catch(err => {
+      logger.error('Claritiy Voice Server: boot recovery error', { error: String(err) });
     });
     setInterval(() => {
-      BatchService.recoverStaleBatches().catch(err => {
-        logger.error('Claritiy Voice Server: background batch recovery error', { error: String(err) });
+      Promise.all([
+        BatchService.recoverStaleBatches(),
+        reapStuckCalls()
+      ]).catch(err => {
+        logger.error('Claritiy Voice Server: background recovery error', { error: String(err) });
       });
     }, 60000);
 

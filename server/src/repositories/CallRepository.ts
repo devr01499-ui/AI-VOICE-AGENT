@@ -248,13 +248,54 @@ export class CallRepository {
     status: CallStatus,
     extraData?: StatusExtraData
   ) {
+    const TERMINAL_STATUSES: CallStatus[] = ['completed', 'failed', 'busy', 'no_answer', 'cancelled', 'timeout'];
+
     try {
+      // If target status is non-terminal, guard against reviving an already terminal call
+      if (!TERMINAL_STATUSES.includes(status)) {
+        const updateResult = await prisma.call.updateMany({
+          where: {
+            id: callId,
+            status: { notIn: TERMINAL_STATUSES },
+          },
+          data: {
+            status,
+            ...(extraData?.startTime ? { startTime: extraData.startTime } : {}),
+            ...(extraData?.endTime ? { endTime: extraData.endTime } : {}),
+            ...(extraData?.durationSeconds !== undefined
+              ? { durationSeconds: extraData.durationSeconds }
+              : {}),
+          },
+        });
+
+        if (updateResult.count === 0) {
+          logger.warn('CallRepository: Transition to non-terminal status rejected — call already in terminal state', {
+            callId,
+            attemptedStatus: status,
+          });
+          const existing = await prisma.call.findUnique({
+            where: { id: callId },
+            include: { execution: true },
+          });
+          if (!existing) throw new NotFoundError('Call');
+          return existing;
+        }
+
+        const updatedCall = await prisma.call.findUnique({
+          where: { id: callId },
+          include: { execution: true },
+        });
+        logger.info('Call status updated', { callId, status });
+        return updatedCall!;
+      }
+
+      // Target status is terminal: update and guarantee endTime
       const call = await prisma.call.update({
         where: { id: callId },
         data: {
           status,
           ...(extraData?.startTime ? { startTime: extraData.startTime } : {}),
-          ...(extraData?.endTime ? { endTime: extraData.endTime } : {}),
+          endTime: extraData?.endTime || new Date(),
           ...(extraData?.durationSeconds !== undefined
             ? { durationSeconds: extraData.durationSeconds }
             : {}),
@@ -262,9 +303,10 @@ export class CallRepository {
         include: { execution: true },
       });
 
-      logger.info('Call status updated', { callId, status });
+      logger.info('Call status updated to terminal state', { callId, status });
       return call;
     } catch (error) {
+      if (error instanceof NotFoundError) throw error;
       logger.error('Failed to update call status', {
         callId,
         status,

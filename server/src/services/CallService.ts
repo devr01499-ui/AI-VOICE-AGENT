@@ -22,7 +22,7 @@ import { ADMIN_EMAIL } from '../config/constants';
 import { WebhookDispatcher } from '../utils/WebhookDispatcher';
 import { ContactsController } from '../controllers/ContactsController';
 import { redactPii } from '../utils/piiRedactor';
-import { countActiveCalls } from '../utils/concurrency';
+import { countActiveCalls, countGlobalActiveCalls, GLOBAL_TELEPHONY_CAP, withUserCallLock } from '../utils/concurrency';
 
 // ─── Input Shapes ─────────────────────────────────
 
@@ -61,134 +61,149 @@ export class CallService {
       ]);
     }
 
-    // ── Enforce minutes remaining pre-call gate ─────────────
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new ValidationError('User not found');
+    return withUserCallLock(userId, async () => {
+      // ── Enforce minutes remaining pre-call gate ─────────────
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) throw new ValidationError('User not found');
 
-    if (user.accountStatus === 'suspended') {
-      throw new ValidationError(`Account suspended: ${user.suspendedReason || 'Administrative hold'}. Please contact support@claritiy.com.`);
-    }
-
-    if (user.accountStatus === 'restricted') {
-      throw new ValidationError('Account restricted: Outbound calls are temporarily disabled. Please contact support@claritiy.com.');
-    }
-
-    const effectiveRemainingSeconds = user.minutesRemainingSeconds > 0
-      ? user.minutesRemainingSeconds
-      : (user.callingBalanceMinutes * 60);
-
-    if (user.accountType !== 'admin' && effectiveRemainingSeconds <= 0) {
-      throw new ValidationError('Insufficient call minutes remaining. You have 0 minutes left. Please purchase a plan.');
-    }
-
-    let maxConcurrency = user.maxConcurrentCalls ?? 1;
-    if (user.maxConcurrentCalls === null || user.maxConcurrentCalls === undefined) {
-      if (user.accountType === 'developer' || user.accountType === 'professional') {
-        maxConcurrency = 5; // Growth
-      } else if (user.accountType === 'enterprise') {
-        maxConcurrency = 15; // Scale
+      if (user.accountStatus === 'suspended') {
+        throw new ValidationError(`Account suspended: ${user.suspendedReason || 'Administrative hold'}. Please contact support@claritiy.com.`);
       }
-    }
 
-    const activeCallCount = await countActiveCalls(userId);
+      if (user.accountStatus === 'restricted') {
+        throw new ValidationError('Account restricted: Outbound calls are temporarily disabled. Please contact support@claritiy.com.');
+      }
 
-    if (activeCallCount >= maxConcurrency) {
-      logger.warn('[CallService] Concurrency limit exceeded before placing call', {
-        userId,
-        activeCallCount,
-        maxConcurrency,
-      });
-      throw new ValidationError('Concurrency limit exceeded', [
-        { field: 'concurrency', message: `Max allowed concurrent calls (${maxConcurrency}) reached. You currently have ${activeCallCount} active call(s).` }
-      ]);
-    }
+      const effectiveRemainingSeconds = user.minutesRemainingSeconds > 0
+        ? user.minutesRemainingSeconds
+        : (user.callingBalanceMinutes * 60);
 
-    // ── Enforce Vobiz sub-account provisioning check ─────────────
-    if (user.accountType !== 'admin' && user.email !== ADMIN_EMAIL) {
-      const subAccount = await prisma.vobizSubAccount.findUnique({ where: { userId } });
-      if (!subAccount) {
-        throw new ValidationError('Vobiz account not provisioned — complete setup first.', [
-          { field: 'vobizSubAccount', message: 'Vobiz account is not provisioned for this user. Complete setup/KYC first.' }
+      if (user.accountType !== 'admin' && effectiveRemainingSeconds <= 0) {
+        throw new ValidationError('Insufficient call minutes remaining. You have 0 minutes left. Please purchase a plan.');
+      }
+
+      // ── Enforce Global Telephony Concurrency Cap ───────────
+      const globalActive = await countGlobalActiveCalls();
+      if (globalActive >= GLOBAL_TELEPHONY_CAP) {
+        logger.warn('[CallService] Global telephony concurrency capacity reached', {
+          globalActive,
+          globalCap: GLOBAL_TELEPHONY_CAP,
+        });
+        throw new ValidationError('Global telephony capacity reached', [
+          { field: 'concurrency', message: 'System-wide concurrent call limit reached. Please retry in a few moments.' }
         ]);
       }
-    }
 
-    // ── Enforce Opt-out / DNC Gate (TRAI / UCC compliance) ─────────
-    const cleanToDigits = phoneNumber.replace(/\D/g, '');
-    const toVariants = Array.from(new Set([
-      phoneNumber,
-      `+${cleanToDigits}`,
-      cleanToDigits,
-    ]));
+      // ── Enforce Tenant Concurrency Cap ────────────────────
+      let maxConcurrency = user.maxConcurrentCalls ?? 1;
+      if (user.maxConcurrentCalls === null || user.maxConcurrentCalls === undefined) {
+        if (user.accountType === 'developer' || user.accountType === 'professional') {
+          maxConcurrency = 5; // Growth
+        } else if (user.accountType === 'enterprise') {
+          maxConcurrency = 15; // Scale
+        }
+      }
 
-    const optedOutContact = await prisma.contact.findFirst({
-      where: {
-        userId,
-        phoneNumber: { in: toVariants },
-        optedOutAt: { not: null }
+      const activeCallCount = await countActiveCalls(userId);
+
+      if (activeCallCount >= maxConcurrency) {
+        logger.warn('[CallService] Concurrency limit exceeded before placing call', {
+          userId,
+          activeCallCount,
+          maxConcurrency,
+        });
+        throw new ValidationError('Concurrency limit exceeded', [
+          { field: 'concurrency', message: `Max allowed concurrent calls (${maxConcurrency}) reached. You currently have ${activeCallCount} active call(s).` }
+        ]);
+      }
+
+      // ── Enforce Vobiz sub-account provisioning check ─────────────
+      if (user.accountType !== 'admin' && user.email !== ADMIN_EMAIL) {
+        const subAccount = await prisma.vobizSubAccount.findUnique({ where: { userId } });
+        if (!subAccount) {
+          throw new ValidationError('Vobiz account not provisioned — complete setup first.', [
+            { field: 'vobizSubAccount', message: 'Vobiz account is not provisioned for this user. Complete setup/KYC first.' }
+          ]);
+        }
+      }
+
+      // ── Enforce Opt-out / DNC Gate (TRAI / UCC compliance) ─────────
+      const cleanToDigits = phoneNumber.replace(/\D/g, '');
+      const toVariants = Array.from(new Set([
+        phoneNumber,
+        `+${cleanToDigits}`,
+        cleanToDigits,
+      ]));
+
+      const optedOutContact = await prisma.contact.findFirst({
+        where: {
+          userId,
+          phoneNumber: { in: toVariants },
+          optedOutAt: { not: null }
+        }
+      });
+
+      if (optedOutContact) {
+        logger.warn('CallService: Outbound call blocked - recipient opted out', {
+          userId,
+          phoneNumber,
+          optedOutAt: optedOutContact.optedOutAt
+        });
+        throw new ValidationError('Outbound call blocked: recipient has opted out (DNC)', [
+          {
+            field: 'phoneNumber',
+            message: `Recipient ${phoneNumber} is on the Do Not Call (DNC) list (opted out on ${optedOutContact.optedOutAt?.toISOString()}). Calling is prohibited under UCC regulations.`
+          }
+        ]);
+      }
+
+      // ── Validate agent exists ──────────────────
+      const agent = await AgentRepository.findById(agentId);
+      if (agent.status !== 'active' && agent.status !== 'draft') {
+        throw new ValidationError('Agent is not available', [
+          { field: 'agentId', message: `Agent status is '${agent.status}', must be 'active' or 'draft'` },
+        ]);
+      }
+
+      // ── Caller ID resolution and ownership gate ──
+      const isAdmin = user.accountType === 'admin' || user.email === ADMIN_EMAIL;
+      const { effectiveFromNumber } = await CallService.validateCallerNumber(userId, fromPhoneNumber, isAdmin);
+
+      // ── Initiate via CallOrchestrator ──────────
+      try {
+        const callId = await callOrchestrator.initiateOutboundCall(
+          phoneNumber,
+          agentId,
+          userId,
+          effectiveFromNumber,
+          maxDuration ?? 1800,
+          input.record,
+          input.batchId
+        );
+
+        const call = await CallRepository.findById(callId);
+
+        ContactsController.upsertContactOnCall(userId, phoneNumber).catch(() => {});
+
+        return {
+          id: call.id,
+          callId: call.id,
+          status: call.status as CallStatus,
+          phoneNumber: call.recipientPhoneNumber,
+          agentId: call.agentId,
+          createdAt: call.createdAt.toISOString(),
+        };
+      } catch (err) {
+        logger.error('CallService: failed to initiate call', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+
+        throw new CallError(
+          'unknown',
+          `Failed to place call: ${err instanceof Error ? err.message : 'Unknown error'}`
+        );
       }
     });
-
-    if (optedOutContact) {
-      logger.warn('CallService: Outbound call blocked - recipient opted out', {
-        userId,
-        phoneNumber,
-        optedOutAt: optedOutContact.optedOutAt
-      });
-      throw new ValidationError('Outbound call blocked: recipient has opted out (DNC)', [
-        {
-          field: 'phoneNumber',
-          message: `Recipient ${phoneNumber} is on the Do Not Call (DNC) list (opted out on ${optedOutContact.optedOutAt?.toISOString()}). Calling is prohibited under UCC regulations.`
-        }
-      ]);
-    }
-
-    // ── Validate agent exists ──────────────────
-    const agent = await AgentRepository.findById(agentId);
-    if (agent.status !== 'active' && agent.status !== 'draft') {
-      throw new ValidationError('Agent is not available', [
-        { field: 'agentId', message: `Agent status is '${agent.status}', must be 'active' or 'draft'` },
-      ]);
-    }
-
-    // ── Caller ID resolution and ownership gate ──
-    const isAdmin = user.accountType === 'admin' || user.email === ADMIN_EMAIL;
-    const { effectiveFromNumber } = await CallService.validateCallerNumber(userId, fromPhoneNumber, isAdmin);
-
-    // ── Initiate via CallOrchestrator ──────────
-    try {
-      const callId = await callOrchestrator.initiateOutboundCall(
-        phoneNumber,
-        agentId,
-        userId,
-        effectiveFromNumber,
-        maxDuration ?? 1800,
-        input.record,
-        input.batchId
-      );
-
-      const call = await CallRepository.findById(callId);
-
-      ContactsController.upsertContactOnCall(userId, phoneNumber).catch(() => {});
-
-      return {
-        id: call.id,
-        callId: call.id,
-        status: call.status as CallStatus,
-        phoneNumber: call.recipientPhoneNumber,
-        agentId: call.agentId,
-        createdAt: call.createdAt.toISOString(),
-      };
-    } catch (err) {
-      logger.error('CallService: failed to initiate call', {
-        error: err instanceof Error ? err.message : String(err),
-      });
-
-      throw new CallError(
-        'unknown',
-        `Failed to place call: ${err instanceof Error ? err.message : 'Unknown error'}`
-      );
-    }
   }
 
   /**

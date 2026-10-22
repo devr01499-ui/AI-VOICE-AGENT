@@ -4,9 +4,9 @@ import { CallService } from './CallService';
 import { callOrchestrator } from '../core/orchestrator/CallOrchestrator';
 import { logger } from '../utils/logger';
 import { ADMIN_EMAIL } from '../config/constants';
-import { countActiveCalls, countGlobalActiveCalls } from '../utils/concurrency';
+import { countActiveCalls, countGlobalActiveCalls, GLOBAL_TELEPHONY_CAP } from '../utils/concurrency';
 
-const ACCOUNT_TELEPHONY_CAP = 50; // Plivo India account-wide telephony cap
+const ACCOUNT_TELEPHONY_CAP = GLOBAL_TELEPHONY_CAP; // Centralized telephony cap
 const LOCK_TIMEOUT_MS = 60000; // 60s stale worker lock threshold
 const STUCK_RECIPIENT_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes in_progress threshold
 
@@ -552,6 +552,24 @@ export class BatchService {
         try {
           parsedUserData = typeof nextRecipient.userData === 'string' ? JSON.parse(nextRecipient.userData) : nextRecipient.userData;
         } catch {}
+
+        // Atomic recipient claim: prevents any concurrent worker cycle from double-dialing the same recipient
+        const claimRecipient = await prisma.batchRecipient.updateMany({
+          where: {
+            id: nextRecipient.id,
+            status: { in: ['pending', 'failed'] }
+          },
+          data: {
+            status: 'in_progress',
+            callerPhoneNumber: effectiveFromNumber,
+            lastAttemptAt: new Date()
+          }
+        });
+
+        if (claimRecipient.count === 0) {
+          logger.info(`BatchService: Recipient ${nextRecipient.id} already claimed by another dispatch cycle. Skipping.`);
+          continue;
+        }
 
         let callResult: { callId: string } | null = null;
         try {
