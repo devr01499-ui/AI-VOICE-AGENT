@@ -279,9 +279,12 @@ model KnowledgeBase {
   id          String   @id @default(uuid())
   name        String
   contentText String   @map("content_text")
-  sizeChars   Int      @default(0) @map("size_chars")
-  userId      String   @map("user_id")
-  createdAt   DateTime @default(now()) @map("created_at")
+  sizeChars    Int      @default(0) @map("size_chars")
+  status       String   @default("ready")
+  progress     Int      @default(100)
+  errorMessage String?  @map("error_message")
+  userId       String   @map("user_id")
+  createdAt    DateTime @default(now()) @map("created_at")
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   kbChunks KnowledgeBaseChunk[]

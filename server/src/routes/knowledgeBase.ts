@@ -9,9 +9,10 @@ router.post('/upload', requireAuth, requireEditor, requireActivePlanOrBYOK, Know
 router.post('/scrape', requireAuth, requireEditor, requireActivePlanOrBYOK, KnowledgeBaseController.scrape);
 router.get('/', requireAuth, KnowledgeBaseController.list);
 router.delete('/:id', requireAuth, requireEditor, KnowledgeBaseController.delete);
+router.post('/:id/reindex', requireAuth, requireEditor, KnowledgeBaseController.reindex);
+router.post('/test-query', requireAuth, KnowledgeBaseController.testQuery);
 router.post('/:id/assign', requireAuth, requireEditor, KnowledgeBaseController.assignToAgent);
 router.post('/:id/unassign', requireAuth, requireEditor, KnowledgeBaseController.unassignFromAgent);
 router.post('/:id/update-agents', requireAuth, requireEditor, KnowledgeBaseController.updateAgentAssignments);
 
 export default router;
-

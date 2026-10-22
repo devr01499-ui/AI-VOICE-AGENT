@@ -31,6 +31,9 @@ import {
   Pencil,
   AlertTriangle,
   AlertCircle,
+  ShieldCheck,
+  Wand2,
+  CheckCircle2,
 } from 'lucide-react';
 import {
   apiClient,
@@ -42,8 +45,13 @@ import {
   fetchKBList,
   assignKBAgent,
   unassignKBAgent,
+  fetchPlaybooks,
+  generatePromptFromCoach,
+  reviewPromptWithCoach,
+  runTestLabSimulation,
   type ApiAgent,
   type ApiKnowledgeBase,
+  type PlaybookTemplate,
 } from '../../api';
 
 export const GEMINI_VOICES = [
@@ -501,6 +509,7 @@ export default function SinglePromptStudio({
   };
 
   const [accordionState, setAccordionState] = useState<Record<string, boolean>>({
+    intelligence: false,
     functions: false,
     kb: false,
     speech: false,
@@ -515,6 +524,97 @@ export default function SinglePromptStudio({
   const toggleAccordion = (key: string) => {
     setAccordionState((prev) => ({ ...prev, [key]: !prev[key] }));
   };
+
+  // ── Accordion: Intelligence & Response Style State ───────────────────────
+  const initialAgentCfg = useMemo(() => {
+    const raw = initialAgent?.agentConfig;
+    return typeof raw === 'string' ? (() => { try { return JSON.parse(raw); } catch { return {}; } })() : (raw || {});
+  }, [initialAgent?.agentConfig]);
+
+  const [responseStyle, setResponseStyle] = useState<'concise' | 'balanced' | 'consultative'>(
+    initialAgentCfg.responseStyle || 'balanced'
+  );
+  const [intelligenceMode, setIntelligenceMode] = useState<'fast' | 'smart'>(
+    initialAgentCfg.intelligenceMode || 'fast'
+  );
+
+  // ── Prompt Coach & Playbooks State ───────────────────────────────────────
+  const [isCoachModalOpen, setIsCoachModalOpen] = useState(false);
+  const [playbooks, setPlaybooks] = useState<PlaybookTemplate[]>([]);
+  const [selectedPlaybookId, setSelectedPlaybookId] = useState<string>('outbound_sales');
+  const [businessFacts, setBusinessFacts] = useState<Record<string, string>>({});
+  const [coachGeneratedPrompt, setCoachGeneratedPrompt] = useState<string | null>(null);
+  const [isGeneratingCoach, setIsGeneratingCoach] = useState(false);
+
+  // ── Prompt Review (QA Score) State ───────────────────────────────────────
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [isReviewingPrompt, setIsReviewingPrompt] = useState(false);
+  const [reviewResult, setReviewResult] = useState<any | null>(null);
+
+  // ── Test Lab Simulation State ─────────────────────────────────────────────
+  const [isTestLabRunning, setIsTestLabRunning] = useState(false);
+  const [testLabScorecard, setTestLabScorecard] = useState<any | null>(null);
+  const [testLabError, setTestLabError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadPlaybooks() {
+      try {
+        const list = await fetchPlaybooks();
+        setPlaybooks(list);
+        if (list.length > 0 && !selectedPlaybookId) {
+          setSelectedPlaybookId(list[0].id);
+        }
+      } catch (err) {
+        console.error('Failed to load playbooks:', err);
+      }
+    }
+    loadPlaybooks();
+  }, []);
+
+  async function handleGenerateFromCoach() {
+    try {
+      setIsGeneratingCoach(true);
+      const res = await generatePromptFromCoach(selectedPlaybookId, businessFacts);
+      setCoachGeneratedPrompt(res.generatedPrompt);
+      if (res.recommendedStyle) {
+        setResponseStyle(res.recommendedStyle);
+      }
+    } catch (err: any) {
+      alert('Prompt Coach generation error: ' + (err?.message || String(err)));
+    } finally {
+      setIsGeneratingCoach(false);
+    }
+  }
+
+  async function handleReviewPrompt() {
+    try {
+      setIsReviewingPrompt(true);
+      setIsReviewModalOpen(true);
+      const res = await reviewPromptWithCoach(systemPrompt);
+      setReviewResult(res);
+    } catch (err: any) {
+      alert('Prompt review failed: ' + (err?.message || String(err)));
+    } finally {
+      setIsReviewingPrompt(false);
+    }
+  }
+
+  async function handleRunTestLab() {
+    if (!currentAgentId) {
+      alert('Please save the agent first to run Test Lab simulations.');
+      return;
+    }
+    try {
+      setIsTestLabRunning(true);
+      setTestLabError(null);
+      const res = await runTestLabSimulation(currentAgentId);
+      setTestLabScorecard(res.scorecard);
+    } catch (err: any) {
+      setTestLabError(err?.message || 'Failed to complete Test Lab simulation.');
+    } finally {
+      setIsTestLabRunning(false);
+    }
+  }
 
   // ── Accordion 2: Knowledge Base State & Assign Handlers ──────────────────
   const [kbList, setKbList] = useState<ApiKnowledgeBase[]>(initialKbList);
@@ -848,7 +948,7 @@ export default function SinglePromptStudio({
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [copiedAgentId, setCopiedAgentId] = useState(false);
 
-  const [testTab, setTestTab] = useState<'audio' | 'llm'>('audio');
+  const [testTab, setTestTab] = useState<'audio' | 'llm' | 'testLab'>('audio');
 
   const [isTestActive, setIsTestActive] = useState(false);
   const [testStatus, setTestStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
@@ -1224,6 +1324,8 @@ export default function SinglePromptStudio({
       firstMessage: welcomeMessageMode === 'agent_first' ? customWelcomeText : null,
       agentConfig: {
         ...initialConfig,
+        responseStyle,
+        intelligenceMode,
         greeting: {
           mode: welcomeMessageMode,
           text: customWelcomeText,
@@ -1809,6 +1911,27 @@ export default function SinglePromptStudio({
                 </div>
               )}
 
+              {/* Prompt Coach & Playbooks Button */}
+              <button
+                type="button"
+                onClick={() => setIsCoachModalOpen(true)}
+                className="px-2.5 py-1 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 hover:from-indigo-500/20 hover:to-purple-500/20 border border-indigo-500/30 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
+                title="Generate production prompt from playbooks"
+              >
+                <Wand2 className="w-3.5 h-3.5 text-indigo-500" /> Prompt Coach
+              </button>
+
+              {/* Review Prompt QA Button */}
+              <button
+                type="button"
+                onClick={handleReviewPrompt}
+                disabled={isReviewingPrompt}
+                className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
+                title="Review prompt completeness and compliance rules"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Review QA
+              </button>
+
               {/* Prompt History Clock Button (Item 6) */}
               <button
                 onClick={() => setShowPromptHistoryPopover(!showPromptHistoryPopover)}
@@ -2079,6 +2202,85 @@ export default function SinglePromptStudio({
                     })}
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+
+          {/* Accordion: Intelligence & Response Style */}
+          <div className="p-3">
+            <button
+              onClick={() => toggleAccordion('intelligence')}
+              className="w-full flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200"
+            >
+              <span className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-500" /> Intelligence & Response Style
+              </span>
+              {accordionState.intelligence ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            </button>
+            {accordionState.intelligence && (
+              <div className="mt-3 space-y-4 text-xs text-slate-600 dark:text-slate-400">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">Response Style</span>
+                    <span className="text-[10px] font-mono text-amber-600 font-bold capitalize">{responseStyle}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mb-2">Controls turn length and persona conversational structure.</p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {([
+                      { id: 'concise', label: 'Concise', desc: '1-2 brief turns' },
+                      { id: 'balanced', label: 'Balanced', desc: '2-3 sentences' },
+                      { id: 'consultative', label: 'Consultative', desc: '3-4 structured sentences' },
+                    ] as const).map(s => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setResponseStyle(s.id)}
+                        className={`p-2 rounded-lg text-left transition-all border ${
+                          responseStyle === s.id
+                            ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 font-bold'
+                            : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        <div className="text-[11px] font-bold">{s.label}</div>
+                        <div className="text-[9px] text-slate-400 font-normal leading-tight">{s.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">Speed vs. Smartness Mode</span>
+                    <span className="text-[10px] font-mono text-indigo-600 font-bold uppercase">{intelligenceMode}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mb-2">Toggle between immediate turn handover and multi-turn conversational reasoning.</p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setIntelligenceMode('fast')}
+                      className={`p-2 rounded-lg text-left transition-all border ${
+                        intelligenceMode === 'fast'
+                          ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-600 font-bold'
+                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      <div className="text-[11px] font-bold">⚡ Fast Mode</div>
+                      <div className="text-[9px] text-slate-400 font-normal mt-0.5">Native audio, lowest roundtrip</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIntelligenceMode('smart')}
+                      className={`p-2 rounded-lg text-left transition-all border ${
+                        intelligenceMode === 'smart'
+                          ? 'bg-purple-500/10 border-purple-500/30 text-purple-600 font-bold'
+                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      <div className="text-[11px] font-bold">🧠 Smart Mode</div>
+                      <div className="text-[9px] text-slate-400 font-normal mt-0.5">Deep objection analysis</div>
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -2810,6 +3012,16 @@ export default function SinglePromptStudio({
               >
                 Test LLM
               </button>
+              <button
+                onClick={() => setTestTab('testLab')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  testTab === 'testLab'
+                    ? 'bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 font-bold shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Test Lab (5 Personas)
+              </button>
             </div>
           </div>
 
@@ -2910,6 +3122,102 @@ export default function SinglePromptStudio({
                     <Send className="w-4 h-4" />
                   </button>
                 </div>
+              </div>
+            )}
+
+            {testTab === 'testLab' && (
+              <div className="flex-1 flex flex-col overflow-hidden space-y-3">
+                <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-xs">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-bold text-purple-600 dark:text-purple-400 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5" /> Adversarial Simulation Runner
+                    </span>
+                    <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-purple-500/20 text-purple-600">5 Personas</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Simulates 5 adversarial caller personas (hesitant, price-sensitive, angry, rushed, Hinglish speaker) to stress-test objections, compliance, and next-step closing.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleRunTestLab}
+                  disabled={isTestLabRunning}
+                  className="w-full py-2.5 px-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 transition-all"
+                >
+                  {isTestLabRunning ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Simulating Calls (5 Personas)...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-3.5 h-3.5" /> Run Simulation Lab
+                    </>
+                  )}
+                </button>
+
+                {testLabError && (
+                  <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs text-rose-500 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>{testLabError}</span>
+                  </div>
+                )}
+
+                {testLabScorecard ? (
+                  <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                    <div className="p-3 rounded-xl border border-border/50 bg-slate-50 dark:bg-slate-800/40 text-center">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase">Average Benchmark Score</p>
+                      <div className="flex items-center justify-center gap-2 mt-1">
+                        <span className={`text-2xl font-bold ${testLabScorecard.averageScore >= 80 ? 'text-emerald-500' : 'text-amber-500'}`}>
+                          {testLabScorecard.averageScore} / 100
+                        </span>
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                          testLabScorecard.passed
+                            ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                            : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
+                        }`}>
+                          {testLabScorecard.passed ? 'PASSED READY FOR LAUNCH' : 'NEEDS REVISION'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Persona Results</p>
+                      {testLabScorecard.results?.map((res: any, idx: number) => (
+                        <div key={idx} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-slate-800 dark:text-slate-200 capitalize">
+                              {res.persona.replace('_', ' ')}
+                            </span>
+                            <span className={`font-mono font-bold ${res.passed ? 'text-emerald-500' : 'text-rose-500'}`}>
+                              {res.score} / 100
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[10px] text-slate-500 pt-1 border-t border-slate-100 dark:border-slate-800">
+                            <div>Objection: {res.dimensionScores?.objectionHandling}/100</div>
+                            <div>Accuracy: {res.dimensionScores?.kbAccuracy}/100</div>
+                            <div>Compliance: {res.dimensionScores?.compliance}/100</div>
+                            <div>Closing: {res.dimensionScores?.nextStepAsk}/100</div>
+                          </div>
+                          {res.feedback && res.feedback.length > 0 && (
+                            <p className="text-[10px] text-slate-400 italic">
+                              {res.feedback[0]}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-slate-400 text-xs">
+                    <Sparkles className="w-8 h-8 text-slate-300 dark:text-slate-700 mb-2" />
+                    <p className="font-semibold text-slate-600 dark:text-slate-300">No Simulation Run Yet</p>
+                    <p className="text-[11px] text-slate-400 mt-1 max-w-xs">
+                      Click "Run Simulation Lab" to verify objection handling, compliance guardrails, and closing effectiveness across 5 simulated personas.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -3436,6 +3744,263 @@ export default function SinglePromptStudio({
                 className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-semibold shadow-sm transition-colors flex items-center gap-1.5"
               >
                 <Check className="w-4 h-4" /> Save Endpoint
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ── Prompt Coach Modal ── */}
+      {isCoachModalOpen && (
+        <div className="fixed inset-0 z-[10000] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden text-xs">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/40">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
+                  <Wand2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">AI Prompt Coach & Starter Playbooks</h3>
+                  <p className="text-[11px] text-slate-500">Generate a high-converting, compliant production prompt tailored to your business in seconds.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCoachModalOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-12 gap-6">
+              {/* Playbook selection and facts form */}
+              <div className="md:col-span-5 space-y-4">
+                <div>
+                  <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1.5">1. SELECT STARTER PLAYBOOK</label>
+                  <select
+                    value={selectedPlaybookId}
+                    onChange={(e) => {
+                      setSelectedPlaybookId(e.target.value);
+                      setCoachGeneratedPrompt(null);
+                    }}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    {playbooks.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.title} ({p.targetRole})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Form fields for the selected playbook */}
+                <div className="space-y-3 pt-2">
+                  <label className="font-bold text-slate-700 dark:text-slate-300 block">2. ENTER YOUR BUSINESS FACTS</label>
+                  {playbooks.find((p) => p.id === selectedPlaybookId)?.requiredFields.map((field) => (
+                    <div key={field.key}>
+                      <span className="font-medium text-slate-600 dark:text-slate-400 block mb-1">{field.label}</span>
+                      <input
+                        type="text"
+                        placeholder={field.placeholder}
+                        value={businessFacts[field.key] || ''}
+                        onChange={(e) => setBusinessFacts({ ...businessFacts, [field.key]: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <span className="text-[10px] text-slate-400 block mt-0.5">e.g. {field.example}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGenerateFromCoach}
+                  disabled={isGeneratingCoach}
+                  className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-50"
+                >
+                  {isGeneratingCoach ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Generating Architecture...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="w-3.5 h-3.5" /> Generate Production Prompt
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Generated Prompt Preview */}
+              <div className="md:col-span-7 flex flex-col space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-700 dark:text-slate-300">3. PROMPT PREVIEW</label>
+                  {coachGeneratedPrompt && (
+                    <span className="text-[11px] font-mono text-emerald-600 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Ready to Apply
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex-1 min-h-[300px] p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 font-mono text-[11px] leading-relaxed overflow-y-auto whitespace-pre-wrap">
+                  {coachGeneratedPrompt ? (
+                    coachGeneratedPrompt
+                  ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 p-8 space-y-2">
+                      <Wand2 className="w-8 h-8 opacity-40" />
+                      <p className="font-medium text-slate-600 dark:text-slate-300">Fill in your business facts and click generate.</p>
+                      <p className="text-[10px] text-slate-400">
+                        The Prompt Coach will automatically compile persona directives, objection handling, closing goals, and strict compliance rules.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {coachGeneratedPrompt && (
+                  <div className="flex items-center justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsCoachModalOpen(false)}
+                      className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-semibold transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSystemPrompt(coachGeneratedPrompt);
+                        setIsCoachModalOpen(false);
+                      }}
+                      className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-sm transition-all"
+                    >
+                      <Check className="w-4 h-4" /> Apply Prompt to Agent
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Prompt QA Review Modal ── */}
+      {isReviewModalOpen && (
+        <div className="fixed inset-0 z-[10000] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden text-xs">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/40">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Prompt QA & Architecture Audit</h3>
+                  <p className="text-[11px] text-slate-500">Real multi-dimensional scorecard inspecting sections, contradictions, and compliance.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsReviewModalOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {isReviewingPrompt ? (
+                <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
+                  <div className="w-8 h-8 border-3 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+                  <p className="font-semibold text-slate-600 dark:text-slate-300">Auditing prompt architecture & compliance...</p>
+                </div>
+              ) : reviewResult ? (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Overall Score</p>
+                      <div className="flex items-baseline gap-2 mt-0.5">
+                        <span className={`text-3xl font-extrabold ${reviewResult.score >= 80 ? 'text-emerald-500' : 'text-amber-500'}`}>
+                          {reviewResult.score} / 100
+                        </span>
+                        <span className="text-sm font-bold px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200">
+                          Grade {reviewResult.letterGrade}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right text-[11px] text-slate-500">
+                      <div>Length: {reviewResult.characterCount} chars</div>
+                      <div className="text-emerald-600 font-semibold">{reviewResult.strengths?.length || 0} checks passed</div>
+                    </div>
+                  </div>
+
+                  {/* Missing Sections */}
+                  {reviewResult.missingSections?.length > 0 && (
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-1.5">
+                      <div className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                        <AlertCircle className="w-3.5 h-3.5" /> Missing Recommended Sections
+                      </div>
+                      <ul className="list-disc list-inside text-[11px] text-slate-600 dark:text-slate-400 space-y-0.5 pl-1">
+                        {reviewResult.missingSections.map((sec: string, idx: number) => (
+                          <li key={idx}>Missing {sec.replace('_', ' ')} directive.</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Contradictions */}
+                  {reviewResult.contradictions?.length > 0 && (
+                    <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 space-y-1.5">
+                      <div className="font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5" /> Potential Directive Contradictions
+                      </div>
+                      <ul className="list-disc list-inside text-[11px] text-slate-600 dark:text-slate-400 space-y-0.5 pl-1">
+                        {reviewResult.contradictions.map((c: string, idx: number) => (
+                          <li key={idx}>{c}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Warnings */}
+                  {reviewResult.warnings?.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider text-[10px]">Optimization Tips</p>
+                      {reviewResult.warnings.map((w: string, idx: number) => (
+                        <div key={idx} className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 text-[11px]">
+                          {w}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Strengths */}
+                  {reviewResult.strengths?.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="font-bold text-emerald-600 uppercase tracking-wider text-[10px]">Verified Strengths</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {reviewResult.strengths.map((s: string, idx: number) => (
+                          <div key={idx} className="p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/20 text-emerald-600 text-[10px] font-medium flex items-center gap-1.5">
+                            <Check className="w-3 h-3 flex-shrink-0" />
+                            <span>{s}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setIsReviewModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-semibold transition-colors"
+              >
+                Close Audit
               </button>
             </div>
           </div>

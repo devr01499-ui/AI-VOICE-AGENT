@@ -553,6 +553,29 @@ export interface ApiKnowledgeBase {
   agentIds?: string[];
   createdAt: string;
   sizeChars: number;
+  status?: 'queued' | 'processing' | 'ready' | 'failed';
+  progress?: number;
+  errorMessage?: string;
+}
+
+export interface KBTestQueryChunk {
+  id: string;
+  source: string;
+  section: string;
+  page?: number;
+  score: number;
+  matchType: string;
+  content: string;
+}
+
+export interface KBTestQueryResult {
+  query: string;
+  queryRewritten: string;
+  chunksCount: number;
+  latencyMs: number;
+  embeddingMs: number;
+  dbQueryMs: number;
+  chunks: KBTestQueryChunk[];
 }
 
 export async function fetchKBList(): Promise<ApiKnowledgeBase[]> {
@@ -594,10 +617,102 @@ export async function unassignKBAgent(kbId: string, agentId: string): Promise<vo
   });
 }
 
+export async function reindexKBDocument(id: string): Promise<{ success: boolean; message: string }> {
+  return apiFetch<{ success: boolean; message: string }>(`/api/v2/knowledge-base/${id}/reindex`, {
+    method: 'POST',
+  });
+}
+
+export async function testKBQuery(params: { agentId?: string; kbId?: string; query: string }): Promise<KBTestQueryResult> {
+  const res = await apiFetch<{ success: boolean; data: KBTestQueryResult }>('/api/v2/knowledge-base/test-query', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+  return (res as any)?.data || res;
+}
+
 export async function deleteKBDocument(id: string): Promise<void> {
   return apiFetch<void>(`/api/v2/knowledge-base/${id}`, {
     method: 'DELETE',
   });
+}
+
+// ── Agent Intelligence Playbooks & Test Lab ──
+export interface PlaybookTemplate {
+  id: string;
+  title: string;
+  category: string;
+  targetRole: string;
+  recommendedResponseStyle: 'concise' | 'balanced' | 'consultative';
+  goal: string;
+  opening: string;
+  discoveryQuestions: string[];
+  qualificationCriteria: string[];
+  objectionHandlingLibrary: Array<{ objection: string; response: string }>;
+  closingNextStep: string;
+  complianceRules: string[];
+  requiredFields: Array<{ key: string; label: string; placeholder: string; example: string }>;
+}
+
+export async function fetchPlaybooks(): Promise<PlaybookTemplate[]> {
+  const res = await apiFetch<{ success: boolean; data: PlaybookTemplate[] }>('/api/v2/agents/playbooks');
+  return (res as any)?.data || (Array.isArray(res) ? res : []);
+}
+
+export async function generatePromptFromCoach(playbookId: string, businessFacts: Record<string, string>): Promise<{
+  playbookId: string;
+  title: string;
+  generatedPrompt: string;
+  recommendedStyle: 'concise' | 'balanced' | 'consultative';
+}> {
+  const res = await apiFetch<{ success: boolean; data: any }>('/api/v2/agents/prompt-coach/generate', {
+    method: 'POST',
+    body: JSON.stringify({ playbookId, businessFacts }),
+  });
+  return (res as any)?.data || res;
+}
+
+export async function reviewPromptWithCoach(prompt: string): Promise<{
+  score: number;
+  letterGrade: string;
+  missingSections: string[];
+  contradictions: string[];
+  warnings: string[];
+  strengths: string[];
+  characterCount: number;
+}> {
+  const res = await apiFetch<{ success: boolean; data: any }>('/api/v2/agents/prompt-coach/review', {
+    method: 'POST',
+    body: JSON.stringify({ prompt }),
+  });
+  return (res as any)?.data || res;
+}
+
+export async function runTestLabSimulation(agentId: string, personas?: string[]): Promise<{
+  scorecard: {
+    passed: boolean;
+    averageScore: number;
+    results: Array<{
+      persona: string;
+      score: number;
+      passed: boolean;
+      dimensionScores: {
+        objectionHandling: number;
+        kbAccuracy: number;
+        compliance: number;
+        nextStepAsk: number;
+        tone: number;
+      };
+      feedback: string[];
+      turnsCount: number;
+    }>;
+  };
+}> {
+  const res = await apiFetch<{ success: boolean; data: any }>(`/api/v2/agents/${agentId}/test-lab`, {
+    method: 'POST',
+    body: JSON.stringify({ personas }),
+  });
+  return (res as any)?.data || res;
 }
 
 export async function fetchCalendarBookings(): Promise<any> {

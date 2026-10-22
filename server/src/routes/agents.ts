@@ -990,5 +990,125 @@ router.post(
   }
 );
 
+/** GET /api/v2/agents/playbooks — List all tested production playbooks */
+router.get(
+  '/playbooks',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const { PLAYBOOKS } = await import('../utils/playbooks');
+    res.json({
+      success: true,
+      data: Object.values(PLAYBOOKS),
+    });
+  }
+);
+
+/** POST /api/v2/agents/prompt-coach/generate — Generate production prompt from business facts and playbook */
+router.post(
+  '/prompt-coach/generate',
+  requireAuth,
+  requireEditor,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { playbookId, businessFacts } = req.body;
+      if (!playbookId || !businessFacts?.companyName || !businessFacts?.productOrService) {
+        res.status(400).json({
+          success: false,
+          error: 'playbookId, companyName, and productOrService are required',
+        });
+        return;
+      }
+
+      const { generatePlaybookPrompt, reviewPromptQuality } = await import('../utils/playbooks');
+      const { prompt, playbook } = generatePlaybookPrompt(playbookId, {
+        companyName: businessFacts.companyName,
+        productOrService: businessFacts.productOrService,
+        agentName: businessFacts.agentName || 'Alex',
+        coreProblem: businessFacts.coreProblem,
+        pricingSummary: businessFacts.pricingSummary,
+        targetAudience: businessFacts.targetAudience,
+        extraInstructions: businessFacts.extraInstructions,
+      });
+
+      const review = reviewPromptQuality(prompt);
+
+      res.json({
+        success: true,
+        data: {
+          prompt,
+          playbook,
+          review,
+        },
+      });
+    } catch (err: any) {
+      logger.error('Prompt coach generate error', { error: err.message });
+      res.status(500).json({ success: false, error: 'Failed to generate prompt from playbook' });
+    }
+  }
+);
+
+/** POST /api/v2/agents/prompt-coach/review — Review prompt quality and score across missing sections & compliance */
+router.post(
+  '/prompt-coach/review',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { prompt } = req.body;
+      if (!prompt || typeof prompt !== 'string') {
+        res.status(400).json({ success: false, error: 'prompt text is required' });
+        return;
+      }
+
+      const { reviewPromptQuality } = await import('../utils/playbooks');
+      const review = reviewPromptQuality(prompt);
+
+      res.json({
+        success: true,
+        data: review,
+      });
+    } catch (err: any) {
+      logger.error('Prompt coach review error', { error: err.message });
+      res.status(500).json({ success: false, error: 'Failed to review prompt' });
+    }
+  }
+);
+
+/** POST /api/v2/agents/:agentId/test-lab — Run automated adversarial customer simulation */
+router.post(
+  '/:agentId/test-lab',
+  requireAuth,
+  requireEditor,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;
+      const agentId = req.params.agentId as string;
+
+      const agent = await prisma.agent.findFirst({
+        where: { id: agentId, userId },
+      });
+
+      if (!agent) {
+        res.status(404).json({ success: false, error: 'Agent not found in your workspace' });
+        return;
+      }
+
+      const { TestLabService } = await import('../services/TestLabService');
+      const simulation = TestLabService.runSimulation(agent.systemPrompt || '');
+
+      res.json({
+        success: true,
+        data: {
+          agentId: agent.id,
+          agentName: agent.name,
+          ...simulation,
+        },
+      });
+    } catch (err: any) {
+      logger.error('Test lab simulation error', { error: err.message });
+      res.status(500).json({ success: false, error: 'Failed to execute Test Lab simulation' });
+    }
+  }
+);
+
 export default router;
 

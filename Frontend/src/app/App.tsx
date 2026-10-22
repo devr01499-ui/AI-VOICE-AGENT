@@ -12,10 +12,10 @@ import {
   fetchAgents, fetchAgent, fetchCalls, fetchProfile, createAgent, updateAgent, deleteAgent, chatWithAgent,
   exportAgentAsJson, importAgentFromJson,
   initiateCall, getCallTranscript, getLiveTranscriptWsUrl, requestTranscriptTicket,
-  fetchKBList, uploadKBDocument, scrapeKBUrl, deleteKBDocument, fetchCalendarBatches, fetchCalendarBatchDetail, createBatchCampaign, pauseBatchCampaign, resumeBatchCampaign, cancelBatchCampaign,
+  fetchKBList, uploadKBDocument, scrapeKBUrl, deleteKBDocument, reindexKBDocument, testKBQuery, fetchCalendarBatches, fetchCalendarBatchDetail, createBatchCampaign, pauseBatchCampaign, resumeBatchCampaign, cancelBatchCampaign,
   fetchAuditLogs, fetchDataRetention, updateDataRetention, fetchIpAllowlist, updateIpAllowlist, fetchConcurrencyTelemetry, updateConcurrencyLimit,
   DEV_USER_ID, DEFAULT_AGENT_ID, API_BASE, apiClient,
-  type ApiAgent, type ApiCall, type ApiProfile, type ApiKnowledgeBase, type ApiAuditLog,
+  type ApiAgent, type ApiCall, type ApiProfile, type ApiKnowledgeBase, type ApiAuditLog, type KBTestQueryResult,
 } from "./api";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -4424,13 +4424,26 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
   const [url, setUrl] = useState("");
   const [selectedAgentId, setSelectedAgentId] = useState("");
   const [openDropdownDocId, setOpenDropdownDocId] = useState<string | null>(null);
+  const [reindexingId, setReindexingId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Live Query Testing Inspector State
+  const [testQueryText, setTestQueryText] = useState("");
+  const [testTargetKbId, setTestTargetKbId] = useState("");
+  const [testTargetAgentId, setTestTargetAgentId] = useState("");
+  const [testLoading, setTestLoading] = useState(false);
+  const [testResult, setTestResult] = useState<KBTestQueryResult | null>(null);
+  const [testError, setTestError] = useState<string | null>(null);
+  const [expandedChunkId, setExpandedChunkId] = useState<string | null>(null);
 
   const loadDocs = async () => {
     try {
       setLoading(true);
       const list = await fetchKBList();
       setDocs(list);
+      if (list.length > 0 && !testTargetKbId) {
+        setTestTargetKbId(list[0].id);
+      }
     } catch (err) {
       console.error("Failed to load knowledge base", err);
     } finally {
@@ -4442,6 +4455,43 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
     loadDocs();
   }, []);
 
+  async function handleReindex(id: string) {
+    try {
+      setReindexingId(id);
+      await reindexKBDocument(id);
+      // Poll or update local status to processing
+      setDocs(prev => prev.map(d => d.id === id ? { ...d, status: 'processing', progress: 10 } : d));
+      setTimeout(loadDocs, 2500);
+    } catch (err: any) {
+      alert("Re-index failed: " + (err?.message || String(err)));
+    } finally {
+      setReindexingId(null);
+    }
+  }
+
+  async function runQueryTest() {
+    if (!testQueryText.trim()) return;
+    try {
+      setTestLoading(true);
+      setTestError(null);
+      setTestResult(null);
+
+      const res = await testKBQuery({
+        kbId: testTargetKbId || undefined,
+        agentId: testTargetAgentId || undefined,
+        query: testQueryText.trim(),
+      });
+      setTestResult(res);
+      if (res.chunks && res.chunks.length > 0) {
+        setExpandedChunkId(res.chunks[0].id);
+      }
+    } catch (err: any) {
+      setTestError(err?.message || "Retrieval test failed");
+    } finally {
+      setTestLoading(false);
+    }
+  }
+
   async function addUrl() {
     if (!url) return;
     try {
@@ -4450,6 +4500,7 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
       setDocs(prev => [...prev, newDoc]);
       setShowAdd(false);
       setUrl("");
+      setTimeout(loadDocs, 3000);
     } catch (err) {
       console.error("Failed to crawl URL", err);
       alert("Failed to crawl URL: " + (err instanceof Error ? err.message : String(err)));
@@ -4472,6 +4523,7 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
         const newDoc = await uploadKBDocument(file.name, selectedAgentId || undefined as any, base64Data);
         setDocs(prev => [...prev, newDoc]);
         setShowAdd(false);
+        setTimeout(loadDocs, 3000);
       } catch (err) {
         console.error("Failed to upload document", err);
         alert("Failed to upload document: " + (err instanceof Error ? err.message : String(err)));
@@ -4506,7 +4558,7 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <ConfirmDeleteModal 
         open={deleteModal.open} 
         onClose={() => setDeleteModal({ open: false, id: '' })} 
@@ -4515,11 +4567,17 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
         message="Are you sure you want to delete this document? It will be removed permanently." 
       />
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{docs.length} documents uploaded</p>
-        <DBtn onClick={()=>setShowAdd(true)}><Plus className="w-4 h-4"/> Add document</DBtn>
+        <div>
+          <h2 className="text-xl font-bold tracking-tight text-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>Knowledge Base & RAG v2</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Hybrid dense-vector + lexical indexing with reciprocal rank fusion and zero-hallucination gating.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <DBtn variant="secondary" onClick={loadDocs} disabled={loading}><RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`}/> Refresh</DBtn>
+          <DBtn onClick={()=>setShowAdd(true)}><Plus className="w-4 h-4"/> Add document</DBtn>
+        </div>
       </div>
       <div className="grid grid-cols-3 gap-6">
-        {[{label:"Total documents",v:docs.length},{label:"Total characters",v:docs.reduce((s,d)=>s+d.sizeChars,0).toLocaleString()},{label:"Indexed sources",v:docs.length}].map(s=>(
+        {[{label:"Total documents",v:docs.length},{label:"Total characters",v:docs.reduce((s,d)=>s+d.sizeChars,0).toLocaleString()},{label:"RAG Engine",v:"v2 Hybrid HNSW"}].map(s=>(
           <div key={s.label} className="nm-card p-4 text-center"><p className="text-xs font-bold text-[var(--nm-text)] mb-2" style={{fontFamily:"'Outfit', sans-serif"}}>{s.label.toUpperCase()}</p><p className="text-2xl font-bold" style={{fontFamily:"'Instrument Serif',serif"}}>{s.v}</p></div>
         ))}
       </div>
@@ -4528,11 +4586,35 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
           <div className="p-8 text-center text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>LOADING DATASETS...</div>
         ) : (
           <table className="w-full">
-            <thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Document / URL","Linked Agents","Size","Uploaded",""].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>)}</tr></thead>
+            <thead>
+              <tr className="border-b border-transparent text-[var(--nm-text)]">
+                {["Document / URL","Status","Linked Agents","Size","Uploaded","Actions"].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>)}
+              </tr>
+            </thead>
             <tbody className="divide-y divide-transparent">
               {docs.map(d=>(
                 <tr key={d.id} className="hover:nm-pressed transition-all">
-                  <td className="px-5 py-4 max-w-[240px]"><div className="flex items-center gap-3"><FileText className="w-5 h-5 text-[var(--nm-text)] flex-shrink-0"/><p className="text-base text-[var(--nm-text)] truncate font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{d.name}</p></div></td>
+                  <td className="px-5 py-4 max-w-[240px]">
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-5 h-5 text-[var(--nm-text)] flex-shrink-0"/>
+                      <p className="text-sm text-[var(--nm-text)] truncate font-semibold" style={{fontFamily:"'Outfit', sans-serif"}}>{d.name}</p>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    {d.status === 'processing' ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                        <RefreshCw className="w-3 h-3 animate-spin"/> Processing ({d.progress || 0}%)
+                      </span>
+                    ) : d.status === 'failed' ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-500/10 text-rose-500 border border-rose-500/20" title={d.errorMessage || 'Failed'}>
+                        <AlertCircle className="w-3 h-3"/> Ingestion Failed
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                        <CheckCircle2 className="w-3 h-3"/> Ready (RAG v2)
+                      </span>
+                    )}
+                  </td>
                   <td className="px-5 py-4 relative">
                     <div className="flex items-center gap-2 flex-wrap max-w-[300px]">
                       {d.agentIds && d.agentIds.map((aId: string) => {
@@ -4625,18 +4707,168 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
                   </td>
                   <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{(d.sizeChars / 1024).toFixed(1)} KB</td>
                   <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{new Date(d.createdAt).toLocaleDateString()}</td>
-                  <td className="px-4 py-3 text-right"><DBtn size="sm" variant="ghost" className="cursor-pointer" onClick={() => handleDelete(d.id)}><Trash2 className="w-3.5 h-3.5 text-red-400"/></DBtn></td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <button 
+                        onClick={() => handleReindex(d.id)} 
+                        disabled={reindexingId === d.id || d.status === 'processing'}
+                        title="Re-index with structure-aware chunking"
+                        className="p-1.5 rounded hover:bg-muted/50 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${reindexingId === d.id ? 'animate-spin' : ''}`}/>
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(d.id)} 
+                        title="Delete Document"
+                        className="p-1.5 rounded hover:bg-rose-500/10 text-xs text-muted-foreground hover:text-rose-500"
+                      >
+                        <Trash2 className="w-3.5 h-3.5"/>
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {docs.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="text-center p-8 text-xs text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>NO DOCUMENTS UPLOADED YET.</td>
+                  <td colSpan={6} className="text-center p-8 text-xs text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>NO DOCUMENTS UPLOADED YET.</td>
                 </tr>
               )}
             </tbody>
           </table>
         )}
       </div>
+
+      {/* ── RAG v2 Retrieval Inspector & Query Tester ── */}
+      <div className="nm-raised rounded-2xl p-6 space-y-4">
+        <div className="flex items-center justify-between border-b border-border/40 pb-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-indigo-500"/>
+            <h3 className="text-base font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>RAG v2 Retrieval Inspector</h3>
+          </div>
+          <span className="text-[11px] font-semibold text-muted-foreground px-2 py-0.5 rounded bg-muted/40">Real-Time Hybrid Testing</span>
+        </div>
+        <p className="text-xs text-muted-foreground">Test how live telephony calls retrieve facts from your knowledge base. Inspect reciprocal rank fusion scores, token chunking, and latency before going live.</p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label className="text-[11px] font-bold text-muted-foreground block mb-1" style={{fontFamily:"'Outfit', sans-serif"}}>TARGET DOCUMENT</label>
+            <select
+              value={testTargetKbId}
+              onChange={e => { setTestTargetKbId(e.target.value); setTestTargetAgentId(""); }}
+              className="w-full px-3 py-2 border border-border rounded-lg text-xs bg-background focus:outline-none"
+            >
+              <option value="">Any linked document</option>
+              {docs.map(d => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-[11px] font-bold text-muted-foreground block mb-1" style={{fontFamily:"'Outfit', sans-serif"}}>OR TARGET AGENT</label>
+            <select
+              value={testTargetAgentId}
+              onChange={e => { setTestTargetAgentId(e.target.value); setTestTargetKbId(""); }}
+              className="w-full px-3 py-2 border border-border rounded-lg text-xs bg-background focus:outline-none"
+            >
+              <option value="">Select agent...</option>
+              {apiAgents.map(a => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-[11px] font-bold text-muted-foreground block mb-1" style={{fontFamily:"'Outfit', sans-serif"}}>TEST QUESTION</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="e.g. What is the property price and area in Gurgaon?"
+                value={testQueryText}
+                onChange={e => setTestQueryText(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') runQueryTest(); }}
+                className="w-full px-3 py-2 border border-border rounded-lg text-xs bg-background focus:outline-none"
+              />
+              <DBtn onClick={runQueryTest} disabled={testLoading || !testQueryText.trim() || (!testTargetKbId && !testTargetAgentId)}>
+                {testLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin"/> : <Search className="w-3.5 h-3.5"/>} Test
+              </DBtn>
+            </div>
+          </div>
+        </div>
+
+        {testError && (
+          <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs text-rose-500 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0"/>
+            <span>{testError}</span>
+          </div>
+        )}
+
+        {testResult && (
+          <div className="mt-4 pt-4 border-t border-border/40 space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+              <div className="p-3 rounded-xl bg-muted/20 border border-border/30">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">Roundtrip Latency</p>
+                <p className={`text-xl font-bold ${testResult.latencyMs <= 300 ? 'text-emerald-500' : 'text-amber-500'}`}>{testResult.latencyMs} ms</p>
+              </div>
+              <div className="p-3 rounded-xl bg-muted/20 border border-border/30">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">Embedding Time</p>
+                <p className="text-xl font-bold text-foreground">{testResult.embeddingMs} ms</p>
+              </div>
+              <div className="p-3 rounded-xl bg-muted/20 border border-border/30">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">DB Index Search</p>
+                <p className="text-xl font-bold text-foreground">{testResult.dbQueryMs} ms</p>
+              </div>
+              <div className="p-3 rounded-xl bg-muted/20 border border-border/30">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">Chunks Retrieved</p>
+                <p className="text-xl font-bold text-foreground">{testResult.chunksCount}</p>
+              </div>
+            </div>
+
+            {testResult.queryRewritten && testResult.queryRewritten !== testResult.query && (
+              <p className="text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground">Rewritten Query:</span> "{testResult.queryRewritten}"
+              </p>
+            )}
+
+            {testResult.chunks.length === 0 ? (
+              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-600 flex items-start gap-2.5">
+                <ShieldCheck className="w-4 h-4 flex-shrink-0 mt-0.5"/>
+                <div>
+                  <p className="font-semibold">Relevance Gate Active: Zero Hallucination Enforced</p>
+                  <p className="mt-0.5 text-muted-foreground">No indexed chunks met the minimum reciprocal rank threshold. The voice agent will respond saying it will verify with the team rather than guessing.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Retrieved Full Chunks (Top {testResult.chunks.length})</p>
+                {testResult.chunks.map((chunk, idx) => (
+                  <div key={chunk.id || idx} className="rounded-xl border border-border/40 overflow-hidden bg-background">
+                    <div 
+                      onClick={() => setExpandedChunkId(expandedChunkId === chunk.id ? null : chunk.id)}
+                      className="px-4 py-2.5 flex items-center justify-between cursor-pointer hover:bg-muted/20 text-xs"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-[10px]">#{idx + 1}</span>
+                        <span className="font-bold text-foreground">{chunk.section || chunk.source || 'Fact Chunk'}</span>
+                        {chunk.page && <span className="text-[10px] text-muted-foreground px-1.5 py-0.5 rounded bg-muted/40">Page {chunk.page}</span>}
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-500 font-semibold uppercase">{chunk.matchType}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[11px] font-mono text-muted-foreground">Score: {chunk.score}</span>
+                        <ChevronRight className={`w-3.5 h-3.5 transition-transform ${expandedChunkId === chunk.id ? 'rotate-90' : ''}`}/>
+                      </div>
+                    </div>
+                    {expandedChunkId === chunk.id && (
+                      <div className="p-4 bg-muted/10 border-t border-border/30 text-xs leading-relaxed text-foreground whitespace-pre-wrap font-sans">
+                        {chunk.content}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       <DModal open={showAdd} onClose={()=>setShowAdd(false)} title="Add to knowledge base">
         <div className="space-y-4">
           <div className="flex gap-2 border-b border-border pb-3">{(["file","url"] as const).map(t=><button key={t} onClick={()=>setAddTab(t)} className={`text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${addTab===t?"bg-foreground text-white":"text-muted-foreground hover:text-foreground"}`} style={{fontFamily:"'Outfit', sans-serif"}}>{t==="file"?"Upload file":"Crawl URL"}</button>)}</div>
@@ -4659,7 +4891,7 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
             <div className="border-2 border-dashed border-border rounded-xl p-10 text-center cursor-pointer hover:bg-muted/20 transition-colors" onClick={()=>fileRef.current?.click()}>
               <Upload className="w-7 h-7 text-muted-foreground mx-auto mb-3"/>
               <p className="text-sm font-medium mb-1" style={{fontFamily:"'Outfit', sans-serif"}}>Drop file or click to browse</p>
-              <p className="text-xs text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>TXT, PDF, CSV, DOCX — max 500 KB text extraction</p>
+              <p className="text-xs text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>TXT, PDF, CSV, DOCX — automatic structure-aware chunking & background async embedding</p>
               <input ref={fileRef} type="file" accept=".txt,.pdf,.csv,.docx" className="hidden" onChange={addFile}/>
             </div>
           ):(

@@ -2,27 +2,15 @@ import { Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthenticatedRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
-import { v4 as uuidv4 } from 'uuid';
-import { getEmbedding } from '../utils/embedding';
-
-function chunkText(text: string, chunkSize = 1000, overlap = 150): string[] {
-  const chunks: string[] = [];
-  let index = 0;
-  while (index < text.length) {
-    const chunk = text.slice(index, index + chunkSize);
-    chunks.push(chunk);
-    index += chunkSize - overlap;
-    if (chunkSize <= overlap) break;
-  }
-  return chunks;
-}
+import { KnowledgeBaseService } from '../services/KnowledgeBaseService';
+import { HybridSearchService } from '../services/HybridSearchService';
 
 export class KnowledgeBaseController {
   
   /**
    * POST /api/v2/knowledge-base/upload
    * 
-   * Uploads base64-encoded document, parses PDF or text, chunks/embeds, and stores in KnowledgeBase.
+   * Uploads base64-encoded document, parses PDF or text, and triggers asynchronous background ingestion.
    */
   static async upload(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -64,18 +52,37 @@ export class KnowledgeBaseController {
         return;
       }
 
-      const truncatedContent = contentText.slice(0, 500000); // Truncate at 500K chars
+      // Hard ceiling: 2,000,000 characters (~500 pages). Warn if above 500,000 chars.
+      const MAX_DOCUMENT_CHARS = 2000000;
+      if (contentText.length > MAX_DOCUMENT_CHARS) {
+        res.status(400).json({
+          success: false,
+          error: `Document exceeds maximum allowable size of ${MAX_DOCUMENT_CHARS.toLocaleString()} characters (uploaded: ${contentText.length.toLocaleString()} characters). Please split into smaller documents.`
+        });
+        return;
+      }
 
+      if (contentText.length > 500000) {
+        logger.warn('KBController: Large document upload initiated (>500K chars)', {
+          docName: name,
+          sizeChars: contentText.length,
+          userId,
+        });
+      }
+
+      // 1. Create KnowledgeBase in 'processing' status
       const kb = await prisma.knowledgeBase.create({
         data: {
           name,
-          contentText: truncatedContent,
-          sizeChars: truncatedContent.length,
+          contentText,
+          sizeChars: contentText.length,
+          status: 'processing',
+          progress: 0,
           userId,
         }
       });
 
-      // Assign to agent if agentId is provided
+      // 2. Assign to agent if agentId provided
       if (agentId) {
         await prisma.agentKnowledgeBase.create({
           data: {
@@ -85,29 +92,12 @@ export class KnowledgeBaseController {
         });
       }
 
-      // Split text into chunks, generate embeddings, and insert into pgvector table
-      const chunks = chunkText(truncatedContent);
-      logger.info('KBController: Chunking uploaded document', {
-        docName: name,
-        chunksCount: chunks.length
+      // 3. Kick off async ingestion in background (non-blocking)
+      KnowledgeBaseService.ingestDocumentAsync(kb.id, contentText, name, userId).catch(err => {
+        logger.error('KBController: Background ingestion error', { kbId: kb.id, error: err.message });
       });
 
-      for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i];
-        const embedding = await getEmbedding(chunk);
-        const chunkId = uuidv4();
-        
-        await prisma.$executeRawUnsafe(
-          `INSERT INTO "kb_chunks" ("id", "kb_id", "content", "embedding", "metadata", "created_at") VALUES ($1, $2, $3, cast($4 as vector), $5, NOW())`,
-          chunkId,
-          kb.id,
-          chunk,
-          `[${embedding.join(',')}]`,
-          JSON.stringify({ source: name, index: i })
-        );
-      }
-
-      res.status(201).json({
+      res.status(202).json({
         success: true,
         data: {
           id: kb.id,
@@ -116,7 +106,9 @@ export class KnowledgeBaseController {
           agentIds: agentId ? [agentId] : [],
           createdAt: kb.createdAt,
           sizeChars: kb.contentText.length,
-          chunksCount: chunks.length,
+          status: 'processing',
+          progress: 0,
+          warning: contentText.length > 500000 ? 'Large document: ingestion is processing in background.' : undefined,
         }
       });
     } catch (err: any) {
@@ -128,7 +120,7 @@ export class KnowledgeBaseController {
   /**
    * POST /api/v2/knowledge-base/scrape
    * 
-   * Fetches URL, strips headers/footers/menus, chunks/embeds, and stores in KnowledgeBase.
+   * Fetches URL, strips headers/footers/menus, and triggers asynchronous background ingestion.
    */
   static async scrape(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -144,7 +136,7 @@ export class KnowledgeBaseController {
         return;
       }
 
-      // OWASP A10: Server-Side Request Forgery (SSRF) Defense — strictly disallow private/cloud IP targets
+      // OWASP A10: Server-Side Request Forgery (SSRF) Defense
       const { assertSafeUrl } = await import('../utils/ssrfValidator');
       let safeTargetUrl: URL;
       try {
@@ -155,7 +147,6 @@ export class KnowledgeBaseController {
         return;
       }
 
-      // Check agent exists and belongs to user if agentId is provided
       if (agentId) {
         const agent = await prisma.agent.findFirst({
           where: { id: agentId, userId }
@@ -197,7 +188,6 @@ export class KnowledgeBaseController {
 
       const html = await response.text();
       
-      // Boilerplate-free DOM extraction using JSDOM
       const { JSDOM } = await import('jsdom');
       const dom = new JSDOM(html);
       const doc = dom.window.document;
@@ -218,18 +208,17 @@ export class KnowledgeBaseController {
         return;
       }
 
-      const truncatedContent = cleanText.slice(0, 500000); // Truncate at 500K chars
-
       const kb = await prisma.knowledgeBase.create({
         data: {
           name: url,
-          contentText: truncatedContent,
-          sizeChars: truncatedContent.length,
+          contentText: cleanText,
+          sizeChars: cleanText.length,
+          status: 'processing',
+          progress: 0,
           userId,
         }
       });
 
-      // Assign to agent if agentId is provided
       if (agentId) {
         await prisma.agentKnowledgeBase.create({
           data: {
@@ -239,29 +228,11 @@ export class KnowledgeBaseController {
         });
       }
 
-      // Split text into chunks, generate embeddings, and insert into pgvector table
-      const chunks = chunkText(truncatedContent);
-      logger.info('KBController: Chunking scraped website', {
-        url,
-        chunksCount: chunks.length
+      KnowledgeBaseService.ingestDocumentAsync(kb.id, cleanText, url, userId).catch(err => {
+        logger.error('KBController: Background scrape ingestion error', { kbId: kb.id, error: err.message });
       });
 
-      for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i];
-        const embedding = await getEmbedding(chunk);
-        const chunkId = uuidv4();
-        
-        await prisma.$executeRawUnsafe(
-          `INSERT INTO "kb_chunks" ("id", "kb_id", "content", "embedding", "metadata", "created_at") VALUES ($1, $2, $3, cast($4 as vector), $5, NOW())`,
-          chunkId,
-          kb.id,
-          chunk,
-          `[${embedding.join(',')}]`,
-          JSON.stringify({ source: url, index: i })
-        );
-      }
-
-      res.status(201).json({
+      res.status(202).json({
         success: true,
         data: {
           id: kb.id,
@@ -270,7 +241,8 @@ export class KnowledgeBaseController {
           agentIds: agentId ? [agentId] : [],
           createdAt: kb.createdAt,
           sizeChars: kb.contentText.length,
-          chunksCount: chunks.length,
+          status: 'processing',
+          progress: 0,
         }
       });
     } catch (err: any) {
@@ -282,7 +254,7 @@ export class KnowledgeBaseController {
   /**
    * GET /api/v2/knowledge-base
    * 
-   * List all knowledge base documents for user
+   * List all knowledge base documents for user with status, progress, and error details.
    */
   static async list(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -299,12 +271,16 @@ export class KnowledgeBaseController {
           name: true,
           createdAt: true,
           sizeChars: true,
+          status: true,
+          progress: true,
+          errorMessage: true,
           agentLinks: {
             select: {
               agentId: true
             }
           }
-        }
+        },
+        orderBy: { createdAt: 'desc' }
       });
 
       const formatted = list.map(item => {
@@ -312,10 +288,13 @@ export class KnowledgeBaseController {
         return {
           id: item.id,
           name: item.name,
-          agentId: agentIds[0] || '', // legacy single fallback
+          agentId: agentIds[0] || '',
           agentIds,
           createdAt: item.createdAt,
           sizeChars: item.sizeChars,
+          status: item.status || 'ready',
+          progress: item.progress ?? 100,
+          errorMessage: item.errorMessage,
         };
       });
 
@@ -326,6 +305,103 @@ export class KnowledgeBaseController {
     } catch (err) {
       logger.error('KBController: failed to list documents', { error: String(err) });
       next(err);
+    }
+  }
+
+  /**
+   * POST /api/v2/knowledge-base/:id/reindex
+   * 
+   * Re-indexes an existing document using structure-aware chunking and batch embeddings.
+   */
+  static async reindex(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = (req as any).effectiveWorkspaceId || req.userId;
+      const id = req.params.id as string;
+      if (!userId || !id) {
+        res.status(401).json({ success: false, error: 'Unauthorized' });
+        return;
+      }
+
+      await KnowledgeBaseService.reindexDocument(id, userId);
+
+      res.json({
+        success: true,
+        message: 'Re-indexing job initiated in background.',
+        id,
+      });
+    } catch (err: any) {
+      logger.error('KBController: re-indexing failed', { error: err.message });
+      res.status(400).json({ success: false, error: err.message || 'Failed to re-index document' });
+    }
+  }
+
+  /**
+   * POST /api/v2/knowledge-base/test-query
+   * 
+   * Dashboard testing tool: allows running a query against an agent or KB to inspect retrieved chunks and latency.
+   */
+  static async testQuery(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = (req as any).effectiveWorkspaceId || req.userId;
+      const { agentId, kbId, query } = req.body;
+
+      if (!userId || (!agentId && !kbId) || !query) {
+        res.status(400).json({ success: false, error: 'query and either agentId or kbId are required' });
+        return;
+      }
+
+      if (agentId) {
+        // Verify agent belongs to user
+        const agent = await prisma.agent.findFirst({
+          where: { id: agentId, userId }
+        });
+        if (!agent) {
+          res.status(404).json({ success: false, error: 'Agent not found in your workspace' });
+          return;
+        }
+      }
+
+      if (kbId) {
+        // Verify kb belongs to user
+        const kb = await prisma.knowledgeBase.findFirst({
+          where: { id: kbId, userId }
+        });
+        if (!kb) {
+          res.status(404).json({ success: false, error: 'Knowledge base document not found in your workspace' });
+          return;
+        }
+      }
+
+      const searchResult = await HybridSearchService.search({
+        agentId: agentId || undefined,
+        kbId: kbId || undefined,
+        query,
+        topK: 5,
+      });
+
+      res.json({
+        success: true,
+        data: {
+          query,
+          queryRewritten: searchResult.queryRewritten,
+          chunksCount: searchResult.results.length,
+          latencyMs: searchResult.latencyMs,
+          embeddingMs: searchResult.embeddingMs,
+          dbQueryMs: searchResult.dbQueryMs,
+          chunks: searchResult.results.map(r => ({
+            id: r.id,
+            source: r.source,
+            section: r.section,
+            page: r.page,
+            score: Number(r.score.toFixed(4)),
+            matchType: r.matchType,
+            content: r.content,
+          }))
+        }
+      });
+    } catch (err: any) {
+      logger.error('KBController: testQuery failed', { error: err.message });
+      res.status(400).json({ success: false, error: err.message || 'Search execution failed' });
     }
   }
 
@@ -350,7 +426,6 @@ export class KnowledgeBaseController {
         return;
       }
 
-      // Clean up child agent-knowledge-base links and kb_chunks rows first to prevent FK constraint errors
       await prisma.agentKnowledgeBase.deleteMany({
         where: { kbId: id }
       });
@@ -374,8 +449,6 @@ export class KnowledgeBaseController {
 
   /**
    * POST /api/v2/knowledge-base/:id/assign
-   * 
-   * Assigns a document to an agent.
    */
   static async assignToAgent(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -388,7 +461,6 @@ export class KnowledgeBaseController {
         return;
       }
 
-      // Verify document belongs to user
       const kb = await prisma.knowledgeBase.findFirst({
         where: { id: kbId, userId }
       });
@@ -397,7 +469,6 @@ export class KnowledgeBaseController {
         return;
       }
 
-      // Verify agent belongs to user
       const agent = await prisma.agent.findFirst({
         where: { id: agentId, userId }
       });
@@ -406,7 +477,6 @@ export class KnowledgeBaseController {
         return;
       }
 
-      // Create relation link using upsert to avoid duplicate key violations
       await prisma.agentKnowledgeBase.upsert({
         where: {
           agentId_kbId: {
@@ -418,7 +488,7 @@ export class KnowledgeBaseController {
           agentId,
           kbId
         },
-        update: {} // No-op if link already exists
+        update: {}
       });
 
       res.json({ success: true });
@@ -430,8 +500,6 @@ export class KnowledgeBaseController {
 
   /**
    * POST /api/v2/knowledge-base/:id/unassign
-   * 
-   * Removes assignment from a specific agent.
    */
   static async unassignFromAgent(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -444,7 +512,6 @@ export class KnowledgeBaseController {
         return;
       }
 
-      // Verify document belongs to user
       const kb = await prisma.knowledgeBase.findFirst({
         where: { id: kbId, userId }
       });
@@ -453,7 +520,6 @@ export class KnowledgeBaseController {
         return;
       }
 
-      // Delete join-table link row
       await prisma.agentKnowledgeBase.deleteMany({
         where: {
           kbId,
@@ -470,8 +536,6 @@ export class KnowledgeBaseController {
 
   /**
    * POST /api/v2/knowledge-base/:id/update-agents
-   * 
-   * Replaces the set of assigned agents for a document.
    */
   static async updateAgentAssignments(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -484,7 +548,6 @@ export class KnowledgeBaseController {
         return;
       }
 
-      // Verify document belongs to user
       const kb = await prisma.knowledgeBase.findFirst({
         where: { id: kbId, userId }
       });
@@ -493,7 +556,6 @@ export class KnowledgeBaseController {
         return;
       }
 
-      // Verify all specified agents belong to user
       const validAgents = await prisma.agent.findMany({
         where: {
           id: { in: agentIds },
@@ -507,7 +569,6 @@ export class KnowledgeBaseController {
         return;
       }
 
-      // Atomically rebuild links in a transaction
       await prisma.$transaction(async (tx) => {
         await tx.agentKnowledgeBase.deleteMany({
           where: { kbId }
