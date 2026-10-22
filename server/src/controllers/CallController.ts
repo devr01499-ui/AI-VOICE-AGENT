@@ -461,14 +461,14 @@ export class CallController {
       const secret = getWebhookSigningSecret();
       const ts = Date.now();
       const token = crypto.createHmac('sha256', secret).update(`${callId}:${ts}`).digest('hex');
-      const cleanWsEndpoint = `${wsUrl}/audio-stream`;
+      const streamUrl = `${wsUrl}/audio-stream?callId=${encodeURIComponent(callId)}&token=${encodeURIComponent(token)}&ts=${ts}`;
 
       const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/x-l16;rate=16000" extraHeaders="callId=${encodeURIComponent(callId)};token=${encodeURIComponent(token)};ts=${ts}">${cleanWsEndpoint}</Stream>
+  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/x-l16;rate=16000" extraHeaders="callId=${encodeURIComponent(callId)},token=${encodeURIComponent(token)},ts=${ts}"><![CDATA[${streamUrl}]]></Stream>
 </Response>`;
 
-      logger.info('CallController: Plivo answer webhook returning Stream XML', { callId, cleanWsEndpoint });
+      logger.info('CallController: Plivo answer webhook returning Stream XML', { callId, streamUrl });
 
       res.set('Content-Type', 'application/xml; charset=utf-8');
       res.status(200).send(xml);

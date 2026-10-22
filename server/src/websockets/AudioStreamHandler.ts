@@ -230,35 +230,53 @@ export class AudioStreamHandler {
         const message = JSON.parse(data.toString());
         logger.info('AudioStreamHandler: received initial handshake message', { event: message.event });
 
-        // Extract and cryptographically verify token from extra_headers
-        const extraHeaders = (message.extra_headers || (message as any).extraHeaders || '') as string;
+        // Extract and cryptographically verify token from extra_headers (supports root/nested start, string or object format)
+        const rawHeaders = message.extra_headers || (message as any).extraHeaders || message.start?.extra_headers || message.start?.extraHeaders || message.start?.custom_parameters || '';
         let verifiedCallId: string | null = null;
 
-        if (extraHeaders) {
-          const callIdMatch = extraHeaders.match(/callId=([^;]+)/);
-          const tokenMatch = extraHeaders.match(/token=([^;]+)/);
-          const tsMatch = extraHeaders.match(/ts=([^;]+)/);
+        let parsedCallId: string | null = null;
+        let parsedToken: string | null = null;
+        let parsedTs: number | null = null;
 
-          if (callIdMatch && tokenMatch && tsMatch) {
-            const parsedCallId = decodeURIComponent(callIdMatch[1].trim());
-            const parsedToken = decodeURIComponent(tokenMatch[1].trim());
-            const parsedTs = parseInt(decodeURIComponent(tsMatch[1].trim()), 10);
-            const secret = getWebhookSigningSecret();
-            const expectedToken = crypto.createHmac('sha256', secret).update(`${parsedCallId}:${parsedTs}`).digest('hex');
-
-            if (
-              parsedToken.length === expectedToken.length &&
-              crypto.timingSafeEqual(Buffer.from(parsedToken), Buffer.from(expectedToken)) &&
-              parsedTs > 0 &&
-              Math.abs(Date.now() - parsedTs) < 15 * 60 * 1000
-            ) {
-              verifiedCallId = parsedCallId;
+        if (typeof rawHeaders === 'object' && rawHeaders !== null) {
+          parsedCallId = rawHeaders.callId || rawHeaders.call_id || null;
+          parsedToken = rawHeaders.token || null;
+          parsedTs = rawHeaders.ts ? parseInt(String(rawHeaders.ts), 10) : null;
+        } else if (typeof rawHeaders === 'string' && rawHeaders.trim() !== '') {
+          // Supports both comma and semicolon delimiters (Plivo comma format vs semicolon format)
+          const pairs = rawHeaders.split(/[;,]/);
+          for (const pair of pairs) {
+            const [k, v] = pair.split('=');
+            if (k && v) {
+              const key = k.trim();
+              const val = decodeURIComponent(v.trim());
+              if (key === 'callId' || key === 'call_id') parsedCallId = val;
+              if (key === 'token') parsedToken = val;
+              if (key === 'ts') parsedTs = parseInt(val, 10);
             }
           }
         }
 
+        if (parsedCallId && parsedToken && parsedTs) {
+          const secret = getWebhookSigningSecret();
+          const expectedToken = crypto.createHmac('sha256', secret).update(`${parsedCallId}:${parsedTs}`).digest('hex');
+
+          if (
+            parsedToken.length === expectedToken.length &&
+            crypto.timingSafeEqual(Buffer.from(parsedToken), Buffer.from(expectedToken)) &&
+            parsedTs > 0 &&
+            Math.abs(Date.now() - parsedTs) < 15 * 60 * 1000
+          ) {
+            verifiedCallId = parsedCallId;
+          }
+        }
+
         if (!verifiedCallId) {
-          logger.warn('AudioStreamHandler: unauthorized stream start payload (missing or invalid cryptographic token in extra_headers)');
+          logger.warn('AudioStreamHandler: unauthorized stream start payload (missing or invalid cryptographic token in extra_headers)', {
+            hasRawHeaders: Boolean(rawHeaders),
+            rawType: typeof rawHeaders,
+            startCallId: message.start?.callId || message.callId,
+          });
           try {
             ws.close(1008, 'Unauthorized: Missing or invalid token in stream headers');
           } catch {}
