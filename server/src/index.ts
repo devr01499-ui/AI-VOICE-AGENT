@@ -32,6 +32,7 @@ import { prisma } from './lib/prisma';
 import { callOrchestrator } from './core/orchestrator/CallOrchestrator';
 import { AudioStreamHandler } from './websockets/AudioStreamHandler';
 import { eventBus, PROVIDER_EVENTS } from './core/provider-sdk/provider.events';
+import { GLOBAL_TELEPHONY_CAP } from './utils/concurrency';
 
 // ─── Routes ──────────────────────────────────────
 import callRoutes from './routes/calls';
@@ -174,17 +175,34 @@ app.use((req, _res, next) => {
   next();
 });
 
-// ─── Health Check ────────────────────────────────
+// ─── Health, Readiness & Liveness Probes ───────────
 
-app.get('/health', async (_req, res) => {
+// Liveness Probe: lightweight event loop response check (returns 200)
+app.get(['/live', '/healthz'], (_req, res) => {
+  res.status(200).json({
+    status: 'alive',
+    timestamp: new Date().toISOString(),
+    uptimeSeconds: Math.floor(process.uptime()),
+    pid: process.pid,
+    memoryUsageMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+  });
+});
+
+// Readiness & Health Probe: comprehensive dependency & database check
+app.get(['/health', '/ready'], async (_req, res) => {
+  const startTime = Date.now();
   try {
     // Check database connectivity
     let dbHealthy = false;
+    let dbLatencyMs = 0;
     try {
+      const dbStart = Date.now();
       await prisma.$queryRaw`SELECT 1`;
+      dbLatencyMs = Date.now() - dbStart;
       dbHealthy = true;
-    } catch {
+    } catch (dbErr) {
       dbHealthy = false;
+      logger.error('Health probe: Database connectivity check failed', { error: String(dbErr) });
     }
 
     // Check provider health
@@ -200,14 +218,18 @@ app.get('/health', async (_req, res) => {
     const runtime = {
       activeCalls: callOrchestrator.getActiveCallCount(),
       activeSessions: callOrchestrator.getActiveCallCount(),
+      globalTelephonyCap: GLOBAL_TELEPHONY_CAP,
     };
 
-    // Core platform health returns status payload (ok / degraded)
-    res.status(200).json({
-      status: dbHealthy ? 'ok' : 'degraded',
+    const overallHealthy = dbHealthy;
+    const statusCode = overallHealthy ? 200 : 503;
+
+    res.status(statusCode).json({
+      status: overallHealthy ? 'ok' : 'degraded',
       timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      database: { healthy: dbHealthy },
+      probeDurationMs: Date.now() - startTime,
+      uptimeSeconds: Math.floor(process.uptime()),
+      database: { healthy: dbHealthy, latencyMs: dbLatencyMs },
       providers,
       runtime,
     });
@@ -218,13 +240,10 @@ app.get('/health', async (_req, res) => {
       stack: err.stack,
       refCode,
     });
-    const displayError = env.NODE_ENV === 'development'
-      ? (err instanceof Error ? err.message : 'Unknown error')
-      : `Internal Server Error (Reference: ${refCode})`;
-    res.status(200).json({
+    res.status(503).json({
       status: 'error',
       timestamp: new Date().toISOString(),
-      error: displayError,
+      error: `Internal Server Error (Reference: ${refCode})`,
     });
   }
 });

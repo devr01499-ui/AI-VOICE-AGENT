@@ -21,7 +21,8 @@
     "test:batch-b": "node scripts/test_call_statemachine_concurrency.js",
     "test:batch-c": "node scripts/test_monetization_ledger.js",
     "test:batch-d": "node scripts/test_audio_pipeline_reliability.js",
-    "test:batch-e": "node scripts/test_webhook_idempotency_replay.js"
+    "test:batch-e": "node scripts/test_webhook_idempotency_replay.js",
+    "test:batch-f": "node scripts/test_observability_health_telemetry.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
