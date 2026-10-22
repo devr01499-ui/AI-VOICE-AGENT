@@ -447,10 +447,10 @@ export class CallOrchestrator extends EventEmitter {
       executionType: 'builtin',
       config: {},
       parameters: {
-        type: 'object',
+        type: 'OBJECT',
         properties: {
-          startTime: { type: 'string', description: 'ISO string of start time' },
-          endTime: { type: 'string', description: 'ISO string of end time' }
+          startTime: { type: 'STRING', description: 'ISO string of start time' },
+          endTime: { type: 'STRING', description: 'ISO string of end time' }
         },
         required: ['startTime', 'endTime']
       }
@@ -461,12 +461,12 @@ export class CallOrchestrator extends EventEmitter {
       executionType: 'builtin',
       config: {},
       parameters: {
-        type: 'object',
+        type: 'OBJECT',
         properties: {
-          summary: { type: 'string', description: 'Event summary/title' },
-          startTime: { type: 'string', description: 'ISO string of start time' },
-          endTime: { type: 'string', description: 'ISO string of end time' },
-          description: { type: 'string', description: 'Event description (optional)' }
+          summary: { type: 'STRING', description: 'Event summary/title' },
+          startTime: { type: 'STRING', description: 'ISO string of start time' },
+          endTime: { type: 'STRING', description: 'ISO string of end time' },
+          description: { type: 'STRING', description: 'Event description (optional)' }
         },
         required: ['summary', 'startTime', 'endTime']
       }
@@ -639,7 +639,7 @@ export class CallOrchestrator extends EventEmitter {
       if (pw) {
         logger.info('CallOrchestrator: prewarmed session expired TTL, cleaning up', { callId });
         this.prewarmedSessions.delete(callId);
-        pw.pipecatRunner.stop().catch(() => {});
+        pw.pipecatRunner?.stop().catch(() => {});
       }
     }, 15000);
 
@@ -655,21 +655,26 @@ export class CallOrchestrator extends EventEmitter {
       }
     );
 
+    // Register immediately so attachPrewarmedVoiceSession knows prewarm is already in-flight!
+    this.prewarmedSessions.set(callId, {
+      callId,
+      agentId,
+      phoneNumber,
+      pipecatRunner: null as any,
+      callSession: null as any,
+      readyPromise,
+      bufferedAudio,
+      ttlTimeout,
+    });
+
     readyPromise.then((sessionId) => {
+      const pw = this.prewarmedSessions.get(callId);
       const session = this.activeCalls.get(callId);
-      if (session && session.pipecatRunner) {
-        // Move from activeCalls to prewarmedSessions until telephony stream connects
-        this.activeCalls.delete(callId);
-        this.prewarmedSessions.set(callId, {
-          callId,
-          agentId,
-          phoneNumber,
-          pipecatRunner: session.pipecatRunner,
-          callSession: session,
-          readyPromise,
-          bufferedAudio,
-          ttlTimeout,
-        });
+      if (pw) {
+        if (session && session.pipecatRunner) {
+          pw.pipecatRunner = session.pipecatRunner;
+          pw.callSession = session;
+        }
         logger.info('CallOrchestrator: voice session prewarmed and standing by', { callId, sessionId });
       }
     }).catch((err) => {
@@ -693,9 +698,13 @@ export class CallOrchestrator extends EventEmitter {
       clearTimeout(pw.ttlTimeout);
       this.prewarmedSessions.delete(callId);
 
+      // Await setup completion (whether already resolved or still in-flight)
       const sessionId = await pw.readyPromise;
-      pw.pipecatRunner.setOutputSink(onAudioDelta);
-      this.activeCalls.set(callId, pw.callSession);
+      const session = this.activeCalls.get(callId) || pw.callSession;
+      if (session && session.pipecatRunner) {
+        session.pipecatRunner.setOutputSink(onAudioDelta);
+        this.activeCalls.set(callId, session);
+      }
 
       if (pw.bufferedAudio.length > 0) {
         logger.info('CallOrchestrator: delivering pre-buffered audio chunks to telephony', { callId, count: pw.bufferedAudio.length });
@@ -707,6 +716,14 @@ export class CallOrchestrator extends EventEmitter {
 
       logger.info('CallOrchestrator: prewarmed voice session successfully attached to telephony', { callId, sessionId });
       return sessionId;
+    }
+
+    // Check if session is already active in activeCalls
+    const existing = this.activeCalls.get(callId);
+    if (existing && existing.pipecatRunner) {
+      existing.pipecatRunner.setOutputSink(onAudioDelta);
+      logger.info('CallOrchestrator: existing active call session attached to telephony', { callId });
+      return existing.providerSessionId || `pipecat-sess-${callId}`;
     }
 
     return this.startVoiceSession(callId, agentId, phoneNumber, onAudioDelta);

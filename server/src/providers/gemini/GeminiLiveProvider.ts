@@ -486,10 +486,12 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       const endSensitivity = isInterruptionLow ? "END_SENSITIVITY_LOW" : "END_SENSITIVITY_HIGH";
 
       // Delegate live prompt assembly exclusively to buildFinalSystemInstruction (idempotent single source of truth)
-      const agentObj = callData.agent || {
-        systemPrompt: config.instructions || "Default assistant prompt",
-        languageMode: languageModeVal,
-      };
+      const agentObj = (config.instructions && config.instructions.includes('CLARITIY_SYSTEM_INSTRUCTION_V1'))
+        ? { ...(callData.agent || {}), systemPrompt: config.instructions, languageMode: languageModeVal }
+        : (callData.agent || {
+            systemPrompt: config.instructions || "Default assistant prompt",
+            languageMode: languageModeVal,
+          });
 
       const systemInstructionString = buildFinalSystemInstruction(agentObj, {
         callId: config.callId,
