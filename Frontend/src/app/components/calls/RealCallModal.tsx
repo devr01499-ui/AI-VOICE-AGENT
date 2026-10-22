@@ -23,6 +23,7 @@ import {
   fetchCalls, 
   fetchAgents, 
   getLiveTranscriptWsUrl, 
+  requestTranscriptTicket, 
   type ApiCall, 
   type ApiAgent 
 } from '../../api';
@@ -154,29 +155,35 @@ export function RealCallModal({
       return;
     }
 
-    const wsUrl = getLiveTranscriptWsUrl(activeCallId);
-    try {
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
+    let isCancelled = false;
 
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.event === 'transcript' && data.text) {
-            setTranscripts((prev) => [
-              ...prev,
-              {
-                speaker: data.speaker || 'agent',
-                text: data.text,
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-              },
-            ]);
-          }
-        } catch {}
-      };
-    } catch {}
+    requestTranscriptTicket(activeCallId)
+      .then((ticket) => {
+        if (isCancelled) return;
+        const wsUrl = getLiveTranscriptWsUrl(activeCallId, ticket);
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.event === 'transcript' && data.text) {
+              setTranscripts((prev) => [
+                ...prev,
+                {
+                  speaker: data.speaker || 'agent',
+                  text: data.text,
+                  timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                },
+              ]);
+            }
+          } catch {}
+        };
+      })
+      .catch(() => {});
 
     return () => {
+      isCancelled = true;
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;

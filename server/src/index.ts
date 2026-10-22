@@ -13,12 +13,15 @@
  */
 
 import 'dotenv/config';
+import crypto from 'crypto';
 import { env } from './config/env';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import http from 'http';
 import { WebSocketServer } from 'ws';
+import { getWebhookSigningSecret } from './utils/security';
+import { ADMIN_EMAIL } from './config/constants';
 
 import { logger } from './utils/logger';
 import { errorHandler } from './utils/errorHandler';
@@ -360,6 +363,80 @@ async function bootstrap(): Promise<void> {
   const sandboxHandler = new SandboxStreamHandler();
   sandboxHandler.initialize(wssSandbox);
 
+  // Sliding window replay cache for transcript ticket nonces
+  const transcriptTicketNonceCache = new Map<string, number>();
+
+  async function verifyTranscriptTicket(
+    ticket: string,
+    requestedCallId: string
+  ): Promise<{ valid: boolean; userId?: string; reason?: string }> {
+    try {
+      const parts = ticket.split('.');
+      if (parts.length !== 2) {
+        return { valid: false, reason: 'Malformed ticket structure' };
+      }
+
+      const [payloadBase64, receivedSig] = parts;
+      const secret = getWebhookSigningSecret();
+      const expectedSig = crypto.createHmac('sha256', secret).update(payloadBase64).digest('base64url');
+
+      if (
+        receivedSig.length !== expectedSig.length ||
+        !crypto.timingSafeEqual(Buffer.from(receivedSig), Buffer.from(expectedSig))
+      ) {
+        return { valid: false, reason: 'Cryptographic signature mismatch' };
+      }
+
+      const payloadJson = Buffer.from(payloadBase64, 'base64url').toString('utf8');
+      const payload = JSON.parse(payloadJson);
+
+      if (!payload.callId || !payload.userId || !payload.exp || !payload.nonce) {
+        return { valid: false, reason: 'Incomplete ticket payload' };
+      }
+
+      if (payload.callId !== requestedCallId) {
+        return { valid: false, reason: 'Ticket callId does not match requested callId' };
+      }
+
+      if (Date.now() > payload.exp) {
+        return { valid: false, reason: 'Ticket expired' };
+      }
+
+      // Replay protection: each ticket is single-use
+      const now = Date.now();
+      for (const [n, expTime] of transcriptTicketNonceCache.entries()) {
+        if (now >= expTime) transcriptTicketNonceCache.delete(n);
+      }
+      if (transcriptTicketNonceCache.has(payload.nonce)) {
+        return { valid: false, reason: 'Ticket nonce already consumed (replay attempt)' };
+      }
+      transcriptTicketNonceCache.set(payload.nonce, payload.exp);
+
+      // Compound tenant isolation database check
+      const user = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { id: true, accountType: true, email: true },
+      });
+      if (!user) {
+        return { valid: false, reason: 'User record not found' };
+      }
+
+      const isAdmin = user.accountType === 'admin' || user.email === ADMIN_EMAIL;
+      const call = await prisma.call.findFirst({
+        where: isAdmin ? { id: requestedCallId } : { id: requestedCallId, userId: payload.userId },
+        select: { id: true },
+      });
+
+      if (!call) {
+        return { valid: false, reason: 'Tenant unauthorized for this call session' };
+      }
+
+      return { valid: true, userId: payload.userId };
+    } catch (err: any) {
+      return { valid: false, reason: err.message || 'Verification exception' };
+    }
+  }
+
   // Handle server upgrades manually to route requests to the correct WebSocket server
   server.on('upgrade', (request, socket, head) => {
     try {
@@ -372,8 +449,36 @@ async function bootstrap(): Promise<void> {
           wss.emit('connection', ws, request);
         });
       } else if (pathname === '/live-transcript') {
-        wssTranscript.handleUpgrade(request, socket, head, (ws) => {
-          wssTranscript.emit('connection', ws, request);
+        const ticket = url.searchParams.get('ticket');
+        const callId = url.searchParams.get('callId');
+
+        if (!ticket || !callId) {
+          logger.warn('WebSocket upgrade rejected for /live-transcript — missing ticket or callId');
+          socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+          socket.destroy();
+          return;
+        }
+
+        verifyTranscriptTicket(ticket, callId).then((result) => {
+          if (!result.valid) {
+            logger.warn('WebSocket upgrade rejected for /live-transcript — unauthorized ticket', {
+              callId,
+              reason: result.reason,
+            });
+            socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+            socket.destroy();
+            return;
+          }
+
+          wssTranscript.handleUpgrade(request, socket, head, (ws) => {
+            (ws as any).authorizedCallId = callId;
+            (ws as any).authenticatedUserId = result.userId;
+            wssTranscript.emit('connection', ws, request);
+          });
+        }).catch((err) => {
+          logger.error('Error during live-transcript WebSocket upgrade authentication', { callId, error: String(err) });
+          socket.write('HTTP/1.1 500 Internal Server Error\r\n\r\n');
+          socket.destroy();
         });
       } else if (pathname === '/api/v2/sandbox/test-stream') {
         const token = url.searchParams.get('token');
@@ -412,13 +517,12 @@ async function bootstrap(): Promise<void> {
 
   wssTranscript.on('connection', (ws, req) => {
     try {
-      const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
-      const callId = url.searchParams.get('callId');
-
-      if (!callId) {
-        ws.close(1008, 'Missing callId');
+      const authorizedCallId = (ws as any).authorizedCallId;
+      if (!authorizedCallId) {
+        ws.close(1008, 'Unauthorized stream connection');
         return;
       }
+      const callId = authorizedCallId;
 
       logger.info('Browser client connected to live-transcript stream', { callId });
 

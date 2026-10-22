@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Radio, PhoneOff, PhoneForwarded, Volume2, Mic, Activity, Clock, ShieldAlert, RefreshCw, User, CheckCircle2, ChevronRight, X, AlertTriangle } from 'lucide-react';
-import { apiClient, fetchCalls, fetchAgents, getLiveTranscriptWsUrl, type ApiCall, type ApiAgent } from '../../api';
+import { apiClient, fetchCalls, fetchAgents, getLiveTranscriptWsUrl, requestTranscriptTicket, type ApiCall, type ApiAgent } from '../../api';
 
 interface LiveTranscriptMessage {
   turnId?: string;
@@ -84,62 +84,67 @@ export function DashLiveMonitoring() {
     setTranscripts([]);
     setWsConnected(false);
 
-    const wsUrl = getLiveTranscriptWsUrl(selectedCall.id);
+    let isCancelled = false;
 
-    try {
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
+    requestTranscriptTicket(selectedCall.id)
+      .then((ticket) => {
+        if (isCancelled) return;
+        const wsUrl = getLiveTranscriptWsUrl(selectedCall.id, ticket);
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
 
-      ws.onopen = () => {
-        setWsConnected(true);
-      };
+        ws.onopen = () => {
+          if (!isCancelled) setWsConnected(true);
+        };
 
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.event === 'transcript') {
-            const turnId = data.turnId;
-            setTranscripts((prev) => {
-              if (turnId) {
-                const existingIdx = prev.findIndex((t) => t.turnId === turnId);
-                if (existingIdx !== -1) {
-                  const updated = [...prev];
-                  updated[existingIdx] = {
-                    ...updated[existingIdx],
-                    text: data.text || updated[existingIdx].text,
-                    isFinal: Boolean(data.isFinal),
-                  };
-                  return updated;
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.event === 'transcript') {
+              const turnId = data.turnId;
+              setTranscripts((prev) => {
+                if (turnId) {
+                  const existingIdx = prev.findIndex((t) => t.turnId === turnId);
+                  if (existingIdx !== -1) {
+                    const updated = [...prev];
+                    updated[existingIdx] = {
+                      ...updated[existingIdx],
+                      text: data.text || updated[existingIdx].text,
+                      isFinal: Boolean(data.isFinal),
+                    };
+                    return updated;
+                  }
                 }
-              }
-              return [
-                ...prev,
-                {
-                  turnId: data.turnId || `turn_${Date.now()}_${Math.random()}`,
-                  seq: data.seq,
-                  speaker: data.speaker || 'agent',
-                  text: data.text || '',
-                  isFinal: Boolean(data.isFinal),
-                  timestamp: new Date().toLocaleTimeString(),
-                },
-              ];
-            });
-          }
-        } catch {}
-      };
+                return [
+                  ...prev,
+                  {
+                    turnId: data.turnId || `turn_${Date.now()}_${Math.random()}`,
+                    seq: data.seq,
+                    speaker: data.speaker || 'agent',
+                    text: data.text || '',
+                    isFinal: Boolean(data.isFinal),
+                    timestamp: new Date().toLocaleTimeString(),
+                  },
+                ];
+              });
+            }
+          } catch {}
+        };
 
-      ws.onclose = () => {
-        setWsConnected(false);
-      };
+        ws.onclose = () => {
+          if (!isCancelled) setWsConnected(false);
+        };
 
-      ws.onerror = () => {
-        setWsConnected(false);
-      };
-    } catch {
-      setWsConnected(false);
-    }
+        ws.onerror = () => {
+          if (!isCancelled) setWsConnected(false);
+        };
+      })
+      .catch(() => {
+        if (!isCancelled) setWsConnected(false);
+      });
 
     return () => {
+      isCancelled = true;
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;

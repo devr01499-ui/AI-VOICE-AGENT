@@ -381,9 +381,9 @@ export class CallController {
 
       logger.info('CallController: Plivo answer webhook received', {
         method: req.method,
-        normalized: norm,
-        query: req.query,
-        body: req.body,
+        callId: norm.callId,
+        callUuid: norm.callUuid,
+        direction: norm.direction,
       });
 
       let callId = '';
@@ -484,7 +484,11 @@ export class CallController {
     try {
       const norm = CallController.normalizePlivoPayload(req);
 
-      logger.info('CallController: Plivo status webhook', { query: req.query, body: req.body, normalized: norm });
+      logger.info('CallController: Plivo status webhook', {
+        callId: norm.callId,
+        callUuid: norm.callUuid,
+        callStatus: norm.callStatus,
+      });
 
       const callSession = await prisma.call.findFirst({
         where: {
@@ -515,7 +519,11 @@ export class CallController {
       const norm = CallController.normalizePlivoPayload(req);
       const duration = req.body?.Duration ? parseInt(req.body.Duration as string, 10) : (req.query.Duration ? parseInt(req.query.Duration as string, 10) : 0);
 
-      logger.info('CallController: Plivo hangup webhook', { query: req.query, body: req.body, duration, normalized: norm });
+      logger.info('CallController: Plivo hangup webhook', {
+        callId: norm.callId,
+        callUuid: norm.callUuid,
+        duration,
+      });
 
       const callSession = await prisma.call.findFirst({
         where: {

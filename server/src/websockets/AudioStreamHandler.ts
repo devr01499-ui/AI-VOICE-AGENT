@@ -117,6 +117,49 @@ export class AudioStreamHandler {
     return conn;
   }
 
+  private async validateAndSetupAuthorizedConnection(ws: WebSocket, callId: string): Promise<ActiveConnection | null> {
+    if (this.connections.has(callId)) {
+      logger.warn('AudioStreamHandler: stream connection rejected — stream already active for call', { callId });
+      try {
+        ws.close(1008, 'Stream already active for this call');
+      } catch {}
+      return null;
+    }
+
+    try {
+      const { prisma } = await import('../lib/prisma');
+      const call = await prisma.call.findUnique({
+        where: { id: callId },
+        select: { id: true, status: true, endTime: true },
+      });
+
+      if (!call) {
+        logger.warn('AudioStreamHandler: stream connection rejected — call session not found', { callId });
+        try {
+          ws.close(1008, 'Call session not found');
+        } catch {}
+        return null;
+      }
+
+      const terminalStatuses = ['completed', 'failed', 'canceled', 'busy', 'no_answer'];
+      if (call.endTime !== null || terminalStatuses.includes(call.status)) {
+        logger.warn('AudioStreamHandler: stream connection rejected — call already ended', { callId, status: call.status });
+        try {
+          ws.close(1008, 'Call already ended');
+        } catch {}
+        return null;
+      }
+    } catch (dbErr) {
+      logger.error('AudioStreamHandler: DB session validation error', { callId, error: dbErr });
+      try {
+        ws.close(1011, 'Internal session error');
+      } catch {}
+      return null;
+    }
+
+    return this.setupAuthorizedConnection(ws, callId);
+  }
+
   private async handleConnection(ws: WebSocket, req: IncomingMessage): Promise<void> {
     // Parse callId, token, and timestamp from the URL query string
     // Clean XML entity escapes (&amp;) if present
@@ -133,38 +176,32 @@ export class AudioStreamHandler {
         const secret = getWebhookSigningSecret();
         const expectedToken = crypto.createHmac('sha256', secret).update(`${callId}:${tsStr}`).digest('hex');
         const timestamp = parseInt(tsStr, 10);
-        if (token === expectedToken && timestamp > 0 && Date.now() - timestamp < 15 * 60 * 1000) {
+        if (
+          token.length === expectedToken.length &&
+          crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expectedToken)) &&
+          timestamp > 0 &&
+          Math.abs(Date.now() - timestamp) < 15 * 60 * 1000
+        ) {
           isAuthorized = true;
         }
       }
 
       if (!isAuthorized) {
+        logger.warn('AudioStreamHandler: unauthorized stream connection attempt via URL parameters', { callId });
         try {
-          const { prisma } = await import('../lib/prisma');
-          const recentCall = await prisma.call.findFirst({
-            where: {
-              id: callId,
-              createdAt: { gte: new Date(Date.now() - 30 * 60 * 1000) },
-            },
-          });
-          if (recentCall) {
-            isAuthorized = true;
-          }
-        } catch (dbErr) {
-          logger.error('AudioStreamHandler: DB session verification error', { callId, error: dbErr });
-        }
-      }
-
-      if (isAuthorized) {
-        logger.info('AudioStreamHandler: connection authorized via URL parameters', { callId });
-        this.setupAuthorizedConnection(ws, callId);
+          ws.close(1008, 'Unauthorized: Invalid or expired stream token');
+        } catch {}
         return;
       }
+
+      logger.info('AudioStreamHandler: connection authorized via URL parameters', { callId });
+      await this.validateAndSetupAuthorizedConnection(ws, callId);
+      return;
     }
 
     // Case 2: Telephony carrier (such as Plivo) connected without query parameters.
-    // Do NOT disconnect! Await the initial 'start' event carrying extra_headers or CallUUID.
-    logger.info('AudioStreamHandler: stream connection received without URL query parameters. Awaiting initial start event payload.', { url: req.url });
+    // Await initial 'start' event carrying extra_headers with verified token.
+    logger.info('AudioStreamHandler: stream connection received without URL query parameters. Awaiting initial start event payload.');
 
     let isHandshakeComplete = false;
     const handshakeTimeout = setTimeout(() => {
@@ -186,63 +223,80 @@ export class AudioStreamHandler {
         const message = JSON.parse(data.toString());
         logger.info('AudioStreamHandler: received initial handshake message', { event: message.event });
 
-        let resolvedCallId: string | null = null;
+        // Extract and cryptographically verify token from extra_headers
+        const extraHeaders = (message.extra_headers || (message as any).extraHeaders || '') as string;
+        let verifiedCallId: string | null = null;
 
-        // A. Extract from extra_headers (Plivo extraHeaders attribute: "callId=...;token=...")
-        const extraHeaders = message.extra_headers || (message as any).extraHeaders || '';
         if (extraHeaders) {
-          const match = extraHeaders.match(/callId=([a-zA-Z0-9-]+)/);
-          if (match && match[1]) {
-            resolvedCallId = match[1];
+          const callIdMatch = extraHeaders.match(/callId=([^;]+)/);
+          const tokenMatch = extraHeaders.match(/token=([^;]+)/);
+          const tsMatch = extraHeaders.match(/ts=([^;]+)/);
+
+          if (callIdMatch && tokenMatch && tsMatch) {
+            const parsedCallId = decodeURIComponent(callIdMatch[1].trim());
+            const parsedToken = decodeURIComponent(tokenMatch[1].trim());
+            const parsedTs = parseInt(decodeURIComponent(tsMatch[1].trim()), 10);
+            const secret = getWebhookSigningSecret();
+            const expectedToken = crypto.createHmac('sha256', secret).update(`${parsedCallId}:${parsedTs}`).digest('hex');
+
+            if (
+              parsedToken.length === expectedToken.length &&
+              crypto.timingSafeEqual(Buffer.from(parsedToken), Buffer.from(expectedToken)) &&
+              parsedTs > 0 &&
+              Math.abs(Date.now() - parsedTs) < 15 * 60 * 1000
+            ) {
+              verifiedCallId = parsedCallId;
+            }
           }
         }
 
-        // B. Extract from start.callId / CallUUID (Plivo telemetryId)
-        const startCallId = message.start?.callId || message.callId;
+        if (!verifiedCallId) {
+          logger.warn('AudioStreamHandler: unauthorized stream start payload (missing or invalid cryptographic token in extra_headers)');
+          try {
+            ws.close(1008, 'Unauthorized: Missing or invalid token in stream headers');
+          } catch {}
+          return;
+        }
 
+        // Confirm call exists and matches verifiedCallId
         const { prisma } = await import('../lib/prisma');
-        let matchedCall = null;
-
-        if (resolvedCallId) {
-          matchedCall = await prisma.call.findUnique({ where: { id: resolvedCallId } });
-        }
-
-        if (!matchedCall && startCallId) {
-          matchedCall = await prisma.call.findFirst({
-            where: {
-              OR: [
-                { id: startCallId },
-                { telemetryId: startCallId },
-              ],
-            },
-          });
-        }
-
-        // C. Fallback: match most recent call session created in last 5 minutes
-        if (!matchedCall) {
-          matchedCall = await prisma.call.findFirst({
-            where: {
-              createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) },
-            },
-            orderBy: { createdAt: 'desc' },
-          });
-        }
+        const matchedCall = await prisma.call.findUnique({
+          where: { id: verifiedCallId },
+          select: { id: true, telemetryId: true, status: true, endTime: true },
+        });
 
         if (!matchedCall) {
-          logger.warn('AudioStreamHandler: unable to resolve call session from start event', { extraHeaders, startCallId });
-          ws.close(1008, 'Unknown call session');
+          logger.warn('AudioStreamHandler: call record not found for verified token', { callId: verifiedCallId });
+          try {
+            ws.close(1008, 'Unknown call session');
+          } catch {}
+          return;
+        }
+
+        // If payload explicitly carries a start.callId, it must match the verified call
+        const startCallId = message.start?.callId || message.callId;
+        if (startCallId && startCallId !== matchedCall.id && startCallId !== matchedCall.telemetryId) {
+          logger.warn('AudioStreamHandler: start payload identifier mismatch with verified call session', {
+            startCallId,
+            verifiedCallId,
+          });
+          try {
+            ws.close(1008, 'Session identifier mismatch');
+          } catch {}
           return;
         }
 
         isHandshakeComplete = true;
         const finalCallId = matchedCall.id;
-        logger.info('AudioStreamHandler: successfully resolved stream to call session', {
+        logger.info('AudioStreamHandler: successfully resolved and verified stream to call session', {
           callId: finalCallId,
-          telemetryId: matchedCall.telemetryId,
           status: matchedCall.status,
         });
 
-        this.setupAuthorizedConnection(ws, finalCallId);
+        const conn = await this.validateAndSetupAuthorizedConnection(ws, finalCallId);
+        if (!conn) {
+          return;
+        }
 
         // Process the initial start event message now that the connection is registered
         if (message.event === 'start') {

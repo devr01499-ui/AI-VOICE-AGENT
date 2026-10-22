@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { Router } from 'express';
 import { z } from 'zod';
 import { CallController } from '../controllers/CallController';
@@ -10,6 +11,8 @@ import { EncryptionService } from '../utils/EncryptionService';
 import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
 import { requireAuth } from '../middleware/auth';
 import { requireCallingMinutes, requireActivePlan } from '../middleware/planValidation';
+import { getWebhookSigningSecret } from '../utils/security';
+import { ADMIN_EMAIL } from '../config/constants';
 
 const router = Router();
 
@@ -381,6 +384,55 @@ router.get(
     next();
   },
   CallController.getCallTranscript
+);
+
+/** POST /api/v2/calls/:callId/transcript-ticket — Issue a short-lived ticket to connect to the live transcript WebSocket stream. */
+router.post(
+  '/:callId/transcript-ticket',
+  validateParams(callIdParamSchema),
+  async (req, res) => {
+    try {
+      const authenticatedUserId = (req as any).effectiveWorkspaceId || (req as any).auth?.userId || (req as any).userId || (req as any).user?.id || getUserIdFromRequest(req);
+      if (!authenticatedUserId) {
+        res.status(401).json({ success: false, error: 'Unauthorized: Authentication required' });
+        return;
+      }
+
+      const callId = req.params.callId as string;
+      const isAdmin = (req as any).user?.accountType === 'admin' || (req as any).user?.email === ADMIN_EMAIL;
+
+      // Compound tenant filtering: caller must own the call or be an administrative operator
+      const call = await prisma.call.findFirst({
+        where: isAdmin ? { id: callId } : { id: callId, userId: authenticatedUserId },
+        select: { id: true, userId: true },
+      });
+
+      if (!call) {
+        res.status(404).json({ success: false, error: 'Call not found or inaccessible' });
+        return;
+      }
+
+      const secret = getWebhookSigningSecret();
+      const exp = Date.now() + 60 * 1000; // 60 seconds TTL
+      const nonce = crypto.randomBytes(8).toString('hex');
+      const payloadObj = { callId: call.id, userId: authenticatedUserId, exp, nonce };
+      const payloadBase64 = Buffer.from(JSON.stringify(payloadObj), 'utf8').toString('base64url');
+      const sig = crypto.createHmac('sha256', secret).update(payloadBase64).digest('base64url');
+      const ticket = `${payloadBase64}.${sig}`;
+
+      res.status(200).json({
+        success: true,
+        data: {
+          ticket,
+          callId: call.id,
+          expiresAt: exp,
+        },
+      });
+    } catch (err: any) {
+      logger.error('Error generating transcript ticket', { error: err.message });
+      res.status(500).json({ success: false, error: 'Failed to generate transcript ticket' });
+    }
+  }
 );
 
 /** POST /api/v2/calls/sip-trunks — Register a new SIP Trunk. */

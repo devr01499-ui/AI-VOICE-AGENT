@@ -11,7 +11,7 @@ import { DashCalendar } from "./components/calendar/CalendarOverview";
 import {
   fetchAgents, fetchAgent, fetchCalls, fetchProfile, createAgent, updateAgent, deleteAgent, chatWithAgent,
   exportAgentAsJson, importAgentFromJson,
-  initiateCall, getCallTranscript, getLiveTranscriptWsUrl,
+  initiateCall, getCallTranscript, getLiveTranscriptWsUrl, requestTranscriptTicket,
   fetchKBList, uploadKBDocument, scrapeKBUrl, deleteKBDocument, fetchCalendarBatches, fetchCalendarBatchDetail, createBatchCampaign, pauseBatchCampaign, resumeBatchCampaign, cancelBatchCampaign,
   fetchAuditLogs, fetchDataRetention, updateDataRetention, fetchIpAllowlist, updateIpAllowlist, fetchConcurrencyTelemetry, updateConcurrencyLimit,
   DEV_USER_ID, DEFAULT_AGENT_ID, API_BASE, apiClient,
@@ -3585,44 +3585,59 @@ function DashCallLogs() {
     setTranscriptLoading(true);
     setTranscriptError(null);
 
-    const wsUrl = getLiveTranscriptWsUrl(transcriptOpen);
-    const ws = new WebSocket(wsUrl);
+    let isCancelled = false;
+    let activeWs: WebSocket | null = null;
 
-    ws.onopen = () => {
-      setTranscriptLoading(false);
-    };
+    requestTranscriptTicket(transcriptOpen)
+      .then((ticket) => {
+        if (isCancelled) return;
+        const wsUrl = getLiveTranscriptWsUrl(transcriptOpen, ticket);
+        const ws = new WebSocket(wsUrl);
+        activeWs = ws;
 
-    ws.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-        if (message && typeof message.transcript === 'string') {
-          const lines = message.transcript.split('\n').filter(Boolean);
-          setTranscriptText(lines.map((l: string) => ({
-            role: l.startsWith('Agent:') ? 'agent' : 'caller',
-            text: l.replace(/^(Agent:|Caller:)\s*/, '')
-          })));
+        ws.onopen = () => {
+          if (!isCancelled) setTranscriptLoading(false);
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            if (message && typeof message.transcript === 'string') {
+              const lines = message.transcript.split('\n').filter(Boolean);
+              setTranscriptText(lines.map((l: string) => ({
+                role: l.startsWith('Agent:') ? 'agent' : 'caller',
+                text: l.replace(/^(Agent:|Caller:)\s*/, '')
+              })));
+            }
+          } catch (e) {
+            if (typeof event.data === 'string') {
+              const lines = event.data.split('\n').filter(Boolean);
+              setTranscriptText(lines.map(l => ({
+                role: l.startsWith('Agent:') ? 'agent' : 'caller',
+                text: l.replace(/^(Agent:|Caller:)\s*/, '')
+              })));
+            }
+          }
+        };
+
+        ws.onerror = () => {
+          if (!isCancelled) setTranscriptLoading(false);
+        };
+
+        ws.onclose = () => {
+          if (!isCancelled) setTranscriptLoading(false);
+        };
+      })
+      .catch(() => {
+        if (!isCancelled) {
+          setTranscriptLoading(false);
+          setTranscriptError('Failed to authenticate live transcript session');
         }
-      } catch (e) {
-        if (typeof event.data === 'string') {
-          const lines = event.data.split('\n').filter(Boolean);
-          setTranscriptText(lines.map(l => ({
-            role: l.startsWith('Agent:') ? 'agent' : 'caller',
-            text: l.replace(/^(Agent:|Caller:)\s*/, '')
-          })));
-        }
-      }
-    };
-
-    ws.onerror = () => {
-      setTranscriptLoading(false);
-    };
-
-    ws.onclose = () => {
-      setTranscriptLoading(false);
-    };
+      });
 
     return () => {
-      ws.close();
+      isCancelled = true;
+      if (activeWs) activeWs.close();
     };
   }, [transcriptOpen, liveCalls]);
 

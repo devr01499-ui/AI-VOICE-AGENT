@@ -524,14 +524,20 @@ export async function getCallTranscript(callId: string): Promise<CallTranscriptR
 // ─── WebSocket Helper ─────────────────────────────────────────────────────────
 
 /**
- * Builds the WebSocket URL for the live transcript stream.
- *
- * REAL-TIME SIGNAL BINDING:
- *   WS wss://ai-voice-agent-backend-mv32.onrender.com/live-transcript?callId=<id>
+ * Requests a short-lived single-use ticket to authenticate the live transcript WebSocket stream.
  */
-export function getLiveTranscriptWsUrl(callId: string): string {
+export async function requestTranscriptTicket(callId: string): Promise<string> {
+  const res = await apiClient.post(`/api/v2/calls/${callId}/transcript-ticket`);
+  return res.data?.data?.ticket || res.data?.ticket || '';
+}
+
+/**
+ * Builds the WebSocket URL for the live transcript stream with signed ticket authentication.
+ */
+export function getLiveTranscriptWsUrl(callId: string, ticket?: string): string {
   const wsBase = API_BASE.replace(/^http/, "ws");
-  return `${wsBase}/live-transcript?callId=${callId}`;
+  const ticketParam = ticket ? `&ticket=${encodeURIComponent(ticket)}` : '';
+  return `${wsBase}/live-transcript?callId=${callId}${ticketParam}`;
 }
 
 export function getSandboxTestWsUrl(agentId: string, token: string): string {

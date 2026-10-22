@@ -9,6 +9,7 @@
 import { Router } from 'express';
 import { CallController } from '../controllers/CallController';
 import { verifyVobizWebhook } from '../middleware/vobizWebhook';
+import { verifyPlivoWebhook } from '../middleware/plivoWebhook';
 
 const router = Router();
 
@@ -47,24 +48,24 @@ router.post('/vobiz/hangup', verifyVobizWebhook, CallController.handleVobizHangu
  * ALL /api/v2/webhooks/plivo/answer
  * Returns Plivo XML <Stream> directive with clean WebSocket URL and extraHeaders.
  */
-router.all('/plivo/answer', CallController.handlePlivoAnswer);
+router.all('/plivo/answer', verifyPlivoWebhook, CallController.handlePlivoAnswer);
 
 /**
  * ALL /api/v2/webhooks/plivo/status
  * Plivo call status transitions: ringing, answered, in-progress, etc.
  */
-router.all('/plivo/status', CallController.handlePlivoStatus);
+router.all('/plivo/status', verifyPlivoWebhook, CallController.handlePlivoStatus);
 
 /**
  * ALL /api/v2/webhooks/plivo/hangup
  * Plivo call termination: triggers session cleanup, metrics, and transcript finalization.
  */
-router.all('/plivo/hangup', CallController.handlePlivoHangup);
+router.all('/plivo/hangup', verifyPlivoWebhook, CallController.handlePlivoHangup);
 
 /**
  * ALL /api/v2/webhooks/plivo/fallback
  * Plivo fallback route if primary Answer URL encounters network timeout.
  */
-router.all('/plivo/fallback', CallController.handlePlivoAnswer);
+router.all('/plivo/fallback', verifyPlivoWebhook, CallController.handlePlivoAnswer);
 
 export default router;

@@ -13,7 +13,11 @@
     "typecheck": "node --max-old-space-size=4096 node_modules/typescript/bin/tsc --noEmit",
     "test:security": "node scripts/test_phase5_security_suite.js",
     "test:owasp": "node scripts/test_owasp_top10_audit.js",
-    "test:payment-security": "node scripts/test_payment_gateway_security.js"
+    "test:payment-security": "node scripts/test_payment_gateway_security.js",
+    "test:plivo-webhook": "node scripts/test_plivo_webhook_security.js",
+    "test:audiostream-isolation": "node scripts/test_audiostream_isolation.js",
+    "test:live-transcript-auth": "node scripts/test_live_transcript_auth.js",
+    "test:batch-a": "node scripts/test_plivo_webhook_security.js && node scripts/test_audiostream_isolation.js && node scripts/test_live_transcript_auth.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
