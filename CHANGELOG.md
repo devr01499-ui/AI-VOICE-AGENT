@@ -1,5 +1,12 @@
 # CHANGELOG
 
+- Telephony Real-Time Calling Optimization & Humanized Vocal Pipeline:
+  - **Sub-2s Turn-Around Latency**: In `GeminiLiveProvider.ts`, explicitly configured `thinkingConfig: { thinkingBudget: 0 }` and `thinking_config: { thinking_budget: 0 }` to disable multi-second reasoning token overhead. Reduced VAD silence duration to 200ms with high sensitivity and lowered temperature to 0.5.
+  - **Direct Telephony Audio Playout**: In `AudioStreamHandler.ts`, eliminated the artificial `setTimeout` playout queue delay, routing Gemini audio chunks directly down the telephony WebSocket to Plivo/Vobiz as they are generated.
+  - **Eliminated Dual / Robotic Overlapping Voice**: Removed `proactivity: { proactiveAudio: true }` in `GeminiLiveProvider.ts`. Added acoustic echo suppression in `AudioStreamHandler.ts` (dropping leaked audio < 90 RMS while AI is speaking) and extended initial greeting unmuting delay to 2200ms in `CallOrchestrator.ts`.
+  - **Emotional Vocal Pitch & Humming Directive (v1.1.0)**: In `personaPrompt.ts`, hardcoded platform-wide human emotion guidelines, smiling vocal energy, dynamic pitch modulation, and natural conversational humming connectors (`"Mm-hmm"`, `"Ah, got it!"`, `"Oh, wonderful"`, `"Mm, completely understand"`).
+  - **Plivo Webhook & Inbound L16 Detection**: Fixed L16 PCM frame detection boundary (`inputBuffer.length >= 320`) in `audioConverter.ts` and lowered noise gate to 35 RMS. Hardened Plivo webhook verification in `plivoWebhook.ts` and sanitized VoiceXML stream URLs in `CallController.ts`.
+
 - Per-Reply Latency Optimization & Per-Turn Metrics Engine (Phase 8 - Step 2: Optimize):
   - **Knowledge Base Fact Inlining (0ms Tool Flight Time)**: Prefetches chunks for agents with linked knowledge bases <= 4,000 characters (or <= 12 chunks) and injects verified facts directly into the system prompt under `[KNOWLEDGE BASE VERIFIED FACTS]`. Completely bypasses Google embedding API flight time and cross-ocean Supabase pgvector queries, dropping reply latency for small-KB agents by ~500ms down to conversational baseline.
   - **Vector Search Tool Acceleration (`GeminiLiveProvider.ts`, `embedding.ts`)**: Integrated in-memory LRU embedding cache (1,000 capacity, 24h TTL, query normalization) in `embedding.ts`. Reduced pgvector query limit from `LIMIT 3` to `LIMIT 2` and sliced chunk payloads to 350 characters, reducing tool generation and serialization overhead.
