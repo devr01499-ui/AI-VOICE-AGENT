@@ -4069,7 +4069,7 @@ export default function SinglePromptStudio({
                           }}
                           className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-sm transition-all"
                         >
-                          <Check className="w-4 h-4" /> Apply Prompt to Agent (Mark Unsaved)
+                          <Check className="w-4 h-4" /> Use this prompt
                         </button>
                       </div>
                     )}

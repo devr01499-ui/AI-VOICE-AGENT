@@ -194,6 +194,7 @@ export const CallsList: React.FC<CallsListProps> = ({ onSelectCustomer }) => {
                 <th className="px-5 py-3.5 font-semibold">Recipient Phone</th>
                 <th className="px-3 py-3.5 font-semibold">Direction</th>
                 <th className="px-3 py-3.5 font-semibold">Status</th>
+                <th className="px-3 py-3.5 font-semibold">End Reason</th>
                 <th className="px-3 py-3.5 font-semibold">Duration</th>
                 <th className="px-4 py-3.5 font-semibold">Customer</th>
                 <th className="px-4 py-3.5 font-semibold">Agent</th>
@@ -205,14 +206,14 @@ export const CallsList: React.FC<CallsListProps> = ({ onSelectCustomer }) => {
             <tbody className="divide-y divide-zinc-800/60">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-zinc-500">
+                  <td colSpan={10} className="text-center py-12 text-zinc-500">
                     <div className="h-5 w-5 border-2 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-2" />
                     <span>Loading calls history...</span>
                   </td>
                 </tr>
               ) : calls.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-zinc-500">
+                  <td colSpan={10} className="text-center py-12 text-zinc-500">
                     No calls match the search criteria.
                   </td>
                 </tr>
@@ -238,6 +239,18 @@ export const CallsList: React.FC<CallsListProps> = ({ onSelectCustomer }) => {
                         >
                           {c.status} {isStale ? '(STALE)' : ''}
                         </span>
+                      </td>
+                      <td className="px-3 py-3.5">
+                        {c.endReason ? (
+                          <span
+                            className="text-[10px] px-2 py-0.5 rounded font-mono font-medium border border-zinc-700 bg-zinc-900 text-zinc-300 inline-block max-w-[120px] truncate"
+                            title={c.endDetail ? `${c.endReason}: ${c.endDetail}` : c.endReason}
+                          >
+                            {c.endReason}
+                          </span>
+                        ) : (
+                          <span className="text-zinc-600 font-mono text-[10px]">—</span>
+                        )}
                       </td>
                       <td className="px-3 py-3.5 font-mono text-zinc-200">
                         {Math.floor((c.durationSeconds || 0) / 60)}m {(c.durationSeconds || 0) % 60}s

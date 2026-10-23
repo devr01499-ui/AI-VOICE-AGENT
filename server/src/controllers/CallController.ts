@@ -292,8 +292,9 @@ export class CallController {
         const user = await prisma.user.findUnique({ where: { id: callSession.userId } });
         if (user && user.accountType !== 'admin' && user.email !== ADMIN_EMAIL && !hasCallableBalance(user)) {
           logger.warn('CallController: Insufficient balance for webhook call connection', { callId, userId: user.id });
+          await callOrchestrator.endCallSession(callId, 'balance_exhausted', 'Insufficient balance on answer webhook', 'system').catch(() => {});
           res.set('Content-Type', 'application/xml; charset=utf-8');
-          res.status(200).send(`<Response><Speak>${escapeXml('Insufficient balance to complete this call.')}</Speak><Hangup/></Response>`);
+          res.status(200).send(`<Response><Speak>${escapeXml('This number is currently unavailable. Please try again later.')}</Speak><Hangup/></Response>`);
           return;
         }
 
@@ -444,8 +445,9 @@ export class CallController {
         const user = await prisma.user.findUnique({ where: { id: callSession.userId } });
         if (user && user.accountType !== 'admin' && user.email !== ADMIN_EMAIL && !hasCallableBalance(user)) {
           logger.warn('CallController: Insufficient balance for Plivo webhook call connection', { callId, userId: user.id });
+          await callOrchestrator.endCallSession(callId, 'balance_exhausted', 'Insufficient balance on answer webhook', 'system').catch(() => {});
           res.set('Content-Type', 'application/xml; charset=utf-8');
-          res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?><Response><Speak>${escapeXml('Insufficient balance to complete this call.')}</Speak><Hangup/></Response>`);
+          res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?><Response><Speak>${escapeXml('This number is currently unavailable. Please try again later.')}</Speak><Hangup/></Response>`);
           return;
         }
 
@@ -475,11 +477,10 @@ export class CallController {
       const ts = Date.now();
       const token = crypto.createHmac('sha256', secret).update(`${callId}:${ts}`).digest('hex');
       const rawStreamUrl = `${wsUrl}/audio-stream?callId=${encodeURIComponent(callId)}&token=${encodeURIComponent(token)}&ts=${ts}`;
-      const xmlStreamUrl = `${wsUrl}/audio-stream?callId=${encodeURIComponent(callId)}&amp;token=${encodeURIComponent(token)}&amp;ts=${ts}`;
 
       const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/x-l16;rate=16000" extraHeaders="callId=${encodeURIComponent(callId)},token=${encodeURIComponent(token)},ts=${ts}">${xmlStreamUrl}</Stream>
+  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/x-l16;rate=16000" extraHeaders="callId=${encodeURIComponent(callId)},token=${encodeURIComponent(token)},ts=${ts}"><![CDATA[${rawStreamUrl}]]></Stream>
 </Response>`;
 
       logger.info('CallController: Plivo answer webhook returning Stream XML', { callId, streamUrl: rawStreamUrl });

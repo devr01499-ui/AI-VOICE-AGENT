@@ -179,6 +179,9 @@ router.get(
           sentiment: c.sentiment || null,
           lastError: recipientRecord?.lastError || null,
           lastErrorCode: recipientRecord?.lastErrorCode || null,
+          endReason: c.endReason || null,
+          endDetail: c.endDetail || null,
+          endedBy: c.endedBy || null,
           createdAt: c.createdAt.toISOString(),
         };
       });

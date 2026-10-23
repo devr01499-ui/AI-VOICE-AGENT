@@ -792,7 +792,7 @@ export class CallOrchestrator extends EventEmitter {
   /**
    * Reconnects the voice session on transient upstream errors while keeping the telephony leg alive.
    */
-  async reconnectVoiceSession(callId: string): Promise<string> {
+  async reconnectVoiceSession(callId: string, onAudioChunk?: (chunk: string) => void): Promise<string> {
     const session = this.activeCalls.get(callId);
     if (!session) {
       throw new Error(`Cannot reconnect inactive call ${callId}`);
@@ -809,6 +809,13 @@ export class CallOrchestrator extends EventEmitter {
       session.agentId,
       session.recipientPhoneNumber,
       (audioBase64: string) => {
+        if (onAudioChunk) {
+          try {
+            onAudioChunk(audioBase64);
+          } catch (sinkErr) {
+            logger.error('CallOrchestrator: onAudioChunk sink error during reconnect', { callId, error: sinkErr });
+          }
+        }
         this.emit('outboundAudio', { callId, audio: audioBase64 });
       }
     );
@@ -839,6 +846,9 @@ export class CallOrchestrator extends EventEmitter {
       defaultEndedBy = 'agent';
     } else if (rawReason === 'balance_exhausted' || rawReason === 'minutes_exhausted' || rawReason === 'insufficient_balance') {
       normalizedReason = 'balance_exhausted';
+      defaultEndedBy = 'system';
+    } else if (rawReason === 'outside_business_hours') {
+      normalizedReason = 'outside_business_hours';
       defaultEndedBy = 'system';
     } else if (rawReason === 'gemini_setup_failed' || rawReason === 'setup_failed') {
       normalizedReason = 'gemini_setup_failed';

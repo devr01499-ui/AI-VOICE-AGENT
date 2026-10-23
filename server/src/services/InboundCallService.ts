@@ -147,8 +147,8 @@ export class InboundCallService {
             telemetryId: callUuid,
             userId: user.id,
             agentId: targetAgentId,
-            fromPhoneNumber: rawTo,
-            recipientPhoneNumber: rawFrom,
+            fromPhoneNumber: rawFrom,
+            recipientPhoneNumber: rawTo,
             callDirection: 'inbound',
             status: 'failed',
             endReason: reasonCode as any,
@@ -280,6 +280,71 @@ export class InboundCallService {
         };
       }
 
+      // 2b. Business Hours Gate (from InboundConfig)
+      if (numberRecord.inboundConfigs && numberRecord.inboundConfigs.length > 0) {
+        const inboundCfg = numberRecord.inboundConfigs[0];
+        if (inboundCfg.businessHours && inboundCfg.businessHours !== '{}') {
+          try {
+            const bh = typeof inboundCfg.businessHours === 'string' ? JSON.parse(inboundCfg.businessHours) : inboundCfg.businessHours;
+            if (bh && bh.enabled) {
+              const now = new Date();
+              // Support user-configured timezone or fallback to Asia/Kolkata
+              const tz = bh.timezone || 'Asia/Kolkata';
+              const formatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: tz,
+                weekday: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+              });
+              const parts = formatter.formatToParts(now);
+              const weekday = parts.find(p => p.type === 'weekday')?.value?.toLowerCase() || '';
+              const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+              const minute = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
+              const currentMinutes = hour * 60 + minute;
+
+              let isWithinHours = true;
+              if (bh.days && bh.days[weekday]) {
+                const dayConfig = bh.days[weekday];
+                if (!dayConfig.enabled) {
+                  isWithinHours = false;
+                } else if (dayConfig.start && dayConfig.end) {
+                  const [sH, sM] = dayConfig.start.split(':').map(Number);
+                  const [eH, eM] = dayConfig.end.split(':').map(Number);
+                  const startMin = (sH || 0) * 60 + (sM || 0);
+                  const endMin = (eH || 0) * 60 + (eM || 0);
+                  if (currentMinutes < startMin || currentMinutes > endMin) {
+                    isWithinHours = false;
+                  }
+                }
+              }
+
+              if (!isWithinHours) {
+                logger.warn('InboundCallService: Inbound call outside business operating hours', {
+                  userId: user.id,
+                  rawTo,
+                  weekday,
+                  hour,
+                  minute
+                });
+                const internalErr = 'Call arrived outside business operating hours';
+                const callId = await recordBlockedCall('outside_business_hours', internalErr);
+                return {
+                  success: false,
+                  callId: callId || undefined,
+                  errorMessage: internalErr,
+                  spokenMessage: 'Thank you for calling. Our office is currently closed. Please call back during normal business hours.',
+                  endReason: 'outside_business_hours',
+                  statusCode: 200
+                };
+              }
+            }
+          } catch (bhErr) {
+            logger.warn('InboundCallService: Failed to parse or evaluate business hours', { error: String(bhErr) });
+          }
+        }
+      }
+
       // 3. Determine assigned Agent
       let targetAgentId = numberRecord.assignedAgentId;
 
@@ -317,13 +382,14 @@ export class InboundCallService {
       }
 
       // 4. Create Call Record in Database (direction = 'inbound')
+      // Correct Telephony Orientation: fromPhoneNumber = Caller, recipientPhoneNumber = Dialed Business DID
       const callRecord = await prisma.call.create({
         data: {
           telemetryId: callUuid,
           userId: user.id,
           agentId: targetAgentId,
-          fromPhoneNumber: rawTo,
-          recipientPhoneNumber: rawFrom,
+          fromPhoneNumber: rawFrom,
+          recipientPhoneNumber: rawTo,
           callDirection: 'inbound',
           status: 'ringing',
           userData: JSON.stringify({

@@ -54,15 +54,23 @@ export function classifyProviderError(errorStr: string): 'transient' | 'fatal' {
     err.includes('api key') ||
     err.includes('unauthenticated') ||
     err.includes('unauthorized') ||
+    err.includes('401') ||
+    err.includes('402') ||
+    err.includes('403') ||
+    err.includes('forbidden') ||
+    err.includes('kyc') ||
     err.includes('out of calling minutes') ||
     err.includes('insufficient_balance') ||
+    err.includes('insufficient balance') ||
     err.includes('balance_exhausted') ||
     err.includes('balance exhausted') ||
+    err.includes('payment required') ||
     err.includes('permission_denied') ||
     err.includes('user_not_found') ||
     err.includes('model not found') ||
     err.includes('setup_validation_failed') ||
-    err.includes('invalid argument')
+    err.includes('invalid argument') ||
+    err.includes('configuration invalid')
   ) {
     return 'fatal';
   }
@@ -82,6 +90,10 @@ export class AudioStreamHandler {
   initialize(wss: WebSocketServer): void {
     wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
       this.handleConnection(ws, req);
+    });
+
+    callOrchestrator.on('outboundAudio', ({ callId, audio }: { callId: string; audio: string }) => {
+      this.sendAudioToVobiz(callId, audio);
     });
 
     logger.info('AudioStreamHandler: initialized');
@@ -835,8 +847,15 @@ export class AudioStreamHandler {
       this.reconnectAttempts.set(callId, retries + 1);
       logger.info('AudioStreamHandler: attempting mid-call session recovery for transient error', { callId, attempt: retries + 1 });
       try {
-        await callOrchestrator.reconnectVoiceSession(callId);
-        logger.info('AudioStreamHandler: transient error reconnected successfully, telephony call kept alive', { callId });
+        const newSessionId = await callOrchestrator.reconnectVoiceSession(callId, (audioBase64: string) => {
+          this.sendAudioToVobiz(callId, audioBase64);
+        });
+        const conn = this.connections.get(callId);
+        if (conn) {
+          conn.sessionId = newSessionId;
+          conn.sessionReady = true;
+        }
+        logger.info('AudioStreamHandler: transient error reconnected successfully, telephony call kept alive', { callId, newSessionId });
         return;
       } catch (recErr) {
         logger.error('AudioStreamHandler: mid-call session recovery failed', { callId, error: String(recErr) });

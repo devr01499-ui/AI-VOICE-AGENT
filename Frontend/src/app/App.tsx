@@ -3686,6 +3686,8 @@ function DashCallLogs() {
     const contact = c.contactNumber || c.recipientPhoneNumber || c.phoneNumber || '—';
     const business = c.businessNumber || c.fromPhoneNumber || '—';
     const dir = c.direction || (c.callDirection === 'inbound' ? 'inbound' : 'outbound');
+    const endReason = c.endReason || (c.lastErrorCode ? c.lastErrorCode : (c.status === 'completed' ? 'completed' : null));
+    const endDetail = c.endDetail || c.lastError || '';
 
     return {
       id: c.id,
@@ -3693,6 +3695,8 @@ function DashCallLogs() {
       batchName: c.batchName,
       lastError: c.lastError,
       lastErrorCode: c.lastErrorCode,
+      endReason,
+      endDetail,
       direction: dir,
       contact,
       business,
@@ -3867,7 +3871,7 @@ function DashCallLogs() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-transparent text-[var(--nm-text)]">
-                {["Direction", "Contact", "Campaign", "Agent", "Duration (Billed)", "Status", "Recording", "Time", "Actions"].map(h=>(
+                {["Direction", "Contact", "Campaign", "Agent", "Duration (Billed)", "Status", "End Reason", "Recording", "Time", "Actions"].map(h=>(
                   <th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>
                 ))}
               </tr>
@@ -3914,6 +3918,24 @@ function DashCallLogs() {
                     </DBadge>
                   </td>
                   <td className="px-5 py-4">
+                    {c.endReason ? (
+                      <span 
+                        className={`text-xs px-2 py-0.5 rounded font-mono font-medium inline-block max-w-[130px] truncate ${
+                          c.endReason === 'completed' || c.endReason === 'caller_hangup' || c.endReason === 'agent_hangup'
+                            ? 'text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300'
+                            : c.endReason === 'balance_exhausted' || c.endReason === 'outside_business_hours'
+                            ? 'text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300'
+                            : 'text-red-700 bg-red-50 dark:bg-red-950/40 dark:text-red-300'
+                        }`}
+                        title={c.endDetail || c.endReason}
+                      >
+                        {c.endReason}
+                      </span>
+                    ) : (
+                      <span className="text-xs opacity-40">—</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-4">
                     {c.rec ? (
                       <DBtn size="sm" variant="ghost" onClick={() => openTranscript(c.id)}>
                         <Play className="w-4 h-4"/>
@@ -3933,7 +3955,7 @@ function DashCallLogs() {
               ))}
               {paginatedCalls.length === 0 && !callsLoading && (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-sm text-[var(--nm-text)] font-bold">
+                  <td colSpan={10} className="text-center py-12 text-sm text-[var(--nm-text)] font-bold">
                     No call logs match the selected filters.
                   </td>
                 </tr>

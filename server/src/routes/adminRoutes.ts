@@ -1417,7 +1417,11 @@ adminRouter.get('/calls', requireStaff('customers:view'), async (req: StaffAuthe
         select: {
           id: true,
           recipientPhoneNumber: true,
+          fromPhoneNumber: true,
           status: true,
+          endReason: true,
+          endDetail: true,
+          endedBy: true,
           callDirection: true,
           durationSeconds: true,
           createdAt: true,
