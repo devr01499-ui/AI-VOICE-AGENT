@@ -567,8 +567,8 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       }
 
       const silenceDurationVal = typeof speechSettings.responsivenessMs === 'number'
-        ? Math.max(100, Math.min(800, speechSettings.responsivenessMs))
-        : 250;
+        ? Math.max(100, Math.min(500, speechSettings.responsivenessMs))
+        : 200;
 
       const isInterruptionLow = speechSettings.interruptionSensitivity === 'LOW';
       const startSensitivity = isInterruptionLow ? "START_SENSITIVITY_LOW" : "START_SENSITIVITY_HIGH";
@@ -606,7 +606,10 @@ export class GeminiLiveProvider implements IRealtimeProvider {
             thinkingConfig: {
               thinkingBudget: 0
             },
-            temperature: temperatureVal
+            thinking_config: {
+              thinking_budget: 0
+            },
+            temperature: 0.5
           },
           systemInstruction: {
             parts: [{ text: systemInstructionString }]
@@ -623,9 +626,6 @@ export class GeminiLiveProvider implements IRealtimeProvider {
             },
             activityHandling: "START_OF_ACTIVITY_INTERRUPTS",
             turnCoverage: "TURN_INCLUDES_ALL_INPUT"
-          },
-          proactivity: {
-            proactiveAudio: true
           },
           ...(functionDeclarations && functionDeclarations.length > 0 && {
             tools: [

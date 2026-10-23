@@ -631,6 +631,22 @@ export class AudioStreamHandler {
         return;
       }
 
+      // Echo suppression: while AI is speaking, if inbound audio RMS is below threshold (< 90),
+      // it is speakerphone/telephony echo of the AI voice leaking back. Suppress it to prevent double-voice feedback.
+      if (conn.isPlayoutActive) {
+        const rawInbound = Buffer.from(audioPayload, 'base64');
+        if (rawInbound.length >= 320) {
+          const samples16 = new Int16Array(rawInbound.buffer, rawInbound.byteOffset, Math.floor(rawInbound.length / 2));
+          let sum = 0;
+          for (let i = 0; i < samples16.length; i++) sum += samples16[i] * samples16[i];
+          const rms = Math.sqrt(sum / samples16.length);
+          if (rms < 90) {
+            // Low energy echo while AI is speaking - drop to avoid dual voice feedback
+            return;
+          }
+        }
+      }
+
       callOrchestrator.processAudioStream(callId, audioPayload);
 
       if (conn.sessionId) {
@@ -669,30 +685,33 @@ export class AudioStreamHandler {
   }
 
   /**
-   * Pushes audio chunk to playout queue and starts sequential playout if inactive.
+   * Streams audio chunks directly to telephony without artificial queue delay.
    */
   private sendAudioToVobiz(callId: string, audioBase64: string): void {
     const conn = this.connections.get(callId);
     if (!conn) return;
 
-    // Buffer overrun and jitter defense: cap queue size to prevent unbounded memory growth and creeping latency
-    if (conn.playbackQueue.length >= MAX_PLAYBACK_QUEUE_CHUNKS) {
-      logger.warn('AudioStreamHandler: playback queue threshold reached, dropping oldest chunk to prevent jitter lag', {
-        callId,
-        queueLength: conn.playbackQueue.length,
-      });
-      conn.playbackQueue.shift();
-    }
+    // Send audio packet immediately to telephony WebSocket without buffering delay
+    this.sendAudioToVobizDirect(callId, audioBase64);
 
-    conn.playbackQueue.push(audioBase64);
+    // Track playout state for echo cancellation
+    conn.isPlayoutActive = true;
+    const pcmBytes = Math.floor((audioBase64.length * 3) / 4);
+    const durationMs = Math.max(20, Math.round(pcmBytes / 32));
 
-    if (!conn.isPlayoutActive) {
-      this.flushNextAudioChunk(callId);
+    if (conn.playoutTimeout) {
+      clearTimeout(conn.playoutTimeout);
     }
+    conn.playoutTimeout = setTimeout(() => {
+      const current = this.connections.get(callId);
+      if (current) {
+        current.isPlayoutActive = false;
+      }
+    }, durationMs + 100);
   }
 
   /**
-   * Playout pump to send audio sequentially to Vobiz.
+   * Playout pump to send audio sequentially to Vobiz (legacy fallback).
    */
   private flushNextAudioChunk(callId: string): void {
     const conn = this.connections.get(callId);
@@ -705,7 +724,6 @@ export class AudioStreamHandler {
     const nextChunkBase64 = conn.playbackQueue.shift()!;
     this.sendAudioToVobizDirect(callId, nextChunkBase64);
 
-    // Compute duration from base64 PCM16 16kHz audio length (32 bytes per millisecond)
     const pcmBytes = Math.floor((nextChunkBase64.length * 3) / 4);
     const durationMs = Math.max(10, Math.min(200, Math.round(pcmBytes / 32)));
 

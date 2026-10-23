@@ -764,7 +764,8 @@ export class CallOrchestrator extends EventEmitter {
       session.pipecatRunner.triggerGreeting(finalPrompt);
     }
 
-    // Enable inbound audio streaming and mark as listening after 350ms (reduced from 1500ms to eliminate awkward silence)
+    // Enable inbound audio streaming after the initial greeting has played out (~2200ms)
+    // to prevent early static or the AI's own greeting audio from causing double voice feedback.
     setTimeout(() => {
       const session = this.activeCalls.get(callId);
       if (session) {
@@ -774,7 +775,7 @@ export class CallOrchestrator extends EventEmitter {
         }
         logger.info('Now listening for user input and streaming audio to Gemini', { callId });
       }
-    }, 350);
+    }, 2200);
   }
 
   enableInboundAudio(callId: string): void {
