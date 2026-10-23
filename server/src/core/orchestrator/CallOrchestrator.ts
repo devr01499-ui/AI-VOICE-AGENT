@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { EventEmitter } from 'events';
 import { PipecatRunner } from '../pipeline/PipecatRunner';
 import { eventBus, PROVIDER_EVENTS } from '../provider-sdk/provider.events';
@@ -276,12 +277,15 @@ export class CallOrchestrator extends EventEmitter {
       if (isPlivo) {
         const { PlivoService } = await import('../telephony/PlivoService');
         const plivo = new PlivoService();
+        const { getWebhookSigningSecret } = await import('../../utils/security');
+        const secret = getWebhookSigningSecret();
+        const callSig = crypto.createHmac('sha256', secret).update(call.id).digest('hex');
         result = await plivo.initiateCall({
           to: phoneNumber,
           from: fromPhoneNumber,
-          answerUrl: `${publicUrl}/api/v2/webhooks/plivo/answer?callId=${call.id}`,
-          ringUrl: `${publicUrl}/api/v2/webhooks/plivo/status?callId=${call.id}`,
-          hangupUrl: `${publicUrl}/api/v2/webhooks/plivo/hangup?callId=${call.id}`,
+          answerUrl: `${publicUrl}/api/v2/webhooks/plivo/answer?callId=${call.id}&sig=${callSig}`,
+          ringUrl: `${publicUrl}/api/v2/webhooks/plivo/status?callId=${call.id}&sig=${callSig}`,
+          hangupUrl: `${publicUrl}/api/v2/webhooks/plivo/hangup?callId=${call.id}&sig=${callSig}`,
           userId,
           record,
           subaccountAuthId: fromNumberRecord?.plivoSubAuthId || undefined,
@@ -699,24 +703,29 @@ export class CallOrchestrator extends EventEmitter {
       clearTimeout(pw.ttlTimeout);
       this.prewarmedSessions.delete(callId);
 
-      // Await setup completion (whether already resolved or still in-flight)
-      const sessionId = await pw.readyPromise;
-      const session = this.activeCalls.get(callId) || pw.callSession;
-      if (session && session.pipecatRunner) {
-        session.pipecatRunner.setOutputSink(onAudioDelta);
-        this.activeCalls.set(callId, session);
-      }
-
-      if (pw.bufferedAudio.length > 0) {
-        logger.info('CallOrchestrator: delivering pre-buffered audio chunks to telephony', { callId, count: pw.bufferedAudio.length });
-        for (const chunk of pw.bufferedAudio) {
-          onAudioDelta(chunk);
+      try {
+        // Await setup completion (whether already resolved or still in-flight)
+        const sessionId = await pw.readyPromise;
+        const session = this.activeCalls.get(callId) || pw.callSession;
+        if (session && session.pipecatRunner) {
+          session.pipecatRunner.setOutputSink(onAudioDelta);
+          this.activeCalls.set(callId, session);
         }
-        pw.bufferedAudio.length = 0;
-      }
 
-      logger.info('CallOrchestrator: prewarmed voice session successfully attached to telephony', { callId, sessionId });
-      return sessionId;
+        if (pw.bufferedAudio.length > 0) {
+          logger.info('CallOrchestrator: delivering pre-buffered audio chunks to telephony', { callId, count: pw.bufferedAudio.length });
+          for (const chunk of pw.bufferedAudio) {
+            onAudioDelta(chunk);
+          }
+          pw.bufferedAudio.length = 0;
+        }
+
+        logger.info('CallOrchestrator: prewarmed voice session successfully attached to telephony', { callId, sessionId });
+        return sessionId;
+      } catch (err) {
+        logger.warn('CallOrchestrator: prewarmed session attach failed, falling back to on-demand startVoiceSession', { callId, error: String(err) });
+        return this.startVoiceSession(callId, agentId, phoneNumber, onAudioDelta);
+      }
     }
 
     // Check if session is already active in activeCalls

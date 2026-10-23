@@ -25,6 +25,27 @@ function cleanupExpiredNonces(): void {
  * - GET: <URL>.<Nonce>
  * - POST: <URL><SortedParamKeysAndValues>.<Nonce>
  */
+/**
+ * Computes the expected Plivo V2 signature using HMAC-SHA256.
+ * Plivo V2 format: <URL><Nonce>
+ */
+export function computePlivoV2Signature(
+  url: string,
+  nonce: string,
+  authToken: string
+): string {
+  return crypto
+    .createHmac('sha256', authToken)
+    .update(`${url}${nonce}`)
+    .digest('base64');
+}
+
+/**
+ * Computes the expected Plivo V3 signature using HMAC-SHA256.
+ * Standard Plivo V3 format:
+ * - GET: <URL>.<Nonce>
+ * - POST: <URL><SortedParamKeysAndValues>.<Nonce>
+ */
 export function computePlivoV3Signature(
   url: string,
   nonce: string,
@@ -146,7 +167,7 @@ async function resolveAuthTokens(req: Request): Promise<string[]> {
 
 /**
  * Builds candidate target URLs that Plivo might have signed.
- * Accounts for reverse proxies, scheme rewriting, and PUBLIC_URL configuration.
+ * Accounts for reverse proxies, scheme rewriting, port 443, query string inclusion, and PUBLIC_URL configuration.
  */
 function getCandidateTargetUrls(req: Request): string[] {
   const urls: string[] = [];
@@ -156,56 +177,91 @@ function getCandidateTargetUrls(req: Request): string[] {
     urls.push(reqUrl);
   }
 
-  let pathOnly = reqUrl;
+  let pathWithQuery = reqUrl;
+  let pathWithoutQuery = req.path || reqUrl.split('?')[0];
+
   try {
     if (reqUrl.startsWith('http://') || reqUrl.startsWith('https://')) {
       const parsed = new URL(reqUrl);
-      pathOnly = `${parsed.pathname}${parsed.search}`;
+      pathWithQuery = `${parsed.pathname}${parsed.search}`;
+      pathWithoutQuery = parsed.pathname;
     }
   } catch {}
 
-  // 1. Authoritative PUBLIC_URL
+  const baseDomains: string[] = [];
   if (env.PUBLIC_URL && env.PUBLIC_URL.trim()) {
-    const cleanPublic = env.PUBLIC_URL.trim().replace(/\/+$/, '');
-    const full = `${cleanPublic}${pathOnly}`;
-    if (!urls.includes(full)) {
-      urls.push(full);
-    }
+    baseDomains.push(env.PUBLIC_URL.trim().replace(/\/+$/, ''));
   }
 
-  // 2. Reconstructed from request headers (behind reverse proxies)
   const proto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'https';
   const host = (req.headers['x-forwarded-host'] as string) || req.get('host') || 'localhost';
-  const reconstructed = `${proto}://${host}${pathOnly}`;
-  if (!urls.includes(reconstructed)) {
-    urls.push(reconstructed);
+  const reconstructedBase = `${proto}://${host}`;
+  if (!baseDomains.includes(reconstructedBase)) {
+    baseDomains.push(reconstructedBase);
+  }
+
+  for (const base of baseDomains) {
+    for (const p of [pathWithQuery, pathWithoutQuery]) {
+      const u = `${base}${p}`;
+      if (!urls.includes(u)) urls.push(u);
+
+      if (base.startsWith('https://') && !base.includes(':443')) {
+        const u443 = base.replace('https://', 'https://') + ':443' + p;
+        if (!urls.includes(u443)) urls.push(u443);
+      }
+    }
   }
 
   return urls;
 }
 
 /**
- * Express middleware enforcing cryptographic Plivo V3 signature verification.
- * Fail-closed in production if credentials or headers are missing.
+ * Express middleware enforcing cryptographic Plivo signature verification.
+ * Supports Plivo V3, Plivo V2, and signed HMAC callback tokens.
+ * Fail-closed in production if credentials, headers, and tokens are missing.
  */
 export async function verifyPlivoWebhook(req: Request, res: Response, next: NextFunction): Promise<void> {
   const sigV3 = (req.header('X-Plivo-Signature-V3') || req.header('x-plivo-signature-v3') || '').trim();
   const sigMaV3 = (req.header('X-Plivo-Signature-Ma-V3') || req.header('x-plivo-signature-ma-v3') || '').trim();
-  const nonce = (req.header('X-Plivo-Signature-V3-Nonce') || req.header('x-plivo-signature-v3-nonce') || '').trim();
+  const nonceV3 = (req.header('X-Plivo-Signature-V3-Nonce') || req.header('x-plivo-signature-v3-nonce') || '').trim();
+
+  const sigV2 = (req.header('X-Plivo-Signature-V2') || req.header('x-plivo-signature-v2') || '').trim();
+  const sigMaV2 = (req.header('X-Plivo-Signature-Ma-V2') || req.header('x-plivo-signature-ma-v2') || '').trim();
+  const nonceV2 = (req.header('X-Plivo-Signature-V2-Nonce') || req.header('x-plivo-signature-v2-nonce') || '').trim();
+
+  const querySig = ((req.query.sig || (req.body && req.body.sig) || '') as string).trim();
+  const callId = ((req.query.callId || (req.body && req.body.callId) || '') as string).trim();
 
   // In development/test mode without credentials configured, allow simulated pass-through with log
   const hasParentCreds = Boolean((process.env.PLIVO_AUTH_TOKEN || env.PLIVO_AUTH_TOKEN || '').trim());
-  if (!hasParentCreds && env.NODE_ENV !== 'production' && !sigV3 && !sigMaV3) {
+  if (!hasParentCreds && env.NODE_ENV !== 'production' && !sigV3 && !sigMaV3 && !sigV2 && !sigMaV2 && !querySig) {
     logger.warn('Plivo Webhook: Bypassing signature verification (dev mode: no credentials configured)');
     return next();
   }
 
-  // 1. Header presence validation
-  if ((!sigV3 && !sigMaV3) || !nonce) {
+  // 1. Authenticate via cryptographic URL HMAC token if present
+  if (querySig && callId) {
+    const { getWebhookSigningSecret } = await import('../utils/security');
+    const secret = getWebhookSigningSecret();
+    const expectedSig = crypto.createHmac('sha256', secret).update(callId).digest('hex');
+    if (timingSafeCompare(expectedSig, querySig)) {
+      logger.info('Plivo Webhook: Request authenticated via cryptographic call token', { callId });
+      return next();
+    }
+  }
+
+  const hasV3 = Boolean((sigV3 || sigMaV3) && nonceV3);
+  const hasV2 = Boolean((sigV2 || sigMaV2) && nonceV2);
+
+  // 2. Header presence validation
+  if (!hasV3 && !hasV2) {
     logger.warn('Plivo Webhook: Missing required signature or nonce headers', {
       hasSigV3: Boolean(sigV3),
       hasSigMaV3: Boolean(sigMaV3),
-      hasNonce: Boolean(nonce),
+      hasNonceV3: Boolean(nonceV3),
+      hasSigV2: Boolean(sigV2),
+      hasNonceV2: Boolean(nonceV2),
+      hasQuerySig: Boolean(querySig),
       ip: req.ip,
       path: req.path,
     });
@@ -213,15 +269,16 @@ export async function verifyPlivoWebhook(req: Request, res: Response, next: Next
     return;
   }
 
-  // 2. Replay protection check
+  // 3. Replay protection check
+  const activeNonce = nonceV3 || nonceV2;
   cleanupExpiredNonces();
-  if (nonceReplayCache.has(nonce)) {
-    logger.warn('Plivo Webhook: Replay attack detected (nonce reused)', { nonce, ip: req.ip });
+  if (activeNonce && nonceReplayCache.has(activeNonce)) {
+    logger.warn('Plivo Webhook: Replay attack detected (nonce reused)', { nonce: activeNonce, ip: req.ip });
     res.status(403).json({ success: false, error: 'Forbidden: Replayed webhook nonce' });
     return;
   }
 
-  // 3. Candidate tokens & URLs
+  // 4. Candidate tokens & URLs
   const candidateTokens = await resolveAuthTokens(req);
   if (candidateTokens.length === 0) {
     logger.error('Plivo Webhook: No auth tokens configured for verification');
@@ -233,26 +290,48 @@ export async function verifyPlivoWebhook(req: Request, res: Response, next: Next
   const method = req.method;
   const params = method.toUpperCase() === 'POST' ? req.body : {};
 
-  // Plivo may provide comma-separated signatures if multiple keys are active
-  const receivedSignatures: string[] = [
-    ...sigV3.split(',').map((s) => s.trim()).filter(Boolean),
-    ...sigMaV3.split(',').map((s) => s.trim()).filter(Boolean),
-  ];
-
   let verified = false;
 
-  for (const token of candidateTokens) {
-    for (const targetUrl of candidateUrls) {
-      const computed = computePlivoV3Signature(targetUrl, nonce, token, method, params);
-      for (const received of receivedSignatures) {
-        if (timingSafeCompare(computed, received)) {
-          verified = true;
-          break;
+  // Verify V3 signatures
+  if (hasV3) {
+    const receivedV3Sigs = [
+      ...sigV3.split(',').map((s) => s.trim()).filter(Boolean),
+      ...sigMaV3.split(',').map((s) => s.trim()).filter(Boolean),
+    ];
+    for (const token of candidateTokens) {
+      for (const targetUrl of candidateUrls) {
+        const computed = computePlivoV3Signature(targetUrl, nonceV3, token, method, params);
+        for (const received of receivedV3Sigs) {
+          if (timingSafeCompare(computed, received)) {
+            verified = true;
+            break;
+          }
         }
+        if (verified) break;
       }
       if (verified) break;
     }
-    if (verified) break;
+  }
+
+  // Verify V2 signatures if not yet verified
+  if (!verified && hasV2) {
+    const receivedV2Sigs = [
+      ...sigV2.split(',').map((s) => s.trim()).filter(Boolean),
+      ...sigMaV2.split(',').map((s) => s.trim()).filter(Boolean),
+    ];
+    for (const token of candidateTokens) {
+      for (const targetUrl of candidateUrls) {
+        const computed = computePlivoV2Signature(targetUrl, nonceV2, token);
+        for (const received of receivedV2Sigs) {
+          if (timingSafeCompare(computed, received)) {
+            verified = true;
+            break;
+          }
+        }
+        if (verified) break;
+      }
+      if (verified) break;
+    }
   }
 
   if (!verified) {
@@ -260,14 +339,17 @@ export async function verifyPlivoWebhook(req: Request, res: Response, next: Next
       ip: req.ip,
       method,
       path: req.path,
-      signaturesReceivedCount: receivedSignatures.length,
+      hasV3,
+      hasV2,
     });
     res.status(403).json({ success: false, error: 'Forbidden: Invalid Plivo webhook signature' });
     return;
   }
 
   // Record nonce in replay cache
-  nonceReplayCache.set(nonce, Date.now() + NONCE_TTL_MS);
+  if (activeNonce) {
+    nonceReplayCache.set(activeNonce, Date.now() + NONCE_TTL_MS);
+  }
 
   next();
 }

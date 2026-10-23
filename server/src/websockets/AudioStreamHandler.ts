@@ -448,7 +448,7 @@ export class AudioStreamHandler {
           const prismaInstance = (await import('../lib/prisma')).prisma;
           const agent = await prismaInstance.agent.findUnique({
             where: { id: call.agentId },
-            select: { name: true, languageMode: true, firstMessage: true }
+            select: { name: true, languageMode: true, firstMessage: true, agentConfig: true, direction: true }
           });
           const sessionId = await orchestrator.attachPrewarmedVoiceSession(
             callId,
