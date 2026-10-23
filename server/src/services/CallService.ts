@@ -23,6 +23,7 @@ import { WebhookDispatcher } from '../utils/WebhookDispatcher';
 import { ContactsController } from '../controllers/ContactsController';
 import { redactPii } from '../utils/piiRedactor';
 import { countActiveCalls, countGlobalActiveCalls, GLOBAL_TELEPHONY_CAP, withUserCallLock } from '../utils/concurrency';
+import { hasCallableBalance, getCallableSecondsRemaining } from '../utils/balanceUtils';
 
 // ─── Input Shapes ─────────────────────────────────
 
@@ -74,11 +75,7 @@ export class CallService {
         throw new ValidationError('Account restricted: Outbound calls are temporarily disabled. Please contact support@claritiy.com.');
       }
 
-      const effectiveRemainingSeconds = user.minutesRemainingSeconds > 0
-        ? user.minutesRemainingSeconds
-        : (user.callingBalanceMinutes * 60);
-
-      if (user.accountType !== 'admin' && effectiveRemainingSeconds <= 0) {
+      if (user.accountType !== 'admin' && user.email !== ADMIN_EMAIL && !hasCallableBalance(user)) {
         throw new ValidationError('Insufficient call minutes remaining. You have 0 minutes left. Please purchase a plan.');
       }
 
@@ -117,13 +114,27 @@ export class CallService {
         ]);
       }
 
-      // ── Enforce Vobiz sub-account provisioning check ─────────────
-      if (user.accountType !== 'admin' && user.email !== ADMIN_EMAIL) {
-        const subAccount = await prisma.vobizSubAccount.findUnique({ where: { userId } });
-        if (!subAccount) {
-          throw new ValidationError('Vobiz account not provisioned — complete setup first.', [
-            { field: 'vobizSubAccount', message: 'Vobiz account is not provisioned for this user. Complete setup/KYC first.' }
-          ]);
+      // ── Caller ID resolution and ownership gate ──
+      const isAdmin = user.accountType === 'admin' || user.email === ADMIN_EMAIL;
+      const { effectiveFromNumber, numberRecord } = await CallService.validateCallerNumber(userId, fromPhoneNumber, isAdmin);
+
+      // ── Enforce Provider-Specific Account Provisioning Check ──
+      if (!isAdmin) {
+        const provider = numberRecord?.telephonyProvider || 'vobiz';
+        if (provider === 'vobiz') {
+          const subAccount = await prisma.vobizSubAccount.findUnique({ where: { userId } });
+          if (!subAccount || subAccount.kycCallsBlocked) {
+            throw new ValidationError('Vobiz account not provisioned or calls blocked — complete setup first.', [
+              { field: 'vobizSubAccount', message: 'Vobiz account is not provisioned or calls are blocked for this user. Complete setup/KYC first.' }
+            ]);
+          }
+        } else if (provider === 'plivo') {
+          const plivoSub = await prisma.plivoSubAccount.findUnique({ where: { userId } });
+          if (plivoSub && !plivoSub.enabled) {
+            throw new ValidationError('Plivo carrier account is disabled for this user.', [
+              { field: 'plivoSubAccount', message: 'Plivo carrier account is disabled.' }
+            ]);
+          }
         }
       }
 
@@ -164,10 +175,6 @@ export class CallService {
           { field: 'agentId', message: `Agent status is '${agent.status}', must be 'active' or 'draft'` },
         ]);
       }
-
-      // ── Caller ID resolution and ownership gate ──
-      const isAdmin = user.accountType === 'admin' || user.email === ADMIN_EMAIL;
-      const { effectiveFromNumber } = await CallService.validateCallerNumber(userId, fromPhoneNumber, isAdmin);
 
       // ── Initiate via CallOrchestrator ──────────
       try {
@@ -260,7 +267,12 @@ export class CallService {
    *   2. Terminate the Vobiz call
    *   3. Update DB status
    */
-  static async terminateCall(callId: string): Promise<void> {
+  static async terminateCall(
+    callId: string,
+    reason: string = 'user_terminated',
+    detail?: string,
+    endedBy?: string
+  ): Promise<void> {
     const call = await CallRepository.findById(callId);
 
     // Idempotent: If call is already in terminal state, return gracefully
@@ -270,8 +282,8 @@ export class CallService {
       return;
     }
 
-    // End runtime session
-    await callOrchestrator.endCallSession(callId, 'user_terminated');
+    // End runtime session with caller reason, detail, and endedBy
+    await callOrchestrator.endCallSession(callId, reason, detail, endedBy);
 
     // Terminate via telephony provider
     try {

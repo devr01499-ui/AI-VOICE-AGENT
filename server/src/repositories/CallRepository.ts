@@ -48,6 +48,9 @@ interface StatusExtraData {
   startTime?: Date;
   endTime?: Date;
   durationSeconds?: number;
+  endReason?: string | null;
+  endedBy?: string | null;
+  endDetail?: string | null;
 }
 
 /**
@@ -299,6 +302,9 @@ export class CallRepository {
           ...(extraData?.durationSeconds !== undefined
             ? { durationSeconds: extraData.durationSeconds }
             : {}),
+          ...(extraData?.endReason ? { endReason: extraData.endReason as any } : {}),
+          ...(extraData?.endedBy ? { endedBy: extraData.endedBy as any } : {}),
+          ...(extraData?.endDetail !== undefined ? { endDetail: extraData.endDetail } : {}),
         },
         include: { execution: true },
       });

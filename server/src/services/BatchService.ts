@@ -5,6 +5,7 @@ import { callOrchestrator } from '../core/orchestrator/CallOrchestrator';
 import { logger } from '../utils/logger';
 import { ADMIN_EMAIL } from '../config/constants';
 import { countActiveCalls, countGlobalActiveCalls, GLOBAL_TELEPHONY_CAP } from '../utils/concurrency';
+import { getCallableSecondsRemaining } from '../utils/balanceUtils';
 
 const ACCOUNT_TELEPHONY_CAP = GLOBAL_TELEPHONY_CAP; // Centralized telephony cap
 const LOCK_TIMEOUT_MS = 60000; // 60s stale worker lock threshold
@@ -354,9 +355,7 @@ export class BatchService {
       }
 
       // ── Batch-level validation: Minutes ──
-      const effectiveRemainingSeconds = user.minutesRemainingSeconds > 0
-        ? user.minutesRemainingSeconds
-        : (user.callingBalanceMinutes * 60);
+      const effectiveRemainingSeconds = getCallableSecondsRemaining(user);
 
       if (!isAdmin && effectiveRemainingSeconds <= 0) {
         const reason = 'Insufficient call minutes remaining. Please purchase a plan.';
@@ -454,9 +453,7 @@ export class BatchService {
           return;
         }
 
-        const freshRemainingSecs = (freshUser?.minutesRemainingSeconds ?? 0) > 0
-          ? freshUser!.minutesRemainingSeconds
-          : ((freshUser?.callingBalanceMinutes ?? 0) * 60);
+        const freshRemainingSecs = getCallableSecondsRemaining(freshUser);
 
         if (!isAdmin && freshRemainingSecs <= 0) {
           const reason = 'Insufficient call minutes remaining mid-batch';

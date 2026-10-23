@@ -8,12 +8,14 @@
  * 4. Appointment Booking
  * 5. Collections / Reminders
  * 6. Customer Survey
- * 
- * Each playbook enforces mandatory compliance rules:
- * - Immediate honoring of "not interested" / opt-out requests with zero pushiness.
- * - Explicit AI disclosure when asked.
- * - Zero false claims or unverifiable promises.
  */
+
+import {
+  PlaybookTemplate,
+  PlaybookRequiredField,
+  PlaybookObjection,
+  PromptCoachReview,
+} from '../types/promptCoach';
 
 export type PlaybookType = 
   | 'outbound_sales'
@@ -23,29 +25,53 @@ export type PlaybookType =
   | 'collections_reminder'
   | 'customer_survey';
 
-export interface PlaybookConfig {
-  id: PlaybookType;
-  name: string;
-  category: string;
-  defaultResponseStyle: 'concise' | 'balanced' | 'consultative';
-  goal: string;
+export interface PlaybookConfig extends PlaybookTemplate {
+  name: string; // backward compat alias for title
+  defaultResponseStyle: 'concise' | 'balanced' | 'consultative'; // backward compat alias for recommendedResponseStyle
+  closingAsk: string; // backward compat alias for closingNextStep
+  objectionHandling: Record<string, string>; // backward compat alias
   persona: string;
-  opening: string;
-  discoveryQuestions: string[];
-  qualificationCriteria: string[];
-  objectionHandling: Record<string, string>;
-  closingAsk: string;
   escalationRules: string[];
   doList: string[];
   dontList: string[];
-  complianceRules: string[];
 }
+
+const COMMON_BASE_FIELDS: PlaybookRequiredField[] = [
+  {
+    key: 'companyName',
+    label: 'Company Name',
+    placeholder: 'e.g., Acme Health, SolarIQ',
+    example: 'Apex Logistics',
+    required: true,
+    maxLength: 60,
+  },
+  {
+    key: 'productOrService',
+    label: 'Product or Service',
+    placeholder: 'e.g., Fleet Tracking Software, Dental Implants',
+    example: 'AI Freight Dispatch Suite',
+    required: true,
+    maxLength: 80,
+  },
+  {
+    key: 'agentName',
+    label: 'Agent Persona Name',
+    placeholder: 'e.g., Alex, Priya, Jordan',
+    example: 'Alex',
+    required: true,
+    maxLength: 30,
+  },
+];
 
 export const PLAYBOOKS: Record<PlaybookType, PlaybookConfig> = {
   outbound_sales: {
     id: 'outbound_sales',
+    title: 'Outbound B2B/B2C Sales Engine',
     name: 'Outbound B2B/B2C Sales Engine',
     category: 'Sales & Growth',
+    description: 'Proactively connects with targeted prospects, diagnoses pain points, positions ROI value propositions, and books executive demonstrations.',
+    targetRole: 'Outbound Sales Executive',
+    recommendedResponseStyle: 'consultative',
     defaultResponseStyle: 'consultative',
     goal: 'Engage targeted prospects, diagnose business pain points, position value proposition, and secure commitment for a live demonstration or site visit.',
     persona: 'Professional, consultative, and knowledgeable sales executive representing the company with authentic confidence and high emotional intelligence.',
@@ -60,12 +86,31 @@ export const PLAYBOOKS: Record<PlaybookType, PlaybookConfig> = {
       'Active requirement or budget allocated for solving {CoreProblem}.',
       'Willingness to review a structured proposal or attend a 20-minute executive briefing.',
     ],
+    objectionHandlingLibrary: [
+      {
+        objection: 'Not interested right now',
+        response: 'Understood completely. May I ask if this is purely a timing issue, or are you already satisfied with an existing solution? If you prefer, I can note your preference and avoid further outreach.',
+      },
+      {
+        objection: 'Too expensive / Budget constraints',
+        response: 'I appreciate you sharing that. Most of our clients found that the cost of lost deals and manual overhead far exceeded the investment. Would you be open to seeing a 5-minute ROI comparison before deciding?',
+      },
+      {
+        objection: 'Send me an email first',
+        response: 'I would be happy to send our executive summary. To ensure I only send relevant numbers, what specific price tier or property type should I highlight for you?',
+      },
+      {
+        objection: 'Who is calling? Are you an AI?',
+        response: 'Yes, I am {AgentName}, an AI sales assistant developed by Claritiy Voice representing {CompanyName}. I can answer your questions directly or connect you with our senior director.',
+      },
+    ],
     objectionHandling: {
       'Not interested right now': 'Understood completely. May I ask if this is purely a timing issue, or are you already satisfied with an existing solution? If you prefer, I can note your preference and avoid further outreach.',
       'Too expensive / Budget constraints': 'I appreciate you sharing that. Most of our clients found that the cost of lost deals and manual overhead far exceeded the investment. Would you be open to seeing a 5-minute ROI comparison before deciding?',
       'Send me an email first': 'I would be happy to send our executive summary. To ensure I only send relevant numbers, what specific price tier or property type should I highlight for you?',
       'Who is calling? Are you an AI?': 'Yes, I am {AgentName}, an AI sales assistant developed by Claritiy Voice representing {CompanyName}. I can answer your questions directly or connect you with our senior director.',
     },
+    closingNextStep: 'Based on our discussion, the logical next step is a 15-minute screen share with our solutions architect on Thursday at 3 PM or Friday at 11 AM. Which works better for your schedule?',
     closingAsk: 'Based on our discussion, the logical next step is a 15-minute screen share with our solutions architect on Thursday at 3 PM or Friday at 11 AM. Which works better for your schedule?',
     escalationRules: [
       'If prospect requests custom enterprise contract terms beyond standard pricing, offer callback from commercial VP.',
@@ -86,12 +131,51 @@ export const PLAYBOOKS: Record<PlaybookType, PlaybookConfig> = {
       'CONSENT & DNC HONOR: If the caller says "stop calling", "remove me", or "not interested", acknowledge immediately and end the call respectfully with zero pressure tactics.',
       'VERIFIABLE CLAIMS: Make no claims regarding ROI or performance that are not explicitly documented in verified company literature.',
     ],
+    requiredFields: [
+      ...COMMON_BASE_FIELDS,
+      {
+        key: 'coreProblem',
+        label: 'Core Problem Solved',
+        placeholder: 'e.g., Manual order dispatch errors and missed customer callbacks',
+        example: 'High driver dispatch churn and missed delivery SLAs',
+        required: false,
+        maxLength: 120,
+      },
+      {
+        key: 'pricingSummary',
+        label: 'Pricing / Offer Hook',
+        placeholder: 'e.g., Plans start from $49/mo with zero setup fee',
+        example: 'Plans start at ₹3,999/month with a 14-day zero-risk trial',
+        required: false,
+        maxLength: 100,
+      },
+      {
+        key: 'targetAudience',
+        label: 'Target Audience / Industry',
+        placeholder: 'e.g., Logistics operators with 10+ vehicles across India',
+        example: 'Regional logistics operators with 10+ commercial vehicles',
+        required: false,
+        maxLength: 100,
+      },
+      {
+        key: 'extraInstructions',
+        label: 'Extra Instructions',
+        placeholder: 'e.g., Mention our ISO 27001 certification and 24/7 support',
+        example: 'Highlight our 99.9% uptime SLA and instant WhatsApp alerts',
+        required: false,
+        maxLength: 250,
+      },
+    ],
   },
 
   lead_qualification: {
     id: 'lead_qualification',
+    title: 'Inbound / Outbound Lead Qualification',
     name: 'Inbound / Outbound Lead Qualification',
     category: 'Lead Management',
+    description: 'Rapidly qualifies prospect intent against BANT (Budget, Authority, Need, Timeline) criteria and routes high-intent opportunities.',
+    targetRole: 'Lead Qualification Specialist',
+    recommendedResponseStyle: 'balanced',
     defaultResponseStyle: 'balanced',
     goal: 'Quickly evaluate prospect fit against BANT (Budget, Authority, Need, Timeline) criteria and route high-intent leads to account executives.',
     persona: 'Courteous, sharp, and helpful qualification specialist who respects the caller\'s time while methodically capturing critical criteria.',
@@ -106,11 +190,26 @@ export const PLAYBOOKS: Record<PlaybookType, PlaybookConfig> = {
       'Target deployment timeline within 90 days.',
       'Sufficient scale or budget threshold.',
     ],
+    objectionHandlingLibrary: [
+      {
+        objection: 'Just browsing / checking prices',
+        response: 'Understood! Our standard packages range from {PriceTierA} to {PriceTierB} depending on volume. What ballpark budget were you looking to stay within?',
+      },
+      {
+        objection: 'Call me back later',
+        response: 'Certainly. Would later this afternoon around 4 PM or tomorrow morning at 10 AM be more convenient for you?',
+      },
+      {
+        objection: 'Are you a robot?',
+        response: 'Yes, I am {CompanyName}\'s AI qualification assistant. I am here to ensure you get routed to the right team member without waiting on hold.',
+      },
+    ],
     objectionHandling: {
       'Just browsing / checking prices': 'Understood! Our standard packages range from {PriceTierA} to {PriceTierB} depending on volume. What ballpark budget were you looking to stay within?',
       'Call me back later': 'Certainly. Would later this afternoon around 4 PM or tomorrow morning at 10 AM be more convenient for you?',
       'Are you a robot?': 'Yes, I am {CompanyName}\'s AI qualification assistant. I am here to ensure you get routed to the right team member without waiting on hold.',
     },
+    closingNextStep: 'You meet all the criteria for our executive acceleration program. Let me confirm your best email and book a 15-minute briefing with our senior advisor.',
     closingAsk: 'You meet all the criteria for our executive acceleration program. Let me confirm your best email and book a 15-minute briefing with our senior advisor.',
     escalationRules: [
       'If lead indicates enterprise volume (> 100 users / > 50,000 mins), trigger immediate priority warm transfer.',
@@ -129,12 +228,43 @@ export const PLAYBOOKS: Record<PlaybookType, PlaybookConfig> = {
       'Always disclose AI nature when asked.',
       'Do not retain sensitive financial details beyond declared qualification parameters.',
     ],
+    requiredFields: [
+      ...COMMON_BASE_FIELDS,
+      {
+        key: 'coreProblem',
+        label: 'Target Need / Qualification Focus',
+        placeholder: 'e.g., Scaling customer support turn-around during holiday sales',
+        example: 'Automating high-volume tier-1 customer inquiries',
+        required: false,
+        maxLength: 120,
+      },
+      {
+        key: 'pricingSummary',
+        label: 'Price Range / Tiers',
+        placeholder: 'e.g., Tier A $199/mo, Tier B $599/mo',
+        example: 'Starter ₹4,999/mo to Enterprise ₹24,999/mo',
+        required: false,
+        maxLength: 100,
+      },
+      {
+        key: 'extraInstructions',
+        label: 'Routing Criteria',
+        placeholder: 'e.g., Over 50 reps route to Enterprise AE, under 50 route to SMB',
+        example: 'Route teams > 25 agents directly to senior sales engineering',
+        required: false,
+        maxLength: 250,
+      },
+    ],
   },
 
   inbound_support: {
     id: 'inbound_support',
+    title: 'Customer Support & Issue Resolution',
     name: 'Customer Support & Issue Resolution',
     category: 'Customer Success',
+    description: 'Diagnoses incoming user issues, consults knowledge base facts, and executes rapid first-call resolution with warm supervisor escalations.',
+    targetRole: 'Customer Support Associate',
+    recommendedResponseStyle: 'concise',
     defaultResponseStyle: 'concise',
     goal: 'Resolve incoming customer queries, troubleshoot issues using verified knowledge base facts, and escalate complex technical tickets.',
     persona: 'Empathetic, efficient, and dependable support associate dedicated to rapid first-contact resolution.',
@@ -148,10 +278,21 @@ export const PLAYBOOKS: Record<PlaybookType, PlaybookConfig> = {
       'Caller identity verified via registered credentials.',
       'Issue categorized accurately (Billing, Technical, Account, Feature).',
     ],
+    objectionHandlingLibrary: [
+      {
+        objection: 'I am very upset / this is unacceptable',
+        response: 'I completely understand your frustration and I am truly sorry for this inconvenience. Let me take personal ownership of resolving this for you right now.',
+      },
+      {
+        objection: 'I want to speak to a manager',
+        response: 'I will gladly connect you with a supervisor. Before I initiate the transfer, may I summarize your issue so they are briefed immediately?',
+      },
+    ],
     objectionHandling: {
       'I am very upset / this is unacceptable': 'I completely understand your frustration and I am truly sorry for this inconvenience. Let me take personal ownership of resolving this for you right now.',
       'I want to speak to a manager': 'I will gladly connect you with a supervisor. Before I initiate the transfer, may I summarize your issue so they are briefed immediately?',
     },
+    closingNextStep: 'I have logged ticket #{TicketId} and verified your resolution. Is there anything else I can assist you with today?',
     closingAsk: 'I have logged ticket #{TicketId} and verified your resolution. Is there anything else I can assist you with today?',
     escalationRules: [
       'Critical system outage or security alert -> escalate to Tier-3 On-Call immediately.',
@@ -170,12 +311,35 @@ export const PLAYBOOKS: Record<PlaybookType, PlaybookConfig> = {
       'Never reveal customer PII to unverified callers.',
       'State truthful resolution timeframes without false promises.',
     ],
+    requiredFields: [
+      ...COMMON_BASE_FIELDS,
+      {
+        key: 'coreProblem',
+        label: 'Primary Support Scope',
+        placeholder: 'e.g., Billing questions, order status, return authorizations',
+        example: 'SaaS account onboarding, API webhooks, and billing issues',
+        required: false,
+        maxLength: 120,
+      },
+      {
+        key: 'extraInstructions',
+        label: 'Escalation Guidelines',
+        placeholder: 'e.g., Urgent tickets escalate to support-lead@acme.com',
+        example: 'Escalate enterprise tier outages to priority triage immediately',
+        required: false,
+        maxLength: 250,
+      },
+    ],
   },
 
   appointment_booking: {
     id: 'appointment_booking',
+    title: 'Appointment & Consultation Scheduler',
     name: 'Appointment & Consultation Scheduler',
     category: 'Scheduling & Dispatch',
+    description: 'Manages incoming patient/client scheduling, checks calendar availability, verifies consultation types, and confirms appointments.',
+    targetRole: 'Scheduling Coordinator',
+    recommendedResponseStyle: 'balanced',
     defaultResponseStyle: 'balanced',
     goal: 'Identify caller service requirements, check doctor/consultant availability, and book confirmed calendar appointments.',
     persona: 'Organized, warm, and punctual coordinator making appointment scheduling effortless and pleasant.',
@@ -190,10 +354,21 @@ export const PLAYBOOKS: Record<PlaybookType, PlaybookConfig> = {
       'Confirmed availability slot in booking calendar.',
       'Verified patient/client contact number for SMS reminders.',
     ],
+    objectionHandlingLibrary: [
+      {
+        objection: 'The requested time is not available',
+        response: 'Dr. Sharma is fully booked on Tuesday morning, but she has an opening at 2:30 PM Tuesday, or 10:00 AM Wednesday. Would either of those suit you?',
+      },
+      {
+        objection: 'Is there a cancellation fee?',
+        response: 'Appointments may be rescheduled at no charge up to 24 hours prior to your visit.',
+      },
+    ],
     objectionHandling: {
       'The requested time is not available': 'Dr. Sharma is fully booked on Tuesday morning, but she has an opening at 2:30 PM Tuesday, or 10:00 AM Wednesday. Would either of those suit you?',
       'Is there a cancellation fee?': 'Appointments may be rescheduled at no charge up to 24 hours prior to your visit.',
     },
+    closingNextStep: 'I have scheduled your consultation for {Date} at {Time}. You will receive a confirmation SMS and calendar invite shortly. Please arrive 10 minutes early.',
     closingAsk: 'I have scheduled your consultation for {Date} at {Time}. You will receive a confirmation SMS and calendar invite shortly. Please arrive 10 minutes early.',
     escalationRules: [
       'Medical emergency -> instruct caller to dial 112 / 911 or visit emergency room immediately.',
@@ -208,12 +383,43 @@ export const PLAYBOOKS: Record<PlaybookType, PlaybookConfig> = {
     complianceRules: [
       'Emergency medical disclaimer: Agent must direct medical emergencies to local emergency response services immediately.',
     ],
+    requiredFields: [
+      ...COMMON_BASE_FIELDS,
+      {
+        key: 'coreProblem',
+        label: 'Clinic / Practice Specialty',
+        placeholder: 'e.g., Dermatology, Dental Surgery, Executive Tax Advisory',
+        example: 'Comprehensive Dental Implantology & Orthodontics',
+        required: false,
+        maxLength: 120,
+      },
+      {
+        key: 'pricingSummary',
+        label: 'Consultation Fee / Policy',
+        placeholder: 'e.g., $75 initial consultation credited toward treatment',
+        example: '₹800 consultation fee, fully credited toward treatment plans',
+        required: false,
+        maxLength: 100,
+      },
+      {
+        key: 'extraInstructions',
+        label: 'Operating Hours & Days',
+        placeholder: 'e.g., Mon-Sat 9am-6pm IST, Sunday closed',
+        example: 'Monday through Saturday 10:00 AM - 7:00 PM IST',
+        required: false,
+        maxLength: 250,
+      },
+    ],
   },
 
   collections_reminder: {
     id: 'collections_reminder',
+    title: 'Payment Reminder & Collections Advisory',
     name: 'Payment Reminder & Collections Advisory',
     category: 'Finance & Accounts',
+    description: 'Respectfully verifies past-due invoices, clarifies billing questions, negotiates payment arrangements, and issues secure payment links.',
+    targetRole: 'Accounts Receivable Specialist',
+    recommendedResponseStyle: 'balanced',
     defaultResponseStyle: 'balanced',
     goal: 'Politely remind customers of outstanding invoices, verify receipt, negotiate payment commitments, and send instant payment links.',
     persona: 'Courteous, firm, and respectful financial accounts specialist focused on helping clients resolve balances amicably.',
@@ -227,10 +433,21 @@ export const PLAYBOOKS: Record<PlaybookType, PlaybookConfig> = {
       'Identity verified as account holder or financial authority.',
       'Commitment date and payment channel agreed upon.',
     ],
+    objectionHandlingLibrary: [
+      {
+        objection: 'I already paid this',
+        response: 'Thank you for letting me know. Bank settlements can take 24 to 48 hours to reconcile. Let me note your transaction reference number and verify with our accounts desk.',
+      },
+      {
+        objection: 'I cannot pay the full amount today',
+        response: 'We understand unexpected circumstances occur. We can accept a partial payment of 50% today with the balance due next Friday. Would that help resolve the account?',
+      },
+    ],
     objectionHandling: {
       'I already paid this': 'Thank you for letting me know. Bank settlements can take 24 to 48 hours to reconcile. Let me note your transaction reference number and verify with our accounts desk.',
       'I cannot pay the full amount today': 'We understand unexpected circumstances occur. We can accept a partial payment of 50% today with the balance due next Friday. Would that help resolve the account?',
     },
+    closingNextStep: 'I will send a secure Razorpay payment link directly to your mobile number ending in {Last4Digits} right now. Can you complete the transaction while I remain on the line?',
     closingAsk: 'I will send a secure Razorpay payment link directly to your mobile number ending in {Last4Digits} right now. Can you complete the transaction while I remain on the line?',
     escalationRules: [
       'Dispute over billed amounts -> freeze collection cycle and create invoice review ticket.',
@@ -247,16 +464,39 @@ export const PLAYBOOKS: Record<PlaybookType, PlaybookConfig> = {
     complianceRules: [
       'RBI & Fair Debt Collection Practices: Zero harassment, zero threats, full transparency on amounts.',
     ],
+    requiredFields: [
+      ...COMMON_BASE_FIELDS,
+      {
+        key: 'coreProblem',
+        label: 'Billing Cycle / Context',
+        placeholder: 'e.g., Annual SaaS subscriptions, overdue freight invoices',
+        example: 'Overdue commercial B2B freight invoices past 30 days',
+        required: false,
+        maxLength: 120,
+      },
+      {
+        key: 'extraInstructions',
+        label: 'Payment Methods Accepted',
+        placeholder: 'e.g., Razorpay UPI, Net Banking, NEFT / RTGS',
+        example: 'Accept UPI, NEFT, and credit card payments via verified Razorpay link',
+        required: false,
+        maxLength: 250,
+      },
+    ],
   },
 
   customer_survey: {
     id: 'customer_survey',
+    title: 'Customer Satisfaction (CSAT) & Feedback Survey',
     name: 'Customer Satisfaction (CSAT) & Feedback Survey',
     category: 'Analytics & Voice of Customer',
+    description: 'Captures authentic Net Promoter Scores (NPS) and structured satisfaction feedback across concise 90-second voice interactions.',
+    targetRole: 'Customer Experience Researcher',
+    recommendedResponseStyle: 'concise',
     defaultResponseStyle: 'concise',
     goal: 'Collect authentic Net Promoter Score (NPS) and structured satisfaction feedback in under 2 minutes.',
     persona: 'Upbeat, appreciative, and polite feedback researcher who makes callers feel valued.',
-    opening: 'Hello {CustomerName}! This is {AgentName} with a quick 90-second feedback call for {CompanyName}. We want to ensure your recent experience with {Service} was excellent.',
+    opening: 'Hello {CustomerName}! This is {AgentName} with a quick 90-second feedback call for {CompanyName}. We want to ensure your recent experience with {ProductOrService} was excellent.',
     discoveryQuestions: [
       'On a scale of 1 to 10, how likely are you to recommend {CompanyName} to a colleague or friend?',
       'What was the primary reason for your score?',
@@ -266,9 +506,21 @@ export const PLAYBOOKS: Record<PlaybookType, PlaybookConfig> = {
       'Caller confirms they utilized the service recently.',
       'Completed score on core metric.',
     ],
+    objectionHandlingLibrary: [
+      {
+        objection: 'I am busy / in a meeting',
+        response: 'I completely understand! Would it be better if I send you a 1-click WhatsApp link, or may I call you back tomorrow?',
+      },
+      {
+        objection: 'Why are you calling me?',
+        response: 'We are reaching out to verify your recent experience and ensure you received the quality of service you expected. This will only take about a minute.',
+      },
+    ],
     objectionHandling: {
       'I am busy / in a meeting': 'I completely understand! Would it be better if I send you a 1-click WhatsApp link, or may I call you back tomorrow?',
+      'Why are you calling me?': 'We are reaching out to verify your recent experience and ensure you received the quality of service you expected. This will only take about a minute.',
     },
+    closingNextStep: 'Thank you so much for your valuable feedback! Have a wonderful day ahead.',
     closingAsk: 'Thank you so much for your valuable feedback! Have a wonderful day ahead.',
     escalationRules: [
       'Score of 1 to 3 with severe service failure -> flag for VIP manager callback within 2 hours.',
@@ -283,6 +535,25 @@ export const PLAYBOOKS: Record<PlaybookType, PlaybookConfig> = {
     complianceRules: [
       'Immediately respect opt-outs and do not re-contact customers who decline surveys.',
     ],
+    requiredFields: [
+      ...COMMON_BASE_FIELDS,
+      {
+        key: 'coreProblem',
+        label: 'Feedback Trigger / Interaction',
+        placeholder: 'e.g., Post-delivery confirmation, recent clinic visit',
+        example: 'Recent order delivery and product onboarding experience',
+        required: false,
+        maxLength: 120,
+      },
+      {
+        key: 'extraInstructions',
+        label: 'VIP Callback Threshold',
+        placeholder: 'e.g., Scores below 6 flag customer success lead',
+        example: 'Scores <= 4 trigger immediate notification to head of customer care',
+        required: false,
+        maxLength: 250,
+      },
+    ],
   },
 };
 
@@ -290,41 +561,65 @@ export const PLAYBOOKS: Record<PlaybookType, PlaybookConfig> = {
  * Prompt Coach: generates a production system prompt from business facts and playbook template.
  */
 export function generatePlaybookPrompt(
-  playbookId: PlaybookType,
+  playbookId: PlaybookType | string,
   businessFacts: {
     companyName: string;
     productOrService: string;
-    agentName: string;
+    agentName?: string;
     coreProblem?: string;
     pricingSummary?: string;
     targetAudience?: string;
     extraInstructions?: string;
+    [key: string]: string | undefined;
   }
-): { prompt: string; playbook: PlaybookConfig } {
-  const playbook = PLAYBOOKS[playbookId] || PLAYBOOKS.outbound_sales;
+): {
+  playbookId: string;
+  title: string;
+  prompt: string;
+  generatedPrompt: string;
+  playbook: PlaybookConfig;
+  recommendedStyle: 'concise' | 'balanced' | 'consultative';
+  review: PromptCoachReview;
+} {
+  const pId = (playbookId as PlaybookType) in PLAYBOOKS ? (playbookId as PlaybookType) : 'outbound_sales';
+  const playbook = PLAYBOOKS[pId];
+
+  const effectiveAgentName = businessFacts.agentName?.trim() || 'Alex';
+  const effectiveCompanyName = businessFacts.companyName?.trim() || 'Our Company';
+  const effectiveProduct = businessFacts.productOrService?.trim() || 'our solutions';
 
   const replacePlaceholders = (text: string) => {
     return text
-      .replace(/{CompanyName}/g, businessFacts.companyName)
-      .replace(/{ProductOrService}/g, businessFacts.productOrService)
-      .replace(/{AgentName}/g, businessFacts.agentName)
+      .replace(/{CompanyName}/g, effectiveCompanyName)
+      .replace(/{ProductOrService}/g, effectiveProduct)
+      .replace(/{AgentName}/g, effectiveAgentName)
       .replace(/{CoreProblem}/g, businessFacts.coreProblem || 'operational inefficiency')
       .replace(/{PriceTierA}/g, businessFacts.pricingSummary || 'custom pricing')
-      .replace(/{PriceTierB}/g, businessFacts.pricingSummary || 'enterprise tier');
+      .replace(/{PriceTierB}/g, businessFacts.pricingSummary || 'enterprise tier')
+      .replace(/{ProspectName}/g, 'there')
+      .replace(/{CustomerName}/g, 'valued customer')
+      .replace(/{Service}/g, effectiveProduct)
+      .replace(/{TicketId}/g, '10482')
+      .replace(/{Date}/g, 'tomorrow')
+      .replace(/{Time}/g, '3:00 PM')
+      .replace(/{StatementDate}/g, 'the first of this month')
+      .replace(/{AmountDue}/g, 'the pending balance')
+      .replace(/{Last4Digits}/g, 'your registered number')
+      .replace(/{InvoiceNumber}/g, 'INV-2041');
   };
 
   const discoveryList = playbook.discoveryQuestions.map((q, i) => `${i + 1}. ${replacePlaceholders(q)}`).join('\n');
   const criteriaList = playbook.qualificationCriteria.map(c => `- ${replacePlaceholders(c)}`).join('\n');
-  const objectionsList = Object.entries(playbook.objectionHandling)
-    .map(([obj, resp]) => `- When customer says "${obj}": "${replacePlaceholders(resp)}"`)
+  const objectionsList = playbook.objectionHandlingLibrary
+    .map(o => `- When customer says "${o.objection}": "${replacePlaceholders(o.response)}"`)
     .join('\n');
   const doList = playbook.doList.map(d => `- ${d}`).join('\n');
   const dontList = playbook.dontList.map(d => `- ${d}`).join('\n');
   const complianceList = playbook.complianceRules.map(c => `[COMPLIANCE] ${c}`).join('\n');
 
-  const prompt = `
+  const generatedPrompt = `
 # ROLE & MISSION
-You are ${businessFacts.agentName}, an intelligent voice agent representing ${businessFacts.companyName}.
+You are ${effectiveAgentName}, an intelligent voice agent representing ${effectiveCompanyName}.
 Your objective: ${replacePlaceholders(playbook.goal)}
 
 # PERSONA & TONE
@@ -343,7 +638,7 @@ ${criteriaList}
 ${objectionsList}
 
 # CLOSING & COMMITMENT ASK
-${replacePlaceholders(playbook.closingAsk)}
+${replacePlaceholders(playbook.closingNextStep)}
 
 # EXECUTION RULES (DO & DON'T)
 ${doList}
@@ -354,18 +649,24 @@ ${complianceList}
 ${businessFacts.extraInstructions ? `\n# ADDITIONAL BUSINESS RULES\n${businessFacts.extraInstructions}` : ''}
 `.trim();
 
-  return { prompt, playbook };
+  const review = reviewPromptQuality(generatedPrompt);
+
+  return {
+    playbookId: playbook.id,
+    title: playbook.title,
+    prompt: generatedPrompt,
+    generatedPrompt,
+    playbook,
+    recommendedStyle: playbook.recommendedResponseStyle,
+    review,
+  };
 }
 
 /**
  * Prompt Review / Quality Assurance Engine
- * Scores prompts across: missing sections, contradictions, length, and unsupported parameters.
+ * Scores prompts across: missing sections, contradictions, length, and compliance rules.
  */
-export function reviewPromptQuality(promptText: string): {
-  score: number; // 0 - 100
-  passed: boolean;
-  issues: string[];
-  recommendations: string[];
+export function reviewPromptQuality(promptText: string): PromptCoachReview & {
   metrics: {
     charCount: number;
     wordCount: number;
@@ -377,21 +678,29 @@ export function reviewPromptQuality(promptText: string): {
 } {
   const issues: string[] = [];
   const recommendations: string[] = [];
+  const missingSections: string[] = [];
+  const contradictions: string[] = [];
+  const warnings: string[] = [];
+  const strengths: string[] = [];
+
   let score = 100;
 
   const charCount = promptText.length;
-  const wordCount = promptText.split(/\s+/).length;
-
+  const wordCount = promptText.trim() === '' ? 0 : promptText.split(/\s+/).length;
   const lower = promptText.toLowerCase();
 
   // 1. Length checks
-  if (wordCount < 100) {
+  if (wordCount < 60) {
     score -= 30;
-    issues.push('Prompt is too brief (< 100 words). Lacks necessary behavioral and objection guidelines.');
+    issues.push('Prompt is too brief (< 60 words). Lacks necessary behavioral and objection guidelines.');
+    warnings.push('Brief prompts cause the AI to guess answers or monologue out-of-character.');
   } else if (wordCount > 3500) {
     score -= 15;
     issues.push('Prompt is excessively long (> 3,500 words). May degrade per-reply latency and model focus.');
+    warnings.push('Long prompts add token processing overhead. Move static documents to Knowledge Base.');
     recommendations.push('Trim repetitive examples and move reference facts into a Knowledge Base.');
+  } else {
+    strengths.push('Optimal prompt length for sub-second vocal turn-taking');
   }
 
   // 2. Compliance check
@@ -399,7 +708,10 @@ export function reviewPromptQuality(promptText: string): {
   if (!hasCompliance) {
     score -= 25;
     issues.push('Missing explicit Opt-Out / DNC compliance instructions.');
+    missingSections.push('regulatory_compliance');
     recommendations.push('Add directive to honor customer refusal immediately without pressure.');
+  } else {
+    strengths.push('Verified regulatory compliance & DNC opt-out handling');
   }
 
   // 3. AI Disclosure check
@@ -407,32 +719,64 @@ export function reviewPromptQuality(promptText: string): {
   if (!hasIdentityDisclosure) {
     score -= 15;
     issues.push('Missing explicit AI disclosure instruction when asked by customer.');
+    missingSections.push('ai_identity_disclosure');
+    recommendations.push('Add directive to disclose truthful AI identity immediately upon question.');
+  } else {
+    strengths.push('Truthful AI identity disclosure configured');
   }
 
   // 4. Objection handling
-  const hasObjections = lower.includes('objection') || lower.includes('too expensive') || lower.includes('not interested');
+  const hasObjections = lower.includes('objection') || lower.includes('too expensive') || lower.includes('not interested') || lower.includes('browse');
   if (!hasObjections) {
     score -= 15;
+    missingSections.push('objection_handling');
     recommendations.push('Include objection handling for price and timing hesitations.');
+    warnings.push('Agents without objection handling struggle when callers express hesitation.');
+  } else {
+    strengths.push('Structured multi-scenario objection library included');
   }
 
   // 5. Closing ask
-  const hasClosing = lower.includes('closing') || lower.includes('next step') || lower.includes('schedule') || lower.includes('appointment');
+  const hasClosing = lower.includes('closing') || lower.includes('next step') || lower.includes('schedule') || lower.includes('appointment') || lower.includes('briefing');
   if (!hasClosing) {
     score -= 10;
+    missingSections.push('closing_next_step');
     recommendations.push('Define a clear closing ask (e.g. appointment booking or live demo invite).');
+  } else {
+    strengths.push('Definitive closing call-to-action specified');
   }
 
   // 6. Contradiction check
-  if (lower.includes('never speak more than 1 sentence') && lower.includes('provide a detailed 5 step explanation')) {
+  if (lower.includes('never speak more than 1 sentence') && lower.includes('detailed 5 step')) {
     score -= 20;
-    issues.push('Detected contradictory instructions: 1-sentence brevity vs multi-step detailed explanation.');
+    const msg = 'Detected contradictory instructions: 1-sentence brevity vs multi-step detailed explanation.';
+    contradictions.push(msg);
+    issues.push(msg);
+  }
+  if (lower.includes('never interrupt') && lower.includes('interrupt the caller immediately')) {
+    score -= 20;
+    const msg = 'Contradictory interruption rules: never interrupt vs interrupt immediately.';
+    contradictions.push(msg);
+    issues.push(msg);
   }
 
   const finalScore = Math.max(0, Math.min(100, score));
 
+  let letterGrade: 'A+' | 'A' | 'B' | 'C' | 'D' | 'F' = 'F';
+  if (finalScore >= 95) letterGrade = 'A+';
+  else if (finalScore >= 85) letterGrade = 'A';
+  else if (finalScore >= 75) letterGrade = 'B';
+  else if (finalScore >= 60) letterGrade = 'C';
+  else if (finalScore >= 50) letterGrade = 'D';
+
   return {
     score: finalScore,
+    letterGrade,
+    missingSections,
+    contradictions,
+    warnings,
+    strengths,
+    characterCount: charCount,
     passed: finalScore >= 75 && issues.length === 0,
     issues,
     recommendations,

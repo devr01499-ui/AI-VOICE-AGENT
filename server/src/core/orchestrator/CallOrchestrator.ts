@@ -21,6 +21,7 @@ import { formatGreetingTurnPrompt } from '../../utils/greetingUtils';
 import { injectVoicePersonaDirective } from '../../utils/personaPrompt';
 import { buildFinalSystemInstruction } from '../../utils/systemInstructionBuilder';
 import { buildCapabilitiesBlock, filterActiveTools } from '../../utils/capabilities';
+import { getCallableSecondsRemaining } from '../../utils/balanceUtils';
 
 export function extractToolsFromFlowGraph(flowGraphInput: string | object | null | undefined): any[] {
   if (!flowGraphInput) return [];
@@ -779,29 +780,122 @@ export class CallOrchestrator extends EventEmitter {
   }
 
   /**
-   * Ends a session, clean up resources, and records session metrics.
+   * Reconnects the voice session on transient upstream errors while keeping the telephony leg alive.
    */
-  async endCallSession(callId: string, reason: string): Promise<void> {
-    logger.info('CallOrchestrator: endCallSession', { callId, reason });
+  async reconnectVoiceSession(callId: string): Promise<string> {
+    const session = this.activeCalls.get(callId);
+    if (!session) {
+      throw new Error(`Cannot reconnect inactive call ${callId}`);
+    }
+
+    logger.info('CallOrchestrator: reconnecting voice session', { callId, agentId: session.agentId });
+
+    if (session.pipecatRunner) {
+      await session.pipecatRunner.stop().catch(() => {});
+    }
+
+    const sessionId = await this.startVoiceSession(
+      callId,
+      session.agentId,
+      session.recipientPhoneNumber,
+      (audioBase64: string) => {
+        this.emit('outboundAudio', { callId, audio: audioBase64 });
+      }
+    );
+
+    session.providerSessionId = sessionId;
+    logger.info('CallOrchestrator: voice session reconnected successfully', { callId, sessionId });
+    return sessionId;
+  }
+
+  /**
+   * Ends a session, cleans up resources, and records session metrics and endReason.
+   */
+  async endCallSession(
+    callId: string,
+    reason: string = 'completed',
+    detail?: string,
+    endedBy?: string
+  ): Promise<void> {
+    const rawReason = (reason || '').toLowerCase().trim();
+    let normalizedReason = 'unknown';
+    let defaultEndedBy = 'system';
+
+    if (rawReason === 'caller_hangup' || rawReason === 'user_hangup') {
+      normalizedReason = 'caller_hangup';
+      defaultEndedBy = 'caller';
+    } else if (rawReason === 'agent_hangup' || rawReason === 'hang_up' || rawReason === 'end_call') {
+      normalizedReason = 'agent_hangup';
+      defaultEndedBy = 'agent';
+    } else if (rawReason === 'balance_exhausted' || rawReason === 'minutes_exhausted' || rawReason === 'insufficient_balance') {
+      normalizedReason = 'balance_exhausted';
+      defaultEndedBy = 'system';
+    } else if (rawReason === 'gemini_setup_failed' || rawReason === 'setup_failed') {
+      normalizedReason = 'gemini_setup_failed';
+      defaultEndedBy = 'system';
+    } else if (rawReason === 'gemini_closed') {
+      normalizedReason = 'gemini_closed';
+      defaultEndedBy = 'system';
+    } else if (rawReason === 'handshake_failed' || rawReason === 'unauthorized') {
+      normalizedReason = 'handshake_failed';
+      defaultEndedBy = 'system';
+    } else if (rawReason === 'safety_timeout' || rawReason === 'timeout' || rawReason === 'ttl_expired') {
+      normalizedReason = 'safety_timeout';
+      defaultEndedBy = 'system';
+    } else if (rawReason === 'system_shutdown') {
+      normalizedReason = 'system_shutdown';
+      defaultEndedBy = 'system';
+    } else if (rawReason === 'stream_closed' || rawReason === 'stream_stopped' || rawReason === 'ws_closed' || rawReason === 'fallback_completed') {
+      normalizedReason = 'stream_closed';
+      defaultEndedBy = 'system';
+    } else if (rawReason === 'no_answer' || rawReason === 'rejected') {
+      normalizedReason = 'no_answer';
+      defaultEndedBy = 'provider';
+    } else if (rawReason === 'busy') {
+      normalizedReason = 'busy';
+      defaultEndedBy = 'provider';
+    } else if (rawReason === 'provider_error' || rawReason === 'carrier_error') {
+      normalizedReason = 'provider_error';
+      defaultEndedBy = 'provider';
+    } else if (rawReason === 'user_terminated') {
+      normalizedReason = 'user_terminated';
+      defaultEndedBy = 'agent';
+    } else if (rawReason === 'completed' || rawReason === 'opted_out') {
+      normalizedReason = 'completed';
+      defaultEndedBy = 'agent';
+    } else if (rawReason === 'failed') {
+      normalizedReason = 'failed';
+      defaultEndedBy = 'system';
+    }
+
+    const resolvedEndedBy = endedBy || defaultEndedBy;
+
+    logger.info('CallOrchestrator: endCallSession', {
+      callId,
+      rawReason: reason,
+      endReason: normalizedReason,
+      endedBy: resolvedEndedBy,
+      detail,
+    });
 
     const prewarmed = this.prewarmedSessions.get(callId);
     if (prewarmed) {
       clearTimeout(prewarmed.ttlTimeout);
-      prewarmed.pipecatRunner.stop().catch(() => {});
+      prewarmed.pipecatRunner?.stop().catch(() => {});
       this.prewarmedSessions.delete(callId);
     }
 
     const session = this.activeCalls.get(callId);
     if (session) {
       if (session.pipecatRunner) {
-        await session.pipecatRunner.stop();
+        await session.pipecatRunner.stop().catch(() => {});
       }
       this.activeCalls.delete(callId);
     }
 
-    const mappedStatus: CallStatus = reason === 'completed' || reason === 'user_hangup' || reason === 'stream_stopped'
+    const mappedStatus: CallStatus = (normalizedReason === 'completed' || normalizedReason === 'caller_hangup' || normalizedReason === 'agent_hangup')
       ? 'completed'
-      : 'failed';
+      : (normalizedReason === 'no_answer' ? 'no_answer' : (normalizedReason === 'busy' ? 'busy' : 'failed'));
 
     const stateMachine = this.stateMachines.get(callId);
     if (stateMachine) {
@@ -836,13 +930,18 @@ export class CallOrchestrator extends EventEmitter {
       },
     });
 
-    // If Vobiz hangup webhook already recorded the authoritative telephony CDR duration, preserve it
     const finalDurationSeconds = (existingCdrDuration && existingCdrDuration > 0)
       ? existingCdrDuration
       : durationSeconds;
 
-    await CallRepository.updateStatus(callId, mappedStatus, { endTime, durationSeconds: finalDurationSeconds });
-    await SessionLogger.logCallEnded(callId, reason, session?.providerSessionId || '');
+    await CallRepository.updateStatus(callId, mappedStatus, {
+      endTime,
+      durationSeconds: finalDurationSeconds,
+      endReason: normalizedReason,
+      endedBy: resolvedEndedBy,
+      endDetail: detail || reason,
+    });
+    await SessionLogger.logCallEnded(callId, normalizedReason, session?.providerSessionId || '');
 
     // Trigger post-call deduction asynchronously
     const { CallService } = await import('../../services/CallService');
@@ -850,7 +949,7 @@ export class CallOrchestrator extends EventEmitter {
       logger.error('[CALL_DEDUCTION_ERROR] Failed during post-call deduction', { callId, error: String(deductErr) });
     });
 
-    this.emit('callEnded', { callId, reason });
+    this.emit('callEnded', { callId, reason: normalizedReason });
   }
 
   private startMidCallEnforcementMonitor() {
@@ -866,21 +965,19 @@ export class CallOrchestrator extends EventEmitter {
           if (!call || !call.startTime || call.user.accountType === 'admin' || call.user.email === ADMIN_EMAIL) continue;
 
           const elapsedSeconds = Math.round((Date.now() - call.startTime.getTime()) / 1000);
-          const remainingSeconds = call.user.minutesRemainingSeconds > 0
-            ? call.user.minutesRemainingSeconds
-            : (call.user.callingBalanceMinutes * 60);
+          const remainingSeconds = getCallableSecondsRemaining(call.user);
 
           if (elapsedSeconds >= remainingSeconds) {
-            logger.warn('[MID_CALL_CUTOFF] Minutes remaining depleted during call. Force terminating session.', {
+            logger.warn('[MID_CALL_CUTOFF] Minutes remaining depleted during call. Terminating with balance_exhausted.', {
               callId,
               userId: call.userId,
               elapsedSeconds,
               remainingSeconds,
             });
             const { CallService } = await import('../../services/CallService');
-            await CallService.terminateCall(callId).catch(async (termErr) => {
+            await CallService.terminateCall(callId, 'balance_exhausted', 'Minutes depleted during call', 'system').catch(async (termErr) => {
               logger.warn('[MID_CALL_CUTOFF] CallService.terminateCall error, falling back to endCallSession', { callId, error: String(termErr) });
-              await this.endCallSession(callId, 'minutes_exhausted');
+              await this.endCallSession(callId, 'balance_exhausted', 'Minutes depleted during call', 'system');
             });
           }
         } catch (monitorErr) {

@@ -47,10 +47,33 @@ const MAX_INBOUND_BUFFER_CHUNKS = 50;  // Max ~1 second of buffered audio before
 const MAX_PLAYBACK_QUEUE_CHUNKS = 50;  // Max ~1.5 seconds of outbound playback buffer to prevent jitter lag & OOM
 
 
+// ─── Provider Error Classifier ────────────────────────
+export function classifyProviderError(errorStr: string): 'transient' | 'fatal' {
+  const err = (errorStr || '').toLowerCase();
+  if (
+    err.includes('api key') ||
+    err.includes('unauthenticated') ||
+    err.includes('unauthorized') ||
+    err.includes('out of calling minutes') ||
+    err.includes('insufficient_balance') ||
+    err.includes('balance_exhausted') ||
+    err.includes('balance exhausted') ||
+    err.includes('permission_denied') ||
+    err.includes('user_not_found') ||
+    err.includes('model not found') ||
+    err.includes('setup_validation_failed') ||
+    err.includes('invalid argument')
+  ) {
+    return 'fatal';
+  }
+  return 'transient';
+}
+
 // ─── Handler Implementation ──────────────────────────
 
 export class AudioStreamHandler {
   private readonly connections = new Map<string, ActiveConnection>();
+  private readonly reconnectAttempts = new Map<string, number>();
 
   /**
    * Attaches the WebSocket upgrade handler to the given WebSocketServer.
@@ -194,9 +217,19 @@ export class AudioStreamHandler {
       }
 
       if (!isAuthorized) {
-        logger.warn('AudioStreamHandler: unauthorized stream connection attempt via URL parameters', { callId });
+        const rejectionReason = (!token || !tsStr)
+          ? 'Missing token or ts in query params'
+          : 'Invalid or expired stream token HMAC signature';
+        logger.warn('AudioStreamHandler: unauthorized stream connection attempt via URL parameters', { callId, rejectionReason });
+        import('../repositories/CallRepository').then(({ CallRepository }) => {
+          CallRepository.updateStatus(callId, 'failed', {
+            endReason: 'handshake_failed',
+            endDetail: rejectionReason,
+            endedBy: 'system',
+          }).catch(() => {});
+        }).catch(() => {});
         try {
-          ws.close(1008, 'Unauthorized: Invalid or expired stream token');
+          ws.close(1008, `Unauthorized: ${rejectionReason}`);
         } catch {}
         return;
       }
@@ -272,13 +305,25 @@ export class AudioStreamHandler {
         }
 
         if (!verifiedCallId) {
-          logger.warn('AudioStreamHandler: unauthorized stream start payload (missing or invalid cryptographic token in extra_headers)', {
+          const startCallId = message.start?.callId || message.callId;
+          const rejectionReason = 'Missing or invalid cryptographic token in stream extra_headers';
+          logger.warn('AudioStreamHandler: unauthorized stream start payload', {
             hasRawHeaders: Boolean(rawHeaders),
             rawType: typeof rawHeaders,
-            startCallId: message.start?.callId || message.callId,
+            startCallId,
+            rejectionReason,
           });
+          if (startCallId) {
+            import('../repositories/CallRepository').then(({ CallRepository }) => {
+              CallRepository.updateStatus(startCallId, 'failed', {
+                endReason: 'handshake_failed',
+                endDetail: rejectionReason,
+                endedBy: 'system',
+              }).catch(() => {});
+            }).catch(() => {});
+          }
           try {
-            ws.close(1008, 'Unauthorized: Missing or invalid token in stream headers');
+            ws.close(1008, `Unauthorized: ${rejectionReason}`);
           } catch {}
           return;
         }
@@ -443,16 +488,14 @@ export class AudioStreamHandler {
               this.clearAudio(callId);
             }
             if (payload.callId === callId && (payload as any).error) {
-              logger.warn('AudioStreamHandler: mid-call error event received, playing spoken fallback and ending call', { callId, error: (payload as any).error });
-              this.playFallbackAndEndCall(callId);
+              this.handleProviderRuntimeError(callId, (payload as any).error);
             }
           });
 
           // Register explicit engine error event for instant fallback on transport disconnect
           eventBus.subscribe(PROVIDER_EVENTS.ERROR_OCCURRED, (payload) => {
             if (payload.callId === callId) {
-              logger.warn('AudioStreamHandler: engine error event received, triggering audio fallback and graceful close', { callId, reason: (payload as any).reason });
-              this.playFallbackAndEndCall(callId);
+              this.handleProviderRuntimeError(callId, (payload as any).reason || 'Provider error');
             }
           });
 
@@ -757,13 +800,45 @@ export class AudioStreamHandler {
   /**
    * Synthesizes and plays a brief soft fallback tone over outbound audio before gracefully closing the call on mid-call runtime error.
    */
-  private playFallbackAndEndCall(callId: string): void {
+  private async handleProviderRuntimeError(callId: string, errorReason: string): Promise<void> {
+    const classification = classifyProviderError(errorReason);
+    const retries = this.reconnectAttempts.get(callId) || 0;
+    const MAX_RETRIES = 2;
+
+    logger.warn('[PROVIDER_ERROR_CLASSIFICATION]', {
+      callId,
+      classification,
+      errorReason,
+      retryCount: retries,
+      maxRetries: MAX_RETRIES,
+    });
+
+    if (classification === 'transient' && retries < MAX_RETRIES) {
+      this.reconnectAttempts.set(callId, retries + 1);
+      logger.info('AudioStreamHandler: attempting mid-call session recovery for transient error', { callId, attempt: retries + 1 });
+      try {
+        await callOrchestrator.reconnectVoiceSession(callId);
+        logger.info('AudioStreamHandler: transient error reconnected successfully, telephony call kept alive', { callId });
+        return;
+      } catch (recErr) {
+        logger.error('AudioStreamHandler: mid-call session recovery failed', { callId, error: String(recErr) });
+      }
+    }
+
+    // Fatal or exhausted retries: play spoken apology chime and end cleanly
+    const endReason = errorReason.toLowerCase().includes('balance') ? 'balance_exhausted' : 'provider_error';
+    this.playFallbackAndEndCall(callId, endReason, errorReason);
+  }
+
+  /**
+   * Synthesizes and plays a soft apology audio chime over outbound audio before gracefully closing the call on unrecoverable error.
+   */
+  private playFallbackAndEndCall(callId: string, endReason: string = 'provider_error', detail?: string): void {
     const conn = this.connections.get(callId);
     if (!conn) {
-      // Connection already gone: ensure session and carrier call are ended
-      callOrchestrator.endCallSession(callId, 'fallback_completed').catch(() => {});
+      callOrchestrator.endCallSession(callId, endReason, detail, 'system').catch(() => {});
       import('../services/CallService').then(({ CallService }) => {
-        CallService.terminateCall(callId).catch(() => {});
+        CallService.terminateCall(callId, endReason, detail, 'system').catch(() => {});
       }).catch(() => {});
       return;
     }
@@ -774,14 +849,14 @@ export class AudioStreamHandler {
     this.clearAudio(callId);
 
     if (conn.ws.readyState !== WebSocket.OPEN) {
-      callOrchestrator.endCallSession(callId, 'fallback_completed').catch(() => {});
+      callOrchestrator.endCallSession(callId, endReason, detail, 'system').catch(() => {});
       import('../services/CallService').then(({ CallService }) => {
-        CallService.terminateCall(callId).catch(() => {});
+        CallService.terminateCall(callId, endReason, detail, 'system').catch(() => {});
       }).catch(() => {});
       return;
     }
 
-    // Synthesize a 1.5-second 440Hz PCM16 mono tone at 16kHz sample rate with exponential decay for a clean chime
+    // Synthesize a gentle 1.5-second two-tone apology chime (440Hz -> 330Hz) at 16kHz PCM16 mono
     const sampleRate = 16000;
     const durationSec = 1.5;
     const numSamples = Math.floor(sampleRate * durationSec);
@@ -789,8 +864,9 @@ export class AudioStreamHandler {
 
     for (let i = 0; i < numSamples; i++) {
       const t = i / sampleRate;
-      const decay = Math.exp(-3 * t);
-      const sampleValue = Math.floor(Math.sin(2 * Math.PI * 440 * t) * 8000 * decay);
+      const freq = t < 0.7 ? 440 : 330;
+      const decay = Math.exp(-2.5 * t);
+      const sampleValue = Math.floor(Math.sin(2 * Math.PI * freq * t) * 7000 * decay);
       pcmBuffer.writeInt16LE(sampleValue, i * 2);
     }
 
@@ -801,14 +877,14 @@ export class AudioStreamHandler {
     setTimeout(() => {
       const activeConn = this.connections.get(callId);
       if (activeConn && activeConn.ws.readyState === WebSocket.OPEN) {
-        logger.info('AudioStreamHandler: mid-call error fallback playout completed, closing websocket', { callId });
-        activeConn.ws.close(1000, 'Call completed with fallback on mid-call error');
+        logger.info('AudioStreamHandler: error fallback playout completed, closing websocket', { callId, endReason });
+        activeConn.ws.close(1000, 'Call completed with fallback');
       }
-      callOrchestrator.endCallSession(callId, 'fallback_completed').catch((err) => {
+      callOrchestrator.endCallSession(callId, endReason, detail, 'system').catch((err) => {
         logger.error('AudioStreamHandler: failed to end session after fallback', { callId, error: err });
       });
       import('../services/CallService').then(({ CallService }) => {
-        CallService.terminateCall(callId).catch((termErr) => {
+        CallService.terminateCall(callId, endReason, detail, 'system').catch((termErr) => {
           logger.warn('AudioStreamHandler: failed to terminate carrier call after fallback playout', { callId, error: String(termErr) });
         });
       }).catch(() => {});

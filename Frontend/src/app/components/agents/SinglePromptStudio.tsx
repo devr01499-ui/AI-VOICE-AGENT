@@ -560,46 +560,94 @@ export default function SinglePromptStudio({
   // ── Prompt Coach & Playbooks State ───────────────────────────────────────
   const [isCoachModalOpen, setIsCoachModalOpen] = useState(false);
   const [playbooks, setPlaybooks] = useState<PlaybookTemplate[]>([]);
+  const [isLoadingPlaybooks, setIsLoadingPlaybooks] = useState(false);
+  const [playbooksError, setPlaybooksError] = useState<string | null>(null);
   const [selectedPlaybookId, setSelectedPlaybookId] = useState<string>('outbound_sales');
-  const [businessFacts, setBusinessFacts] = useState<Record<string, string>>({});
+  const [businessFacts, setBusinessFacts] = useState<Record<string, string>>({
+    agentName: initialAgent?.name || initialAgentName || 'Alex',
+  });
+  const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({});
   const [coachGeneratedPrompt, setCoachGeneratedPrompt] = useState<string | null>(null);
   const [isGeneratingCoach, setIsGeneratingCoach] = useState(false);
+  const [coachError, setCoachError] = useState<string | null>(null);
 
   // ── Prompt Review (QA Score) State ───────────────────────────────────────
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isReviewingPrompt, setIsReviewingPrompt] = useState(false);
   const [reviewResult, setReviewResult] = useState<any | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   // ── Test Lab Simulation State ─────────────────────────────────────────────
   const [isTestLabRunning, setIsTestLabRunning] = useState(false);
   const [testLabScorecard, setTestLabScorecard] = useState<any | null>(null);
   const [testLabError, setTestLabError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadPlaybooks() {
-      try {
-        const list = await fetchPlaybooks();
-        setPlaybooks(list);
-        if (list.length > 0 && !selectedPlaybookId) {
-          setSelectedPlaybookId(list[0].id);
-        }
-      } catch (err) {
-        console.error('Failed to load playbooks:', err);
+  const loadPlaybooks = async () => {
+    try {
+      setIsLoadingPlaybooks(true);
+      setPlaybooksError(null);
+      const list = await fetchPlaybooks();
+      setPlaybooks(list);
+      if (list.length > 0 && !selectedPlaybookId) {
+        setSelectedPlaybookId(list[0].id);
       }
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to load playbook templates. Please check your connection and try again.';
+      setPlaybooksError(msg);
+    } finally {
+      setIsLoadingPlaybooks(false);
     }
+  };
+
+  useEffect(() => {
     loadPlaybooks();
   }, []);
 
+  const activePlaybook = useMemo(() => {
+    return playbooks.find((p) => p.id === selectedPlaybookId) || playbooks[0] || null;
+  }, [playbooks, selectedPlaybookId]);
+
+  const fieldValidationErrors = useMemo(() => {
+    const errors: Record<string, string> = {};
+    if (!activePlaybook || !activePlaybook.requiredFields) return errors;
+
+    for (const f of activePlaybook.requiredFields) {
+      const val = (businessFacts[f.key] || '').trim();
+      if (f.required && !val) {
+        errors[f.key] = `${f.label} is required.`;
+      } else if (f.maxLength && val.length > f.maxLength) {
+        errors[f.key] = `Maximum ${f.maxLength} characters allowed.`;
+      }
+    }
+    return errors;
+  }, [activePlaybook, businessFacts]);
+
+  const isFormValid = Object.keys(fieldValidationErrors).length === 0;
+
   async function handleGenerateFromCoach() {
+    setCoachError(null);
+    if (!isFormValid) {
+      // Mark all required fields as touched to trigger inline errors
+      const newTouched: Record<string, boolean> = {};
+      activePlaybook?.requiredFields?.forEach(f => {
+        newTouched[f.key] = true;
+      });
+      setTouchedFields(prev => ({ ...prev, ...newTouched }));
+      return;
+    }
+
     try {
       setIsGeneratingCoach(true);
       const res = await generatePromptFromCoach(selectedPlaybookId, businessFacts);
+      if (!res.generatedPrompt) {
+        throw new Error('Server returned an empty prompt.');
+      }
       setCoachGeneratedPrompt(res.generatedPrompt);
       if (res.recommendedStyle) {
         setResponseStyle(res.recommendedStyle);
       }
     } catch (err: any) {
-      alert('Prompt Coach generation error: ' + (err?.message || String(err)));
+      setCoachError(err?.message || 'Failed to generate prompt from coach.');
     } finally {
       setIsGeneratingCoach(false);
     }
@@ -608,11 +656,12 @@ export default function SinglePromptStudio({
   async function handleReviewPrompt() {
     try {
       setIsReviewingPrompt(true);
+      setReviewError(null);
       setIsReviewModalOpen(true);
       const res = await reviewPromptWithCoach(systemPrompt);
       setReviewResult(res);
     } catch (err: any) {
-      alert('Prompt review failed: ' + (err?.message || String(err)));
+      setReviewError(err?.message || 'Failed to analyze prompt quality.');
     } finally {
       setIsReviewingPrompt(false);
     }
@@ -3854,111 +3903,179 @@ export default function SinglePromptStudio({
             </div>
 
             {/* Body */}
-            <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-12 gap-6">
-              {/* Playbook selection and facts form */}
-              <div className="md:col-span-5 space-y-4">
-                <div>
-                  <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1.5">1. SELECT STARTER PLAYBOOK</label>
-                  <select
-                    value={selectedPlaybookId}
-                    onChange={(e) => {
-                      setSelectedPlaybookId(e.target.value);
-                      setCoachGeneratedPrompt(null);
-                    }}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            <div className="flex-1 overflow-y-auto p-6">
+              {isLoadingPlaybooks ? (
+                <div className="py-20 flex flex-col items-center justify-center text-center space-y-3">
+                  <div className="w-8 h-8 border-3 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+                  <p className="font-semibold text-slate-600 dark:text-slate-300">Loading enterprise playbooks...</p>
+                </div>
+              ) : playbooksError ? (
+                <div className="p-6 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-center space-y-3 my-6">
+                  <AlertCircle className="w-8 h-8 text-rose-500 mx-auto" />
+                  <p className="font-semibold text-rose-700 dark:text-rose-400">{playbooksError}</p>
+                  <button
+                    type="button"
+                    onClick={loadPlaybooks}
+                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold transition-colors"
                   >
-                    {playbooks.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.title} ({p.targetRole})
-                      </option>
-                    ))}
-                  </select>
+                    Retry Loading Playbooks
+                  </button>
                 </div>
-
-                {/* Form fields for the selected playbook */}
-                <div className="space-y-3 pt-2">
-                  <label className="font-bold text-slate-700 dark:text-slate-300 block">2. ENTER YOUR BUSINESS FACTS</label>
-                  {playbooks.find((p) => p.id === selectedPlaybookId)?.requiredFields.map((field) => (
-                    <div key={field.key}>
-                      <span className="font-medium text-slate-600 dark:text-slate-400 block mb-1">{field.label}</span>
-                      <input
-                        type="text"
-                        placeholder={field.placeholder}
-                        value={businessFacts[field.key] || ''}
-                        onChange={(e) => setBusinessFacts({ ...businessFacts, [field.key]: e.target.value })}
-                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                      <span className="text-[10px] text-slate-400 block mt-0.5">e.g. {field.example}</span>
+              ) : playbooks.length === 0 ? (
+                <div className="py-16 text-center text-slate-400 space-y-2">
+                  <BookOpen className="w-8 h-8 opacity-40 mx-auto" />
+                  <p className="font-semibold text-slate-600 dark:text-slate-300">No playbooks currently available.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                  {/* Playbook selection and facts form */}
+                  <div className="md:col-span-5 space-y-4">
+                    <div>
+                      <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1.5">1. SELECT STARTER PLAYBOOK</label>
+                      <select
+                        value={selectedPlaybookId}
+                        onChange={(e) => {
+                          setSelectedPlaybookId(e.target.value);
+                          setCoachGeneratedPrompt(null);
+                          setCoachError(null);
+                        }}
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-slate-200"
+                      >
+                        {playbooks.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.title}
+                          </option>
+                        ))}
+                      </select>
+                      {activePlaybook && (
+                        <div className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-lg border border-slate-200/60 dark:border-slate-800">
+                          <div className="font-semibold text-indigo-600 dark:text-indigo-400 mb-0.5">{activePlaybook.targetRole}</div>
+                          <div>{activePlaybook.description}</div>
+                        </div>
+                      )}
                     </div>
-                  ))}
-                </div>
 
-                <button
-                  type="button"
-                  onClick={handleGenerateFromCoach}
-                  disabled={isGeneratingCoach}
-                  className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-50"
-                >
-                  {isGeneratingCoach ? (
-                    <>
-                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Generating Architecture...
-                    </>
-                  ) : (
-                    <>
-                      <Wand2 className="w-3.5 h-3.5" /> Generate Production Prompt
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/* Generated Prompt Preview */}
-              <div className="md:col-span-7 flex flex-col space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="font-bold text-slate-700 dark:text-slate-300">3. PROMPT PREVIEW</label>
-                  {coachGeneratedPrompt && (
-                    <span className="text-[11px] font-mono text-emerald-600 font-bold flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Ready to Apply
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex-1 min-h-[300px] p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 font-mono text-[11px] leading-relaxed overflow-y-auto whitespace-pre-wrap">
-                  {coachGeneratedPrompt ? (
-                    coachGeneratedPrompt
-                  ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 p-8 space-y-2">
-                      <Wand2 className="w-8 h-8 opacity-40" />
-                      <p className="font-medium text-slate-600 dark:text-slate-300">Fill in your business facts and click generate.</p>
-                      <p className="text-[10px] text-slate-400">
-                        The Prompt Coach will automatically compile persona directives, objection handling, closing goals, and strict compliance rules.
-                      </p>
+                    {/* Form fields for the selected playbook */}
+                    <div className="space-y-3 pt-1">
+                      <label className="font-bold text-slate-700 dark:text-slate-300 block">2. ENTER YOUR BUSINESS FACTS</label>
+                      {activePlaybook?.requiredFields.map((field) => {
+                        const hasError = touchedFields[field.key] && Boolean(fieldValidationErrors[field.key]);
+                        return (
+                          <div key={field.key} className="space-y-1">
+                            <label className="font-medium text-slate-600 dark:text-slate-400 flex items-center justify-between text-[11px]">
+                              <span>
+                                {field.label} {field.required && <span className="text-rose-500">*</span>}
+                              </span>
+                              {field.maxLength && (
+                                <span className="text-[10px] text-slate-400">
+                                  {(businessFacts[field.key] || '').length}/{field.maxLength}
+                                </span>
+                              )}
+                            </label>
+                            <input
+                              type="text"
+                              maxLength={field.maxLength}
+                              placeholder={field.placeholder}
+                              value={businessFacts[field.key] || ''}
+                              onBlur={() => setTouchedFields(prev => ({ ...prev, [field.key]: true }))}
+                              onChange={(e) => {
+                                setBusinessFacts({ ...businessFacts, [field.key]: e.target.value });
+                                setCoachError(null);
+                              }}
+                              className={`w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl text-xs focus:outline-none focus:ring-2 transition-colors ${
+                                hasError
+                                  ? 'border-rose-400 dark:border-rose-500 focus:ring-rose-500'
+                                  : 'border-slate-200 dark:border-slate-700 focus:ring-indigo-500'
+                              }`}
+                            />
+                            {hasError ? (
+                              <span className="text-[10px] text-rose-500 font-semibold block flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3 flex-shrink-0" /> {fieldValidationErrors[field.key]}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-slate-400 block">e.g. {field.example}</span>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                  )}
-                </div>
 
-                {coachGeneratedPrompt && (
-                  <div className="flex items-center justify-end gap-2 pt-2">
+                    {coachError && (
+                      <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-[11px] font-medium flex items-center gap-1.5">
+                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                        <span>{coachError}</span>
+                      </div>
+                    )}
+
                     <button
                       type="button"
-                      onClick={() => setIsCoachModalOpen(false)}
-                      className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-semibold transition-colors"
+                      onClick={handleGenerateFromCoach}
+                      disabled={isGeneratingCoach || !isFormValid}
+                      className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSystemPrompt(coachGeneratedPrompt);
-                        setIsCoachModalOpen(false);
-                      }}
-                      className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-sm transition-all"
-                    >
-                      <Check className="w-4 h-4" /> Apply Prompt to Agent
+                      {isGeneratingCoach ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Generating Architecture...
+                        </>
+                      ) : (
+                        <>
+                          <Wand2 className="w-3.5 h-3.5" /> Generate Production Prompt
+                        </>
+                      )}
                     </button>
                   </div>
-                )}
-              </div>
+
+                  {/* Generated Prompt Preview */}
+                  <div className="md:col-span-7 flex flex-col space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-slate-700 dark:text-slate-300">3. PROMPT PREVIEW</label>
+                      {coachGeneratedPrompt && (
+                        <span className="text-[11px] font-mono text-emerald-600 font-bold flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Ready to Apply ({coachGeneratedPrompt.length} chars)
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-h-[340px] p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 font-mono text-[11px] leading-relaxed overflow-y-auto whitespace-pre-wrap select-text">
+                      {coachGeneratedPrompt ? (
+                        coachGeneratedPrompt
+                      ) : (
+                        <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 p-8 space-y-2">
+                          <Wand2 className="w-8 h-8 opacity-40 mx-auto" />
+                          <p className="font-medium text-slate-600 dark:text-slate-300">Fill in your business facts and click generate.</p>
+                          <p className="text-[10px] text-slate-400 max-w-sm">
+                            The Prompt Coach will automatically compile persona directives, discovery queries, objection handling, closing next steps, and regulatory guardrails.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {coachGeneratedPrompt && (
+                      <div className="flex items-center justify-end gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsCoachModalOpen(false)}
+                          className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-semibold transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSystemPrompt(coachGeneratedPrompt);
+                            setLastSavedAt(null); // Mark unsaved
+                            setIsCoachModalOpen(false);
+                          }}
+                          className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-sm transition-all"
+                        >
+                          <Check className="w-4 h-4" /> Apply Prompt to Agent (Mark Unsaved)
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -3994,6 +4111,18 @@ export default function SinglePromptStudio({
                 <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
                   <div className="w-8 h-8 border-3 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
                   <p className="font-semibold text-slate-600 dark:text-slate-300">Auditing prompt architecture & compliance...</p>
+                </div>
+              ) : reviewError ? (
+                <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-center space-y-2">
+                  <AlertCircle className="w-6 h-6 text-rose-500 mx-auto" />
+                  <p className="font-semibold">{reviewError}</p>
+                  <button
+                    type="button"
+                    onClick={handleReviewPrompt}
+                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-xs"
+                  >
+                    Retry Audit
+                  </button>
                 </div>
               ) : reviewResult ? (
                 <div className="space-y-4">
@@ -4043,7 +4172,7 @@ export default function SinglePromptStudio({
                     </div>
                   )}
 
-                  {/* Warnings */}
+                  {/* Warnings / Optimization Tips */}
                   {reviewResult.warnings?.length > 0 && (
                     <div className="space-y-1.5">
                       <p className="font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider text-[10px]">Optimization Tips</p>

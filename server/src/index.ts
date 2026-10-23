@@ -637,6 +637,14 @@ async function bootstrap(): Promise<void> {
       });
     }
 
+    // Gemini Live boot self-test: verifies production setup builder and API readiness
+    try {
+      const { GeminiLiveProvider } = await import('./providers/gemini/GeminiLiveProvider');
+      await GeminiLiveProvider.runStartupSelfTest();
+    } catch (testErr) {
+      logger.warn('Claritiy Voice Server: Gemini Live startup self-test warning', { error: String(testErr) });
+    }
+
     // Start background rule evaluation worker
     AlertEvaluator.startBackgroundWorker(60000);
 

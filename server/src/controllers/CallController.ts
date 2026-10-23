@@ -17,6 +17,8 @@ import { prisma } from '../lib/prisma';
 import { ADMIN_EMAIL } from '../config/constants';
 import { getWebhookSigningSecret } from '../utils/security';
 import { callTimingTracker } from '../utils/CallTimingTracker';
+import { escapeXml } from '../utils/xmlUtils';
+import { hasCallableBalance } from '../utils/balanceUtils';
 
 /**
  * Handles all call-related HTTP endpoints.
@@ -276,8 +278,9 @@ export class CallController {
             from: req.body?.From
           });
 
-          res.set('Content-Type', 'application/xml');
-          res.status(200).send(`<Response><Speak>${inboundResult.errorMessage || 'Unable to connect call.'}</Speak><Hangup/></Response>`);
+          const spoken = inboundResult.spokenMessage || 'This number is currently unavailable. Please try again later.';
+          res.set('Content-Type', 'application/xml; charset=utf-8');
+          res.status(200).send(`<Response><Speak>${escapeXml(spoken)}</Speak><Hangup/></Response>`);
           return;
         }
 
@@ -285,12 +288,12 @@ export class CallController {
       } else {
         callId = callSession.id;
 
-        // Outbound balance alignment check block
+        // Outbound balance alignment check block via unified helper
         const user = await prisma.user.findUnique({ where: { id: callSession.userId } });
-        if (user && user.accountType !== 'admin' && user.email !== ADMIN_EMAIL && user.callingBalanceMinutes <= 0) {
+        if (user && user.accountType !== 'admin' && user.email !== ADMIN_EMAIL && !hasCallableBalance(user)) {
           logger.warn('CallController: Insufficient balance for webhook call connection', { callId, userId: user.id });
-          res.set('Content-Type', 'application/xml');
-          res.status(200).send('<Response><Speak>Insufficient balance to complete this call.</Speak><Hangup/></Response>');
+          res.set('Content-Type', 'application/xml; charset=utf-8');
+          res.status(200).send(`<Response><Speak>${escapeXml('Insufficient balance to complete this call.')}</Speak><Hangup/></Response>`);
           return;
         }
 
@@ -427,14 +430,24 @@ export class CallController {
             from: norm.from,
           });
 
+          const spoken = inboundResult.spokenMessage || 'This number is currently unavailable. Please try again later.';
           res.set('Content-Type', 'application/xml; charset=utf-8');
-          res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?><Response><Speak>${inboundResult.errorMessage || 'Unable to connect call.'}</Speak><Hangup/></Response>`);
+          res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?><Response><Speak>${escapeXml(spoken)}</Speak><Hangup/></Response>`);
           return;
         }
 
         callId = inboundResult.callId!;
       } else {
         callId = callSession.id;
+
+        // Outbound balance alignment check block via unified helper
+        const user = await prisma.user.findUnique({ where: { id: callSession.userId } });
+        if (user && user.accountType !== 'admin' && user.email !== ADMIN_EMAIL && !hasCallableBalance(user)) {
+          logger.warn('CallController: Insufficient balance for Plivo webhook call connection', { callId, userId: user.id });
+          res.set('Content-Type', 'application/xml; charset=utf-8');
+          res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?><Response><Speak>${escapeXml('Insufficient balance to complete this call.')}</Speak><Hangup/></Response>`);
+          return;
+        }
 
         // Update call telemetryId with active CallUUID if provided
         if (norm.callUuid && callSession.telemetryId !== norm.callUuid) {
@@ -518,11 +531,15 @@ export class CallController {
     try {
       const norm = CallController.normalizePlivoPayload(req);
       const duration = req.body?.Duration ? parseInt(req.body.Duration as string, 10) : (req.query.Duration ? parseInt(req.query.Duration as string, 10) : 0);
+      const hangupCause = String(req.body?.HangupCause || req.query?.HangupCause || '').toUpperCase();
+      const hangupSource = String(req.body?.HangupSource || req.query?.HangupSource || '').toLowerCase();
 
       logger.info('CallController: Plivo hangup webhook', {
         callId: norm.callId,
         callUuid: norm.callUuid,
         duration,
+        hangupCause,
+        hangupSource,
       });
 
       const callSession = await prisma.call.findFirst({
@@ -544,7 +561,30 @@ export class CallController {
             data: { durationSeconds: duration },
           }).catch(() => {});
         }
-        await callOrchestrator.endCallSession(callId, 'user_hangup');
+
+        let mappedReason = 'caller_hangup';
+        let endedBy = 'caller';
+
+        if (hangupSource === 'agent' || hangupSource === 'plivo') {
+          mappedReason = 'agent_hangup';
+          endedBy = 'agent';
+        } else if (hangupCause === 'NO_ANSWER' || hangupCause === 'TIMEOUT') {
+          mappedReason = 'no_answer';
+          endedBy = 'provider';
+        } else if (hangupCause === 'BUSY' || hangupCause === 'REJECTED') {
+          mappedReason = 'busy';
+          endedBy = 'provider';
+        } else if (hangupCause === 'FAILED' || hangupCause === 'USER_BUSY') {
+          mappedReason = 'provider_error';
+          endedBy = 'provider';
+        }
+
+        await callOrchestrator.endCallSession(
+          callId,
+          mappedReason,
+          hangupCause ? `Plivo: ${hangupCause} (source: ${hangupSource || 'unknown'})` : undefined,
+          endedBy
+        );
       }
 
       res.set('Content-Type', 'application/xml; charset=utf-8');
@@ -624,8 +664,10 @@ export class CallController {
       }
       const callId = callSession.id;
       const duration = req.body?.Duration ? parseInt(req.body.Duration as string, 10) : 0;
+      const hangupCause = String(req.body?.HangupCause || req.body?.Cause || '').toUpperCase();
+      const hangupSource = String(req.body?.HangupSource || '').toLowerCase();
 
-      logger.info('CallController: Vobiz hangup webhook', { callId, duration, body: req.body });
+      logger.info('CallController: Vobiz hangup webhook', { callId, duration, hangupCause, hangupSource, body: req.body });
 
       if (duration > 0) {
         await prisma.call.update({
@@ -634,8 +676,27 @@ export class CallController {
         });
       }
 
-      // End the runtime session
-      await callOrchestrator.endCallSession(callId, 'user_hangup');
+      let mappedReason = 'caller_hangup';
+      let endedBy = 'caller';
+
+      if (hangupSource === 'agent' || hangupSource === 'platform' || hangupSource === 'vobiz') {
+        mappedReason = 'agent_hangup';
+        endedBy = 'agent';
+      } else if (hangupCause === 'NO_ANSWER' || hangupCause === 'TIMEOUT') {
+        mappedReason = 'no_answer';
+        endedBy = 'provider';
+      } else if (hangupCause === 'BUSY' || hangupCause === 'REJECTED') {
+        mappedReason = 'busy';
+        endedBy = 'provider';
+      }
+
+      // End the runtime session with detailed hangup cause and attribution
+      await callOrchestrator.endCallSession(
+        callId,
+        mappedReason,
+        hangupCause ? `Vobiz: ${hangupCause} (source: ${hangupSource || 'unknown'})` : undefined,
+        endedBy
+      );
 
       res.json({ success: true });
     } catch (err) {

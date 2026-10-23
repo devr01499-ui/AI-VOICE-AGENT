@@ -638,25 +638,70 @@ export async function deleteKBDocument(id: string): Promise<void> {
 }
 
 // ── Agent Intelligence Playbooks & Test Lab ──
+export interface PlaybookRequiredField {
+  key: string;
+  label: string;
+  placeholder: string;
+  example: string;
+  required: boolean;
+  maxLength?: number;
+}
+
+export interface PlaybookObjection {
+  objection: string;
+  response: string;
+}
+
 export interface PlaybookTemplate {
   id: string;
   title: string;
   category: string;
+  description: string;
   targetRole: string;
   recommendedResponseStyle: 'concise' | 'balanced' | 'consultative';
   goal: string;
   opening: string;
   discoveryQuestions: string[];
   qualificationCriteria: string[];
-  objectionHandlingLibrary: Array<{ objection: string; response: string }>;
+  objectionHandlingLibrary: PlaybookObjection[];
   closingNextStep: string;
   complianceRules: string[];
-  requiredFields: Array<{ key: string; label: string; placeholder: string; example: string }>;
+  requiredFields: PlaybookRequiredField[];
+}
+
+export interface PromptCoachReviewData {
+  score: number;
+  letterGrade: 'A+' | 'A' | 'B' | 'C' | 'D' | 'F' | string;
+  missingSections: string[];
+  contradictions: string[];
+  warnings: string[];
+  strengths: string[];
+  characterCount: number;
+  passed?: boolean;
+  issues?: string[];
+  recommendations?: string[];
 }
 
 export async function fetchPlaybooks(): Promise<PlaybookTemplate[]> {
   const res = await apiFetch<{ success: boolean; data: PlaybookTemplate[] }>('/api/v2/agents/playbooks');
-  return (res as any)?.data || (Array.isArray(res) ? res : []);
+  const rawList = (res as any)?.data || (Array.isArray(res) ? res : []);
+  if (!Array.isArray(rawList)) return [];
+  return rawList.map((p: any) => ({
+    id: p.id || '',
+    title: p.title || p.name || 'Untitled Playbook',
+    category: p.category || 'General',
+    description: p.description || '',
+    targetRole: p.targetRole || 'AI Voice Specialist',
+    recommendedResponseStyle: p.recommendedResponseStyle || p.defaultResponseStyle || 'balanced',
+    goal: p.goal || '',
+    opening: p.opening || '',
+    discoveryQuestions: p.discoveryQuestions || [],
+    qualificationCriteria: p.qualificationCriteria || [],
+    objectionHandlingLibrary: p.objectionHandlingLibrary || (p.objectionHandling ? Object.entries(p.objectionHandling).map(([objection, response]) => ({ objection, response: response as string })) : []),
+    closingNextStep: p.closingNextStep || p.closingAsk || '',
+    complianceRules: p.complianceRules || [],
+    requiredFields: Array.isArray(p.requiredFields) ? p.requiredFields : [],
+  }));
 }
 
 export async function generatePromptFromCoach(playbookId: string, businessFacts: Record<string, string>): Promise<{
@@ -664,28 +709,40 @@ export async function generatePromptFromCoach(playbookId: string, businessFacts:
   title: string;
   generatedPrompt: string;
   recommendedStyle: 'concise' | 'balanced' | 'consultative';
+  review?: PromptCoachReviewData;
 }> {
   const res = await apiFetch<{ success: boolean; data: any }>('/api/v2/agents/prompt-coach/generate', {
     method: 'POST',
     body: JSON.stringify({ playbookId, businessFacts }),
   });
-  return (res as any)?.data || res;
+  const data = (res as any)?.data || res;
+  return {
+    playbookId: data.playbookId || playbookId,
+    title: data.title || '',
+    generatedPrompt: data.generatedPrompt || data.prompt || '',
+    recommendedStyle: data.recommendedStyle || 'balanced',
+    review: data.review,
+  };
 }
 
-export async function reviewPromptWithCoach(prompt: string): Promise<{
-  score: number;
-  letterGrade: string;
-  missingSections: string[];
-  contradictions: string[];
-  warnings: string[];
-  strengths: string[];
-  characterCount: number;
-}> {
+export async function reviewPromptWithCoach(prompt: string): Promise<PromptCoachReviewData> {
   const res = await apiFetch<{ success: boolean; data: any }>('/api/v2/agents/prompt-coach/review', {
     method: 'POST',
     body: JSON.stringify({ prompt }),
   });
-  return (res as any)?.data || res;
+  const data = (res as any)?.data || res;
+  return {
+    score: typeof data.score === 'number' ? data.score : 0,
+    letterGrade: data.letterGrade || (data.score >= 80 ? 'A' : 'C'),
+    missingSections: data.missingSections || [],
+    contradictions: data.contradictions || [],
+    warnings: data.warnings || (data.recommendations || []),
+    strengths: data.strengths || [],
+    characterCount: typeof data.characterCount === 'number' ? data.characterCount : (prompt.length || 0),
+    passed: data.passed,
+    issues: data.issues || [],
+    recommendations: data.recommendations || [],
+  };
 }
 
 export async function runTestLabSimulation(agentId: string, personas?: string[]): Promise<{

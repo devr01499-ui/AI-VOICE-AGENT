@@ -196,6 +196,9 @@ model Call {
   summary              String?   @map("summary")
   recordingEnabled     Boolean   @default(true) @map("recording_enabled")
   maxDuration          Int       @default(1800) @map("max_duration")
+  endReason            String?   @map("end_reason")
+  endedBy              String?   @map("ended_by")
+  endDetail            String?   @map("end_detail")
   createdAt            DateTime  @default(now()) @map("created_at")
 
   agent              Agent              @relation(fields: [agentId], references: [id], onDelete: Cascade)

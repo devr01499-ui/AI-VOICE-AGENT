@@ -13,6 +13,7 @@ import { buildGreetingText, formatGreetingTurnPrompt } from '../utils/greetingUt
 import { injectVoicePersonaDirective } from '../utils/personaPrompt';
 import { buildFinalSystemInstruction } from '../utils/systemInstructionBuilder';
 import { buildCapabilitiesBlock, filterActiveTools } from '../utils/capabilities';
+import { hasCallableBalance } from '../utils/balanceUtils';
 
 interface ActiveSandboxSession {
   ws: WebSocket;
@@ -105,7 +106,7 @@ export class SandboxStreamHandler {
 
       const isAdmin = user.accountType === 'admin' || user.email === ADMIN_EMAIL;
       const isPaid = ['developer', 'professional', 'enterprise', 'growth', 'scale'].includes(user.accountType?.toLowerCase() || '');
-      const hasCallingMinutes = (user.callingBalanceMinutes ?? 0) > 0 || (user.minutesRemainingSeconds ?? 0) > 0;
+      const hasCallingMinutes = hasCallableBalance(user);
       const hasByokKey = Boolean(user.geminiApiKey);
 
       if (!isAdmin && !isPaid && !hasCallingMinutes && !hasByokKey) {

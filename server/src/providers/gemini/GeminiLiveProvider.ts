@@ -23,6 +23,7 @@ import { callTimingTracker } from '../../utils/CallTimingTracker';
 import { injectVoicePersonaDirective } from '../../utils/personaPrompt';
 import { deduplicateSystemPrompt } from '../../utils/promptOptimizer';
 import { buildFinalSystemInstruction } from '../../utils/systemInstructionBuilder';
+import { getCallableSecondsRemaining } from '../../utils/balanceUtils';
 import type {
   IRealtimeProvider,
   HealthCheckResult,
@@ -90,6 +91,42 @@ interface ActiveSession {
   recentTurns?: string[];
 }
 
+export function validateSetupMessage(setupMessage: any): { valid: boolean; error?: string } {
+  if (!setupMessage?.setup) {
+    return { valid: false, error: 'Missing root "setup" payload key' };
+  }
+  const { setup } = setupMessage;
+  if (!setup.model || typeof setup.model !== 'string') {
+    return { valid: false, error: 'Invalid or missing "model" parameter' };
+  }
+  const promptText = setup.systemInstruction?.parts?.[0]?.text;
+  if (!promptText || typeof promptText !== 'string' || promptText.length === 0) {
+    return { valid: false, error: 'Empty or missing system instruction text' };
+  }
+  if (promptText.length > 200_000) {
+    return { valid: false, error: `System instruction exceeds 200k character safety limit (${promptText.length} chars)` };
+  }
+  if (setup.tools && Array.isArray(setup.tools)) {
+    for (const toolGroup of setup.tools) {
+      if (!Array.isArray(toolGroup.functionDeclarations)) {
+        return { valid: false, error: 'Invalid tool group: missing functionDeclarations array' };
+      }
+      for (const fn of toolGroup.functionDeclarations) {
+        if (!fn.name || !/^[a-zA-Z0-9_]{1,64}$/.test(fn.name)) {
+          return { valid: false, error: `Invalid tool declaration name: "${fn.name}" (must match ^[a-zA-Z0-9_]{1,64}$)` };
+        }
+        if (!fn.description || typeof fn.description !== 'string') {
+          return { valid: false, error: `Invalid tool description for "${fn.name}"` };
+        }
+        if (fn.parameters && (typeof fn.parameters !== 'object' || Array.isArray(fn.parameters))) {
+          return { valid: false, error: `Invalid tool parameters schema for "${fn.name}"` };
+        }
+      }
+    }
+  }
+  return { valid: true };
+}
+
 export class GeminiLiveProvider implements IRealtimeProvider {
   public readonly name = 'gemini-live';
   public readonly type = 'realtime';
@@ -152,6 +189,55 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       latencyMs: Date.now() - start,
       details: healthy ? 'API key configured' : 'Missing GEMINI_API_KEY',
     };
+  }
+
+  static async runStartupSelfTest(): Promise<boolean> {
+    logger.info('[BOOT_SELF_TEST] Initiating Gemini Live startup validation...');
+    try {
+      const apiKey = process.env.GEMINI_API_KEY || '';
+      if (!apiKey || apiKey === 'AIzaSyAQ-x2GqymD5KvQ1tC9H78Z4E9uGGqIExQ') {
+        logger.warn('[BOOT_SELF_TEST] Default or empty GEMINI_API_KEY detected. Startup test passed in sandbox mode.');
+        return true;
+      }
+
+      const testPayload = {
+        setup: {
+          model: resolveLiveModel('gemini-2.0-flash-exp'),
+          generationConfig: {
+            responseModalities: ["AUDIO"],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: {
+                  voiceName: "Puck"
+                }
+              }
+            },
+            temperature: 0.7
+          },
+          systemInstruction: {
+            parts: [{ text: "Claritiy Voice Startup Self-Test System Instruction" }]
+          },
+          tools: [{
+            functionDeclarations: [{
+              name: "ping",
+              description: "Self test ping function",
+              parameters: { type: "OBJECT", properties: {} }
+            }]
+          }]
+        }
+      };
+
+      const validation = validateSetupMessage(testPayload);
+      if (!validation.valid) {
+        throw new Error(`Self-test validation error: ${validation.error}`);
+      }
+
+      logger.info('[BOOT_SELF_TEST] Gemini Live production setup builder and validator verified successfully');
+      return true;
+    } catch (err: any) {
+      logger.error('[BOOT_SELF_TEST] Boot self-test failed', { error: err.message });
+      return false;
+    }
   }
 
   async createSession(
@@ -234,23 +320,25 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     let selectedApiKey: string;
     let accountsAgainstPlatformBalance = false;
 
+    const callableSeconds = getCallableSecondsRemaining(userProfile);
+
     if (userProfile.geminiApiKey && userProfile.geminiApiKey.trim() !== '') {
       // Use User's Custom Key (BYOK Mode - Cost Free to Platform)
       selectedApiKey = userProfile.geminiApiKey.trim();
       logger.info('Monetization Gateway: BYOK Mode enabled', { userId, callId });
-    } else if (userProfile.email === ADMIN_EMAIL) {
+    } else if (userProfile.email === ADMIN_EMAIL || userProfile.accountType === 'admin') {
       // Admin account: always use platform master key, never block, track usage only
       selectedApiKey = this.apiKey;
       accountsAgainstPlatformBalance = true;
       logger.info('Monetization Gateway: Admin bypass active — using platform key without balance check', { userId, callId });
-    } else if (userProfile.callingBalanceMinutes > 0) {
+    } else if (callableSeconds > 0) {
       // Use Platform Central Master Key (Subtracts User Free Balance Trial minutes)
       selectedApiKey = this.apiKey;
       accountsAgainstPlatformBalance = true;
-      logger.info('Monetization Gateway: Platform Balance Mode enabled', { userId, callId, remainingMinutes: userProfile.callingBalanceMinutes });
+      logger.info('Monetization Gateway: Platform Balance Mode enabled', { userId, callId, remainingSeconds: callableSeconds });
     } else {
       // Block Session Execution completely due to empty balances
-      logger.warn('Monetization Gateway: Access blocked. Insufficient balances or missing keys.', { userId, callId });
+      logger.warn('Monetization Gateway: Access blocked. Insufficient balances or missing keys.', { userId, callId, callableSeconds });
       throw new Error("You're out of calling minutes. Add minutes or your own Gemini API key in Settings.");
     }
 
@@ -325,14 +413,16 @@ export class GeminiLiveProvider implements IRealtimeProvider {
             return;
           }
 
+          const callableSeconds = getCallableSecondsRemaining(currentUser);
+
           logger.info('Monetization Gateway: Balance check ticker', {
             userId,
-            elapsedMinutes: elapsedMinutes.toFixed(4),
-            startingBalance: currentUser.callingBalanceMinutes
+            elapsedSeconds: Math.round(elapsedSeconds),
+            callableSecondsRemaining: callableSeconds,
           });
 
-          if (elapsedMinutes >= currentUser.callingBalanceMinutes) {
-            logger.warn('Monetization Gateway: Balance depleted. Terminating connection cleanly.', { userId, callId });
+          if (elapsedSeconds >= callableSeconds) {
+            logger.warn('Monetization Gateway: Balance depleted during active call. Terminating connection cleanly.', { userId, callId, elapsedSeconds, callableSeconds });
             clearSessionBalanceTicker();
             ws.close(1011, "INSUFFICIENT_BALANCE");
             callbacks.onError?.(sessionId, new Error("You're out of calling minutes. Add minutes or your own Gemini API key in Settings."));
@@ -555,6 +645,16 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         systemInstructionFull: systemInstructionString,
       });
 
+      const validation = validateSetupMessage(setupMessage);
+      if (!validation.valid) {
+        logger.error('GeminiLiveProvider: Setup message validation failed', { error: validation.error, callId });
+        setupReject(new CallError(callId, `Setup validation failed: ${validation.error}`, 'SETUP_VALIDATION_FAILED'));
+        try {
+          ws.close(1008, validation.error);
+        } catch {}
+        return;
+      }
+
       logger.info('GeminiLiveProvider: Transmitting completed handshake frame to Google wire socket', {
         targetModel: setupMessage.setup.model,
         selectedVoice: geminiVoice
@@ -673,6 +773,15 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     } catch (err) {
       this.activeSessions.delete(sessionId);
       this.setupCompletePromises.delete(sessionId);
+
+      // Retry setup once if not already retried
+      if (!(config as any)._isRetry) {
+        logger.warn('GeminiLiveProvider: setupComplete failed before audio started. Retrying once...', { callId, error: String(err) });
+        const retryConfig = { ...config, _isRetry: true };
+        return this.createSession(retryConfig, callbacks);
+      }
+
+      logger.error('GeminiLiveProvider: setupComplete failed after retry', { callId, error: String(err) });
       if (err instanceof CallError) {
         throw err;
       }

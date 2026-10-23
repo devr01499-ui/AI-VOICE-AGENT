@@ -1024,17 +1024,27 @@ router.post(
   requireEditor,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { playbookId, businessFacts } = req.body;
-      if (!playbookId || !businessFacts?.companyName || !businessFacts?.productOrService) {
+      const { PromptCoachGenerateRequestSchema } = await import('../types/promptCoach');
+      const parseResult = PromptCoachGenerateRequestSchema.safeParse(req.body);
+      if (!parseResult.success) {
         res.status(400).json({
           success: false,
-          error: 'playbookId, companyName, and productOrService are required',
+          error: 'Validation error: ' + parseResult.error.errors.map(e => e.message).join(', '),
         });
         return;
       }
 
-      const { generatePlaybookPrompt, reviewPromptQuality } = await import('../utils/playbooks');
-      const { prompt, playbook } = generatePlaybookPrompt(playbookId, {
+      const { playbookId, businessFacts } = parseResult.data;
+      if (!businessFacts?.companyName || !businessFacts?.productOrService) {
+        res.status(400).json({
+          success: false,
+          error: 'companyName and productOrService are required business facts',
+        });
+        return;
+      }
+
+      const { generatePlaybookPrompt } = await import('../utils/playbooks');
+      const genResult = generatePlaybookPrompt(playbookId, {
         companyName: businessFacts.companyName,
         productOrService: businessFacts.productOrService,
         agentName: businessFacts.agentName || 'Alex',
@@ -1044,14 +1054,16 @@ router.post(
         extraInstructions: businessFacts.extraInstructions,
       });
 
-      const review = reviewPromptQuality(prompt);
-
       res.json({
         success: true,
         data: {
-          prompt,
-          playbook,
-          review,
+          playbookId: genResult.playbook.id,
+          title: genResult.playbook.title,
+          prompt: genResult.generatedPrompt,
+          generatedPrompt: genResult.generatedPrompt,
+          recommendedStyle: genResult.recommendedStyle,
+          playbook: genResult.playbook,
+          review: genResult.review,
         },
       });
     } catch (err: any) {
