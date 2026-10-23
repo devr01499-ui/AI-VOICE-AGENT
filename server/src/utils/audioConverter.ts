@@ -196,8 +196,8 @@ export function convertInboundAudio(base64MuLaw: string): string {
   const inputBuffer = Buffer.from(base64MuLaw, 'base64');
   
   // Auto-detect: G.711 mu-law 8kHz has 1 byte/sample (e.g. 160 bytes for 20ms),
-  // whereas L16 PCM 16kHz has 2 bytes/sample (e.g. 640 bytes for 20ms).
-  const isL16 = inputBuffer.length > 320;
+  // whereas L16 PCM 16kHz has 2 bytes/sample (e.g. 320 bytes for 10ms, 640 bytes for 20ms).
+  const isL16 = inputBuffer.length >= 320;
 
   if (isL16) {
     // Process as L16 PCM 16kHz Little-Endian
@@ -216,7 +216,8 @@ export function convertInboundAudio(base64MuLaw: string): string {
       sumSquares += samples16[i] * samples16[i];
     }
     const rms = Math.sqrt(sumSquares / samples);
-    if (rms < 120) {
+    // Gentle line noise gate (only suppress extreme floor hiss, never quiet speech)
+    if (rms < 35) {
       samples16.fill(0);
     }
     return targetBuffer.toString('base64');
@@ -244,7 +245,7 @@ export function convertInboundAudio(base64MuLaw: string): string {
   }
 
   const rms = Math.sqrt(sumSquares / targetSamples);
-  if (rms < 120) {
+  if (rms < 35) {
     samples16.fill(0);
   }
 
