@@ -94,6 +94,9 @@ const envSchema = z.object({
     .trim()
     .default('v1alpha'),
 
+  GEMINI_WS_BASE: z.string().trim().optional(),
+  GEMINI_HTTP_BASE: z.string().trim().optional(),
+
   // ── Networking / Tunnels ────────────────────
   // Optional at boot — required at runtime only for telephony webhook callbacks
   PUBLIC_URL: z.string().trim().default(''),

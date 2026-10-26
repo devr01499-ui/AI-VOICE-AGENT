@@ -1,0 +1,73 @@
+name: Call Path E2E Lock & Timing Verification
+
+on:
+  pull_request:
+    paths:
+      - 'server/src/providers/gemini/GeminiLiveProvider.ts'
+      - 'server/src/websockets/AudioStreamHandler.ts'
+      - 'server/src/controllers/CallController.ts'
+      - 'server/src/middleware/plivoWebhook.ts'
+      - 'server/src/core/orchestrator/CallOrchestrator.ts'
+      - 'e2e-call-harness/**'
+  push:
+    branches:
+      - main
+    paths:
+      - 'server/src/providers/gemini/GeminiLiveProvider.ts'
+      - 'server/src/websockets/AudioStreamHandler.ts'
+      - 'server/src/controllers/CallController.ts'
+      - 'server/src/middleware/plivoWebhook.ts'
+      - 'server/src/core/orchestrator/CallOrchestrator.ts'
+      - 'e2e-call-harness/**'
+  workflow_dispatch:
+
+jobs:
+  e2e-call-test:
+    name: Automated Call Path Harness (10x Outbound + 10x Inbound + Safe Tier)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: claritiy
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: claritiy_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd server && npm ci
+
+      - name: Build Server
+        run: |
+          cd server
+          npm run build
+
+      - name: Run E2E Call Harness
+        env:
+          DATABASE_URL: "postgresql://claritiy:testpassword@localhost:5432/claritiy_test?schema=public"
+          JWT_SECRET: "ci_jwt_secret_test_32_characters_long_min"
+          ENCRYPTION_KEY: "ci_aes_encryption_key_32_chars_ok"
+          PLIVO_AUTH_TOKEN: "ci_test_plivo_auth_token"
+          NODE_ENV: "test"
+        run: |
+          chmod +x e2e-call-harness/run_case.sh
+          ./e2e-call-harness/run_case.sh

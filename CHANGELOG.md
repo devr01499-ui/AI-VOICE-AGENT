@@ -1,5 +1,13 @@
 # CHANGELOG
 
+- Production Call Path Hardening & E2E Automated Harness CI Lock:
+  - **Carrier Event Pre-Registration Queue (`AudioStreamHandler.ts`)**: Built an early message buffer capturing carrier WebSocket events arriving during asynchronous session authentication and database lookups. Replays all buffered messages in FIFO order immediately upon registration, preventing dropped `start` events and unattached AI sessions.
+  - **Gemini Wire Schema Standardization (`GeminiLiveProvider.ts`)**: Eliminated duplicate `thinkingConfig` / `thinking_config` fields, preserving standard `thinkingConfig: { thinkingBudget: 0 }`.
+  - **Minimal SAFE Setup Tier on Retry (`GeminiLiveProvider.ts`)**: Added fallback safe tier for setup failures (omitting `thinkingConfig` and aggressive `realtimeInputConfig` tuning) to guarantee recovery from upstream provider parameter rejections.
+  - **Configurable Base URLs (`env.ts`, `GeminiLiveProvider.ts`)**: Added `GEMINI_WS_BASE` and `GEMINI_HTTP_BASE` env options with Google API defaults for testing against mock/sandbox providers.
+  - **Observability & Webhook Signature Hardening (`plivoWebhook.ts`, `CallRepository.ts`, `CallService.ts`)**: Logged `callId` on every Plivo webhook signature rejection and ensured `endReason` is persisted on all terminal call transitions.
+  - **E2E Automated Call Harness & Protected Path (`e2e-call-harness/`, `call-path-e2e.yml`, `CODEOWNERS`)**: Added `fake_gemini.js`, `call_sim.js`, `run_case.sh`, and GitHub Actions CI workflow running 10 outbound calls, 10 inbound calls, and safe-tier recovery, requiring <=3s first audio, >=10s duration, and zero call failures.
+
 - Telephony Real-Time Calling Optimization & Humanized Vocal Pipeline:
   - **Sub-2s Turn-Around Latency**: In `GeminiLiveProvider.ts`, explicitly configured `thinkingConfig: { thinkingBudget: 0 }` and `thinking_config: { thinking_budget: 0 }` to disable multi-second reasoning token overhead. Reduced VAD silence duration to 200ms with high sensitivity and lowered temperature to 0.5.
   - **Direct Telephony Audio Playout**: In `AudioStreamHandler.ts`, eliminated the artificial `setTimeout` playout queue delay, routing Gemini audio chunks directly down the telephony WebSocket to Plivo/Vobiz as they are generated.

@@ -1,0 +1,8 @@
+# Claritiy Voice Code Ownership & Protected Call Path Rules
+# Changes to these critical telephony and streaming path files require call-path-e2e test green status and explicit review.
+
+/server/src/providers/gemini/GeminiLiveProvider.ts   @devr01499-ui
+/server/src/websockets/AudioStreamHandler.ts         @devr01499-ui
+/server/src/controllers/CallController.ts            @devr01499-ui
+/server/src/middleware/plivoWebhook.ts               @devr01499-ui
+/server/src/core/orchestrator/CallOrchestrator.ts    @devr01499-ui

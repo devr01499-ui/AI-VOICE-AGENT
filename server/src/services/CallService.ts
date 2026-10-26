@@ -446,7 +446,14 @@ export class CallService {
       return;
     }
 
-    await CallRepository.updateStatus(callId, mappedStatus);
+    const terminalStatuses: CallStatus[] = ['completed', 'failed', 'busy', 'no_answer', 'cancelled', 'timeout'];
+    const isTerminal = terminalStatuses.includes(mappedStatus);
+
+    await CallRepository.updateStatus(callId, mappedStatus, isTerminal ? {
+      endReason: mappedStatus,
+      endedBy: 'provider',
+      endDetail: `Telephony webhook status: ${vobizStatus}`,
+    } : undefined);
     logger.info('CallService: status updated from webhook', {
       callId,
       vobizStatus,
@@ -454,8 +461,7 @@ export class CallService {
     });
 
     // Sync linked BatchRecipient status if call reached a terminal state
-    const terminalStatuses: CallStatus[] = ['completed', 'failed', 'busy', 'no_answer', 'cancelled', 'timeout'];
-    if (terminalStatuses.includes(mappedStatus)) {
+    if (isTerminal) {
       try {
         callOrchestrator.emit('callEnded', { callId, status: mappedStatus, reason: vobizStatus });
         const { BatchService } = await import('./BatchService');

@@ -215,6 +215,25 @@ function getCandidateTargetUrls(req: Request): string[] {
   return urls;
 }
 
+function extractWebhookCallId(req: Request): string | null {
+  const query = (req.query || {}) as Record<string, any>;
+  const body = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, any>;
+  return (
+    query.callId ||
+    body.callId ||
+    query.CallUUID ||
+    body.CallUUID ||
+    query.RequestUUID ||
+    body.RequestUUID ||
+    query.ALegRequestUUID ||
+    body.ALegRequestUUID ||
+    query.CallId ||
+    body.CallId ||
+    req.params?.callId ||
+    null
+  );
+}
+
 /**
  * Express middleware enforcing cryptographic Plivo signature verification.
  * Supports Plivo V3, Plivo V2, and signed HMAC callback tokens.
@@ -231,6 +250,7 @@ export async function verifyPlivoWebhook(req: Request, res: Response, next: Next
 
   const querySig = ((req.query.sig || (req.body && req.body.sig) || '') as string).trim();
   const callId = ((req.query.callId || (req.body && req.body.callId) || '') as string).trim();
+  const webhookCallId = extractWebhookCallId(req);
 
   // In development/test mode without credentials configured, allow simulated pass-through with log
   const hasParentCreds = Boolean((process.env.PLIVO_AUTH_TOKEN || env.PLIVO_AUTH_TOKEN || '').trim());
@@ -256,6 +276,7 @@ export async function verifyPlivoWebhook(req: Request, res: Response, next: Next
   // 2. Header presence validation
   if (!hasV3 && !hasV2) {
     logger.warn('Plivo Webhook: Missing required signature or nonce headers', {
+      callId: webhookCallId,
       hasSigV3: Boolean(sigV3),
       hasSigMaV3: Boolean(sigMaV3),
       hasNonceV3: Boolean(nonceV3),
@@ -273,7 +294,11 @@ export async function verifyPlivoWebhook(req: Request, res: Response, next: Next
   const activeNonce = nonceV3 || nonceV2;
   cleanupExpiredNonces();
   if (activeNonce && nonceReplayCache.has(activeNonce)) {
-    logger.warn('Plivo Webhook: Replay attack detected (nonce reused)', { nonce: activeNonce, ip: req.ip });
+    logger.warn('Plivo Webhook: Replay attack detected (nonce reused)', {
+      callId: webhookCallId,
+      nonce: activeNonce,
+      ip: req.ip,
+    });
     res.status(403).json({ success: false, error: 'Forbidden: Replayed webhook nonce' });
     return;
   }
@@ -281,7 +306,7 @@ export async function verifyPlivoWebhook(req: Request, res: Response, next: Next
   // 4. Candidate tokens & URLs
   const candidateTokens = await resolveAuthTokens(req);
   if (candidateTokens.length === 0) {
-    logger.error('Plivo Webhook: No auth tokens configured for verification');
+    logger.error('Plivo Webhook: No auth tokens configured for verification', { callId: webhookCallId });
     res.status(403).json({ success: false, error: 'Forbidden: Telephony credentials not configured' });
     return;
   }
@@ -336,6 +361,7 @@ export async function verifyPlivoWebhook(req: Request, res: Response, next: Next
 
   if (!verified) {
     logger.warn('Plivo Webhook: Signature verification failed', {
+      callId: webhookCallId,
       ip: req.ip,
       method,
       path: req.path,

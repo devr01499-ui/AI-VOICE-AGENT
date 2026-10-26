@@ -166,6 +166,14 @@
 - **Rejected Alternative**: Storing raw high-frequency audio packet timestamps in PostgreSQL synchronously on every packet. Reason: Adding synchronous database writes during real-time 20ms audio streaming loops would inject significant disk and network I/O jitter directly into conversational latency.
 - **Consequences**: Zero behavioral disruption, granular turn-by-turn latency attribution across models and tool invocations, and immediate visibility into bottleneck sources (embedding API roundtrip, cross-continental database queries, playout queues).
 
-
-
-
+## ADR-015: Telephony Pre-Registration Event Buffering, Wire Protocol Unification, and Safe Setup Tier Fallback
+- **Status**: Accepted
+- **Context**: In production, timing races between asynchronous session database lookups and carrier TCP stream initialization caused `AudioStreamHandler` to drop initial `start` frames from Plivo/Vobiz. When `start` was dropped, the AI session failed to attach, resulting in call silence or instant teardown. Concurrently, duplicate `thinkingConfig` and `thinking_config` keys triggered protobuf oneof rejections upstream at Google, while retry attempts re-transmitted identical failing configurations.
+- **Decision**:
+  1. **Pre-Registration Event Queuing (`AudioStreamHandler.ts`)**: Bind an early message listener immediately on WebSocket connection to buffer incoming carrier packets in an array during asynchronous database resolution (`prisma.call.findUnique`). Replay all queued packets in strict FIFO order immediately after connection registration, ensuring zero dropped `start` or media frames.
+  2. **Wire Protocol Schema Unification (`GeminiLiveProvider.ts`)**: Remove duplicate `thinking_config` key. Transmit standard camelCase `thinkingConfig: { thinkingBudget: 0 }`.
+  3. **Minimal SAFE Setup Tier Fallback (`GeminiLiveProvider.ts`)**: If initial session setup fails or upstream rejects configuration, retry once with a minimal safe setup tier that strips `thinkingConfig` and custom `realtimeInputConfig` tuning, guaranteeing call continuity across differing Gemini API deployments.
+  4. **Configurable Endpoint Overrides (`env.ts`, `GeminiLiveProvider.ts`)**: Expose `GEMINI_WS_BASE` and `GEMINI_HTTP_BASE` env options with standard Google production fallbacks to enable deterministic end-to-end integration tests using local mock servers.
+  5. **Automated E2E Regression CI Gate (`e2e-call-harness/`, `call-path-e2e.yml`, `CODEOWNERS`)**: Gate all future merges to call-path files (`GeminiLiveProvider.ts`, `AudioStreamHandler.ts`, `CallController.ts`, `plivoWebhook.ts`, `CallOrchestrator.ts`) behind an automated CI job requiring 10 consecutive outbound passes, 10 consecutive inbound passes, and safe-tier recovery under strict SLA constraints (first audio <= 3s, duration >= 10s, call not failed).
+- **Rejected Alternative**: Increasing artificial timeouts or sleeping before carrier handshake. Reason: Artificial sleep exacerbates caller-perceived silence, pushes time-to-first-audio above 5-7 seconds, and does not eliminate timing races.
+- **Consequences**: Complete elimination of dropped carrier start frames, robust resilience against upstream parameter drift, sub-second first-audio playout, and guaranteed CI prevention of call-path regressions.

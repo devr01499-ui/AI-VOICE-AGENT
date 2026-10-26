@@ -292,7 +292,17 @@ export class CallRepository {
         return updatedCall!;
       }
 
-      // Target status is terminal: update and guarantee endTime
+      // Target status is terminal: update and guarantee endTime and endReason
+      const existingCall = await prisma.call.findUnique({
+        where: { id: callId },
+        select: { endReason: true, endedBy: true, endDetail: true },
+      });
+      const resolvedEndReason = extraData?.endReason || existingCall?.endReason || status;
+      const resolvedEndedBy = extraData?.endedBy || existingCall?.endedBy || 'system';
+      const resolvedEndDetail = extraData?.endDetail !== undefined
+        ? extraData.endDetail
+        : (existingCall?.endDetail !== undefined ? existingCall.endDetail : (extraData?.endReason || status));
+
       const call = await prisma.call.update({
         where: { id: callId },
         data: {
@@ -302,14 +312,14 @@ export class CallRepository {
           ...(extraData?.durationSeconds !== undefined
             ? { durationSeconds: extraData.durationSeconds }
             : {}),
-          ...(extraData?.endReason ? { endReason: extraData.endReason as any } : {}),
-          ...(extraData?.endedBy ? { endedBy: extraData.endedBy as any } : {}),
-          ...(extraData?.endDetail !== undefined ? { endDetail: extraData.endDetail } : {}),
+          endReason: resolvedEndReason as any,
+          endedBy: resolvedEndedBy as any,
+          endDetail: resolvedEndDetail,
         },
         include: { execution: true },
       });
 
-      logger.info('Call status updated to terminal state', { callId, status });
+      logger.info('Call status updated to terminal state', { callId, status, endReason: resolvedEndReason, endedBy: resolvedEndedBy });
       return call;
     } catch (error) {
       if (error instanceof NotFoundError) throw error;

@@ -159,7 +159,11 @@ export class AudioStreamHandler {
     return conn;
   }
 
-  private async validateAndSetupAuthorizedConnection(ws: WebSocket, callId: string): Promise<ActiveConnection | null> {
+  private async validateAndSetupAuthorizedConnection(
+    ws: WebSocket,
+    callId: string,
+    preSetup?: () => void
+  ): Promise<ActiveConnection | null> {
     if (this.connections.has(callId)) {
       logger.warn('AudioStreamHandler: stream connection rejected — stream already active for call', { callId });
       try {
@@ -199,10 +203,26 @@ export class AudioStreamHandler {
       return null;
     }
 
+    if (preSetup) {
+      preSetup();
+    }
     return this.setupAuthorizedConnection(ws, callId);
   }
 
   private async handleConnection(ws: WebSocket, req: IncomingMessage): Promise<void> {
+    // Early message buffer: queue any messages that arrive while the connection is still
+    // being set up / authenticated, and replay them in order after registration.
+    const earlyMessageQueue: WebSocket.RawData[] = [];
+    let isFullySetup = false;
+    let initialHandshakeData: WebSocket.RawData | null = null;
+
+    const earlyQueueListener = (data: WebSocket.RawData) => {
+      if (!isFullySetup && data !== initialHandshakeData) {
+        earlyMessageQueue.push(data);
+      }
+    };
+    ws.on('message', earlyQueueListener);
+
     // Parse callId, token, and timestamp from the URL query string
     // Clean XML entity escapes (&amp;) if present
     const rawUrl = (req.url ?? '/').replace(/&amp;/g, '&');
@@ -229,6 +249,7 @@ export class AudioStreamHandler {
       }
 
       if (!isAuthorized) {
+        ws.off('message', earlyQueueListener);
         const rejectionReason = (!token || !tsStr)
           ? 'Missing token or ts in query params'
           : 'Invalid or expired stream token HMAC signature';
@@ -247,7 +268,27 @@ export class AudioStreamHandler {
       }
 
       logger.info('AudioStreamHandler: connection authorized via URL parameters', { callId });
-      await this.validateAndSetupAuthorizedConnection(ws, callId);
+      const conn = await this.validateAndSetupAuthorizedConnection(ws, callId, () => {
+        isFullySetup = true;
+        ws.off('message', earlyQueueListener);
+      });
+
+      if (!conn) {
+        ws.off('message', earlyQueueListener);
+        return;
+      }
+
+      // Replay any early messages received while connection was being validated and registered
+      if (earlyMessageQueue.length > 0) {
+        logger.info('AudioStreamHandler: replaying early messages received during connection setup', {
+          callId,
+          count: earlyMessageQueue.length,
+        });
+        while (earlyMessageQueue.length > 0) {
+          const queued = earlyMessageQueue.shift()!;
+          this.handleMessage(callId, queued);
+        }
+      }
       return;
     }
 
@@ -258,6 +299,7 @@ export class AudioStreamHandler {
     let isHandshakeComplete = false;
     const handshakeTimeout = setTimeout(() => {
       if (!isHandshakeComplete) {
+        ws.off('message', earlyQueueListener);
         logger.warn('AudioStreamHandler: handshake timeout waiting for stream start payload');
         try {
           ws.close(1008, 'Handshake timeout');
@@ -265,9 +307,14 @@ export class AudioStreamHandler {
       }
     }, 15000);
 
-    ws.once('close', () => clearTimeout(handshakeTimeout));
+    ws.once('close', () => {
+      clearTimeout(handshakeTimeout);
+      ws.off('message', earlyQueueListener);
+    });
 
     const onInitialMessage = async (data: WebSocket.RawData) => {
+      if (isHandshakeComplete) return;
+      initialHandshakeData = data;
       ws.off('message', onInitialMessage);
       clearTimeout(handshakeTimeout);
 
@@ -317,6 +364,7 @@ export class AudioStreamHandler {
         }
 
         if (!verifiedCallId) {
+          ws.off('message', earlyQueueListener);
           const startCallId = message.start?.callId || message.callId;
           const rejectionReason = 'Missing or invalid cryptographic token in stream extra_headers';
           logger.warn('AudioStreamHandler: unauthorized stream start payload', {
@@ -348,6 +396,7 @@ export class AudioStreamHandler {
         });
 
         if (!matchedCall) {
+          ws.off('message', earlyQueueListener);
           logger.warn('AudioStreamHandler: call record not found for verified token', { callId: verifiedCallId });
           try {
             ws.close(1008, 'Unknown call session');
@@ -358,6 +407,7 @@ export class AudioStreamHandler {
         // If payload explicitly carries a start.callId, it must match the verified call
         const startCallId = message.start?.callId || message.callId;
         if (startCallId && startCallId !== matchedCall.id && startCallId !== matchedCall.telemetryId) {
+          ws.off('message', earlyQueueListener);
           logger.warn('AudioStreamHandler: start payload identifier mismatch with verified call session', {
             startCallId,
             verifiedCallId,
@@ -375,8 +425,13 @@ export class AudioStreamHandler {
           status: matchedCall.status,
         });
 
-        const conn = await this.validateAndSetupAuthorizedConnection(ws, finalCallId);
+        const conn = await this.validateAndSetupAuthorizedConnection(ws, finalCallId, () => {
+          isFullySetup = true;
+          ws.off('message', earlyQueueListener);
+        });
+
         if (!conn) {
+          ws.off('message', earlyQueueListener);
           return;
         }
 
@@ -386,7 +441,20 @@ export class AudioStreamHandler {
         } else {
           this.handleMessage(finalCallId, data);
         }
+
+        // Replay any subsequent early messages queued while resolving session
+        if (earlyMessageQueue.length > 0) {
+          logger.info('AudioStreamHandler: replaying early messages received during handshake resolution', {
+            callId: finalCallId,
+            count: earlyMessageQueue.length,
+          });
+          while (earlyMessageQueue.length > 0) {
+            const queued = earlyMessageQueue.shift()!;
+            this.handleMessage(finalCallId, queued);
+          }
+        }
       } catch (err) {
+        ws.off('message', earlyQueueListener);
         logger.error('AudioStreamHandler: failed to process initial stream message', { error: err });
         try {
           ws.close(1008, 'Invalid start payload');

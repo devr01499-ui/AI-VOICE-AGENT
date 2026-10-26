@@ -152,9 +152,9 @@ export class GeminiLiveProvider implements IRealtimeProvider {
   public async verifyApiKey(apiKey: string): Promise<string | null> {
     if (!apiKey) return 'API key is missing';
     try {
-      // ✅ FIXED: Use v1alpha endpoint for verification
+      const httpBase = (env.GEMINI_HTTP_BASE || process.env.GEMINI_HTTP_BASE || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1alpha/models?key=${encodeURIComponent(apiKey)}`
+        `${httpBase}/v1alpha/models?key=${encodeURIComponent(apiKey)}`
       );
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as any;
@@ -343,11 +343,16 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     }
 
     const apiVersion = 'v1alpha';
-    const baseUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.${apiVersion}.GenerativeService.BidiGenerateContent`;
+    const wsBase = (env.GEMINI_WS_BASE || process.env.GEMINI_WS_BASE || 'wss://generativelanguage.googleapis.com').replace(/\/+$/, '');
+    const baseUrl = `${wsBase}/ws/google.ai.generativelanguage.${apiVersion}.GenerativeService.BidiGenerateContent`;
     const wsUrl = `${baseUrl}?key=${encodeURIComponent(selectedApiKey)}`;
 
     const sessionId = `gemini-sess-${Date.now()}`;
     const targetModel = resolveLiveModel(config.model);
+    const isSafeTier = Boolean((config as any)._isSafeTier || (config as any)._isRetry);
+    if (isSafeTier) {
+      logger.info('GeminiLiveProvider: Initializing session with SAFE setup tier', { callId, sessionId });
+    }
     const ws = new WebSocket(wsUrl);
 
     // ── Per-session closure state (no shared mutable instance fields) ──────
@@ -603,12 +608,11 @@ export class GeminiLiveProvider implements IRealtimeProvider {
                 }
               }
             },
-            thinkingConfig: {
-              thinkingBudget: 0
-            },
-            thinking_config: {
-              thinking_budget: 0
-            },
+            ...(!isSafeTier && {
+              thinkingConfig: {
+                thinkingBudget: 0
+              }
+            }),
             temperature: 0.5
           },
           systemInstruction: {
@@ -616,17 +620,19 @@ export class GeminiLiveProvider implements IRealtimeProvider {
           },
           inputAudioTranscription: {},
           outputAudioTranscription: {},
-          realtimeInputConfig: {
-            automaticActivityDetection: {
-              disabled: false,
-              startOfSpeechSensitivity: startSensitivity,
-              endOfSpeechSensitivity: endSensitivity,
-              prefixPaddingMs: 20,
-              silenceDurationMs: silenceDurationVal,
-            },
-            activityHandling: "START_OF_ACTIVITY_INTERRUPTS",
-            turnCoverage: "TURN_INCLUDES_ALL_INPUT"
-          },
+          ...(!isSafeTier && {
+            realtimeInputConfig: {
+              automaticActivityDetection: {
+                disabled: false,
+                startOfSpeechSensitivity: startSensitivity,
+                endOfSpeechSensitivity: endSensitivity,
+                prefixPaddingMs: 20,
+                silenceDurationMs: silenceDurationVal,
+              },
+              activityHandling: "START_OF_ACTIVITY_INTERRUPTS",
+              turnCoverage: "TURN_INCLUDES_ALL_INPUT"
+            }
+          }),
           ...(functionDeclarations && functionDeclarations.length > 0 && {
             tools: [
               {
@@ -779,8 +785,8 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
       // Retry setup once if not already retried
       if (!(config as any)._isRetry) {
-        logger.warn('GeminiLiveProvider: setupComplete failed before audio started. Retrying once...', { callId, error: String(err) });
-        const retryConfig = { ...config, _isRetry: true };
+        logger.warn('GeminiLiveProvider: setupComplete failed before audio started. Retrying once (SAFE setup tier)...', { callId, error: String(err) });
+        const retryConfig = { ...config, _isRetry: true, _isSafeTier: true };
         return this.createSession(retryConfig, callbacks);
       }
 
@@ -1170,7 +1176,8 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     });
 
     try {
-      const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${encodeURIComponent(this.apiKey)}`;
+      const wsBase = (env.GEMINI_WS_BASE || process.env.GEMINI_WS_BASE || 'wss://generativelanguage.googleapis.com').replace(/\/+$/, '');
+      const wsUrl = `${wsBase}/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${encodeURIComponent(this.apiKey)}`;
       const newWs = new WebSocket(wsUrl);
 
       return await new Promise<boolean>((resolve) => {
