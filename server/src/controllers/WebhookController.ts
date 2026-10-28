@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import { ProviderError } from '../types/errors';
 import { CallService } from '../services/CallService';
 import { CallRepository } from '../repositories/CallRepository';
+import { CallFinalizer } from '../services/CallFinalizer';
 import type { CallStatus } from '../types';
 
 export class WebhookController {
@@ -168,6 +169,11 @@ export class WebhookController {
             logger.error('Failed to generate call intelligence', { error: err.message, callId: logEntry.id });
           });
         }
+
+        // Idempotently enqueue analysis job in analysis_jobs
+        CallFinalizer.onCallFinalized(logEntry.id).catch(err => {
+          logger.error('WebhookController: Failed to enqueue CallFinalizer analysis job', { error: err.message, callId: logEntry.id });
+        });
 
 
         // Idempotent balance deduction via CallService -> MinutesService.

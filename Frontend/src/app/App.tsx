@@ -45,6 +45,7 @@ import { DashAIQualityAssurance } from "./components/qa/DashAIQualityAssurance";
 import { DashAlerting } from "./components/alerting/DashAlerting";
 import { DashIntegrations } from "./components/integrations/DashIntegrations";
 import { KycComplianceSettings } from "./components/kyc/KycComplianceSettings";
+import { ReportsHome } from "./components/reports/ReportsHome";
 import { RealCallModal } from "./components/calls/RealCallModal";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
@@ -623,7 +624,7 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
-type DashSection = "agents"|"calling"|"batch"|"calls"|"numbers"|"knowledge"|"voices"|"calendar"|"settings"|"billing"|"companion"|"chat_history"|"contacts"|"analytics"|"live_monitoring"|"qa"|"alerting"|"integrations";
+type DashSection = "agents"|"calling"|"batch"|"calls"|"numbers"|"knowledge"|"voices"|"calendar"|"settings"|"billing"|"companion"|"chat_history"|"contacts"|"analytics"|"live_monitoring"|"qa"|"alerting"|"integrations"|"reports";
 
 
 // Shared tiny helpers
@@ -6824,6 +6825,7 @@ function DashboardPage({ session }: { session: Session }) {
         { id: "analytics", icon: BarChart3, label: "Analytics" },
         { id: "live_monitoring", icon: Radio, label: "Live Monitoring" },
         { id: "qa", icon: ShieldCheck, label: "AI Quality Assurance" },
+        { id: "reports", icon: FileText, label: "Call Reports" },
         { id: "alerting", icon: Bell, label: "Alerting" },
       ]
     },
@@ -6854,6 +6856,7 @@ function DashboardPage({ session }: { session: Session }) {
     analytics: "Analytics",
     live_monitoring: "Live Monitoring",
     qa: "AI Quality Assurance",
+    reports: "Call Results & Reports",
     alerting: "Alerting",
     integrations: "Integrations",
   };
@@ -6980,6 +6983,7 @@ function DashboardPage({ session }: { session: Session }) {
               {section==="analytics"&&<DashAnalytics />}
               {section==="live_monitoring"&&<DashLiveMonitoring />}
               {section==="qa"&&<DashAIQualityAssurance />}
+              {section==="reports"&&<ReportsHome userRole={profile?.workspaceRole || 'owner'} />}
               {section==="alerting"&&<DashAlerting />}
               {section==="integrations"&&<DashIntegrations />}
             </motion.div>

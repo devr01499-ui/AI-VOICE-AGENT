@@ -984,6 +984,12 @@ export class CallOrchestrator extends EventEmitter {
       logger.warn('[POST_CALL_QA_AUDIT_WARNING] Failed to run conversation quality audit', { callId, error: String(auditErr) });
     });
 
+    // Enqueue reliable post-call report analysis job
+    const { CallFinalizer } = await import('../../services/CallFinalizer');
+    CallFinalizer.onCallFinalized(callId).catch((finalizerErr: any) => {
+      logger.error('[CALL_FINALIZER_ERROR] Failed to enqueue analysis job in endCallSession', { callId, error: String(finalizerErr) });
+    });
+
     this.emit('callEnded', { callId, reason: normalizedReason });
   }
 

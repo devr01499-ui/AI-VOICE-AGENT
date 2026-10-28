@@ -513,8 +513,8 @@ export class CallService {
 
       const transcriptText = segments.map((s: any) => `${s.speaker === 'agent' ? 'Agent' : 'Caller'}: ${s.content}`).join('\n');
 
-      const apiKey = call.user.geminiApiKey || env.GEMINI_API_KEY;
-      if (!apiKey || apiKey === 'AIzaSyAQ-x2GqymD5KvQ1tC9H78Z4E9uGGqIExQ') {
+      const apiKey = call.user.geminiApiKey || env.GEMINI_API_KEY || env.GOOGLE_API_KEY;
+      if (!apiKey || apiKey.trim() === '') {
         logger.warn('generatePostCallIntelligence: skipped, missing gemini api key');
         return;
       }
@@ -560,7 +560,8 @@ Transcript:
 ${transcriptText}`;
 
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const reportModelName = process.env.REPORT_ANALYSIS_MODEL || 'gemini-2.0-flash';
+      const model = genAI.getGenerativeModel({ model: reportModelName });
 
       const result = await model.generateContent(prompt);
       let responseText = result.response.text().trim();

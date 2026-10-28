@@ -59,7 +59,9 @@ import qaRoutes from './routes/qa';
 import alertingRoutes from './routes/alerting';
 import integrationsRoutes from './routes/integrations';
 import auditLogRoutes from './routes/auditLog';
+import reportsRoutes from './routes/reports';
 import { AlertEvaluator } from './services/AlertEvaluator';
+import { AnalysisWorker } from './workers/AnalysisWorker';
 import { BatchService } from './services/BatchService';
 import { requireAuthOrApiKey } from './middleware/authWrapper';
 import { requireCallingMinutes } from './middleware/planValidation';
@@ -221,7 +223,41 @@ app.get(['/health', '/ready'], async (_req, res) => {
       globalTelephonyCap: GLOBAL_TELEPHONY_CAP,
     };
 
-    const overallHealthy = dbHealthy;
+    // Analysis Queue Telemetry (M5)
+    let analysisQueue = {
+      healthy: true,
+      queueDepth: 0,
+      processingJobs: 0,
+      failedJobs: 0,
+      oldestPendingAgeSec: 0,
+    };
+    try {
+      const [queueDepth, processingJobs, failedJobs, oldestPending] = await Promise.all([
+        prisma.analysisJob.count({ where: { status: 'pending' } }),
+        prisma.analysisJob.count({ where: { status: 'processing' } }),
+        prisma.analysisJob.count({ where: { status: 'failed' } }),
+        prisma.analysisJob.findFirst({
+          where: { status: 'pending' },
+          orderBy: { createdAt: 'asc' },
+          select: { createdAt: true },
+        }),
+      ]);
+      const oldestPendingAgeSec = oldestPending
+        ? Math.floor((Date.now() - oldestPending.createdAt.getTime()) / 1000)
+        : 0;
+      const isQueueStalled = queueDepth > 200 || oldestPendingAgeSec > 600;
+      analysisQueue = {
+        healthy: !isQueueStalled,
+        queueDepth,
+        processingJobs,
+        failedJobs,
+        oldestPendingAgeSec,
+      };
+    } catch (qErr) {
+      logger.warn('Health probe: Failed to inspect analysis job queue', { error: String(qErr) });
+    }
+
+    const overallHealthy = dbHealthy && analysisQueue.healthy;
     const statusCode = overallHealthy ? 200 : 503;
 
     res.status(statusCode).json({
@@ -232,6 +268,7 @@ app.get(['/health', '/ready'], async (_req, res) => {
       database: { healthy: dbHealthy, latencyMs: dbLatencyMs },
       providers,
       runtime,
+      analysisQueue,
     });
   } catch (err: any) {
     const refCode = `HEALTH-500-${Date.now()}`;
@@ -282,6 +319,7 @@ app.use('/api/v2/analytics', requireAuth, analyticsRoutes);
 app.use('/api/v2/qa', requireAuth, qaRoutes);
 app.use('/api/v2/alerting', requireAuth, alertingRoutes);
 app.use('/api/v2/audit-logs', requireAuth, auditLogRoutes);
+app.use('/api/v2/reports', requireAuth, reportsRoutes);
 
 // Administrative Console API — Guarded by strict origin policy, RBAC and AAL2 MFA
 app.use('/api/v2/admin', (req, res, next) => {
@@ -648,6 +686,9 @@ async function bootstrap(): Promise<void> {
     // Start background rule evaluation worker
     AlertEvaluator.startBackgroundWorker(60000);
 
+    // Start background analysis queue worker (5s evaluation cycle)
+    AnalysisWorker.startBackgroundWorker(5000);
+
     // Boot recovery & 60s background cycle for batch campaigns & stuck calls
     Promise.all([
       BatchService.recoverStaleBatches(),
@@ -679,6 +720,9 @@ async function bootstrap(): Promise<void> {
 
     // Stop accepting new connections
     server.close();
+
+    // Stop background queue workers
+    AnalysisWorker.stopBackgroundWorker();
 
     // Shutdown active voice sessions
     try {

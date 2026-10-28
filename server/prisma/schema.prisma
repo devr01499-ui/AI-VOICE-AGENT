@@ -210,6 +210,8 @@ model Call {
   callEvents         CallEvent[]
   qaResults          CallQaResult[]
   batchRecipients    BatchRecipient[]
+  analysisJob        AnalysisJob?
+  callResult         CallResult?
 
   @@index([agentId])
   @@index([userId])
@@ -1246,5 +1248,74 @@ model SystemAlert {
   @@index([userId])
   @@index([type, isResolved])
   @@map("system_alerts")
+}
+
+// ─────────────────────────────────────────────
+// CALL RESULTS & INTELLIGENCE REPORTING
+// ─────────────────────────────────────────────
+
+model AnalysisJob {
+  id           String    @id @default(uuid())
+  callId       String    @unique @map("call_id")
+  workspaceId  String    @map("workspace_id")
+  agentId      String?   @map("agent_id")
+  status       String    @default("pending") // pending | processing | completed | failed
+  attempts     Int       @default(0)
+  maxAttempts  Int       @default(5) @map("max_attempts")
+  lockedAt     DateTime? @map("locked_at")
+  lockedBy     String?   @map("locked_by")
+  nextRunAt    DateTime  @default(now()) @map("next_run_at")
+  lastError    String?   @map("last_error")
+  lastErrorCode String?  @map("last_error_code")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextRunAt])
+  @@index([workspaceId, status])
+  @@map("analysis_jobs")
+}
+
+model CallResult {
+  id               String    @id @default(uuid())
+  callId           String    @unique @map("call_id")
+  workspaceId      String    @map("workspace_id")
+  agentId          String?   @map("agent_id")
+  batchId          String?   @map("batch_id")
+  status           String    @default("completed") // completed | needs_review | failed
+  resultLabel      String    @map("result_label")
+  score            Float?
+  confidence       Float
+  summary          String?
+  sentiment        String?
+  fields           Json      @default("{}")
+  evidence         Json      @default("{}")
+  blueprintVersion String?   @map("blueprint_version")
+  promptVersion    String?   @map("prompt_version")
+  model            String?
+  reviewStatus     String    @default("unreviewed") @map("review_status") // unreviewed | accepted | corrected
+  correctedBy      String?   @map("corrected_by")
+  correctedAt      DateTime? @map("corrected_at")
+  correctionNotes  String?   @map("correction_notes")
+  inputHash        String?   @map("input_hash")
+  language         String?
+  transcriptQuality String?  @map("transcript_quality")
+  promptTokens     Int?      @map("prompt_tokens")
+  completionTokens Int?      @map("completion_tokens")
+  totalTokens      Int?      @map("total_tokens")
+  latencyMs        Int?      @map("latency_ms")
+  errorCode        String?   @map("error_code")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([workspaceId, agentId])
+  @@index([workspaceId, batchId])
+  @@index([workspaceId, resultLabel])
+  @@index([workspaceId, status])
+  @@map("call_results")
 }
 

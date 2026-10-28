@@ -932,3 +932,142 @@ export async function updateConcurrencyLimit(maxConcurrentCalls: number): Promis
     body: JSON.stringify({ maxConcurrentCalls }),
   });
 }
+
+// ─── Call Results & Reports API (M4) ─────────────────────────────────────────
+
+export interface ReportListItem {
+  id: string;
+  callId: string;
+  blueprintId: string;
+  blueprintName?: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  label: string;
+  score: number | null;
+  confidence: number | null;
+  reviewNeeded: boolean;
+  reviewReason?: string | null;
+  summary?: string | null;
+  fields?: Record<string, any>;
+  evidenceQuotes?: Record<string, any>;
+  hasHumanCorrection: boolean;
+  createdAt: string;
+  updatedAt: string;
+  call?: {
+    id: string;
+    recipientPhoneNumber: string;
+    fromPhoneNumber?: string;
+    direction?: string;
+    status: string;
+    durationSeconds?: number;
+    recordingUrl?: string | null;
+    startedAt?: string;
+    endedAt?: string;
+    transcript?: string | null;
+    agent?: { id: string; name: string } | null;
+  };
+}
+
+export interface DetailedReport extends ReportListItem {
+  call: ApiCall & {
+    agent?: { id: string; name: string } | null;
+  };
+  job?: {
+    id: string;
+    status: string;
+    attempts: number;
+    maxAttempts: number;
+    lastError?: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+  auditLogs?: Array<{
+    id: string;
+    action: string;
+    actorUserId: string;
+    createdAt: string;
+    metadata: any;
+  }>;
+}
+
+export interface ReportsSummary {
+  totalCalls: number;
+  analyzedCalls: number;
+  pendingAnalysis: number;
+  failedAnalysis: number;
+  needsReviewCount: number;
+  avgScore: number;
+  humanCorrectionRate: number;
+  labelDistribution: Record<string, number>;
+  avgConfidence: number;
+}
+
+export interface BlueprintSummary {
+  id: string;
+  name: string;
+  industry: string;
+  description: string;
+  labels: string[];
+  fieldCount: number;
+}
+
+export const reportsApi = {
+  listReports: async (params?: {
+    status?: string;
+    label?: string;
+    reviewNeeded?: boolean;
+    agentId?: string;
+    batchId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    cursor?: string;
+    limit?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.append('status', params.status);
+    if (params?.label) qs.append('label', params.label);
+    if (params?.reviewNeeded !== undefined) qs.append('reviewNeeded', String(params.reviewNeeded));
+    if (params?.agentId) qs.append('agentId', params.agentId);
+    if (params?.batchId) qs.append('batchId', params.batchId);
+    if (params?.dateFrom) qs.append('dateFrom', params.dateFrom);
+    if (params?.dateTo) qs.append('dateTo', params.dateTo);
+    if (params?.cursor) qs.append('cursor', params.cursor);
+    if (params?.limit) qs.append('limit', String(params.limit));
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+    return await apiFetch<{ items: ReportListItem[]; nextCursor: string | null; hasMore: boolean; totalCount: number }>(`/api/v2/reports${query}`);
+  },
+  getSummary: async (params?: { dateFrom?: string; dateTo?: string; agentId?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.dateFrom) qs.append('dateFrom', params.dateFrom);
+    if (params?.dateTo) qs.append('dateTo', params.dateTo);
+    if (params?.agentId) qs.append('agentId', params.agentId);
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+    return await apiFetch<ReportsSummary>(`/api/v2/reports/summary${query}`);
+  },
+  getBlueprints: async () => {
+    return await apiFetch<BlueprintSummary[]>('/api/v2/reports/blueprints');
+  },
+  getReport: async (callId: string) => {
+    return await apiFetch<DetailedReport>(`/api/v2/reports/${callId}`);
+  },
+  submitCorrection: async (callId: string, payload: { label?: string; fields?: Record<string, any>; score?: number; notes?: string }) => {
+    return await apiFetch<{ report: ReportListItem; message: string }>(`/api/v2/reports/${callId}/correct`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+  reanalyze: async (callId: string, payload?: { blueprintId?: string; priority?: number }) => {
+    return await apiFetch<{ message: string; jobId: string }>(`/api/v2/reports/${callId}/reanalyze`, {
+      method: 'POST',
+      body: JSON.stringify(payload || {})
+    });
+  },
+  getExportCsvUrl: (params?: { dateFrom?: string; dateTo?: string; label?: string; reviewNeeded?: boolean }) => {
+    const qs = new URLSearchParams();
+    if (params?.dateFrom) qs.append('dateFrom', params.dateFrom);
+    if (params?.dateTo) qs.append('dateTo', params.dateTo);
+    if (params?.label) qs.append('label', params.label);
+    if (params?.reviewNeeded !== undefined) qs.append('reviewNeeded', String(params.reviewNeeded));
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+    return `${API_BASE}/api/v2/reports/export.csv${query}`;
+  }
+};

@@ -25,7 +25,15 @@
     "test:batch-f": "node scripts/test_observability_health_telemetry.js",
     "test:street-smart": "npx tsx scripts/test_street_smart_intelligence.ts",
     "test:street-smart-regression": "npx tsx -r dotenv/config scripts/test_street_smart_regression.ts",
-    "eval:street-smart-live": "npx tsx -r dotenv/config scripts/eval_street_smart_live.ts"
+    "eval:street-smart-live": "npx tsx -r dotenv/config scripts/eval_street_smart_live.ts",
+    "test:m1-pipeline": "npx tsx -r dotenv/config scripts/test_call_finalizer_idempotency.ts",
+    "test:normalizers": "npx tsx scripts/test_normalizers_hinglish.ts",
+    "test:speaker-attribution": "npx tsx scripts/test_speaker_attribution.ts",
+    "test:prompt-injection": "npx tsx scripts/test_prompt_injection.ts",
+    "test:evidence": "npx tsx scripts/test_evidence_substring_check.ts",
+    "test:m2-accuracy": "npx tsx scripts/test_normalizers_hinglish.ts && npx tsx scripts/test_speaker_attribution.ts && npx tsx scripts/test_prompt_injection.ts && npx tsx scripts/test_evidence_substring_check.ts && npx tsx scripts/test_m2_mechanics_suite.ts",
+    "eval:reports": "npx tsx -r dotenv/config scripts/eval/run_eval_harness.ts",
+    "eval:smoke": "npx tsx -r dotenv/config scripts/eval/run_eval_harness.ts --smoke"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

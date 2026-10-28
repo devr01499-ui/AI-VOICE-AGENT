@@ -15,7 +15,11 @@
     "test:payment-security": "npm run --prefix server test:payment-security",
     "test:street-smart": "npm run --prefix server test:street-smart",
     "test:street-smart-regression": "npm run --prefix server test:street-smart-regression",
-    "eval:street-smart-live": "npm run --prefix server eval:street-smart-live"
+    "eval:street-smart-live": "npm run --prefix server eval:street-smart-live",
+    "test:m1-pipeline": "npm run --prefix server test:m1-pipeline",
+    "test:m2-accuracy": "npm run --prefix server test:m2-accuracy",
+    "eval:reports": "npm run --prefix server eval:reports",
+    "eval:smoke": "npm run --prefix server eval:smoke"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
