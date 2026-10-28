@@ -1,0 +1,17 @@
+[
+  { "speaker": "agent", "content": "Hello, good day! I am calling from Claritiy regarding an exciting senior backend engineer opportunity. Are you exploring new roles currently?" },
+  { "speaker": "user", "content": "Yes, I am looking for a change. What specific roles do you have open right now?" },
+  { "speaker": "agent", "content": "We have an open Senior Distributed Systems role building low-latency voice platforms. Could you share your total years of engineering experience?" },
+  { "speaker": "user", "content": "I have about six years of backend experience." },
+  { "speaker": "agent", "content": "Great, six years in backend. And what are your current salary expectations?" },
+  { "speaker": "user", "content": "I am looking for around five lakh per month." },
+  { "speaker": "agent", "content": "Understood, 5 lakhs per month noted. For the technical discussion, when can you be available? You tell me." },
+  { "speaker": "user", "content": "You tell me when you have a slot." },
+  { "speaker": "agent", "content": "How about tomorrow morning at 10 AM?" },
+  { "speaker": "user", "content": "Tomorrow 10 AM works for me." },
+  { "speaker": "agent", "content": "Noted, tomorrow at 10 AM." },
+  { "speaker": "user", "content": "Just to check, why will the recruitment team reach out next?" },
+  { "speaker": "agent", "content": "Our talent team will review these screening notes and email your confirmed interview slot and meeting link within 24 hours." },
+  { "speaker": "user", "content": "Theek hai, thank you. Bye!" },
+  { "speaker": "agent", "content": "Theek hai, thank you! Take care and have a wonderful day." }
+]

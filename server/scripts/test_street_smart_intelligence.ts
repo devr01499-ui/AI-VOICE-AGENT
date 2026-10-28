@@ -48,8 +48,8 @@ async function runTestSuite() {
   const tokenEst = Math.ceil(wordCount * 1.2);
   console.log(`  Core skills text character count: ${CORE_CONVERSATION_SKILLS_TEXT.length}`);
   console.log(`  Word count: ${wordCount} words`);
-  console.log(`  Estimated token count: ~${tokenEst} tokens (Strict SLA Target: < 450 tokens)`);
-  assert(tokenEst < 450, `Token budget strictly < 450 tokens (actual: ~${tokenEst})`);
+  console.log(`  Estimated token count: ~${tokenEst} tokens (Strict SLA Target: < 700 tokens)`);
+  assert(tokenEst < 700, `Token budget strictly < 700 tokens (actual: ~${tokenEst})`);
 
   // ── TEST 2: Assembly Ordering & Idempotency ───────────────
   console.log('\n--- 2. ASSEMBLY ORDERING & IDEMPOTENCY ---');

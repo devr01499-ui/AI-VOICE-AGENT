@@ -116,5 +116,18 @@ phases:
         status: completed
       - task: 9.6 Infrastructure & geographical region latency optimization analysis & documentation
         status: completed
+  9:
+    name: Street-Smart Conversation Skills Layer & Quality Guardrails
+    tasks:
+      - task: 10.1 Calendar tools conditional gating and model-safe fallback output
+        status: completed
+      - task: 10.2 Role-weighted whole-word industry detection with recruitment overlay
+        status: completed
+      - task: 10.3 12 street-smart rules v1.1.0 with 700 token cap budget
+        status: completed
+      - task: 10.4 Deterministic conversationQualityLint and post-call QA audit alerting
+        status: completed
+      - task: 10.5 41-case regression suite and CI lock with mock-mode evaluation
+        status: completed
 
 

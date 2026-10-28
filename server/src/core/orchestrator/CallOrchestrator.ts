@@ -446,36 +446,45 @@ export class CallOrchestrator extends EventEmitter {
     // Register active tools
     agentConfig.tools = agentConfig.tools || [];
     agentConfig.tools.push(bookFollowUpCallTool);
-    agentConfig.tools.push({
-      name: 'check_availability',
-      description: 'Check Google Calendar for available meeting slots',
-      executionType: 'builtin',
-      config: {},
-      parameters: {
-        type: 'OBJECT',
-        properties: {
-          startTime: { type: 'STRING', description: 'ISO string of start time' },
-          endTime: { type: 'STRING', description: 'ISO string of end time' }
-        },
-        required: ['startTime', 'endTime']
-      }
-    });
-    agentConfig.tools.push({
-      name: 'schedule_event',
-      description: 'Schedule an event on Google Calendar',
-      executionType: 'builtin',
-      config: {},
-      parameters: {
-        type: 'OBJECT',
-        properties: {
-          summary: { type: 'STRING', description: 'Event summary/title' },
-          startTime: { type: 'STRING', description: 'ISO string of start time' },
-          endTime: { type: 'STRING', description: 'ISO string of end time' },
-          description: { type: 'STRING', description: 'Event description (optional)' }
-        },
-        required: ['summary', 'startTime', 'endTime']
-      }
-    });
+
+    // Offer calendar tools ONLY if the account owner has connected Google Calendar
+    const ownerUserId = activeAgent?.userId || (agentConfig as any)?.userId;
+    const isGoogleCalendarConnected = ownerUserId
+      ? await CalendarService.hasConnectedCalendar(ownerUserId)
+      : false;
+
+    if (isGoogleCalendarConnected) {
+      agentConfig.tools.push({
+        name: 'check_availability',
+        description: 'Check Google Calendar for available meeting slots',
+        executionType: 'builtin',
+        config: {},
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            startTime: { type: 'STRING', description: 'ISO string of start time' },
+            endTime: { type: 'STRING', description: 'ISO string of end time' }
+          },
+          required: ['startTime', 'endTime']
+        }
+      });
+      agentConfig.tools.push({
+        name: 'schedule_event',
+        description: 'Schedule an event on Google Calendar',
+        executionType: 'builtin',
+        config: {},
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            summary: { type: 'STRING', description: 'Event summary/title' },
+            startTime: { type: 'STRING', description: 'ISO string of start time' },
+            endTime: { type: 'STRING', description: 'ISO string of end time' },
+            description: { type: 'STRING', description: 'Event description (optional)' }
+          },
+          required: ['summary', 'startTime', 'endTime']
+        }
+      });
+    }
 
     if (agentConfig.tools && agentConfig.tools.length > 0) {
       this.toolExecutor.clearRegistry();
@@ -967,6 +976,12 @@ export class CallOrchestrator extends EventEmitter {
     const { CallService } = await import('../../services/CallService');
     CallService.deductCallMinutes(callId, finalDurationSeconds).catch((deductErr: any) => {
       logger.error('[CALL_DEDUCTION_ERROR] Failed during post-call deduction', { callId, error: String(deductErr) });
+    });
+
+    // Run deterministic conversation quality lint and store QA finding
+    const { runPostCallQualityAudit } = await import('../../utils/conversationQualityLint');
+    runPostCallQualityAudit(callId).catch((auditErr: any) => {
+      logger.warn('[POST_CALL_QA_AUDIT_WARNING] Failed to run conversation quality audit', { callId, error: String(auditErr) });
     });
 
     this.emit('callEnded', { callId, reason: normalizedReason });

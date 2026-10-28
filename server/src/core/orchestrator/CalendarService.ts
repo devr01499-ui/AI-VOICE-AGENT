@@ -3,6 +3,9 @@ import { calendar as getCalendar } from 'googleapis/build/src/apis/calendar';
 import { prisma } from '../../lib/prisma';
 import { logger } from '../../utils/logger';
 
+export const CALENDAR_UNAVAILABLE_SAFE_INSTRUCTION =
+  'Calendar integration is unavailable or not connected. Do NOT tell the caller that the calendar is not connected, unavailable, or failed. Do NOT mention systems, calendars, databases, or technical errors. Instead, naturally propose a specific time or acknowledge their preferred time with "noted", and inform them the team will follow up to confirm the slot.';
+
 export class CalendarService {
   private static getOauth2Client() {
     return new OAuth2Client(
@@ -12,11 +15,36 @@ export class CalendarService {
     );
   }
 
+  static async hasConnectedCalendar(userId?: string | null): Promise<boolean> {
+    try {
+      if (!userId) return false;
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { googleCalendarTokens: true }
+      });
+      return !!user?.googleCalendarTokens;
+    } catch {
+      return false;
+    }
+  }
+
   static async checkAvailability(userId: string, startTime: string, endTime: string): Promise<any> {
     try {
+      if (!userId) {
+        return {
+          success: false,
+          error: 'CALENDAR_NOT_CONNECTED',
+          instruction: CALENDAR_UNAVAILABLE_SAFE_INSTRUCTION,
+        };
+      }
+
       const user = await prisma.user.findUnique({ where: { id: userId } });
       if (!user?.googleCalendarTokens) {
-        return { success: false, error: 'Google Calendar not connected' };
+        return {
+          success: false,
+          error: 'CALENDAR_NOT_CONNECTED',
+          instruction: CALENDAR_UNAVAILABLE_SAFE_INSTRUCTION,
+        };
       }
 
       const tokens = JSON.parse(user.googleCalendarTokens);
@@ -37,15 +65,31 @@ export class CalendarService {
       return { success: true, available: busy.length === 0, busySlots: busy };
     } catch (error: any) {
       logger.error('Failed to check calendar availability', { error: error.message, userId });
-      return { success: false, error: 'Failed to check calendar availability' };
+      return {
+        success: false,
+        error: 'CALENDAR_CHECK_FAILED',
+        instruction: CALENDAR_UNAVAILABLE_SAFE_INSTRUCTION,
+      };
     }
   }
 
   static async scheduleEvent(userId: string, summary: string, startTime: string, endTime: string, description?: string): Promise<any> {
     try {
+      if (!userId) {
+        return {
+          success: false,
+          error: 'CALENDAR_NOT_CONNECTED',
+          instruction: CALENDAR_UNAVAILABLE_SAFE_INSTRUCTION,
+        };
+      }
+
       const user = await prisma.user.findUnique({ where: { id: userId } });
       if (!user?.googleCalendarTokens) {
-        return { success: false, error: 'Google Calendar not connected' };
+        return {
+          success: false,
+          error: 'CALENDAR_NOT_CONNECTED',
+          instruction: CALENDAR_UNAVAILABLE_SAFE_INSTRUCTION,
+        };
       }
 
       const tokens = JSON.parse(user.googleCalendarTokens);
@@ -71,7 +115,11 @@ export class CalendarService {
       return { success: true, eventId: event.data.id, eventLink: event.data.htmlLink };
     } catch (error: any) {
       logger.error('Failed to schedule calendar event', { error: error.message, userId });
-      return { success: false, error: 'Failed to schedule event' };
+      return {
+        success: false,
+        error: 'CALENDAR_SCHEDULE_FAILED',
+        instruction: CALENDAR_UNAVAILABLE_SAFE_INSTRUCTION,
+      };
     }
   }
 }

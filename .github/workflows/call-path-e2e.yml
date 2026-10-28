@@ -8,6 +8,11 @@ on:
       - 'server/src/controllers/CallController.ts'
       - 'server/src/middleware/plivoWebhook.ts'
       - 'server/src/core/orchestrator/CallOrchestrator.ts'
+      - 'server/src/utils/systemInstructionBuilder.ts'
+      - 'server/src/core/orchestrator/CalendarService.ts'
+      - 'server/src/utils/conversationQualityLint.ts'
+      - 'server/scripts/test_street_smart_regression.ts'
+      - 'server/scripts/eval_street_smart_live.ts'
       - 'e2e-call-harness/**'
   push:
     branches:
@@ -18,6 +23,11 @@ on:
       - 'server/src/controllers/CallController.ts'
       - 'server/src/middleware/plivoWebhook.ts'
       - 'server/src/core/orchestrator/CallOrchestrator.ts'
+      - 'server/src/utils/systemInstructionBuilder.ts'
+      - 'server/src/core/orchestrator/CalendarService.ts'
+      - 'server/src/utils/conversationQualityLint.ts'
+      - 'server/scripts/test_street_smart_regression.ts'
+      - 'server/scripts/eval_street_smart_live.ts'
       - 'e2e-call-harness/**'
   workflow_dispatch:
 
@@ -71,3 +81,22 @@ jobs:
         run: |
           chmod +x e2e-call-harness/run_case.sh
           ./e2e-call-harness/run_case.sh
+
+      - name: Run Street-Smart Intelligence & Regression Suite (41/41)
+        env:
+          DATABASE_URL: "postgresql://claritiy:testpassword@localhost:5432/claritiy_test?schema=public"
+          NODE_ENV: "test"
+        run: |
+          cd server
+          npm run test:street-smart
+          npm run test:street-smart-regression
+
+      - name: Run Street-Smart Mock Mode Eval (bad must FAIL, good must PASS)
+        env:
+          DATABASE_URL: "postgresql://claritiy:testpassword@localhost:5432/claritiy_test?schema=public"
+          NODE_ENV: "test"
+        run: |
+          cd server
+          EVAL_MOCK=bad npm run eval:street-smart-live
+          EVAL_MOCK=good npm run eval:street-smart-live
+

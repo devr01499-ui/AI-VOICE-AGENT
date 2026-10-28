@@ -12,7 +12,10 @@
     "typecheck": "npm run --prefix Frontend typecheck && npm run --prefix server typecheck",
     "test:security": "npm run --prefix server test:security",
     "test:owasp": "npm run --prefix server test:owasp",
-    "test:payment-security": "npm run --prefix server test:payment-security"
+    "test:payment-security": "npm run --prefix server test:payment-security",
+    "test:street-smart": "npm run --prefix server test:street-smart",
+    "test:street-smart-regression": "npm run --prefix server test:street-smart-regression",
+    "eval:street-smart-live": "npm run --prefix server eval:street-smart-live"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

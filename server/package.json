@@ -23,7 +23,9 @@
     "test:batch-d": "node scripts/test_audio_pipeline_reliability.js",
     "test:batch-e": "node scripts/test_webhook_idempotency_replay.js",
     "test:batch-f": "node scripts/test_observability_health_telemetry.js",
-    "test:street-smart": "npx tsx scripts/test_street_smart_intelligence.ts"
+    "test:street-smart": "npx tsx scripts/test_street_smart_intelligence.ts",
+    "test:street-smart-regression": "npx tsx -r dotenv/config scripts/test_street_smart_regression.ts",
+    "eval:street-smart-live": "npx tsx -r dotenv/config scripts/eval_street_smart_live.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
