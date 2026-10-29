@@ -11,7 +11,7 @@
  * - Attempt 4: +1h
  * - Attempt 5: Terminal failure + alert
  *
- * Stale-lock auto-recovery: Claims jobs with `locked_at < NOW() - INTERVAL '5 minutes'`.
+ * Stale-lock auto-recovery: Claims jobs with `locked_at < NOW() - INTERVAL '15 minutes'`.
  */
 
 import { prisma } from '../lib/prisma';
@@ -61,15 +61,15 @@ export class AnalysisWorker {
     let processedCount = 0;
 
     try {
-      // 1. Atomically claim jobs using FOR UPDATE SKIP LOCKED with stale lock recovery
-      const claimedJobs: Array<{ id: string; call_id: string; attempts: number; max_attempts: number }> =
+      // 1. Atomically claim jobs using FOR UPDATE SKIP LOCKED with 15-minute stale lock recovery (E2)
+      const claimedJobs: Array<{ id: string; call_id: string; workspace_id: string; agent_id: string | null; attempts: number; max_attempts: number }> =
         await prisma.$queryRawUnsafe(`
           WITH claimable AS (
             SELECT id
             FROM "analysis_jobs"
             WHERE (
-                    (status IN ('pending', 'failed') AND (locked_at IS NULL OR locked_at < NOW() - INTERVAL '5 minutes'))
-                 OR (status = 'processing' AND locked_at < NOW() - INTERVAL '5 minutes')
+                    (status IN ('pending', 'failed') AND (locked_at IS NULL OR locked_at < NOW() - INTERVAL '15 minutes'))
+                 OR (status = 'processing' AND locked_at < NOW() - INTERVAL '15 minutes')
                   )
               AND attempts < max_attempts
               AND next_run_at <= CURRENT_TIMESTAMP
@@ -85,7 +85,7 @@ export class AnalysisWorker {
               updated_at = CURRENT_TIMESTAMP
           FROM claimable
           WHERE j.id = claimable.id
-          RETURNING j.id, j.call_id, j.attempts, j.max_attempts;
+          RETURNING j.id, j.call_id, j.workspace_id, j.agent_id, j.attempts, j.max_attempts;
         `);
 
       if (!claimedJobs || claimedJobs.length === 0) {
@@ -152,6 +152,30 @@ export class AnalysisWorker {
                 attempts: nextAttempts,
                 error: err.message,
               });
+
+              // C11: Write terminal failed result row so the call is visible in Reports and counts in failedAnalysis
+              await prisma.callResult.upsert({
+                where: { callId: job.call_id },
+                create: {
+                  id: randomUUID(),
+                  callId: job.call_id,
+                  workspaceId: job.workspace_id,
+                  agentId: job.agent_id,
+                  status: 'failed',
+                  resultLabel: 'Analysis Failed',
+                  confidence: 0,
+                  score: null,
+                  summary: err.message || 'Analysis permanently failed after retries',
+                  fields: {},
+                  evidence: {},
+                  model: 'system',
+                },
+                update: {
+                  status: 'failed',
+                  resultLabel: 'Analysis Failed',
+                  summary: err.message || 'Analysis permanently failed after retries',
+                },
+              }).catch((e) => logger.warn('AnalysisWorker: Failed to record terminal failed callResult', { error: String(e) }));
             } else {
               logger.warn('AnalysisWorker: Job processing failed, scheduled retry', {
                 jobId: job.id,

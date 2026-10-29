@@ -45,6 +45,57 @@ export interface ReportBlueprint {
 
 export const REPORT_BLUEPRINTS: Record<string, ReportBlueprint> = {
   // ─────────────────────────────────────────────────────────────
+  // 0. GENERAL CALL ANALYSIS (tpl-0)
+  // ─────────────────────────────────────────────────────────────
+  'tpl-0': {
+    templateId: 'tpl-0',
+    templateName: 'General Call Analysis',
+    category: 'General',
+    version: '1.0.0',
+    tieBreakRule: 'Resolved beats Follow-up Required, beats Not Interested, beats Incomplete.',
+    labels: [
+      {
+        label: 'Resolved',
+        definition: 'Caller inquiry, request, or purpose was addressed successfully during the call.',
+        positiveExamples: ['Thank you, that answers all my questions.', 'Great, I will proceed as advised.'],
+        negativeExamples: ['I still need more information.', 'Please have someone call me back.'],
+        priority: 1,
+      },
+      {
+        label: 'Follow-up Required',
+        definition: 'Conversation requires callback, escalation, or pending documentation.',
+        positiveExamples: ['Please call me back tomorrow.', 'Can someone email me the details?'],
+        negativeExamples: ['Everything is clear now, thank you.', 'Do not call me again.'],
+        priority: 2,
+      },
+      {
+        label: 'Not Interested',
+        definition: 'Caller explicitly declined the offering or requested to end the interaction.',
+        positiveExamples: ['I am not interested at this time.', 'No thank you, do not need this.'],
+        negativeExamples: ['Yes please tell me more.', 'Let us talk tomorrow.'],
+        priority: 3,
+      },
+      {
+        label: 'Unclear',
+        definition: 'Call dropped or conversation was too brief or garbled to determine outcome.',
+        positiveExamples: ['Hello, can you hear me? *hangup*', 'Static audio.'],
+        negativeExamples: ['Yes, send me the details.', 'I am interested.'],
+        priority: 99,
+      },
+    ],
+    fields: [
+      { name: 'callerName', type: 'string', description: 'Name of the caller if provided', required: false, notStatedValue: null },
+      { name: 'primaryTopic', type: 'string', description: 'Primary subject or reason for the call', required: false, notStatedValue: null },
+      { name: 'followUpDate', type: 'date', description: 'Agreed callback or follow-up date', required: false, notStatedValue: null },
+      { name: 'satisfactionLevel', type: 'enum', description: 'Customer sentiment / satisfaction level', required: false, options: ['Satisfied', 'Neutral', 'Dissatisfied'], notStatedValue: null },
+    ],
+    rubric: [
+      { criterion: 'Inquiry Addressed', weight: 50, evaluator: (f) => (f.primaryTopic ? 1.0 : 0.5) },
+      { criterion: 'Clear Next Step', weight: 50, evaluator: (f) => (f.followUpDate ? 1.0 : 0.5) },
+    ],
+  },
+
+  // ─────────────────────────────────────────────────────────────
   // 1. FRONT DESK RECEPTIONIST (tpl-1)
   // ─────────────────────────────────────────────────────────────
   'tpl-1': {
@@ -685,7 +736,16 @@ export const REPORT_BLUEPRINTS: Record<string, ReportBlueprint> = {
       { name: 'primaryTechStack', type: 'string', description: 'Primary technical skills or domain', required: false, notStatedValue: null },
     ],
     rubric: [
-      { criterion: 'Experience >= 3 years', weight: 40, evaluator: (f) => (f.yearsExperience && f.yearsExperience >= 3 ? 1.0 : (f.yearsExperience ? 0.4 : 0.0)) },
+      {
+        criterion: 'Experience >= 3 years',
+        weight: 40,
+        evaluator: (f) => (
+          f.yearsExperience && f.yearsExperience >= 8 ? 1.0 :
+          (f.yearsExperience && f.yearsExperience >= 5 ? 0.8 :
+          (f.yearsExperience && f.yearsExperience >= 3 ? 0.6 :
+          (f.yearsExperience ? 0.3 : 0.0)))
+        ),
+      },
       { criterion: 'Notice Period <= 30 days', weight: 30, evaluator: (f) => (f.noticePeriodDays !== null && f.noticePeriodDays !== undefined && f.noticePeriodDays <= 30 ? 1.0 : 0.4) },
       { criterion: 'Salary Alignment', weight: 30, evaluator: (f) => (f.expectedCtcLakhs && f.expectedCtcLakhs <= 25 ? 1.0 : 0.5) },
     ],

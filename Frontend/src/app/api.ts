@@ -957,6 +957,8 @@ export interface ReportListItem {
     recipientPhoneNumber: string;
     fromPhoneNumber?: string;
     direction?: string;
+    contactNumber?: string;
+    businessNumber?: string;
     status: string;
     durationSeconds?: number;
     recordingUrl?: string | null;
@@ -1017,6 +1019,7 @@ export const reportsApi = {
     reviewNeeded?: boolean;
     agentId?: string;
     batchId?: string;
+    direction?: string;
     dateFrom?: string;
     dateTo?: string;
     cursor?: string;
@@ -1028,6 +1031,7 @@ export const reportsApi = {
     if (params?.reviewNeeded !== undefined) qs.append('reviewNeeded', String(params.reviewNeeded));
     if (params?.agentId) qs.append('agentId', params.agentId);
     if (params?.batchId) qs.append('batchId', params.batchId);
+    if (params?.direction && params.direction !== 'all') qs.append('direction', params.direction);
     if (params?.dateFrom) qs.append('dateFrom', params.dateFrom);
     if (params?.dateTo) qs.append('dateTo', params.dateTo);
     if (params?.cursor) qs.append('cursor', params.cursor);
@@ -1060,6 +1064,48 @@ export const reportsApi = {
       method: 'POST',
       body: JSON.stringify(payload || {})
     });
+  },
+  downloadCsv: async (params?: {
+    dateFrom?: string;
+    dateTo?: string;
+    label?: string;
+    status?: string;
+    direction?: string;
+    batchId?: string;
+    agentId?: string;
+    reviewNeeded?: boolean;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.dateFrom) qs.append('dateFrom', params.dateFrom);
+    if (params?.dateTo) qs.append('dateTo', params.dateTo);
+    if (params?.label && params.label !== 'all') qs.append('label', params.label);
+    if (params?.status && params.status !== 'all') qs.append('status', params.status);
+    if (params?.direction && params.direction !== 'all') qs.append('direction', params.direction);
+    if (params?.batchId && params.batchId !== 'all') qs.append('batchId', params.batchId);
+    if (params?.agentId && params.agentId !== 'all') qs.append('agentId', params.agentId);
+    if (params?.reviewNeeded !== undefined) qs.append('reviewNeeded', String(params.reviewNeeded));
+    const query = qs.toString() ? `?${qs.toString()}` : '';
+
+    const token = typeof window !== 'undefined'
+      ? (localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token'))
+      : null;
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_BASE}/api/v2/reports/export/csv${query}`, {
+      method: 'GET',
+      headers,
+    });
+    if (!res.ok) throw new Error(`Export CSV failed with HTTP ${res.status}`);
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `claritiy_call_reports_${Date.now()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
   },
   getExportCsvUrl: (params?: { dateFrom?: string; dateTo?: string; label?: string; reviewNeeded?: boolean }) => {
     const qs = new URLSearchParams();

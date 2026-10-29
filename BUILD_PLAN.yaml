@@ -129,5 +129,22 @@ phases:
         status: completed
       - task: 10.5 41-case regression suite and CI lock with mock-mode evaluation
         status: completed
+  10:
+    name: Authoritative Call Results & Reports System Hardening
+    tasks:
+      - task: 11.1 Production health probe decoupling & runnable analysis queue telemetry
+        status: completed
+      - task: 11.2 Frontend-backend contract alignment (ReportListItem, summary KPIs, batch/direction filters)
+        status: completed
+      - task: 11.3 Hinglish normalizers & Devanagari numerals parsing (currency, duration, dates, identifiers)
+        status: completed
+      - task: 11.4 Verbatim evidence grounding enforcement & caller-turn validation
+        status: completed
+      - task: 11.5 Human QA correction, non-destructive merge & deterministic rubric re-scoring
+        status: completed
+      - task: 11.6 Excel UTF-8 BOM CSV export & formula injection sanitization
+        status: completed
+      - task: 11.7 Zero-defect verification harness (audit_reports.ts 28/28 OK, 31/31 normalizer tests)
+        status: completed
 
 

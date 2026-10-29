@@ -237,15 +237,24 @@ app.get(['/health', '/ready'], async (_req, res) => {
         prisma.analysisJob.count({ where: { status: 'processing' } }),
         prisma.analysisJob.count({ where: { status: 'failed' } }),
         prisma.analysisJob.findFirst({
-          where: { status: 'pending' },
-          orderBy: { createdAt: 'asc' },
-          select: { createdAt: true },
+          where: {
+            status: 'pending',
+            nextRunAt: { lte: new Date() },
+          },
+          orderBy: { nextRunAt: 'asc' },
+          select: { nextRunAt: true, createdAt: true },
         }),
       ]);
       const oldestPendingAgeSec = oldestPending
-        ? Math.floor((Date.now() - oldestPending.createdAt.getTime()) / 1000)
+        ? Math.max(0, Math.floor((Date.now() - oldestPending.nextRunAt.getTime()) / 1000))
         : 0;
       const isQueueStalled = queueDepth > 200 || oldestPendingAgeSec > 600;
+      if (isQueueStalled) {
+        logger.warn('Health probe: Analysis queue lag or depth threshold reached', {
+          queueDepth,
+          oldestPendingAgeSec,
+        });
+      }
       analysisQueue = {
         healthy: !isQueueStalled,
         queueDepth,
@@ -257,7 +266,9 @@ app.get(['/health', '/ready'], async (_req, res) => {
       logger.warn('Health probe: Failed to inspect analysis job queue', { error: String(qErr) });
     }
 
-    const overallHealthy = dbHealthy && analysisQueue.healthy;
+    // Analysis lag must NEVER affect the health status or bring live calls down.
+    // Report queue telemetry in payload for observability and alert separately.
+    const overallHealthy = dbHealthy;
     const statusCode = overallHealthy ? 200 : 503;
 
     res.status(statusCode).json({

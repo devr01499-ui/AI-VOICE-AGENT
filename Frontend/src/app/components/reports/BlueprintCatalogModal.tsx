@@ -17,7 +17,20 @@ export function BlueprintCatalogModal({ isOpen, onClose }: BlueprintCatalogModal
     if (!isOpen) return;
     setLoading(true);
     reportsApi.getBlueprints()
-      .then((data) => setBlueprints(data || []))
+      .then((data: any) => {
+        const raw = Array.isArray(data) ? data : (data?.blueprints || data?.data || []);
+        const list: BlueprintSummary[] = raw.map((b: any) => ({
+          id: b.id || b.templateId || '',
+          name: b.name || b.templateName || '',
+          industry: b.industry || b.category || 'General',
+          description: b.description || b.tieBreakRule || '',
+          labels: Array.isArray(b.labels)
+            ? b.labels.map((l: any) => (typeof l === 'string' ? l : l.label || ''))
+            : [],
+          fieldCount: b.fieldCount || (Array.isArray(b.fields) ? b.fields.length : 0),
+        }));
+        setBlueprints(list);
+      })
       .catch(() => setBlueprints([]))
       .finally(() => setLoading(false));
   }, [isOpen]);

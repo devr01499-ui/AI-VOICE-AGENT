@@ -47,6 +47,27 @@ export function errorHandler(
       : '') || 'unknown';
 
   // ── Validation errors (400) ──────────────────
+  if (err.name === 'ZodError' || (err && typeof err === 'object' && Array.isArray((err as any).issues))) {
+    const zodErr = err as any;
+    const details = zodErr.issues?.map((i: any) => ({
+      field: Array.isArray(i.path) ? i.path.join('.') : String(i.path || ''),
+      message: i.message,
+    })) || [];
+    const message = details.map((d: any) => `${d.field ? d.field + ': ' : ''}${d.message}`).join('; ') || 'Validation failed';
+
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: `Validation failed: ${message}`,
+        requestId,
+        details,
+      },
+      message: `Validation failed: ${message}`,
+    });
+    return;
+  }
+
   if (err instanceof ValidationError || (err && typeof err === 'object' && 'details' in err && (err as any).code === 'VALIDATION_ERROR')) {
     const vErr = err as any;
     const body: ErrorResponseBody = {
