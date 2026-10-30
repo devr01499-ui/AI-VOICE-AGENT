@@ -724,17 +724,16 @@ export class CallController {
         return;
       }
 
-      await prisma.call.update({
-        where: { id: callId },
-        data: {
-          status: 'canceled',
-          endTime: new Date(),
-        },
-      });
-
-      try {
-        await callOrchestrator.endCallSession(callId, 'supervisor_intervention');
-      } catch {}
+      // One path ends everything: AI session, DB status (completed / user_terminated, billed once),
+      // and the carrier leg. Writing a custom 'canceled' status first used to block the real
+      // end-of-call bookkeeping and never hung up the phone.
+      await CallService.terminateCall(
+        callId,
+        'user_terminated',
+        'Ended by supervisor from live monitoring',
+        'user'
+      );
+      logger.info('CallController: supervisor ended call', { callId });
 
       res.json({ success: true, message: 'Call terminated successfully' });
     } catch (err: any) {

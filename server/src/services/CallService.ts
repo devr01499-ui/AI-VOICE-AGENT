@@ -273,47 +273,19 @@ export class CallService {
     detail?: string,
     endedBy?: string
   ): Promise<void> {
-    const call = await CallRepository.findById(callId);
+    // Throws NotFound for an unknown call id (unchanged behaviour for the API route).
+    await CallRepository.findById(callId);
 
-    // Idempotent: If call is already in terminal state, return gracefully
-    const terminalStates: CallStatus[] = ['completed', 'failed', 'no_answer', 'busy', 'cancelled'];
-    if (terminalStates.includes(call.status as CallStatus)) {
-      logger.info('CallService: terminateCall called on already terminated call, returning idempotently', { callId, status: call.status });
-      return;
-    }
-
-    // End runtime session with caller reason, detail, and endedBy
+    // 1. End the AI session and finalize the record. Idempotent: if the call is already finalized
+    //    (or another end event is in flight) nothing is overwritten. endCallSession also hangs up the carrier.
     await callOrchestrator.endCallSession(callId, reason, detail, endedBy);
 
-    // Terminate via telephony provider
-    try {
-      const cleanFromDigits = (call.fromPhoneNumber || '').replace(/\D/g, '');
-      const fromVariants = Array.from(new Set([
-        call.fromPhoneNumber,
-        `+${cleanFromDigits}`,
-        cleanFromDigits,
-      ].filter(Boolean)));
+    // 2. Belt and braces: guarantee the PHONE leg is closed. The previous version skipped this whenever
+    //    the call was already marked finished, which is exactly when a stuck leg needs closing.
+    const { hangupCarrierLeg } = await import('../core/telephony/carrierHangup');
+    const outcome = await hangupCarrierLeg(callId, { reason });
 
-      const numberRecord = await prisma.phoneNumber.findFirst({
-        where: { phoneNumber: { in: fromVariants as string[] } },
-        select: { telephonyProvider: true }
-      });
-
-      if (numberRecord?.telephonyProvider === 'plivo') {
-        const { PlivoService } = await import('../core/telephony/PlivoService');
-        const plivo = new PlivoService();
-        await plivo.terminateCall(call.telemetryId || call.id);
-      } else {
-        await VobizService.terminateCall(call.telemetryId || call.id, call.userId);
-      }
-    } catch (err) {
-      logger.warn('CallService: telephony termination failed (call may already be ended)', {
-        callId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-
-    logger.info('CallService: call terminated', { callId });
+    logger.info('CallService: call terminated', { callId, carrierHangup: outcome });
   }
 
   /**

@@ -244,3 +244,13 @@ px prisma db push to bypass Supabase shadow DB auth schema error safely.
 
 
 
+
+## ERR-034: Call never hung up at carrier after AI goodbye; normal calls recorded as failed/stream_closed; Live Monitoring showing ghost sessions (2026-10-30)
+
+| Field | Detail |
+|---|---|
+| **Symptom** | 1) AI said goodbye but the phone stayed connected (carrier billed indefinitely). 2) Every normal call where the caller hung up was recorded as `failed / stream_closed` instead of `completed / caller_hangup`. 3) Live Monitoring showed "2.4 sessions" of leftover calls from server restarts. 4) Live transcript lines arrived fragmented and out of order. 5) Supervisor "End call" wrote `canceled` status and then silently failed to hang up the phone. |
+| **Root Cause** | 1) `endCallSession` (AI session end) was separate from carrier hangup; the AI's `end_call` tool called `endCallSession` but never called `PlivoService.terminateCall`. 2) `stream_closed` events (normal caller hang-up) fell through to the `unknown` branch and got mapped to `status=failed`. `SessionLogger` also overwrote the status a second time with `"failed"` for any reason ≠ `"completed"`. 3) `/api/v2/calls` returned all in-progress DB rows regardless of age, so rows from crashed/restarted instances counted as live. 4) `TurnAggregator` v1 had a single buffer and flushed it on every speaker change, shredding sentences when caller and agent transcription packets interleaved. 5) `CallController` wrote `status=canceled` first, which `endCallSession` then saw as already-terminal and skipped the real bookkeeping. |
+| **Fix** | 1) New `carrierHangup.ts` module is the single hangup path, called from every end of `endCallSession` and from `CallService.terminateCall`. Resolves carrier from OUR number (inbound: recipientPhoneNumber, outbound: fromPhoneNumber). 2) `stream_closed` on a live call ≥ 2 s old → `caller_hangup / completed`. Abnormal close codes (1006, 1011–1015) still → `failed`. `SessionLogger` status overwrite removed. 3) New `/api/v2/calls/live` endpoint with age-gated `liveRowWhere` filter; frontend uses `fetchLiveCalls`. 4) `TurnAggregator` v2 with independent per-speaker buffers and grace windows. 5) `CallController` and `CallService` delegate to `endCallSession → hangupCarrierLeg` in one pass. |
+| **Prevention Rule** | Every end-of-call code path must call `hangupCarrierLeg`; never write a terminal DB status before the unified end-call function runs; treat `stream_closed` as caller hangup not a failure; use age-gated live-call queries for monitoring. |
+

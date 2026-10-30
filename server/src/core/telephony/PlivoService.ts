@@ -23,7 +23,8 @@ export interface PlivoNumberItem {
 export class PlivoService {
   private parentAuthId: string;
   private parentAuthToken: string;
-  private baseUrl = 'https://api.plivo.com/v1';
+  // PLIVO_API_BASE exists only so automated tests can point at a fake Plivo API. Default is production Plivo.
+  private baseUrl = (process.env.PLIVO_API_BASE || 'https://api.plivo.com/v1').replace(/\/+$/, '');
 
   constructor() {
     this.parentAuthId = (process.env.PLIVO_AUTH_ID || env.PLIVO_AUTH_ID || '').trim();
@@ -443,20 +444,58 @@ export class PlivoService {
 
   /**
    * Terminates an active Plivo call session immediately.
-   * DELETE https://api.plivo.com/v1/Account/{auth_id}/Call/{call_uuid}/
+   * DELETE https://api.plivo.com/v1/Account/{auth_id}/Call/{call_uuid}/   (documented success: 204)
+   *
+   * Credentials are tried in order: the sub-account that owns the call (if any), then the parent account.
+   * The previous version only used the parent account, ignored the HTTP status and never reported failure,
+   * so a hangup that did nothing looked identical to one that worked.
+   *
+   * SAFETY: Plivo disconnects ALL ongoing calls on the account when CallUUID is omitted, so an empty or
+   * malformed UUID must never reach the API.
+   *
+   * @returns 'hung_up' (2xx), 'already_ended' (404/410 on every credential), or 'failed' (anything else)
    */
-  async terminateCall(callUuid: string): Promise<void> {
-    if (!this.hasValidCredentials() || !callUuid) return;
-    try {
-      const endpoint = `${this.baseUrl}/Account/${this.parentAuthId}/Call/${callUuid}/`;
-      const response = await fetch(endpoint, {
-        method: 'DELETE',
-        headers: this.getParentHeaders(),
-      });
-      logger.info('[PLIVO_TERMINATE_CALL]', { callUuid, status: response.status });
-    } catch (err: any) {
-      logger.warn('[PLIVO_TERMINATE_FAILED]', { callUuid, error: err.message });
+  async terminateCall(callUuid: string, opts: { subAuthId?: string | null } = {}): Promise<'hung_up' | 'already_ended' | 'failed' | 'no_credentials'> {
+    const uuid = (callUuid || '').trim();
+    if (!uuid || !/^[A-Za-z0-9-]{8,64}$/.test(uuid)) {
+      logger.error('[PLIVO_TERMINATE_REFUSED] Refusing to send hangup with an empty/invalid call UUID', { callUuid });
+      return 'failed';
     }
+    if (!this.hasValidCredentials()) return 'no_credentials';
+
+    const candidates: Array<{ authId: string; headers: Record<string, string>; label: string }> = [];
+    if (opts.subAuthId) {
+      try {
+        const sub = await prisma.plivoSubAccount.findFirst({ where: { authId: opts.subAuthId } });
+        if (sub && sub.authToken !== 'DIRECT_PARENT_ACCOUNT') {
+          const token = EncryptionService.decrypt(sub.authToken);
+          const creds = Buffer.from(`${sub.authId}:${token}`).toString('base64');
+          candidates.push({
+            authId: sub.authId,
+            label: 'subaccount',
+            headers: { 'Authorization': `Basic ${creds}`, 'Content-Type': 'application/json', 'User-Agent': 'Claritiy-Voice/2.0' },
+          });
+        }
+      } catch (err: any) {
+        logger.warn('[PLIVO_TERMINATE] Could not load sub-account credentials, using parent only', { error: err?.message });
+      }
+    }
+    candidates.push({ authId: this.parentAuthId, headers: this.getParentHeaders() as Record<string, string>, label: 'parent' });
+
+    let sawNotFound = false;
+    for (const c of candidates) {
+      try {
+        const response = await fetch(`${this.baseUrl}/Account/${c.authId}/Call/${uuid}/`, { method: 'DELETE', headers: c.headers });
+        logger.info('[PLIVO_TERMINATE_CALL]', { callUuid: uuid, status: response.status, credential: c.label });
+        if (response.status >= 200 && response.status < 300) return 'hung_up';
+        if (response.status === 404 || response.status === 410) { sawNotFound = true; continue; }
+        // 401/403/429/5xx: this credential failed in a way that is NOT "call already ended"
+        logger.warn('[PLIVO_TERMINATE_NON_SUCCESS]', { callUuid: uuid, status: response.status, credential: c.label });
+      } catch (err: any) {
+        logger.warn('[PLIVO_TERMINATE_FAILED]', { callUuid: uuid, credential: c.label, error: err.message });
+      }
+    }
+    return sawNotFound ? 'already_ended' : 'failed';
   }
 }
 

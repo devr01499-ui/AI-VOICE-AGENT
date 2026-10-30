@@ -206,6 +206,35 @@ router.get(
   }
 );
 
+/** GET /api/v2/calls/live — Calls that are really live right now (Live Monitoring source of truth). */
+router.get('/live', async (req, res) => {
+  try {
+    const userId = (req as any).effectiveWorkspaceId || (req as any).userId || ((req as any).user && (req as any).user.id);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+    const { getLiveCalls } = await import('../utils/concurrency');
+    const batchId = typeof req.query.batchId === 'string' && req.query.batchId && req.query.batchId !== 'all' ? req.query.batchId : null;
+    const rows = await getLiveCalls(userId, Date.now(), batchId);
+    const data = rows.map((c: any) => ({
+      id: c.id,
+      direction: String(c.callDirection || '').toLowerCase() === 'inbound' ? 'inbound' : 'outbound',
+      contactNumber: String(c.callDirection || '').toLowerCase() === 'inbound' ? c.fromPhoneNumber : c.recipientPhoneNumber,
+      businessNumber: String(c.callDirection || '').toLowerCase() === 'inbound' ? c.recipientPhoneNumber : c.fromPhoneNumber,
+      agentId: c.agentId || null,
+      batchId: c.batchId || null,
+      status: c.status,
+      startedAt: (c.startTime || c.createdAt).toISOString(),
+      createdAt: c.createdAt.toISOString(),
+    }));
+    res.status(200).json({ success: true, data, count: data.length });
+  } catch (err: any) {
+    logger.error('calls route: GET /live failure', { error: err?.message || String(err) });
+    res.status(500).json({ success: false, error: 'Failed to load live calls' });
+  }
+});
+
 /** POST /api/v2/calls — Initiate a new outbound call. */
 router.post(
   '/',

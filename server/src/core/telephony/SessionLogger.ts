@@ -33,7 +33,7 @@ export class SessionLogger {
 
       // 1. Update Execution table metadata
       await CallRepository.updateExecution(callId, {
-        outcome: reason === 'completed' || reason === 'user_hangup' ? 'successful' : 'unsuccessful',
+        outcome: ['completed', 'agent_hangup', 'caller_hangup', 'user_hangup'].includes(reason) ? 'successful' : 'unsuccessful',
         costBreakdown: JSON.stringify({
           telephonyCost: vobizCost,
           aiCost: geminiInputCost + geminiOutputCost,
@@ -42,10 +42,11 @@ export class SessionLogger {
         metadata: JSON.stringify(metadata),
       });
 
-      // 2. Update Call duration seconds
-      await CallRepository.updateStatus(callId, reason === 'completed' || reason === 'user_hangup' ? 'completed' : 'failed', {
-        durationSeconds,
-      });
+      // 2. (Removed) This used to overwrite the call's status and duration. It wrote "failed" for every
+      //    reason other than exactly "completed"/"user_hangup" -- including agent_hangup and caller_hangup --
+      //    which turned successful calls into "failed" right after they were correctly finalized, and it
+      //    could replace the real duration with 0. The call status, reason and duration are owned solely by
+      //    CallOrchestrator.endCallSession().
 
       // 3. Atomically perform user-wise isolation and billing adjustments
       const call = await prisma.call.findUnique({

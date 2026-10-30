@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Radio, PhoneOff, PhoneForwarded, Volume2, Mic, Activity, Clock, ShieldAlert, RefreshCw, User, CheckCircle2, ChevronRight, X, AlertTriangle } from 'lucide-react';
-import { apiClient, fetchCalls, fetchAgents, getLiveTranscriptWsUrl, requestTranscriptTicket, type ApiCall, type ApiAgent } from '../../api';
+import { apiClient, fetchLiveCalls, fetchAgents, getCallTranscript, getLiveTranscriptWsUrl, requestTranscriptTicket, type ApiCall, type ApiAgent } from '../../api';
 
 interface LiveTranscriptMessage {
   turnId?: string;
@@ -9,6 +9,18 @@ interface LiveTranscriptMessage {
   text: string;
   isFinal: boolean;
   timestamp: string;
+}
+
+/** Order by the sequence the turn STARTED (server assigns it), falling back to arrival order. */
+function mergeSorted(list: LiveTranscriptMessage[]): LiveTranscriptMessage[] {
+  return list
+    .map((m, i) => ({ m, i }))
+    .sort((a, b) => {
+      const as = a.m.seq ?? Number.MAX_SAFE_INTEGER;
+      const bs = b.m.seq ?? Number.MAX_SAFE_INTEGER;
+      return as === bs ? a.i - b.i : as - bs;
+    })
+    .map((x) => x.m);
 }
 
 export function DashLiveMonitoring() {
@@ -35,27 +47,29 @@ export function DashLiveMonitoring() {
   const wsRef = useRef<WebSocket | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
 
+  const firstLoadRef = useRef(true);
+
   const fetchActiveCalls = async () => {
     try {
-      setLoading(true);
-      const allCalls = await fetchCalls({
-        limit: 50,
-        batchId: batchFilter || undefined,
-      });
-      const inProgress = allCalls.filter(
-        (c) => c.status === 'in_progress' || c.status === 'ringing' || c.status === 'queued'
-      );
-      setActiveCalls(inProgress);
+      // Only show the loading state on the very first load; later polls update silently (no flicker).
+      if (firstLoadRef.current) setLoading(true);
+      // The server returns ONLY calls that are really live (no leftovers from restarts/missed webhooks),
+      // so "Active Sessions" can never show more than the calls actually running.
+      const live = await fetchLiveCalls(batchFilter);
+      setActiveCalls(live);
 
-      // Auto-select first active call if none selected
-      if (inProgress.length > 0 && !selectedCall) {
-        setSelectedCall(inProgress[0]);
-      } else if (inProgress.length === 0) {
-        setSelectedCall(null);
-      }
+      // Keep the current selection while that call is still live; otherwise pick the first live call, or none.
+      setSelectedCall((prev) => {
+        if (prev) {
+          const still = live.find((c) => c.id === prev.id);
+          if (still) return prev.status === still.status ? prev : still;
+        }
+        return live.length > 0 ? live[0] : null;
+      });
     } catch {
-      setActiveCalls([]);
+      // Keep what is on screen on a transient network error instead of wiping the list.
     } finally {
+      firstLoadRef.current = false;
       setLoading(false);
     }
   };
@@ -86,6 +100,26 @@ export function DashLiveMonitoring() {
 
     let isCancelled = false;
 
+    // Backfill what was already said (so opening or switching to a call mid-conversation is not blank).
+    getCallTranscript(selectedCall.id)
+      .then((res) => {
+        if (isCancelled || !res?.turns?.length) return;
+        const past: LiveTranscriptMessage[] = res.turns.map((t) => ({
+          turnId: `db_${t.id}`,
+          seq: t.sequenceNumber,
+          speaker: t.speaker === 'caller' ? 'user' : 'agent',
+          text: t.text,
+          isFinal: true,
+          timestamp: '',
+        }));
+        setTranscripts((prev) => {
+          // Live turns that already arrived win over the stored copy of the same turn (same seq + speaker).
+          const have = new Set(prev.map((m) => `${m.seq}:${m.speaker}`));
+          return mergeSorted([...past.filter((m) => !have.has(`${m.seq}:${m.speaker}`)), ...prev]);
+        });
+      })
+      .catch(() => {});
+
     requestTranscriptTicket(selectedCall.id)
       .then((ticket) => {
         if (isCancelled) return;
@@ -102,30 +136,29 @@ export function DashLiveMonitoring() {
             const data = JSON.parse(event.data);
             if (data.event === 'transcript') {
               const turnId = data.turnId;
+              const speaker = data.speaker === 'caller' ? 'user' : (data.speaker || 'agent');
               setTranscripts((prev) => {
-                if (turnId) {
-                  const existingIdx = prev.findIndex((t) => t.turnId === turnId);
-                  if (existingIdx !== -1) {
-                    const updated = [...prev];
-                    updated[existingIdx] = {
-                      ...updated[existingIdx],
-                      text: data.text || updated[existingIdx].text,
-                      isFinal: Boolean(data.isFinal),
-                    };
-                    return updated;
-                  }
+                const idx = prev.findIndex(
+                  (t) => (turnId && t.turnId === turnId) || (data.seq != null && t.seq === data.seq && t.speaker === speaker)
+                );
+                if (idx !== -1) {
+                  const updated = [...prev];
+                  // A turn's text only ever grows while it is open; never replace it with something shorter/empty.
+                  const nextText = data.text && data.text.length >= (updated[idx].text || '').length ? data.text : updated[idx].text;
+                  updated[idx] = { ...updated[idx], turnId: turnId || updated[idx].turnId, text: nextText, isFinal: Boolean(data.isFinal) || updated[idx].isFinal };
+                  return mergeSorted(updated);
                 }
-                return [
+                return mergeSorted([
                   ...prev,
                   {
-                    turnId: data.turnId || `turn_${Date.now()}_${Math.random()}`,
+                    turnId: turnId || `turn_${Date.now()}_${Math.random()}`,
                     seq: data.seq,
-                    speaker: data.speaker || 'agent',
+                    speaker,
                     text: data.text || '',
                     isFinal: Boolean(data.isFinal),
                     timestamp: new Date().toLocaleTimeString(),
                   },
-                ];
+                ]);
               });
             }
           } catch {}
@@ -165,6 +198,7 @@ export function DashLiveMonitoring() {
       setSubmittingAction(true);
       await apiClient.post(`/api/v2/calls/${selectedCall.id}/end`);
       setInterveneSuccess('Call terminated by supervisor intervention.');
+      setActiveCalls((prev) => prev.filter((c) => c.id !== selectedCall.id));
       fetchActiveCalls();
     } catch {
       alert('Failed to terminate call.');
@@ -288,7 +322,7 @@ export function DashLiveMonitoring() {
                   >
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="font-mono font-bold text-xs text-slate-800 dark:text-slate-200">
-                        {call.recipientPhoneNumber}
+                        {call.contactNumber || call.recipientPhoneNumber}
                       </span>
                       <div className="flex items-center gap-1.5">
                         {call.batchName && (
@@ -334,10 +368,10 @@ export function DashLiveMonitoring() {
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
                     <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 font-mono">
-                      {selectedCall.recipientPhoneNumber}
+                      {selectedCall.contactNumber || selectedCall.recipientPhoneNumber}
                     </h3>
                     <span className="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded text-[10px] uppercase font-mono">
-                      {selectedCall.callDirection}
+                      {selectedCall.direction || selectedCall.callDirection}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-1">
@@ -427,7 +461,7 @@ export function DashLiveMonitoring() {
 
             <div className="p-5 space-y-3 text-xs">
               <p className="text-slate-500">
-                Instantly redirect call <strong className="font-mono text-slate-800 dark:text-slate-200">{selectedCall.recipientPhoneNumber}</strong> to a human operator or PSTN target.
+                Instantly redirect call <strong className="font-mono text-slate-800 dark:text-slate-200">{selectedCall.contactNumber || selectedCall.recipientPhoneNumber}</strong> to a human operator or PSTN target.
               </p>
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">

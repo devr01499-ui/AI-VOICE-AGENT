@@ -189,3 +189,24 @@
   5. **Regression Suite (41/41) & CI Lock (`test_street_smart_regression.ts`, `eval_street_smart_live.ts`, `call-path-e2e.yml`, `CODEOWNERS`)**: Added 41 deterministic regression cases and dual-mode CI evaluation (`EVAL_MOCK=bad` failing, `EVAL_MOCK=good` passing) to required GitHub Action workflows and CODEOWNERS enforcement.
 - **Rejected Alternative**: Increasing prompt complexity with lengthy reasoning chain instructions. Reason: Reasoning models or verbose prompts drastically increase time-to-first-token (TTFT > 3-5s), exacerbating conversational awkwardness on live telephony.
 - **Consequences**: Zero robotic system leaks heard by human callers, deterministic scheduling flow, clean compliance guardrails, and automated regression locking in CI.
+
+## ADR-014: Single Carrier Hangup Module (`carrierHangup.ts`)
+- **Status**: Accepted
+- **Context**: Multiple call-end paths (AI tool, caller disconnect, supervisor, balance cutoff, error fallback) each tried to hang up the carrier independently — or skipped it entirely. Inbound calls looked up the caller's number instead of our DID to find the carrier, routing hangups to the wrong provider. There was no retry, no outcome reporting, and no idempotency guard.
+- **Decision**: Create `server/src/core/telephony/carrierHangup.ts` as the single authoritative place that communicates hangup to a carrier. It resolves the carrier from OUR number (outbound: `fromPhoneNumber`; inbound: `recipientPhoneNumber`), tries sub-account credentials before the parent account, retries up to 3 times on transient failures, treats 404/410 as `already_ended`, and logs `[CARRIER_HANGUP]` / `[CARRIER_HANGUP_FAILED]` for alerting. Every end-of-call code path calls this function; none call `PlivoService.terminateCall` or `VobizService.terminateCall` directly.
+- **Rejected Alternative**: Extend each individual code path (AI tool handler, `SessionLogger`, `CallController`, etc.) to call `PlivoService.terminateCall` directly. Rejected because it keeps the carrier resolution logic duplicated and still routes inbound calls to the wrong carrier.
+- **Consequences**: Guaranteed carrier leg teardown from every end path. Prevents over-billing from connected-but-silent calls. `[CARRIER_HANGUP_FAILED]` is a production alert signal.
+
+## ADR-015: TurnAggregator v2 — Independent Per-Speaker Buffers
+- **Status**: Accepted
+- **Context**: Gemini Live delivers caller and agent transcriptions as two independent, delayed streams. v1's single-buffer approach flushed on every speaker change, shredding sentences mid-word when packets interleaved (common on every turn).
+- **Decision**: Give each speaker its own open `TurnState`. A fragment is appended to its speaker's buffer regardless of what the other speaker is doing. Sequence numbers are assigned when a turn starts. The caller's turn is closed after a short grace window once the agent begins answering; the agent's turn closes on `turnComplete`, barge-in, or idle timeout.
+- **Rejected Alternative**: Increase the flush debounce timeout in v1. Rejected because interleaved packets arrive in unpredictable order; a timeout cannot fix out-of-order attribution.
+- **Consequences**: Transcript history is never shredded. Sequence numbers correctly reflect the order speakers began talking. Late caller fragments land in the caller's sentence, not the agent's.
+
+## ADR-016: Age-Gated Live-Call Query for Live Monitoring
+- **Status**: Accepted  
+- **Context**: The Live Monitoring panel polled all DB rows with `status IN (in_progress, ringing, queued)`. Server restarts leave orphaned rows that never get a terminal webhook, inflating the "Active Sessions" count for up to 1 hour.
+- **Decision**: Add `liveRowWhere` filter: pre-answer rows must be < 3 min old; answered rows must be < 15 min old. The new `/api/v2/calls/live` endpoint also cross-references the orchestrator's in-memory active sessions. The 1-hour DB reaper still runs to close stale rows.
+- **Rejected Alternative**: Mark rows as stale via a separate background job on every server restart. Rejected because restarts are not always clean and the job adds operational complexity.
+- **Consequences**: "Active Sessions" reflects reality immediately after a restart. Ghost rows are cleaned up by the existing reaper, not by the monitoring query.

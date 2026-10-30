@@ -203,6 +203,20 @@ export class CallOrchestrator extends EventEmitter {
     return this.activeCalls.size;
   }
 
+  /** True while this server instance still holds a live AI session for the call. */
+  hasLiveSession(callId: string): boolean {
+    return this.activeCalls.has(callId);
+  }
+
+  /** Call ids of live AI sessions on this instance for a user. */
+  getLiveCallIdsForUser(userId: string): string[] {
+    const ids: string[] = [];
+    for (const [id, session] of this.activeCalls.entries()) {
+      if ((session as any).userId === userId) ids.push(id);
+    }
+    return ids;
+  }
+
   getActiveCallCountForUser(userId: string): number {
     let count = 0;
     for (const session of this.activeCalls.values()) {
@@ -503,6 +517,7 @@ export class CallOrchestrator extends EventEmitter {
     callSession.isRecordingEnabled = agentConfig.settings?.isRecordingEnabled || false;
     callSession.conversationState = new ConversationState();
     this.activeCalls.set(callId, callSession);
+    this.armFarewellWatchdog(callId);
 
     // Instantiate and execute the Pipecat runner asynchronously
     const pipecatRunner = new PipecatRunner(
@@ -525,13 +540,13 @@ export class CallOrchestrator extends EventEmitter {
           {
             type: 'function' as const,
             name: 'hang_up',
-            description: 'Hangs up the current call session immediately.',
+            description: 'Alias of end_call. Ends the call after you have said goodbye.',
             parameters: { type: 'OBJECT', properties: {} }
           },
           {
             type: 'function' as const,
             name: 'end_call',
-            description: 'Ends the call immediately. Include reason (e.g. "opt_out", "completed", "user_request") if caller wishes to opt out.',
+            description: 'Ends the phone call. Call this immediately AFTER you have spoken your final goodbye, when the conversation is finished or the caller wants to stop. Never call it while the caller still has a question. Include reason (e.g. "completed", "opt_out", "caller_requested") when relevant.',
             parameters: {
               type: 'OBJECT',
               properties: {
@@ -570,7 +585,7 @@ export class CallOrchestrator extends EventEmitter {
                 logger.error('Flow Engine: Error updating contact opt-out state', { callId, phoneNumber, error: String(optErr) });
               }
             }
-            await this.endCallSession(callId, isOptOut ? ('opted_out' as any) : 'completed');
+            await this.endCallGracefully(callId, isOptOut ? 'opted_out' : 'end_call', `AI ${name} tool${parsedArgs.reason ? ` (${String(parsedArgs.reason)})` : ''}`);
             return JSON.stringify({ success: true, message: isOptOut ? 'Call ended and recipient registered on Do Not Call list.' : 'Call completed.' });
           }
           if (name === 'transfer_call') {
@@ -837,9 +852,31 @@ export class CallOrchestrator extends EventEmitter {
   /**
    * Ends a session, cleans up resources, and records session metrics and endReason.
    */
+  /**
+   * Single entry point to end a call. Safe to call many times and from many places at once
+   * (end_call tool, caller hang-up, stream stop, error fallback, supervisor, balance cutoff):
+   * concurrent calls share one run, and a call that is already finalized is never overwritten.
+   */
   async endCallSession(
     callId: string,
     reason: string = 'completed',
+    detail?: string,
+    endedBy?: string
+  ): Promise<void> {
+    const inflight = this.endingCalls.get(callId);
+    if (inflight) return inflight;
+    const run = this.performEndCallSession(callId, reason, detail, endedBy).finally(() => {
+      this.endingCalls.delete(callId);
+    });
+    this.endingCalls.set(callId, run);
+    return run;
+  }
+
+  private readonly endingCalls = new Map<string, Promise<void>>();
+
+  private async performEndCallSession(
+    callId: string,
+    reason: string,
     detail?: string,
     endedBy?: string
   ): Promise<void> {
@@ -886,7 +923,7 @@ export class CallOrchestrator extends EventEmitter {
     } else if (rawReason === 'provider_error' || rawReason === 'carrier_error') {
       normalizedReason = 'provider_error';
       defaultEndedBy = 'provider';
-    } else if (rawReason === 'user_terminated') {
+    } else if (rawReason === 'user_terminated' || rawReason === 'supervisor_intervention') {
       normalizedReason = 'user_terminated';
       defaultEndedBy = 'agent';
     } else if (rawReason === 'completed' || rawReason === 'opted_out') {
@@ -897,6 +934,25 @@ export class CallOrchestrator extends EventEmitter {
       defaultEndedBy = 'system';
     }
 
+
+    // ── Load the call row once; everything below decides from it ─────────────────────────
+    const call = await prisma.call.findUnique({ where: { id: callId } });
+    const TERMINAL = new Set(['completed', 'failed', 'no_answer', 'busy', 'cancelled', 'canceled', 'timeout']);
+    const alreadyFinalized = Boolean(call && TERMINAL.has(String(call.status).toLowerCase()));
+
+    // ── A carrier-side stream end during a live conversation is the CALLER hanging up. ─────
+    // It used to be recorded as status "failed / stream_closed" for every normal call.
+    const isStreamEnd = rawReason === 'stream_closed' || rawReason === 'stream_stopped' || rawReason === 'ws_closed';
+    const abnormalClose = /code=(1006|1011|1012|1013|1014|1015)\b/.test(detail || '');
+    if (
+      isStreamEnd && !alreadyFinalized && !abnormalClose &&
+      call?.startTime && ['in_progress', 'connected'].includes(String(call.status).toLowerCase()) &&
+      Date.now() - call.startTime.getTime() >= 2000
+    ) {
+      normalizedReason = 'caller_hangup';
+      defaultEndedBy = 'caller';
+    }
+
     const resolvedEndedBy = endedBy || defaultEndedBy;
 
     logger.info('CallOrchestrator: endCallSession', {
@@ -905,7 +961,10 @@ export class CallOrchestrator extends EventEmitter {
       endReason: normalizedReason,
       endedBy: resolvedEndedBy,
       detail,
+      alreadyFinalized,
     });
+
+    this.disposeFarewellWatchdog(callId);
 
     const prewarmed = this.prewarmedSessions.get(callId);
     if (prewarmed) {
@@ -922,7 +981,20 @@ export class CallOrchestrator extends EventEmitter {
       this.activeCalls.delete(callId);
     }
 
-    const mappedStatus: CallStatus = (normalizedReason === 'completed' || normalizedReason === 'caller_hangup' || normalizedReason === 'agent_hangup')
+    const { hangupCarrierLeg } = await import('../telephony/carrierHangup');
+
+    // ── Already finalized (e.g. carrier CDR webhook, or the first of two end events) ───────
+    // Never overwrite a finished call's status/reason/duration; just make sure the phone leg is closed.
+    if (alreadyFinalized) {
+      logger.info('CallOrchestrator: call already finalized; keeping existing status and reason', {
+        callId, existingStatus: call?.status, existingReason: (call as any)?.endReason, ignoredReason: normalizedReason,
+      });
+      this.stateMachines.delete(callId);
+      await hangupCarrierLeg(callId, { reason: normalizedReason });
+      return;
+    }
+
+    const mappedStatus: CallStatus = (normalizedReason === 'completed' || normalizedReason === 'caller_hangup' || normalizedReason === 'agent_hangup' || normalizedReason === 'user_terminated')
       ? 'completed'
       : (normalizedReason === 'no_answer' ? 'no_answer' : (normalizedReason === 'busy' ? 'busy' : 'failed'));
 
@@ -933,7 +1005,6 @@ export class CallOrchestrator extends EventEmitter {
     }
 
     const endTime = new Date();
-    const call = await prisma.call.findUnique({ where: { id: callId } });
     let durationSeconds = 0;
     if (call && call.startTime) {
       durationSeconds = Math.max(1, Math.round((endTime.getTime() - call.startTime.getTime()) / 1000));
@@ -991,6 +1062,115 @@ export class CallOrchestrator extends EventEmitter {
     });
 
     this.emit('callEnded', { callId, reason: normalizedReason });
+
+    // ── Close the PHONE leg. Ending the AI session alone leaves the call connected (keepCallAlive) ──
+    // Skipped only when the call never connected (nothing to hang up).
+    if (normalizedReason !== 'no_answer' && normalizedReason !== 'busy') {
+      await hangupCarrierLeg(callId, { reason: normalizedReason });
+    }
+  }
+
+  // ─── Graceful end (used by the AI's end_call / hang_up tool and the farewell watchdog) ────────
+
+  /**
+   * Lets the caller finish hearing the goodbye, stops any further AI audio, then ends the call and
+   * hangs up the carrier. Without the wait, hanging up the moment the tool fires would cut the
+   * goodbye mid-word (the carrier is still playing audio we already sent).
+   */
+  async endCallGracefully(callId: string, reason: string, detail?: string): Promise<void> {
+    try {
+      const { getAudioStreamHandler } = await import('../../websockets/AudioStreamHandler');
+      const handler = getAudioStreamHandler();
+      if (handler) {
+        handler.markClosing(callId);
+        await handler.waitForPlayoutDrain(callId, 8000);
+      }
+    } catch (err) {
+      logger.warn('CallOrchestrator: playout drain before hangup failed; ending immediately', { callId, error: String(err) });
+    }
+    await this.endCallSession(callId, reason, detail);
+  }
+
+  // ─── Farewell watchdog ────────────────────────────────────────────────────────────────────────
+  // Safety net so the call ends even if the model says goodbye but forgets to call end_call.
+  // Arms only after a FINAL agent turn that is clearly a farewell; cancelled the moment the caller
+  // speaks or the agent talks again; fires only after FAREWELL_HANGUP_SILENCE_MS of caller silence
+  // (counted from when the goodbye has finished playing).
+
+  private readonly farewellWatchdogs = new Map<string, { timer?: NodeJS.Timeout; onTranscript: (p: any) => void; onAiStart: (p: any) => void }>();
+
+  // The phrase must END the sentence (at most two trailing words, e.g. a name or "ahead"), so mid-sentence mentions never count.
+  static readonly FAREWELL_PATTERN = /\b(good\s?bye|bye[\s-]?bye|bye|take care|talk to you (soon|later)|have a (great|good|wonderful|nice|lovely|pleasant|blessed|fantastic)( rest of your)?( day| evening| night| weekend))(?:[\s,]+[\w']+){0,2}[\s.!]*$/i;
+  // "Thank you for your time" only counts when it is the LAST thing the agent said in its turn.
+  static readonly FAREWELL_THANKS_AT_END = /\b(thanks|thank you)( so much| very much)? for your time[\s.!,]*$/i;
+
+  /**
+   * True when the agent's finished turn ENDS with a goodbye. Looks only at the final sentence (plus the one
+   * before it when the final one is a tiny "Bye!"), and never when the turn ends with a question, so a
+   * goodbye-like phrase in the middle of a longer turn does not count.
+   */
+  static isFarewell(text: string): boolean {
+    const sentences = String(text || '').trim().split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter(Boolean);
+    if (!sentences.length) return false;
+    const last = sentences[sentences.length - 1];
+    if (/\?\s*$/.test(last)) return false;
+    const matches = (x: string) => CallOrchestrator.FAREWELL_PATTERN.test(x) || CallOrchestrator.FAREWELL_THANKS_AT_END.test(x);
+    if (matches(last)) return true;
+    const words = last.split(/\s+/).length;
+    return words <= 4 && sentences.length > 1 && matches(sentences[sentences.length - 2]);
+  }
+
+  private armFarewellWatchdog(callId: string): void {
+    if (process.env.FAREWELL_AUTOHANGUP === 'false') return;
+    if (this.farewellWatchdogs.has(callId)) return;
+    const silenceMs = Math.max(2000, parseInt(process.env.FAREWELL_HANGUP_SILENCE_MS || '5000', 10) || 5000);
+
+    const clear = () => {
+      const w = this.farewellWatchdogs.get(callId);
+      if (w?.timer) { clearTimeout(w.timer); w.timer = undefined; }
+    };
+
+    const onTranscript = (payload: any) => {
+      if (!payload || payload.callId !== callId) return;
+      const w = this.farewellWatchdogs.get(callId);
+      if (!w) return;
+      if (payload.speaker === 'user') { clear(); return; }            // caller is talking: keep the call
+      if (payload.speaker !== 'agent' || !payload.isFinal) return;
+      clear();
+      if (!CallOrchestrator.isFarewell(String(payload.text || ''))) return;
+      // Goodbye said. Wait for it to finish playing, then require silence.
+      let playoutMs = 0;
+      import('../../websockets/AudioStreamHandler').then(({ getAudioStreamHandler }) => {
+        playoutMs = getAudioStreamHandler()?.getPlayoutRemainingMs(callId) || 0;
+      }).catch(() => {}).finally(() => {
+        const cur = this.farewellWatchdogs.get(callId);
+        if (!cur) return;
+        clear();
+        cur.timer = setTimeout(() => {
+          logger.info('[FAREWELL_AUTOHANGUP] Goodbye was spoken and the caller stayed silent; ending the call', { callId, silenceMs });
+          this.endCallGracefully(callId, 'agent_hangup', 'Auto-hangup: farewell spoken and caller silent').catch((err) => {
+            logger.error('[FAREWELL_AUTOHANGUP] failed', { callId, error: String(err) });
+          });
+        }, playoutMs + silenceMs);
+      });
+    };
+
+    const onAiStart = (payload: any) => {
+      if (payload?.callId === callId) clear();
+    };
+
+    this.farewellWatchdogs.set(callId, { onTranscript, onAiStart });
+    eventBus.subscribe(PROVIDER_EVENTS.TRANSCRIPT_UPDATED, onTranscript);
+    eventBus.subscribe(PROVIDER_EVENTS.AI_STARTED_SPEAKING, onAiStart);
+  }
+
+  private disposeFarewellWatchdog(callId: string): void {
+    const w = this.farewellWatchdogs.get(callId);
+    if (!w) return;
+    if (w.timer) clearTimeout(w.timer);
+    eventBus.unsubscribe(PROVIDER_EVENTS.TRANSCRIPT_UPDATED, w.onTranscript);
+    eventBus.unsubscribe(PROVIDER_EVENTS.AI_STARTED_SPEAKING, w.onAiStart);
+    this.farewellWatchdogs.delete(callId);
   }
 
   private startMidCallEnforcementMonitor() {

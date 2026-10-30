@@ -40,6 +40,10 @@ interface ActiveConnection {
   silenceTimer?: NodeJS.Timeout;
   greetingResolved?: boolean;
   isFallingBack?: boolean;
+  /** Epoch ms at which everything we have sent to the carrier will have finished playing. */
+  playoutEndsAt?: number;
+  /** Set once the call is being hung up: stop forwarding any further AI audio. */
+  isClosing?: boolean;
 }
 
 // ─── Pipeline Safety Limits ───────────────────────────
@@ -79,6 +83,12 @@ export function classifyProviderError(errorStr: string): 'transient' | 'fatal' {
 
 // ─── Handler Implementation ──────────────────────────
 
+let activeAudioStreamHandler: AudioStreamHandler | null = null;
+/** The running handler (set by initialize()). Lets the orchestrator wait for playout before hanging up. */
+export function getAudioStreamHandler(): AudioStreamHandler | null {
+  return activeAudioStreamHandler;
+}
+
 export class AudioStreamHandler {
   private readonly connections = new Map<string, ActiveConnection>();
   private readonly reconnectAttempts = new Map<string, number>();
@@ -88,6 +98,7 @@ export class AudioStreamHandler {
    * Should be called once during server bootstrap.
    */
   initialize(wss: WebSocketServer): void {
+    activeAudioStreamHandler = this;
     wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
       this.handleConnection(ws, req);
     });
@@ -104,6 +115,35 @@ export class AudioStreamHandler {
    */
   getActiveConnectionCount(): number {
     return this.connections.size;
+  }
+
+  /** Milliseconds of already-sent AI audio that the caller has not heard yet. */
+  getPlayoutRemainingMs(callId: string): number {
+    const conn = this.connections.get(callId);
+    if (!conn?.playoutEndsAt) return 0;
+    return Math.max(0, conn.playoutEndsAt - Date.now());
+  }
+
+  /** Stop forwarding any further AI audio for this call (it is about to be hung up). */
+  markClosing(callId: string): void {
+    const conn = this.connections.get(callId);
+    if (conn) conn.isClosing = true;
+  }
+
+  /**
+   * Resolves once the caller has heard everything we already sent (plus a small network margin),
+   * or after maxMs. Used so "goodbye" is never cut off by the hangup.
+   */
+  async waitForPlayoutDrain(callId: string, maxMs: number = 8000): Promise<void> {
+    const deadline = Date.now() + maxMs;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const remaining = this.getPlayoutRemainingMs(callId);
+      if (remaining <= 0 || Date.now() >= deadline) break;
+      await new Promise((r) => setTimeout(r, Math.min(remaining, 250)));
+    }
+    // Carrier-side jitter buffer margin
+    await new Promise((r) => setTimeout(r, 600));
   }
 
   /**
@@ -770,6 +810,7 @@ export class AudioStreamHandler {
   private sendAudioToVobiz(callId: string, audioBase64: string): void {
     const conn = this.connections.get(callId);
     if (!conn) return;
+    if (conn.isClosing) return; // call is being hung up: never talk after the goodbye
 
     // Send audio packet immediately to telephony WebSocket without buffering delay
     this.sendAudioToVobizDirect(callId, audioBase64);
@@ -778,6 +819,8 @@ export class AudioStreamHandler {
     conn.isPlayoutActive = true;
     const pcmBytes = Math.floor((audioBase64.length * 3) / 4);
     const durationMs = Math.max(20, Math.round(pcmBytes / 32));
+    // Carrier plays queued audio back-to-back, so playout end is CUMULATIVE, not per chunk.
+    conn.playoutEndsAt = Math.max(Date.now(), conn.playoutEndsAt || 0) + durationMs;
 
     if (conn.playoutTimeout) {
       clearTimeout(conn.playoutTimeout);
@@ -874,6 +917,7 @@ export class AudioStreamHandler {
     // Clear buffer queue immediately to drop any pending outbound frames on user barge-in!
     conn.playbackQueue = [];
     conn.isPlayoutActive = false;
+    conn.playoutEndsAt = 0;
     if (conn.playoutTimeout) {
       clearTimeout(conn.playoutTimeout);
       conn.playoutTimeout = undefined;
@@ -1018,7 +1062,7 @@ export class AudioStreamHandler {
 
     this.connections.delete(callId);
 
-    callOrchestrator.endCallSession(callId, 'ws_closed').catch((err) => {
+    callOrchestrator.endCallSession(callId, 'ws_closed', `ws close code=${code}`).catch((err) => {
       logger.error('AudioStreamHandler: cleanup on close failed', {
         callId,
         error: err instanceof Error ? err.message : String(err),

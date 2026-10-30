@@ -331,6 +331,10 @@ export function buildFinalSystemInstruction(
   // Capability Guard
   sections.push(`[PLATFORM CAPABILITY GUARDRAILS]\nYou are operating as a pure voice telephony agent. You cannot send text SMS messages, initiate visual file transfers, or navigate web browsers unless a dedicated tool is explicitly invoked. Never claim you just sent a text or email if no tool was executed.`);
 
+  // Ending the call (always on, independent of the core-skills kill switch): without this the model says
+  // goodbye and then leaves the call connected, which keeps billing minutes.
+  sections.push(`[ENDING THE CALL]\nWhen the conversation is finished (your goal is done and the caller has nothing more to ask, or they say goodbye, say they are not interested, or ask you to stop calling), say one short goodbye and then IMMEDIATELY call the end_call tool. Never keep talking after your goodbye and never leave a finished call open. Never call end_call while the caller still has an unanswered question, and never call it before you have said goodbye.`);
+
   // DNC / Opt-Out Hard Gates
   const optOutList = Array.isArray(callSettings.optOutKeywords) && callSettings.optOutKeywords.length > 0
     ? callSettings.optOutKeywords

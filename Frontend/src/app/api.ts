@@ -516,6 +516,15 @@ export interface CallTranscriptResponse {
   totalTurns?: number;
 }
 
+/**
+ * GET /api/v2/calls/live — calls that are really live right now (Live Monitoring source of truth).
+ * The server drops leftover rows from restarts/missed webhooks, so the count here is the real count.
+ */
+export async function fetchLiveCalls(batchId?: string | null): Promise<ApiCall[]> {
+  const qs = batchId && batchId !== 'all' ? `?batchId=${encodeURIComponent(batchId)}` : '';
+  return apiFetch<ApiCall[]>(`/api/v2/calls/live${qs}`);
+}
+
 /** GET /api/v2/calls/:callId/transcript — Fetch call transcript */
 export async function getCallTranscript(callId: string): Promise<CallTranscriptResponse> {
   return apiFetch<CallTranscriptResponse>(`/api/v2/calls/${callId}/transcript`);
