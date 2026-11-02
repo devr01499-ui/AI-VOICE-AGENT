@@ -413,6 +413,32 @@ router.get(
   }
 );
 
+export function normalizeCallSettings(incoming: any = {}) {
+  return {
+    ambientNoise: typeof incoming.ambientNoise === 'string' ? incoming.ambientNoise : 'None',
+    endCallToolEnabled: incoming.endCallToolEnabled !== undefined ? Boolean(incoming.endCallToolEnabled) : true,
+    endOnGoodbyeEnabled: incoming.endOnGoodbyeEnabled !== undefined ? Boolean(incoming.endOnGoodbyeEnabled) : true,
+    closingMessage: typeof incoming.closingMessage === 'string' && incoming.closingMessage.trim()
+      ? incoming.closingMessage.trim()
+      : 'Thank you for your time. Have a wonderful day!',
+    endCallOnSilenceSeconds: typeof incoming.endCallOnSilenceSeconds === 'number'
+      ? Math.max(0, Math.min(300, incoming.endCallOnSilenceSeconds))
+      : 30,
+    maxDurationSeconds: typeof incoming.maxDurationSeconds === 'number'
+      ? Math.max(60, Math.min(7200, incoming.maxDurationSeconds))
+      : 900,
+    voicemailDetection: {
+      enabled: Boolean(incoming.voicemailDetection?.enabled),
+      action: incoming.voicemailDetection?.action || 'hangup',
+    },
+    optOutKeywords: Array.isArray(incoming.optOutKeywords)
+      ? incoming.optOutKeywords
+      : typeof incoming.optOutKeywords === 'string'
+      ? incoming.optOutKeywords.split(',').map((k: string) => k.trim()).filter(Boolean)
+      : [],
+  };
+}
+
 function normalizeGreetingConfig(inputConfig: any, body: any): { greeting: any; firstMessage: string | null; config: any } {
   let cfg = typeof inputConfig === 'string'
     ? (() => { try { return JSON.parse(inputConfig); } catch { return {}; } })()
@@ -450,6 +476,19 @@ function normalizeGreetingConfig(inputConfig: any, body: any): { greeting: any; 
 
   cfg.greeting = greeting;
   const syncedFirstMessage = (mode === 'agent_first' && text) ? text : null;
+
+  const rawCallSettings = {
+    ...(cfg?.callSettings || {}),
+    ...(body?.callSettings || {}),
+    ...(body?.endCallToolEnabled !== undefined ? { endCallToolEnabled: body.endCallToolEnabled } : {}),
+    ...(body?.endOnGoodbyeEnabled !== undefined ? { endOnGoodbyeEnabled: body.endOnGoodbyeEnabled } : {}),
+    ...(body?.closingMessage !== undefined ? { closingMessage: body.closingMessage } : {}),
+    ...(body?.endCallSilenceSec !== undefined ? { endCallOnSilenceSeconds: Number(body.endCallSilenceSec) } : {}),
+    ...(body?.endCallOnSilenceSeconds !== undefined ? { endCallOnSilenceSeconds: Number(body.endCallOnSilenceSeconds) } : {}),
+    ...(body?.maxDurationSeconds !== undefined ? { maxDurationSeconds: Number(body.maxDurationSeconds) } : {}),
+    ...(body?.maxCallDurationMins !== undefined ? { maxDurationSeconds: Number(body.maxCallDurationMins) * 60 } : {}),
+  };
+  cfg.callSettings = normalizeCallSettings(rawCallSettings);
 
   return {
     greeting,
