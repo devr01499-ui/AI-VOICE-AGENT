@@ -4810,7 +4810,7 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
                 onKeyDown={e => { if (e.key === 'Enter') runQueryTest(); }}
                 className="w-full px-3 py-2 border border-border rounded-lg text-xs bg-background focus:outline-none"
               />
-              <DBtn onClick={runQueryTest} disabled={testLoading || !testQueryText.trim() || (!testTargetKbId && !testTargetAgentId)}>
+              <DBtn onClick={runQueryTest} disabled={testLoading || !testQueryText.trim()}>
                 {testLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin"/> : <Search className="w-3.5 h-3.5"/>} Test
               </DBtn>
             </div>
@@ -4826,6 +4826,22 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
 
         {testResult && (
           <div className="mt-4 pt-4 border-t border-border/40 space-y-4">
+            {(testResult as any).message && (
+              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                <Info className="w-4 h-4 flex-shrink-0" />
+                <span>{(testResult as any).message}</span>
+              </div>
+            )}
+            {testResult.chunks.length > 0 && (
+              <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 space-y-1.5">
+                <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold text-xs">
+                  <Bot className="w-4 h-4" /> Synthesized Agent Answer
+                </div>
+                <p className="text-xs text-foreground leading-relaxed">
+                  Based on {testResult.chunks[0].source || 'your document'}: "{testResult.chunks[0].content.slice(0, 280)}..."
+                </p>
+              </div>
+            )}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
               <div className="p-3 rounded-xl bg-muted/20 border border-border/30">
                 <p className="text-[10px] font-bold text-muted-foreground uppercase">Roundtrip Latency</p>
