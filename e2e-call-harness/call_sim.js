@@ -54,6 +54,8 @@ async function ensureSeedData() {
     user = await prisma.user.create({
       data: {
         email: 'test-harness@claritiy.com',
+        fullName: 'Test Harness User',
+        passwordHash: 'ci_test_password_hash',
         accountType: 'admin',
         callingBalanceMinutes: 1000,
       },

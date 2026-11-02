@@ -71,6 +71,13 @@ jobs:
           cd server
           npm run build
 
+      - name: Setup Database Schema
+        env:
+          DATABASE_URL: "postgresql://claritiy:testpassword@localhost:5432/claritiy_test?schema=public"
+        run: |
+          cd server
+          npx prisma db push --skip-generate --accept-data-loss
+
       - name: Run E2E Call Harness
         env:
           DATABASE_URL: "postgresql://claritiy:testpassword@localhost:5432/claritiy_test?schema=public"

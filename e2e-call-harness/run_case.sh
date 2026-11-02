@@ -44,6 +44,13 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+# 0. Sync Database Schema
+echo "0. Syncing Prisma database schema to test database..."
+(
+  cd "${ROOT_DIR}/server"
+  npx prisma db push --skip-generate --accept-data-loss
+)
+
 # 1. Start Fake Gemini Server
 echo "1. Starting Fake Gemini Service on port ${FAKE_GEMINI_PORT}..."
 node "${SCRIPT_DIR}/fake_gemini.js" &
@@ -62,16 +69,24 @@ echo "2. Starting Voice Engine Server on port ${PORT}..."
 (
   cd "${ROOT_DIR}/server"
   node dist/index.js
-) &
+) > /tmp/voice_server.log 2>&1 &
 SERVER_PID=$!
 
+SERVER_ONLINE=0
 for i in {1..40}; do
   if curl -s "http://127.0.0.1:${PORT}/health" >/dev/null 2>&1; then
     echo "✓ Voice Engine server is online!"
+    SERVER_ONLINE=1
     break
   fi
   sleep 0.5
 done
+
+if [ "$SERVER_ONLINE" -eq 0 ]; then
+  echo "❌ Voice Engine server failed to come online within 20s. Server log:"
+  cat /tmp/voice_server.log 2>/dev/null || true
+  exit 1
+fi
 
 # 3. Execute 10 Outbound Call Iterations
 echo ""
