@@ -5385,11 +5385,14 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
 
 // ── Settings ──
 function DashSettings({ profile }: { profile: ApiProfile | null }) {
-  const [stab, setStab] = useState<"workspace"|"kyc"|"api"|"webhooks"|"billing"|"team"|"audit">(() => {
+  const [stab, setStab] = useState<"workspace"|"kyc"|"api"|"team">(() => {
     try {
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
-        if (params.get('tab') === 'kyc') return 'kyc';
+        const t = params.get('tab');
+        if (t === 'kyc') return 'kyc';
+        if (t === 'api') return 'api';
+        if (t === 'team') return 'team';
         if (window.location.pathname.includes('/compliance')) return 'kyc';
       }
       const target = localStorage.getItem('open_settings_tab');
@@ -5727,7 +5730,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
     setTimeout(() => setCopiedSecret(false), 2000);
   };
 
-  const tabConfig: { id: "workspace"|"kyc"|"api"|"webhooks"|"billing"|"team"|"audit"; label: string; icon: any; badge?: React.ReactNode }[] = [
+  const tabConfig: { id: "workspace"|"kyc"|"api"|"team"; label: string; icon: any; badge?: React.ReactNode }[] = [
     { id: "workspace", label: "General & Voice", icon: Sliders },
     { 
       id: "kyc", 
@@ -5745,10 +5748,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
       )
     },
     { id: "api", label: "API & Keys", icon: Key },
-    { id: "webhooks", label: "Webhooks", icon: Radio },
-    { id: "billing", label: "Billing & Credits", icon: CreditCard },
     { id: "team", label: `Team (${team.length})`, icon: Users },
-    ...(canManageTeam ? [{ id: "audit" as const, label: "Audit Logs", icon: FileText }] : []),
   ];
 
   return (
@@ -5936,25 +5936,45 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
               </div>
             </div>
 
-            {/* Card 5: Admin Usage Ledger */}
-            {(profile as any)?.isAdmin && (
-              <div className="nm-card p-6 rounded-3xl border border-border-soft/60 space-y-3 bg-gradient-to-br from-surface-white via-surface-white to-mint-primary/5">
-                <p className="text-xs font-bold uppercase tracking-wider text-ink-muted" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                  Platform Telemetry — Admin Ledger
-                </p>
-                <div className="nm-pressed rounded-2xl p-5 flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-mint-primary/20 text-forest-deep flex items-center justify-center font-bold shrink-0">
-                    <Activity className="w-6 h-6 text-emerald-600" />
+            {/* Account Credits & Plan Status Card */}
+            <div className="nm-card p-6 md:p-8 space-y-4 rounded-3xl border border-border-soft/60 bg-gradient-to-br from-surface-white via-surface-white to-mint-primary/5">
+              <div className="flex items-center justify-between pb-3 border-b border-border-soft/40">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-mint-primary/20 text-forest-deep flex items-center justify-center font-bold">
+                    <Activity className="w-5 h-5 text-emerald-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-extrabold text-[var(--nm-text)] font-mono" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                      {((profile as any)?.totalMinutesConsumed ?? 0).toFixed(2)} <span className="text-sm font-bold text-ink-muted">min</span>
-                    </p>
-                    <p className="text-xs text-ink-muted">Aggregated telephony duration consumed across all sandbox & live runs.</p>
+                    <h3 className="text-base font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                      Account Credits & Plan
+                    </h3>
+                    <p className="text-xs text-ink-muted">Authoritative platform calling balance</p>
                   </div>
                 </div>
+                <span className="text-xs font-bold px-3 py-1 bg-mint-primary/20 text-emerald-600 border border-emerald-500/30 rounded-full uppercase tracking-wider">
+                  {(profile as any)?.accountType || 'Growth'} Plan
+                </span>
               </div>
-            )}
+              <div className="nm-pressed rounded-2xl p-5 flex items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <p className={`text-2xl font-extrabold font-mono ${(profile?.callingBalanceMinutes ?? 0) < 100 ? 'text-amber-500' : 'text-[var(--nm-text)]'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>
+                      {Math.max(0, (profile?.callingBalanceMinutes ?? 0)).toFixed(0)}{' '}<span className="text-sm font-bold text-ink-muted">credits remaining</span>
+                    </p>
+                    <span
+                      className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-bold cursor-help"
+                      title="1 credit = 1 call minute"
+                    >
+                      ?
+                    </span>
+                  </div>
+                  <p className="text-xs text-ink-muted mt-1">
+                    {(profile?.callingBalanceMinutes ?? 0) < 100
+                      ? '⚠️ Low balance alert: remaining credits are below 10% of standard capacity.'
+                      : 'Live voice telephony minutes available across inbound and outbound calls.'}
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Retention Confirmation Dialog */}
