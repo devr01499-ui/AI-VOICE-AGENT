@@ -48,6 +48,7 @@ import { KycComplianceSettings } from "./components/kyc/KycComplianceSettings";
 import { ReportsHome } from "./components/reports/ReportsHome";
 import { RealCallModal } from "./components/calls/RealCallModal";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
+import { formatDateTime, formatDate, formatTime, normalizeTimezone } from "./lib/dateFormat";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 const Home = lazy(() => import("./pages/Home"));
 const Solutions = lazy(() => import("./pages/Solutions"));
@@ -2278,7 +2279,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
                 <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.duration != null ? `${Math.floor(c.duration/60)}m ${c.duration%60}s` : '0s'}</td>
                 <td className="px-5 py-4"><DBadge v={c.status==="completed"?"success":"warning"}>{c.status === "completed" ? "Completed" : c.status}</DBadge></td>
                 <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.sentiment || 'Neutral'}</td>
-                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.createdAt ? new Date(c.createdAt).toLocaleDateString() : '—'}</td>
+                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.createdAt ? formatDateTime(c.createdAt, { showZone: true }) : '—'}</td>
               </tr>
             ))}
             {allCalls.filter(c => c.agentId === selected.id || c.agent?.name === selected.name).length === 0 && (
@@ -3073,7 +3074,7 @@ function DashBatch({ onNavigate }: DashBatchProps) {
     try {
       const estimatedMin = Math.ceil(parsedRecipients.length * 2);
       const res = await createBatchCampaign({
-        name: form.name.trim() || `Campaign ${new Date().toLocaleDateString()}`,
+        name: form.name.trim() || `Campaign ${formatDate(new Date())}`,
         agentId: form.agentId,
         numberId: form.numberId,
         scheduleNow: form.scheduleNow,
@@ -3277,7 +3278,7 @@ function DashBatch({ onNavigate }: DashBatchProps) {
                     </td>
                     <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{connected.toLocaleString()}</td>
                     <td className="px-5 py-4 text-sm font-bold text-red-500" style={{fontFamily:"'Outfit', sans-serif"}}>{failed.toLocaleString()}</td>
-                    <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.created || (c.createdAt ? new Date(c.createdAt).toLocaleDateString() : '—')}</td>
+                    <td className="px-5 py-4 text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.created || (c.createdAt ? formatDateTime(c.createdAt, { showZone: true }) : '—')}</td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <DBtn size="sm" variant="secondary" onClick={() => handleNavigateLive(c.id)} title="Open in Live Monitoring">
@@ -3707,7 +3708,7 @@ function DashCallLogs() {
       durDisplay: `${durStr} (${billedMins}m billed)`,
       status: c.status || 'unknown',
       sent: c.sentiment ?? 'N/A',
-      date: new Date(c.startedAt || c.createdAt).toLocaleString(),
+      date: formatDateTime(c.startedAt || c.createdAt, { showZone: true }),
       rec: !!(c.recordingUrl || c.hasRecording),
       recordingUrl: c.recordingUrl,
       summary: c.summary,
@@ -3851,7 +3852,7 @@ function DashCallLogs() {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs font-bold text-[var(--nm-text)] opacity-70">
-            Updated {lastUpdated ? `${lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : ''}
+            Updated {lastUpdated ? formatTime(lastUpdated, { showZone: true }) : ''}
           </span>
           <DBtn size="sm" variant="secondary" onClick={handleExportCsv}>
             <Download className="w-3.5 h-3.5"/> Export CSV
@@ -4729,7 +4730,7 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{(d.sizeChars / 1024).toFixed(1)} KB</td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{new Date(d.createdAt).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{formatDate(d.createdAt)}</td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <button 
@@ -5490,10 +5491,10 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
       const s = localStorage.getItem('workspace_settings');
       if (s) {
         const parsed = JSON.parse(s);
-        if (parsed.timezone) return parsed.timezone;
+        if (parsed.timezone) return normalizeTimezone(parsed.timezone);
       }
     } catch {}
-    return "Asia/Kolkata (UTC+5:30)";
+    return "Asia/Kolkata";
   });
   const [defaultNumberId, setDefaultNumberId] = useState(() => {
     try {
@@ -5831,11 +5832,13 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <DField label="Timezone">
                   <DSelect value={timezone} onChange={e => setTimezone(e.target.value)}>
-                    <option value="Asia/Kolkata (UTC+5:30)">Asia/Kolkata (UTC+5:30) — India Standard Time</option>
-                    <option value="America/New_York (UTC−5)">America/New_York (UTC−5)</option>
-                    <option value="America/Chicago (UTC−6)">America/Chicago (UTC−6)</option>
-                    <option value="America/Los_Angeles (UTC−8)">America/Los_Angeles (UTC−8)</option>
-                    <option value="Europe/London (UTC+0)">Europe/London (UTC+0)</option>
+                    <option value="Asia/Kolkata">Asia/Kolkata (UTC+5:30) — India Standard Time (Default)</option>
+                    <option value="America/New_York">America/New_York (UTC-5 / UTC-4) — Eastern Time</option>
+                    <option value="America/Chicago">America/Chicago (UTC-6 / UTC-5) — Central Time</option>
+                    <option value="America/Los_Angeles">America/Los_Angeles (UTC-8 / UTC-7) — Pacific Time</option>
+                    <option value="Asia/Dubai">Asia/Dubai (UTC+4:00) — Gulf Standard Time</option>
+                    <option value="Europe/London">Europe/London (UTC+0 / UTC+1) — Greenwich / British Time</option>
+                    <option value="Asia/Singapore">Asia/Singapore (UTC+8:00) — Singapore Standard Time</option>
                   </DSelect>
                 </DField>
                 <DField label="Default outbound number">

@@ -73,7 +73,7 @@ export class CalendarService {
     }
   }
 
-  static async scheduleEvent(userId: string, summary: string, startTime: string, endTime: string, description?: string): Promise<any> {
+  static async scheduleEvent(userId: string, summary: string, startTime: string, endTime: string, description?: string, timezone?: string): Promise<any> {
     try {
       if (!userId) {
         return {
@@ -97,7 +97,8 @@ export class CalendarService {
       oauth2Client.setCredentials(tokens);
 
       const calendar = (getCalendar as any)({ version: 'v3', auth: oauth2Client });
-      
+      const targetTz = timezone || 'Asia/Kolkata';
+
       const event = await calendar.events.insert({
         calendarId: 'primary',
         requestBody: {
@@ -105,9 +106,11 @@ export class CalendarService {
           description,
           start: {
             dateTime: startTime,
+            timeZone: targetTz,
           },
           end: {
             dateTime: endTime,
+            timeZone: targetTz,
           },
         }
       });

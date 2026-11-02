@@ -28,6 +28,7 @@ import {
   type ApiAgent 
 } from '../../api';
 import { apiClient } from '../../api';
+import { formatTime } from '../../lib/dateFormat';
 
 interface RealCallModalProps {
   open: boolean;
@@ -173,7 +174,7 @@ export function RealCallModal({
                 {
                   speaker: data.speaker || 'agent',
                   text: data.text,
-                  timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                  timestamp: formatTime(new Date()),
                 },
               ]);
             }

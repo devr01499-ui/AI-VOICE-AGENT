@@ -18,6 +18,7 @@ import { logAuditEvent } from '../utils/auditLogger';
 import { REPORT_BLUEPRINTS, ReportBlueprint } from '../config/reportBlueprints';
 import { calculateRubricScore } from '../utils/rubricScorer';
 import { AnalysisService } from '../services/AnalysisService';
+import { getWorkspaceDayBounds, formatDateInTimezone, sanitizeTimezone } from '../lib/calendar/timezone';
 import { z } from 'zod';
 
 const router = Router();
@@ -98,15 +99,22 @@ router.get('/', async (req: Request, res: Response, next: NextFunction): Promise
       }
     }
 
+    const reqTz = sanitizeTimezone((req.query.timezone as string) || (req.headers['x-workspace-timezone'] as string) || (req as any).user?.workspaceTimezone);
     if (query.dateFrom || query.dateTo) {
       where.createdAt = {};
-      if (query.dateFrom) where.createdAt.gte = new Date(query.dateFrom);
-      if (query.dateTo) {
-        const dt = new Date(query.dateTo);
-        if (query.dateTo.length <= 10) {
-          dt.setUTCHours(23, 59, 59, 999);
+      if (query.dateFrom) {
+        if (query.dateFrom.length <= 10) {
+          where.createdAt.gte = getWorkspaceDayBounds(query.dateFrom, reqTz).startUtc;
+        } else {
+          where.createdAt.gte = new Date(query.dateFrom);
         }
-        where.createdAt.lte = dt;
+      }
+      if (query.dateTo) {
+        if (query.dateTo.length <= 10) {
+          where.createdAt.lte = getWorkspaceDayBounds(query.dateTo, reqTz).endUtc;
+        } else {
+          where.createdAt.lte = new Date(query.dateTo);
+        }
       }
     }
 
@@ -227,18 +235,23 @@ router.get('/summary', async (req: Request, res: Response, next: NextFunction): 
       callWhere.agentId = query.agentId;
     }
 
+    const summaryTz = sanitizeTimezone((req.query.timezone as string) || (req.headers['x-workspace-timezone'] as string) || (req as any).user?.workspaceTimezone);
     if (query.dateFrom || query.dateTo) {
       where.createdAt = {};
       callWhere.createdAt = {};
       if (query.dateFrom) {
-        where.createdAt.gte = new Date(query.dateFrom);
-        callWhere.createdAt.gte = new Date(query.dateFrom);
+        const fromDate = query.dateFrom.length <= 10
+          ? getWorkspaceDayBounds(query.dateFrom, summaryTz).startUtc
+          : new Date(query.dateFrom);
+        where.createdAt.gte = fromDate;
+        callWhere.createdAt.gte = fromDate;
       }
       if (query.dateTo) {
-        const dt = new Date(query.dateTo);
-        if (query.dateTo.length <= 10) dt.setUTCHours(23, 59, 59, 999);
-        where.createdAt.lte = dt;
-        callWhere.createdAt.lte = dt;
+        const toDate = query.dateTo.length <= 10
+          ? getWorkspaceDayBounds(query.dateTo, summaryTz).endUtc
+          : new Date(query.dateTo);
+        where.createdAt.lte = toDate;
+        callWhere.createdAt.lte = toDate;
       }
     }
 
@@ -406,13 +419,18 @@ const handleCsvExport = async (req: Request, res: Response, next: NextFunction):
       }
     }
 
+    const exportTz = sanitizeTimezone((req.query.timezone as string) || (req.headers['x-workspace-timezone'] as string) || (req as any).user?.workspaceTimezone);
     if (query.dateFrom || query.dateTo) {
       where.createdAt = {};
-      if (query.dateFrom) where.createdAt.gte = new Date(query.dateFrom);
+      if (query.dateFrom) {
+        where.createdAt.gte = query.dateFrom.length <= 10
+          ? getWorkspaceDayBounds(query.dateFrom, exportTz).startUtc
+          : new Date(query.dateFrom);
+      }
       if (query.dateTo) {
-        const dt = new Date(query.dateTo);
-        if (query.dateTo.length <= 10) dt.setUTCHours(23, 59, 59, 999);
-        where.createdAt.lte = dt;
+        where.createdAt.lte = query.dateTo.length <= 10
+          ? getWorkspaceDayBounds(query.dateTo, exportTz).endUtc
+          : new Date(query.dateTo);
       }
     }
 
@@ -445,7 +463,7 @@ const handleCsvExport = async (req: Request, res: Response, next: NextFunction):
 
     for (const r of results) {
       const callId = sanitizeCsvCell(r.callId);
-      const date = sanitizeCsvCell(r.createdAt.toISOString());
+      const date = sanitizeCsvCell(formatDateInTimezone(r.createdAt, exportTz, { timeZoneName: 'short' }));
       const direction = r.call?.callDirection || (r.call?.fromPhoneNumber && !r.call?.recipientPhoneNumber ? 'inbound' : 'outbound');
       const contactNumber = direction === 'inbound' ? (r.call?.fromPhoneNumber || '') : (r.call?.recipientPhoneNumber || '');
       const businessNumber = direction === 'inbound' ? (r.call?.recipientPhoneNumber || '') : (r.call?.fromPhoneNumber || '');

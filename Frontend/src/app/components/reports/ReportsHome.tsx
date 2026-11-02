@@ -14,6 +14,7 @@ import {
 } from '../../api';
 import { CallResultDrawer } from './CallResultDrawer';
 import { BlueprintCatalogModal } from './BlueprintCatalogModal';
+import { formatDateTime, formatDate, getWorkspaceTimezone } from '../../lib/dateFormat';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 
 interface ReportsHomeProps {
@@ -47,11 +48,19 @@ function ReportsHomeInner({ userRole = 'owner' }: ReportsHomeProps) {
 
   const getDateFilterValues = () => {
     if (dateRange === 'all') return { dateFrom: undefined, dateTo: undefined };
+    const tz = getWorkspaceTimezone();
     const now = new Date();
-    let from = new Date();
     if (dateRange === 'today') {
-      from.setHours(0, 0, 0, 0);
-    } else if (dateRange === '7d') {
+      const todayStr = formatDate(now, { year: 'numeric', month: '2-digit', day: '2-digit' });
+      // Format as YYYY-MM-DD
+      const parts = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(now);
+      return {
+        dateFrom: parts,
+        dateTo: parts,
+      };
+    }
+    const from = new Date();
+    if (dateRange === '7d') {
       from.setDate(now.getDate() - 7);
     } else if (dateRange === '30d') {
       from.setDate(now.getDate() - 30);
@@ -579,7 +588,7 @@ function ReportsHomeInner({ userRole = 'owner' }: ReportsHomeProps) {
 
                       {/* Timestamp */}
                       <td className="p-3.5 text-slate-400 font-mono text-[11px]">
-                        {new Date(item.createdAt).toLocaleDateString()}
+                        {formatDateTime(item.createdAt, { showZone: true })}
                       </td>
 
                       {/* Action */}
