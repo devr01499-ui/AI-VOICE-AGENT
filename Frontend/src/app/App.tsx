@@ -24,7 +24,7 @@ import {
   Landmark, GraduationCap, Truck, Building2, Hotel, Activity,
   Clock, TrendingUp, Plus, Search, Bell, Bot, LogOut,
   PhoneIncoming, CircleDot, X, Menu, Zap, Shield, Volume2,
-  Phone, Radio, BookOpen, Mic2, Network, FileText, Upload, Link,
+  Phone, Radio, BookOpen, Mic2, FileText, Upload, Link,
   Cpu, MessageSquare, Eye, EyeOff, Copy, RefreshCw, Trash2,
   Edit3, Download, Send, PlayCircle, PauseCircle, StopCircle,
   CheckCircle2, AlertCircle, Info, Star, Headphones, Wand2,
@@ -4158,9 +4158,7 @@ function DashNumbers({ profile, onNavigateToBilling, onNavigateToKyc }: { profil
   const [buyAgentId, setBuyAgentId] = useState<string>("");
   const [realCallModal, setRealCallModal] = useState<{ open: boolean; agentId?: string; fromNumber?: string }>({ open: false });
 
-  const [showSip, setShowSip] = useState(false);
-  const [showPass, setShowPass] = useState(false);
-  const [sipForm, setSipForm] = useState({uri:"sip:pbx.acmecorp.com",user:"claritiyvoice",pass:"",codec:"PCMU,PCMA,G722",transport:"TLS",dtmf:"RFC 2833",register:true});
+
 
   const loadNumbers = useCallback(async () => {
     try {
@@ -4334,7 +4332,7 @@ function DashNumbers({ profile, onNavigateToBilling, onNavigateToKyc }: { profil
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{numbers.length} numbers provisioned</p>
-        <div className="flex gap-2"><DBtn variant="secondary" onClick={()=>setShowSip(true)}><Network className="w-4 h-4"/> SIP config</DBtn><DBtn onClick={() => setViewMode('buy')}><Plus className="w-4 h-4"/> Buy number</DBtn></div>
+        <div className="flex gap-2"><DBtn onClick={() => setViewMode('buy')}><Plus className="w-4 h-4"/> Buy number</DBtn></div>
       </div>
       
       {loading && numbers.length === 0 ? (
@@ -4345,7 +4343,6 @@ function DashNumbers({ profile, onNavigateToBilling, onNavigateToKyc }: { profil
           <p className="text-lg font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>You haven't provisioned any numbers yet</p>
           <p className="text-sm font-bold text-[var(--nm-text)] mt-2 mb-6" style={{fontFamily:"'Outfit', sans-serif"}}>Provision a local or toll-free number to route calls to your agents.</p>
           <div className="flex justify-center gap-3">
-            <DBtn variant="secondary" onClick={()=>setShowSip(true)} size="sm"><Network className="w-4 h-4"/> SIP config</DBtn>
             <DBtn onClick={() => setViewMode('buy')} size="sm"><Plus className="w-4 h-4"/> Buy number</DBtn>
           </div>
         </div>
@@ -4398,37 +4395,6 @@ function DashNumbers({ profile, onNavigateToBilling, onNavigateToKyc }: { profil
 
 
 
-      <DModal open={showSip} onClose={()=>setShowSip(false)} title="SIP trunk configuration" width="max-w-xl">
-        <div className="space-y-4">
-          <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
-            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5"/>
-            <div>
-              <p className="text-sm font-bold text-amber-800" style={{fontFamily:"'Outfit', sans-serif"}}>Bring Your Own SIP Trunk is Coming Soon</p>
-              <p className="text-xs font-medium text-amber-700 mt-1" style={{fontFamily:"'Outfit', sans-serif"}}>This feature is currently disabled and undergoing maintenance. You cannot save or connect a new SIP trunk at this time.</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3 opacity-50"><Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5"/><p className="text-xs text-blue-700" style={{fontFamily:"'Outfit', sans-serif"}}>Connects Claritiy Voice directly to your on-premise PBX or UCaaS (Cisco, Avaya, Asterisk, FreePBX, 3CX).</p></div>
-          <div className="opacity-50 pointer-events-none space-y-4">
-            <DField label="SIP URI"><DInput disabled value={sipForm.uri} onChange={e=>setSipForm(f=>({...f,uri:e.target.value}))}/></DField>
-            <div className="grid grid-cols-2 gap-3">
-              <DField label="Username"><DInput disabled value={sipForm.user} onChange={e=>setSipForm(f=>({...f,user:e.target.value}))}/></DField>
-              <DField label="Password"><div className="relative"><DInput disabled type={showPass?"text":"password"} value={sipForm.pass} onChange={e=>setSipForm(f=>({...f,pass:e.target.value}))} placeholder="••••••••"/><button disabled onClick={()=>setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">{showPass?<EyeOff className="w-4 h-4"/>:<Eye className="w-4 h-4"/>}</button></div></DField>
-            </div>
-            <DField label="Codecs" hint="Recommended: PCMU,PCMA for max compatibility. G722 for HD voice."><DInput disabled value={sipForm.codec} onChange={e=>setSipForm(f=>({...f,codec:e.target.value}))}/></DField>
-            <div className="grid grid-cols-2 gap-3">
-              <DField label="Transport"><DSelect disabled value={sipForm.transport} onChange={e=>setSipForm(f=>({...f,transport:e.target.value}))}><option>TLS</option><option>TCP</option><option>UDP</option></DSelect></DField>
-              <DField label="DTMF mode"><DSelect disabled value={sipForm.dtmf} onChange={e=>setSipForm(f=>({...f,dtmf:e.target.value}))}><option>RFC 2833</option><option>In-band</option><option>SIP INFO</option></DSelect></DField>
-            </div>
-            <div className="flex items-center justify-between"><div><p className="text-sm font-medium" style={{fontFamily:"'Outfit', sans-serif"}}>SIP registration</p><p className="text-xs text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>Register with your PBX for inbound routing</p></div><DToggle on={sipForm.register} set={()=>{}}/></div>
-            <div className="bg-muted/40 border border-border rounded-xl p-4 space-y-1">
-              <p className="text-xs font-medium text-muted-foreground mb-2" style={{fontFamily:"'Outfit', sans-serif"}}>ADD THESE IPs TO YOUR PBX ALLOWLIST</p>
-              {["34.120.88.42","34.102.147.9"].map(ip=><p key={ip} className="text-xs font-medium" style={{fontFamily:"'Outfit', sans-serif"}}>{ip}</p>)}
-              <p className="text-xs text-muted-foreground mt-1" style={{fontFamily:"'Outfit', sans-serif"}}>SIP Port: 5061 (TLS) · RTP: 10000–60000</p>
-            </div>
-          </div>
-          <div className="flex gap-3 mt-4"><DBtn disabled><Check className="w-4 h-4"/> Save &amp; test connection</DBtn><DBtn variant="secondary" onClick={()=>setShowSip(false)}>Cancel</DBtn></div>
-        </div>
-      </DModal>
 
       <RealCallModal
         open={realCallModal.open}
