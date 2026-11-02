@@ -626,6 +626,10 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 type DashSection = "agents"|"calling"|"batch"|"calls"|"numbers"|"knowledge"|"voices"|"calendar"|"settings"|"billing"|"companion"|"chat_history"|"contacts"|"analytics"|"live_monitoring"|"qa"|"alerting"|"integrations"|"reports";
 
+const FEATURE_FLAGS = {
+  chatHistory: false, // hidden until feature is complete
+} as const;
+
 
 // Shared tiny helpers
 function DBadge({ children, v="neutral" }: { children: React.ReactNode; v?: "neutral"|"success"|"warning"|"error"|"info"|"dark" }) {
@@ -6574,7 +6578,10 @@ function DashboardPage({ session }: { session: Session }) {
       }
       if (path.startsWith("/dashboard/")) {
         const sub = path.replace("/dashboard/", "").trim() as DashSection;
-        if (sub && (sub as string) !== "overview") return sub;
+        if (sub && (sub as string) !== "overview") {
+        if ((sub as string) === "chat_history" && !FEATURE_FLAGS.chatHistory) return "agents";
+        return sub;
+      }
       }
     }
     return "agents";
@@ -6598,7 +6605,8 @@ function DashboardPage({ session }: { session: Session }) {
         const path = window.location.pathname;
         if (path.startsWith("/dashboard")) {
           const sub = path.replace(/^\/dashboard\/?/, "").trim() as DashSection;
-          setSectionState(sub && (sub as string) !== "overview" ? (sub as DashSection) : "agents");
+          const resolvedSection: DashSection = (sub && (sub as string) !== "overview") ? (sub as DashSection) : "agents";
+          setSectionState((resolvedSection === "chat_history" && !FEATURE_FLAGS.chatHistory) ? "agents" : resolvedSection);
         }
       }
     };
@@ -6815,7 +6823,6 @@ function DashboardPage({ session }: { session: Session }) {
       label: "DATA",
       items: [
         { id: "calls", icon: PhoneIncoming, label: "Call History" },
-        { id: "chat_history", icon: MessageCircle, label: "Chat History" },
         { id: "contacts", icon: Users, label: "Contacts" },
       ]
     },
@@ -6978,7 +6985,7 @@ function DashboardPage({ session }: { session: Session }) {
               {section==="settings"&&<DashSettings profile={profile} />}
               {section==="billing"&&<Pricing isDashboard />}
               {section==="companion"&&<DashCompanion session={session} setApiAgents={setApiAgents} />}
-              {section==="chat_history"&&<DashChatHistory />}
+              {FEATURE_FLAGS.chatHistory && section==="chat_history"&&<DashChatHistory />}
               {section==="contacts"&&<DashContacts />}
               {section==="analytics"&&<DashAnalytics />}
               {section==="live_monitoring"&&<DashLiveMonitoring />}
