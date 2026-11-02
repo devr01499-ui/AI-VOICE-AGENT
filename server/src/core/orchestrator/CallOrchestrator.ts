@@ -517,7 +517,17 @@ export class CallOrchestrator extends EventEmitter {
     callSession.isRecordingEnabled = agentConfig.settings?.isRecordingEnabled || false;
     callSession.conversationState = new ConversationState();
     this.activeCalls.set(callId, callSession);
-    this.armFarewellWatchdog(callId);
+
+    const parsedAgentConfig = typeof (activeAgent as any)?.agentConfig === 'string'
+      ? (() => { try { return JSON.parse((activeAgent as any).agentConfig); } catch { return {}; } })()
+      : ((activeAgent as any)?.agentConfig || {});
+    const callSettings = (activeAgent as any)?.callSettings || parsedAgentConfig?.callSettings || (agentConfig as any)?.callSettings || (agentConfig as any)?.settings?.callSettings || {};
+    const shouldAddEndCallTools = callSettings.endCallToolEnabled !== false;
+    const shouldArmGoodbyeWatchdog = callSettings.endOnGoodbyeEnabled !== false;
+
+    if (shouldArmGoodbyeWatchdog) {
+      this.armFarewellWatchdog(callId);
+    }
 
     // Instantiate and execute the Pipecat runner asynchronously
     const pipecatRunner = new PipecatRunner(
@@ -537,23 +547,25 @@ export class CallOrchestrator extends EventEmitter {
             description: t.description,
             parameters: t.parameters,
           })) || []),
-          {
-            type: 'function' as const,
-            name: 'hang_up',
-            description: 'Alias of end_call. Ends the call after you have said goodbye.',
-            parameters: { type: 'OBJECT', properties: {} }
-          },
-          {
-            type: 'function' as const,
-            name: 'end_call',
-            description: 'Ends the phone call. Call this immediately AFTER you have spoken your final goodbye, when the conversation is finished or the caller wants to stop. Never call it while the caller still has a question. Include reason (e.g. "completed", "opt_out", "caller_requested") when relevant.',
-            parameters: {
-              type: 'OBJECT',
-              properties: {
-                reason: { type: 'STRING', description: 'Reason for terminating call (e.g. opt_out, dnc, caller_requested)' }
+          ...(shouldAddEndCallTools ? [
+            {
+              type: 'function' as const,
+              name: 'hang_up',
+              description: 'Alias of end_call. Ends the call after you have said goodbye.',
+              parameters: { type: 'OBJECT', properties: {} }
+            },
+            {
+              type: 'function' as const,
+              name: 'end_call',
+              description: 'Ends the phone call. Call this immediately AFTER you have spoken your final goodbye, when the conversation is finished or the caller wants to stop. Never call it while the caller still has a question. Include reason (e.g. "completed", "opt_out", "caller_requested") when relevant.',
+              parameters: {
+                type: 'OBJECT',
+                properties: {
+                  reason: { type: 'STRING', description: 'Reason for terminating call (e.g. opt_out, dnc, caller_requested)' }
+                }
               }
-            }
-          },
+            },
+          ] : []),
         ]),
       },
       (audioBase64: string) => {
@@ -929,6 +941,12 @@ export class CallOrchestrator extends EventEmitter {
     } else if (rawReason === 'completed' || rawReason === 'opted_out') {
       normalizedReason = 'completed';
       defaultEndedBy = 'agent';
+    } else if (rawReason === 'silence_timeout' || rawReason === 'silence') {
+      normalizedReason = 'silence_timeout';
+      defaultEndedBy = 'agent';
+    } else if (rawReason === 'max_duration' || rawReason === 'duration_limit') {
+      normalizedReason = 'max_duration';
+      defaultEndedBy = 'system';
     } else if (rawReason === 'failed') {
       normalizedReason = 'failed';
       defaultEndedBy = 'system';
@@ -994,7 +1012,14 @@ export class CallOrchestrator extends EventEmitter {
       return;
     }
 
-    const mappedStatus: CallStatus = (normalizedReason === 'completed' || normalizedReason === 'caller_hangup' || normalizedReason === 'agent_hangup' || normalizedReason === 'user_terminated')
+    const mappedStatus: CallStatus = (
+      normalizedReason === 'completed' ||
+      normalizedReason === 'caller_hangup' ||
+      normalizedReason === 'agent_hangup' ||
+      normalizedReason === 'user_terminated' ||
+      normalizedReason === 'silence_timeout' ||
+      normalizedReason === 'max_duration'
+    )
       ? 'completed'
       : (normalizedReason === 'no_answer' ? 'no_answer' : (normalizedReason === 'busy' ? 'busy' : 'failed'));
 

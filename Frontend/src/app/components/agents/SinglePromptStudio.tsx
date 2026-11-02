@@ -16,6 +16,7 @@ import {
   FileText,
   Sliders,
   PhoneCall,
+  PhoneOff,
   Shield,
   Globe,
   Plus,
@@ -775,6 +776,11 @@ export default function SinglePromptStudio({
   })();
 
   const [ambientNoise, setAmbientNoise] = useState<string>(initialCallSettings.ambientNoise || 'None');
+  const [endCallToolEnabled, setEndCallToolEnabled] = useState<boolean>(initialCallSettings.endCallToolEnabled !== undefined ? Boolean(initialCallSettings.endCallToolEnabled) : true);
+  const [endOnGoodbyeEnabled, setEndOnGoodbyeEnabled] = useState<boolean>(initialCallSettings.endOnGoodbyeEnabled !== undefined ? Boolean(initialCallSettings.endOnGoodbyeEnabled) : true);
+  const [closingMessage, setClosingMessage] = useState<string>(
+    initialCallSettings.closingMessage || 'Thank you for your time. Have a wonderful day!'
+  );
   const [endOnSilenceEnabled, setEndOnSilenceEnabled] = useState<boolean>(initialCallSettings.endCallOnSilenceSeconds ? true : false);
   const [endCallSilenceSec, setEndCallSilenceSec] = useState<number>(initialCallSettings.endCallOnSilenceSeconds || 30);
   const [maxCallDurationMins, setMaxCallDurationMins] = useState<number>(initialCallSettings.maxDurationSeconds ? Math.round(initialCallSettings.maxDurationSeconds / 60) : 15);
@@ -1423,6 +1429,9 @@ export default function SinglePromptStudio({
         },
         callSettings: {
           ambientNoise,
+          endCallToolEnabled,
+          endOnGoodbyeEnabled,
+          closingMessage,
           endCallOnSilenceSeconds: endOnSilenceEnabled ? endCallSilenceSec : 0,
           maxDurationSeconds: maxCallDurationMins * 60,
           voicemailDetection: {
@@ -2584,6 +2593,69 @@ export default function SinglePromptStudio({
             </button>
             {accordionState.callSettings && (
               <div className="mt-3 space-y-3.5 text-xs text-slate-600 dark:text-slate-400">
+                {/* AI Hangup / End Call Tool Toggle */}
+                <div className="pt-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <div>
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">Enable AI End Call Tool</span>
+                      <p className="text-[10px] text-slate-400">Allows AI agent to conclude and terminate the call via end_call tool</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEndCallToolEnabled(!endCallToolEnabled)}
+                      className={`w-9 h-5 rounded-full transition-colors relative ${
+                        endCallToolEnabled ? 'bg-green-600' : 'bg-slate-300 dark:bg-slate-700'
+                      }`}
+                    >
+                      <span
+                        className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform ${
+                          endCallToolEnabled ? 'left-4.5' : 'left-0.5'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Auto-Hangup on Farewell / Goodbye */}
+                <div className="pt-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <div>
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">Auto-Hangup on Goodbye</span>
+                      <p className="text-[10px] text-slate-400">Carrier watchdog disconnects phone line after AI farewell</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEndOnGoodbyeEnabled(!endOnGoodbyeEnabled)}
+                      className={`w-9 h-5 rounded-full transition-colors relative ${
+                        endOnGoodbyeEnabled ? 'bg-green-600' : 'bg-slate-300 dark:bg-slate-700'
+                      }`}
+                    >
+                      <span
+                        className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform ${
+                          endOnGoodbyeEnabled ? 'left-4.5' : 'left-0.5'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Closing Farewell Message */}
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Closing Farewell Message
+                  </label>
+                  <input
+                    type="text"
+                    value={closingMessage}
+                    onChange={(e) => setClosingMessage(e.target.value)}
+                    placeholder="Thank you for your time. Have a wonderful day!"
+                    className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-green-500"
+                  />
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    Spoken by the agent right before ending the call session.
+                  </p>
+                </div>
+
                 {/* Ambient Noise Track */}
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -3191,12 +3263,30 @@ export default function SinglePromptStudio({
                     <Play className="w-4 h-4 text-indigo-600" /> Run Test
                   </button>
                 ) : (
-                  <button
-                    onClick={stopWebsocketsTestCall}
-                    className="px-6 py-2.5 bg-rose-600 text-white font-semibold text-xs rounded-xl shadow-sm flex items-center gap-2 hover:bg-rose-700 transition-all"
-                  >
-                    <Pause className="w-4 h-4" /> End Test Call
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={stopWebsocketsTestCall}
+                      className="px-4 py-2 bg-rose-600 text-white font-semibold text-xs rounded-xl shadow-sm flex items-center gap-2 hover:bg-rose-700 transition-all"
+                      title="End the active test session immediately"
+                    >
+                      <Pause className="w-4 h-4" /> End Test Call
+                    </button>
+                    <button
+                      onClick={() => {
+                        setTranscriptTurns((prev) => [
+                          ...prev,
+                          { speaker: 'agent', text: closingMessage || 'Thank you for your time. Have a wonderful day! Goodbye.' }
+                        ]);
+                        setTimeout(() => {
+                          stopWebsocketsTestCall();
+                        }, 1000);
+                      }}
+                      className="px-4 py-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-semibold text-xs rounded-xl shadow-sm flex items-center gap-2 hover:bg-amber-500/20 transition-all"
+                      title="Test the goodbye auto-hangup flow"
+                    >
+                      <PhoneOff className="w-4 h-4" /> Test End Call (Say Goodbye)
+                    </button>
+                  </div>
                 )}
 
                 {/* Live Transcript Stream */}
