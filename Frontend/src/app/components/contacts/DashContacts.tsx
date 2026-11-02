@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, User, Phone, Tag, Calendar, Edit3, Trash2, ChevronRight, X, Check, PhoneIncoming, MessageSquare, RefreshCw } from 'lucide-react';
 import { apiClient, fetchCalls, type ApiCall } from '../../api';
+import { formatDateTime } from '../../lib/dateFormat';
 
 interface Contact {
   id: string;
@@ -283,7 +284,7 @@ export function DashContacts() {
                         )}
                       </td>
                       <td className="py-3 px-4 text-slate-500 font-mono text-[11px]">
-                        {c.lastContactedAt ? new Date(c.lastContactedAt).toLocaleString() : 'Never'}
+                        {c.lastContactedAt ? formatDateTime(c.lastContactedAt, { showZone: true }) : 'Never'}
                       </td>
                       <td className="py-3 px-4 text-slate-500 max-w-xs truncate">{c.notes || '-'}</td>
                       <td className="py-3 px-4 text-right">
@@ -440,7 +441,7 @@ export function DashContacts() {
                 <div className="flex justify-between text-[11px] text-slate-500">
                   <span>Last Contacted:</span>
                   <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">
-                    {activeContact.lastContactedAt ? new Date(activeContact.lastContactedAt).toLocaleString() : 'Never'}
+                    {activeContact.lastContactedAt ? formatDateTime(activeContact.lastContactedAt, { showZone: true }) : 'Never'}
                   </span>
                 </div>
                 {activeContact.notes && (
@@ -477,7 +478,7 @@ export function DashContacts() {
                             </span>
                           </div>
                           <span className="text-[10px] text-slate-400 font-mono">
-                            {new Date(call.createdAt).toLocaleString()}
+                            {formatDateTime(call.createdAt, { showZone: true })}
                           </span>
                         </div>
                         {call.durationSeconds && (

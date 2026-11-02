@@ -608,7 +608,8 @@ export class CallOrchestrator extends EventEmitter {
           }
           if (name === 'schedule_event') {
             logger.info('Flow Engine: trigger schedule_event tool call via Pipecat', { callId, args });
-            const result = await CalendarService.scheduleEvent(activeAgent.userId, parsedArgs.summary as string, parsedArgs.startTime as string, parsedArgs.endTime as string, parsedArgs.description as string);
+            const bookingTz = (parsedArgs.timezone as string) || (activeAgent as any)?.timezone || 'Asia/Kolkata';
+            const result = await CalendarService.scheduleEvent(activeAgent.userId, parsedArgs.summary as string, parsedArgs.startTime as string, parsedArgs.endTime as string, parsedArgs.description as string, bookingTz);
             return JSON.stringify(result);
           }
           if (name === 'press_digit') {

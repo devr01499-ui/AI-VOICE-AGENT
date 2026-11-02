@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { fetchCalendarBookings, fetchCalendarBatches } from '../../api';
+import { formatTime, formatDate } from '../../lib/dateFormat';
 import { Calendar, Clock, MapPin, User, Bot, AlertCircle } from 'lucide-react';
 
 interface Booking {
@@ -149,10 +150,10 @@ export function DashCalendar() {
                       
                       <div className="text-right flex flex-col items-end justify-center nm-pressed px-4 py-2 rounded-xl border border-white/5">
                         <span className="text-xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>
-                          {d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {formatTime(d, { showZone: true, tz: booking.timezone })}
                         </span>
                         <span className="text-xs text-gray-500 font-medium">
-                          {d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
+                          {formatDate(d, { weekday: 'short', month: 'short', day: 'numeric', tz: booking.timezone })}
                         </span>
                       </div>
                     </div>

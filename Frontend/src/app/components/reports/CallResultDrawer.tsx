@@ -5,6 +5,7 @@ import {
   HelpCircle, MessageSquare, History, Edit3, Volume2, ShieldAlert
 } from 'lucide-react';
 import { reportsApi, type DetailedReport, type ReportListItem } from '../../api';
+import { formatDateTime } from '../../lib/dateFormat';
 
 interface CallResultDrawerProps {
   callId: string | null;
@@ -384,13 +385,13 @@ export function CallResultDrawer({ callId, onClose, onReportUpdated, userRole = 
                     <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800">
                       <span className="text-slate-400 block mb-1">Started At</span>
                       <span className="font-mono text-slate-700 dark:text-slate-300">
-                        {report.call?.startedAt ? new Date(report.call.startedAt).toLocaleString() : 'N/A'}
+                        {report.call?.startedAt ? formatDateTime(report.call.startedAt, { showZone: true }) : 'N/A'}
                       </span>
                     </div>
                     <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800">
                       <span className="text-slate-400 block mb-1">Report Generated At</span>
                       <span className="font-mono text-slate-700 dark:text-slate-300">
-                        {new Date(report.createdAt).toLocaleString()}
+                        {formatDateTime(report.createdAt, { showZone: true })}
                       </span>
                     </div>
                   </div>
@@ -605,7 +606,7 @@ export function CallResultDrawer({ callId, onClose, onReportUpdated, userRole = 
                     >
                       <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
                         <span>{log.action}</span>
-                        <span>{new Date(log.createdAt).toLocaleString()}</span>
+                        <span>{formatDateTime(log.createdAt, { showZone: true })}</span>
                       </div>
                       <div className="text-[11px] text-slate-600 dark:text-slate-300">
                         Actor: {log.actorUserId}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Radio, PhoneOff, PhoneForwarded, Volume2, Mic, Activity, Clock, ShieldAlert, RefreshCw, User, CheckCircle2, ChevronRight, X, AlertTriangle } from 'lucide-react';
 import { apiClient, fetchLiveCalls, fetchAgents, getCallTranscript, getLiveTranscriptWsUrl, requestTranscriptTicket, type ApiCall, type ApiAgent } from '../../api';
+import { formatTime } from '../../lib/dateFormat';
 
 interface LiveTranscriptMessage {
   turnId?: string;
@@ -156,7 +157,7 @@ export function DashLiveMonitoring() {
                     speaker,
                     text: data.text || '',
                     isFinal: Boolean(data.isFinal),
-                    timestamp: new Date().toLocaleTimeString(),
+                    timestamp: formatTime(new Date()),
                   },
                 ]);
               });
@@ -339,7 +340,7 @@ export function DashLiveMonitoring() {
 
                     <div className="flex items-center justify-between text-[11px] text-slate-500">
                       <span>Agent: <strong>{getAgentName(call.agentId)}</strong></span>
-                      <span className="font-mono">{new Date(call.createdAt).toLocaleTimeString()}</span>
+                      <span className="font-mono">{formatTime(call.createdAt, { showZone: true })}</span>
                     </div>
                   </div>
                 );
