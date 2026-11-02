@@ -69,7 +69,7 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
   const [isKycVerified, setIsKycVerified] = useState<boolean>(false);
   const [isKycBlocked, setIsKycBlocked] = useState<boolean>(false);
 
-  // Provider Selection State ('vobiz' | 'plivo')
+  // Provider Selection State
   const [provider, setProvider] = useState<'vobiz' | 'plivo'>('vobiz');
   const [plivoRegion, setPlivoRegion] = useState('');
   const [plivoSubaccountMapped, setPlivoSubaccountMapped] = useState(false);
@@ -169,7 +169,7 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
     fetchAgents();
   }, []);
 
-  // Trigger Plivo subaccount onboarding transparently in background
+  // Trigger carrier subaccount onboarding transparently in background
   const triggerPlivoOnboard = useCallback(async () => {
     try {
       const apiBase = getRuntimeUrl();
@@ -218,7 +218,7 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
         });
         const data = await res.json();
 
-        if (!data.success) throw new Error(data.error || 'Failed to fetch Plivo Indian numbers');
+        if (!data.success) throw new Error(data.error || 'Failed to fetch Indian carrier numbers');
 
         const items: CarrierPhoneNumber[] = (data.data.results || []).map((p: any) => ({
           id: p.id || p.number,
@@ -249,7 +249,7 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
         setPage(targetPage);
         setHasMore(moreAvailable);
       } else {
-        // Vobiz Flow — 100% UNCHANGED
+        // Telephony Network Flow
         const qParams = new URLSearchParams({
           country,
           type,
@@ -609,7 +609,7 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
                     {selectedNumber.region || selectedNumber.country} · {selectedNumber.country}
                     {selectedNumber.provider === 'plivo' && (
                       <span className="ml-2 font-bold text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
-                        Plivo Subaccount
+                        Dedicated Carrier Account
                       </span>
                     )}
                   </p>
@@ -782,7 +782,7 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
                     : 'text-gray-500 hover:text-gray-900'
                 }`}
               >
-                <span>Vobiz Network</span>
+                <span>Telephony Network</span>
                 <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-semibold">Standard</span>
               </button>
               <button
@@ -795,7 +795,7 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
                     : 'text-gray-500 hover:text-gray-900'
                 }`}
               >
-                <span>Plivo Carrier</span>
+                <span>Direct Carrier</span>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${provider === 'plivo' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'}`}>
                   India Local Only
                 </span>
@@ -807,8 +807,8 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
             <Info className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>
               {provider === 'plivo'
-                ? 'Plivo integration provisions Indian local (+91) numbers into dedicated, customer-isolated subaccounts with centralized parent billing.'
-                : 'Vobiz provides high-throughput SIP trunks and global voice routing. Unchanged and fully active.'}
+                ? 'Direct carrier integration provisions Indian local (+91) numbers into dedicated, customer-isolated accounts with centralized parent billing.'
+                : 'Our telephony network provides high-throughput SIP trunks and global voice routing.'}
             </span>
           </div>
         </div>
@@ -866,13 +866,13 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
           </div>
 
           {provider === 'plivo' ? (
-            /* Plivo-specific Filters: Locked to India Local Only + City Filter */
+            /* Carrier-specific Filters: Locked to India Local Only + City Filter */
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border-2 border-emerald-500/30 bg-emerald-50/50 text-sm font-bold text-emerald-800 shadow-sm">
                 <span>🇮🇳 India (Local Only)</span>
               </div>
 
-              {/* Plivo City/Region Quick Selector */}
+              {/* City/Region Quick Selector */}
               <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-2xl border border-gray-200">
                 {[
                   { label: 'All Cities', value: '' },
@@ -897,7 +897,7 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
               </div>
             </div>
           ) : (
-            /* Existing Vobiz Country & Type Dropdowns - UNCHANGED */
+            /* Existing Country & Type Dropdowns */
             <>
               {/* Country Dropdown */}
               <div className="relative">
@@ -1005,7 +1005,7 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
                               <span>{num.country}</span>
                               <span>·</span>
                               <span className={`font-semibold ${isPlivo ? 'text-emerald-700' : 'text-gray-500'}`}>
-                                {isPlivo ? 'Plivo Carrier' : 'Vobiz Network'}
+                                {isPlivo ? 'Direct Carrier' : 'Telephony Network'}
                               </span>
                             </div>
                           </td>

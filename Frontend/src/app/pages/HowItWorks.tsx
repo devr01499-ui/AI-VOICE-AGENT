@@ -327,7 +327,7 @@ export default function HowItWorks({ setPage }: HowItWorksProps) {
   ];
 
   const latencyBreakdown = [
-    { phase: "Telecom Carrier SIP Handshake", target: "32 ms", tech: "G.711 / SRTP transport setup via Twilio, Exotel, or Plivo carrier trunks." },
+    { phase: "Telecom Carrier SIP Handshake", target: "32 ms", tech: "G.711 / SRTP transport setup via Twilio, Exotel, or our telephony network trunks." },
     { phase: "Acoustic Noise Filter & VAD", target: "15 ms", tech: "Dual-microphone noise suppression and 20ms voice activity windowing." },
     { phase: "Neural Multimodal Audio Inference", target: "85 ms", tech: "Gemini Live native audio streaming pipeline with zero-copy memory buffers." },
     { phase: "RAG Micro-Vector & Tool Calling", target: "14 ms", tech: "HNSW vector search in SQLite/Prisma with dynamic JSON function calling." },

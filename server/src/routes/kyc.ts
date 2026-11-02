@@ -222,7 +222,7 @@ export async function notifyUserKycStatus(userId: string, status: string, reason
     const isVerified = status === 'verified';
 
     const inAppMessage = isVerified
-      ? '🎉 KYC Verification Approved: Your account verification with Vobiz is complete! You can now activate and use your phone numbers.'
+      ? '🎉 KYC Verification Approved: Your account verification with our telephony network is complete! You can now activate and use your phone numbers.'
       : `⚠️ KYC Verification Action Required: Your verification could not be completed${reason ? ` (${reason})` : ''}. Please retry verification in your dashboard.`;
 
     NotificationService.createInAppNotification({
@@ -259,7 +259,7 @@ export async function notifyUserKycStatus(userId: string, status: string, reason
             </h2>
             <p>Hello ${user.fullName || 'User'},</p>
             <p>${isVerified
-              ? 'Your account-level KYC verification with Vobiz has been successfully approved! You can now activate and use phone numbers directly in your dashboard.'
+              ? 'Your account-level KYC verification with our telephony network has been successfully approved! You can now activate and use phone numbers directly in your dashboard.'
               : `Your account-level KYC verification could not be completed. ${reason ? 'Reason: ' + reason : 'Please retry document verification in Settings.'}`
             }</p>
             <p style="margin-top: 24px; font-size: 12px; color: #64748B;">
@@ -679,7 +679,7 @@ router.post('/verify-document', requireAuth, requireActivePlan, sensitiveOperati
             success: false,
             outcome: 'error',
             canFallbackHosted: true,
-            error: 'Verification provider is temporarily unavailable. Please try again shortly or continue with Vobiz hosted verification.',
+            error: 'Verification provider is temporarily unavailable. Please try again shortly or continue with carrier hosted verification.',
           });
           return;
         }
@@ -692,7 +692,7 @@ router.post('/verify-document', requireAuth, requireActivePlan, sensitiveOperati
           success: false,
           outcome: 'error',
           canFallbackHosted: true,
-          error: 'Network error contacting verification provider. Please try again shortly or continue with Vobiz hosted verification.',
+          error: 'Network error contacting verification provider. Please try again shortly or continue with carrier hosted verification.',
         });
         return;
       }
@@ -1280,7 +1280,7 @@ router.get('/status', requireAuth, requireActivePlan, async (req, res, next) => 
     const masterAuthToken = env.VOBIZ_AUTH_TOKEN;
 
     if (!masterAuthId || !masterAuthToken || masterAuthId.includes('placeholder')) {
-      res.status(503).json({ success: false, error: 'Vobiz credentials not configured.' });
+      res.status(503).json({ success: false, error: 'Carrier credentials not configured.' });
       return;
     }
 

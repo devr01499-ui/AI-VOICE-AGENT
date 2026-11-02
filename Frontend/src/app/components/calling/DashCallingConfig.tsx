@@ -113,7 +113,7 @@ export function DashCallingConfig({ onNavigateToKyc }: { onNavigateToKyc?: () =>
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 border border-emerald-200 text-emerald-700">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            Vobiz High-Precision Pipeline Active
+            Carrier High-Precision Pipeline Active
           </span>
         </div>
       </div>
@@ -177,7 +177,7 @@ export function DashCallingConfig({ onNavigateToKyc }: { onNavigateToKyc?: () =>
                         <span>Dedicated Voice Channel</span>
                         <span>•</span>
                         <span className={`capitalize font-semibold ${item.kycStatus === 'verified' ? 'text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200' : 'text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200'}`}>
-                          {item.kycStatus === 'verified' ? '✓ KYC Verified (Vobiz)' : 'KYC Verification Pending'}
+                          {item.kycStatus === 'verified' ? '✓ KYC Verified (Carrier)' : 'KYC Verification Pending'}
                         </span>
                         {item.kycStatus !== 'verified' && (
                           <button
@@ -296,7 +296,7 @@ export function DashCallingConfig({ onNavigateToKyc }: { onNavigateToKyc?: () =>
                     <Clock className="w-3.5 h-3.5 text-slate-400" />
                     24/7 Real-Time Availability Active
                   </span>
-                  <span>Instant Vobiz Answer URL Sync</span>
+                  <span>Instant Carrier Answer URL Sync</span>
                 </div>
               </div>
             );
