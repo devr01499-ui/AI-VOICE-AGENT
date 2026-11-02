@@ -141,8 +141,30 @@ router.get('/status', requireAuth, async (req, res) => {
 });
 
 /**
+ * DELETE /api/v2/calendar/disconnect
+ * Disconnects the Google Calendar (explicit path for frontend use).
+ */
+router.delete('/disconnect', requireAuth, async (req, res) => {
+  try {
+    const userId = getUserIdFromRequest(req);
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    await prisma.user.update({
+      where: { id: userId },
+      data: { googleCalendarTokens: null }
+    });
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Failed to disconnect Google Calendar', { error: error instanceof Error ? error.message : String(error) });
+    res.status(500).json({ error: 'Failed to disconnect calendar' });
+  }
+});
+
+/**
  * DELETE /api/v2/calendar
- * Disconnects the Google Calendar.
+ * Disconnects the Google Calendar (root path alias, kept for backwards compat).
  */
 router.delete('/', requireAuth, async (req, res) => {
   try {
