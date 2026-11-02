@@ -284,7 +284,29 @@ export async function checkAndApplyFullKycApproval(
   });
 
   await PhoneNumberActivationService.evaluateAndActivateUserNumbers(userId, 'kyc_document_verified');
-  await notifyFullKycApproved(userId);
+
+  // Idempotency guard: only send the full_kyc_approved email once per user (DB-persisted across restarts)
+  const alreadySent = await prisma.kycEmailLog.findFirst({
+    where: { userId, eventType: 'full_kyc_approved' },
+  });
+  if (alreadySent) {
+    logger.info('KycVerificationService: full_kyc_approved email already sent, skipping', {
+      userId,
+      sentAt: alreadySent.sentAt,
+    });
+  } else {
+    // Optimistic insert BEFORE sending — prevents concurrent duplicate sends
+    await prisma.kycEmailLog.create({
+      data: { userId, eventType: 'full_kyc_approved', resendId: null },
+    });
+    try {
+      await notifyFullKycApproved(userId);
+    } catch (err) {
+      // On send failure, remove the log so the next attempt can retry
+      await prisma.kycEmailLog.deleteMany({ where: { userId, eventType: 'full_kyc_approved' } });
+      throw err;
+    }
+  }
 
   await logAuditEvent({
     workspaceOwnerId: userId,

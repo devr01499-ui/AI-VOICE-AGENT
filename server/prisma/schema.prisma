@@ -1277,6 +1277,18 @@ model AnalysisJob {
   @@map("analysis_jobs")
 }
 
+model KycEmailLog {
+  id         String   @id @default(cuid())
+  userId     String
+  eventType  String   // 'full_kyc_approved' | 'document_approved' | 'document_rejected' | 'kyc_rejected' | 'action_required'
+  documentId String?  // for document-level events
+  sentAt     DateTime @default(now())
+  resendId   String?  // Resend message ID for reference
+
+  @@unique([userId, eventType, documentId], name: "unique_kyc_email_event")
+  @@map("kyc_email_logs")
+}
+
 model CallResult {
   id               String    @id @default(uuid())
   callId           String    @unique @map("call_id")
