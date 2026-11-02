@@ -24,7 +24,7 @@ import {
   Landmark, GraduationCap, Truck, Building2, Hotel, Activity,
   Clock, TrendingUp, Plus, Search, Bell, Bot, LogOut,
   PhoneIncoming, CircleDot, X, Menu, Zap, Shield, Volume2,
-  Phone, Radio, BookOpen, Mic2, Network, FileText, Upload, Link,
+  Phone, Radio, BookOpen, Mic2, FileText, Upload, Link,
   Cpu, MessageSquare, Eye, EyeOff, Copy, RefreshCw, Trash2,
   Edit3, Download, Send, PlayCircle, PauseCircle, StopCircle,
   CheckCircle2, AlertCircle, Info, Star, Headphones, Wand2,
@@ -6489,10 +6489,23 @@ Key Instructions:
   );
 }
 
-function NotificationBar() {
-  const [notifications, setNotifications] = useState<any[]>([]);
+interface NotificationItem {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  severity: string;
+  isRead: boolean;
+  metadata?: Record<string, any>;
+  createdAt: string;
+}
 
-  useEffect(() => {
+function NotificationBellDropdown({ onNavigate }: { onNavigate: (section: string) => void }) {
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const fetchNotifs = useCallback(() => {
     apiClient.get('/api/v2/user/notifications')
       .then(res => {
         if (res.data?.data && Array.isArray(res.data.data)) {
@@ -6502,14 +6515,181 @@ function NotificationBar() {
       .catch(() => {});
   }, []);
 
-  if (notifications.length === 0) return null;
+  useEffect(() => {
+    fetchNotifs();
+    const interval = setInterval(fetchNotifs, 15000);
+    return () => clearInterval(interval);
+  }, [fetchNotifs]);
 
-  const latest = notifications[0];
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+
+  const handleMarkAsRead = async (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    try {
+      await apiClient.post(`/api/v2/user/notifications/${id}/read`);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    } catch {}
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await apiClient.post('/api/v2/user/notifications/mark-all-read');
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    } catch {}
+  };
+
+  const handleClearAll = async () => {
+    try {
+      await apiClient.delete('/api/v2/user/notifications/clear-all');
+      setNotifications(prev => prev.filter(n => !n.isRead));
+    } catch {}
+  };
+
+  const handleNotificationClick = (item: NotificationItem) => {
+    if (!item.isRead) {
+      handleMarkAsRead(item.id);
+    }
+    setIsOpen(false);
+
+    // Deep-link according to event type
+    const route = item.metadata?.route;
+    if (route) {
+      if (route === 'kyc') {
+        localStorage.setItem('open_settings_tab', 'kyc');
+        onNavigate('settings');
+      } else {
+        onNavigate(route);
+      }
+      return;
+    }
+
+    if (item.type === 'CALL_FAILED') {
+      onNavigate('calls');
+    } else if (item.type === 'BALANCE_LOW') {
+      onNavigate('settings');
+    } else if (item.type === 'KYC_STATUS') {
+      localStorage.setItem('open_settings_tab', 'kyc');
+      onNavigate('settings');
+    } else if (item.type === 'BATCH_COMPLETED') {
+      onNavigate('batch');
+    }
+  };
+
+  const getIcon = (item: NotificationItem) => {
+    if (item.type === 'CALL_FAILED') return <PhoneOff className="w-4 h-4 text-rose-500" />;
+    if (item.type === 'BALANCE_LOW') return <CreditCard className="w-4 h-4 text-amber-500" />;
+    if (item.type === 'KYC_STATUS') return <ShieldCheck className="w-4 h-4 text-emerald-500" />;
+    if (item.type === 'BATCH_COMPLETED') return <Users className="w-4 h-4 text-indigo-500" />;
+    return <Bell className="w-4 h-4 text-indigo-500" />;
+  };
 
   return (
-    <div className="hidden sm:flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-2 rounded-xl text-xs font-semibold max-w-md truncate shadow-sm">
-      <Bell className="w-4 h-4 text-emerald-600 flex-shrink-0 animate-pulse" />
-      <span className="truncate">{latest.message}</span>
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="relative nm-icon-btn p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+        title="Notifications"
+      >
+        <Bell className="w-4 h-4 text-[var(--nm-text)]" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 px-1.5 py-0.2 min-w-[18px] h-[18px] bg-rose-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center animate-in zoom-in-75">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-11 w-80 sm:w-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-50 overflow-hidden text-xs">
+          <div className="p-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/40">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">Notifications</span>
+              {unreadCount > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-[10px]">
+                  {unreadCount} unread
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {unreadCount > 0 && (
+                <button
+                  onClick={handleMarkAllRead}
+                  className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+                >
+                  Mark all read
+                </button>
+              )}
+              {notifications.some(n => n.isRead) && (
+                <button
+                  onClick={handleClearAll}
+                  className="text-[11px] font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                >
+                  Clear read
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
+            {notifications.length === 0 ? (
+              <div className="p-8 text-center text-slate-400 space-y-1">
+                <Bell className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-700 stroke-1" />
+                <p className="font-semibold text-slate-700 dark:text-slate-300">All caught up!</p>
+                <p className="text-[11px]">No active notifications in your workspace.</p>
+              </div>
+            ) : (
+              notifications.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => handleNotificationClick(item)}
+                  className={`p-3.5 flex items-start gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors ${
+                    !item.isRead ? 'bg-indigo-50/20 dark:bg-indigo-950/20' : ''
+                  }`}
+                >
+                  <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 flex-shrink-0 mt-0.5">
+                    {getIcon(item)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1 mb-0.5">
+                      <span className={`font-semibold truncate ${!item.isRead ? 'text-slate-900 dark:text-slate-100 font-bold' : 'text-slate-600 dark:text-slate-400'}`}>
+                        {item.title}
+                      </span>
+                      {!item.isRead && (
+                        <span className="w-2 h-2 rounded-full bg-indigo-600 flex-shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug line-clamp-2">
+                      {item.message}
+                    </p>
+                    <div className="flex items-center justify-between mt-1 text-[10px] text-slate-400 font-mono">
+                      <span>{new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      {!item.isRead && (
+                        <button
+                          onClick={(e) => handleMarkAsRead(item.id, e)}
+                          className="text-indigo-600 dark:text-indigo-400 hover:underline font-sans"
+                        >
+                          Mark read
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -6960,8 +7140,7 @@ function DashboardPage({ session }: { session: Session }) {
             </p>
           </div>
           <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
-            <NotificationBar />
-            <button className="relative nm-icon-btn p-2"><Bell className="w-4 h-4"/><span className="absolute top-1 right-1 w-2.5 h-2.5 bg-[var(--nm-error)] rounded-full"/></button>
+            <NotificationBellDropdown onNavigate={(sec) => setSection(sec)} />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-3 sm:p-5">

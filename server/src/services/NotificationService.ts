@@ -4,7 +4,12 @@ import { logger } from '../utils/logger';
 export interface InAppNotification {
   id: string;
   userId?: string | null;
+  type: string;
+  title: string;
   message: string;
+  severity: string;
+  isRead: boolean;
+  metadata?: Record<string, any>;
   createdAt: string;
   isImportant?: boolean;
 }
@@ -16,13 +21,22 @@ export class NotificationService {
         orderBy: { createdAt: 'desc' },
         take: 50,
       });
-      return alerts.map(a => ({
-        id: a.id,
-        userId: a.userId,
-        message: a.message,
-        createdAt: a.createdAt.toISOString(),
-        isImportant: a.severity === 'critical' || a.severity === 'error',
-      }));
+      return alerts.map(a => {
+        let meta = {};
+        try { meta = JSON.parse(a.metadata || '{}'); } catch {}
+        return {
+          id: a.id,
+          userId: a.userId,
+          type: a.type,
+          title: a.title,
+          message: a.message,
+          severity: a.severity,
+          isRead: a.isResolved,
+          metadata: meta,
+          createdAt: a.createdAt.toISOString(),
+          isImportant: a.severity === 'critical' || a.severity === 'error',
+        };
+      });
     } catch (e) {
       logger.error('NotificationService: Failed to read notifications from DB', { error: String(e) });
       return [];
@@ -36,62 +50,108 @@ export class NotificationService {
         orderBy: { createdAt: 'desc' },
         take: 50,
       });
-      return alerts.map(a => ({
-        id: a.id,
-        userId: a.userId,
-        message: a.message,
-        createdAt: a.createdAt.toISOString(),
-        isImportant: a.severity === 'critical' || a.severity === 'error',
-      }));
+      return alerts.map(a => {
+        let meta = {};
+        try { meta = JSON.parse(a.metadata || '{}'); } catch {}
+        return {
+          id: a.id,
+          userId: a.userId,
+          type: a.type,
+          title: a.title,
+          message: a.message,
+          severity: a.severity,
+          isRead: a.isResolved,
+          metadata: meta,
+          createdAt: a.createdAt.toISOString(),
+          isImportant: a.severity === 'critical' || a.severity === 'error',
+        };
+      });
     } catch (e) {
       logger.error('NotificationService: Failed to get user notifications from DB', { error: String(e) });
       return [];
     }
   }
 
-  public static async createInAppNotification(data: {
+  public static async createNotification(params: {
     userId?: string | null;
+    type: 'CALL_FAILED' | 'BALANCE_LOW' | 'KYC_STATUS' | 'BATCH_COMPLETED' | 'SYSTEM' | string;
+    title: string;
     message: string;
-    isImportant?: boolean;
-    type?: string;
-    title?: string;
-    severity?: string;
-    metadata?: any;
-  }): Promise<InAppNotification> {
+    severity?: 'info' | 'warning' | 'error' | 'critical';
+    metadata?: Record<string, any>;
+  }) {
     try {
-      const alert = await prisma.systemAlert.create({
+      return await prisma.systemAlert.create({
         data: {
-          userId: data.userId || null,
-          title: data.title || (data.isImportant ? 'Important Alert' : 'System Notification'),
-          message: data.message,
-          type: data.type || 'SYSTEM',
-          severity: data.severity || (data.isImportant ? 'error' : 'info'),
-          metadata: data.metadata ? (typeof data.metadata === 'string' ? data.metadata : JSON.stringify(data.metadata)) : '{}',
+          userId: params.userId || null,
+          type: params.type,
+          title: params.title,
+          message: params.message,
+          severity: params.severity || 'info',
+          metadata: JSON.stringify(params.metadata || {}),
+          isResolved: false,
         }
       });
-
-      logger.info('NotificationService: In-app notification created in DB', {
-        userId: alert.userId,
-        message: alert.message,
-        id: alert.id
-      });
-
-      return {
-        id: alert.id,
-        userId: alert.userId,
-        message: alert.message,
-        createdAt: alert.createdAt.toISOString(),
-        isImportant: alert.severity === 'critical' || alert.severity === 'error',
-      };
-    } catch (e: any) {
-      logger.error('NotificationService: Failed to save notification to DB', { error: e?.message || String(e) });
-      return {
-        id: `fallback_${Date.now()}`,
-        userId: data.userId || null,
-        message: data.message,
-        createdAt: new Date().toISOString(),
-        isImportant: !!data.isImportant,
-      };
+    } catch (e) {
+      logger.error('NotificationService: Failed to create alert', { error: String(e) });
+      return null;
     }
+  }
+
+  public static async markAsRead(id: string, userId: string) {
+    try {
+      await prisma.systemAlert.updateMany({
+        where: { id, OR: [{ userId }, { userId: null }] },
+        data: { isResolved: true }
+      });
+      return true;
+    } catch (e) {
+      logger.error('NotificationService: markAsRead error', { error: String(e) });
+      return false;
+    }
+  }
+
+  public static async markAllAsRead(userId: string) {
+    try {
+      await prisma.systemAlert.updateMany({
+        where: { OR: [{ userId }, { userId: null }] },
+        data: { isResolved: true }
+      });
+      return true;
+    } catch (e) {
+      logger.error('NotificationService: markAllAsRead error', { error: String(e) });
+      return false;
+    }
+  }
+
+  public static async clearAll(userId: string) {
+    try {
+      await prisma.systemAlert.deleteMany({
+        where: { userId, isResolved: true }
+      });
+      return true;
+    } catch (e) {
+      logger.error('NotificationService: clearAll error', { error: String(e) });
+      return false;
+    }
+  }
+
+  public static async createInAppNotification(params: {
+    userId?: string | null;
+    type?: string;
+    title?: string;
+    message: string;
+    severity?: 'info' | 'warning' | 'error' | 'critical';
+    metadata?: Record<string, any>;
+    isImportant?: boolean;
+  }) {
+    return this.createNotification({
+      userId: params.userId || null,
+      type: params.type || 'SYSTEM',
+      title: params.title || 'Notification',
+      message: params.message,
+      severity: params.severity || (params.isImportant ? 'warning' : 'info'),
+      metadata: params.metadata,
+    });
   }
 }
