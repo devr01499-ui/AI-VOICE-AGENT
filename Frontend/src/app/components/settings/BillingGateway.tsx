@@ -161,14 +161,25 @@ export default function BillingGateway() {
 
             <div className="nm-pressed rounded-2xl p-6 text-center">
               <p className="text-xs font-bold text-[var(--nm-text)] mb-2 uppercase tracking-wider" style={{ fontFamily: "'DM Mono', monospace" }}>
-                ACCOUNT BALANCE
+                ACCOUNT CREDITS
               </p>
-              <p className="text-4xl font-bold tracking-tight text-[var(--nm-text)]" style={{ fontFamily: "'Instrument Serif', serif" }}>
-                {balance !== null ? `${balance.toFixed(1)} Minutes` : "0.0 Minutes"}
+              <p className={`text-4xl font-bold tracking-tight ${(balance ?? 0) < 100 ? 'text-amber-500' : 'text-[var(--nm-text)]'}`} style={{ fontFamily: "'Instrument Serif', serif" }}>
+                {balance !== null ? `${Math.max(0, balance).toFixed(0)} Credits` : "0 Credits"}
               </p>
-              <p className="text-sm font-bold text-[var(--nm-text)] mt-2" style={{ fontFamily: "'Figtree', sans-serif" }}>
-                Remaining allowed platform minutes
+              <p className="text-sm font-bold text-[var(--nm-text)] mt-2 flex items-center justify-center gap-1.5" style={{ fontFamily: "'Figtree', sans-serif" }}>
+                <span>credits remaining in your account</span>
+                <span
+                  className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-bold cursor-help"
+                  title="1 credit = 1 call minute"
+                >
+                  ?
+                </span>
               </p>
+              {(balance ?? 0) < 100 && (
+                <p className="text-xs font-semibold text-amber-500 mt-2">
+                  ⚠️ Low balance alert: remaining credits below 10%
+                </p>
+              )}
             </div>
 
             <button
