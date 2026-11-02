@@ -56,10 +56,50 @@ import { NotificationService } from '../services/NotificationService';
  */
 router.get('/notifications', requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const notifications = NotificationService.getForUser(req.userId);
+    const userId = (req as any).effectiveWorkspaceId || req.userId;
+    const notifications = await NotificationService.getForUser(userId);
     res.json({ success: true, data: notifications });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to fetch notifications' });
+  }
+});
+
+/**
+ * POST /api/v2/user/notifications/:id/read
+ */
+router.post('/notifications/:id/read', requireAuth, async (req: AuthenticatedRequest, res) => {
+  try {
+    const userId = (req as any).effectiveWorkspaceId || req.userId;
+    await NotificationService.markAsRead(String(req.params.id), userId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to mark notification as read' });
+  }
+});
+
+/**
+ * POST /api/v2/user/notifications/mark-all-read
+ */
+router.post('/notifications/mark-all-read', requireAuth, async (req: AuthenticatedRequest, res) => {
+  try {
+    const userId = (req as any).effectiveWorkspaceId || req.userId;
+    await NotificationService.markAllAsRead(userId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to mark all as read' });
+  }
+});
+
+/**
+ * DELETE /api/v2/user/notifications/clear-all
+ */
+router.delete('/notifications/clear-all', requireAuth, async (req: AuthenticatedRequest, res) => {
+  try {
+    const userId = (req as any).effectiveWorkspaceId || req.userId;
+    await NotificationService.clearAll(userId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to clear notifications' });
   }
 });
 
