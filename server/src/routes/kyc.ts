@@ -104,6 +104,21 @@ export async function notifyUserDocumentStatus(
   reason?: string
 ) {
   try {
+    // Idempotency guard: only send each document status email once per (userId, eventType, documentType)
+    const eventType = status === 'verified' ? 'document_approved' : 'action_required';
+    const alreadySent = await prisma.kycEmailLog.findFirst({
+      where: { userId, eventType, documentId: documentType },
+    });
+    if (alreadySent) {
+      logger.info('KYC Document Notification: email already sent, skipping', {
+        userId,
+        eventType,
+        documentType,
+        sentAt: alreadySent.sentAt,
+      });
+      return;
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { email: true, fullName: true },
@@ -155,6 +170,16 @@ export async function notifyUserDocumentStatus(
 
     try {
       const resend = new Resend(process.env.RESEND_API_KEY);
+      // Optimistic idempotency record BEFORE sending to block concurrent duplicates
+      const logRecord = await prisma.kycEmailLog.create({
+        data: { userId, eventType, documentId: documentType, resendId: null },
+      }).catch(() => null); // ignore unique-constraint race — another process already inserted
+
+      if (!logRecord) {
+        logger.info('KYC Document Notification: concurrent duplicate suppressed by DB unique constraint', { userId, eventType, documentType });
+        return;
+      }
+
       const emailResult = await resend.emails.send({
         from: fromAddress,
         to: user.email,
@@ -177,6 +202,8 @@ export async function notifyUserDocumentStatus(
       });
 
       if (emailResult.error) {
+        // Roll back log on Resend-level error so the next attempt can retry
+        await prisma.kycEmailLog.delete({ where: { id: logRecord.id } }).catch(() => {});
         logger.warn('KYC Document Notification: Resend returned error delivering email (non-fatal)', {
           userId,
           error: emailResult.error,
@@ -185,6 +212,11 @@ export async function notifyUserDocumentStatus(
           status,
         });
       } else {
+        // Persist the Resend message ID for auditability
+        await prisma.kycEmailLog.update({
+          where: { id: logRecord.id },
+          data: { resendId: emailResult.data?.id ?? null },
+        }).catch(() => {});
         logger.info('KYC Document Notification: Status email dispatched via Resend', {
           userId,
           email: user.email,
@@ -233,6 +265,20 @@ export async function notifyUserKycStatus(userId: string, status: string, reason
 
     if (!user.email) return;
 
+    // Idempotency guard: only send the status email once per (userId, eventType)
+    const eventType = isVerified ? 'kyc_approved' : 'kyc_action_required';
+    const alreadySent = await prisma.kycEmailLog.findFirst({
+      where: { userId, eventType },
+    });
+    if (alreadySent) {
+      logger.info('KYC Notification: Status email already sent, skipping', {
+        userId,
+        eventType,
+        sentAt: alreadySent.sentAt,
+      });
+      return;
+    }
+
     logger.info('KYC Notification: Sending status email to user', { userId, email: user.email, status });
 
     const fromAddress = process.env.RESEND_FROM_EMAIL || 'Claritiy Voice <notifications@claritiy.com>';
@@ -248,6 +294,16 @@ export async function notifyUserKycStatus(userId: string, status: string, reason
 
     try {
       const resend = new Resend(process.env.RESEND_API_KEY);
+      // Optimistic insert before sending to prevent concurrent duplicates
+      const logRecord = await prisma.kycEmailLog.create({
+        data: { userId, eventType, resendId: null },
+      }).catch(() => null);
+
+      if (!logRecord) {
+        logger.info('KYC Notification: concurrent duplicate suppressed by DB unique constraint', { userId, eventType });
+        return;
+      }
+
       const emailResult = await resend.emails.send({
         from: fromAddress,
         to: user.email,
@@ -270,12 +326,17 @@ export async function notifyUserKycStatus(userId: string, status: string, reason
       });
 
       if (emailResult.error) {
+        await prisma.kycEmailLog.delete({ where: { id: logRecord.id } }).catch(() => {});
         logger.warn('KYC Notification: Resend returned error delivering email (non-fatal)', {
           userId,
           recipient: user.email,
           error: emailResult.error
         });
       } else {
+        await prisma.kycEmailLog.update({
+          where: { id: logRecord.id },
+          data: { resendId: emailResult.data?.id ?? null },
+        }).catch(() => {});
         logger.info('KYC Notification: Status email dispatched via Resend', {
           userId,
           email: user.email,
@@ -1347,9 +1408,8 @@ router.get('/status', requireAuth, requireActivePlan, async (req, res, next) => 
     }
 
     const isVerified = overallStatus === 'verified' && !kycCallsBlocked;
-    if (isVerified) {
-      await checkAndApplyFullKycApproval(userId, subAccount.id);
-    }
+    // REMOVED: GET /status is read-only and must NEVER trigger side effects or emails.
+    // checkAndApplyFullKycApproval is called only on real status transitions (webhooks and document verification POSTs).
 
     res.json({
       success: true,
