@@ -18,14 +18,37 @@ export interface SearchResultChunk {
 export interface HybridSearchOptions {
   agentId?: string;
   kbId?: string;
+  workspaceId?: string;
+  userId?: string;
   query: string;
   topK?: number;             // default 4
   minScoreThreshold?: number;// default 0.012 for RRF or 0.60 for cosine
   maxContextTokens?: number; // default 1500 tokens (~6000 chars)
   conversationContext?: string[]; // recent user/agent turns for query contextualization
+  timeoutMs?: number;        // hard live-call latency budget (default 300ms)
 }
 
 export class HybridSearchService {
+  private static readonly queryCache = new Map<string, { expires: number; data: any }>();
+
+  static getCachedResult(cacheKey: string) {
+    const entry = this.queryCache.get(cacheKey);
+    if (!entry) return null;
+    if (Date.now() > entry.expires) {
+      this.queryCache.delete(cacheKey);
+      return null;
+    }
+    return entry.data;
+  }
+
+  static setCachedResult(cacheKey: string, data: any, ttlMs: number = 300000) {
+    // Keep max 500 items in cache
+    if (this.queryCache.size >= 500) {
+      const firstKey = this.queryCache.keys().next().value;
+      if (firstKey) this.queryCache.delete(firstKey);
+    }
+    this.queryCache.set(cacheKey, { expires: Date.now() + ttlMs, data });
+  }
   /**
    * Rewrites short or ambiguous query using previous conversational context turns.
    */
@@ -183,8 +206,58 @@ export class HybridSearchService {
           ORDER BY rrf_score DESC
           LIMIT 10;
         `, vectorStr, options.agentId, sanitizedFtsQuery);
+      } else if (options.workspaceId || options.userId) {
+        const ownerId = options.workspaceId || options.userId;
+        rows = await prisma.$queryRawUnsafe(`
+          WITH dense_search AS (
+            SELECT 
+              c.id, 
+              c.kb_id,
+              c.content, 
+              c.metadata,
+              (c.embedding::halfvec(3072) <=> cast($1 as vector)::halfvec(3072)) as distance,
+              ROW_NUMBER() OVER (ORDER BY (c.embedding::halfvec(3072) <=> cast($1 as vector)::halfvec(3072)) ASC) as dense_rank
+            FROM "kb_chunks" c
+            JOIN "knowledge_bases" kb ON c."kb_id" = kb."id"
+            WHERE kb."user_id" = $2
+            ORDER BY distance ASC
+            LIMIT 20
+          ),
+          lexical_search AS (
+            SELECT 
+              c.id, 
+              c.kb_id,
+              c.content, 
+              c.metadata,
+              ts_rank_cd(to_tsvector('english', c.content), websearch_to_tsquery('english', $3)) as rank,
+              ROW_NUMBER() OVER (ORDER BY ts_rank_cd(to_tsvector('english', c.content), websearch_to_tsquery('english', $3)) DESC) as lex_rank
+            FROM "kb_chunks" c
+            JOIN "knowledge_bases" kb ON c."kb_id" = kb."id"
+            WHERE kb."user_id" = $2 
+              AND to_tsvector('english', c.content) @@ websearch_to_tsquery('english', $3)
+            ORDER BY rank DESC
+            LIMIT 20
+          ),
+          fused AS (
+            SELECT 
+              COALESCE(d.id, l.id) as id,
+              COALESCE(d.kb_id, l.kb_id) as kb_id,
+              COALESCE(d.content, l.content) as content,
+              COALESCE(d.metadata, l.metadata) as metadata,
+              d.distance as dense_distance,
+              l.rank as lexical_rank,
+              d.dense_rank,
+              l.lex_rank,
+              (COALESCE(1.0 / (60.0 + d.dense_rank), 0.0) + COALESCE(1.0 / (60.0 + l.lex_rank), 0.0)) as rrf_score
+            FROM dense_search d
+            FULL OUTER JOIN lexical_search l ON d.id = l.id
+          )
+          SELECT * FROM fused
+          ORDER BY rrf_score DESC
+          LIMIT 10;
+        `, vectorStr, ownerId, sanitizedFtsQuery);
       } else {
-        throw new Error('Either agentId or kbId must be specified for search');
+        throw new Error('agentId, kbId, or workspaceId must be specified for search');
       }
 
       dbQueryMs = Date.now() - tStartDb;

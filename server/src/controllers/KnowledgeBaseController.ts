@@ -4,6 +4,7 @@ import { AuthenticatedRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { KnowledgeBaseService } from '../services/KnowledgeBaseService';
 import { HybridSearchService } from '../services/HybridSearchService';
+import { getKbPlanLimits } from '../config/plans';
 
 export class KnowledgeBaseController {
   
@@ -49,6 +50,28 @@ export class KnowledgeBaseController {
 
       if (!contentText.trim()) {
         res.status(400).json({ success: false, error: 'Document does not contain any readable text.' });
+        return;
+      }
+
+      // Enforce plan caps
+      const userRecord = await prisma.user.findUnique({ where: { id: userId }, select: { accountType: true } });
+      const planLimits = getKbPlanLimits(userRecord?.accountType);
+
+      const currentCount = await prisma.knowledgeBase.count({ where: { userId } });
+      if (currentCount >= planLimits.maxDocuments) {
+        res.status(403).json({
+          success: false,
+          error: `Document limit reached for your plan (${planLimits.maxDocuments} documents). Upgrade your plan to upload more documents.`,
+        });
+        return;
+      }
+
+      const fileSizeMb = buffer.length / (1024 * 1024);
+      if (fileSizeMb > planLimits.maxFileSizeMb) {
+        res.status(400).json({
+          success: false,
+          error: `File size (${fileSizeMb.toFixed(1)} MB) exceeds your plan limit of ${planLimits.maxFileSizeMb} MB. Please upload a smaller file.`,
+        });
         return;
       }
 
@@ -208,6 +231,19 @@ export class KnowledgeBaseController {
         return;
       }
 
+      // Enforce plan caps
+      const userScrapeRecord = await prisma.user.findUnique({ where: { id: userId }, select: { accountType: true } });
+      const scrapePlanLimits = getKbPlanLimits(userScrapeRecord?.accountType);
+
+      const scrapeCount = await prisma.knowledgeBase.count({ where: { userId } });
+      if (scrapeCount >= scrapePlanLimits.maxDocuments) {
+        res.status(403).json({
+          success: false,
+          error: `Document limit reached for your plan (${scrapePlanLimits.maxDocuments} documents). Upgrade your plan to add more web knowledge.`,
+        });
+        return;
+      }
+
       const kb = await prisma.knowledgeBase.create({
         data: {
           name: url,
@@ -345,8 +381,26 @@ export class KnowledgeBaseController {
       const userId = (req as any).effectiveWorkspaceId || req.userId;
       const { agentId, kbId, query } = req.body;
 
-      if (!userId || (!agentId && !kbId) || !query) {
-        res.status(400).json({ success: false, error: 'query and either agentId or kbId are required' });
+      if (!userId || !query || !String(query).trim()) {
+        res.status(400).json({ success: false, error: 'Query text is required' });
+        return;
+      }
+
+      const docCount = await prisma.knowledgeBase.count({ where: { userId } });
+      if (docCount === 0) {
+        res.json({
+          success: true,
+          data: {
+            query,
+            queryRewritten: query,
+            chunksCount: 0,
+            latencyMs: 0,
+            embeddingMs: 0,
+            dbQueryMs: 0,
+            chunks: [],
+            message: 'No documents uploaded or indexed yet in your workspace. Please upload a document to enable AI retrieval.',
+          }
+        });
         return;
       }
 
@@ -375,6 +429,7 @@ export class KnowledgeBaseController {
       const searchResult = await HybridSearchService.search({
         agentId: agentId || undefined,
         kbId: kbId || undefined,
+        workspaceId: userId,
         query,
         topK: 5,
       });
