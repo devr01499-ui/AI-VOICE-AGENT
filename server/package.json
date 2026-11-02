@@ -33,7 +33,8 @@
     "test:evidence": "npx tsx scripts/test_evidence_substring_check.ts",
     "test:m2-accuracy": "npx tsx scripts/test_normalizers_hinglish.ts && npx tsx scripts/test_speaker_attribution.ts && npx tsx scripts/test_prompt_injection.ts && npx tsx scripts/test_evidence_substring_check.ts && npx tsx scripts/test_m2_mechanics_suite.ts",
     "eval:reports": "npx tsx -r dotenv/config scripts/eval/run_eval_harness.ts",
-    "eval:smoke": "npx tsx -r dotenv/config scripts/eval/run_eval_harness.ts --smoke"
+    "eval:smoke": "npx tsx -r dotenv/config scripts/eval/run_eval_harness.ts --smoke",
+    "admin:upgrade-plan": "npx tsx scripts/admin_upgrade_plan.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
