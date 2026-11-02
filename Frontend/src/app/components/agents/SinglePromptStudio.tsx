@@ -3529,7 +3529,7 @@ export default function SinglePromptStudio({
                         Call Transfer is Coming Soon
                       </p>
                       <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                        This function type is currently disabled. PSTN call bridging via Vobiz is undergoing maintenance and cannot be executed during live calls.
+                        This function type is currently disabled. PSTN call bridging via our telephony network is undergoing maintenance and cannot be executed during live calls.
                       </p>
                     </div>
                   </div>
@@ -3600,7 +3600,7 @@ export default function SinglePromptStudio({
                         Press Digit / DTMF is Coming Soon
                       </p>
                       <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                        This function type is currently disabled. DTMF key tone transmission via Vobiz is undergoing maintenance and cannot be executed during live calls.
+                        This function type is currently disabled. DTMF key tone transmission via our telephony network is undergoing maintenance and cannot be executed during live calls.
                       </p>
                     </div>
                   </div>

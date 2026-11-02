@@ -1355,7 +1355,7 @@ export default function VisualFlowCanvas({
                                   Call Transfer is Coming Soon
                                 </p>
                                 <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                                  This node type is currently disabled while Vobiz PSTN call bridging integration is being finalized.
+                                  This node type is currently disabled while our telephony network PSTN call bridging integration is being finalized.
                                 </p>
                               </div>
                             </div>
@@ -1382,7 +1382,7 @@ export default function VisualFlowCanvas({
                                   Press Digit / DTMF is Coming Soon
                                 </p>
                                 <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                                  This node type is currently disabled while Vobiz DTMF tone transmission integration is being finalized.
+                                  This node type is currently disabled while our telephony network DTMF tone transmission integration is being finalized.
                                 </p>
                               </div>
                             </div>

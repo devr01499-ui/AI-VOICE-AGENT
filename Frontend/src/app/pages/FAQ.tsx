@@ -39,8 +39,8 @@ const FAQS: FAQItem[] = [
   },
   {
     category: "Integrations & Setup",
-    q: "Can we use our own telephony carrier (Twilio, Exotel, Plivo, or SIP trunk)?",
-    a: "Yes. You can purchase local Indian and international phone numbers directly in our dashboard with one click, or bring your existing Twilio, Exotel, Plivo, or custom SIP trunk credentials. Our gateway manages call initiation, answer detection, and carrier signaling seamlessly.",
+    q: "Can we use our own telephony carrier (Twilio, Exotel, or SIP trunk)?",
+    a: "Yes. You can purchase local Indian and international phone numbers directly in our dashboard with one click, or bring your existing Twilio, Exotel, or custom SIP trunk credentials. Our gateway manages call initiation, answer detection, and carrier signaling seamlessly.",
   },
   {
     category: "Pricing & Scale",

@@ -135,7 +135,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
         console.warn('KYC /documents call failed:', docErr);
       }
 
-      // Query live Vobiz status as authoritative provider state
+      // Query live carrier status as authoritative provider state
       let resolvedOverall = localOverall;
       try {
         const statusRes = await apiClient.get('/api/v2/kyc/status');
@@ -303,7 +303,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
       const errData = err?.response?.data;
       if (errData?.outcome === 'error' || err?.response?.status === 502 || err?.response?.status === 503) {
         setSystemErrorMessage(
-          errData?.error || 'Verification is temporarily undergoing maintenance. Please retry shortly or proceed with Vobiz hosted verification.'
+          errData?.error || 'Verification is temporarily undergoing maintenance. Please retry shortly or proceed with carrier hosted verification.'
         );
         setShowHostedFallback(true);
       } else {
@@ -445,8 +445,8 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
   const aadhaarDoc = documents.find((d) => d.documentType === 'aadhaar');
 
   // Authoritative single derived status per document.
-  // Rule: Vobiz live status wins when it carries an affirmative verdict (verified / failed / pending).
-  // If Vobiz has no data or returns 'not_started', fall back to the local DB row.
+  // Rule: Carrier live status wins when it carries an affirmative verdict (verified / failed / pending).
+  // If carrier has no data or returns 'not_started', fall back to the local DB row.
   // This prevents both the stale-DB-overrides-live-verified case AND the
   // liveVerifications=not_started masking a legitimately verified local DB row.
   const AFFIRMATIVE_VERDICTS = new Set(['verified', 'failed', 'pending']);
@@ -738,7 +738,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
                       className="w-full py-2 px-3 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                     >
                       {initiatingHosted ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
-                      Continue with Vobiz Verification
+                      Continue with Carrier Verification
                     </button>
                   </div>
                 )}

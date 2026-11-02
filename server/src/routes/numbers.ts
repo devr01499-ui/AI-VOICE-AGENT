@@ -1060,12 +1060,12 @@ router.post('/plivo/onboard', requireAuth, sensitiveOperationsLimiter, async (re
       data: {
         subaccountMapped: true,
         authId: subaccount.authId, // Safe to return subaccount identifier (not secret token)
-        message: 'Plivo workspace subaccount ready for number provisioning.',
+        message: 'Carrier workspace subaccount ready for number provisioning.',
       },
     });
   } catch (err: any) {
     logger.error('[PLIVO_ONBOARD_ERROR] Failed to map subaccount', { error: err.message });
-    res.status(500).json({ success: false, error: err.message || 'Failed to onboard Plivo subaccount' });
+    res.status(500).json({ success: false, error: err.message || 'Failed to onboard carrier subaccount' });
   }
 });
 
@@ -1102,7 +1102,7 @@ router.get('/plivo/search', requireAuth, async (req, res, next) => {
     });
   } catch (err: any) {
     logger.error('[PLIVO_SEARCH_ROUTE_ERROR]', { error: err.message });
-    res.status(502).json({ success: false, error: err.message || 'Failed to search Plivo Indian numbers' });
+    res.status(502).json({ success: false, error: err.message || 'Failed to search Indian numbers' });
   }
 });
 
@@ -1174,7 +1174,7 @@ router.post('/plivo/claim', requireAuth, requireEditor, requireActivePlan, sensi
     res.json({
       success: true,
       data: {
-        message: 'Plivo Indian number successfully provisioned and assigned.',
+        message: 'Indian number successfully provisioned and assigned.',
         phoneNumberId: provisioned.id,
         number: provisioned.phoneNumber,
         status: 'Active',
@@ -1186,7 +1186,7 @@ router.post('/plivo/claim', requireAuth, requireEditor, requireActivePlan, sensi
     });
   } catch (err: any) {
     logger.error('[PLIVO_CLAIM_ERROR]', { error: err.message, stack: err.stack });
-    res.status(500).json({ success: false, error: err.message || 'Failed to claim Plivo number' });
+    res.status(500).json({ success: false, error: err.message || 'Failed to claim number' });
   }
 });
 
@@ -1263,7 +1263,7 @@ router.post('/plivo/purchase', requireAuth, requireEditor, requireActivePlan, se
     res.json({
       success: true,
       data: {
-        message: 'Plivo Indian number successfully purchased and assigned.',
+        message: 'Indian number successfully purchased and assigned.',
         phoneNumberId: provisioned.id,
         number: provisioned.phoneNumber,
         status: 'Active',
@@ -1275,7 +1275,7 @@ router.post('/plivo/purchase', requireAuth, requireEditor, requireActivePlan, se
     });
   } catch (err: any) {
     logger.error('[PLIVO_PURCHASE_ERROR]', { error: err.message });
-    res.status(500).json({ success: false, error: err.message || 'Failed to complete Plivo number purchase' });
+    res.status(500).json({ success: false, error: err.message || 'Failed to complete number purchase' });
   }
 });
 

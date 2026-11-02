@@ -544,7 +544,7 @@ export function RealCallModal({
                 >
                   {availableNumbers.map((num) => (
                     <option key={num.id} value={num.phoneNumber}>
-                      {num.phoneNumber} ({num.region || 'India Local'} • {num.telephonyProvider ? num.telephonyProvider.toUpperCase() : 'VOBIZ'})
+                      {num.phoneNumber} ({num.region || 'India Local'} • {['twilio', 'exotel'].includes(num.telephonyProvider?.toLowerCase()) ? num.telephonyProvider.toUpperCase() : 'Carrier'})
                     </option>
                   ))}
                   {availableNumbers.length === 0 && (
