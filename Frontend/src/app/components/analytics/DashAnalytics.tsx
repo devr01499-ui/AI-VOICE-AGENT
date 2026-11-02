@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, Clock, IndianRupee, PhoneCall, CheckCircle2, AlertCircle, Calendar, RefreshCw, Smile, Meh, Frown, ArrowUpRight, ArrowDownLeft, Filter } from 'lucide-react';
+import { BarChart3, TrendingUp, Clock, IndianRupee, PhoneCall, CheckCircle2, AlertCircle, Calendar, RefreshCw, ArrowUpRight, ArrowDownLeft, Filter } from 'lucide-react';
 import { apiClient, fetchAgents, type ApiAgent } from '../../api';
 import { formatCurrency } from '../../../lib/formatCurrency';
 
@@ -261,99 +261,56 @@ export function DashAnalytics() {
             </div>
           </div>
 
-          {/* Breakdown Grid: Sentiment & Direction Split */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Sentiment Analysis Card */}
-            <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs space-y-4">
-              <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <Smile className="w-4 h-4 text-emerald-500" /> AI Sentiment Distribution
-              </h3>
+          {/* Direction Split & Call Status Breakdown Card */}
+          <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs space-y-4">
+            <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <PhoneCall className="w-4 h-4 text-indigo-600" /> Inbound vs Outbound Split & Call Status
+            </h3>
 
-              <div className="space-y-3 text-xs">
-                <div>
-                  <div className="flex justify-between font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                      <Smile className="w-3.5 h-3.5" /> Positive Sentiment
-                    </span>
-                    <span className="font-mono">{summary.sentimentBreakdown.positivePct}% ({summary.sentimentBreakdown.positive})</span>
-                  </div>
-                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                    <div
-                      className="bg-emerald-500 h-full transition-all"
-                      style={{ width: `${summary.sentimentBreakdown.positivePct}%` }}
-                    />
-                  </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl space-y-1">
+                <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-500">
+                  <ArrowDownLeft className="w-3.5 h-3.5 text-blue-500" /> Inbound Calls
                 </div>
-
-                <div>
-                  <div className="flex justify-between font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
-                      <Meh className="w-3.5 h-3.5" /> Neutral Sentiment
-                    </span>
-                    <span className="font-mono">{summary.sentimentBreakdown.neutralPct}% ({summary.sentimentBreakdown.neutral})</span>
-                  </div>
-                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                    <div
-                      className="bg-blue-500 h-full transition-all"
-                      style={{ width: `${summary.sentimentBreakdown.neutralPct}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
-                      <Frown className="w-3.5 h-3.5" /> Negative Sentiment
-                    </span>
-                    <span className="font-mono">{summary.sentimentBreakdown.negativePct}% ({summary.sentimentBreakdown.negative})</span>
-                  </div>
-                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                    <div
-                      className="bg-rose-500 h-full transition-all"
-                      style={{ width: `${summary.sentimentBreakdown.negativePct}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Inbound vs Outbound Split Card */}
-            <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs space-y-4">
-              <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <PhoneCall className="w-4 h-4 text-indigo-600" /> Inbound vs Outbound Split
-              </h3>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl space-y-1">
-                  <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-500">
-                    <ArrowDownLeft className="w-3.5 h-3.5 text-blue-500" /> Inbound Calls
-                  </div>
-                  <p className="text-xl font-bold font-mono text-slate-900 dark:text-slate-100">
-                    {summary.directionSplit.inbound} ({summary.directionSplit.inboundPct}%)
-                  </p>
-                </div>
-
-                <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl space-y-1">
-                  <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-500">
-                    <ArrowUpRight className="w-3.5 h-3.5 text-emerald-500" /> Outbound Calls
-                  </div>
-                  <p className="text-xl font-bold font-mono text-slate-900 dark:text-slate-100">
-                    {summary.directionSplit.outbound} ({summary.directionSplit.outboundPct}%)
-                  </p>
-                </div>
+                <p className="text-xl font-bold font-mono text-slate-900 dark:text-slate-100">
+                  {summary.directionSplit.inbound} ({summary.directionSplit.inboundPct}%)
+                </p>
               </div>
 
-              {/* Status Breakdown Chips */}
-              <div className="pt-2 flex flex-wrap gap-2 text-xs">
-                <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-lg font-medium">
-                  Completed: {summary.statusBreakdown.completed}
-                </span>
-                <span className="px-2.5 py-1 bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 rounded-lg font-medium">
-                  Failed: {summary.statusBreakdown.failed}
-                </span>
-                <span className="px-2.5 py-1 bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 rounded-lg font-medium">
-                  No Answer: {summary.statusBreakdown.noAnswer}
-                </span>
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl space-y-1">
+                <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-500">
+                  <ArrowUpRight className="w-3.5 h-3.5 text-emerald-500" /> Outbound Calls
+                </div>
+                <p className="text-xl font-bold font-mono text-slate-900 dark:text-slate-100">
+                  {summary.directionSplit.outbound} ({summary.directionSplit.outboundPct}%)
+                </p>
+              </div>
+
+              <div className="p-4 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-xl space-y-1 border border-emerald-100 dark:border-emerald-900/40">
+                <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Completed
+                </div>
+                <p className="text-xl font-bold font-mono text-emerald-700 dark:text-emerald-300">
+                  {summary.statusBreakdown.completed}
+                </p>
+              </div>
+
+              <div className="p-4 bg-rose-50/60 dark:bg-rose-950/30 rounded-xl space-y-1 border border-rose-100 dark:border-rose-900/40">
+                <div className="flex items-center gap-1 text-[11px] font-semibold text-rose-700 dark:text-rose-400">
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-600" /> Failed
+                </div>
+                <p className="text-xl font-bold font-mono text-rose-700 dark:text-rose-300">
+                  {summary.statusBreakdown.failed}
+                </p>
+              </div>
+
+              <div className="p-4 bg-amber-50/60 dark:bg-amber-950/30 rounded-xl space-y-1 border border-amber-100 dark:border-amber-900/40">
+                <div className="flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                  <Clock className="w-3.5 h-3.5 text-amber-600" /> No Answer
+                </div>
+                <p className="text-xl font-bold font-mono text-amber-700 dark:text-amber-300">
+                  {summary.statusBreakdown.noAnswer}
+                </p>
               </div>
             </div>
           </div>
