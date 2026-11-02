@@ -761,6 +761,7 @@ export interface AgentTemplate {
   type: 'prompt' | 'conversational';
   systemPrompt: string;
   flowGraph?: any;
+  prompt?: string;
 }
 
 const AGENT_TEMPLATES_SEED: AgentTemplate[] = [
@@ -1618,6 +1619,10 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
   const [form, setForm] = useState({name:"",lang:"EN",voice:"Aoede",model:"gemini-2.5-flash",systemPrompt:"",welcomeMsg:"",endPhrase:"goodbye",temperature:"0.7",maxTurns:"20",kb:[] as string[],steps:[{id:"s1",label:"Greet caller",cond:""},{id:"s2",label:"Verify identity",cond:"if account found"},{id:"s3",label:"Handle intent",cond:""}]});
   const [testCallStatus, setTestCallStatus] = useState<'idle'|'calling'|'done'|'error'>('idle');
   const [saveStatus, setSaveStatus] = useState<'idle'|'saving'|'done'|'error'>('idle');
+
+  const [templateSearch, setTemplateSearch] = useState('');
+  const [templateCategory, setTemplateCategory] = useState('all');
+  const [selectedTemplate, setSelectedTemplate] = useState<AgentTemplate | null>(null);
 
   const [showPicker, setShowPicker] = useState(false);
   const [pickerError, setPickerError] = useState('');
@@ -2499,28 +2504,66 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
     </div>
   );
 
-  const [templateFilter, setTemplateFilter] = useState('All');
+  const applyTemplate = (tpl: AgentTemplate) => {
+    if (tpl.type === 'conversational' || tpl.flowGraph) {
+      setStudioAgent({
+        name: tpl.name,
+        systemPrompt: tpl.systemPrompt,
+        flowGraph: tpl.flowGraph,
+      });
+    } else if (setSinglePromptStudioAgent) {
+      setSinglePromptStudioAgent({
+        name: tpl.name,
+        systemPrompt: tpl.systemPrompt,
+      });
+    }
+  };
+
+  const templateCategories = useMemo(() => {
+    const cats = Array.from(new Set(AGENT_TEMPLATES_SEED.map(t => t.category)));
+    return ['all', ...cats];
+  }, []);
+
+  const visibleTemplates = useMemo(() => {
+    return AGENT_TEMPLATES_SEED.filter((t) => {
+      const matchesCategory =
+        templateCategory.toLowerCase() === 'all' ||
+        t.category.toLowerCase() === templateCategory.toLowerCase();
+      const searchLower = templateSearch.trim().toLowerCase();
+      const matchesSearch =
+        !searchLower ||
+        t.name.toLowerCase().includes(searchLower) ||
+        t.description.toLowerCase().includes(searchLower);
+      return matchesCategory && matchesSearch;
+    });
+  }, [templateCategory, templateSearch]);
 
   if (view === "create") {
-    const visibleTemplates = AGENT_TEMPLATES_SEED.filter(t => templateFilter === 'All' || t.category === templateFilter);
-
     return (
-      <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-5xl w-full p-6 space-y-6 shadow-2xl animate-in zoom-in-95 duration-200 my-auto">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+      <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-6xl mx-auto h-[90vh] flex flex-col p-6 shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Create agent</h3>
-            <button onClick={() => setView("list")} className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+            <button
+              onClick={() => {
+                setView("list");
+                setSelectedTemplate(null);
+                setTemplateSearch("");
+              }}
+              className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+            >
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Type Selection Cards */}
-          <div className="space-y-2">
+          <div className="space-y-2 shrink-0 pt-3">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type</p>
             <div className="grid grid-cols-2 gap-4">
               <button
                 onClick={() => setCreateType('prompt')}
-                className={`p-4 rounded-xl border text-left transition-all ${
+                className={`p-3.5 rounded-xl border text-left transition-all ${
                   createType === 'prompt'
                     ? 'border-indigo-500 bg-indigo-50/20 ring-2 ring-indigo-500/20'
                     : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
@@ -2530,12 +2573,12 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
                   <span className="p-1 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold text-xs">Prompt</span>
                   <span className="font-bold text-sm text-slate-800 dark:text-slate-200">Single prompt</span>
                 </div>
-                <p className="text-xs text-slate-500">Easy to start. Simple, free-form conversations.</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Easy to start. Simple, free-form conversations.</p>
               </button>
 
               <button
                 onClick={() => setCreateType('conversational')}
-                className={`p-4 rounded-xl border text-left transition-all ${
+                className={`p-3.5 rounded-xl border text-left transition-all ${
                   createType === 'conversational'
                     ? 'border-indigo-500 bg-indigo-50/20 ring-2 ring-indigo-500/20'
                     : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
@@ -2545,32 +2588,60 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
                   <span className="p-1 rounded bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-bold text-xs">Flow</span>
                   <span className="font-bold text-sm text-slate-800 dark:text-slate-200">Conversational flow</span>
                 </div>
-                <p className="text-xs text-slate-500">Production-ready, deterministic conversations.</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Production-ready, deterministic conversations.</p>
               </button>
             </div>
           </div>
 
-          {/* Template Filter Tabs */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Templates ({visibleTemplates.length})</p>
-              <div className="flex gap-2 overflow-x-auto text-xs font-medium">
-                {['All', 'Receptionist', 'Outbound Sales & Reactivation', 'Appointment Booking', 'Lead Qualification', 'Customer Support', 'BFSI Collections & Reminders'].map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setTemplateFilter(cat)}
-                    className={`px-3 py-1 rounded-full transition-all shrink-0 ${
-                      templateFilter === cat ? 'bg-indigo-600 text-white font-bold' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
+          {/* Search Input & Category Filter Tabs */}
+          <div className="space-y-3 shrink-0 pt-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search templates by name or description..."
+                value={templateSearch}
+                onChange={(e) => setTemplateSearch(e.target.value)}
+                className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              />
+              {templateSearch && (
+                <button
+                  onClick={() => setTemplateSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
-            {/* Template Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[32rem] overflow-y-auto p-1.5 pr-2">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+                Templates ({visibleTemplates.length})
+              </p>
+              <div className="flex gap-2 overflow-x-auto text-xs font-medium pb-1">
+                {templateCategories.map((cat) => {
+                  const isSelected = templateCategory.toLowerCase() === cat.toLowerCase();
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => setTemplateCategory(cat)}
+                      className={`px-3 py-1 rounded-full transition-all shrink-0 text-xs ${
+                        isSelected
+                          ? 'bg-indigo-600 text-white font-bold shadow-sm'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      {cat === 'all' ? 'All' : cat}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Template Cards Grid + Desktop Preview Panel */}
+          <div className="flex gap-4 flex-1 overflow-hidden min-h-0 pt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto flex-1 p-1 content-start">
               <button
                 onClick={() => {
                   if (createType === 'conversational') {
@@ -2579,12 +2650,12 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
                     setSinglePromptStudioAgent({ name: form.name || 'Single-Prompt Agent' });
                   }
                 }}
-                className="p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 text-left transition-all bg-slate-50/50 dark:bg-slate-800/30 flex flex-col justify-between min-h-[140px] h-full shadow-sm hover:shadow-md"
+                className="p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 text-left transition-all bg-slate-50/50 dark:bg-slate-800/30 flex flex-col justify-between min-h-[120px] shadow-sm hover:shadow-md"
               >
                 <div className="w-8 h-8 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 font-bold text-sm mb-3">+</div>
                 <div>
                   <p className="font-bold text-sm text-slate-900 dark:text-slate-100">Build from scratch</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Start with a completely blank agent configuration</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed line-clamp-3">Start with a completely blank agent configuration</p>
                 </div>
               </button>
 
@@ -2597,72 +2668,114 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
                     setSinglePromptStudioAgent({ name: 'Generated Sales Agent', systemPrompt: generatedPrompt });
                   }
                 }}
-                className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-indigo-500 text-left transition-all bg-white dark:bg-slate-900 flex flex-col justify-between min-h-[140px] h-full shadow-sm hover:shadow-md"
+                className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-indigo-500 text-left transition-all bg-white dark:bg-slate-900 flex flex-col justify-between min-h-[120px] shadow-sm hover:shadow-md"
               >
                 <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 w-fit mb-3">
                   <Sparkles className="w-5 h-5" />
                 </div>
                 <div>
                   <p className="font-bold text-sm text-slate-900 dark:text-slate-100">Generate from prompt</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Describe your scenario, AI automatically designs your agent</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed line-clamp-3">Describe your scenario, AI automatically designs your agent</p>
                 </div>
               </button>
 
-              {visibleTemplates.map((tpl) => (
-                <button
-                  key={tpl.id}
-                  onClick={() => {
-                    if (tpl.type === 'conversational' || tpl.flowGraph) {
-                      setStudioAgent({
-                        name: tpl.name,
-                        systemPrompt: tpl.systemPrompt,
-                        flowGraph: tpl.flowGraph,
-                      });
-                    } else if (setSinglePromptStudioAgent) {
-                      setSinglePromptStudioAgent({
-                        name: tpl.name,
-                        systemPrompt: tpl.systemPrompt,
-                      });
-                    }
-                  }}
-                  className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-indigo-500 hover:ring-2 hover:ring-indigo-500/20 text-left transition-all bg-white dark:bg-slate-900 flex flex-col justify-between min-h-[140px] h-full shadow-sm hover:shadow-md group"
-                >
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
-                      tpl.type === 'conversational' ? 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300' : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
-                    }`}>
-                      {tpl.type === 'conversational' ? 'Flow' : 'Prompt'}
-                    </span>
-                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{tpl.category}</span>
-                  </div>
-                  <div>
-                    <p className="font-bold text-sm text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{tpl.name}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">{tpl.description}</p>
-                  </div>
-                </button>
-              ))}
+              {visibleTemplates.map((tpl) => {
+                const isSelected = selectedTemplate?.id === tpl.id;
+                return (
+                  <button
+                    key={tpl.id}
+                    onClick={() => {
+                      setSelectedTemplate(tpl);
+                      if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                        applyTemplate(tpl);
+                      }
+                    }}
+                    onMouseEnter={() => setSelectedTemplate(tpl)}
+                    className={`p-4 rounded-xl border text-left transition-all bg-white dark:bg-slate-900 flex flex-col justify-between min-h-[120px] shadow-sm hover:shadow-md group ${
+                      isSelected
+                        ? 'border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-50/10 dark:bg-indigo-950/20'
+                        : 'border-slate-200 dark:border-slate-800 hover:border-indigo-500'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                        tpl.type === 'conversational' ? 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300' : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                      }`}>
+                        {tpl.type === 'conversational' ? 'Flow' : 'Prompt'}
+                      </span>
+                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider truncate max-w-[120px]" title={tpl.category}>
+                        {tpl.category}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{tpl.name}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed line-clamp-3">{tpl.description}</p>
+                    </div>
+                  </button>
+                );
+              })}
+
+              {visibleTemplates.length === 0 && (
+                <div className="col-span-full py-12 text-center text-slate-400 dark:text-slate-500 text-sm">
+                  No templates found matching your search.
+                </div>
+              )}
             </div>
+
+            {/* Desktop Preview Panel */}
+            {selectedTemplate && (
+              <div className="hidden lg:flex w-80 shrink-0 flex-col border-l border-slate-200 dark:border-slate-700 p-4 overflow-y-auto">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">{selectedTemplate.name}</h3>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${
+                    selectedTemplate.type === 'conversational'
+                      ? 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300'
+                      : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                  }`}>
+                    {selectedTemplate.type === 'conversational' ? 'Flow' : 'Prompt'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">{selectedTemplate.description}</p>
+                <pre className="text-xs bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 p-3 rounded-lg border border-slate-200 dark:border-slate-700 overflow-auto flex-1 whitespace-pre-wrap font-mono">
+                  {selectedTemplate.systemPrompt || selectedTemplate.prompt || ''}
+                </pre>
+                <button
+                  onClick={() => applyTemplate(selectedTemplate)}
+                  className="mt-4 w-full py-2 rounded bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+                >
+                  Use this template
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 shrink-0">
             <button
-              onClick={() => setView("list")}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 rounded-lg"
+              onClick={() => {
+                setView("list");
+                setSelectedTemplate(null);
+                setTemplateSearch("");
+              }}
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 rounded-lg transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={() => {
-                if (createType === 'conversational') {
-                  setStudioAgent({ name: form.name || 'Conversation Flow Agent' });
-                } else if (setSinglePromptStudioAgent) {
-                  setSinglePromptStudioAgent({ name: form.name || 'Single-Prompt Agent' });
+                if (selectedTemplate) {
+                  applyTemplate(selectedTemplate);
+                } else {
+                  if (createType === 'conversational') {
+                    setStudioAgent({ name: form.name || 'Conversation Flow Agent' });
+                  } else if (setSinglePromptStudioAgent) {
+                    setSinglePromptStudioAgent({ name: form.name || 'Single-Prompt Agent' });
+                  }
                 }
               }}
-              className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
+              className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors"
             >
-              Create agent
+              {selectedTemplate ? 'Use this template' : 'Create agent'}
             </button>
           </div>
         </div>
@@ -2691,7 +2804,9 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">FOLDERS</p>
           <button
             onClick={() => {
-              setTemplateFilter("All");
+              setTemplateCategory("all");
+              setTemplateSearch("");
+              setSelectedTemplate(null);
               setView("create");
             }}
             className="w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 flex items-center justify-between hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
