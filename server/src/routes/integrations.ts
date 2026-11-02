@@ -1,13 +1,22 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth';
-import { IntegrationsController } from '../controllers/IntegrationsController';
-import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
 
+/**
+ * DISABLED: Third-party integrations route.
+ *
+ * This router was previously connected to IntegrationsController but was NEVER
+ * mounted in server/src/index.ts, meaning every request silently 404-ed.
+ * All integration cards (Cal.com, Zapier, Make.com, Generic Webhook, Slack,
+ * Google Sheets, HubSpot, Salesforce) have been removed from the frontend.
+ *
+ * The only supported integration is Google Calendar, which operates via the
+ * fully mounted /api/v2/calendar route.
+ *
+ * See: server/docs/removed-integrations.md
+ */
 const router = Router();
 
-router.get('/', requireAuth, IntegrationsController.listIntegrations);
-router.post('/:type', requireAuth, sensitiveOperationsLimiter, IntegrationsController.saveIntegration);
-router.post('/:type/test', requireAuth, sensitiveOperationsLimiter, IntegrationsController.testIntegration);
-router.delete('/:type', requireAuth, sensitiveOperationsLimiter, IntegrationsController.deleteIntegration);
+router.all('*', (_req, res) => {
+  res.status(404).json({ success: false, error: 'This integration is not available.' });
+});
 
 export default router;
