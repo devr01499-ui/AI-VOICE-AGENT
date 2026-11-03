@@ -71,37 +71,35 @@ jobs:
           cd server
           npm run build
 
+      - name: Configure Database Environment
+        run: |
+          POSTGRES_PORT="${{ job.services.postgres.ports[5432] }}"
+          [ -z "$POSTGRES_PORT" ] && POSTGRES_PORT="5432"
+          echo "Resolved Postgres port: $POSTGRES_PORT"
+          echo "DATABASE_URL=postgresql://claritiy:testpassword@127.0.0.1:${POSTGRES_PORT}/claritiy_test?schema=public" >> $GITHUB_ENV
+          echo "DIRECT_URL=postgresql://claritiy:testpassword@127.0.0.1:${POSTGRES_PORT}/claritiy_test?schema=public" >> $GITHUB_ENV
+          echo "NODE_ENV=test" >> $GITHUB_ENV
+          echo "JWT_SECRET=ci_jwt_secret_test_32_characters_long_min" >> $GITHUB_ENV
+          echo "ENCRYPTION_KEY=ci_aes_encryption_key_32_chars_ok" >> $GITHUB_ENV
+          echo "PLIVO_AUTH_TOKEN=ci_test_plivo_auth_token" >> $GITHUB_ENV
+
       - name: Setup Database Schema
-        env:
-          DATABASE_URL: "postgresql://claritiy:testpassword@localhost:5432/claritiy_test?schema=public"
         run: |
           cd server
-          npx prisma db push --skip-generate --accept-data-loss
+          npx prisma db push --accept-data-loss
 
       - name: Run E2E Call Harness
-        env:
-          DATABASE_URL: "postgresql://claritiy:testpassword@localhost:5432/claritiy_test?schema=public"
-          JWT_SECRET: "ci_jwt_secret_test_32_characters_long_min"
-          ENCRYPTION_KEY: "ci_aes_encryption_key_32_chars_ok"
-          PLIVO_AUTH_TOKEN: "ci_test_plivo_auth_token"
-          NODE_ENV: "test"
         run: |
           chmod +x e2e-call-harness/run_case.sh
           ./e2e-call-harness/run_case.sh
 
       - name: Run Street-Smart Intelligence & Regression Suite (41/41)
-        env:
-          DATABASE_URL: "postgresql://claritiy:testpassword@localhost:5432/claritiy_test?schema=public"
-          NODE_ENV: "test"
         run: |
           cd server
           npm run test:street-smart
           npm run test:street-smart-regression
 
       - name: Run Street-Smart Mock Mode Eval (bad must FAIL, good must PASS)
-        env:
-          DATABASE_URL: "postgresql://claritiy:testpassword@localhost:5432/claritiy_test?schema=public"
-          NODE_ENV: "test"
         run: |
           cd server
           EVAL_MOCK=bad npm run eval:street-smart-live

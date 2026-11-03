@@ -48,7 +48,7 @@ trap cleanup EXIT INT TERM
 echo "0. Syncing Prisma database schema to test database..."
 (
   cd "${ROOT_DIR}/server"
-  npx prisma db push --skip-generate --accept-data-loss
+  npx prisma db push --accept-data-loss
 )
 
 # 1. Start Fake Gemini Server
