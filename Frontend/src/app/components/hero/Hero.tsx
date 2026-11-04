@@ -15,7 +15,7 @@ interface HeroProps {
 }
 
 // ── Real-Time Animated Equalizer Waveform ─────────────────────────────────────
-function RealtimeAudioWaveform({ active, color = "#059669", barsCount = 28 }: {
+function RealtimeAudioWaveform({ active, color = "#121212", barsCount = 28 }: {
   active: boolean; color?: string; barsCount?: number;
 }) {
   const [heights, setHeights] = useState<number[]>(Array.from({ length: barsCount }, () => 0.2));
@@ -73,9 +73,6 @@ function HdGeometricalArchitectureDiagram() {
       category: "CORE NATIVE ENGINE",
       desc: "Vertically integrated ASR + LLM + TTS speech pipeline streaming over WebRTC zero-copy buffers to eliminate REST API latency for instant human-like response.",
       icon: Zap,
-      color: "#059669",
-      accentBg: "#ECFDF5",
-      borderColor: "rgba(5, 150, 105, 0.4)",
       stats: { primary: "168ms", label: "End-to-End Latency", detail: "0% REST API Lag" }
     },
     {
@@ -85,9 +82,6 @@ function HdGeometricalArchitectureDiagram() {
       category: "MULTILINGUAL",
       desc: "Direct neural speech recognition for Hindi, English, Spanish, Arabic, Bengali, Kannada & regional dialects without translation loss.",
       icon: Globe,
-      color: "#D97706",
-      accentBg: "#FEF3C7",
-      borderColor: "rgba(217, 119, 6, 0.4)",
       stats: { primary: "70+", label: "Languages & Accents", detail: "Zero Translation Lag" }
     },
     {
@@ -97,9 +91,6 @@ function HdGeometricalArchitectureDiagram() {
       category: "REAL-TIME MEDIA",
       desc: "Callers interrupt naturally mid-sentence. High-precision 20ms VAD audio monitors continuous voice activity to flush target queues instantly.",
       icon: Activity,
-      color: "#047857",
-      accentBg: "#D1FAE5",
-      borderColor: "rgba(4, 120, 87, 0.4)",
       stats: { primary: "100%", label: "Duplex Audio Stream", detail: "Instant Queue Flush" }
     },
     {
@@ -109,9 +100,6 @@ function HdGeometricalArchitectureDiagram() {
       category: "TELEPHONY GATEWAY",
       desc: "Provision PSTN local & toll-free virtual lines in 1 click or connect existing enterprise SIP trunk infrastructure with SRTP encryption.",
       icon: Phone,
-      color: "#0284C7",
-      accentBg: "#E0F2FE",
-      borderColor: "rgba(2, 132, 199, 0.4)",
       stats: { primary: "1-Click", label: "Line Provisioning", detail: "Global Carrier Trunking" }
     },
     {
@@ -121,9 +109,6 @@ function HdGeometricalArchitectureDiagram() {
       category: "KNOWLEDGE RETRIEVAL",
       desc: "Ground AI voice agents with PDFs, website URLs, and CRM databases for 100% accurate factual responses during live phone calls.",
       icon: Database,
-      color: "#059669",
-      accentBg: "#F0FDF4",
-      borderColor: "rgba(5, 150, 105, 0.4)",
       stats: { primary: "100%", label: "Fact-Checked Retrieval", detail: "Vector DB Grounded" }
     },
     {
@@ -133,9 +118,6 @@ function HdGeometricalArchitectureDiagram() {
       category: "COMPLIANCE",
       desc: "Edge-level PII redaction, TLS 1.3 encrypted WebRTC streams, DPDP privacy compliance, and automated call audit trails.",
       icon: Lock,
-      color: "#D97706",
-      accentBg: "#FEF3C7",
-      borderColor: "rgba(217, 119, 6, 0.4)",
       stats: { primary: "MSME", label: "Registered Enterprise", detail: "DPDP Act Aligned" }
     }
   ];
@@ -145,7 +127,7 @@ function HdGeometricalArchitectureDiagram() {
     if (!isPlaying) return;
     const interval = setInterval(() => {
       setSelectedNode((prev) => (prev + 1) % nodes.length);
-      setSimulatedLatency(Math.floor(166 + Math.random() * 10));
+      setSimulatedLatency(Math.floor(164 + Math.random() * 12));
     }, 4000);
     return () => clearInterval(interval);
   }, [isPlaying, nodes.length]);
@@ -172,27 +154,27 @@ function HdGeometricalArchitectureDiagram() {
         <div className="flex items-center gap-2 ml-auto">
           <button
             onClick={() => setActiveTab("flow")}
-            className={`text-xs font-mono px-3 py-1 rounded-[2px] transition-all ${
+            className={`text-xs font-mono px-3 py-1 rounded-[2px] transition-all cursor-pointer ${
               activeTab === "flow"
                 ? "bg-[#121212] text-white"
-                : "bg-transparent border border-[#CBC8BE] text-[#5E5D57] hover:text-[#121212]"
+                : "bg-transparent border border-[#CBC8BE] text-[#262523] hover:text-[#121212]"
             }`}
           >
             Diagram Flow
           </button>
           <button
             onClick={() => setActiveTab("features")}
-            className={`text-xs font-mono px-3 py-1 rounded-[2px] transition-all ${
+            className={`text-xs font-mono px-3 py-1 rounded-[2px] transition-all cursor-pointer ${
               activeTab === "features"
                 ? "bg-[#121212] text-white"
-                : "bg-transparent border border-[#CBC8BE] text-[#5E5D57] hover:text-[#121212]"
+                : "bg-transparent border border-[#CBC8BE] text-[#262523] hover:text-[#121212]"
             }`}
           >
             USP Grid
           </button>
           <button
             onClick={() => setIsPlaying(!isPlaying)}
-            className="w-7 h-7 rounded-[2px] border border-[#CBC8BE] bg-transparent hover:bg-black/5 flex items-center justify-center text-[#121212] transition-colors ml-1"
+            className="w-7 h-7 rounded-[2px] border border-[#CBC8BE] bg-transparent hover:bg-black/5 flex items-center justify-center text-[#121212] transition-colors ml-1 cursor-pointer"
             title={isPlaying ? "Pause Rotation" : "Play Rotation"}
           >
             {isPlaying ? (
@@ -212,29 +194,25 @@ function HdGeometricalArchitectureDiagram() {
         <div className="relative w-full rounded-[2px] bg-[#EBE9E2] p-5 md:p-6 border border-[#CBC8BE] overflow-hidden">
           
           {/* Background SVG Geometrical Grid & Laser Beams */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-40" viewBox="0 0 650 360">
+          <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-30" viewBox="0 0 650 360">
             <defs>
-              <linearGradient id="beamGreen" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#059669" stopOpacity="0.9" />
-                <stop offset="100%" stopColor="#0284C7" stopOpacity="0.9" />
-              </linearGradient>
               <pattern id="dot-grid" width="24" height="24" patternUnits="userSpaceOnUse">
-                <circle cx="2" cy="2" r="1" fill="#94A3B8" opacity="0.3" />
+                <circle cx="2" cy="2" r="1" fill="#121212" opacity="0.3" />
               </pattern>
             </defs>
 
             <rect width="100%" height="100%" fill="url(#dot-grid)" />
 
             {/* Stage 1 (Gateway) -> Stage 2 (Hub) Laser Pulse Beam */}
-            <path d="M 140 180 Q 210 180 280 180" fill="none" stroke="url(#beamGreen)" strokeWidth="3" strokeDasharray="8 4">
+            <path d="M 140 180 Q 210 180 280 180" fill="none" stroke="#121212" strokeWidth="2" strokeDasharray="8 4">
               <animate attributeName="stroke-dashoffset" from="24" to="0" dur="1s" repeatCount="indefinite" />
             </path>
 
             {/* Stage 2 (Hub) -> Stage 3 (Right Nodes) Pulsing Connection Spoke Lines */}
-            <path d="M 360 150 Q 440 85 510 85" fill="none" stroke={selectedNode === 1 ? "#D97706" : "#E2E8F0"} strokeWidth={selectedNode === 1 ? "3" : "1.5"} />
-            <path d="M 360 170 Q 440 150 510 150" fill="none" stroke={selectedNode === 2 ? "#047857" : "#E2E8F0"} strokeWidth={selectedNode === 2 ? "3" : "1.5"} />
-            <path d="M 360 190 Q 440 215 510 215" fill="none" stroke={selectedNode === 4 ? "#059669" : "#E2E8F0"} strokeWidth={selectedNode === 4 ? "3" : "1.5"} />
-            <path d="M 360 210 Q 440 280 510 280" fill="none" stroke={selectedNode === 5 ? "#D97706" : "#E2E8F0"} strokeWidth={selectedNode === 5 ? "3" : "1.5"} />
+            <path d="M 360 150 Q 440 85 510 85" fill="none" stroke={selectedNode === 1 ? "#121212" : "#CBC8BE"} strokeWidth={selectedNode === 1 ? "2.5" : "1"} />
+            <path d="M 360 170 Q 440 150 510 150" fill="none" stroke={selectedNode === 2 ? "#121212" : "#CBC8BE"} strokeWidth={selectedNode === 2 ? "2.5" : "1"} />
+            <path d="M 360 190 Q 440 215 510 215" fill="none" stroke={selectedNode === 4 ? "#121212" : "#CBC8BE"} strokeWidth={selectedNode === 4 ? "2.5" : "1"} />
+            <path d="M 360 210 Q 440 280 510 280" fill="none" stroke={selectedNode === 5 ? "#121212" : "#CBC8BE"} strokeWidth={selectedNode === 5 ? "2.5" : "1"} />
           </svg>
 
           {/* 3-Stage Pipeline Diagram Flow (Left -> Center Hub -> Right Capabilities) */}
@@ -242,29 +220,29 @@ function HdGeometricalArchitectureDiagram() {
             
             {/* STAGE 1: Carrier Telephony & SIP Gateway (Left 3.5 cols) */}
             <div className="md:col-span-3 lg:col-span-3.5 space-y-3">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 font-mono block text-left">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[#262523] font-mono block text-left">
                 STAGE 01 · GATEWAY
               </span>
               
               <div 
                 onClick={() => { setSelectedNode(3); setIsPlaying(false); }}
-                className={`p-3.5 rounded-2xl border transition-all cursor-pointer text-left ${
+                className={`p-3.5 rounded-[2px] border transition-all cursor-pointer text-left ${
                   selectedNode === 3 
-                    ? "bg-sky-50/90 border-[#0284C7] shadow-md ring-2 ring-[#0284C7]/20" 
-                    : "bg-slate-50/90 border-slate-200 hover:bg-slate-100/90"
+                    ? "bg-[#DFDCD4] border-[#121212] shadow-sm" 
+                    : "bg-[#DFDCD4] border-[#CBC8BE] hover:bg-[#D5D1C7]"
                 }`}
               >
                 <div className="flex items-center gap-2.5 mb-2">
-                  <div className="w-8 h-8 rounded-xl bg-sky-100 text-[#0284C7] flex items-center justify-center flex-shrink-0 font-bold">
-                    <Phone className="w-4 h-4" strokeWidth={2.2} />
+                  <div className="w-8 h-8 rounded-[2px] bg-[#EBE9E2] border border-[#CBC8BE] text-[#121212] flex items-center justify-center flex-shrink-0">
+                    <Phone className="w-4 h-4" strokeWidth={2} />
                   </div>
                   <div className="min-w-0">
-                    <h5 className="text-xs font-extrabold text-[#0F172A] truncate">Carrier SIP & PSTN</h5>
-                    <p className="text-[10px] text-slate-500 font-semibold truncate">Telephony Trunking</p>
+                    <h5 className="text-xs font-semibold text-[#121212] font-sans truncate">Carrier SIP & PSTN</h5>
+                    <p className="text-[10px] text-[#262523] font-mono truncate">Telephony Trunking</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 pt-1 border-t border-slate-200/60 text-[9px] font-mono font-bold text-sky-800">
-                  <Radio className="w-3 h-3 animate-pulse text-[#0284C7]" />
+                <div className="flex items-center gap-1.5 pt-1 border-t border-[#CBC8BE] text-[9px] font-mono font-medium text-[#121212]">
+                  <Radio className="w-3 h-3 text-[#121212]" />
                   <span className="truncate">Bi-Directional Audio Stream</span>
                 </div>
               </div>
@@ -272,17 +250,17 @@ function HdGeometricalArchitectureDiagram() {
 
             {/* STAGE 2: Central Claritiy Voice Core Engine (Center 5 cols) */}
             <div className="md:col-span-5 lg:col-span-5 flex flex-col items-center justify-center py-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#059669] font-mono block mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[#121212] font-mono block mb-2">
                 STAGE 02 · NATIVE VOICE ENGINE
               </span>
 
               <motion.div
-                whileHover={{ scale: 1.03 }}
+                whileHover={{ scale: 1.02 }}
                 onClick={() => { setSelectedNode(0); setIsPlaying(false); }}
-                className={`w-full p-4.5 rounded-3xl border text-center cursor-pointer transition-all ${
+                className={`w-full p-4.5 rounded-[2px] border text-center cursor-pointer transition-all ${
                   selectedNode === 0
-                    ? "bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 text-white shadow-xl border-emerald-400 ring-4 ring-emerald-500/20"
-                    : "bg-white border-emerald-200 shadow-md hover:border-emerald-400"
+                    ? "bg-[#DFDCD4] border-2 border-[#121212] shadow-sm"
+                    : "bg-[#EBE9E2] border border-[#CBC8BE] hover:border-[#9C998F]"
                 }`}
               >
                 <div className="relative w-14 h-14 mx-auto mb-1 flex items-center justify-center">
@@ -290,26 +268,26 @@ function HdGeometricalArchitectureDiagram() {
                     animationData={voiceOrbLottieData}
                     loop={true}
                     autoplay={true}
-                    className="w-full h-full drop-shadow-[0_0_16px_rgba(5,150,105,0.7)]"
+                    className="w-full h-full"
                   />
                 </div>
-                <h4 className={`text-base font-black ${selectedNode === 0 ? "text-white" : "text-[#0F172A]"}`}>
+                <h4 className="text-base font-medium text-[#121212] font-sans">
                   Claritiy Voice AI
                 </h4>
-                <p className={`text-[10px] font-mono mt-0.5 font-bold ${selectedNode === 0 ? "text-emerald-100" : "text-emerald-700"}`}>
+                <p className="text-[10px] font-mono mt-0.5 text-[#262523]">
                   Sub-180ms Native Stream
                 </p>
 
                 {/* Animated Equalizer Waveform inside Core Hub */}
-                <div className="mt-3 pt-2 border-t border-current/10">
-                  <RealtimeAudioWaveform active={true} color={selectedNode === 0 ? "#FFFFFF" : "#059669"} barsCount={24} />
+                <div className="mt-3 pt-2 border-t border-[#CBC8BE]">
+                  <RealtimeAudioWaveform active={true} color="#121212" barsCount={24} />
                 </div>
               </motion.div>
             </div>
 
-            {/* STAGE 3: Enterprise USPs & Outcomes (Right 3.5 cols - Full Readability) */}
+            {/* STAGE 3: Enterprise USPs & Outcomes (Right 3.5 cols) */}
             <div className="md:col-span-4 lg:col-span-3.5 space-y-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 font-mono block text-left">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[#262523] font-mono block text-left">
                 STAGE 03 · USPs & CAPABILITIES
               </span>
 
@@ -322,23 +300,20 @@ function HdGeometricalArchitectureDiagram() {
                   <div
                     key={nodeIdx}
                     onClick={() => { setSelectedNode(nodeIdx); setIsPlaying(false); }}
-                    className={`p-2.5 rounded-xl border transition-all cursor-pointer text-left flex items-center gap-2.5 ${
+                    className={`p-2.5 rounded-[2px] border transition-all cursor-pointer text-left flex items-center gap-2.5 ${
                       isSelected
-                        ? "bg-white shadow-md border-emerald-600 ring-2 ring-emerald-500/20"
-                        : "bg-slate-50/80 border-slate-200 hover:bg-slate-100"
+                        ? "bg-[#DFDCD4] border-[#121212] shadow-sm"
+                        : "bg-[#EBE9E2] border-[#CBC8BE] hover:bg-[#DFDCD4]"
                     }`}
                   >
-                    <div 
-                      className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: item.accentBg, color: item.color }}
-                    >
-                      <ItemIcon className="w-3.5 h-3.5" strokeWidth={2.2} />
+                    <div className="w-7 h-7 rounded-[2px] bg-[#DFDCD4] border border-[#CBC8BE] flex items-center justify-center flex-shrink-0 text-[#121212]">
+                      <ItemIcon className="w-3.5 h-3.5" strokeWidth={2} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-extrabold text-[#0F172A] leading-snug">
+                      <p className="text-xs font-medium text-[#121212] leading-snug font-sans">
                         {item.title}
                       </p>
-                      <p className="text-[10px] font-semibold text-slate-500">
+                      <p className="text-[10px] font-mono text-[#262523]">
                         {item.badge}
                       </p>
                     </div>
@@ -349,46 +324,43 @@ function HdGeometricalArchitectureDiagram() {
 
           </div>
 
-          {/* ── Active Node Telemetry Card Overlay (Bottom Panel - Spacious Fit) ── */}
-          <div className="mt-4 pt-4 border-t border-slate-200/90 text-left">
+          {/* ── Active Node Telemetry Card Overlay ── */}
+          <div className="mt-4 pt-4 border-t border-[#CBC8BE] text-left">
             <AnimatePresence mode="wait">
               <motion.div
                 key={selectedNode}
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.25 }}
-                className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-50/90 rounded-2xl p-4 border border-slate-200/80"
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.2 }}
+                className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[#DFDCD4] rounded-[2px] p-4 border border-[#CBC8BE]"
               >
                 <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                  <div 
-                    className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm"
-                    style={{ backgroundColor: activeData.accentBg, color: activeData.color }}
-                  >
-                    <ActiveIcon className="w-5 h-5" strokeWidth={2.2} />
+                  <div className="w-10 h-10 rounded-[2px] bg-[#EBE9E2] border border-[#CBC8BE] flex items-center justify-center flex-shrink-0 text-[#121212]">
+                    <ActiveIcon className="w-5 h-5" strokeWidth={2} />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h4 className="text-xs font-extrabold text-[#0F172A]">
+                      <h4 className="text-xs font-semibold text-[#121212] font-sans">
                         {activeData.title}
                       </h4>
-                      <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
+                      <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-[2px] bg-[#EBE9E2] border border-[#CBC8BE] text-[#121212]">
                         {activeData.category}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-600 font-medium leading-relaxed mt-1">
+                    <p className="text-xs text-[#262523] leading-relaxed mt-1 font-sans">
                       {activeData.desc}
                     </p>
                   </div>
                 </div>
 
                 {/* Key Metric Highlight */}
-                <div className="flex items-center gap-3 sm:pl-4 sm:border-l border-slate-200 flex-shrink-0 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-2 sm:pt-0">
+                <div className="flex items-center gap-3 sm:pl-4 sm:border-l border-[#CBC8BE] flex-shrink-0 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-2 sm:pt-0">
                   <div className="text-left sm:text-right">
-                    <span className="text-lg font-extrabold text-[#0F172A] font-mono block leading-none">
+                    <span className="text-lg font-bold text-[#121212] font-mono block leading-none">
                       {activeData.stats.primary}
                     </span>
-                    <span className="text-[10px] font-semibold text-slate-500 block mt-1">
+                    <span className="text-[10px] font-mono text-[#262523] block mt-1">
                       {activeData.stats.label}
                     </span>
                   </div>
@@ -399,7 +371,7 @@ function HdGeometricalArchitectureDiagram() {
 
         </div>
       ) : (
-        /* ── Grid View Mode: 6 High-Definition USP Cards ────────────────── */
+        /* ── Grid View Mode: 6 Wireframe Cards ───────────────────────────── */
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {nodes.map((u, idx) => {
             const Icon = u.icon;
@@ -408,35 +380,32 @@ function HdGeometricalArchitectureDiagram() {
             return (
               <motion.div
                 key={u.id}
-                whileHover={{ scale: 1.02 }}
+                whileHover={{ scale: 1.01 }}
                 onClick={() => { setSelectedNode(idx); setIsPlaying(false); }}
-                className={`p-4 rounded-2xl border text-left cursor-pointer transition-all flex flex-col justify-between ${
+                className={`p-4 rounded-[2px] border text-left cursor-pointer transition-all flex flex-col justify-between ${
                   isSelected
-                    ? "bg-white shadow-md border-emerald-600 ring-2 ring-emerald-500/20"
-                    : "bg-white/80 border-slate-200 hover:border-slate-300"
+                    ? "bg-[#DFDCD4] border-[#121212] shadow-sm"
+                    : "bg-[#EBE9E2] border-[#CBC8BE] hover:border-[#9C998F]"
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <div 
-                      className="w-9 h-9 rounded-xl flex items-center justify-center"
-                      style={{ backgroundColor: u.accentBg, color: u.color }}
-                    >
-                      <Icon className="w-4 h-4" strokeWidth={2.2} />
+                    <div className="w-8 h-8 rounded-[2px] bg-[#DFDCD4] border border-[#CBC8BE] flex items-center justify-center text-[#121212]">
+                      <Icon className="w-4 h-4" strokeWidth={2} />
                     </div>
-                    <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                    <span className="text-[9px] font-mono font-medium px-2 py-0.5 rounded-[2px] bg-[#DFDCD4] border border-[#CBC8BE] text-[#121212]">
                       {u.badge}
                     </span>
                   </div>
-                  <h4 className="text-xs font-extrabold text-[#0F172A] mb-1">
+                  <h4 className="text-xs font-semibold text-[#121212] mb-1 font-sans">
                     {u.title}
                   </h4>
-                  <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
+                  <p className="text-[11px] text-[#262523] leading-relaxed font-sans">
                     {u.desc}
                   </p>
                 </div>
 
-                <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] font-mono font-bold text-emerald-700">
+                <div className="mt-3 pt-2 border-t border-[#CBC8BE] flex items-center justify-between text-[10px] font-mono font-bold text-[#121212]">
                   <span>{u.stats.label}</span>
                   <span>{u.stats.primary}</span>
                 </div>
@@ -469,7 +438,7 @@ export default function Hero({ setPage }: HeroProps) {
             transition={{ duration: 0.5 }}
           >
             {/* Live Status Tag */}
-            <div className="flex items-center gap-2 text-xs font-mono text-[#5E5D57]">
+            <div className="flex items-center gap-2 text-xs font-mono text-[#262523]">
               <span className="text-[#121212] font-bold">|</span>
               <span className="uppercase tracking-wider">Claritiy Voice · Enterprise Outbound, Support & IVR</span>
             </div>
@@ -480,7 +449,7 @@ export default function Hero({ setPage }: HeroProps) {
             </h1>
 
             {/* Clear Explanation of What We Do */}
-            <p className="text-[#5E5D57] text-base sm:text-lg leading-relaxed font-normal">
+            <p className="text-[#262523] text-base sm:text-lg leading-relaxed font-normal">
               Claritiy Voice builds sub-second (<span className="text-[#121212] font-semibold">180ms</span>) conversational AI phone agents that place outbound sales calls, handle inbound customer support, qualify leads, and automate payment reminders across <span className="text-[#121212] font-semibold">70+ languages</span> with zero setup overhead.
             </p>
 
@@ -515,7 +484,7 @@ export default function Hero({ setPage }: HeroProps) {
                   <p className="text-base sm:text-lg font-bold text-[#121212] font-mono">
                     {stat.value}
                   </p>
-                  <p className="text-[11px] text-[#5E5D57] font-mono">
+                  <p className="text-[11px] text-[#262523] font-mono">
                     {stat.label}
                   </p>
                 </div>

@@ -16,9 +16,9 @@ type Page = any;
 interface HomeProps { setPage: (p: Page) => void; }
 
 // ── Reusable section label (EdgeSkool Minimalist Style) ───────────────────────
-function SectionLabel({ text }: { text: string; color?: "green" | "orange" }) {
+function SectionLabel({ text }: { text: string; color?: string }) {
   return (
-    <div className="flex items-center justify-center gap-2 text-xs font-mono text-[#5E5D57]">
+    <div className="flex items-center justify-center gap-2 text-xs font-mono text-[#121212]">
       <span className="text-[#121212] font-semibold">|</span>
       <span className="uppercase tracking-wider">{text}</span>
     </div>
@@ -36,15 +36,6 @@ function TiltCard({ children, className = "", style = {} }: {
     >
       {children}
     </div>
-  );
-}
-
-// ── Animated counter ─────────────────────────────────────────────────────────
-function StatNumber({ value, suffix = "" }: { value: string; suffix?: string }) {
-  return (
-    <span className="text-4xl lg:text-5xl font-extrabold text-white leading-none">
-      {value}<span className="text-[#34D399]">{suffix}</span>
-    </span>
   );
 }
 
@@ -101,7 +92,7 @@ function TestimonialsSection() {
 
       {/* Header with Monospace Tag */}
       <div className="text-left mb-10 space-y-3">
-        <div className="flex items-center gap-2 text-xs font-mono text-[#5E5D57]">
+        <div className="flex items-center gap-2 text-xs font-mono text-[#121212]">
           <span className="text-[#121212] font-semibold">|</span>
           <span className="tracking-wider">Testimonials</span>
         </div>
@@ -121,11 +112,11 @@ function TestimonialsSection() {
               <h3 className="text-sm sm:text-base font-medium text-[#121212] mb-3 leading-snug font-sans">
                 {t.title}
               </h3>
-              <p className="text-xs sm:text-sm text-[#5E5D57] leading-relaxed mb-6 font-sans">
+              <p className="text-xs sm:text-sm text-[#262523] leading-relaxed mb-6 font-sans">
                 {t.body}
               </p>
             </div>
-            <div className="pt-3 border-t border-[#CBC8BE]/60 text-xs font-mono text-[#5E5D57]">
+            <div className="pt-3 border-t border-[#CBC8BE]/60 text-xs font-mono text-[#262523]">
               {t.author}
             </div>
           </div>
@@ -149,14 +140,14 @@ function BentoCapabilitySection({ setPage }: { setPage: (p: Page) => void }) {
       icon: MessageSquare,
     },
     {
-      title: "Multilingual Voice Support",
-      desc: "Native speech recognition across English, Hindi, Bengali, Kannada, Mandarin, Arabic, and 64+ more. Accent support built in. No translation overhead.",
+      title: "70+ Languages & Regional Dialects",
+      desc: "Native conversational AI support for Hindi, Indian English, Hinglish, Spanish, Arabic, Bengali, Marathi, and 60+ regional dialects without translation loss.",
       icon: Languages,
     },
     {
-      title: "RAG Knowledge Base Calling",
-      desc: "Attach PDFs, URLs, and CRM data for 100% hallucination-free answers. Real-time retrieval during live calls — your AI receptionist knows everything about your business.",
-      icon: Database,
+      title: "Zero-Latency Real-Time Telephony",
+      desc: "Direct PSTN carrier trunking and WebRTC audio streaming. Dedicated virtual phone numbers with sub-second call setup and zero queue latency.",
+      icon: Phone,
     },
     {
       title: "Warm Transfer & Human Handoff",
@@ -200,7 +191,7 @@ function BentoCapabilitySection({ setPage }: { setPage: (p: Page) => void }) {
             >
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-[10px] font-mono text-[#5E5D57] uppercase tracking-wider">
+                  <span className="text-[10px] font-mono text-[#262523] uppercase tracking-wider">
                     Feature 0{i + 1}
                   </span>
                   <div className="w-8 h-8 rounded-[2px] bg-[#DFDCD4] flex items-center justify-center text-[#121212]">
@@ -210,7 +201,7 @@ function BentoCapabilitySection({ setPage }: { setPage: (p: Page) => void }) {
                 <h3 className="text-sm font-medium text-[#121212] mb-2 leading-snug font-sans">
                   {item.title}
                 </h3>
-                <p className="text-xs text-[#5E5D57] leading-relaxed font-sans">
+                <p className="text-xs text-[#262523] leading-relaxed font-sans">
                   {item.desc}
                 </p>
               </div>
@@ -251,7 +242,7 @@ function UseCaseSection({ setPage }: { setPage: (p: Page) => void }) {
             >
               <div>
                 <div className="flex items-center justify-between mb-5">
-                  <span className="text-[10px] font-mono text-[#5E5D57] uppercase tracking-wider">
+                  <span className="text-[10px] font-mono text-[#262523] uppercase tracking-wider">
                     [ {uc.num} ] · {uc.step}
                   </span>
                   <div className="w-8 h-8 rounded-[2px] bg-[#DFDCD4] flex items-center justify-center text-[#121212]">
@@ -261,7 +252,7 @@ function UseCaseSection({ setPage }: { setPage: (p: Page) => void }) {
                 <h3 className="text-base font-medium text-[#121212] mb-2 font-sans tracking-tight">
                   {uc.title}
                 </h3>
-                <p className="text-xs text-[#5E5D57] leading-relaxed font-sans">
+                <p className="text-xs text-[#262523] leading-relaxed font-sans">
                   {uc.desc}
                 </p>
               </div>
@@ -292,25 +283,24 @@ function ComparisonSection({ setPage }: { setPage: (p: Page) => void }) {
   return (
     <section className="py-24 px-6 max-w-7xl mx-auto">
       <div className="text-center max-w-3xl mx-auto mb-14 space-y-4">
-        <SectionLabel text="Enterprise Architecture Comparison" color="orange" />
-        <h2 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A]"
-          style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
+        <SectionLabel text="Enterprise Architecture Comparison" />
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-normal sm:font-medium text-[#121212] tracking-tight leading-[1.1] font-sans">
           Claritiy Voice vs Chained Multi-Vendor Stacks<br />& Legacy Call Centers
         </h2>
-        <p className="text-slate-500 leading-relaxed">
+        <p className="text-[#262523] leading-relaxed font-sans text-sm sm:text-base">
           See why enterprise teams choose Claritiy Voice for low-latency, unified pricing, and instant compliance.
         </p>
       </div>
 
       <div className="rounded-[2px] overflow-hidden border border-[#CBC8BE] bg-[#EBE9E2]">
         {/* Table header */}
-        <div className="grid grid-cols-4 bg-[#121212] text-white text-xs font-mono uppercase tracking-wider">
-          <div className="p-4 font-mono">Feature</div>
-          <div className="p-4 font-mono text-white border-l border-white/20">
+        <div className="grid grid-cols-4 bg-[#DFDCD4] text-[#121212] border-b border-[#CBC8BE] text-xs font-mono uppercase tracking-wider">
+          <div className="p-4 font-mono font-semibold">Feature</div>
+          <div className="p-4 font-mono font-bold text-[#121212] border-l border-[#CBC8BE]">
             ✦ Claritiy Voice
           </div>
-          <div className="p-4 font-mono text-white/70 border-l border-white/20">Chained APIs</div>
-          <div className="p-4 font-mono text-white/70 border-l border-white/20">Human Centers</div>
+          <div className="p-4 font-mono text-[#262523] border-l border-[#CBC8BE]">Chained APIs</div>
+          <div className="p-4 font-mono text-[#262523] border-l border-[#CBC8BE]">Human Centers</div>
         </div>
         {/* Rows */}
         {rows.map((row, i) => (
@@ -320,8 +310,8 @@ function ComparisonSection({ setPage }: { setPage: (p: Page) => void }) {
           >
             <div className="p-3.5 text-xs font-medium text-[#121212]">{row.feature}</div>
             <div className="p-3.5 text-xs font-semibold text-[#121212] border-l border-[#CBC8BE]">{row.claritiy}</div>
-            <div className="p-3.5 text-xs text-[#5E5D57] border-l border-[#CBC8BE]">{row.vapi}</div>
-            <div className="p-3.5 text-xs text-[#5E5D57] border-l border-[#CBC8BE]">{row.legacy}</div>
+            <div className="p-3.5 text-xs text-[#262523] border-l border-[#CBC8BE]">{row.vapi}</div>
+            <div className="p-3.5 text-xs text-[#262523] border-l border-[#CBC8BE]">{row.legacy}</div>
           </div>
         ))}
         {/* CTA row */}
@@ -330,7 +320,7 @@ function ComparisonSection({ setPage }: { setPage: (p: Page) => void }) {
           <div className="col-span-3 border-l border-[#CBC8BE] pl-4">
             <button
               onClick={() => setPage("dashboard")}
-              className="btn-primary text-xs font-mono uppercase tracking-wider px-5 py-2"
+              className="btn-primary text-xs font-mono uppercase tracking-wider px-5 py-2 cursor-pointer"
             >
               Start Building Now <ArrowRight className="w-3.5 h-3.5" />
             </button>
@@ -341,36 +331,35 @@ function ComparisonSection({ setPage }: { setPage: (p: Page) => void }) {
   );
 }
 
-
 // ── Full-bleed editorial CTA ──────────────────────────────────────────────────
 function FinalCTA({ setPage }: { setPage: (p: Page) => void }) {
   return (
     <section className="py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
-        <div className="relative overflow-hidden rounded-[2px] bg-[#121212] border border-[#333333] text-white">
+        <div className="relative overflow-hidden rounded-[2px] bg-[#EBE9E2] border border-[#CBC8BE] text-[#121212]">
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 items-center gap-10 p-10 lg:p-14">
             {/* Left */}
             <div className="space-y-6">
-              <div className="inline-flex items-center gap-2 border border-white/20 rounded-[2px] px-3 py-1 font-mono text-xs uppercase tracking-wider text-neutral-300">
-                <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+              <div className="inline-flex items-center gap-2 border border-[#CBC8BE] bg-[#DFDCD4] rounded-[2px] px-3 py-1 font-mono text-xs uppercase tracking-wider text-[#121212]">
+                <span className="w-1.5 h-1.5 bg-[#121212] rounded-full animate-pulse" />
                 <span>Now Live — Zero Setup</span>
               </div>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-normal sm:font-medium text-white leading-tight font-sans tracking-tight">
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-normal sm:font-medium text-[#121212] leading-tight font-sans tracking-tight">
                 Deploy Your First AI Voice Agent in Under 10 Minutes
               </h2>
-              <p className="text-neutral-400 text-sm sm:text-base leading-relaxed">
+              <p className="text-[#262523] text-sm sm:text-base leading-relaxed font-sans">
                 No engineering team. No call center overhead. Deploy conversational AI voice agents for appointment booking, lead qualification, COD verification, and more — instantly.
               </p>
               <div className="flex flex-wrap gap-3">
                 <button
                   onClick={() => setPage("dashboard")}
-                  className="bg-white text-black hover:bg-neutral-200 rounded-[2px] font-mono text-xs uppercase tracking-wider px-6 py-3 flex items-center gap-2 transition-colors font-medium"
+                  className="bg-[#121212] text-white hover:bg-black rounded-[2px] font-mono text-xs uppercase tracking-wider px-6 py-3.5 flex items-center gap-2 transition-colors font-medium cursor-pointer"
                 >
                   Build Your Agent Now <ArrowRight className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setPage("pricing")}
-                  className="border border-[#666666] text-white hover:bg-white/10 rounded-[2px] font-mono text-xs uppercase tracking-wider px-6 py-3 transition-colors"
+                  className="border border-[#CBC8BE] bg-[#DFDCD4] text-[#121212] hover:bg-[#D5D1C7] rounded-[2px] font-mono text-xs uppercase tracking-wider px-6 py-3.5 transition-colors cursor-pointer"
                 >
                   View Pricing Plans
                 </button>
@@ -393,8 +382,8 @@ function FinalCTA({ setPage }: { setPage: (p: Page) => void }) {
                 "CRM integration",
                 "Real-time analytics",
               ].map((f, i) => (
-                <div key={i} className="flex items-center gap-2.5 text-sm text-white/80 font-medium">
-                  <CheckCircle2 className="w-4 h-4 text-[#34D399] flex-shrink-0" />
+                <div key={i} className="flex items-center gap-2.5 text-sm text-[#121212] font-medium">
+                  <CheckCircle2 className="w-4 h-4 text-[#121212] flex-shrink-0" />
                   {f}
                 </div>
               ))}
@@ -405,7 +394,6 @@ function FinalCTA({ setPage }: { setPage: (p: Page) => void }) {
     </section>
   );
 }
-
 
 // ── Main Home Page ──────────────────────────────────────────────────────────
 export default function Home({ setPage }: HomeProps) {
@@ -422,12 +410,11 @@ export default function Home({ setPage }: HomeProps) {
       {/* ── INTERACTIVE LIVE VOICE AI LOTTIE SIMULATOR ── */}
       <section className="py-16 md:py-24 px-4 sm:px-6 max-w-6xl mx-auto">
         <div className="text-center max-w-3xl mx-auto mb-12 space-y-4">
-          <SectionLabel text="Interactive Voice Simulator" color="green" />
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#0F172A] leading-tight"
-            style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
+          <SectionLabel text="Interactive Voice Simulator" />
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-normal sm:font-medium text-[#121212] tracking-tight leading-[1.1] font-sans">
             Experience Sub-180ms Neural Voice AI in Real Time
           </h2>
-          <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
+          <p className="text-[#262523] text-sm sm:text-base leading-relaxed font-sans">
             Watch our 60 FPS neural audio engine react on loop. Switch between live conversational scenarios, toggle playback speed, and test how our agents handle interruptions with native human cadence.
           </p>
         </div>
@@ -444,12 +431,11 @@ export default function Home({ setPage }: HomeProps) {
       {/* ── INDUSTRY SHOWROOM ── */}
       <section className="py-24 px-6 max-w-7xl mx-auto">
         <div className="text-center max-w-3xl mx-auto mb-14 space-y-4">
-          <SectionLabel text="Industry Showroom" color="orange" />
-          <h2 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A]"
-            style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
+          <SectionLabel text="Industry Showroom" />
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-normal sm:font-medium text-[#121212] tracking-tight leading-[1.1] font-sans">
             AI Voice Agents for Every Enterprise Vertical
           </h2>
-          <p className="text-slate-500 leading-relaxed">
+          <p className="text-[#262523] leading-relaxed font-sans text-sm sm:text-base">
             AI voice agents for healthcare, finance, real estate, ecommerce, logistics, insurance, BPO, SaaS, education, recruitment, telecom, and travel — 12 pre-configured verticals.
           </p>
         </div>
@@ -467,22 +453,22 @@ export default function Home({ setPage }: HomeProps) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Inbound Technical Dark Card */}
-          <div className="rounded-[2px] bg-[#121212] border border-[#2A2926] text-white p-8 lg:p-10 space-y-6 flex flex-col justify-between">
+          {/* Inbound Technical Warm Stone Card */}
+          <div className="rounded-[2px] bg-[#EBE9E2] border border-[#CBC8BE] text-[#121212] p-8 lg:p-10 space-y-6 flex flex-col justify-between">
             <div>
-              <div className="w-9 h-9 rounded-[2px] bg-[#222120] border border-[#333333] flex items-center justify-center text-white mb-4">
+              <div className="w-9 h-9 rounded-[2px] bg-[#DFDCD4] border border-[#CBC8BE] flex items-center justify-center text-[#121212] mb-4">
                 <Headphones className="w-4 h-4" />
               </div>
-              <p className="text-xs font-mono uppercase tracking-wider text-neutral-400 mb-2">AI Inbound Calling</p>
-              <h3 className="text-2xl font-medium text-white mb-3 font-sans">AI Receptionist & Inbound Call Automation</h3>
-              <p className="text-neutral-400 text-xs sm:text-sm leading-relaxed font-sans">
+              <p className="text-xs font-mono uppercase tracking-wider text-[#262523] mb-2">AI Inbound Calling</p>
+              <h3 className="text-2xl font-medium text-[#121212] mb-3 font-sans">AI Receptionist & Inbound Call Automation</h3>
+              <p className="text-[#262523] text-xs sm:text-sm leading-relaxed font-sans">
                 Answer every inbound call on the first ring — 24/7. Deflect FAQs, book appointments, qualify leads, and execute warm transfers to human agents. Replace legacy IVR with conversational AI voice.
               </p>
             </div>
-            <ul className="space-y-2 border-t border-[#2A2926] pt-4">
+            <ul className="space-y-2 border-t border-[#CBC8BE]/60 pt-4">
               {["Zero-wait first-ring AI answering", "CRM & calendar booking integration", "Warm human escalation with transcript", "Intent classification & smart routing", "AI receptionist for 12+ industries", "Front desk automation"].map((f, i) => (
-                <li key={i} className="flex items-center gap-2.5 text-xs font-mono text-neutral-300">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-white flex-shrink-0" /> {f}
+                <li key={i} className="flex items-center gap-2.5 text-xs font-mono text-[#262523]">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#121212] flex-shrink-0" /> {f}
                 </li>
               ))}
             </ul>
@@ -494,15 +480,15 @@ export default function Home({ setPage }: HomeProps) {
               <div className="w-9 h-9 rounded-[2px] bg-[#DFDCD4] border border-[#CBC8BE] flex items-center justify-center text-[#121212] mb-4">
                 <TrendingUp className="w-4 h-4" />
               </div>
-              <p className="text-xs font-mono uppercase tracking-wider text-[#5E5D57] mb-2">AI Outbound Calling</p>
+              <p className="text-xs font-mono uppercase tracking-wider text-[#262523] mb-2">AI Outbound Calling</p>
               <h3 className="text-2xl font-medium text-[#121212] mb-3 font-sans">Outbound AI Calling Campaign Engine</h3>
-              <p className="text-[#5E5D57] text-xs sm:text-sm leading-relaxed font-sans">
+              <p className="text-[#262523] text-xs sm:text-sm leading-relaxed font-sans">
                 Contact thousands of leads within seconds of form submission. Verify COD orders, recover abandoned carts, collect EMI payments, and reactivate cold databases with personalized AI voice calls.
               </p>
             </div>
             <ul className="space-y-2 border-t border-[#CBC8BE]/60 pt-4">
               {["3-second speed-to-lead response time", "Smart retry for busy / unanswered lines", "Dynamic call disposition & sentiment scoring", "Batch campaign with 10,000+ concurrent calls", "COD verification & RTO reduction", "AI-powered collections calls"].map((f, i) => (
-                <li key={i} className="flex items-center gap-2.5 text-xs font-mono text-[#5E5D57]">
+                <li key={i} className="flex items-center gap-2.5 text-xs font-mono text-[#262523]">
                   <CheckCircle2 className="w-3.5 h-3.5 text-[#121212] flex-shrink-0" /> {f}
                 </li>
               ))}
@@ -511,7 +497,7 @@ export default function Home({ setPage }: HomeProps) {
               {[{ v: "94.2%", l: "Contact rate" }, { v: "1m 45s", l: "Avg qualify" }, { v: "₹6.98", l: "Per lead" }].map((m, i) => (
                 <div key={i} className="text-center p-3 rounded-[2px] bg-[#DFDCD4] border border-[#CBC8BE]">
                   <p className="text-base font-bold font-mono text-[#121212]">{m.v}</p>
-                  <p className="text-[10px] font-mono text-[#5E5D57] mt-0.5">{m.l}</p>
+                  <p className="text-[10px] font-mono text-[#262523] mt-0.5">{m.l}</p>
                 </div>
               ))}
             </div>
@@ -534,7 +520,7 @@ export default function Home({ setPage }: HomeProps) {
               <h2 className="text-3xl sm:text-4xl font-normal sm:font-medium text-[#121212] tracking-tight leading-[1.1] font-sans">
                 Built Different — Not Just Another Stacked Voice API
               </h2>
-              <p className="text-[#5E5D57] text-sm sm:text-base leading-relaxed font-sans">
+              <p className="text-[#262523] text-sm sm:text-base leading-relaxed font-sans">
                 Most AI voice calling software chains third-party STT → LLM → TTS providers, adding 800ms–1.5s of pipeline latency. Claritiy Voice runs a vertically integrated audio model — direct WebRTC streaming with sub-180ms response. That's the difference between a voice bot and a real AI phone agent.
               </p>
             </div>
@@ -549,14 +535,14 @@ export default function Home({ setPage }: HomeProps) {
               ].map(({ icon: Icon, title, desc }, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-4 bg-[#E5E3DC] border border-[#CBC8BE] rounded-[2px] px-5 py-4 hover:border-[#9C998F] transition-colors w-full"
+                  className="flex items-center gap-4 bg-[#DFDCD4] border border-[#CBC8BE] rounded-[2px] px-5 py-4 hover:border-[#9C998F] transition-colors w-full"
                 >
-                  <div className="w-8 h-8 rounded-[2px] bg-[#DFDCD4] border border-[#CBC8BE] flex items-center justify-center flex-shrink-0 text-[#121212]">
+                  <div className="w-8 h-8 rounded-[2px] bg-[#EBE9E2] border border-[#CBC8BE] flex items-center justify-center flex-shrink-0 text-[#121212]">
                     <Icon className="w-4 h-4" />
                   </div>
                   <div>
                     <h4 className="font-medium text-[#121212] text-sm font-sans">{title}</h4>
-                    <p className="text-xs text-[#5E5D57] mt-0.5 font-sans">{desc}</p>
+                    <p className="text-xs text-[#262523] mt-0.5 font-sans">{desc}</p>
                   </div>
                 </div>
               ))}
@@ -569,23 +555,22 @@ export default function Home({ setPage }: HomeProps) {
       {/* ── COMPARISON ── */}
       <ComparisonSection setPage={setPage} />
 
-
       {/* ── COMPLIANCE BADGE PANEL (Technical Wireframe Style) ── */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">
-          <div className="rounded-[2px] bg-[#121212] border border-[#2A2926] p-10 lg:p-14 text-center space-y-6 text-white">
-            <div className="w-10 h-10 rounded-[2px] bg-[#222120] border border-[#333333] flex items-center justify-center mx-auto text-white">
+          <div className="rounded-[2px] bg-[#EBE9E2] border border-[#CBC8BE] p-10 lg:p-14 text-center space-y-6 text-[#121212]">
+            <div className="w-10 h-10 rounded-[2px] bg-[#DFDCD4] border border-[#CBC8BE] flex items-center justify-center mx-auto text-[#121212]">
               <Lock className="w-4 h-4" />
             </div>
-            <h2 className="text-2xl sm:text-4xl font-medium text-white tracking-tight font-sans">
+            <h2 className="text-2xl sm:text-4xl font-medium text-[#121212] tracking-tight font-sans">
               Enterprise Security & MSME Certification
             </h2>
-            <p className="text-neutral-400 max-w-2xl mx-auto text-xs sm:text-sm leading-relaxed font-sans">
+            <p className="text-[#262523] max-w-2xl mx-auto text-xs sm:text-sm leading-relaxed font-sans">
               Claritiy Voice is an officially registered MSME enterprise. Edge-level PII redaction, consent-based calling, audit logs, and escalation logic — built for performance and compliance.
             </p>
             <div className="flex flex-wrap justify-center gap-2 pt-2">
               {["📜 MSME REGISTERED", "🔒 256-BIT TLS 1.3", "🛡️ AES-256 ENCRYPTION", "⚖️ DPDP ACT ALIGNED", "📋 CONSENT-BASED CALLS"].map((b, i) => (
-                <span key={i} className="text-[11px] font-mono text-neutral-300 bg-[#1E1D1B] border border-[#333333] rounded-[2px] px-3 py-1.5 uppercase">
+                <span key={i} className="text-[11px] font-mono text-[#121212] bg-[#DFDCD4] border border-[#CBC8BE] rounded-[2px] px-3 py-1.5 uppercase font-medium">
                   {b}
                 </span>
               ))}
@@ -593,8 +578,6 @@ export default function Home({ setPage }: HomeProps) {
           </div>
         </div>
       </section>
-
-
 
       {/* ── FINAL CTA ── */}
       <FinalCTA setPage={setPage} />
@@ -619,7 +602,7 @@ function GridSteps() {
         <h2 className="text-3xl sm:text-4xl lg:text-5xl font-normal sm:font-medium text-[#121212] tracking-tight leading-[1.1] font-sans">
           From Zero to Live AI Voice Agent
         </h2>
-        <p className="text-[#5E5D57] text-sm sm:text-base leading-relaxed">
+        <p className="text-[#262523] text-sm sm:text-base leading-relaxed font-sans">
           No code. No call center setup. No engineering team. Build and deploy your AI phone agent in minutes.
         </p>
       </div>
@@ -644,11 +627,11 @@ function GridSteps() {
                 <h3 className="text-sm sm:text-base font-medium text-[#121212] mb-2 leading-snug font-sans">
                   {step.title}
                 </h3>
-                <p className="text-xs text-[#5E5D57] leading-relaxed font-sans">
+                <p className="text-xs text-[#262523] leading-relaxed font-sans">
                   {step.desc}
                 </p>
               </div>
-              <div className="pt-4 mt-6 border-t border-[#CBC8BE]/60 text-[10px] font-mono text-[#5E5D57] uppercase tracking-wider">
+              <div className="pt-4 mt-6 border-t border-[#CBC8BE]/60 text-[10px] font-mono text-[#262523] uppercase tracking-wider">
                 Phase {step.n}
               </div>
             </div>

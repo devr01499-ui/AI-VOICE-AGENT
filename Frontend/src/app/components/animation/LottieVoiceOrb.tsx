@@ -88,28 +88,25 @@ export default function LottieVoiceOrb({ className = "", onExploreClick }: Lotti
   const current = scenarios[activeScenario];
 
   return (
-    <div className={`relative rounded-[2px] bg-[#121212] text-white p-6 md:p-8 border border-[#2A2926] overflow-hidden font-sans ${className}`}>
-      
-      {/* ── Background Glow Accents ───────────────────────────────────────── */}
-      
+    <div className={`relative rounded-[2px] bg-[#EBE9E2] text-[#121212] p-6 md:p-8 border border-[#CBC8BE] overflow-hidden font-sans ${className}`}>
       
       {/* ── Top Header Deck ──────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-800/80 relative z-10">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-[#CBC8BE] relative z-10">
         <div className="flex items-center gap-3">
-          <span className="relative flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#121212] opacity-75" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#121212]" />
           </span>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-extrabold tracking-tight text-white font-mono uppercase">
+              <h3 className="text-sm sm:text-base font-medium tracking-tight text-[#121212] font-mono uppercase">
                 Interactive Voice AI Simulator
               </h3>
-              <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-950/90 border border-emerald-800/50 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-mono font-medium text-[#121212] bg-[#DFDCD4] border border-[#CBC8BE] px-2 py-0.5 rounded-[2px]">
                 60 FPS LOTTIE
               </span>
             </div>
-            <p className="text-xs text-slate-400 font-sans mt-0.5">
+            <p className="text-xs text-[#262523] font-sans mt-0.5">
               Live neural audio synthesis running on loop · Real-time sub-180ms WebRTC
             </p>
           </div>
@@ -119,7 +116,7 @@ export default function LottieVoiceOrb({ className = "", onExploreClick }: Lotti
         <div className="flex items-center gap-2 self-end sm:self-auto">
           <button
             onClick={handleSpeedToggle}
-            className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-[11px] font-mono font-bold text-slate-300 border border-slate-700/60 transition-colors"
+            className="px-2.5 py-1.5 rounded-[2px] bg-[#DFDCD4] hover:bg-[#D5D1C7] text-[11px] font-mono font-medium text-[#121212] border border-[#CBC8BE] transition-colors cursor-pointer"
             title="Toggle playback speed"
           >
             {speed}x SPEED
@@ -127,10 +124,10 @@ export default function LottieVoiceOrb({ className = "", onExploreClick }: Lotti
           
           <button
             onClick={togglePlayback}
-            className="p-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition-all flex items-center justify-center"
+            className="p-2 rounded-[2px] bg-[#DFDCD4] hover:bg-[#D5D1C7] text-[#121212] border border-[#CBC8BE] transition-all flex items-center justify-center cursor-pointer"
             title={isPlaying ? "Pause animation loop" : "Play animation loop"}
           >
-            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-emerald-400" />}
+            {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-[#121212]" />}
           </button>
         </div>
       </div>
@@ -144,15 +141,15 @@ export default function LottieVoiceOrb({ className = "", onExploreClick }: Lotti
               setActiveScenario(idx);
               setDialogueIndex(0);
             }}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 border ${
+            className={`px-3.5 py-2 rounded-[2px] text-xs font-mono uppercase tracking-wider transition-all whitespace-nowrap flex items-center gap-2 border cursor-pointer ${
               activeScenario === idx
-                ? "bg-emerald-500 text-black border-emerald-400 shadow-lg shadow-emerald-500/20"
-                : "bg-slate-900/80 text-slate-400 border-slate-800 hover:text-white hover:bg-slate-800"
+                ? "bg-[#121212] text-white border-[#121212]"
+                : "bg-[#DFDCD4] text-[#121212] border-[#CBC8BE] hover:bg-[#D5D1C7]"
             }`}
           >
             <span>{sc.title}</span>
-            <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
-              activeScenario === idx ? "bg-black/20 text-black" : "bg-slate-800 text-slate-400"
+            <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-[1px] ${
+              activeScenario === idx ? "bg-[#262523] text-white" : "bg-[#CBC8BE] text-[#121212]"
             }`}>
               {sc.metrics.latency}
             </span>
@@ -166,28 +163,25 @@ export default function LottieVoiceOrb({ className = "", onExploreClick }: Lotti
         {/* Left: The Beautiful Looping Lottie Voice Orb */}
         <div className="lg:col-span-5 flex flex-col items-center justify-center relative">
           <div className="relative w-56 h-56 sm:w-64 sm:h-64 flex items-center justify-center">
-            {/* Ambient Radial Bloom behind Orb */}
-            <div className="absolute inset-4 rounded-full bg-gradient-to-tr from-emerald-500/30 via-teal-500/20 to-amber-500/20 blur-2xl animate-pulse pointer-events-none" />
-            
             {/* Lottie Animation Canvas */}
             <Lottie
               lottieRef={lottieRef}
               animationData={voiceOrbLottieData}
               loop={true}
               autoplay={true}
-              className="w-full h-full relative z-10 cursor-pointer drop-shadow-[0_0_35px_rgba(5,150,105,0.4)]"
+              className="w-full h-full relative z-10 cursor-pointer"
               onClick={togglePlayback}
             />
 
             {/* Center Floating Status Badge */}
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 bg-slate-950/90 backdrop-blur-md border border-[#444444] px-2.5 py-0.5 rounded-[2px] text-[10px] font-mono text-neutral-300 bg-[#1A1918] flex items-center gap-1.5 shadow-lg whitespace-nowrap">
-              <Zap className="w-3 h-3 text-emerald-400" />
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 bg-[#DFDCD4] border border-[#CBC8BE] px-2.5 py-1 rounded-[2px] text-[10px] font-mono text-[#121212] flex items-center gap-1.5 shadow-sm whitespace-nowrap">
+              <Zap className="w-3 h-3 text-[#121212]" />
               <span>{current.metrics.latency} Latency</span>
             </div>
           </div>
 
           <div className="text-center mt-2">
-            <span className="text-[11px] font-mono text-slate-400">
+            <span className="text-[11px] font-mono text-[#262523]">
               Interactive Neural Speech Sphere (Click to toggle)
             </span>
           </div>
@@ -197,30 +191,26 @@ export default function LottieVoiceOrb({ className = "", onExploreClick }: Lotti
         <div className="lg:col-span-7 space-y-4">
           
           {/* Live Conversational Speech Bubble */}
-          <div className="bg-[#1A1918] rounded-[2px] p-4.5 border border-[#333333] space-y-3 min-h-[160px] flex flex-col justify-between">
-            <div className="flex items-center justify-between text-xs text-slate-400 font-mono pb-2 border-b border-slate-800">
-              <span className="text-emerald-400 font-bold">{current.tag}</span>
+          <div className="bg-[#DFDCD4] rounded-[2px] p-5 border border-[#CBC8BE] space-y-3 min-h-[160px] flex flex-col justify-between">
+            <div className="flex items-center justify-between text-xs text-[#262523] font-mono pb-2 border-b border-[#CBC8BE]">
+              <span className="text-[#121212] font-bold">{current.tag}</span>
               <span>Turn {dialogueIndex + 1} of 3</span>
             </div>
 
             <AnimatePresence mode="wait">
               <motion.div
                 key={`${activeScenario}-${dialogueIndex}`}
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.25 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.2 }}
                 className="space-y-2 py-1"
               >
                 <div className="flex items-start gap-2.5">
-                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[11px] flex-shrink-0 ${
-                    current.dialogue[dialogueIndex].speaker === "agent"
-                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
-                      : "bg-blue-500/20 text-blue-400 border border-blue-500/40"
-                  }`}>
+                  <div className="w-6 h-6 rounded-[2px] flex items-center justify-center font-bold text-[10px] font-mono flex-shrink-0 bg-[#EBE9E2] border border-[#CBC8BE] text-[#121212]">
                     {current.dialogue[dialogueIndex].speaker === "agent" ? "AI" : "User"}
                   </div>
-                  <p className="text-xs sm:text-sm text-slate-200 leading-relaxed font-sans">
+                  <p className="text-xs sm:text-sm text-[#121212] leading-relaxed font-sans font-medium">
                     "{current.dialogue[dialogueIndex].text}"
                   </p>
                 </div>
@@ -228,14 +218,14 @@ export default function LottieVoiceOrb({ className = "", onExploreClick }: Lotti
             </AnimatePresence>
 
             {/* Turn Indicators */}
-            <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-[10px] font-mono text-slate-500">
+            <div className="flex items-center justify-between pt-2 border-t border-[#CBC8BE] text-[10px] font-mono text-[#262523]">
               <div className="flex items-center gap-1.5">
                 {[0, 1, 2].map((i) => (
                   <div
                     key={i}
                     onClick={() => setDialogueIndex(i)}
-                    className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                      dialogueIndex === i ? "w-6 bg-emerald-400" : "w-2 bg-slate-700"
+                    className={`h-1.5 rounded-[1px] transition-all cursor-pointer ${
+                      dialogueIndex === i ? "w-6 bg-[#121212]" : "w-2 bg-[#CBC8BE]"
                     }`}
                   />
                 ))}
@@ -246,19 +236,19 @@ export default function LottieVoiceOrb({ className = "", onExploreClick }: Lotti
 
           {/* Real-Time Telemetry Bar */}
           <div className="grid grid-cols-3 gap-3">
-            <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-800/60">
-              <span className="text-[10px] font-mono text-slate-400 block">VAD BARGE-IN</span>
-              <span className="text-sm font-mono font-bold text-emerald-400">{current.metrics.vad}</span>
+            <div className="bg-[#DFDCD4] p-3 rounded-[2px] border border-[#CBC8BE]">
+              <span className="text-[10px] font-mono text-[#262523] block uppercase tracking-wider">VAD BARGE-IN</span>
+              <span className="text-sm font-mono font-bold text-[#121212]">{current.metrics.vad}</span>
             </div>
 
-            <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-800/60">
-              <span className="text-[10px] font-mono text-slate-400 block">INTENT ACCURACY</span>
-              <span className="text-sm font-mono font-bold text-emerald-400">{current.metrics.accuracy}</span>
+            <div className="bg-[#DFDCD4] p-3 rounded-[2px] border border-[#CBC8BE]">
+              <span className="text-[10px] font-mono text-[#262523] block uppercase tracking-wider">INTENT ACCURACY</span>
+              <span className="text-sm font-mono font-bold text-[#121212]">{current.metrics.accuracy}</span>
             </div>
 
-            <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-800/60">
-              <span className="text-[10px] font-mono text-slate-400 block">TELEPHONY COST</span>
-              <span className="text-sm font-mono font-bold text-amber-400">₹3.99/min</span>
+            <div className="bg-[#DFDCD4] p-3 rounded-[2px] border border-[#CBC8BE]">
+              <span className="text-[10px] font-mono text-[#262523] block uppercase tracking-wider">TELEPHONY COST</span>
+              <span className="text-sm font-mono font-bold text-[#121212]">₹3.99/min</span>
             </div>
           </div>
 
@@ -267,16 +257,16 @@ export default function LottieVoiceOrb({ className = "", onExploreClick }: Lotti
       </div>
 
       {/* ── Bottom Deck CTA Bar ─────────────────────────────────────────── */}
-      <div className="mt-4 pt-4 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400 relative z-10">
+      <div className="mt-4 pt-4 border-t border-[#CBC8BE] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#262523] relative z-10">
         <div className="flex items-center gap-2">
-          <Check className="w-4 h-4 text-emerald-400" />
+          <Check className="w-4 h-4 text-[#121212]" />
           <span>Indistinguishable from a polite human representative</span>
         </div>
 
         {onExploreClick && (
           <button
             onClick={onExploreClick}
-            className="inline-flex items-center gap-1.5 font-bold text-emerald-400 hover:text-emerald-300 transition-colors"
+            className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold text-[#121212] underline hover:no-underline cursor-pointer"
           >
             <span>Explore All 15 Telephony Templates</span>
             <ArrowRight className="w-3.5 h-3.5" />
