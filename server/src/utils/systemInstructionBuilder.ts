@@ -401,6 +401,13 @@ export function buildFinalSystemInstruction(
     sections.push(`[SMART ADAPTIVE REASONING MODE]\nYou are operating in Smart Mode with extended conversational intelligence. Carefully analyze the caller's nuanced intent, unspoken objections, and historical context across turns before offering recommendations or handling resistance. Deliver consultative, high-value responses.`);
   }
 
+  // Task T6: Natural Human Speech & Voice Personas (VOICE_PERSONAS_V1)
+  if (process.env.VOICE_PERSONAS_V1 === 'true' || agentCfg?.voicePersona) {
+    const { buildNaturalSpeechPromptBlock } = require('../config/voicePersonas');
+    const chosenPersona = agentCfg?.voicePersona || 'conversational';
+    sections.push(buildNaturalSpeechPromptBlock(chosenPersona, languageMode));
+  }
+
   const finalInstruction = sections.join('\n\n').trim();
 
   // Log per-call execution telemetry

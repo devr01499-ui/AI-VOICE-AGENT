@@ -16,6 +16,10 @@ import { eventBus, PROVIDER_EVENTS } from '../core/provider-sdk/provider.events'
 import type { VobizStreamEvent } from '../types';
 import { callTimingTracker } from '../utils/CallTimingTracker';
 import { buildGreetingText, getGreetingTextForLanguage, resolveGreeting } from '../utils/greetingUtils';
+import { PlayoutPacer } from '../utils/playoutPacer';
+
+const PLAYOUT_PACING_V2 = process.env.PLAYOUT_PACING_V2 === 'true';
+const INBOUND_FORMAT_V2 = process.env.INBOUND_FORMAT_V2 === 'true';
 
 // ─── Active Connection Tracking ───────────────────────
 
@@ -44,6 +48,17 @@ interface ActiveConnection {
   playoutEndsAt?: number;
   /** Set once the call is being hung up: stop forwarding any further AI audio. */
   isClosing?: boolean;
+  playoutStats: {
+    framesSent: number;
+    underruns: number;
+    maxGapMs: number;
+    totalLeadMs: number;
+    leadSamplesCount: number;
+    maxQueueMs: number;
+    lastFrameSentAt?: number;
+  };
+  pacer?: PlayoutPacer;
+  inboundFormat?: 'audio/x-l16' | 'audio/x-mulaw';
 }
 
 // ─── Pipeline Safety Limits ───────────────────────────
@@ -152,6 +167,7 @@ export class AudioStreamHandler {
   async closeAll(): Promise<void> {
     for (const [callId, conn] of this.connections) {
       try {
+        if (conn.pacer) conn.pacer.destroy();
         conn.ws.close(1000, 'Server shutting down');
       } catch {
         // Ignore close errors during shutdown
@@ -178,7 +194,27 @@ export class AudioStreamHandler {
       isPlayoutActive: false,
       sessionReady: false,
       inboundAudioBuffer: [],
+      playoutStats: {
+        framesSent: 0,
+        underruns: 0,
+        maxGapMs: 0,
+        totalLeadMs: 0,
+        leadSamplesCount: 0,
+        maxQueueMs: 0,
+      },
     };
+
+    if (PLAYOUT_PACING_V2) {
+      conn.pacer = new PlayoutPacer({
+        onSendFrame: (frameBase64) => {
+          this.sendAudioToVobizDirect(callId, frameBase64);
+        },
+        onPlayoutStateChange: (isPlaying) => {
+          const c = this.connections.get(callId);
+          if (c) c.isPlayoutActive = isPlaying;
+        },
+      });
+    }
 
     this.connections.set(callId, conn);
 
@@ -547,7 +583,12 @@ export class AudioStreamHandler {
     const conn = this.connections.get(callId);
     const rawEvent = event as any;
     const streamId = rawEvent.streamId || rawEvent.start?.streamId || null;
+    const declaredFormat = (rawEvent.mediaFormat || rawEvent.format || rawEvent.start?.mediaFormat || rawEvent.start?.contentType || '').toLowerCase();
+    const inboundFormat = declaredFormat.includes('mulaw') || declaredFormat.includes('pcmu') || declaredFormat.includes('g711u')
+      ? 'audio/x-mulaw'
+      : 'audio/x-l16';
     if (conn) {
+      conn.inboundFormat = inboundFormat;
       if (conn.sessionId) {
         logger.info('AudioStreamHandler: stream start event received, but session is already active. Ignoring duplication.', { callId, sessionId: conn.sessionId });
         return;
@@ -767,7 +808,7 @@ export class AudioStreamHandler {
         }
       }
 
-      callOrchestrator.processAudioStream(callId, audioPayload);
+      callOrchestrator.processAudioStream(callId, audioPayload, conn.inboundFormat);
 
       if (conn.sessionId) {
         logger.debug('AudioStreamHandler: audio sent to Gemini', {
@@ -791,6 +832,23 @@ export class AudioStreamHandler {
       conn.silenceTimer = undefined;
     }
 
+    if (conn) {
+      const stats = conn.pacer ? conn.pacer.stats : conn.playoutStats;
+      logger.info('[PLAYOUT_STATS]', {
+        callId,
+        framesSent: stats.framesSent,
+        underruns: stats.underruns,
+        maxGapMs: stats.maxGapMs,
+        avgLeadMs: stats.leadSamplesCount > 0
+          ? Math.round(stats.totalLeadMs / stats.leadSamplesCount)
+          : 0,
+        maxQueueMs: stats.maxQueueMs,
+      });
+      if (conn.pacer) {
+        conn.pacer.destroy();
+      }
+    }
+
     logger.info('AudioStreamHandler: stream stopped', {
       callId,
       stats: conn?.audioStats,
@@ -811,6 +869,12 @@ export class AudioStreamHandler {
     const conn = this.connections.get(callId);
     if (!conn) return;
     if (conn.isClosing) return; // call is being hung up: never talk after the goodbye
+
+    if (PLAYOUT_PACING_V2 && conn.pacer) {
+      conn.pacer.enqueueAudio(audioBase64);
+      conn.playoutEndsAt = Date.now() + conn.pacer.getRemainingMs();
+      return;
+    }
 
     // Send audio packet immediately to telephony WebSocket without buffering delay
     this.sendAudioToVobizDirect(callId, audioBase64);
@@ -877,6 +941,17 @@ export class AudioStreamHandler {
     }
     callTimingTracker.markTurnFirstAudioSentToTelephony(callId);
 
+    // Track baseline playout stats
+    conn.playoutStats.framesSent++;
+    const nowPerf = performance.now();
+    if (conn.playoutStats.lastFrameSentAt !== undefined) {
+      const gap = nowPerf - conn.playoutStats.lastFrameSentAt;
+      if (gap > conn.playoutStats.maxGapMs) {
+        conn.playoutStats.maxGapMs = Math.round(gap);
+      }
+    }
+    conn.playoutStats.lastFrameSentAt = nowPerf;
+
     // Send as JSON playAudio event with base64 L16 payload
     // Vobiz and Plivo bidirectional stream protocols require this JSON envelope
     const playAudioEvent = JSON.stringify({
@@ -916,6 +991,9 @@ export class AudioStreamHandler {
 
     // Clear buffer queue immediately to drop any pending outbound frames on user barge-in!
     conn.playbackQueue = [];
+    if (conn.pacer) {
+      conn.pacer.clear();
+    }
     conn.isPlayoutActive = false;
     conn.playoutEndsAt = 0;
     if (conn.playoutTimeout) {

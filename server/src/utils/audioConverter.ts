@@ -190,14 +190,27 @@ export function applyNoiseGate(samples: Int16Array, threshold = 120): void {
  * apply a noise gate, and return the clean Buffer directly.
  */
 
-export function convertInboundAudio(base64MuLaw: string): string {
+export function convertInboundAudio(base64MuLaw: string, explicitFormat?: string): string {
   if (!base64MuLaw) return '';
 
   const inputBuffer = Buffer.from(base64MuLaw, 'base64');
   
-  // Auto-detect: G.711 mu-law 8kHz has 1 byte/sample (e.g. 160 bytes for 20ms),
-  // whereas L16 PCM 16kHz has 2 bytes/sample (e.g. 320 bytes for 10ms, 640 bytes for 20ms).
-  const isL16 = inputBuffer.length >= 320;
+  const useInboundV2 = process.env.INBOUND_FORMAT_V2 === 'true' || explicitFormat !== undefined;
+  let isL16: boolean;
+
+  if (useInboundV2) {
+    if (explicitFormat) {
+      const lower = explicitFormat.toLowerCase();
+      isL16 = !lower.includes('mulaw') && !lower.includes('pcmu') && !lower.includes('g711u');
+    } else {
+      // Default to audio/x-l16 16000 Hz per project codec constancy
+      isL16 = true;
+    }
+  } else {
+    // Auto-detect fallback: G.711 mu-law 8kHz has 1 byte/sample (e.g. 160 bytes for 20ms),
+    // whereas L16 PCM 16kHz has 2 bytes/sample (e.g. 320 bytes for 10ms, 640 bytes for 20ms).
+    isL16 = inputBuffer.length >= 320;
+  }
 
   if (isL16) {
     // Process as L16 PCM 16kHz Little-Endian
@@ -256,8 +269,34 @@ export function convertInboundAudio(base64MuLaw: string): string {
  * Standalone Named Helper: Decodes a single 8-bit G.711 mu-law byte to a 16-bit linear PCM sample
  * using the canonical ITU-T G.711 lookup table.
  */
+/**
+ * Standard ITU-T G.711 mu-law expansion table generator.
+ * Computes standard expansion formula:
+ *  - Invert transmission bits (~mu & 0xFF)
+ *  - Extract sign, exponent, and mantissa
+ *  - Bias by 33 (0x84), shift by exponent, subtract bias
+ */
+export function generateStandardMuLawTable(): Int16Array {
+  const table = new Int16Array(256);
+  for (let i = 0; i < 256; i++) {
+    const mu = ~i & 0xff;
+    const sign = mu & 0x80;
+    const exponent = (mu >> 4) & 0x07;
+    const mantissa = mu & 0x0f;
+    let sample = ((mantissa << 3) + 0x84) << exponent;
+    sample -= 0x84;
+    table[i] = sign !== 0 ? -sample : sample;
+  }
+  return table;
+}
+
+export const PROGRAMMATIC_MU_LAW_TABLE: Int16Array = generateStandardMuLawTable();
+
 export function decodeMuLawSample(muLawByte: number): number {
-  return MU_LAW_DECODE_TABLE[muLawByte & 0xFF]!;
+  if (process.env.INBOUND_FORMAT_V2 === 'true') {
+    return PROGRAMMATIC_MU_LAW_TABLE[muLawByte & 0xff]!;
+  }
+  return MU_LAW_DECODE_TABLE[muLawByte & 0xff]!;
 }
 
 /**
@@ -382,4 +421,225 @@ export function resample(
   }
 
   return result;
+}
+
+
+// ─────────────────────────────────────────────
+// Task T1: Streaming Polyphase 3:2 Low-Pass Resampler
+// ─────────────────────────────────────────────
+
+function besselI0(x: number): number {
+  let sum = 1;
+  let term = 1;
+  const xSquaredFourth = (x * x) / 4;
+  for (let k = 1; k < 25; k++) {
+    term *= xSquaredFourth / (k * k);
+    sum += term;
+    if (term < 1e-12 * sum) break;
+  }
+  return sum;
+}
+
+function designPolyphaseFilter(numTaps: number, cutoffNormalized: number, beta: number): Float64Array {
+  const h = new Float64Array(numTaps);
+  const mid = (numTaps - 1) / 2;
+  const i0Beta = besselI0(beta);
+
+  for (let n = 0; n < numTaps; n++) {
+    const x = n - mid;
+    let sincVal: number;
+    if (Math.abs(x) < 1e-9) {
+      sincVal = 2 * cutoffNormalized;
+    } else {
+      const piX = Math.PI * 2 * cutoffNormalized * x;
+      sincVal = Math.sin(piX) / (Math.PI * x);
+    }
+    const kaiserVal = besselI0(beta * Math.sqrt(Math.max(0, 1 - Math.pow((2 * n) / (numTaps - 1) - 1, 2)))) / i0Beta;
+    h[n] = 2.0 * sincVal * kaiserVal;
+  }
+
+  // Normalize DC gain across each polyphase branch to 1.0
+  let sum0 = 0;
+  let sum1 = 0;
+  for (let n = 0; n < numTaps; n++) {
+    if (n % 2 === 0) sum0 += h[n];
+    else sum1 += h[n];
+  }
+  for (let n = 0; n < numTaps; n++) {
+    if (n % 2 === 0) h[n] /= sum0;
+    else h[n] /= sum1;
+  }
+  return h;
+}
+
+/**
+ * Streaming stateful 24kHz -> 16kHz polyphase FIR resampler.
+ * Designed with a Kaiser-windowed sinc filter (60 taps at 48kHz, 30 per polyphase branch)
+ * Cutoff at 7.2 kHz, achieving > 40 dB alias rejection above 8.5 kHz.
+ * Preserves filter history, sub-sample phase, and odd byte state across chunk boundaries.
+ */
+export class StreamingResampler24to16 {
+  private readonly numTaps = 60;
+  private readonly tapsPerBranch = 30;
+  private readonly sub0: Float32Array;
+  private readonly sub1: Float32Array;
+  private readonly ring: Float32Array;
+  private head = 0;
+  private phase = 0;
+  private hasOddByte = false;
+  private oddByte = 0;
+  private outBuffer: Buffer;
+
+  constructor() {
+    const filter = designPolyphaseFilter(this.numTaps, 7200 / 48000, 5.65);
+    this.sub0 = new Float32Array(this.tapsPerBranch);
+    this.sub1 = new Float32Array(this.tapsPerBranch);
+    for (let i = 0; i < this.tapsPerBranch; i++) {
+      this.sub0[i] = filter[i * 2]!;
+      this.sub1[i] = filter[i * 2 + 1]!;
+    }
+    // Mirrored circular buffer of length 2 * tapsPerBranch (60)
+    // Eliminates modulo in inner convolution loop for sub-millisecond execution
+    this.ring = new Float32Array(this.tapsPerBranch * 2);
+    this.outBuffer = Buffer.alloc(16384 * 2);
+  }
+
+  /**
+   * Resets filter history and phase on barge-in or turn restart.
+   */
+  reset(): void {
+    this.ring.fill(0);
+    this.head = 0;
+    this.phase = 0;
+    this.hasOddByte = false;
+    this.oddByte = 0;
+  }
+
+  /**
+   * Processes a chunk of 24kHz mono PCM16 audio and returns 16kHz mono PCM16 buffer.
+   */
+  process(chunkBuffer: Buffer): Buffer {
+    if (!chunkBuffer || chunkBuffer.length === 0) {
+      return Buffer.alloc(0);
+    }
+
+    let inputBytes = chunkBuffer;
+    if (this.hasOddByte) {
+      const combined = Buffer.alloc(chunkBuffer.length + 1);
+      combined[0] = this.oddByte;
+      chunkBuffer.copy(combined, 1);
+      inputBytes = combined;
+      this.hasOddByte = false;
+    }
+
+    if (inputBytes.length % 2 !== 0) {
+      this.hasOddByte = true;
+      this.oddByte = inputBytes[inputBytes.length - 1]!;
+      inputBytes = inputBytes.subarray(0, inputBytes.length - 1);
+    }
+
+    const numInputSamples = inputBytes.length / 2;
+    if (numInputSamples === 0) {
+      return Buffer.alloc(0);
+    }
+
+    let inSamples: Int16Array;
+    if (inputBytes.byteOffset % 2 === 0) {
+      inSamples = new Int16Array(inputBytes.buffer, inputBytes.byteOffset, numInputSamples);
+    } else {
+      const aligned = Buffer.alloc(inputBytes.length);
+      inputBytes.copy(aligned);
+      inSamples = new Int16Array(aligned.buffer, aligned.byteOffset, numInputSamples);
+    }
+
+    const maxOutputSamples = Math.ceil((numInputSamples * 2 + 6) / 3) + 4;
+    const requiredBytes = maxOutputSamples * 2;
+    if (this.outBuffer.length < requiredBytes) {
+      this.outBuffer = Buffer.alloc(requiredBytes * 2);
+    }
+
+    const outView = new Int16Array(this.outBuffer.buffer, this.outBuffer.byteOffset, maxOutputSamples);
+    let outIdx = 0;
+
+    const ring = this.ring;
+    const K = 30;
+    const sub0 = this.sub0;
+    const sub1 = this.sub1;
+    let head = this.head;
+    let phase = this.phase;
+
+    for (let i = 0; i < numInputSamples; i++) {
+      const s = inSamples[i]!;
+      ring[head] = s;
+      ring[head + K] = s;
+
+      const base = head + K;
+      head = (head + 1) % K;
+
+      while (phase < 2) {
+        let sum = 0;
+        if (phase === 0) {
+          for (let j = 0; j < 30; j++) {
+            sum += sub0[j]! * ring[base - j]!;
+          }
+        } else {
+          for (let j = 0; j < 30; j++) {
+            sum += sub1[j]! * ring[base - j]!;
+          }
+        }
+
+        let val = Math.round(sum);
+        if (val > 32767) val = 32767;
+        else if (val < -32768) val = -32768;
+        outView[outIdx++] = val;
+
+        phase += 3;
+      }
+      phase -= 2;
+    }
+
+    this.head = head;
+    this.phase = phase;
+
+    // Return an independent buffer chunk so chunk arrays in callers are not overwritten
+    const outBytes = outIdx * 2;
+    const result = Buffer.allocUnsafe(outBytes);
+    this.outBuffer.copy(result, 0, 0, outBytes);
+    return result;
+  }
+}
+
+let statefulErrorCount = 0;
+let lastStatefulErrorLogTime = 0;
+
+/**
+ * Stateful wrapper for streaming outbound audio conversion.
+ * Throttles logging to at most once per 10s and increments error counter.
+ */
+export function convertOutboundAudioStateful(
+  resampler: StreamingResampler24to16,
+  pcmBuffer: Buffer
+): string {
+  if (!pcmBuffer || pcmBuffer.length === 0) {
+    return '';
+  }
+
+  try {
+    const resampledBuffer = resampler.process(pcmBuffer);
+    if (resampledBuffer.length === 0) {
+      return '';
+    }
+    return resampledBuffer.toString('base64');
+  } catch (err) {
+    statefulErrorCount++;
+    const now = Date.now();
+    if (now - lastStatefulErrorLogTime >= 10000) {
+      lastStatefulErrorLogTime = now;
+      logger.error('audioConverter: convertOutboundAudioStateful failed', {
+        error: err instanceof Error ? err.message : String(err),
+        totalErrors: statefulErrorCount,
+      });
+    }
+    return '';
+  }
 }

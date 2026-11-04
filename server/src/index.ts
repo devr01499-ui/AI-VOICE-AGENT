@@ -33,6 +33,10 @@ import { callOrchestrator } from './core/orchestrator/CallOrchestrator';
 import { AudioStreamHandler } from './websockets/AudioStreamHandler';
 import { eventBus, PROVIDER_EVENTS } from './core/provider-sdk/provider.events';
 import { GLOBAL_TELEPHONY_CAP } from './utils/concurrency';
+import { eventLoopMonitor } from './utils/eventLoopMonitor';
+import { drainActiveCalls } from './utils/gracefulShutdown';
+
+let isShuttingDown = false;
 
 // ─── Routes ──────────────────────────────────────
 import callRoutes from './routes/calls';
@@ -181,17 +185,32 @@ app.use((req, _res, next) => {
 
 // Liveness Probe: lightweight event loop response check (returns 200)
 app.get(['/live', '/healthz'], (_req, res) => {
+  if (isShuttingDown) {
+    res.status(503).json({
+      status: 'shutting_down',
+      message: 'Server is shutting down and draining active calls',
+    });
+    return;
+  }
   res.status(200).json({
     status: 'alive',
     timestamp: new Date().toISOString(),
     uptimeSeconds: Math.floor(process.uptime()),
     pid: process.pid,
     memoryUsageMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+    eventLoop: eventLoopMonitor.getStats(),
   });
 });
 
 // Readiness & Health Probe: comprehensive dependency & database check
 app.get(['/health', '/ready'], async (_req, res) => {
+  if (isShuttingDown) {
+    res.status(503).json({
+      status: 'shutting_down',
+      message: 'Server is shutting down and draining active calls',
+    });
+    return;
+  }
   const startTime = Date.now();
   try {
     // Check database connectivity
@@ -280,6 +299,7 @@ app.get(['/health', '/ready'], async (_req, res) => {
       providers,
       runtime,
       analysisQueue,
+      eventLoop: eventLoopMonitor.getStats(),
     });
   } catch (err: any) {
     const refCode = `HEALTH-500-${Date.now()}`;
@@ -509,6 +529,12 @@ async function bootstrap(): Promise<void> {
   // Handle server upgrades manually to route requests to the correct WebSocket server
   server.on('upgrade', (request, socket, head) => {
     try {
+      if (isShuttingDown) {
+        logger.warn('WebSocket upgrade rejected — server is shutting down (1001 Going Away)');
+        socket.write('HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n');
+        socket.destroy();
+        return;
+      }
       const rawUrl = (request.url ?? '').replace(/&amp;/g, '&');
       const url = new URL(rawUrl, `http://${request.headers.host || 'localhost'}`);
       const pathname = url.pathname.replace(/\/+$/, '') || '/';
@@ -722,20 +748,35 @@ async function bootstrap(): Promise<void> {
     }
 
     logger.info('Claritiy Voice Server: ready ✓');
+    eventLoopMonitor.start(() => callOrchestrator.getActiveCallCount());
   });
 
   // ─── Graceful Shutdown ───────────────────────
 
-  const shutdown = async (signal: string): Promise<void> => {
-    logger.info(`Claritiy Voice Server: ${signal} received, shutting down...`);
+  let shutdownInProgress = false;
 
-    // Stop accepting new connections
-    server.close();
+  const shutdown = async (signal: string): Promise<void> => {
+    if (shutdownInProgress) return;
+    shutdownInProgress = true;
+    isShuttingDown = true;
+
+    logger.info(`Claritiy Voice Server: ${signal} received, beginning graceful drain...`);
+
+    // Stop event loop monitor
+    eventLoopMonitor.stop();
 
     // Stop background queue workers
     AnalysisWorker.stopBackgroundWorker();
 
-    // Shutdown active voice sessions
+    // Stop accepting new connections
+    server.close();
+
+    // Drain active voice sessions up to SHUTDOWN_DRAIN_SECONDS
+    await drainActiveCalls({
+      getActiveCount: () => audioHandler.getActiveConnectionCount(),
+    });
+
+    // Shutdown remaining voice sessions
     try {
       await callOrchestrator.shutdownAll();
     } catch (err) {

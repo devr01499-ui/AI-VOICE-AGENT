@@ -6,6 +6,8 @@ services:
     plan: starter
     branch: main
     autoDeploy: true
+    healthCheckPath: /live
+    maxShutdownDelaySeconds: 90
     rootDir: server
     buildCommand: npm install --include=dev && npx prisma generate && npx prisma db push --skip-generate && npm run build
     startCommand: npm start

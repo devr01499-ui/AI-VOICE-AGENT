@@ -779,7 +779,7 @@ export class CallOrchestrator extends EventEmitter {
   /**
    * Streams inbound audio from SIP channel to the provider.
    */
-  processAudioStream(callId: string, audioBase64: string): void {
+  processAudioStream(callId: string, audioBase64: string, format?: string): void {
     const session = this.activeCalls.get(callId);
     if (!session || !session.pipecatRunner) return;
 
@@ -790,7 +790,7 @@ export class CallOrchestrator extends EventEmitter {
     }
 
     logger.debug('Sending user audio to PipecatRunner', { callId, bytes: audioBase64.length });
-    session.pipecatRunner.handleInboundAudio(audioBase64);
+    session.pipecatRunner.handleInboundAudio(audioBase64, format);
   }
 
   triggerGreeting(callId: string, sessionId: string, greetingText?: string): void {

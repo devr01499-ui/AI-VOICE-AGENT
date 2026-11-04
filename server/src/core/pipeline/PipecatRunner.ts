@@ -1,7 +1,7 @@
 import { Pipeline } from './pipecat/core';
 import { GeminiLiveLLMService } from './pipecat/gemini';
 import { logger } from '../../utils/logger';
-import { convertInboundAudio, convertOutboundAudio } from '../../utils/audioConverter';
+import { convertInboundAudio, convertOutboundAudio, convertOutboundAudioStateful, StreamingResampler24to16 } from '../../utils/audioConverter';
 import { eventBus, PROVIDER_EVENTS } from '../provider-sdk/provider.events';
 import { supabaseClient } from '../../utils/supabase';
 
@@ -12,6 +12,7 @@ export class PipecatRunner {
   private readonly userId: string;
   private readonly agentId: string;
   private audioChunks: Buffer[] = [];
+  private readonly outboundResampler = new StreamingResampler24to16();
 
   constructor(
     public readonly callId: string,
@@ -62,6 +63,7 @@ export class PipecatRunner {
     this.pipeline.registerVadObserver((speechStarted: boolean) => {
       if (speechStarted) {
         logger.info('PipecatRunner: VAD detected user speech. Flushing pipeline output queue (barge-in defense).', { callId: this.callId });
+        this.outboundResampler.reset();
         this.pipeline.flushOutputQueue();
         
         // Notify socket handlers that speech has been interrupted (barge-in)
@@ -87,14 +89,16 @@ export class PipecatRunner {
           }
         }
 
-        const telephonyCompressed = convertOutboundAudio(frame.data);
+        const telephonyCompressed = (process.env.RESAMPLER_V2 === 'true')
+          ? convertOutboundAudioStateful(this.outboundResampler, frame.data)
+          : convertOutboundAudio(frame.data);
         this.onAudioOutput(telephonyCompressed);
       }
     });
   }
 
-  handleInboundAudio(audioBase64: string): void {
-    const base64Str = convertInboundAudio(audioBase64);
+  handleInboundAudio(audioBase64: string, format?: string): void {
+    const base64Str = convertInboundAudio(audioBase64, format);
     const buffer = Buffer.from(base64Str, 'base64');
 
     // Record input audio stream if active

@@ -127,6 +127,25 @@ export function validateSetupMessage(setupMessage: any): { valid: boolean; error
   return { valid: true };
 }
 
+export function resolveTurnTakingConfig(speechSettings?: any): {
+  responsivenessMs: number;
+  prefixPaddingMs: number;
+  proactiveAudio: boolean;
+} {
+  const settings = speechSettings || {};
+  const responsivenessMs = typeof settings.responsivenessMs === 'number'
+    ? Math.max(100, Math.min(1000, settings.responsivenessMs))
+    : 200;
+  const prefixPaddingMs = typeof settings.prefixPaddingMs === 'number'
+    ? Math.max(0, Math.min(200, settings.prefixPaddingMs))
+    : 20;
+  const proactiveAudio = typeof settings.proactiveAudio === 'boolean'
+    ? settings.proactiveAudio
+    : true;
+
+  return { responsivenessMs, prefixPaddingMs, proactiveAudio };
+}
+
 export class GeminiLiveProvider implements IRealtimeProvider {
   public readonly name = 'gemini-live';
   public readonly type = 'realtime';
@@ -571,9 +590,18 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         } catch {}
       }
 
-      const silenceDurationVal = typeof speechSettings.responsivenessMs === 'number'
-        ? Math.max(100, Math.min(500, speechSettings.responsivenessMs))
-        : 200;
+      const speechConfig = resolveTurnTakingConfig(speechSettings);
+      const silenceDurationVal = speechConfig.responsivenessMs;
+      const prefixPaddingVal = speechConfig.prefixPaddingMs;
+      const proactiveAudioVal = speechConfig.proactiveAudio;
+
+      logger.info('[SESSION_SPEECH_CONFIG]', {
+        callId: config.callId,
+        agentId: resolvedAgentId,
+        responsivenessMs: silenceDurationVal,
+        prefixPaddingMs: prefixPaddingVal,
+        proactiveAudio: proactiveAudioVal,
+      });
 
       const isInterruptionLow = speechSettings.interruptionSensitivity === 'LOW';
       const startSensitivity = isInterruptionLow ? "START_SENSITIVITY_LOW" : "START_SENSITIVITY_HIGH";
@@ -626,11 +654,12 @@ export class GeminiLiveProvider implements IRealtimeProvider {
                 disabled: false,
                 startOfSpeechSensitivity: startSensitivity,
                 endOfSpeechSensitivity: endSensitivity,
-                prefixPaddingMs: 20,
+                prefixPaddingMs: prefixPaddingVal,
                 silenceDurationMs: silenceDurationVal,
               },
               activityHandling: "START_OF_ACTIVITY_INTERRUPTS",
-              turnCoverage: "TURN_INCLUDES_ALL_INPUT"
+              turnCoverage: "TURN_INCLUDES_ALL_INPUT",
+              ...(proactiveAudioVal ? { proactivity: { proactiveAudio: true } } : {})
             }
           }),
           ...(functionDeclarations && functionDeclarations.length > 0 && {
