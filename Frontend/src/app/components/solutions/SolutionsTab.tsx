@@ -54,19 +54,19 @@ export default function SolutionsTab() {
   const Icon = current.icon;
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-6">
       {/* Selector Tabs */}
-      <div className="flex flex-wrap justify-center gap-3">
+      <div className="flex flex-wrap justify-center gap-2">
         {industries.map((ind) => {
           const TabIcon = ind.icon;
           return (
             <button
               key={ind.id}
               onClick={() => setActiveTab(ind.id)}
-              className={`flex items-center gap-2 px-5 py-3 rounded-full text-sm font-semibold border transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-[2px] text-xs font-mono font-bold border transition-colors ${
                 activeTab === ind.id
-                  ? "bg-[#059669]/10 text-[#059669] border-[#059669]/30 shadow-sm"
-                  : "bg-white border-[#EADEC9] text-slate-600 hover:text-[#059669]"
+                  ? "bg-[#121212] text-white border-[#121212]"
+                  : "bg-[#DFDCD4] border-[#CBC8BE] text-[#262523] hover:bg-[#D5D2C9]"
               }`}
             >
               <TabIcon className="w-4 h-4" />
@@ -77,10 +77,7 @@ export default function SolutionsTab() {
       </div>
 
       {/* Main Switcher Card */}
-      <div className="bg-white border border-[#EADEC9] rounded-3xl p-8 md:p-12 shadow-sm min-h-[300px] flex items-center relative overflow-hidden">
-        {/* Glow decoration */}
-        <div className="absolute right-0 top-0 w-[30%] h-[100%] rounded-full bg-emerald-500/5 blur-3xl pointer-events-none" />
-
+      <div className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-8 md:p-12 min-h-[300px] flex items-center relative">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -90,35 +87,35 @@ export default function SolutionsTab() {
             transition={{ duration: 0.3 }}
             className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center w-full"
           >
-            <div className="lg:col-span-8 space-y-6 text-left">
-              <div className="w-12 h-12 bg-emerald-50 text-[#059669] rounded-2xl flex items-center justify-center shadow-sm">
-                <Icon className="w-6 h-6" strokeWidth={2} />
+            <div className="lg:col-span-8 space-y-4 text-left">
+              <div className="w-10 h-10 bg-[#DFDCD4] border border-[#CBC8BE] text-[#121212] rounded-[2px] flex items-center justify-center">
+                <Icon className="w-5 h-5 text-[#121212]" strokeWidth={2} />
               </div>
-              <h3 className="font-sora text-3xl font-extrabold text-slate-900 leading-tight">
+              <h3 className="text-2xl md:text-3xl font-extrabold text-[#121212] leading-tight">
                 {current.headline}
               </h3>
-              <p className="text-base text-slate-600 leading-relaxed font-plus-jakarta">
+              <p className="text-sm md:text-base text-[#262523] leading-relaxed">
                 {current.description}
               </p>
             </div>
             
             <div className="lg:col-span-4 flex items-center justify-center">
-              <div className="w-full max-w-[280px] bg-slate-50 border border-[#EADEC9] rounded-2xl p-6 relative">
-                <p className="text-[10px] font-mono text-slate-400 font-bold mb-4 uppercase">Operational Flow</p>
+              <div className="w-full max-w-[280px] bg-[#DFDCD4] border border-[#CBC8BE] rounded-[2px] p-6 relative">
+                <p className="text-[10px] font-mono text-[#121212] font-bold mb-4 uppercase tracking-wider">Operational Flow</p>
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-emerald-500 text-white font-mono text-[10px] flex items-center justify-center font-bold">1</span>
-                    <span className="text-xs text-slate-700 font-bold">Checkout Trigger</span>
+                    <span className="w-5 h-5 rounded-[2px] bg-[#121212] text-white font-mono text-[10px] flex items-center justify-center font-bold">1</span>
+                    <span className="text-xs text-[#121212] font-bold">Checkout Trigger</span>
                   </div>
-                  <div className="w-0.5 h-4 bg-emerald-300 ml-2.5" />
+                  <div className="w-0.5 h-4 bg-[#CBC8BE] ml-2" />
                   <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-emerald-500 text-white font-mono text-[10px] flex items-center justify-center font-bold">2</span>
-                    <span className="text-xs text-slate-700 font-bold">Duplex AI Call</span>
+                    <span className="w-5 h-5 rounded-[2px] bg-[#121212] text-white font-mono text-[10px] flex items-center justify-center font-bold">2</span>
+                    <span className="text-xs text-[#121212] font-bold">Duplex AI Call</span>
                   </div>
-                  <div className="w-0.5 h-4 bg-emerald-300 ml-2.5" />
+                  <div className="w-0.5 h-4 bg-[#CBC8BE] ml-2" />
                   <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-emerald-500 text-white font-mono text-[10px] flex items-center justify-center font-bold">3</span>
-                    <span className="text-xs text-slate-700 font-bold">CRM Tag Sync</span>
+                    <span className="w-5 h-5 rounded-[2px] bg-[#121212] text-white font-mono text-[10px] flex items-center justify-center font-bold">3</span>
+                    <span className="text-xs text-[#121212] font-bold">CRM Tag Sync</span>
                   </div>
                 </div>
               </div>

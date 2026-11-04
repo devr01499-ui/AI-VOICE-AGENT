@@ -1,4 +1,4 @@
-import { ArrowRight, Phone, Mail, MessageCircle, ShieldCheck, Cpu, CheckCircle2, Globe2, Sparkles } from "lucide-react";
+import { ArrowRight, Mail, MessageCircle, Globe2, Sparkles } from "lucide-react";
 
 type Page = 
   | "home" 
@@ -35,22 +35,19 @@ export default function Footer({ setPage }: FooterProps) {
   };
 
   return (
-    <footer className="border-t border-[#CBC8BE] bg-[#DFDCD4] pt-16 pb-12 px-6 relative z-10 text-[#5E5D57] font-sans">
+    <footer className="border-t border-[#CBC8BE] bg-[#DFDCD4] pt-16 pb-12 px-6 relative z-10 text-[#262523] font-sans">
       {/* ── Top Enterprise Consultation Callout ─────────────────────────── */}
-      <div className="max-w-7xl mx-auto mb-16 pb-12 border-b border-[#E8E2D9]/70">
-        <div className="bg-[#0D1117] text-white rounded-3xl p-8 md:p-12 shadow-xl border border-slate-800 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8 relative overflow-hidden">
-          {/* Subtle decorative glow */}
-          <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-[#059669]/15 rounded-full blur-3xl pointer-events-none" />
-          
+      <div className="max-w-7xl mx-auto mb-16 pb-12 border-b border-[#CBC8BE]">
+        <div className="bg-[#EBE9E2] text-[#121212] rounded-[2px] p-8 md:p-12 border border-[#CBC8BE] flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8 relative">
           <div className="space-y-3 max-w-2xl relative z-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-700/50 text-emerald-400 font-mono text-[11px] font-bold tracking-wider uppercase">
-              <Sparkles className="w-3 h-3" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-[2px] bg-[#DFDCD4] border border-[#CBC8BE] text-[#121212] font-mono text-[11px] font-bold tracking-wider uppercase">
+              <Sparkles className="w-3 h-3 text-[#121212]" />
               PRODUCTION-GRADE TELEPHONY PILOT
             </div>
-            <h3 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+            <h3 className="text-2xl md:text-3xl font-extrabold text-[#121212] tracking-tight">
               Ready to automate 10,000+ monthly calls with zero human lag?
             </h3>
-            <p className="text-slate-400 text-sm md:text-base leading-relaxed">
+            <p className="text-[#262523] text-sm md:text-base leading-relaxed">
               Explore 15 pre-built production templates across BFSI, Healthcare, E-Commerce, Real Estate, and Front Desk operations. Deploy within 10 minutes or test live in sandbox.
             </p>
           </div>
@@ -58,13 +55,13 @@ export default function Footer({ setPage }: FooterProps) {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto relative z-10">
             <button
               onClick={() => navigate("dashboard")}
-              className="px-6 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm rounded-xl transition-all shadow-lg hover:shadow-emerald-500/25 flex items-center justify-center gap-2"
+              className="px-6 py-3.5 bg-[#121212] hover:bg-black text-white font-mono text-xs uppercase tracking-wider rounded-[2px] transition-colors flex items-center justify-center gap-2"
             >
               Launch Free Sandbox <ArrowRight className="w-4 h-4" />
             </button>
             <button
               onClick={() => navigate("contact")}
-              className="px-6 py-3.5 bg-slate-800 hover:bg-slate-700 text-white font-semibold text-sm rounded-xl border border-slate-700 transition-colors flex items-center justify-center gap-2"
+              className="px-6 py-3.5 bg-[#DFDCD4] hover:bg-[#D5D2C9] text-[#121212] font-mono text-xs uppercase tracking-wider rounded-[2px] border border-[#CBC8BE] transition-colors flex items-center justify-center gap-2"
             >
               Talk to Voice Architect
             </button>
@@ -81,12 +78,12 @@ export default function Footer({ setPage }: FooterProps) {
             className="flex items-center gap-3 text-left group"
           >
             <img src="/logo.png" alt="Claritiy Voice Logo" className="h-9 w-auto object-contain" />
-            <span className="font-extrabold text-xl tracking-tight text-[#0D1117]" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-              Claritiy <span className="text-[#059669]">Voice</span>
+            <span className="font-extrabold text-xl tracking-tight text-[#121212]">
+              Claritiy <span className="font-mono text-xs uppercase tracking-widest text-[#5E5D57]">Voice</span>
             </span>
           </button>
           
-          <p className="text-sm text-slate-500 leading-relaxed max-w-sm">
+          <p className="text-sm text-[#262523] leading-relaxed max-w-sm">
             Autonomous conversational voice AI infrastructure designed for high-scale enterprise telephony. Sub-180ms latency, native regional accents, and deep bi-directional CRM execution.
           </p>
 
@@ -94,61 +91,58 @@ export default function Footer({ setPage }: FooterProps) {
           <div className="p-3.5 rounded-[2px] bg-[#EBE9E2] border border-[#CBC8BE] space-y-2 max-w-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                </span>
-                <span className="text-xs font-bold text-slate-800 font-mono">ALL SYSTEMS OPERATIONAL</span>
+                <span className="w-2 h-2 rounded-full bg-[#121212]" />
+                <span className="text-xs font-bold text-[#121212] font-mono">ALL SYSTEMS OPERATIONAL</span>
               </div>
-              <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-bold">174ms Latency</span>
+              <span className="text-[10px] font-mono text-[#121212] bg-[#DFDCD4] border border-[#CBC8BE] px-2 py-0.5 rounded-[2px] font-bold">174ms Latency</span>
             </div>
-            <p className="text-[11px] text-slate-500 leading-tight">
+            <p className="text-[11px] text-[#5E5D57] leading-tight">
               Edge ingress controllers, WebRTC media relays, and SIP gateways functioning normally across all clusters.
             </p>
           </div>
 
           {/* Governance & Compliance Tags */}
           <div className="flex flex-wrap items-center gap-2 pt-1">
-            <span className="text-[10px] font-mono font-bold text-slate-600 bg-white border border-[#E8E2D9] rounded-md px-2.5 py-1">MSME REGISTERED</span>
-            <span className="text-[10px] font-mono font-bold text-slate-600 bg-white border border-[#E8E2D9] rounded-md px-2.5 py-1">TLS 1.3 / AES-256</span>
-            <span className="text-[10px] font-mono font-bold text-slate-600 bg-white border border-[#E8E2D9] rounded-md px-2.5 py-1">DPDP ALIGNED</span>
-            <span className="text-[10px] font-mono font-bold text-slate-600 bg-white border border-[#E8E2D9] rounded-md px-2.5 py-1">RBI FAIR PRACTICES</span>
+            <span className="text-[10px] font-mono font-bold text-[#121212] bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] px-2.5 py-1">MSME REGISTERED</span>
+            <span className="text-[10px] font-mono font-bold text-[#121212] bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] px-2.5 py-1">TLS 1.3 / AES-256</span>
+            <span className="text-[10px] font-mono font-bold text-[#121212] bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] px-2.5 py-1">DPDP ALIGNED</span>
+            <span className="text-[10px] font-mono font-bold text-[#121212] bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] px-2.5 py-1">RBI FAIR PRACTICES</span>
           </div>
         </div>
 
         {/* Column 1: Client Verticals */}
         <div className="space-y-4">
-          <p className="text-xs font-bold text-[#0D1117] font-mono tracking-wider uppercase">
+          <p className="text-xs font-bold text-[#121212] font-mono tracking-wider uppercase">
             Client Solutions
           </p>
           <ul className="space-y-2.5 text-sm">
             <li>
-              <button onClick={() => navigate("solutions")} className="text-slate-500 hover:text-[#059669] transition-colors text-left font-medium">
+              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 E-Commerce COD & RTO
               </button>
             </li>
             <li>
-              <button onClick={() => navigate("solutions")} className="text-slate-500 hover:text-[#059669] transition-colors text-left font-medium">
+              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 Healthcare Clinic Intake
               </button>
             </li>
             <li>
-              <button onClick={() => navigate("solutions")} className="text-slate-500 hover:text-[#059669] transition-colors text-left font-medium">
+              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 BFSI & EMI Collections
               </button>
             </li>
             <li>
-              <button onClick={() => navigate("solutions")} className="text-slate-500 hover:text-[#059669] transition-colors text-left font-medium">
+              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 Real Estate Speed-to-Lead
               </button>
             </li>
             <li>
-              <button onClick={() => navigate("solutions")} className="text-slate-500 hover:text-[#059669] transition-colors text-left font-medium">
+              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 Home Services Dispatch
               </button>
             </li>
             <li>
-              <button onClick={() => navigate("solutions")} className="text-slate-500 hover:text-[#059669] transition-colors text-left font-medium">
+              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 BPO & Overflow Deflection
               </button>
             </li>
@@ -157,37 +151,37 @@ export default function Footer({ setPage }: FooterProps) {
 
         {/* Column 2: Production Templates */}
         <div className="space-y-4">
-          <p className="text-xs font-bold text-[#0D1117] font-mono tracking-wider uppercase">
+          <p className="text-xs font-bold text-[#121212] font-mono tracking-wider uppercase">
             Agent Templates
           </p>
           <ul className="space-y-2.5 text-sm">
             <li>
-              <button onClick={() => navigate("solutions")} className="text-slate-500 hover:text-[#059669] transition-colors text-left font-medium">
+              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 Front Desk Receptionist
               </button>
             </li>
             <li>
-              <button onClick={() => navigate("solutions")} className="text-slate-500 hover:text-[#059669] transition-colors text-left font-medium">
+              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 Dental Clinic Scheduler
               </button>
             </li>
             <li>
-              <button onClick={() => navigate("solutions")} className="text-slate-500 hover:text-[#059669] transition-colors text-left font-medium">
+              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 B2B Lead Qualifier (SDR)
               </button>
             </li>
             <li>
-              <button onClick={() => navigate("solutions")} className="text-slate-500 hover:text-[#059669] transition-colors text-left font-medium">
+              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 Win-Back & Reactivation
               </button>
             </li>
             <li>
-              <button onClick={() => navigate("solutions")} className="text-slate-500 hover:text-[#059669] transition-colors text-left font-medium">
+              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 EMI Pre-Due & Overdue
               </button>
             </li>
             <li>
-              <button onClick={() => navigate("solutions")} className="text-slate-500 hover:text-[#059669] transition-colors text-left font-medium">
+              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 After-Hours P1 Triage
               </button>
             </li>
@@ -196,37 +190,37 @@ export default function Footer({ setPage }: FooterProps) {
 
         {/* Column 3: Platform Architecture */}
         <div className="space-y-4">
-          <p className="text-xs font-bold text-[#0D1117] font-mono tracking-wider uppercase">
+          <p className="text-xs font-bold text-[#121212] font-mono tracking-wider uppercase">
             Platform & Tech
           </p>
           <ul className="space-y-2.5 text-sm">
             <li>
-              <button onClick={() => navigate("how-it-works")} className="text-slate-500 hover:text-[#059669] transition-colors text-left font-medium">
+              <button onClick={() => navigate("how-it-works")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 Sub-180ms WebRTC Engine
               </button>
             </li>
             <li>
-              <button onClick={() => navigate("voices")} className="text-slate-500 hover:text-[#059669] transition-colors text-left font-medium">
+              <button onClick={() => navigate("voices")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 HD Voices & 70+ Dialects
               </button>
             </li>
             <li>
-              <button onClick={() => navigate("pricing")} className="text-slate-500 hover:text-[#059669] transition-colors text-left font-medium">
+              <button onClick={() => navigate("pricing")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 Flat Rate Pricing (₹3.99/min)
               </button>
             </li>
             <li>
-              <button onClick={() => navigate("docs")} className="text-slate-500 hover:text-[#059669] transition-colors text-left font-medium">
+              <button onClick={() => navigate("docs")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 Developer API & Webhooks
               </button>
             </li>
             <li>
-              <button onClick={() => navigate("voice-ai-index")} className="text-slate-500 hover:text-[#059669] transition-colors text-left font-medium">
+              <button onClick={() => navigate("voice-ai-index")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 Voice AI Index (Knowledge)
               </button>
             </li>
             <li>
-              <button onClick={() => navigate("faq")} className="text-slate-500 hover:text-[#059669] transition-colors text-left font-medium">
+              <button onClick={() => navigate("faq")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 Enterprise FAQ
               </button>
             </li>
@@ -235,7 +229,7 @@ export default function Footer({ setPage }: FooterProps) {
 
         {/* Column 4: Contact & Direct Channels */}
         <div className="space-y-4">
-          <p className="text-xs font-bold text-[#0D1117] font-mono tracking-wider uppercase">
+          <p className="text-xs font-bold text-[#121212] font-mono tracking-wider uppercase">
             Direct Channels
           </p>
           <ul className="space-y-3 text-sm">
@@ -244,18 +238,18 @@ export default function Footer({ setPage }: FooterProps) {
                 href="https://wa.me/919707337259?text=Hello%20Claritiy%20Voice%20Team%2C%20I%20would%20like%20to%20learn%20more%20about%20enterprise%20voice%20agents"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-slate-700 hover:text-emerald-600 transition-colors font-semibold"
+                className="inline-flex items-center gap-2 text-[#262523] hover:text-[#121212] hover:underline transition-colors font-medium"
               >
-                <MessageCircle className="w-4 h-4 text-emerald-600" />
+                <MessageCircle className="w-4 h-4 text-[#121212]" />
                 <span>WhatsApp Enterprise</span>
               </a>
             </li>
             <li>
               <button
                 onClick={() => navigate("contact")}
-                className="inline-flex items-center gap-2 text-slate-700 hover:text-emerald-600 transition-colors font-semibold text-left"
+                className="inline-flex items-center gap-2 text-[#262523] hover:text-[#121212] hover:underline transition-colors font-medium text-left"
               >
-                <Mail className="w-4 h-4 text-emerald-600" />
+                <Mail className="w-4 h-4 text-[#121212]" />
                 <span>Contact Sales Desk</span>
               </button>
             </li>
@@ -264,46 +258,46 @@ export default function Footer({ setPage }: FooterProps) {
                 href="https://www.linkedin.com/company/claritiy/?viewAsMember=true"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-slate-700 hover:text-emerald-600 transition-colors font-semibold"
+                className="inline-flex items-center gap-2 text-[#262523] hover:text-[#121212] hover:underline transition-colors font-medium"
               >
-                <Globe2 className="w-4 h-4 text-emerald-600" />
+                <Globe2 className="w-4 h-4 text-[#121212]" />
                 <span>LinkedIn Updates</span>
               </a>
             </li>
             <li className="pt-2">
-              <span className="text-xs text-slate-400 block font-mono">SUPPORT HOURS:</span>
-              <span className="text-xs font-medium text-slate-700">Mon – Sat: 9:00 AM – 8:00 PM IST</span>
+              <span className="text-xs text-[#5E5D57] block font-mono">SUPPORT HOURS:</span>
+              <span className="text-xs font-medium text-[#121212]">Mon – Sat: 9:00 AM – 8:00 PM IST</span>
             </li>
           </ul>
         </div>
       </div>
 
       {/* ── Footer Bottom Bar ───────────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto mt-16 pt-8 border-t border-[#E8E2D9] flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500">
+      <div className="max-w-7xl mx-auto mt-16 pt-8 border-t border-[#CBC8BE] flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-[#5E5D57]">
         <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
           <p>&copy; 2026 Claritiy Voice. All rights reserved.</p>
-          <span className="hidden sm:inline text-slate-300">•</span>
+          <span className="hidden sm:inline text-[#CBC8BE]">•</span>
           <div className="flex items-center gap-4">
-            <button onClick={() => navigate("privacy", "/privacy")} className="hover:text-slate-900 transition-colors">
+            <button onClick={() => navigate("privacy", "/privacy")} className="hover:text-[#121212] hover:underline transition-colors">
               Privacy Policy
             </button>
-            <button onClick={() => navigate("terms", "/terms")} className="hover:text-slate-900 transition-colors">
+            <button onClick={() => navigate("terms", "/terms")} className="hover:text-[#121212] hover:underline transition-colors">
               Terms of Use
             </button>
-            <button onClick={() => navigate("security", "/security")} className="hover:text-slate-900 transition-colors">
+            <button onClick={() => navigate("security", "/security")} className="hover:text-[#121212] hover:underline transition-colors">
               Security Architecture
             </button>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="font-mono text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200">
+          <span className="font-mono text-[#121212] font-bold bg-[#DFDCD4] px-2.5 py-1 rounded-[2px] border border-[#CBC8BE]">
             Pay-As-You-Go from ₹3.99/min
           </span>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto mt-4 pt-2 text-center text-[11px] text-slate-400 font-sans">
+      <div className="max-w-7xl mx-auto mt-4 pt-2 text-center text-[11px] text-[#5E5D57] font-mono">
         Notice: Claritiy Voice agents declare their automated nature in compliance with telecommunication guidelines and DPDP standards.
       </div>
     </footer>

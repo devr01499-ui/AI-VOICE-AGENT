@@ -164,7 +164,7 @@ export default function VoiceGallery({ setPage }: VoiceGalleryProps) {
   });
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8 font-sans">
       <audio 
         ref={audioRef} 
         onEnded={() => setPlayingVoice(null)}
@@ -172,26 +172,24 @@ export default function VoiceGallery({ setPage }: VoiceGalleryProps) {
       />
 
       {/* ── Filter Controls Card ────────────────────────────────────── */}
-      <div className="bg-white border border-[#E8E2D9] rounded-3xl p-6 md:p-8 space-y-6 shadow-sm">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-100">
+      <div className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-6 md:p-8 space-y-6">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-[#CBC8BE]">
           {/* Gender Filter */}
           <div className="space-y-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest font-mono flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5 text-emerald-600" /> Filter By Gender
+            <span className="text-[11px] font-bold text-[#121212] uppercase tracking-widest font-mono flex items-center gap-1.5">
+              <User className="w-3.5 h-3.5" /> Filter By Gender
             </span>
             <div className="flex items-center gap-2">
               {["All", "Male", "Female"].map((g) => (
                 <button
                   key={g}
                   onClick={() => setSelectedGender(g)}
-                  className={`px-4 py-1.5 rounded-xl text-xs font-bold font-mono transition-all flex items-center gap-1.5 ${
+                  className={`px-3.5 py-1.5 rounded-[2px] text-xs font-mono uppercase tracking-wider transition-all cursor-pointer ${
                     selectedGender === g 
-                      ? "bg-slate-900 text-white shadow-sm" 
-                      : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200"
+                      ? "bg-[#121212] text-white border border-[#121212]" 
+                      : "bg-[#DFDCD4] text-[#121212] hover:bg-[#D5D1C7] border border-[#CBC8BE]"
                   }`}
                 >
-                  {g === "Male" && <span className="w-2 h-2 rounded-full bg-sky-400 inline-block" />}
-                  {g === "Female" && <span className="w-2 h-2 rounded-full bg-rose-400 inline-block" />}
                   {g}
                 </button>
               ))}
@@ -200,18 +198,18 @@ export default function VoiceGallery({ setPage }: VoiceGalleryProps) {
 
           {/* Tone Filter */}
           <div className="space-y-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest font-mono flex items-center gap-1.5">
-              <Volume2 className="w-3.5 h-3.5 text-emerald-600" /> Tonal Persona
+            <span className="text-[11px] font-bold text-[#121212] uppercase tracking-widest font-mono flex items-center gap-1.5">
+              <Volume2 className="w-3.5 h-3.5" /> Tonal Persona
             </span>
             <div className="flex flex-wrap items-center gap-2">
               {["All", "Conversational", "Authoritative", "Warm", "Crisp"].map((t) => (
                 <button
                   key={t}
                   onClick={() => setSelectedTone(t)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold font-mono transition-all ${
+                  className={`px-3 py-1.5 rounded-[2px] text-xs font-mono uppercase tracking-wider transition-all cursor-pointer ${
                     selectedTone === t 
-                      ? "bg-emerald-600 text-white shadow-sm" 
-                      : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200"
+                      ? "bg-[#121212] text-white border border-[#121212]" 
+                      : "bg-[#DFDCD4] text-[#121212] hover:bg-[#D5D1C7] border border-[#CBC8BE]"
                   }`}
                 >
                   {t}
@@ -223,18 +221,18 @@ export default function VoiceGallery({ setPage }: VoiceGalleryProps) {
 
         {/* Dialect Selector */}
         <div className="space-y-2">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest font-mono flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-600" /> Active Dialect Matrix
+          <span className="text-[11px] font-bold text-[#121212] uppercase tracking-widest font-mono flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5" /> Active Dialect Matrix
           </span>
           <div className="flex flex-wrap items-center gap-2">
             {langs.map((l) => (
               <button
                 key={l.id}
                 onClick={() => setSelectedLang(l.id)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-mono font-bold border transition-all ${
+                className={`px-3.5 py-1.5 rounded-[2px] text-xs font-mono border transition-all cursor-pointer ${
                   selectedLang === l.id 
-                    ? "bg-emerald-50 text-emerald-800 border-emerald-300 shadow-sm" 
-                    : "bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                    ? "bg-[#121212] text-white border-[#121212]" 
+                    : "bg-[#DFDCD4] border-[#CBC8BE] text-[#121212] hover:bg-[#D5D1C7]"
                 }`}
               >
                 {l.name}
@@ -245,92 +243,72 @@ export default function VoiceGallery({ setPage }: VoiceGalleryProps) {
       </div>
 
       {/* ── Voice Persona Cards Grid ─────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredVoices.map((v) => {
           const isPlaying = playingVoice === v.id;
-          const isMale = v.gender === "Male";
 
           return (
             <div 
               key={v.id} 
-              className={`bg-white border rounded-3xl p-6 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group ${
-                isPlaying ? "border-emerald-500 ring-2 ring-emerald-500/20" : "border-[#E8E2D9]"
+              className={`bg-[#EBE9E2] border rounded-[2px] p-6 flex flex-col justify-between transition-colors relative overflow-hidden ${
+                isPlaying ? "border-[#121212] ring-1 ring-[#121212]" : "border-[#CBC8BE] hover:border-[#9C998F]"
               }`}
             >
-              {/* Top Accent Gradient when playing */}
-              {isPlaying && (
-                <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-600 animate-pulse" />
-              )}
-
               <div>
-                {/* Header: DP Avatar + Name + Gender Badge */}
-                <div className="flex items-start gap-4 mb-5">
-                  {/* Circular DP Avatar with Gender Overlay */}
+                {/* Header: DP Avatar + Name + Meta */}
+                <div className="flex items-start gap-4 mb-4">
                   <div className="relative flex-shrink-0">
-                    <div className={`w-14 h-14 rounded-2xl overflow-hidden border-2 shadow-sm ${
-                      isPlaying ? "border-emerald-500 ring-4 ring-emerald-100" : isMale ? "border-sky-200" : "border-rose-200"
-                    }`}>
+                    <div className="w-12 h-12 rounded-[2px] overflow-hidden border border-[#CBC8BE] bg-[#DFDCD4]">
                       <img 
                         src={v.avatar} 
                         alt={`${v.name} - ${v.gender} Voice Avatar`} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="w-full h-full object-cover"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/bottts/svg?seed=${v.id}`;
                         }}
                       />
-                    </div>
-
-                    {/* Gender DP Indicator Badge */}
-                    <div 
-                      className={`absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-md text-[10px] font-mono font-extrabold flex items-center gap-1 shadow-sm border ${
-                        isMale 
-                          ? "bg-sky-50 text-sky-700 border-sky-200" 
-                          : "bg-rose-50 text-rose-700 border-rose-200"
-                      }`}
-                      title={`${v.gender} Persona`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full ${isMale ? "bg-sky-500" : "bg-rose-500"}`} />
-                      {v.gender === "Male" ? "M" : "F"}
                     </div>
                   </div>
 
                   {/* Name and Meta */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
-                      <h3 className="font-bold text-base text-slate-900 truncate" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+                      <h3 className="font-medium text-base text-[#121212] font-sans truncate">
                         {v.name}
                       </h3>
-                      <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex-shrink-0">
+                      <span className="text-[10px] font-mono font-medium text-[#121212] bg-[#DFDCD4] px-2 py-0.5 rounded-[1px] border border-[#CBC8BE] flex-shrink-0">
                         {v.badge}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 font-mono">
+                    <div className="flex items-center gap-2 mt-1 text-xs text-[#262523] font-mono">
+                      <span>{v.gender}</span>
+                      <span>·</span>
                       <span>{v.tone}</span>
-                      <span>•</span>
-                      <span className="text-[11px] text-slate-400">{v.pitch}</span>
+                      <span>·</span>
+                      <span className="text-[11px] text-[#262523]">{v.pitch}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Description */}
-                <p className="text-xs text-slate-600 leading-relaxed font-plus-jakarta mb-4">
+                <p className="text-xs text-[#262523] leading-relaxed font-sans mb-4">
                   {v.description}
                 </p>
 
                 {/* Audio Quote Box */}
-                <div className="bg-[#FAF8F5] rounded-2xl p-3.5 border border-[#E8E2D9] text-left relative mb-4">
-                  <p className="text-xs text-slate-700 italic font-medium leading-relaxed">
+                <div className="bg-[#DFDCD4] rounded-[2px] p-3.5 border border-[#CBC8BE] text-left relative mb-4">
+                  <p className="text-xs text-[#121212] italic font-normal leading-relaxed font-sans">
                     "{v.quote}"
                   </p>
                 </div>
               </div>
 
               {/* Bottom Interactive Area: Waveform + Preview Button */}
-              <div className="space-y-4 pt-2">
+              <div className="space-y-3 pt-2">
                 {/* Visualizer Wave Bar */}
-                <div className="flex items-center gap-1.5 h-6 px-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <span className="text-[10px] font-mono font-bold text-slate-400 mr-1">DSP</span>
+                <div className="flex items-center gap-1.5 h-6 px-3 bg-[#DFDCD4] rounded-[2px] border border-[#CBC8BE]">
+                  <span className="text-[10px] font-mono font-medium text-[#262523] mr-1">DSP</span>
                   {[8, 16, 24, 12, 20, 28, 14, 22, 10, 18, 26, 12, 16, 8, 20, 14].map((h, i) => (
                     <motion.div
                       key={i}
@@ -345,25 +323,21 @@ export default function VoiceGallery({ setPage }: VoiceGalleryProps) {
                         repeatType: "reverse",
                         ease: "easeInOut"
                       } : { duration: 0.2 }}
-                      className={`w-1 rounded-full ${
-                        isPlaying ? "bg-emerald-500" : "bg-slate-300"
+                      className={`w-1 rounded-[1px] ${
+                        isPlaying ? "bg-[#121212]" : "bg-[#CBC8BE]"
                       }`}
                     />
                   ))}
-                  <span className="text-[10px] font-mono font-bold ml-auto text-slate-400">
+                  <span className="text-[10px] font-mono font-medium ml-auto text-[#262523]">
                     {isPlaying ? "PLAYING" : "16kHz"}
                   </span>
                 </div>
 
                 {/* Buttons Row */}
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2">
                   <button
                     onClick={() => handlePlayVoice(v.id)}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold font-mono tracking-wider uppercase transition-all shadow-sm ${
-                      isPlaying 
-                        ? "bg-rose-50 text-rose-600 border border-rose-300 hover:bg-rose-100" 
-                        : "bg-slate-900 text-white hover:bg-slate-800"
-                    }`}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-[2px] text-xs font-mono uppercase tracking-wider transition-colors cursor-pointer bg-[#121212] text-white hover:bg-black font-medium"
                   >
                     {isPlaying ? (
                       <>
@@ -379,7 +353,7 @@ export default function VoiceGallery({ setPage }: VoiceGalleryProps) {
                   <button
                     onClick={() => setPage("dashboard")}
                     title="Select this voice persona in Agent Studio"
-                    className="p-2.5 rounded-xl border border-slate-200 hover:border-emerald-400 hover:text-emerald-700 text-slate-600 bg-white transition-all text-xs font-bold"
+                    className="p-2.5 rounded-[2px] border border-[#CBC8BE] bg-[#DFDCD4] hover:bg-[#D5D1C7] text-[#121212] transition-colors cursor-pointer"
                   >
                     <ArrowRight className="w-4 h-4" />
                   </button>

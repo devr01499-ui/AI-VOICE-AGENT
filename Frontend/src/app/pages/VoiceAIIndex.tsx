@@ -218,22 +218,19 @@ export default function VoiceAIIndex({ setPage, initialTopicId }: VoiceAIIndexPr
   };
 
   return (
-    <div className="min-h-screen bg-[#1E293B] relative overflow-hidden flex flex-col font-sans">
-      {/* Dark background texture */}
-      <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/wood-pattern.png')]" />
-      
+    <div className="min-h-screen bg-[#E5E3DC] relative overflow-hidden flex flex-col font-sans">
       {/* Navbar overlay specifically for the book view */}
-      <div className="relative z-20 flex justify-between items-center px-8 py-4 bg-black/20 backdrop-blur-md border-b border-white/10">
+      <div className="relative z-20 flex justify-between items-center px-8 py-4 bg-[#DFDCD4] border-b border-[#CBC8BE]">
         <button
           onClick={() => {
             window.history.pushState({}, "", "/");
             setPage("home");
           }}
-          className="inline-flex items-center gap-2 text-xs font-bold text-white uppercase tracking-widest hover:text-[#34D399] transition-colors"
+          className="inline-flex items-center gap-2 text-xs font-mono font-bold text-[#121212] uppercase tracking-wider hover:underline transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Exit Book
         </button>
-        <div className="text-white/60 text-xs font-mono tracking-widest uppercase">
+        <div className="text-[#5E5D57] text-xs font-mono tracking-widest uppercase">
           Claritiy Voice Architecture Index (2026)
         </div>
       </div>

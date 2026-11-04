@@ -12,46 +12,6 @@ interface VoicesProps {
   setPage: (p: Page) => void;
 }
 
-// ── SVG Geometric Background Accent ─────────────────────────────────────────────
-function GeometricGridBackground() {
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-20 z-0">
-      <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
-        <defs>
-          <pattern id="grid-voices" width="40" height="40" patternUnits="userSpaceOnUse">
-            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#059669" strokeWidth="0.5" strokeDasharray="1,4" />
-            <circle cx="20" cy="20" r="1.5" fill="#059669" opacity="0.5" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid-voices)" />
-      </svg>
-    </div>
-  );
-}
-
-// ── Animated Sound Wave Widget ─────────────────────────────────────────────────
-function LiveSoundWaveVisualizer() {
-  return (
-    <div className="flex items-center justify-center gap-1.5 h-10 py-2">
-      {[12, 24, 38, 18, 30, 42, 26, 34, 16, 28, 40, 22, 36, 14, 32, 20].map((height, i) => (
-        <motion.div
-          key={i}
-          animate={{
-            height: [height * 0.4, height, height * 0.3],
-          }}
-          transition={{
-            duration: 1.2 + (i % 4) * 0.2,
-            repeat: Infinity,
-            repeatType: "reverse",
-            ease: "easeInOut",
-          }}
-          className="w-1 bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-full"
-        />
-      ))}
-    </div>
-  );
-}
-
 export default function Voices({ setPage }: VoicesProps) {
   const acousticSpecs = [
     { label: "AUDIO FORMAT & CODEC", value: "audio/x-l16 (16kHz 16-bit PCM)", tech: "Uncompressed raw PCM buffer egress over SRTP zero-copy transport." },
@@ -99,42 +59,32 @@ export default function Voices({ setPage }: VoicesProps) {
   ];
 
   return (
-    <div className="space-y-24 pb-32 pt-28 bg-[#FFFDF9] min-h-screen relative font-plus-jakarta">
-      <GeometricGridBackground />
+    <div className="space-y-20 pb-32 pt-28 bg-[#E5E3DC] min-h-screen relative font-sans text-[#121212]">
       
       {/* ── Hero Header ────────────────────────────────────────────────── */}
       <section className="px-6 max-w-5xl mx-auto text-center space-y-6 relative z-10">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-mono font-bold tracking-wider uppercase shadow-sm"
-        >
-          <AudioWaveform className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
-          HD ACOUSTIC VOICE GALLERY & DIALECTS
-        </motion.div>
+        <div className="hatched-strip h-10 w-full mb-8" />
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-[2px] bg-[#DFDCD4] border border-[#CBC8BE] text-[#121212] text-xs font-mono uppercase tracking-wider">
+          <span>|</span>
+          <span>HD Acoustic Voice Gallery & Dialects</span>
+        </div>
 
         <motion.h1 
-          initial={{ opacity: 0, y: 25 }}
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-4xl md:text-6xl font-extrabold text-slate-900 tracking-tight leading-tight"
-          style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}
+          className="text-4xl md:text-5xl lg:text-6xl font-normal md:font-medium text-[#121212] tracking-tight leading-[1.08] font-sans"
         >
           26+ HD Voice Personas & 70+ Regional Dialects
         </motion.h1>
 
         <motion.p 
-          initial={{ opacity: 0, y: 25 }}
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="text-slate-600 text-lg md:text-xl max-w-3xl mx-auto font-plus-jakarta leading-relaxed"
+          className="text-[#262523] text-base md:text-lg max-w-3xl mx-auto font-sans leading-relaxed"
         >
           Hyper-realistic neural voice synthesis with natural human breath pauses, pitch modulation, and dialect authenticity across global and regional Indian languages.
         </motion.p>
-
-        {/* Live Soundwave Visualizer */}
-        <div className="pt-2">
-          <LiveSoundWaveVisualizer />
-        </div>
       </section>
 
       {/* ── Voice Player Gallery ────────────────────────────────────────── */}
@@ -145,43 +95,39 @@ export default function Voices({ setPage }: VoicesProps) {
       {/* ── Emotional Pitch & Persona Cadence ────────────────────────────── */}
       <section className="px-6 max-w-7xl mx-auto relative z-10 space-y-8">
         <div className="text-center max-w-3xl mx-auto space-y-3">
-          <span className="text-xs font-mono font-bold text-emerald-700 uppercase tracking-widest">
-            TONAL DYNAMICS & PERSONAS
+          <span className="text-xs font-mono text-[#121212] uppercase tracking-widest">
+            | TONAL DYNAMICS & PERSONAS
           </span>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+          <h2 className="text-3xl md:text-4xl font-normal md:font-medium text-[#121212] font-sans tracking-tight">
             Emotionally Tuned For Each Business Scenario
           </h2>
-          <p className="text-slate-500 text-sm">
+          <p className="text-[#262523] text-sm font-sans">
             AI voices shouldn't sound like monotone robots. Claritiy Voice modulates pitch, speed, and warmth to match the gravity of the call.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {tonePersonas.map((p, idx) => (
-            <motion.div
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {tonePersonas.map((p) => (
+            <div
               key={p.role}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: idx * 0.08 }}
-              className="bg-white border border-[#E8E2D9] rounded-3xl p-7 shadow-sm hover:shadow-xl hover:border-emerald-500/40 transition-all flex flex-col justify-between"
+              className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-6 hover:border-[#9C998F] transition-colors flex flex-col justify-between"
             >
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-md border border-emerald-200 uppercase">
+                  <span className="text-[10px] font-mono font-medium bg-[#DFDCD4] text-[#121212] px-2.5 py-1 rounded-[1px] border border-[#CBC8BE] uppercase">
                     {p.badge}
                   </span>
-                  <Activity className="w-4 h-4 text-emerald-600" />
+                  <Activity className="w-4 h-4 text-[#121212]" />
                 </div>
-                <h3 className="font-bold text-lg text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+                <h3 className="font-medium text-base text-[#121212] font-sans">
                   {p.role}
                 </h3>
-                <p className="text-xs font-mono text-emerald-700 font-semibold">{p.tone}</p>
-                <p className="text-xs text-slate-500 leading-relaxed font-plus-jakarta">
+                <p className="text-xs font-mono text-[#121212] font-semibold">{p.tone}</p>
+                <p className="text-xs text-[#262523] leading-relaxed font-sans">
                   {p.desc}
                 </p>
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
       </section>
@@ -189,26 +135,26 @@ export default function Voices({ setPage }: VoicesProps) {
       {/* ── Regional Indian Languages Matrix ─────────────────────────────── */}
       <section className="px-6 max-w-7xl mx-auto relative z-10 space-y-8">
         <div className="text-center max-w-3xl mx-auto space-y-3">
-          <span className="text-xs font-mono font-bold text-emerald-700 uppercase tracking-widest">
-            REGIONAL PHONEMIC AUTHENTICITY
+          <span className="text-xs font-mono text-[#121212] uppercase tracking-widest">
+            | REGIONAL PHONEMIC AUTHENTICITY
           </span>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+          <h2 className="text-3xl md:text-4xl font-normal md:font-medium text-[#121212] font-sans tracking-tight">
             Native Accents Without Machine Translation Lag
           </h2>
-          <p className="text-slate-500 text-sm">
+          <p className="text-[#262523] text-sm font-sans">
             Speech models are trained natively on regional speech matrices, understanding local colloquialisms and pincodes effortlessly.
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {languages.map((lang) => (
-            <div key={lang.code} className="bg-white p-5 rounded-2xl border border-[#E8E2D9] shadow-sm space-y-2 hover:border-slate-300 transition-all">
+            <div key={lang.code} className="bg-[#EBE9E2] p-5 rounded-[2px] border border-[#CBC8BE] space-y-2 hover:border-[#9C998F] transition-colors">
               <div className="flex items-center justify-between">
-                <span className="font-extrabold text-sm text-[#0D1117]">{lang.name}</span>
-                <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded">{lang.code}</span>
+                <span className="font-medium text-sm text-[#121212] font-sans">{lang.name}</span>
+                <span className="text-[10px] font-mono text-[#121212] bg-[#DFDCD4] px-2 py-0.5 rounded-[1px] border border-[#CBC8BE]">{lang.code}</span>
               </div>
-              <span className="text-[11px] font-mono text-slate-500 block">{lang.region}</span>
-              <p className="text-xs text-slate-600 italic bg-slate-50 p-2.5 rounded-xl border border-slate-100 font-plus-jakarta">
+              <span className="text-[11px] font-mono text-[#262523] block">{lang.region}</span>
+              <p className="text-xs text-[#262523] italic bg-[#DFDCD4] p-2.5 rounded-[2px] border border-[#CBC8BE] font-sans">
                 "{lang.sample}"
               </p>
             </div>
@@ -218,39 +164,39 @@ export default function Voices({ setPage }: VoicesProps) {
 
       {/* ── Integrated Acoustic DSP & Timbre Specifications ──────────────── */}
       <section className="px-6 max-w-7xl mx-auto relative z-10">
-        <div className="bg-[#0B132B] text-white rounded-3xl p-8 md:p-14 shadow-2xl border border-slate-800 space-y-10 relative overflow-hidden">
+        <div className="bg-[#EBE9E2] text-[#121212] rounded-[2px] p-8 md:p-12 border border-[#CBC8BE] space-y-8">
           <div className="text-center max-w-3xl mx-auto space-y-3">
-            <span className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">
-              ACOUSTIC TIMBRE & HARDWARE SPECS
+            <span className="text-xs font-mono text-[#121212] uppercase tracking-widest">
+              | ACOUSTIC TIMBRE & HARDWARE SPECS
             </span>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-white" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+            <h2 className="text-3xl md:text-4xl font-normal md:font-medium text-[#121212] font-sans tracking-tight">
               Acoustic DSP Specifications
             </h2>
-            <p className="text-slate-300 text-sm font-plus-jakarta">
+            <p className="text-[#262523] text-sm font-sans">
               Full technical breakdown of packet format, jitter buffering, and speech interruption thresholds.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {acousticSpecs.map((spec) => (
-              <div key={spec.label} className="bg-slate-950 p-5 rounded-2xl border border-slate-800 font-mono space-y-1.5 shadow-sm">
-                <span className="text-[10px] text-slate-400 font-bold block">{spec.label}</span>
-                <p className="text-emerald-400 text-sm font-bold">{spec.value}</p>
-                <p className="text-slate-400 text-xs font-sans leading-relaxed">{spec.tech}</p>
+              <div key={spec.label} className="bg-[#DFDCD4] p-5 rounded-[2px] border border-[#CBC8BE] font-mono space-y-1.5">
+                <span className="text-[10px] text-[#262523] uppercase tracking-wider font-bold block">{spec.label}</span>
+                <p className="text-[#121212] text-sm font-bold">{spec.value}</p>
+                <p className="text-[#262523] text-xs font-sans leading-relaxed">{spec.tech}</p>
               </div>
             ))}
           </div>
 
-          <div className="pt-4 text-center border-t border-slate-800 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="pt-4 text-center border-t border-[#CBC8BE] flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
               onClick={() => setPage("dashboard")}
-              className="py-3.5 px-8 text-sm bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl inline-flex items-center gap-2 shadow-lg cursor-pointer"
+              className="py-3 px-8 text-xs font-mono uppercase tracking-wider bg-[#121212] hover:bg-black text-white font-medium rounded-[2px] inline-flex items-center gap-2 cursor-pointer transition-colors"
             >
               Test Voice Personas in Sandbox <ArrowRight className="w-4 h-4" />
             </button>
             <button
               onClick={() => setPage("contact")}
-              className="py-3.5 px-8 text-sm bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl inline-flex items-center gap-2 border border-slate-700 cursor-pointer"
+              className="py-3 px-8 text-xs font-mono uppercase tracking-wider bg-[#DFDCD4] hover:bg-[#D5D1C7] text-[#121212] font-medium rounded-[2px] inline-flex items-center gap-2 border border-[#CBC8BE] cursor-pointer transition-colors"
             >
               Request Custom Voice Clone
             </button>

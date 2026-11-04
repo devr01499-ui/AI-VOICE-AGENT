@@ -1,15 +1,15 @@
 export default function Privacy() {
   return (
-    <div className="pt-32 px-6 max-w-4xl mx-auto pb-32 bg-cream-bg min-h-screen">
+    <div className="pt-32 px-6 max-w-4xl mx-auto pb-32 bg-[#E5E3DC] min-h-screen text-[#262523] font-sans">
       <div className="space-y-4 mb-12">
-        <span className="text-caption font-bold text-mint-primary uppercase tracking-widest bg-mint-soft px-3 py-1 rounded-full font-mono">
+        <span className="text-xs font-bold text-[#121212] uppercase tracking-wider bg-[#DFDCD4] border border-[#CBC8BE] px-3 py-1 rounded-[2px] font-mono">
           ATTORNEY-GRADE PRIVACY POLICY
         </span>
-        <h1 className="font-sora text-4xl md:text-5xl font-extrabold text-ink leading-tight">Privacy Policy</h1>
-        <p className="text-small font-bold text-ink-muted font-mono">Last Updated: July 20, 2026</p>
+        <h1 className="text-4xl md:text-5xl font-extrabold text-[#121212] leading-tight">Privacy Policy</h1>
+        <p className="text-xs font-bold text-[#5E5D57] font-mono">Last Updated: July 20, 2026</p>
       </div>
 
-      <div className="prose prose-lg text-ink-muted font-plus-jakarta text-body leading-relaxed space-y-8 bg-surface-white border border-[#EADEC9] p-10 rounded-3xl shadow-level-2">
+      <div className="prose prose-lg text-[#262523] text-sm md:text-base leading-relaxed space-y-8 bg-[#EBE9E2] border border-[#CBC8BE] p-8 md:p-12 rounded-[2px]">
         <p>
           This Privacy Policy describes how Claritiy Voice Solutions ("Claritiy Voice," "we," "us," or "our") collects, uses, and discloses personal information when you visit www.claritiy.com, interact with our marketing campaigns, communicate with us, engage with us over social media, attend events that we host or sponsor, or use our voice AI Agent Creation platform and related services (collectively, the "Services"), or otherwise interact with us. Claritiy Voice collects and uses personal information in two capacities: (1) for our own business purposes, including operating our website, marketing, sales, and business administration; and (2) as a service provider processing data on behalf of our customers in connection with their use of the Services. Where we process data on behalf of a customer, we will enter into a data processing addendum or similar agreement that governs our processing of personal information on behalf of a customer. By using the Services, you consent to the data practices described in this Privacy Policy.
         </p>

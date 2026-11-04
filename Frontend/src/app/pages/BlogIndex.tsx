@@ -194,12 +194,12 @@ export default function BlogIndex({ setPage }: BlogIndexProps) {
 
   if (activeArticle) {
     return (
-      <div className="pt-28 px-6 max-w-4xl mx-auto pb-32 min-h-screen bg-[#FFFDF9] relative">
+      <div className="pt-28 px-6 max-w-4xl mx-auto pb-32 min-h-screen bg-[#E5E3DC] relative font-sans text-[#262523]">
         <GeometricGridBackground />
         
         <button 
           onClick={() => setActiveArticleId(null)}
-          className="inline-flex items-center gap-2 text-xs font-mono font-bold text-emerald-600 hover:text-emerald-700 mb-8 px-4 py-2 bg-emerald-50 rounded-xl border border-emerald-200 transition-colors relative z-10"
+          className="inline-flex items-center gap-2 text-xs font-mono font-bold text-[#121212] mb-8 px-4 py-2 bg-[#DFDCD4] rounded-[2px] border border-[#CBC8BE] hover:bg-[#D5D2C9] transition-colors relative z-10"
         >
           <ArrowLeft className="w-4 h-4" /> Back to Knowledge Hub
         </button>
@@ -207,57 +207,60 @@ export default function BlogIndex({ setPage }: BlogIndexProps) {
         <motion.article 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white border border-[#EADEC9] p-8 md:p-14 rounded-3xl shadow-xl space-y-8 relative z-10"
+          className="bg-[#EBE9E2] border border-[#CBC8BE] p-8 md:p-14 rounded-[2px] space-y-8 relative z-10 text-[#262523]"
         >
           <div className="space-y-4">
-            <span className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-mono font-bold border border-emerald-200 uppercase tracking-wider">
+            <span className="px-3 py-1 bg-[#DFDCD4] text-[#121212] rounded-[2px] text-xs font-mono font-bold border border-[#CBC8BE] uppercase tracking-wider">
               {activeArticle.category}
             </span>
-            <h1 className="text-3xl md:text-5xl font-extrabold text-slate-900 leading-tight" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+            <h1 className="text-3xl md:text-5xl font-extrabold text-[#121212] leading-tight">
               {activeArticle.title}
             </h1>
             
-            <div className="flex flex-wrap items-center gap-6 text-xs font-mono text-slate-500 border-t border-b border-slate-100 py-4 my-6">
-              <div className="flex items-center gap-2 text-slate-700 font-bold">
-                <User className="w-4 h-4 text-emerald-600" /> {activeArticle.author}
+            <div className="flex flex-wrap items-center gap-6 text-xs font-mono text-[#5E5D57] border-t border-b border-[#CBC8BE] py-4 my-6">
+              <div className="flex items-center gap-2 text-[#121212] font-bold">
+                <User className="w-4 h-4 text-[#121212]" /> {activeArticle.author}
               </div>
               <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-amber-500" /> {activeArticle.date}
+                <Clock className="w-4 h-4 text-[#121212]" /> {activeArticle.date}
               </div>
               <div className="flex items-center gap-2">
-                <Tag className="w-4 h-4 text-emerald-600" /> {activeArticle.readTime}
+                <Tag className="w-4 h-4 text-[#121212]" /> {activeArticle.readTime}
               </div>
             </div>
           </div>
 
           {/* Dual Perspective Callout Box */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-200 font-plus-jakarta text-xs">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5 bg-[#DFDCD4] rounded-[2px] border border-[#CBC8BE] text-xs">
             <div className="space-y-1">
-              <span className="font-mono font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
+              <span className="font-mono font-bold text-[#121212] uppercase tracking-wider flex items-center gap-1.5">
                 <Eye className="w-3.5 h-3.5" /> EXECUTIVE SUMMARY
               </span>
-              <p className="text-slate-600 leading-relaxed">{activeArticle.nonTechSummary}</p>
+              <p className="text-[#262523] leading-relaxed">{activeArticle.nonTechSummary}</p>
             </div>
-            <div className="space-y-1 md:border-l md:border-slate-200 md:pl-4">
-              <span className="font-mono font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                <Code2 className="w-3.5 h-3.5 text-emerald-600" /> TECHNICAL DEEP-DIVE SUMMARY
+            <div className="space-y-1 md:border-l md:border-[#CBC8BE] md:pl-4">
+              <span className="font-mono font-bold text-[#121212] uppercase tracking-wider flex items-center gap-1.5">
+                <Code2 className="w-3.5 h-3.5 text-[#121212]" /> TECHNICAL DEEP-DIVE SUMMARY
               </span>
-              <p className="text-slate-600 leading-relaxed">{activeArticle.techSummary}</p>
+              <p className="text-[#262523] leading-relaxed">{activeArticle.techSummary}</p>
             </div>
           </div>
 
-          <div className="text-slate-700 whitespace-pre-wrap font-plus-jakarta text-base md:text-lg leading-relaxed space-y-6">
+          <div className="text-[#262523] whitespace-pre-wrap text-base md:text-lg leading-relaxed space-y-6">
             {activeArticle.content}
           </div>
 
-          <div className="mt-12 bg-[#0B132B] text-white rounded-2xl p-8 text-center space-y-4 border border-slate-800">
-            <h3 className="text-2xl font-bold text-white" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+          <div className="mt-12 bg-[#DFDCD4] text-[#121212] rounded-[2px] p-8 text-center space-y-4 border border-[#CBC8BE]">
+            <h3 className="text-2xl font-bold text-[#121212]">
               Ready to automate your phone operations?
             </h3>
-            <p className="text-slate-300 text-sm font-plus-jakarta max-w-lg mx-auto">
+            <p className="text-[#262523] text-sm max-w-lg mx-auto">
               Deploy human-like AI voice agents in under 10 minutes with zero developer code.
             </p>
-            <button onClick={() => setPage("dashboard")} className="btn-primary py-3.5 px-8 text-sm bg-emerald-500 hover:bg-emerald-400 text-black font-bold inline-flex items-center gap-2">
+            <button 
+              onClick={() => setPage("dashboard")} 
+              className="py-3.5 px-8 text-xs font-mono uppercase tracking-wider bg-[#121212] hover:bg-black text-white font-bold inline-flex items-center gap-2 rounded-[2px] transition-colors"
+            >
               Build Your Agent Now <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -267,19 +270,19 @@ export default function BlogIndex({ setPage }: BlogIndexProps) {
   }
 
   return (
-    <div className="pt-28 px-6 max-w-7xl mx-auto pb-32 min-h-screen bg-[#FFFDF9] space-y-16 relative">
+    <div className="pt-28 px-6 max-w-7xl mx-auto pb-32 min-h-screen bg-[#E5E3DC] space-y-16 relative font-sans text-[#262523]">
       <GeometricGridBackground />
       
       {/* Header */}
       <div className="text-center max-w-3xl mx-auto space-y-4 relative z-10">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-mono font-bold tracking-wider uppercase">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-[2px] bg-[#DFDCD4] border border-[#CBC8BE] text-[#121212] text-xs font-mono font-bold tracking-wider uppercase">
           <BookOpen className="w-3.5 h-3.5" />
           ENTERPRISE KNOWLEDGE HUB
         </div>
-        <h1 className="text-4xl md:text-6xl font-extrabold text-slate-900 tracking-tight" style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
+        <h1 className="text-4xl md:text-6xl font-extrabold text-[#121212] tracking-tight">
           Claritiy Voice Research & Insights
         </h1>
-        <p className="text-slate-600 text-lg font-plus-jakarta leading-relaxed">
+        <p className="text-[#262523] text-lg leading-relaxed">
           Technical deep-dives, ROI benchmark studies, buyer guides, and operational strategies for scaling voice AI automation.
         </p>
       </div>
@@ -290,29 +293,29 @@ export default function BlogIndex({ setPage }: BlogIndexProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           onClick={() => setActiveArticleId(featuredArticle.id)}
-          className="bg-[#0B132B] text-white rounded-3xl p-8 md:p-12 shadow-2xl border border-slate-800 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center cursor-pointer group hover:border-emerald-500/50 transition-all relative z-10"
+          className="bg-[#EBE9E2] text-[#121212] rounded-[2px] p-8 md:p-12 border border-[#CBC8BE] grid grid-cols-1 lg:grid-cols-12 gap-8 items-center cursor-pointer group hover:border-[#121212] transition-colors relative z-10"
         >
           <div className="lg:col-span-8 space-y-4">
             <div className="flex items-center gap-3">
-              <span className="px-3 py-1 bg-emerald-500 text-black font-mono text-[10px] font-extrabold rounded-full uppercase tracking-wider">
+              <span className="px-3 py-1 bg-[#121212] text-white font-mono text-[10px] font-bold rounded-[2px] uppercase tracking-wider">
                 FEATURED RESEARCH
               </span>
-              <span className="text-xs font-mono text-slate-400">{featuredArticle.readTime}</span>
+              <span className="text-xs font-mono text-[#5E5D57]">{featuredArticle.readTime}</span>
             </div>
-            <h2 className="text-2xl md:text-4xl font-bold text-white group-hover:text-emerald-400 transition-colors" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+            <h2 className="text-2xl md:text-4xl font-bold text-[#121212] group-hover:underline transition-colors">
               {featuredArticle.title}
             </h2>
-            <p className="text-slate-300 text-sm md:text-base leading-relaxed font-plus-jakarta">
+            <p className="text-[#262523] text-sm md:text-base leading-relaxed">
               {featuredArticle.excerpt}
             </p>
-            <div className="flex items-center gap-4 text-xs font-mono text-slate-400 pt-2">
+            <div className="flex items-center gap-4 text-xs font-mono text-[#5E5D57] pt-2">
               <span>By {featuredArticle.author}</span>
               <span>•</span>
               <span>{featuredArticle.date}</span>
             </div>
           </div>
           <div className="lg:col-span-4 flex justify-end">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-500 text-black flex items-center justify-center group-hover:scale-110 transition-transform">
+            <div className="w-14 h-14 rounded-[2px] bg-[#121212] text-white flex items-center justify-center group-hover:scale-105 transition-transform">
               <ArrowRight className="w-6 h-6" />
             </div>
           </div>
@@ -325,10 +328,10 @@ export default function BlogIndex({ setPage }: BlogIndexProps) {
           <button
             key={cat}
             onClick={() => setSelectedCategory(cat)}
-            className={`px-4 py-2 rounded-xl text-xs font-mono font-bold transition-all whitespace-nowrap ${
+            className={`px-4 py-2 rounded-[2px] text-xs font-mono font-bold transition-colors whitespace-nowrap ${
               selectedCategory === cat
-                ? "bg-emerald-600 text-white shadow-md"
-                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                ? "bg-[#121212] text-white"
+                : "bg-[#DFDCD4] text-[#262523] border border-[#CBC8BE] hover:bg-[#D5D2C9]"
             }`}
           >
             {cat}
@@ -345,21 +348,21 @@ export default function BlogIndex({ setPage }: BlogIndexProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.05 }}
             onClick={() => setActiveArticleId(article.id)}
-            className="bg-white border border-[#EADEC9] rounded-3xl p-8 shadow-sm hover:shadow-xl hover:border-emerald-500/40 transition-all cursor-pointer flex flex-col justify-between group"
+            className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-8 hover:border-[#121212] transition-colors cursor-pointer flex flex-col justify-between group"
           >
             <div className="space-y-3">
-              <span className="text-[10px] font-mono font-bold text-emerald-600 uppercase tracking-widest block">
+              <span className="text-[10px] font-mono font-bold text-[#121212] uppercase tracking-widest block">
                 {article.category}
               </span>
-              <h3 className="text-xl font-bold text-slate-900 group-hover:text-emerald-600 transition-colors line-clamp-2" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+              <h3 className="text-xl font-bold text-[#121212] group-hover:underline transition-colors line-clamp-2">
                 {article.title}
               </h3>
-              <p className="text-slate-600 text-xs line-clamp-3 font-plus-jakarta leading-relaxed">
+              <p className="text-[#262523] text-xs line-clamp-3 leading-relaxed">
                 {article.excerpt}
               </p>
             </div>
             
-            <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 pt-6 border-t border-slate-100 mt-6">
+            <div className="flex items-center justify-between text-[11px] font-mono text-[#5E5D57] pt-6 border-t border-[#CBC8BE] mt-6">
               <span>{article.date}</span>
               <span>{article.readTime}</span>
             </div>
@@ -368,17 +371,17 @@ export default function BlogIndex({ setPage }: BlogIndexProps) {
       </div>
 
       {/* Newsletter Subscription Box */}
-      <section className="bg-[#0B132B] text-white rounded-3xl p-8 md:p-12 border border-slate-800 text-center space-y-4 relative z-10">
-        <h3 className="text-2xl md:text-3xl font-bold text-white" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+      <section className="bg-[#EBE9E2] text-[#121212] rounded-[2px] p-8 md:p-12 border border-[#CBC8BE] text-center space-y-4 relative z-10">
+        <h3 className="text-2xl md:text-3xl font-bold text-[#121212]">
           Subscribe To Enterprise Voice AI Research
         </h3>
-        <p className="text-slate-300 text-sm font-plus-jakarta max-w-xl mx-auto">
+        <p className="text-[#262523] text-sm max-w-xl mx-auto">
           Get weekly operational benchmarks, latency optimizations, and ROI case studies delivered straight to your inbox.
         </p>
 
         {subscribed ? (
-          <div className="p-4 bg-emerald-950 border border-emerald-800 text-emerald-400 font-mono text-xs font-bold rounded-2xl max-w-md mx-auto flex items-center justify-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          <div className="p-4 bg-[#DFDCD4] border border-[#CBC8BE] text-[#121212] font-mono text-xs font-bold rounded-[2px] max-w-md mx-auto flex items-center justify-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-[#121212]" />
             Thank you for subscribing to Claritiy Voice Insights!
           </div>
         ) : (
@@ -389,11 +392,11 @@ export default function BlogIndex({ setPage }: BlogIndexProps) {
               value={newsletterEmail}
               onChange={(e) => setNewsletterEmail(e.target.value)}
               placeholder="Enter your work email..."
-              className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-mono"
+              className="flex-1 bg-[#DFDCD4] border border-[#CBC8BE] rounded-[2px] px-4 py-3 text-xs text-[#121212] placeholder-[#737067] focus:outline-none focus:border-[#121212] font-mono"
             />
             <button
               type="submit"
-              className="py-3 px-6 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs rounded-xl transition-colors font-mono flex items-center justify-center gap-2"
+              className="py-3 px-6 bg-[#121212] hover:bg-black text-white font-mono text-xs uppercase tracking-wider font-bold rounded-[2px] transition-colors flex items-center justify-center gap-2 cursor-pointer"
             >
               Subscribe <Send className="w-3.5 h-3.5" />
             </button>

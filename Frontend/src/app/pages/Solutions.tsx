@@ -533,75 +533,65 @@ POST /dms/v2/service/book
   const currentSolution = solutions.find((s) => s.id === activeTab) || solutions[0];
 
   return (
-    <div className="space-y-24 pb-32 pt-28 bg-[#FFFDF9] min-h-screen relative font-plus-jakarta">
-      <GeometricGridBackground />
+    <div className="space-y-20 pb-32 pt-28 bg-[#E5E3DC] min-h-screen relative font-sans text-[#121212]">
       
       {/* ── Hero Section ────────────────────────────────────────────────── */}
       <section className="px-6 max-w-5xl mx-auto text-center space-y-6 relative z-10">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-mono font-bold tracking-wider uppercase shadow-sm"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
-          ENTERPRISE INDUSTRY SOLUTIONS & TEMPLATES
-        </motion.div>
+        <div className="hatched-strip h-10 w-full mb-8" />
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-[2px] bg-[#DFDCD4] border border-[#CBC8BE] text-[#121212] text-xs font-mono uppercase tracking-wider">
+          <span>|</span>
+          <span>Enterprise Industry Solutions & Templates</span>
+        </div>
         
         <motion.h1 
-          initial={{ opacity: 0, y: 25 }}
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-4xl md:text-6xl font-extrabold text-slate-900 tracking-tight leading-tight"
-          style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}
+          className="text-4xl md:text-5xl lg:text-6xl font-normal md:font-medium text-[#121212] tracking-tight leading-[1.08] font-sans"
         >
           Voice AI Engineered For Your Exact Business Operations
         </motion.h1>
 
         <motion.p 
-          initial={{ opacity: 0, y: 25 }}
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="text-slate-600 text-lg md:text-xl max-w-3xl mx-auto font-plus-jakarta leading-relaxed"
+          className="text-[#262523] text-base md:text-lg max-w-3xl mx-auto font-sans leading-relaxed"
         >
           Stop losing revenue to missed calls, high courier returns, or slow lead follow-ups. Explore 15 pre-built production templates with native regional accents, built-in regulatory guardrails, and real-time CRM webhooks.
         </motion.p>
 
         {/* Operational Highlights Pill Grid */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="pt-4 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-4xl mx-auto"
-        >
-          <div className="bg-white border border-[#E8E2D9] rounded-2xl p-4 text-center shadow-sm hover:border-emerald-500/40 transition-all">
-            <span className="text-2xl font-extrabold text-[#059669] font-mono block">40%</span>
-            <span className="text-xs text-slate-500 font-semibold">COD RTO Reduction</span>
+        <div className="pt-4 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-4xl mx-auto">
+          <div className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-4 text-center">
+            <span className="text-2xl font-bold text-[#121212] font-mono block">40%</span>
+            <span className="text-xs text-[#262523] font-mono">COD RTO Reduction</span>
           </div>
-          <div className="bg-white border border-[#E8E2D9] rounded-2xl p-4 text-center shadow-sm hover:border-emerald-500/40 transition-all">
-            <span className="text-2xl font-extrabold text-[#059669] font-mono block">&lt;180ms</span>
-            <span className="text-xs text-slate-500 font-semibold">Sub-Human Latency</span>
+          <div className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-4 text-center">
+            <span className="text-2xl font-bold text-[#121212] font-mono block">&lt;180ms</span>
+            <span className="text-xs text-[#262523] font-mono">Sub-Human Latency</span>
           </div>
-          <div className="bg-white border border-[#E8E2D9] rounded-2xl p-4 text-center shadow-sm hover:border-emerald-500/40 transition-all">
-            <span className="text-2xl font-extrabold text-[#059669] font-mono block">70+</span>
-            <span className="text-xs text-slate-500 font-semibold">Regional Dialects</span>
+          <div className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-4 text-center">
+            <span className="text-2xl font-bold text-[#121212] font-mono block">70+</span>
+            <span className="text-xs text-[#262523] font-mono">Regional Dialects</span>
           </div>
-          <div className="bg-white border border-[#E8E2D9] rounded-2xl p-4 text-center shadow-sm hover:border-emerald-500/40 transition-all">
-            <span className="text-2xl font-extrabold text-[#059669] font-mono block">15</span>
-            <span className="text-xs text-slate-500 font-semibold">Production Templates</span>
+          <div className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-4 text-center">
+            <span className="text-2xl font-bold text-[#121212] font-mono block">15</span>
+            <span className="text-xs text-[#262523] font-mono">Production Templates</span>
           </div>
-        </motion.div>
+        </div>
       </section>
 
       {/* ── FEATURED: 15 Production Templates Interactive Explorer ────────── */}
       <section className="px-6 max-w-7xl mx-auto relative z-10 space-y-8">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-6">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[#CBC8BE] pb-6">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-emerald-700 uppercase tracking-widest">
+            <div className="inline-flex items-center gap-1.5 text-xs font-mono text-[#121212] uppercase tracking-widest">
               <Bot className="w-4 h-4" /> READY-TO-DEPLOY PRODUCTION TEMPLATES
             </div>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+            <h2 className="text-3xl md:text-4xl font-normal md:font-medium text-[#121212] font-sans tracking-tight">
               Explore Pre-Configured Agent Architectures
             </h2>
-            <p className="text-slate-500 text-sm max-w-2xl">
+            <p className="text-[#262523] text-sm max-w-2xl font-sans">
               Each template contains pre-tested conversational flowgraphs or system prompt guardrails designed for high-stakes business calls.
             </p>
           </div>
@@ -609,7 +599,7 @@ POST /dms/v2/service/book
           <div className="flex items-center gap-2">
             <button
               onClick={() => setPage("dashboard")}
-              className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-2 transition-all shadow-md"
+              className="px-5 py-2.5 rounded-[2px] bg-[#121212] hover:bg-black text-white font-mono uppercase tracking-wider text-xs flex items-center gap-2 transition-colors cursor-pointer font-medium"
             >
               Open Studio Builder <ArrowRight className="w-3.5 h-3.5" />
             </button>
@@ -622,10 +612,10 @@ POST /dms/v2/service/book
             <button
               key={cat}
               onClick={() => setTemplateCategoryFilter(cat)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+              className={`px-3.5 py-1.5 rounded-[2px] text-xs font-mono uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${
                 templateCategoryFilter === cat
-                  ? "bg-emerald-600 text-white shadow-sm"
-                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                  ? "bg-[#121212] text-white border border-[#121212]"
+                  : "bg-[#DFDCD4] text-[#121212] hover:bg-[#D5D1C7] border border-[#CBC8BE]"
               }`}
             >
               {cat}
@@ -634,7 +624,7 @@ POST /dms/v2/service/book
         </div>
 
         {/* Templates Grid & Live Inspector */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Left Column: Template Cards List */}
           <div className="lg:col-span-5 space-y-3 max-h-[640px] overflow-y-auto pr-1">
             {filteredTemplates.map((tpl) => {
@@ -643,26 +633,26 @@ POST /dms/v2/service/book
                 <div
                   key={tpl.id}
                   onClick={() => setSelectedTemplate(tpl)}
-                  className={`p-5 rounded-2xl border transition-all cursor-pointer text-left ${
+                  className={`p-5 rounded-[2px] border transition-all cursor-pointer text-left ${
                     isSelected
-                      ? "bg-white border-emerald-500 shadow-md ring-2 ring-emerald-500/10"
-                      : "bg-white/80 border-[#E8E2D9] hover:border-slate-300 hover:bg-white"
+                      ? "bg-[#DFDCD4] border-[#121212] ring-1 ring-[#121212] shadow-sm"
+                      : "bg-[#EBE9E2] border-[#CBC8BE] hover:border-[#9C998F]"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3 mb-2">
-                    <span className="font-extrabold text-sm text-[#0D1117]">{tpl.name}</span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-md font-bold bg-slate-100 text-slate-600 flex-shrink-0">
+                    <span className="font-medium text-sm text-[#121212] font-sans">{tpl.name}</span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-[1px] font-bold bg-[#DFDCD4] text-[#121212] border border-[#CBC8BE] flex-shrink-0">
                       {tpl.impactMetric}
                     </span>
                   </div>
 
-                  <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed mb-3">
+                  <p className="text-xs text-[#262523] line-clamp-2 leading-relaxed mb-3 font-sans">
                     {tpl.problemSolved}
                   </p>
 
-                  <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 border-t border-slate-100 pt-2.5">
-                    <span className="text-emerald-700 font-semibold">{tpl.persona.split("•")[0].trim()}</span>
-                    <span className="text-slate-500">{tpl.type}</span>
+                  <div className="flex items-center justify-between text-[11px] font-mono text-[#262523] border-t border-[#CBC8BE] pt-2.5">
+                    <span className="text-[#121212] font-semibold">{tpl.persona.split("•")[0].trim()}</span>
+                    <span>{tpl.type}</span>
                   </div>
                 </div>
               );
@@ -670,21 +660,21 @@ POST /dms/v2/service/book
           </div>
 
           {/* Right Column: Template Detailed Inspector */}
-          <div className="lg:col-span-7 bg-white rounded-3xl border border-[#E8E2D9] p-7 md:p-9 shadow-xl space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-5">
+          <div className="lg:col-span-7 bg-[#EBE9E2] rounded-[2px] border border-[#CBC8BE] p-7 md:p-9 space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#CBC8BE] pb-5">
               <div>
-                <span className="text-[11px] font-mono font-bold text-emerald-600 uppercase tracking-wider block">
-                  {selectedTemplate.category} • {selectedTemplate.type}
+                <span className="text-[11px] font-mono font-medium text-[#121212] uppercase tracking-wider block">
+                  {selectedTemplate.category} · {selectedTemplate.type}
                 </span>
-                <h3 className="text-2xl font-extrabold text-slate-900 mt-1" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+                <h3 className="text-2xl font-medium text-[#121212] mt-1 font-sans tracking-tight">
                   {selectedTemplate.name}
                 </h3>
-                <p className="text-xs text-slate-500 font-semibold mt-0.5">{selectedTemplate.persona}</p>
+                <p className="text-xs text-[#262523] font-mono mt-0.5">{selectedTemplate.persona}</p>
               </div>
 
               <button
                 onClick={() => setPage("dashboard")}
-                className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5 shadow-sm"
+                className="px-4 py-2.5 bg-[#121212] hover:bg-black text-white font-mono uppercase tracking-wider text-xs rounded-[2px] transition-colors flex items-center gap-1.5 cursor-pointer font-medium"
               >
                 Deploy in Studio <ArrowRight className="w-3.5 h-3.5" />
               </button>
@@ -692,23 +682,23 @@ POST /dms/v2/service/book
 
             {/* Why This Matters / Problem Solved */}
             <div className="space-y-2">
-              <h4 className="text-xs font-mono font-bold text-slate-500 uppercase tracking-wider">
+              <h4 className="text-xs font-mono font-medium text-[#121212] uppercase tracking-wider">
                 OPERATIONAL PROBLEM SOLVED:
               </h4>
-              <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+              <p className="text-sm text-[#262523] leading-relaxed bg-[#DFDCD4] p-3.5 rounded-[2px] border border-[#CBC8BE] font-sans">
                 {selectedTemplate.problemSolved}
               </p>
             </div>
 
             {/* Operational Guardrails */}
             <div className="space-y-2.5">
-              <h4 className="text-xs font-mono font-bold text-slate-500 uppercase tracking-wider">
+              <h4 className="text-xs font-mono font-medium text-[#121212] uppercase tracking-wider">
                 BUILT-IN ENTERPRISE GUARDRAILS:
               </h4>
               <div className="space-y-1.5">
                 {selectedTemplate.guardrails.map((gr, idx) => (
-                  <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-700">
-                    <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  <div key={idx} className="flex items-start gap-2.5 text-xs text-[#121212] font-sans">
+                    <ShieldCheck className="w-4 h-4 text-[#121212] flex-shrink-0 mt-0.5" />
                     <span>{gr}</span>
                   </div>
                 ))}
@@ -718,30 +708,30 @@ POST /dms/v2/service/book
             {/* Live Conversation Simulation */}
             <div className="space-y-2.5 pt-2">
               <div className="flex items-center justify-between">
-                <h4 className="text-xs font-mono font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                  <MessageSquare className="w-3.5 h-3.5 text-emerald-600" /> LIVE DIALOGUE SIMULATION:
+                <h4 className="text-xs font-mono font-medium text-[#121212] uppercase tracking-wider flex items-center gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5 text-[#121212]" /> LIVE DIALOGUE SIMULATION:
                 </h4>
-                <span className="text-[10px] font-mono text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                <span className="text-[10px] font-mono text-[#121212] font-medium bg-[#DFDCD4] px-2 py-0.5 rounded-[1px] border border-[#CBC8BE]">
                   LATENCY &lt; 180MS
                 </span>
               </div>
 
-              <div className="space-y-2 bg-slate-900 text-white p-4 rounded-2xl border border-slate-800 text-xs shadow-inner">
+              <div className="space-y-2 bg-[#DFDCD4] text-[#121212] p-4 rounded-[2px] border border-[#CBC8BE] text-xs">
                 {selectedTemplate.sampleDialogue.map((turn, idx) => {
                   const isAgent = turn.speaker.includes("AI") || turn.speaker.includes("Agent") || turn.speaker.includes("Voice");
                   return (
                     <div
                       key={idx}
-                      className={`p-2.5 rounded-xl space-y-1 ${
+                      className={`p-2.5 rounded-[2px] space-y-1 ${
                         isAgent
-                          ? "bg-slate-800 text-slate-200 border border-slate-700"
-                          : "bg-emerald-950/70 text-emerald-200 border border-emerald-800 ml-4"
+                          ? "bg-[#EBE9E2] text-[#121212] border border-[#CBC8BE]"
+                          : "bg-[#E5E3DC] text-[#121212] border border-[#CBC8BE] ml-4"
                       }`}
                     >
-                      <span className={`text-[10px] font-mono font-bold block ${isAgent ? "text-emerald-400" : "text-amber-300"}`}>
+                      <span className="text-[10px] font-mono font-bold block text-[#121212]">
                         {turn.speaker}
                       </span>
-                      <p className="leading-relaxed">{turn.text}</p>
+                      <p className="leading-relaxed font-sans">{turn.text}</p>
                     </div>
                   );
                 })}
@@ -754,19 +744,19 @@ POST /dms/v2/service/book
       {/* ── Industry Deep-Dive Section with Unified Inspector ───────────── */}
       <section className="px-6 max-w-7xl mx-auto relative z-10 space-y-8">
         <div className="text-center max-w-3xl mx-auto space-y-3">
-          <span className="text-xs font-mono font-bold text-emerald-700 uppercase tracking-widest">
-            INDUSTRY ARCHITECTURE & WORKFLOWS
+          <span className="text-xs font-mono text-[#121212] uppercase tracking-widest">
+            | INDUSTRY ARCHITECTURE & WORKFLOWS
           </span>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+          <h2 className="text-3xl md:text-4xl font-normal md:font-medium text-[#121212] font-sans tracking-tight">
             Operational Blueprints Across Verticals
           </h2>
-          <p className="text-slate-500 text-sm">
+          <p className="text-[#262523] text-sm font-sans">
             Select an industry below to review how Claritiy Voice handles customer conversations, live event triggers, and backend CRM integration schemas.
           </p>
         </div>
 
         {/* Industry Switcher Buttons */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-4 justify-start md:justify-center border-b border-slate-200">
+        <div className="flex items-center gap-2 overflow-x-auto pb-4 justify-start md:justify-center border-b border-[#CBC8BE]">
           {solutions.map((s) => {
             const Icon = s.icon;
             const isActive = activeTab === s.id;
@@ -777,13 +767,13 @@ POST /dms/v2/service/book
                   setActiveTab(s.id);
                   setInspectorMode("dialogue");
                 }}
-                className={`px-4 py-3 rounded-2xl font-bold text-xs transition-all flex items-center gap-2 whitespace-nowrap border cursor-pointer ${
+                className={`px-3.5 py-2 rounded-[2px] font-mono text-xs uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap border cursor-pointer ${
                   isActive
-                    ? "bg-slate-900 text-white border-slate-900 shadow-lg"
-                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900"
+                    ? "bg-[#121212] text-white border-[#121212]"
+                    : "bg-[#DFDCD4] text-[#121212] border-[#CBC8BE] hover:bg-[#D5D1C7]"
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? "text-emerald-400" : "text-slate-500"}`} />
+                <Icon className="w-3.5 h-3.5" />
                 <span>{s.name}</span>
               </button>
             );
@@ -791,186 +781,177 @@ POST /dms/v2/service/book
         </div>
 
         {/* Selected Industry Card with Unified Multi-Tab Inspector */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentSolution.id}
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.25 }}
-            className="bg-white border border-[#EADEC9] rounded-3xl p-8 md:p-12 shadow-xl grid grid-cols-1 lg:grid-cols-12 gap-10 items-start"
-          >
-            {/* Left Content Column */}
-            <div className="lg:col-span-7 space-y-6">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 font-mono text-xs font-bold border border-emerald-200">
-                <span>BENCHMARK IMPACT: {currentSolution.metric}</span>
-              </div>
-              
-              <h2 className="text-3xl font-extrabold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
-                {currentSolution.tagline}
-              </h2>
-              
-              <p className="text-slate-600 leading-relaxed font-plus-jakarta text-base">
-                {currentSolution.summary}
-              </p>
+        <div className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-8 md:p-12 grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+          {/* Left Content Column */}
+          <div className="lg:col-span-7 space-y-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-[2px] bg-[#DFDCD4] text-[#121212] font-mono text-xs border border-[#CBC8BE]">
+              <span>BENCHMARK IMPACT: {currentSolution.metric}</span>
+            </div>
+            
+            <h2 className="text-3xl font-medium text-[#121212] font-sans tracking-tight">
+              {currentSolution.tagline}
+            </h2>
+            
+            <p className="text-[#262523] leading-relaxed font-sans text-base">
+              {currentSolution.summary}
+            </p>
 
-              {/* Core Use Cases */}
-              <div className="space-y-3 pt-2">
-                <h4 className="font-mono text-xs font-bold uppercase tracking-wider text-slate-500">
-                  CORE AUTOMATED USE CASES
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {currentSolution.useCases.map((uc) => (
-                    <div key={uc} className="flex items-center gap-2 text-xs font-semibold text-slate-800 bg-slate-50 p-2.5 rounded-xl border border-slate-100 font-plus-jakarta">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                      <span>{uc}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Integrations & Triggers */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-100 font-mono text-xs">
-                <div>
-                  <span className="text-slate-400 block mb-1">EVENT TRIGGERS:</span>
-                  <div className="flex flex-wrap gap-1">
-                    {currentSolution.triggers.map((t) => (
-                      <span key={t} className="px-2 py-1 bg-slate-100 text-slate-700 rounded-md">{t}</span>
-                    ))}
+            {/* Core Use Cases */}
+            <div className="space-y-3 pt-2">
+              <h4 className="font-mono text-xs uppercase tracking-wider text-[#121212]">
+                CORE AUTOMATED USE CASES
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {currentSolution.useCases.map((uc) => (
+                  <div key={uc} className="flex items-center gap-2 text-xs text-[#121212] bg-[#DFDCD4] p-2.5 rounded-[2px] border border-[#CBC8BE] font-sans">
+                    <CheckCircle2 className="w-4 h-4 text-[#121212] flex-shrink-0" />
+                    <span>{uc}</span>
                   </div>
-                </div>
-                <div>
-                  <span className="text-slate-400 block mb-1">COMPATIBLE INTEGRATIONS:</span>
-                  <div className="flex flex-wrap gap-1">
-                    {currentSolution.integrations.map((i) => (
-                      <span key={i} className="px-2.5 py-1 bg-emerald-50 text-emerald-800 rounded-md border border-emerald-200">{i}</span>
-                    ))}
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
 
-            {/* Right Interactive Inspector Column */}
-            <div className="lg:col-span-5 bg-slate-900 text-white rounded-2xl p-6 border border-slate-800 space-y-4">
-              {/* Contextual Sub-Tab Switcher */}
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
-                  <button
-                    onClick={() => setInspectorMode("dialogue")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1 ${
-                      inspectorMode === "dialogue"
-                        ? "bg-emerald-500 text-black shadow-sm"
-                        : "text-slate-400 hover:text-white"
-                    }`}
-                  >
-                    <MessageSquare className="w-3.5 h-3.5" /> Call Dialogue
-                  </button>
-                  <button
-                    onClick={() => setInspectorMode("schema")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1 ${
-                      inspectorMode === "schema"
-                        ? "bg-emerald-500 text-black shadow-sm"
-                        : "text-slate-400 hover:text-white"
-                    }`}
-                  >
-                    <Code2 className="w-3.5 h-3.5" /> API Schema
-                  </button>
-                  <button
-                    onClick={() => setInspectorMode("metrics")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center gap-1 ${
-                      inspectorMode === "metrics"
-                        ? "bg-emerald-500 text-black shadow-sm"
-                        : "text-slate-400 hover:text-white"
-                    }`}
-                  >
-                    <Activity className="w-3.5 h-3.5" /> Telemetry
-                  </button>
-                </div>
-
-                <span className="font-mono text-[10px] text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
-                  LIVE DEMO
-                </span>
-              </div>
-
-              {/* Sub-Tab 1: Dialogue Simulation */}
-              {inspectorMode === "dialogue" && (
-                <div className="space-y-3 font-sans text-xs">
-                  {currentSolution.transcript.map((line, idx) => (
-                    <div
-                      key={idx}
-                      className={`p-3 rounded-xl space-y-1 ${
-                        line.speaker === "agent"
-                          ? "bg-slate-800 border border-slate-700 text-slate-200"
-                          : "bg-emerald-950/60 border border-emerald-800/60 text-emerald-200 ml-4"
-                      }`}
-                    >
-                      <div className="flex justify-between items-center font-mono text-[10px] text-slate-400">
-                        <span className={line.speaker === "agent" ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
-                          {line.speaker === "agent" ? "Claritiy Voice Agent" : "Customer"}
-                        </span>
-                      </div>
-                      <p className="leading-relaxed font-medium">{line.text}</p>
-                    </div>
+            {/* Integrations & Triggers */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-[#CBC8BE] font-mono text-xs">
+              <div>
+                <span className="text-[#262523] block mb-1">EVENT TRIGGERS:</span>
+                <div className="flex flex-wrap gap-1">
+                  {currentSolution.triggers.map((t) => (
+                    <span key={t} className="px-2 py-0.5 bg-[#DFDCD4] border border-[#CBC8BE] text-[#121212] rounded-[1px]">{t}</span>
                   ))}
                 </div>
-              )}
-
-              {/* Sub-Tab 2: Webhook Schema */}
-              {inspectorMode === "schema" && (
-                <div className="space-y-2">
-                  <pre className="text-slate-300 font-mono text-[11px] bg-slate-950 p-4 rounded-xl border border-slate-800 overflow-x-auto leading-relaxed max-h-72">
-                    {currentSolution.techSchema}
-                  </pre>
-                  <p className="text-[11px] text-slate-400 font-mono">
-                    Post-back webhook delivered via TLS 1.3 with HMAC cryptographic signature.
-                  </p>
+              </div>
+              <div>
+                <span className="text-[#262523] block mb-1">COMPATIBLE INTEGRATIONS:</span>
+                <div className="flex flex-wrap gap-1">
+                  {currentSolution.integrations.map((i) => (
+                    <span key={i} className="px-2 py-0.5 bg-[#DFDCD4] text-[#121212] rounded-[1px] border border-[#CBC8BE]">{i}</span>
+                  ))}
                 </div>
-              )}
-
-              {/* Sub-Tab 3: Telemetry & Latency */}
-              {inspectorMode === "metrics" && (
-                <div className="grid grid-cols-2 gap-3 font-mono text-xs">
-                  <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1">
-                    <span className="text-[10px] text-slate-500 uppercase block">ROUNDTRIP LATENCY</span>
-                    <span className="text-emerald-400 font-bold text-sm block">{currentSolution.metricsData.latency}</span>
-                    <span className="text-[10px] text-slate-400 block">Edge ingress node</span>
-                  </div>
-                  <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1">
-                    <span className="text-[10px] text-slate-500 uppercase block">CONCURRENCY BUDGET</span>
-                    <span className="text-white font-bold text-sm block">{currentSolution.metricsData.concurrency}</span>
-                    <span className="text-[10px] text-slate-400 block">Auto-scaling SIP trunks</span>
-                  </div>
-                  <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1">
-                    <span className="text-[10px] text-slate-500 uppercase block">RESOLUTION RATE</span>
-                    <span className="text-emerald-400 font-bold text-sm block">{currentSolution.metricsData.successRate}</span>
-                    <span className="text-[10px] text-slate-400 block">Without human agent transfer</span>
-                  </div>
-                  <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1">
-                    <span className="text-[10px] text-slate-500 uppercase block">AUDIO PROTOCOL</span>
-                    <span className="text-white font-bold text-sm block">{currentSolution.metricsData.format}</span>
-                    <span className="text-[10px] text-slate-400 block">Full duplex WebRTC</span>
-                  </div>
-                </div>
-              )}
-
-              <button
-                onClick={() => setPage("dashboard")}
-                className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-bold font-sans rounded-xl transition-colors flex items-center justify-center gap-2 text-xs shadow-sm cursor-pointer"
-              >
-                Test This Solution In Dashboard <ArrowRight className="w-4 h-4" />
-              </button>
+              </div>
             </div>
-          </motion.div>
-        </AnimatePresence>
+          </div>
+
+          {/* Right Interactive Inspector Column */}
+          <div className="lg:col-span-5 bg-[#DFDCD4] text-[#121212] rounded-[2px] p-6 border border-[#CBC8BE] space-y-4">
+            {/* Contextual Sub-Tab Switcher */}
+            <div className="flex items-center justify-between border-b border-[#CBC8BE] pb-3">
+              <div className="flex items-center gap-1.5 bg-[#EBE9E2] p-1 rounded-[2px] border border-[#CBC8BE]">
+                <button
+                  onClick={() => setInspectorMode("dialogue")}
+                  className={`px-3 py-1 rounded-[1px] text-xs font-mono transition-all flex items-center gap-1 cursor-pointer ${
+                    inspectorMode === "dialogue"
+                      ? "bg-[#121212] text-white"
+                      : "text-[#262523] hover:text-[#121212]"
+                  }`}
+                >
+                  <MessageSquare className="w-3.5 h-3.5" /> Call Dialogue
+                </button>
+                <button
+                  onClick={() => setInspectorMode("schema")}
+                  className={`px-3 py-1 rounded-[1px] text-xs font-mono transition-all flex items-center gap-1 cursor-pointer ${
+                    inspectorMode === "schema"
+                      ? "bg-[#121212] text-white"
+                      : "text-[#262523] hover:text-[#121212]"
+                  }`}
+                >
+                  <Code2 className="w-3.5 h-3.5" /> API Schema
+                </button>
+                <button
+                  onClick={() => setInspectorMode("metrics")}
+                  className={`px-3 py-1 rounded-[1px] text-xs font-mono transition-all flex items-center gap-1 cursor-pointer ${
+                    inspectorMode === "metrics"
+                      ? "bg-[#121212] text-white"
+                      : "text-[#262523] hover:text-[#121212]"
+                  }`}
+                >
+                  <Activity className="w-3.5 h-3.5" /> Telemetry
+                </button>
+              </div>
+
+              <span className="font-mono text-[10px] text-[#121212] bg-[#EBE9E2] px-2 py-0.5 rounded-[1px] border border-[#CBC8BE]">
+                LIVE DEMO
+              </span>
+            </div>
+
+            {/* Sub-Tab 1: Dialogue Simulation */}
+            {inspectorMode === "dialogue" && (
+              <div className="space-y-3 font-sans text-xs">
+                {currentSolution.transcript.map((line, idx) => (
+                  <div
+                    key={idx}
+                    className={`p-3 rounded-[2px] space-y-1 ${
+                      line.speaker === "agent"
+                        ? "bg-[#EBE9E2] border border-[#CBC8BE] text-[#121212]"
+                        : "bg-[#E5E3DC] border border-[#CBC8BE] text-[#121212] ml-4"
+                    }`}
+                  >
+                    <div className="flex justify-between items-center font-mono text-[10px] text-[#262523]">
+                      <span className="font-bold text-[#121212]">
+                        {line.speaker === "agent" ? "Claritiy Voice Agent" : "Customer"}
+                      </span>
+                    </div>
+                    <p className="leading-relaxed font-sans">{line.text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Sub-Tab 2: Webhook Schema */}
+            {inspectorMode === "schema" && (
+              <div className="space-y-2">
+                <pre className="text-[#121212] font-mono text-[11px] bg-[#EBE9E2] p-4 rounded-[2px] border border-[#CBC8BE] overflow-x-auto leading-relaxed max-h-72">
+                  {currentSolution.techSchema}
+                </pre>
+                <p className="text-[11px] text-[#262523] font-mono">
+                  Post-back webhook delivered via TLS 1.3 with HMAC cryptographic signature.
+                </p>
+              </div>
+            )}
+
+            {/* Sub-Tab 3: Telemetry & Latency */}
+            {inspectorMode === "metrics" && (
+              <div className="grid grid-cols-2 gap-3 font-mono text-xs">
+                <div className="bg-[#EBE9E2] p-3.5 rounded-[2px] border border-[#CBC8BE] space-y-1">
+                  <span className="text-[10px] text-[#262523] uppercase block">ROUNDTRIP LATENCY</span>
+                  <span className="text-[#121212] font-bold text-sm block">{currentSolution.metricsData.latency}</span>
+                  <span className="text-[10px] text-[#262523] block">Edge ingress node</span>
+                </div>
+                <div className="bg-[#EBE9E2] p-3.5 rounded-[2px] border border-[#CBC8BE] space-y-1">
+                  <span className="text-[10px] text-[#262523] uppercase block">CONCURRENCY BUDGET</span>
+                  <span className="text-[#121212] font-bold text-sm block">{currentSolution.metricsData.concurrency}</span>
+                  <span className="text-[10px] text-[#262523] block">Auto-scaling SIP trunks</span>
+                </div>
+                <div className="bg-[#EBE9E2] p-3.5 rounded-[2px] border border-[#CBC8BE] space-y-1">
+                  <span className="text-[10px] text-[#262523] uppercase block">RESOLUTION RATE</span>
+                  <span className="text-[#121212] font-bold text-sm block">{currentSolution.metricsData.successRate}</span>
+                  <span className="text-[10px] text-[#262523] block">Without human agent transfer</span>
+                </div>
+                <div className="bg-[#EBE9E2] p-3.5 rounded-[2px] border border-[#CBC8BE] space-y-1">
+                  <span className="text-[10px] text-[#262523] uppercase block">AUDIO PROTOCOL</span>
+                  <span className="text-[#121212] font-bold text-sm block">{currentSolution.metricsData.format}</span>
+                  <span className="text-[10px] text-[#262523] block">Full duplex WebRTC</span>
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={() => setPage("dashboard")}
+              className="w-full py-3 bg-[#121212] hover:bg-black text-white font-mono uppercase tracking-wider rounded-[2px] transition-colors flex items-center justify-center gap-2 text-xs cursor-pointer font-medium"
+            >
+              Test This Solution In Dashboard <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
       </section>
 
       {/* ── All Covered Verticals Grid ──────────────────────────────────── */}
       <section className="px-6 max-w-7xl mx-auto relative z-10 space-y-8">
         <div className="text-center max-w-3xl mx-auto space-y-3">
-          <span className="text-xs font-mono font-bold text-emerald-600 uppercase tracking-widest">
-            ALL COVERED VERTICALS
+          <span className="text-xs font-mono text-[#121212] uppercase tracking-widest">
+            | ALL COVERED VERTICALS
           </span>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+          <h2 className="text-3xl md:text-4xl font-normal md:font-medium text-[#121212] font-sans tracking-tight">
             Pre-Built Agent Templates For 12 Verticals
           </h2>
         </div>
@@ -979,24 +960,23 @@ POST /dms/v2/service/book
 
       {/* ── Bottom Callout ──────────────────────────────────────────────── */}
       <section className="px-6 max-w-5xl mx-auto relative z-10">
-        <div className="bg-[#0B132B] text-white rounded-3xl p-10 md:p-16 text-center space-y-6 border border-slate-800 shadow-2xl relative overflow-hidden">
-          <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-          <h2 className="text-3xl md:text-5xl font-extrabold" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+        <div className="bg-[#EBE9E2] text-[#121212] rounded-[2px] p-8 md:p-12 text-center space-y-6 border border-[#CBC8BE]">
+          <h2 className="text-3xl md:text-4xl font-normal md:font-medium text-[#121212] font-sans tracking-tight">
             Deploy Your First Production Agent in 10 Minutes
           </h2>
-          <p className="text-slate-300 max-w-2xl mx-auto text-base font-plus-jakarta">
+          <p className="text-[#262523] max-w-2xl mx-auto text-sm sm:text-base font-sans leading-relaxed">
             Connect your phone number, select a production template, and launch with zero upfront engineering overhead.
           </p>
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10">
             <button
               onClick={() => setPage("dashboard")}
-              className="py-4 px-8 text-base bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl inline-flex items-center gap-2 transition-all shadow-lg cursor-pointer"
+              className="py-3 px-8 text-xs font-mono uppercase tracking-wider bg-[#121212] hover:bg-black text-white font-medium rounded-[2px] inline-flex items-center gap-2 transition-colors cursor-pointer"
             >
-              Start Free in Sandbox <ArrowRight className="w-5 h-5" />
+              Start Free in Sandbox <ArrowRight className="w-4 h-4" />
             </button>
             <button
               onClick={() => setPage("contact")}
-              className="py-4 px-8 text-base bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl inline-flex items-center gap-2 transition-all border border-slate-700 cursor-pointer"
+              className="py-3 px-8 text-xs font-mono uppercase tracking-wider bg-[#DFDCD4] hover:bg-[#D5D1C7] text-[#121212] font-medium rounded-[2px] inline-flex items-center gap-2 border border-[#CBC8BE] cursor-pointer transition-colors"
             >
               Book Architecture Review
             </button>

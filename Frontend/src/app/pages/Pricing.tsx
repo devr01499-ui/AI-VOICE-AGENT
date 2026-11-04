@@ -17,24 +17,6 @@ interface PricingProps {
   isDashboard?: boolean;
 }
 
-// ── SVG Geometric Background Accent ─────────────────────────────────────────────
-function GeometricGridBackground() {
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-20 z-0">
-      <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
-        <defs>
-          <pattern id="grid-pricing" width="40" height="40" patternUnits="userSpaceOnUse">
-            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#059669" strokeWidth="0.5" strokeDasharray="2,2" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid-pricing)" />
-      </svg>
-    </div>
-  );
-}
-
-
-
 export default function Pricing({ setPage, isDashboard }: PricingProps) {
   const [purchasingPlan, setPurchasingPlan] = useState<string | null>(null);
 
@@ -131,7 +113,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
           email: profileEmail || '',
         },
         theme: {
-          color: '#059669',
+          color: '#121212',
         },
         handler: async function (response: any) {
           try {
@@ -202,66 +184,62 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
   }, []);
 
   return (
-    <div className={`${isDashboard ? "space-y-12 pb-12 pt-4 bg-transparent font-plus-jakarta" : "space-y-24 pb-32 pt-28 bg-[#FFFDF9] min-h-screen relative font-plus-jakarta"}`}>
-      {!isDashboard && <GeometricGridBackground />}
-
+    <div className={`${isDashboard ? "space-y-12 pb-12 pt-4 bg-transparent font-sans" : "space-y-20 pb-32 pt-28 bg-[#E5E3DC] min-h-screen relative font-sans text-[#121212]"}`}>
+      
       {!isDashboard && (
         <section className="px-6 max-w-5xl mx-auto text-center space-y-6 relative z-10">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-mono font-bold tracking-wider uppercase shadow-sm">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
-            TRANSPARENT ENTERPRISE PRICING
+          <div className="hatched-strip h-10 w-full mb-8" />
+          
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-[2px] bg-[#DFDCD4] border border-[#CBC8BE] text-[#121212] text-xs font-mono uppercase tracking-wider">
+            <span>|</span>
+            <span>Transparent Flat-Rate Economics</span>
           </div>
 
           <motion.h1 
-            initial={{ opacity: 0, y: 25 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-4xl md:text-6xl font-extrabold text-slate-900 tracking-tight leading-tight"
-            style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}
+            className="text-4xl md:text-5xl lg:text-6xl font-normal md:font-medium text-[#121212] tracking-tight leading-[1.08] font-sans"
           >
             Predictable Bundled Plans & Flat-Rate Economics
           </motion.h1>
 
           <motion.p 
-            initial={{ opacity: 0, y: 25 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="text-slate-600 text-lg md:text-xl max-w-3xl mx-auto font-plus-jakarta leading-relaxed"
+            className="text-[#262523] text-base md:text-lg max-w-3xl mx-auto font-sans leading-relaxed"
           >
             One unified price per minute. No stacked line-item fees for speech recognition, LLM reasoning, or neural voice synthesis.
           </motion.p>
         </section>
       )}
 
-
-
       {/* ── 3 Main Plan Cards Grid ───────────────────────────────────────── */}
       <section className="px-6 max-w-7xl mx-auto relative z-10">
         <div className="text-center max-w-3xl mx-auto mb-12 space-y-3">
-          <span className="text-xs font-mono font-bold text-emerald-700 uppercase tracking-widest">
-            PLANS & BUNDLED MINUTES
+          <span className="text-xs font-mono text-[#121212] uppercase tracking-widest">
+            | PLANS & BUNDLED MINUTES
           </span>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+          <h2 className="text-3xl md:text-4xl font-normal md:font-medium text-[#121212] font-sans tracking-tight">
             Choose The Capacity That Fits Your Operations
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Startup Plan */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-white border border-[#E8E2D9] rounded-3xl p-8 flex flex-col justify-between shadow-sm hover:shadow-xl hover:border-slate-300 transition-all"
-          >
+          <div className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-8 flex flex-col justify-between hover:border-[#9C998F] transition-colors">
             <div>
-              <h3 className="font-bold text-xl text-slate-900 mb-1" style={{ fontFamily: "'Clash Display', sans-serif" }}>Startup Plan</h3>
-              <p className="text-xs text-slate-500 mb-6 font-plus-jakarta">For growing businesses testing AI voice automation.</p>
-              <div className="mb-6">
-                <span className="text-4xl font-extrabold text-slate-900 font-mono">₹3,799</span>
-                <span className="text-xs text-slate-500 font-bold"> / month</span>
-                <p className="text-xs font-mono font-bold text-emerald-700 mt-1">1,000 Bundled Mins (₹3.79/min effective)</p>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-medium text-xl text-[#121212] font-sans">Startup Plan</h3>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-[#262523] bg-[#DFDCD4] border border-[#CBC8BE] px-2 py-0.5 rounded-[1px]">Entry</span>
               </div>
-              <ul className="space-y-3 mb-8 text-xs text-slate-700 font-semibold font-plus-jakarta">
+              <p className="text-xs text-[#262523] mb-6 font-sans">For growing businesses testing AI voice automation.</p>
+              <div className="mb-6">
+                <span className="text-4xl font-bold text-[#121212] font-mono">₹3,799</span>
+                <span className="text-xs text-[#262523] font-mono"> / month</span>
+                <p className="text-xs font-mono font-medium text-[#121212] mt-1">1,000 Bundled Mins (₹3.79/min effective)</p>
+              </div>
+              <ul className="space-y-3 mb-8 text-xs text-[#121212] font-sans">
                 {[
                   '1,000 Bundled Calling Minutes (₹3.79/min overage)',
                   'Access to All 15 Pre-Built Templates',
@@ -271,7 +249,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
                   'Email & Community Support'
                 ].map(f => (
                   <li key={f} className="flex items-center gap-2.5">
-                    <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" /> <span>{f}</span>
+                    <Check className="w-4 h-4 text-[#121212] flex-shrink-0" /> <span>{f}</span>
                   </li>
                 ))}
               </ul>
@@ -279,31 +257,29 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
             <button 
               onClick={() => handlePurchase("Startup", 3799)} 
               disabled={purchasingPlan === "Startup"}
-              className="py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors w-full flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+              className="py-3 px-4 bg-[#121212] hover:bg-black text-white font-mono uppercase tracking-wider text-xs rounded-[2px] transition-colors w-full flex items-center justify-center gap-2 cursor-pointer font-medium"
             >
               {purchasingPlan === "Startup" ? <Loader2 className="w-4 h-4 animate-spin" /> : "Purchase Startup Plan"}
             </button>
-          </motion.div>
+          </div>
 
           {/* Growth Plan */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="bg-slate-900 text-white border border-slate-800 rounded-3xl p-8 flex flex-col justify-between relative shadow-2xl ring-2 ring-emerald-500/20"
-          >
-            <div className="absolute -top-3 right-6 bg-emerald-500 text-black text-[10px] font-mono font-extrabold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
+          <div className="bg-[#DFDCD4] border-2 border-[#121212] rounded-[2px] p-8 flex flex-col justify-between relative shadow-sm">
+            <div className="absolute -top-3 right-6 bg-[#121212] text-white text-[10px] font-mono font-bold px-3 py-1 rounded-[1px] uppercase tracking-wider">
               MOST POPULAR
             </div>
             <div>
-              <h3 className="font-bold text-xl text-white mb-1" style={{ fontFamily: "'Clash Display', sans-serif" }}>Growth Plan</h3>
-              <p className="text-xs text-slate-400 mb-6 font-plus-jakarta">For high-volume operations scaling phone queues.</p>
-              <div className="mb-6">
-                <span className="text-4xl font-extrabold text-white font-mono">₹10,799</span>
-                <span className="text-xs text-slate-400 font-bold"> / month</span>
-                <p className="text-xs font-mono font-bold text-emerald-400 mt-1">2,865 Mins + 1 Free Phone Number Included</p>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-medium text-xl text-[#121212] font-sans">Growth Plan</h3>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-[#121212] bg-[#EBE9E2] border border-[#CBC8BE] px-2 py-0.5 rounded-[1px]">Recommended</span>
               </div>
-              <ul className="space-y-3 mb-8 text-xs text-slate-200 font-semibold font-plus-jakarta">
+              <p className="text-xs text-[#262523] mb-6 font-sans">For high-volume operations scaling phone queues.</p>
+              <div className="mb-6">
+                <span className="text-4xl font-bold text-[#121212] font-mono">₹10,799</span>
+                <span className="text-xs text-[#262523] font-mono"> / month</span>
+                <p className="text-xs font-mono font-medium text-[#121212] mt-1">2,865 Mins + 1 Free Phone Number Included</p>
+              </div>
+              <ul className="space-y-3 mb-8 text-xs text-[#121212] font-sans">
                 {[
                   '2,865 Bundled Mins (₹3.49/min overage)',
                   '1 Free Local / National Phone Number',
@@ -314,7 +290,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
                   'Priority WhatsApp & Engineering Support'
                 ].map(f => (
                   <li key={f} className="flex items-center gap-2.5">
-                    <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" /> <span>{f}</span>
+                    <Check className="w-4 h-4 text-[#121212] flex-shrink-0" /> <span>{f}</span>
                   </li>
                 ))}
               </ul>
@@ -322,7 +298,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
             <button 
               onClick={() => handlePurchase("Growth", 10799)} 
               disabled={purchasingPlan === "Growth"}
-              className="py-3.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs rounded-xl transition-colors w-full flex items-center justify-center gap-2 shadow-lg cursor-pointer"
+              className="py-3.5 px-4 bg-[#121212] hover:bg-black text-white font-mono uppercase tracking-wider text-xs rounded-[2px] transition-colors w-full flex items-center justify-center gap-2 cursor-pointer font-medium"
             >
               {purchasingPlan === "Growth" ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -332,24 +308,22 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
                 </>
               )}
             </button>
-          </motion.div>
+          </div>
 
           {/* Enterprise Plan */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="bg-white border border-[#E8E2D9] rounded-3xl p-8 flex flex-col justify-between shadow-sm hover:shadow-xl hover:border-slate-300 transition-all"
-          >
+          <div className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-8 flex flex-col justify-between hover:border-[#9C998F] transition-colors">
             <div>
-              <h3 className="font-bold text-xl text-slate-900 mb-1" style={{ fontFamily: "'Clash Display', sans-serif" }}>Enterprise Plan</h3>
-              <p className="text-xs text-slate-500 mb-6 font-plus-jakarta">For regulated enterprise centers requiring SLAs.</p>
-              <div className="mb-6">
-                <span className="text-4xl font-extrabold text-slate-900 font-mono">₹30,799</span>
-                <span className="text-xs text-slate-500 font-bold"> / month</span>
-                <p className="text-xs font-mono font-bold text-emerald-700 mt-1">10,000 Mins + 1 Free Phone Number Included</p>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-medium text-xl text-[#121212] font-sans">Enterprise Plan</h3>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-[#262523] bg-[#DFDCD4] border border-[#CBC8BE] px-2 py-0.5 rounded-[1px]">Scale</span>
               </div>
-              <ul className="space-y-3 mb-8 text-xs text-slate-700 font-semibold font-plus-jakarta">
+              <p className="text-xs text-[#262523] mb-6 font-sans">For regulated enterprise centers requiring SLAs.</p>
+              <div className="mb-6">
+                <span className="text-4xl font-bold text-[#121212] font-mono">₹30,799</span>
+                <span className="text-xs text-[#262523] font-mono"> / month</span>
+                <p className="text-xs font-mono font-medium text-[#121212] mt-1">10,000 Mins + 1 Free Phone Number Included</p>
+              </div>
+              <ul className="space-y-3 mb-8 text-xs text-[#121212] font-sans">
                 {[
                   '10,000 Bundled Mins (₹2.99/min overage)',
                   '200+ Unlimited Concurrent Channels',
@@ -359,7 +333,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
                   'Dedicated Solutions Architect & 99.99% SLA'
                 ].map(f => (
                   <li key={f} className="flex items-center gap-2.5">
-                    <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" /> <span>{f}</span>
+                    <Check className="w-4 h-4 text-[#121212] flex-shrink-0" /> <span>{f}</span>
                   </li>
                 ))}
               </ul>
@@ -367,33 +341,31 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
             <button 
               onClick={() => handlePurchase("Enterprise", 30799)} 
               disabled={purchasingPlan === "Enterprise"}
-              className="py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors w-full flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+              className="py-3 px-4 bg-[#121212] hover:bg-black text-white font-mono uppercase tracking-wider text-xs rounded-[2px] transition-colors w-full flex items-center justify-center gap-2 cursor-pointer font-medium"
             >
               {purchasingPlan === "Enterprise" ? <Loader2 className="w-4 h-4 animate-spin" /> : "Purchase Enterprise Plan"}
             </button>
-          </motion.div>
+          </div>
         </div>
 
         {/* Custom Enterprise Banner */}
-        <div className="mt-12 bg-[#0B132B] text-white rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between shadow-2xl border border-slate-800 relative overflow-hidden">
-          <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="mb-6 md:mb-0 md:mr-8 text-center md:text-left relative z-10">
-            <h3 className="text-2xl font-bold mb-2" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+        <div className="mt-12 bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-8 md:p-12 flex flex-col md:flex-row items-center justify-between text-[#121212]">
+          <div className="mb-6 md:mb-0 md:mr-8 text-center md:text-left">
+            <h3 className="text-2xl font-medium mb-2 font-sans tracking-tight text-[#121212]">
               Need a Custom Enterprise Contract or On-Premise Gateway?
             </h3>
-            <p className="text-slate-300 text-sm font-plus-jakarta max-w-2xl">
+            <p className="text-[#262523] text-sm font-sans max-w-2xl leading-relaxed">
               For volume discounts above 30,000 minutes, dedicated telecom SIP trunks, or custom SLA contracts, our solution engineers can build a tailored deployment package.
             </p>
           </div>
           <button 
             onClick={() => setPage ? setPage("contact") : window.location.href = "/contact"}
-            className="py-3.5 px-8 bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-sm rounded-xl transition-colors whitespace-nowrap cursor-pointer shadow-md relative z-10"
+            className="py-3.5 px-8 bg-[#121212] hover:bg-black text-white font-mono uppercase tracking-wider text-xs rounded-[2px] transition-colors whitespace-nowrap cursor-pointer font-medium"
           >
             Contact Sales Team
           </button>
         </div>
       </section>
-
 
     </div>
   );

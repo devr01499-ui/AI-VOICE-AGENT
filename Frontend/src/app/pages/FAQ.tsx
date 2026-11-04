@@ -75,19 +75,20 @@ export default function FAQ({ setPage }: FAQProps) {
   }, [selectedCategory, searchQuery]);
 
   return (
-    <div className="bg-[#FFFDF9] min-h-screen pt-32 pb-32 px-6 relative font-plus-jakarta">
-      <section className="max-w-4xl mx-auto space-y-12">
+    <div className="bg-[#E5E3DC] min-h-screen pt-28 pb-32 px-6 relative font-sans text-[#121212]">
+      <section className="max-w-4xl mx-auto space-y-10">
+        <div className="hatched-strip h-10 w-full mb-8" />
+        
         {/* ── Title Header ────────────────────────────────────────────── */}
         <div className="text-center space-y-4">
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.2em] px-4 py-1.5 rounded-full font-mono bg-[#D1FAE5] text-[#059669] border border-[#059669]/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#059669]" />
-            KNOWLEDGE BASE & ARCHITECTURE FAQS
-          </span>
-          <h1 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A] tracking-tight"
-            style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-[2px] bg-[#DFDCD4] border border-[#CBC8BE] text-[#121212] text-xs font-mono uppercase tracking-wider">
+            <span>|</span>
+            <span>Knowledge Base & Architecture FAQs</span>
+          </div>
+          <h1 className="text-4xl lg:text-5xl font-normal md:font-medium text-[#121212] tracking-tight font-sans">
             Frequently Asked Questions
           </h1>
-          <p className="text-slate-500 text-base md:text-lg max-w-xl mx-auto leading-relaxed">
+          <p className="text-[#262523] text-base md:text-lg max-w-xl mx-auto leading-relaxed font-sans">
             Detailed operational answers regarding real-time latency, telecommunication compliance, CRM webhooks, and predictable pricing.
           </p>
         </div>
@@ -95,13 +96,13 @@ export default function FAQ({ setPage }: FAQProps) {
         {/* ── Search & Filter Bar ──────────────────────────────────────── */}
         <div className="space-y-4">
           <div className="relative">
-            <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+            <Search className="w-5 h-5 text-[#262523] absolute left-4 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by topic, e.g. latency, RBI, Shopify, pricing..."
-              className="w-full bg-white border border-[#E8E2D9] rounded-2xl pl-12 pr-4 py-3.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
+              className="w-full bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] pl-12 pr-4 py-3 text-sm text-[#121212] placeholder-[#262523] focus:outline-none focus:border-[#121212] transition-colors"
             />
           </div>
 
@@ -110,10 +111,10 @@ export default function FAQ({ setPage }: FAQProps) {
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                className={`px-3.5 py-1.5 rounded-[2px] text-xs font-mono uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${
                   selectedCategory === cat
-                    ? "bg-slate-900 text-white shadow-sm"
-                    : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                    ? "bg-[#121212] text-white border border-[#121212]"
+                    : "bg-[#DFDCD4] text-[#121212] hover:bg-[#D5D1C7] border border-[#CBC8BE]"
                 }`}
               >
                 {cat}
@@ -123,9 +124,9 @@ export default function FAQ({ setPage }: FAQProps) {
         </div>
 
         {/* ── Accordion List ───────────────────────────────────────────── */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           {filteredFaqs.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-3xl border border-[#E8E2D9] p-8 text-slate-400 text-sm">
+            <div className="text-center py-12 bg-[#EBE9E2] rounded-[2px] border border-[#CBC8BE] p-6 text-[#262523] text-sm font-sans">
               No matching questions found for "{searchQuery}". Reach out to our solutions team directly on WhatsApp or Email.
             </div>
           ) : (
@@ -134,24 +135,24 @@ export default function FAQ({ setPage }: FAQProps) {
               return (
                 <div
                   key={idx}
-                  className={`bg-white border rounded-2xl transition-all overflow-hidden ${
-                    isOpen ? "border-emerald-500 shadow-md" : "border-[#E8E2D9] hover:border-slate-300"
+                  className={`bg-[#EBE9E2] border rounded-[2px] transition-colors overflow-hidden ${
+                    isOpen ? "border-[#121212]" : "border-[#CBC8BE] hover:border-[#9C998F]"
                   }`}
                 >
                   <button
                     onClick={() => setOpenIndex(isOpen ? null : idx)}
-                    className="w-full p-6 text-left flex items-center justify-between gap-4 cursor-pointer"
+                    className="w-full p-5 text-left flex items-center justify-between gap-4 cursor-pointer"
                   >
                     <div className="space-y-1">
-                      <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                      <span className="text-[10px] font-mono font-medium text-[#121212] bg-[#DFDCD4] px-2 py-0.5 rounded-[1px] border border-[#CBC8BE]">
                         {faq.category}
                       </span>
-                      <h3 className="font-extrabold text-[#0F172A] text-base md:text-lg mt-1">
+                      <h3 className="font-medium text-[#121212] text-base mt-1 font-sans">
                         {faq.q}
                       </h3>
                     </div>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-transform ${
-                      isOpen ? "bg-emerald-100 text-emerald-800 rotate-180" : "bg-slate-100 text-slate-500"
+                    <div className={`w-7 h-7 rounded-[2px] border border-[#CBC8BE] bg-[#DFDCD4] flex items-center justify-center flex-shrink-0 transition-transform ${
+                      isOpen ? "rotate-180 text-[#121212]" : "text-[#262523]"
                     }`}>
                       <ChevronDown className="w-4 h-4" />
                     </div>
@@ -163,9 +164,9 @@ export default function FAQ({ setPage }: FAQProps) {
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
+                        transition={{ duration: 0.18 }}
                       >
-                        <div className="px-6 pb-6 pt-2 text-sm text-slate-600 leading-relaxed border-t border-slate-100">
+                        <div className="px-5 pb-5 pt-1 text-sm text-[#262523] leading-relaxed border-t border-[#CBC8BE] font-sans">
                           {faq.a}
                         </div>
                       </motion.div>
@@ -178,17 +179,17 @@ export default function FAQ({ setPage }: FAQProps) {
         </div>
 
         {/* ── Bottom Help Callout ──────────────────────────────────────── */}
-        <div className="bg-[#FAF8F5] border border-[#E8E2D9] rounded-3xl p-8 text-center space-y-4">
-          <h3 className="text-xl font-bold text-[#0F172A]" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+        <div className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-8 text-center space-y-4">
+          <h3 className="text-xl font-medium text-[#121212] font-sans">
             Have a custom compliance or telephony question?
           </h3>
-          <p className="text-sm text-slate-500 max-w-md mx-auto">
+          <p className="text-sm text-[#262523] max-w-md mx-auto font-sans">
             Our engineering team will review your existing SIP trunks, CRM webhooks, and call flows.
           </p>
-          <div className="pt-2 flex justify-center gap-3">
+          <div className="pt-2 flex flex-wrap justify-center gap-3">
             <button
               onClick={() => setPage("contact")}
-              className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors"
+              className="px-5 py-2.5 bg-[#121212] hover:bg-black text-white font-mono text-xs uppercase tracking-wider rounded-[2px] transition-colors cursor-pointer font-medium"
             >
               Contact Solutions Desk
             </button>
@@ -196,7 +197,7 @@ export default function FAQ({ setPage }: FAQProps) {
               href="https://wa.me/919707337259?text=Hello%20Claritiy%20Voice%20Team%2C%20I%20have%20a%20question%20about%20your%20voice%20agent%20platform"
               target="_blank"
               rel="noopener noreferrer"
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-colors"
+              className="px-5 py-2.5 bg-[#DFDCD4] hover:bg-[#D5D1C7] text-[#121212] font-mono text-xs uppercase tracking-wider rounded-[2px] border border-[#CBC8BE] transition-colors cursor-pointer font-medium"
             >
               Chat on WhatsApp
             </a>

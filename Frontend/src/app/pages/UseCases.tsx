@@ -933,25 +933,25 @@ export default function UseCases({ setPage, initialIndustryId }: UseCasesProps) 
   };
 
   return (
-    <div className="pb-36 pt-28 bg-[#FFFDF9] min-h-screen text-[#0D1117] relative font-plus-jakarta">
-      <CleanWireframeGrid accent={currentTopic.accent} />
-
+    <div className="pb-36 pt-28 bg-[#E5E3DC] min-h-screen text-[#121212] relative font-sans">
+      
       {/* ── Top Vertical Navigation Bar ──────────────────────────────────── */}
       <section className="px-6 max-w-7xl mx-auto relative z-10 mb-12">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/80 pb-6">
+        <div className="hatched-strip h-10 w-full mb-8" />
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#CBC8BE] pb-6">
           <div>
-            <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-emerald-700 flex items-center gap-1.5 mb-1">
-              <Workflow className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-[#121212] flex items-center gap-1.5 mb-1">
+              <Workflow className="w-3.5 h-3.5 text-[#121212]" />
               ENTERPRISE VERTICAL ARCHITECTURES
             </span>
-            <h1 className="text-3xl md:text-5xl font-extrabold text-slate-900 tracking-tight" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+            <h1 className="text-3xl md:text-5xl font-normal md:font-medium text-[#121212] tracking-tight font-sans">
               Production Use Case Blueprints
             </h1>
           </div>
 
           <button
             onClick={() => setPage("solutions")}
-            className="self-start md:self-auto text-xs font-mono font-bold text-slate-500 hover:text-slate-900 flex items-center gap-1.5 transition-colors"
+            className="self-start md:self-auto text-xs font-mono text-[#262523] hover:text-[#121212] flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <span>← Back to All Solutions</span>
           </button>
@@ -960,7 +960,6 @@ export default function UseCases({ setPage, initialIndustryId }: UseCasesProps) 
         {/* Industry Selector Tabs */}
         <div className="flex items-center gap-2 pt-6 overflow-x-auto pb-2">
           {USE_CASE_TOPICS.map((topic) => {
-            const Icon = topic.icon;
             const isSelected = topic.id === currentTopic.id;
             return (
               <button
@@ -970,10 +969,10 @@ export default function UseCases({ setPage, initialIndustryId }: UseCasesProps) 
                   setActiveNodeIndex(0);
                   setPlayingDialogueSubTopic(null);
                 }}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-mono font-bold transition-all whitespace-nowrap cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-[2px] text-xs font-mono uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${
                   isSelected
-                    ? "bg-slate-900 text-white shadow-md scale-[1.02]"
-                    : "bg-white border border-[#E8E2D9] text-slate-600 hover:text-slate-900 hover:border-slate-300"
+                    ? "bg-[#121212] text-white border border-[#121212]"
+                    : "bg-[#EBE9E2] border border-[#CBC8BE] text-[#121212] hover:bg-[#DFDCD4]"
                 }`}
               >
                 <span>{topic.visual}</span>
@@ -986,98 +985,79 @@ export default function UseCases({ setPage, initialIndustryId }: UseCasesProps) 
 
       {/* ── Topic Hero Section ───────────────────────────────────────────── */}
       <section className="px-6 max-w-7xl mx-auto relative z-10 mb-16">
-        <motion.div
-          key={currentTopic.id}
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="bg-white border border-[#E8E2D9] rounded-3xl p-8 md:p-12 shadow-sm relative overflow-hidden"
-        >
-          {/* Ambient Glow */}
-          <div 
-            className="absolute top-0 right-0 w-96 h-96 rounded-full blur-[100px] pointer-events-none opacity-20"
-            style={{ background: currentTopic.accent }}
-          />
-
+        <div className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-8 md:p-12 relative overflow-hidden">
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 items-center">
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <span 
-                  className="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider border inline-flex items-center gap-1.5"
-                  style={{
-                    background: isGreen ? "#D1FAE5" : "#FEF3C7",
-                    color: currentTopic.accent,
-                    borderColor: `${currentTopic.accent}40`
-                  }}
-                >
+                <span className="px-3 py-1 rounded-[1px] text-xs font-mono uppercase tracking-wider border inline-flex items-center gap-1.5 bg-[#DFDCD4] border-[#CBC8BE] text-[#121212]">
                   <ShieldCheck className="w-3.5 h-3.5" />
                   {currentTopic.badge}
                 </span>
-                <span className="text-xs font-mono text-slate-400">
+                <span className="text-xs font-mono text-[#262523]">
                   TOPIC SPECIFICATION
                 </span>
               </div>
 
-              <h2 className="text-2xl md:text-4xl font-extrabold text-slate-900 leading-tight" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+              <h2 className="text-2xl md:text-4xl font-medium text-[#121212] leading-tight font-sans tracking-tight">
                 {currentTopic.headline}
               </h2>
 
-              <p className="text-slate-600 text-sm md:text-base leading-relaxed max-w-3xl font-plus-jakarta">
+              <p className="text-[#262523] text-sm md:text-base leading-relaxed max-w-3xl font-sans">
                 {currentTopic.subhead}
               </p>
             </div>
 
             {/* Quick Metrics Card */}
-            <div className="bg-[#FAF8F5] border border-[#E8E2D9] rounded-2xl p-6 space-y-4">
-              <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest block">
+            <div className="bg-[#DFDCD4] border border-[#CBC8BE] rounded-[2px] p-6 space-y-4">
+              <span className="text-[10px] font-mono text-[#262523] uppercase tracking-widest block">
                 MEASURED IMPACT
               </span>
               <div className="space-y-1">
-                <span className="text-4xl font-extrabold font-mono" style={{ color: currentTopic.accent, fontFamily: "'Clash Display', sans-serif" }}>
+                <span className="text-4xl font-bold font-mono text-[#121212]">
                   {currentTopic.heroStat.value}
                 </span>
-                <p className="text-xs font-bold text-slate-700 font-plus-jakarta">
+                <p className="text-xs font-mono text-[#262523]">
                   {currentTopic.heroStat.label}
                 </p>
               </div>
 
-              <div className="pt-3 border-t border-slate-200/80 space-y-2">
+              <div className="pt-3 border-t border-[#CBC8BE] space-y-2">
                 {currentTopic.stats.map((st, i) => (
                   <div key={i} className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500 font-medium">{st.label}</span>
-                    <span className="font-mono font-bold text-slate-900">{st.value}</span>
+                    <span className="text-[#262523] font-mono">{st.label}</span>
+                    <span className="font-mono font-bold text-[#121212]">{st.value}</span>
                   </div>
                 ))}
               </div>
             </div>
           </div>
-        </motion.div>
+        </div>
       </section>
 
       {/* ── Interactive Architecture Wiremap ─────────────────────────────── */}
-      <section className="px-6 max-w-7xl mx-auto relative z-10 mb-20 space-y-6">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-4">
+      <section className="px-6 max-w-7xl mx-auto relative z-10 mb-16 space-y-6">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[#CBC8BE] pb-4">
           <div className="space-y-1">
-            <span className="text-xs font-mono font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
-              <GitBranch className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="text-xs font-mono text-[#121212] uppercase tracking-wider flex items-center gap-1.5">
+              <GitBranch className="w-3.5 h-3.5" />
               SYSTEM WIREMAP & FLOWGRAPH
             </span>
-            <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+            <h2 className="text-2xl md:text-3xl font-medium text-[#121212] font-sans tracking-tight">
               End-to-End Latency & Telephony Dataflow
             </h2>
-            <p className="text-xs text-slate-500 font-plus-jakarta max-w-2xl">
+            <p className="text-xs text-[#262523] font-sans max-w-2xl">
               Inspect each stage of the audio pipeline from network ingress to conversational reasoning and enterprise database mutation.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-600 bg-white px-3.5 py-1.5 rounded-xl border border-slate-200 shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <div className="flex items-center gap-2 text-xs font-mono text-[#121212] bg-[#DFDCD4] px-3.5 py-1.5 rounded-[2px] border border-[#CBC8BE]">
+            <span className="w-2 h-2 rounded-full bg-[#121212] animate-pulse" />
             <span>End-to-End Target: &lt; 200ms</span>
           </div>
         </div>
 
         {/* Visual Wiremap Flowchart */}
-        <div className="bg-[#0B132B] text-white rounded-3xl p-6 md:p-8 border border-slate-800 shadow-xl space-y-6 relative overflow-hidden">
+        <div className="bg-[#EBE9E2] text-[#121212] rounded-[2px] p-6 md:p-8 border border-[#CBC8BE] space-y-6 relative overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-3 relative">
             {currentTopic.wiremap.map((node, idx) => {
               const isSelected = activeNodeIndex === idx;
@@ -1085,40 +1065,33 @@ export default function UseCases({ setPage, initialIndustryId }: UseCasesProps) 
                 <div
                   key={node.id}
                   onClick={() => setActiveNodeIndex(idx)}
-                  className={`p-4 rounded-2xl border transition-all cursor-pointer relative flex flex-col justify-between ${
+                  className={`p-4 rounded-[2px] border transition-all cursor-pointer relative flex flex-col justify-between ${
                     isSelected 
-                      ? "bg-slate-900/90 border-emerald-400 ring-2 ring-emerald-400/20 shadow-lg" 
-                      : "bg-slate-950/60 border-slate-800 hover:border-slate-700"
+                      ? "bg-[#DFDCD4] border-2 border-[#121212] shadow-sm" 
+                      : "bg-[#DFDCD4] border-[#CBC8BE] hover:border-[#9C998F]"
                   }`}
                 >
-                  {/* Connecting Arrow for desktop */}
-                  {idx < currentTopic.wiremap.length - 1 && (
-                    <div className="hidden md:block absolute -right-2 top-1/2 -translate-y-1/2 z-20 text-slate-600">
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </div>
-                  )}
-
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">
+                      <span className="text-[10px] font-mono uppercase text-[#262523]">
                         {node.stage}
                       </span>
-                      <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-800">
+                      <span className="text-[10px] font-mono text-[#121212] bg-[#EBE9E2] px-1.5 py-0.5 rounded-[1px] border border-[#CBC8BE]">
                         {node.latency}
                       </span>
                     </div>
 
-                    <h4 className="text-xs md:text-sm font-bold text-white leading-tight">
+                    <h4 className="text-xs md:text-sm font-medium text-[#121212] leading-tight font-sans">
                       {node.label}
                     </h4>
 
-                    <p className="text-[11px] text-slate-400 leading-relaxed font-plus-jakarta">
+                    <p className="text-[11px] text-[#262523] leading-relaxed font-sans">
                       {node.desc}
                     </p>
                   </div>
 
-                  <div className="pt-3 mt-3 border-t border-slate-800/80">
-                    <span className="text-[10px] font-mono text-emerald-400/80 block truncate">
+                  <div className="pt-3 mt-3 border-t border-[#CBC8BE]">
+                    <span className="text-[10px] font-mono text-[#262523] block truncate">
                       {node.protocol}
                     </span>
                   </div>
@@ -1129,21 +1102,21 @@ export default function UseCases({ setPage, initialIndustryId }: UseCasesProps) 
 
           {/* Active Node Telemetry Inspector */}
           {currentTopic.wiremap[activeNodeIndex] && (
-            <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="bg-[#DFDCD4] border border-[#CBC8BE] rounded-[2px] p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <Terminal className="w-4 h-4 text-emerald-400" />
-                  <span className="text-xs font-mono font-bold text-slate-200 uppercase">
+                  <Terminal className="w-4 h-4 text-[#121212]" />
+                  <span className="text-xs font-mono font-bold text-[#121212] uppercase">
                     ACTIVE TELEMETRY: {currentTopic.wiremap[activeNodeIndex].label}
                   </span>
                 </div>
-                <p className="text-xs text-slate-400 font-plus-jakarta">
+                <p className="text-xs text-[#262523] font-sans">
                   {currentTopic.wiremap[activeNodeIndex].desc} Protocol transport: <code>{currentTopic.wiremap[activeNodeIndex].protocol}</code>.
                 </p>
               </div>
 
               <div className="flex items-center gap-3">
-                <span className="text-xs font-mono text-emerald-400 bg-emerald-950/80 px-3 py-1.5 rounded-xl border border-emerald-800">
+                <span className="text-xs font-mono text-[#121212] bg-[#EBE9E2] px-3 py-1.5 rounded-[2px] border border-[#CBC8BE]">
                   Latency Budget: {currentTopic.wiremap[activeNodeIndex].latency}
                 </span>
               </div>
@@ -1153,138 +1126,132 @@ export default function UseCases({ setPage, initialIndustryId }: UseCasesProps) 
       </section>
 
       {/* ── 4 Dedicated Sub-Topic Cards with Dashboard Template Connectors ── */}
-      <section className="px-6 max-w-7xl mx-auto relative z-10 mb-20 space-y-12">
+      <section className="px-6 max-w-7xl mx-auto relative z-10 mb-16 space-y-8">
         <div className="space-y-2">
-          <span className="text-xs font-mono font-bold text-emerald-700 uppercase tracking-wider">
-            DEEP-DIVE IMPLEMENTATION MODULES
+          <span className="text-xs font-mono text-[#121212] uppercase tracking-wider">
+            | DEEP-DIVE IMPLEMENTATION MODULES
           </span>
-          <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+          <h2 className="text-2xl md:text-3xl font-medium text-[#121212] font-sans tracking-tight">
             Specific Topic Modules & Connected Dashboard Templates
           </h2>
-          <p className="text-xs md:text-sm text-slate-500 font-plus-jakarta max-w-3xl">
+          <p className="text-xs md:text-sm text-[#262523] font-sans max-w-3xl">
             Each sub-topic is paired with a pre-configured production template from the Claritiy Agent Studio. Click to deploy directly into your account.
           </p>
         </div>
 
-        <div className="space-y-10">
+        <div className="space-y-6">
           {currentTopic.subTopics.map((sub, index) => {
             const isPlaying = playingDialogueSubTopic === sub.id;
 
             return (
               <div 
                 key={sub.id}
-                className="bg-white border border-[#E8E2D9] rounded-3xl p-6 md:p-10 shadow-sm space-y-8 hover:border-slate-300 transition-all relative overflow-hidden"
+                className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-6 md:p-8 space-y-6 hover:border-[#9C998F] transition-colors"
               >
                 {/* Header & Sub-Topic Title */}
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-6">
-                  <div className="space-y-2">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-[#CBC8BE] pb-5">
+                  <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 uppercase">
+                      <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-[1px] bg-[#DFDCD4] text-[#121212] border border-[#CBC8BE] uppercase">
                         {sub.badge}
                       </span>
-                      <span className="text-xs font-mono text-slate-400">
+                      <span className="text-xs font-mono text-[#262523]">
                         MODULE 0{index + 1}
                       </span>
                     </div>
 
-                    <h3 className="text-xl md:text-2xl font-bold text-slate-900" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+                    <h3 className="text-xl md:text-2xl font-medium text-[#121212] font-sans tracking-tight">
                       {sub.title}
                     </h3>
                   </div>
 
                   {/* Connected Dashboard Template Pill with 1-Click Action */}
-                  <div className="bg-[#FAF8F5] border border-[#E8E2D9] rounded-2xl p-3 sm:p-4 flex items-center justify-between gap-4 self-start lg:self-auto">
+                  <div className="bg-[#DFDCD4] border border-[#CBC8BE] rounded-[2px] p-3 sm:p-4 flex items-center justify-between gap-4 self-start lg:self-auto">
                     <div>
-                      <span className="text-[10px] font-mono font-bold text-slate-400 uppercase block">
+                      <span className="text-[10px] font-mono text-[#262523] uppercase block">
                         CONNECTED AGENT TEMPLATE
                       </span>
-                      <span className="text-xs font-bold text-slate-900 block font-mono">
+                      <span className="text-xs font-medium text-[#121212] block font-mono">
                         {sub.templateId}: {sub.templateName}
                       </span>
                     </div>
 
                     <button
                       onClick={() => handleLaunchDashboardTemplate(sub.templateId)}
-                      className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-mono text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm whitespace-nowrap cursor-pointer"
+                      className="px-3.5 py-2 rounded-[2px] bg-[#121212] hover:bg-black text-white font-mono text-xs uppercase tracking-wider transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer font-medium"
                       title="Open and deploy this agent template inside the studio"
                     >
-                      <Zap className="w-3.5 h-3.5 text-emerald-400" />
+                      <Zap className="w-3.5 h-3.5" />
                       <span>Launch In Studio</span>
                     </button>
                   </div>
                 </div>
 
                 {/* Problem vs Claritiy AI Solution Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-rose-50/60 border border-rose-200/60 rounded-2xl p-5 space-y-2">
-                    <span className="text-[10px] font-mono font-bold text-rose-700 uppercase tracking-wider block">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-[#DFDCD4] border border-[#CBC8BE] rounded-[2px] p-5 space-y-2">
+                    <span className="text-[10px] font-mono text-[#121212] uppercase tracking-wider block font-medium">
                       LEGACY OPERATIONAL BOTTLENECK
                     </span>
-                    <p className="text-xs md:text-sm text-slate-700 leading-relaxed font-plus-jakarta">
+                    <p className="text-xs md:text-sm text-[#262523] leading-relaxed font-sans">
                       {sub.problem}
                     </p>
                   </div>
 
-                  <div className="bg-emerald-50/60 border border-emerald-200/60 rounded-2xl p-5 space-y-2">
-                    <span className="text-[10px] font-mono font-bold text-emerald-800 uppercase tracking-wider block">
+                  <div className="bg-[#DFDCD4] border border-[#CBC8BE] rounded-[2px] p-5 space-y-2">
+                    <span className="text-[10px] font-mono text-[#121212] uppercase tracking-wider block font-medium">
                       CLARITIY VOICE AUTOMATION RESOLUTION
                     </span>
-                    <p className="text-xs md:text-sm text-slate-700 leading-relaxed font-plus-jakarta">
+                    <p className="text-xs md:text-sm text-[#262523] leading-relaxed font-sans">
                       {sub.solution}
                     </p>
                   </div>
                 </div>
 
                 {/* Impact Metric Bar */}
-                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 flex items-center gap-2 text-xs font-mono font-bold text-emerald-800">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <div className="bg-[#DFDCD4] rounded-[2px] p-3.5 border border-[#CBC8BE] flex items-center gap-2 text-xs font-mono text-[#121212]">
+                  <CheckCircle2 className="w-4 h-4 text-[#121212] flex-shrink-0" />
                   <span>{sub.metrics}</span>
                 </div>
 
                 {/* Verbatim Production Call Dialogue Simulation */}
-                <div className="space-y-4 pt-2">
+                <div className="space-y-3 pt-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono font-bold text-slate-700 uppercase flex items-center gap-1.5">
-                      <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-xs font-mono text-[#121212] uppercase flex items-center gap-1.5 font-medium">
+                      <MessageSquare className="w-3.5 h-3.5 text-[#121212]" />
                       SIMULATED CALL TRANSCRIPT ({sub.dialogue.length} TURNS)
                     </span>
 
                     <button
                       onClick={() => setPlayingDialogueSubTopic(isPlaying ? null : sub.id)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
-                        isPlaying 
-                          ? "bg-rose-100 text-rose-700 border border-rose-200" 
-                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                      }`}
+                      className="px-3 py-1.5 rounded-[2px] text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer bg-[#DFDCD4] border border-[#CBC8BE] text-[#121212] hover:bg-[#D5D1C7]"
                     >
                       {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
                       <span>{isPlaying ? "Pause Simulation" : "Play Dialogue"}</span>
                     </button>
                   </div>
 
-                  <div className="bg-[#FAF8F5] border border-[#E8E2D9] rounded-2xl p-4 md:p-6 space-y-3">
+                  <div className="bg-[#DFDCD4] border border-[#CBC8BE] rounded-[2px] p-4 md:p-5 space-y-2.5">
                     {sub.dialogue.map((turn, tIdx) => {
                       const isAi = turn.speaker.includes("AI") || turn.speaker.includes("Claritiy");
                       return (
                         <div 
                           key={tIdx}
-                          className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-start justify-between gap-3 ${
+                          className={`p-3 rounded-[2px] border flex flex-col sm:flex-row sm:items-start justify-between gap-3 ${
                             isAi 
-                              ? "bg-white border-emerald-200 text-slate-900 shadow-xs" 
-                              : "bg-slate-50 border-slate-200 text-slate-700"
+                              ? "bg-[#EBE9E2] border-[#CBC8BE] text-[#121212]" 
+                              : "bg-[#E5E3DC] border-[#CBC8BE] text-[#121212]"
                           }`}
                         >
                           <div className="space-y-1">
-                            <span className={`text-[10px] font-mono font-bold uppercase tracking-wider block ${
-                              isAi ? "text-emerald-700" : "text-slate-500"
-                            }`}>
+                            <span className="text-[10px] font-mono font-bold uppercase tracking-wider block text-[#121212]">
                               {turn.speaker}
                             </span>
-                            <p className="text-xs md:text-sm font-plus-jakarta leading-relaxed">
+                            <p className="text-xs md:text-sm font-sans leading-relaxed">
                               "{turn.text}"
                             </p>
                           </div>
-                          <span className="text-[10px] font-mono text-slate-400 self-end sm:self-auto flex-shrink-0">
+                          <span className="text-[10px] font-mono text-[#262523] self-end sm:self-auto flex-shrink-0">
                             {turn.time}
                           </span>
                         </div>
@@ -1299,29 +1266,29 @@ export default function UseCases({ setPage, initialIndustryId }: UseCasesProps) 
       </section>
 
       {/* ── Enterprise JSON Schema Specification ─────────────────────────── */}
-      <section className="px-6 max-w-7xl mx-auto relative z-10 mb-20 space-y-4">
-        <div className="bg-white border border-[#E8E2D9] rounded-3xl p-6 md:p-8 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+      <section className="px-6 max-w-7xl mx-auto relative z-10 mb-16 space-y-4">
+        <div className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-6 md:p-8 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#CBC8BE] pb-4">
             <div>
-              <span className="text-xs font-mono font-bold text-emerald-700 uppercase flex items-center gap-1.5">
-                <Code2 className="w-3.5 h-3.5" />
+              <span className="text-xs font-mono text-[#121212] uppercase flex items-center gap-1.5 font-medium">
+                <Code2 className="w-3.5 h-3.5 text-[#121212]" />
                 ENTERPRISE WEBHOOK PAYLOAD SPECIFICATION
               </span>
-              <h3 className="text-lg md:text-xl font-bold text-slate-900 mt-1" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+              <h3 className="text-lg md:text-xl font-medium text-[#121212] mt-1 font-sans tracking-tight">
                 Production JSON Output Schema ({currentTopic.label})
               </h3>
             </div>
 
             <button
               onClick={handleCopyJson}
-              className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-mono text-xs font-bold transition-all flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
+              className="px-3.5 py-2 rounded-[2px] bg-[#121212] hover:bg-black text-white font-mono text-xs uppercase tracking-wider transition-colors flex items-center gap-1.5 self-start sm:self-auto cursor-pointer font-medium"
             >
-              {copiedPayload ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              {copiedPayload ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
               <span>{copiedPayload ? "Copied Schema" : "Copy JSON Payload"}</span>
             </button>
           </div>
 
-          <div className="bg-slate-900 rounded-2xl p-5 border border-slate-800 font-mono text-xs text-emerald-300 overflow-x-auto shadow-inner">
+          <div className="bg-[#DFDCD4] rounded-[2px] p-4 border border-[#CBC8BE] font-mono text-xs text-[#121212] overflow-x-auto">
             <pre className="leading-relaxed">{currentTopic.jsonPayload}</pre>
           </div>
         </div>
@@ -1329,15 +1296,15 @@ export default function UseCases({ setPage, initialIndustryId }: UseCasesProps) 
 
       {/* ── Bottom Call To Action ────────────────────────────────────────── */}
       <section className="px-6 max-w-7xl mx-auto relative z-10">
-        <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-black text-white rounded-3xl p-8 md:p-14 border border-slate-800 shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-8">
+        <div className="bg-[#EBE9E2] text-[#121212] rounded-[2px] p-8 md:p-12 border border-[#CBC8BE] flex flex-col md:flex-row md:items-center justify-between gap-8">
           <div className="space-y-3 max-w-2xl">
-            <span className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest block">
-              READY TO LAUNCH YOUR VOICE AGENT?
+            <span className="text-xs font-mono text-[#121212] uppercase tracking-widest block font-medium">
+              | READY TO LAUNCH YOUR VOICE AGENT?
             </span>
-            <h2 className="text-2xl md:text-4xl font-extrabold text-white leading-tight" style={{ fontFamily: "'Clash Display', sans-serif" }}>
+            <h2 className="text-2xl md:text-4xl font-normal md:font-medium text-[#121212] leading-tight font-sans tracking-tight">
               Deploy {currentTopic.label} Templates in Under 5 Minutes
             </h2>
-            <p className="text-slate-400 text-xs md:text-sm font-plus-jakarta leading-relaxed">
+            <p className="text-[#262523] text-xs md:text-sm font-sans leading-relaxed">
               Connect your telephony numbers, adjust the conversational prompt guardrails, and begin placing live pilot calls today.
             </p>
           </div>
@@ -1345,14 +1312,14 @@ export default function UseCases({ setPage, initialIndustryId }: UseCasesProps) 
           <div className="flex flex-col sm:flex-row items-center gap-3">
             <button
               onClick={() => setPage("dashboard")}
-              className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold font-mono text-xs transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer"
+              className="w-full sm:w-auto px-6 py-3.5 rounded-[2px] bg-[#121212] hover:bg-black text-white font-mono text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-2 cursor-pointer font-medium"
             >
               <span>Open Agent Studio</span>
               <ArrowRight className="w-4 h-4" />
             </button>
             <button
               onClick={() => setPage("contact")}
-              className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold font-mono text-xs transition-all flex items-center justify-center gap-2 border border-slate-700 cursor-pointer"
+              className="w-full sm:w-auto px-6 py-3.5 rounded-[2px] bg-[#DFDCD4] hover:bg-[#D5D1C7] text-[#121212] font-mono text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-2 border border-[#CBC8BE] cursor-pointer font-medium"
             >
               <span>Talk to Solution Architect</span>
             </button>

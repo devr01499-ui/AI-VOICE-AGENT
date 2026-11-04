@@ -1,15 +1,15 @@
 export default function Terms() {
   return (
-    <div className="pt-32 px-6 max-w-4xl mx-auto pb-32 bg-cream-bg min-h-screen">
+    <div className="pt-32 px-6 max-w-4xl mx-auto pb-32 bg-[#E5E3DC] min-h-screen text-[#262523] font-sans">
       <div className="space-y-4 mb-12">
-        <span className="text-caption font-bold text-mint-primary uppercase tracking-widest bg-mint-soft px-3 py-1 rounded-full font-mono">
+        <span className="text-xs font-bold text-[#121212] uppercase tracking-wider bg-[#DFDCD4] border border-[#CBC8BE] px-3 py-1 rounded-[2px] font-mono">
           ATTORNEY-GRADE TERMS & CONDITIONS
         </span>
-        <h1 className="font-sora text-4xl md:text-5xl font-extrabold text-ink leading-tight">Terms of Service</h1>
-        <p className="text-small font-bold text-ink-muted font-mono">Last Updated: June 1, 2026</p>
+        <h1 className="text-4xl md:text-5xl font-extrabold text-[#121212] leading-tight">Terms of Service</h1>
+        <p className="text-xs font-bold text-[#5E5D57] font-mono">Last Updated: June 1, 2026</p>
       </div>
 
-      <div className="prose prose-lg text-ink-muted font-plus-jakarta text-body leading-relaxed space-y-8 bg-surface-white border border-[#EADEC9] p-10 rounded-3xl shadow-level-2">
+      <div className="prose prose-lg text-[#262523] text-sm md:text-base leading-relaxed space-y-8 bg-[#EBE9E2] border border-[#CBC8BE] p-8 md:p-12 rounded-[2px]">
         <p className="font-bold uppercase">
           BY CLICKING “I ACCEPT” OR OTHERWISE ACCESSING OR USING THE SERVICE, YOU AGREE THAT YOU HAVE READ AND UNDERSTOOD, AND, AS A CONDITION TO YOUR USE OF THE SERVICE, YOU AGREE TO BE BOUND BY, THE FOLLOWING TERMS.
         </p>
