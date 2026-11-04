@@ -1,28 +1,28 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* ── Canvas ──────────────────────────────────────────────────────────────── */
-  --cream-bg: #F7F5F2;
-  --surface-white: #FFFFFF;
+  /* ── Canvas (EdgeSkool Editorial Warm Stone Aesthetic) ─────────────────────── */
+  --cream-bg: #E5E3DC;
+  --surface-white: #EBE9E2;
 
   /* ── Brand Colors ────────────────────────────────────────────────────────── */
-  --forest-deep: #0B1F14;        /* near-black forest — premium dark */
-  --forest-panel: #112B1C;       /* dark section panels */
-  --forest-mid: #1B4332;         /* mid-forest */
-  --forest-light: #2D6A4F;       /* lighter accent */
-  --mint-primary: #059669;       /* emerald primary */
-  --mint-vivid: #10B981;         /* brighter emerald */
-  --mint-glow: #34D399;          /* glow highlight */
-  --mint-soft: #D1FAE5;          /* tint background */
-  --mint-ultra: #ECFDF5;         /* ultra light tint */
-  --amber-cta: #E8630A;          /* vivid orange */
-  --amber-mid: #F59E0B;          /* warm amber */
-  --amber-soft: #FEF3C7;         /* amber tint */
-  --border-soft: #E8E2D9;
-  --border-fine: rgba(0,0,0,0.06);
-  --ink: #0D1117;
-  --ink-muted: #4B5563;
-  --ink-faint: #9CA3AF;
+  --forest-deep: #121212;        /* deep black */
+  --forest-panel: #1A1918;       /* deep dark panel */
+  --forest-mid: #2A2825;         /* muted dark */
+  --forest-light: #4A4742;       /* dark stone */
+  --mint-primary: #121212;       /* edge brutalist black */
+  --mint-vivid: #121212;
+  --mint-glow: #3E3C37;
+  --mint-soft: #DEDCD5;          /* stone tint */
+  --mint-ultra: #E8E6E0;         /* light stone tint */
+  --amber-cta: #121212;          /* solid contrast */
+  --amber-mid: #66645E;          /* muted stone */
+  --amber-soft: #DEDCD5;
+  --border-soft: #CBC8BE;
+  --border-fine: #CBC8BE;
+  --ink: #121212;
+  --ink-muted: #5E5D57;
+  --ink-faint: #8C8A82;
 
   /* ── Semantic Aliases ────────────────────────────────────────────────────── */
   --font-size: clamp(14px, 1.2vw + 10px, 16px);
@@ -33,73 +33,48 @@
   --popover: var(--surface-white);
   --popover-foreground: var(--ink);
   --primary: var(--mint-primary);
-  --primary-foreground: var(--surface-white);
+  --primary-foreground: #FFFFFF;
   --secondary: var(--forest-deep);
-  --secondary-foreground: var(--surface-white);
+  --secondary-foreground: #FFFFFF;
   --muted: var(--mint-soft);
   --muted-foreground: var(--ink-muted);
   --accent: var(--amber-cta);
-  --accent-foreground: var(--surface-white);
-  --destructive: #EF4444;
-  --destructive-foreground: var(--surface-white);
+  --accent-foreground: #FFFFFF;
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
   --border: var(--border-soft);
   --input: var(--surface-white);
-  --ring: var(--mint-primary);
-  --success: #10B981;
-  --warning: #F59E0B;
-  --error: #EF4444;
+  --ring: #121212;
+  --success: #166534;
+  --warning: #92400E;
+  --error: #DC2626;
 
-  /* ── Radius ──────────────────────────────────────────────────────────────── */
-  --radius-xs: 8px;
-  --radius-sm: 16px;
-  --radius-md: 24px;
-  --radius-lg: 32px;
-  --radius-xl: 40px;
-  --radius-pill: 999px;
+  /* ── Radius (Micro-radii / Sharp Geometric Edges) ────────────────────────── */
+  --radius-xs: 0px;
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --radius-lg: 3px;
+  --radius-xl: 4px;
+  --radius-pill: 2px;
   --radius: var(--radius-sm);
 
-  /* ── Typography ──────────────────────────────────────────────────────────── */
-  --font-display: 'Clash Display', 'Plus Jakarta Sans', sans-serif;
-  --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
-  --font-mono: 'IBM Plex Mono', monospace;
+  /* ── Typography (Editorial Neo-Grotesque & Monospace) ─────────────────────── */
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'Space Mono', 'IBM Plex Mono', monospace;
 
-  /* ── Premium Shadow System ───────────────────────────────────────────────── */
-  /* Elevation 1 — flat, barely visible */
-  --shadow-level-1:
-    0 1px 3px rgba(13,17,23,0.04),
-    0 1px 2px rgba(13,17,23,0.03);
+  /* ── Clean Hairline Shadow System ────────────────────────────────────────── */
+  --shadow-level-1: none;
+  --shadow-level-2: 0 1px 2px rgba(0,0,0,0.03);
+  --shadow-level-3: 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-level-4: 0 4px 12px rgba(0,0,0,0.06);
+  --shadow-level-5: 0 8px 24px rgba(0,0,0,0.08);
 
-  /* Elevation 2 — card resting state */
-  --shadow-level-2:
-    0 4px 16px rgba(13,17,23,0.06),
-    0 1px 4px rgba(13,17,23,0.04),
-    inset 0 1px 0 rgba(255,255,255,0.6);
-
-  /* Elevation 3 — card hover / subtle 3D */
-  --shadow-level-3:
-    0 12px 40px rgba(13,17,23,0.10),
-    0 4px 12px rgba(13,17,23,0.06),
-    inset 0 1px 0 rgba(255,255,255,0.7);
-
-  /* Elevation 4 — floating cards / modals */
-  --shadow-level-4:
-    0 24px 64px rgba(13,17,23,0.13),
-    0 8px 24px rgba(13,17,23,0.07),
-    0 2px 6px rgba(13,17,23,0.04),
-    inset 0 1px 0 rgba(255,255,255,0.8);
-
-  /* Elevation 5 — hero hero elements */
-  --shadow-level-5:
-    0 40px 100px rgba(13,17,23,0.18),
-    0 16px 40px rgba(13,17,23,0.10),
-    0 4px 12px rgba(13,17,23,0.06),
-    inset 0 1px 0 rgba(255,255,255,0.9);
-
-  /* ── Colored Glow Shadows ────────────────────────────────────────────────── */
-  --glow-green: 0 0 40px rgba(5,150,105,0.20), 0 0 80px rgba(5,150,105,0.08);
-  --glow-orange: 0 0 40px rgba(232,99,10,0.18), 0 0 80px rgba(232,99,10,0.07);
-  --glow-green-sm: 0 8px 32px rgba(5,150,105,0.25);
-  --glow-orange-sm: 0 8px 32px rgba(232,99,10,0.28);
+  /* ── Glow Shadows ────────────────────────────────────────────────────────── */
+  --glow-green: none;
+  --glow-orange: none;
+  --glow-green-sm: none;
+  --glow-orange-sm: none;
 }
 
 @theme inline {
@@ -188,45 +163,56 @@
   /* Typography Scale */
   h1, .text-display {
     font-family: var(--font-display);
-    font-size: clamp(52px, 7vw, 88px);
-    line-height: 1.0;
-    font-weight: 700;
-    letter-spacing: -0.035em;
+    font-size: clamp(38px, 5.5vw, 64px);
+    line-height: 1.08;
+    font-weight: 500;
+    letter-spacing: -0.03em;
+    color: var(--ink);
   }
   h2, .text-h1 {
     font-family: var(--font-display);
-    font-size: clamp(36px, 5vw, 60px);
-    line-height: 1.08;
-    font-weight: 700;
+    font-size: clamp(28px, 4vw, 48px);
+    line-height: 1.12;
+    font-weight: 500;
     letter-spacing: -0.025em;
+    color: var(--ink);
   }
   h3, .text-h2 {
     font-family: var(--font-display);
-    font-size: clamp(26px, 3.5vw, 38px);
-    line-height: 1.15;
-    font-weight: 600;
+    font-size: clamp(20px, 3vw, 32px);
+    line-height: 1.2;
+    font-weight: 500;
     letter-spacing: -0.018em;
+    color: var(--ink);
   }
   h4, .text-h3 {
     font-family: var(--font-display);
-    font-size: clamp(18px, 2.5vw, 24px);
-    line-height: 1.25;
-    font-weight: 600;
+    font-size: clamp(16px, 2.2vw, 22px);
+    line-height: 1.3;
+    font-weight: 500;
     letter-spacing: -0.01em;
+    color: var(--ink);
   }
 
   p, span, div, label, button, input, select, textarea {
     font-family: var(--font-body);
   }
 
-  .text-body { font-size: 17px; line-height: 1.65; }
-  .text-small { font-size: 15px; line-height: 1.55; }
-  .text-caption { font-size: 13px; line-height: 1.45; }
+  .text-body { font-size: 15px; line-height: 1.6; color: var(--ink-muted); }
+  .text-small { font-size: 14px; line-height: 1.5; color: var(--ink-muted); }
+  .text-caption { font-size: 12px; line-height: 1.45; color: var(--ink-faint); }
   .text-micro { font-size: 11px; line-height: 1.4; }
   .text-data { font-family: var(--font-mono); }
 }
 
-/* ── Premium Component Classes ───────────────────────────────────────────── */
+/* ── EdgeSkool Component Classes ─────────────────────────────────────────── */
+
+/* Architectural Diagonal Striped Pattern */
+.hatched-strip {
+  background: repeating-linear-gradient(45deg, transparent, transparent 7px, rgba(0, 0, 0, 0.055) 7px, rgba(0, 0, 0, 0.055) 8px);
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+}
 
 /* Waveform bar animation */
 @keyframes waveBar {
@@ -351,40 +337,32 @@
   50% { transform: translateY(6px); opacity: 1; }
 }
 
-/* Premium buttons */
+/* EdgeSkool Architectural Minimalist Buttons */
 .btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 14px 28px;
-  border-radius: 999px;
+  padding: 8px 18px;
+  border-radius: 2px;
   font-family: var(--font-body);
-  font-weight: 700;
-  font-size: 15px;
+  font-weight: 500;
+  font-size: 13px;
   letter-spacing: -0.01em;
-  color: #fff;
-  background: linear-gradient(135deg, #059669 0%, #10B981 100%);
-  box-shadow: 0 6px 20px rgba(5,150,105,0.30), 0 1px 0 rgba(255,255,255,0.2) inset;
-  transition: all 0.22s cubic-bezier(0.23, 1, 0.32, 1);
+  color: #FFFFFF;
+  background: #121212;
+  border: 1px solid #121212;
+  box-shadow: none;
+  transition: all 0.15s ease;
   position: relative;
-  overflow: hidden;
-  border: none;
   cursor: pointer;
 }
-.btn-primary::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
-  pointer-events: none;
-}
 .btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 32px rgba(5,150,105,0.38), 0 1px 0 rgba(255,255,255,0.2) inset;
+  background: #2A2926;
+  border-color: #2A2926;
 }
 .btn-primary:active {
-  transform: translateY(0);
+  background: #000000;
 }
 
 .btn-secondary {
@@ -392,23 +370,22 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 14px 28px;
-  border-radius: 999px;
+  padding: 8px 18px;
+  border-radius: 2px;
   font-family: var(--font-body);
-  font-weight: 600;
-  font-size: 15px;
+  font-weight: 500;
+  font-size: 13px;
   letter-spacing: -0.01em;
-  color: var(--ink);
-  background: var(--surface-white);
-  border: 1px solid var(--border-soft);
-  box-shadow: var(--shadow-level-2);
-  transition: all 0.22s cubic-bezier(0.23, 1, 0.32, 1);
+  color: #121212;
+  background: transparent;
+  border: 1px solid #9C998F;
+  box-shadow: none;
+  transition: all 0.15s ease;
   cursor: pointer;
 }
 .btn-secondary:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-level-3), 0 0 0 1px rgba(5,150,105,0.15);
-  border-color: rgba(5,150,105,0.25);
+  border-color: #121212;
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .btn-cta {
@@ -416,46 +393,36 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 16px 36px;
-  border-radius: 999px;
+  padding: 10px 24px;
+  border-radius: 2px;
   font-family: var(--font-body);
-  font-weight: 700;
-  font-size: 16px;
+  font-weight: 500;
+  font-size: 14px;
   letter-spacing: -0.01em;
-  color: #fff;
-  background: linear-gradient(135deg, #E8630A 0%, #F59E0B 100%);
-  box-shadow: 0 8px 28px rgba(232,99,10,0.32), 0 1px 0 rgba(255,255,255,0.2) inset;
-  transition: all 0.22s cubic-bezier(0.23, 1, 0.32, 1);
-  border: none;
+  color: #FFFFFF;
+  background: #121212;
+  border: 1px solid #121212;
+  transition: all 0.15s ease;
   cursor: pointer;
 }
 .btn-cta:hover {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 14px 40px rgba(232,99,10,0.40), 0 1px 0 rgba(255,255,255,0.2) inset;
+  background: #2A2926;
+  border-color: #2A2926;
 }
 
-/* Card premium */
-.card-premium {
-  background: var(--surface-white);
-  border: 1px solid var(--border-fine);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-level-3);
-  transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
-  position: relative;
-  overflow: hidden;
+/* EdgeSkool Architectural Wireframe Card */
+.card-premium, .card-3d {
+  background: #EBE9E2;
+  border: 1px solid var(--border-soft);
+  border-radius: 2px;
+  box-shadow: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
-.card-premium::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
-}
-.card-premium:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-level-4);
+.card-premium:hover, .card-3d:hover {
+  border-color: #A3A096;
+  background: #ECEAE3;
+  transform: none;
+  box-shadow: none;
 }
 
 /* Glass panel (for dark sections) */

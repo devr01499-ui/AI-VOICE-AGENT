@@ -35,7 +35,7 @@ export default function Footer({ setPage }: FooterProps) {
   };
 
   return (
-    <footer className="border-t border-[#E8E2D9] bg-[#FFFDF9] pt-20 pb-12 px-6 relative z-10 text-slate-600 font-plus-jakarta">
+    <footer className="border-t border-[#CBC8BE] bg-[#DFDCD4] pt-16 pb-12 px-6 relative z-10 text-[#5E5D57] font-sans">
       {/* ── Top Enterprise Consultation Callout ─────────────────────────── */}
       <div className="max-w-7xl mx-auto mb-16 pb-12 border-b border-[#E8E2D9]/70">
         <div className="bg-[#0D1117] text-white rounded-3xl p-8 md:p-12 shadow-xl border border-slate-800 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8 relative overflow-hidden">
@@ -91,7 +91,7 @@ export default function Footer({ setPage }: FooterProps) {
           </p>
 
           {/* Live System Operational Status */}
-          <div className="p-3.5 rounded-2xl bg-white border border-[#E8E2D9] shadow-sm space-y-2 max-w-sm">
+          <div className="p-3.5 rounded-[2px] bg-[#EBE9E2] border border-[#CBC8BE] space-y-2 max-w-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="relative flex h-2 w-2">

@@ -15,38 +15,27 @@ import LottieVoiceOrb from "../components/animation/LottieVoiceOrb";
 type Page = any;
 interface HomeProps { setPage: (p: Page) => void; }
 
-// ── Reusable section label ───────────────────────────────────────────────────
-function SectionLabel({ text, color = "green" }: { text: string; color?: "green" | "orange" }) {
+// ── Reusable section label (EdgeSkool Minimalist Style) ───────────────────────
+function SectionLabel({ text }: { text: string; color?: "green" | "orange" }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.2em] px-4 py-1.5 rounded-full font-mono ${color === "green"
-      ? "bg-[#D1FAE5] text-[#059669] border border-[#059669]/20"
-      : "bg-[#FEF3C7] text-[#EA580C] border border-[#EA580C]/20"
-      }`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${color === "green" ? "bg-[#059669]" : "bg-[#EA580C]"}`} />
-      {text}
-    </span>
+    <div className="flex items-center justify-center gap-2 text-xs font-mono text-[#5E5D57]">
+      <span className="text-[#121212] font-semibold">|</span>
+      <span className="uppercase tracking-wider">{text}</span>
+    </div>
   );
 }
 
-// ── 3D tilt card wrapper ──────────────────────────────────────────────────────
+// ── EdgeSkool wireframe card wrapper ──────────────────────────────────────────
 function TiltCard({ children, className = "", style = {} }: {
   children: React.ReactNode; className?: string; style?: React.CSSProperties;
 }) {
   return (
-    <motion.div
-      className={className}
-      whileHover={{
-        rotateX: -4,
-        rotateY: 4,
-        scale: 1.02,
-        boxShadow: "0 28px 60px rgba(0,0,0,0.13), 0 8px 20px rgba(0,0,0,0.07)",
-        transition: { duration: 0.25, ease: "easeOut" },
-      }}
-      initial={{ boxShadow: "0 8px 24px rgba(0,0,0,0.06)" }}
-      style={{ ...style, transformStyle: "preserve-3d", perspective: "800px" }}
+    <div
+      className={`bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] transition-colors hover:border-[#9C998F] ${className}`}
+      style={style}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }
 
@@ -64,12 +53,85 @@ function ScrollProgress() {
   const { scrollYProgress } = useScroll();
   return (
     <motion.div
-      className="fixed top-0 left-0 right-0 h-[3px] z-[999] origin-left"
-      style={{
-        scaleX: scrollYProgress,
-        background: "linear-gradient(90deg, #059669, #34D399, #EA580C)",
-      }}
+      className="fixed top-0 left-0 right-0 h-[2px] z-[999] origin-left bg-[#121212]"
+      style={{ scaleX: scrollYProgress }}
     />
+  );
+}
+
+// ── Testimonials Section (Faithful to EdgeSkool Reference Image) ──────────────
+function TestimonialsSection() {
+  const testimonials = [
+    {
+      title: "Already winning",
+      body: "Scaled outbound confirmation calls to 4,000 orders/day with zero staff overhead. Our RTO dropped from 28% to 14% in the very first week.",
+      author: "- Sky (Rajesh K.)"
+    },
+    {
+      title: "Sub-180ms makes all the difference",
+      body: "Callers actually think they're speaking with a real receptionist. Interruption handling works flawlessly mid-sentence without lag or awkward pauses.",
+      author: "- Jacob (Ananya M.)"
+    },
+    {
+      title: "2 Trades for the day! 2,400 Leads qualified",
+      body: "Dialed form submissions within 3 seconds of registration. Qualified budgets, collected GSTIN details, and scheduled 180 demo meetings automatically.",
+      author: "- Muzher (Siddharth T.)"
+    },
+    {
+      title: "First Payout & ROI in 48 Hours",
+      body: "Replaced 6 manual calling agents with 1 Claritiy Voice agent. The dashboard gives us instant transcripts, sentiment breakdown, and recording replays.",
+      author: "- Vikram B., Logistics"
+    },
+    {
+      title: "Zero hallucination on policy details",
+      body: "Attached our 60-page PDF policy guidelines to the knowledge base. It answers complex claims questions with 100% precision.",
+      author: "- Neha S., Insurance"
+    },
+    {
+      title: "Commodities are hot. Up 20k since Yesterday",
+      body: "When high-value enterprise accounts call in, the agent seamlessly routes them to dedicated account managers with zero queue drop.",
+      author: "- Amit P., Real Estate"
+    }
+  ];
+
+  return (
+    <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      {/* Signature EdgeSkool Diagonal Hatched Decorative Banner */}
+      <div className="hatched-strip h-12 w-full mb-10" />
+
+      {/* Header with Monospace Tag */}
+      <div className="text-left mb-10 space-y-3">
+        <div className="flex items-center gap-2 text-xs font-mono text-[#5E5D57]">
+          <span className="text-[#121212] font-semibold">|</span>
+          <span className="tracking-wider">Testimonials</span>
+        </div>
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-normal sm:font-medium text-[#121212] tracking-tight leading-[1.1] font-sans">
+          What enterprise teams inside are seeing from day one.
+        </h2>
+      </div>
+
+      {/* 3-Column Wireframe Bento Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {testimonials.map((t, idx) => (
+          <div
+            key={idx}
+            className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-6 flex flex-col justify-between hover:border-[#9C998F] transition-colors"
+          >
+            <div>
+              <h3 className="text-sm sm:text-base font-medium text-[#121212] mb-3 leading-snug font-sans">
+                {t.title}
+              </h3>
+              <p className="text-xs sm:text-sm text-[#5E5D57] leading-relaxed mb-6 font-sans">
+                {t.body}
+              </p>
+            </div>
+            <div className="pt-3 border-t border-[#CBC8BE]/60 text-xs font-mono text-[#5E5D57]">
+              {t.author}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -118,85 +180,41 @@ function BentoCapabilitySection({ setPage }: { setPage: (p: Page) => void }) {
     }
   ];
 
-  // The 4 specific colors from the reference image
-  const bannerColors = ["#E88B27", "#6C6A7B", "#2574A9", "#C23030"];
-
   return (
-    <section className="py-24 px-4 sm:px-6 max-w-5xl mx-auto">
-      <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
-        <SectionLabel text="Platform Capabilities" color="orange" />
-        <h2 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A] leading-tight"
-          style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
-          Every Feature Your Enterprise<br />AI Voice Platform Needs
+    <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <div className="hatched-strip h-10 w-full mb-10" />
+      <div className="text-center max-w-3xl mx-auto mb-14 space-y-3">
+        <SectionLabel text="Platform Capabilities" />
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-normal sm:font-medium text-[#121212] tracking-tight leading-[1.1] font-sans">
+          Every Feature Your Enterprise AI Voice Platform Needs
         </h2>
       </div>
 
-      <div className="flex flex-col gap-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {items.map((item, i) => {
           const Icon = item.icon;
-          const bgColor = bannerColors[i % bannerColors.length];
-          
           return (
-            <motion.div
+            <div
               key={i}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-50px" }}
-              transition={{ duration: 0.6, delay: (i % 4) * 0.1 }}
-              className="relative w-full rounded-md shadow-[0_15px_30px_rgba(0,0,0,0.15)] overflow-hidden min-h-[160px] md:min-h-[180px] flex items-center group"
-              style={{ backgroundColor: bgColor }}
+              className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-5 flex flex-col justify-between hover:border-[#9C998F] transition-colors"
             >
-              {/* White Wavy Overlay Shape with Notch */}
-              <svg 
-                className="absolute right-0 top-0 w-full h-full z-0 drop-shadow-[-8px_0_12px_rgba(0,0,0,0.25)]" 
-                preserveAspectRatio="none" 
-                viewBox="0 0 1000 200"
-              >
-                <path 
-                  d="M 1000 0 L 280 0 L 260 45 L 240 0 C 350 0, 350 200, 450 200 L 1000 200 Z" 
-                  fill="#ffffff" 
-                />
-              </svg>
-
-              {/* Content Container */}
-              <div className="relative z-10 w-full h-full">
-                
-                {/* Left Side: Icon (Strictly bounded to left 25%) */}
-                <div className="absolute left-0 top-0 bottom-0 w-[25%] flex justify-center items-center">
-                  <div className="relative">
-                    {/* Simulated Long Shadow for the Icon */}
-                    <Icon 
-                      className="w-10 h-10 sm:w-16 sm:h-16 text-white absolute top-1 left-1 opacity-20 blur-[2px]" 
-                      strokeWidth={1.5} 
-                    />
-                    <Icon 
-                      className="w-10 h-10 sm:w-16 sm:h-16 text-white relative z-10 drop-shadow-[2px_2px_0px_rgba(0,0,0,0.1)]" 
-                      strokeWidth={1.5} 
-                    />
-                  </div>
-                </div>
-
-                {/* Right Side: Text (Strictly bounded to right 55% so it's always on white) */}
-                <div className="absolute right-0 top-0 bottom-0 w-[55%] flex flex-col justify-center pr-4 sm:pr-8 md:pr-12">
-                  <span 
-                    className="text-[10px] sm:text-xs font-black uppercase tracking-widest mb-1"
-                    style={{ color: bgColor }}
-                  >
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-[10px] font-mono text-[#5E5D57] uppercase tracking-wider">
                     Feature 0{i + 1}
                   </span>
-                  <h3 
-                    className="text-base sm:text-lg md:text-xl font-extrabold text-slate-900 mb-1 sm:mb-2 leading-tight" 
-                    style={{ fontFamily: "'Clash Display', sans-serif" }}
-                  >
-                    {item.title}
-                  </h3>
-                  <p className="text-[10px] sm:text-xs md:text-sm text-slate-700 leading-relaxed font-medium">
-                    {item.desc}
-                  </p>
+                  <div className="w-8 h-8 rounded-[2px] bg-[#DFDCD4] flex items-center justify-center text-[#121212]">
+                    <Icon className="w-4 h-4" />
+                  </div>
                 </div>
-
+                <h3 className="text-sm font-medium text-[#121212] mb-2 leading-snug font-sans">
+                  {item.title}
+                </h3>
+                <p className="text-xs text-[#5E5D57] leading-relaxed font-sans">
+                  {item.desc}
+                </p>
               </div>
-            </motion.div>
+            </div>
           );
         })}
       </div>
@@ -357,48 +375,41 @@ function ComparisonSection({ setPage }: { setPage: (p: Page) => void }) {
         </p>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        className="rounded-3xl overflow-hidden border border-[#EADEC9]"
-        style={{ boxShadow: "0 12px 40px rgba(0,0,0,0.07)" }}
-      >
+      <div className="rounded-[2px] overflow-hidden border border-[#CBC8BE] bg-[#EBE9E2]">
         {/* Table header */}
-        <div className="grid grid-cols-4 bg-[#1B4332] text-white text-xs font-bold uppercase tracking-wider">
-          <div className="p-5 font-mono">Feature</div>
-          <div className="p-5 font-mono text-[#34D399] border-l border-white/10">
+        <div className="grid grid-cols-4 bg-[#121212] text-white text-xs font-mono uppercase tracking-wider">
+          <div className="p-4 font-mono">Feature</div>
+          <div className="p-4 font-mono text-white border-l border-white/20">
             ✦ Claritiy Voice
           </div>
-          <div className="p-5 font-mono text-white/60 border-l border-white/10">Chained APIs</div>
-          <div className="p-5 font-mono text-white/60 border-l border-white/10">Human Centers</div>
+          <div className="p-4 font-mono text-white/70 border-l border-white/20">Chained APIs</div>
+          <div className="p-4 font-mono text-white/70 border-l border-white/20">Human Centers</div>
         </div>
         {/* Rows */}
         {rows.map((row, i) => (
           <div
             key={i}
-            className={`grid grid-cols-4 border-t border-[#EADEC9] ${row.highlight ? "bg-[#F0FDF4]" : i % 2 === 0 ? "bg-white" : "bg-[#FAF8F5]"} transition-colors hover:bg-[#F0FDF4]`}
+            className={`grid grid-cols-4 border-t border-[#CBC8BE] ${row.highlight ? "bg-[#DFDCD4]" : i % 2 === 0 ? "bg-[#EBE9E2]" : "bg-[#E5E3DC]"} transition-colors hover:bg-[#DFDCD4]`}
           >
-            <div className="p-4 text-sm font-bold text-[#0F172A]">{row.feature}</div>
-            <div className="p-4 text-sm font-semibold text-[#059669] border-l border-[#EADEC9]">{row.claritiy}</div>
-            <div className="p-4 text-sm text-slate-500 border-l border-[#EADEC9]">{row.vapi}</div>
-            <div className="p-4 text-sm text-slate-500 border-l border-[#EADEC9]">{row.legacy}</div>
+            <div className="p-3.5 text-xs font-medium text-[#121212]">{row.feature}</div>
+            <div className="p-3.5 text-xs font-semibold text-[#121212] border-l border-[#CBC8BE]">{row.claritiy}</div>
+            <div className="p-3.5 text-xs text-[#5E5D57] border-l border-[#CBC8BE]">{row.vapi}</div>
+            <div className="p-3.5 text-xs text-[#5E5D57] border-l border-[#CBC8BE]">{row.legacy}</div>
           </div>
         ))}
         {/* CTA row */}
-        <div className="grid grid-cols-4 border-t border-[#EADEC9] bg-[#F0FDF4]">
-          <div className="p-5 col-span-1 text-sm font-bold text-[#059669]">Ready to switch?</div>
-          <div className="p-5 col-span-3 border-l border-[#EADEC9]">
+        <div className="grid grid-cols-4 border-t border-[#CBC8BE] bg-[#DFDCD4] p-3.5 items-center">
+          <div className="col-span-1 text-xs font-mono font-bold text-[#121212]">Ready to switch?</div>
+          <div className="col-span-3 border-l border-[#CBC8BE] pl-4">
             <button
               onClick={() => setPage("dashboard")}
-              className="inline-flex items-center gap-2 text-sm font-bold text-white px-6 py-2.5 rounded-full"
-              style={{ background: "linear-gradient(135deg, #059669, #10B981)", boxShadow: "0 4px 16px rgba(5,150,105,0.25)" }}
+              className="btn-primary text-xs font-mono uppercase tracking-wider px-5 py-2"
             >
-              Start Building Now <ArrowRight className="w-4 h-4" />
+              Start Building Now <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
-      </motion.div>
+      </div>
     </section>
   );
 }
@@ -407,44 +418,32 @@ function ComparisonSection({ setPage }: { setPage: (p: Page) => void }) {
 // ── Full-bleed editorial CTA ──────────────────────────────────────────────────
 function FinalCTA({ setPage }: { setPage: (p: Page) => void }) {
   return (
-    <section className="py-24 px-6">
+    <section className="py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
-        <div className="relative overflow-hidden rounded-[40px]"
-          style={{ background: "linear-gradient(145deg, #0D2B20 0%, #1B4332 50%, #0A3622 100%)" }}>
-          {/* Dot grid */}
-          <div className="absolute inset-0 opacity-10"
-            style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
-          {/* Glow */}
-          <div className="absolute top-0 right-0 w-96 h-96 opacity-20 rounded-full"
-            style={{ background: "radial-gradient(circle, #34D399, transparent)" }} />
-          <div className="absolute bottom-0 left-0 w-64 h-64 opacity-15 rounded-full"
-            style={{ background: "radial-gradient(circle, #EA580C, transparent)" }} />
-
-          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 items-center gap-10 p-12 lg:p-16">
+        <div className="relative overflow-hidden rounded-[2px] bg-[#121212] border border-[#333333] text-white">
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 items-center gap-10 p-10 lg:p-14">
             {/* Left */}
             <div className="space-y-6">
-              <div className="inline-flex items-center gap-2 bg-white/10 border border-white/15 rounded-full px-4 py-2">
-                <span className="w-2 h-2 bg-[#34D399] rounded-full animate-pulse" />
-                <span className="text-xs font-bold text-white/80 font-mono uppercase tracking-widest">Now Live — Zero Setup</span>
+              <div className="inline-flex items-center gap-2 border border-white/20 rounded-[2px] px-3 py-1 font-mono text-xs uppercase tracking-wider text-neutral-300">
+                <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                <span>Now Live — Zero Setup</span>
               </div>
-              <h2 className="text-4xl lg:text-5xl font-extrabold text-white leading-tight"
-                style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-normal sm:font-medium text-white leading-tight font-sans tracking-tight">
                 Deploy Your First AI Voice Agent in Under 10 Minutes
               </h2>
-              <p className="text-white/60 text-base leading-relaxed">
+              <p className="text-neutral-400 text-sm sm:text-base leading-relaxed">
                 No engineering team. No call center overhead. Deploy conversational AI voice agents for appointment booking, lead qualification, COD verification, and more — instantly.
               </p>
-              <div className="flex flex-wrap gap-4">
+              <div className="flex flex-wrap gap-3">
                 <button
                   onClick={() => setPage("dashboard")}
-                  className="inline-flex items-center gap-2 font-bold text-base text-[#1B4332] px-8 py-4 rounded-full transition-all hover:scale-105 active:scale-95"
-                  style={{ background: "linear-gradient(135deg, #34D399 0%, #10B981 100%)", boxShadow: "0 8px 24px rgba(52,211,153,0.4)" }}
+                  className="bg-white text-black hover:bg-neutral-200 rounded-[2px] font-mono text-xs uppercase tracking-wider px-6 py-3 flex items-center gap-2 transition-colors font-medium"
                 >
-                  Build Your Agent Now <ArrowRight className="w-5 h-5" />
+                  Build Your Agent Now <ArrowRight className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setPage("pricing")}
-                  className="inline-flex items-center gap-2 font-semibold text-sm text-white border border-white/25 px-7 py-4 rounded-full hover:bg-white/10 transition-all"
+                  className="border border-[#666666] text-white hover:bg-white/10 rounded-[2px] font-mono text-xs uppercase tracking-wider px-6 py-3 transition-colors"
                 >
                   View Pricing Plans
                 </button>
@@ -484,11 +483,14 @@ function FinalCTA({ setPage }: { setPage: (p: Page) => void }) {
 // ── Main Home Page ──────────────────────────────────────────────────────────
 export default function Home({ setPage }: HomeProps) {
   return (
-    <div className="overflow-hidden" style={{ background: "#FAF8F5" }}>
+    <div className="overflow-hidden" style={{ background: "#E5E3DC" }}>
       <ScrollProgress />
 
       {/* ── HERO ── */}
       <Hero setPage={setPage} />
+
+      {/* ── TESTIMONIALS (EdgeSkool Reference) ── */}
+      <TestimonialsSection />
 
       {/* ── INTERACTIVE LIVE VOICE AI LOTTIE SIMULATOR ── */}
       <section className="py-16 md:py-24 px-4 sm:px-6 max-w-6xl mx-auto">
@@ -704,95 +706,55 @@ export default function Home({ setPage }: HomeProps) {
 // ── Interlocking Horizontal Steps Section ──────────────────────────────────────
 function GridSteps() {
   const steps = [
-    { n: "1", title: "Configure Your AI Agent", desc: "Name your agent, pick a voice persona, set language mode, and define the conversation goal.", icon: Bot, color: "#14532D" },
-    { n: "2", title: "Upload Knowledge Base", desc: "Paste FAQs, connect Shopify/CRM, or upload PDFs. Your AI phone assistant learns your business instantly via RAG.", icon: Database, color: "#166534" },
-    { n: "3", title: "Connect Phone Number", desc: "Get a dedicated PSTN number or bring your SIP trunk. Inbound and outbound routing configured in one click.", icon: Phone, color: "#15803D" },
-    { n: "4", title: "Launch & Monitor", desc: "Go live. Monitor calls in real-time, read transcripts, view AI call analytics, and iterate from the dashboard.", icon: BarChart3, color: "#16A34A" },
+    { n: "01", title: "Configure Your AI Agent", desc: "Name your agent, pick a voice persona, set language mode, and define the conversation goal.", icon: Bot },
+    { n: "02", title: "Upload Knowledge Base", desc: "Paste FAQs, connect Shopify/CRM, or upload PDFs. Your AI phone assistant learns your business instantly via RAG.", icon: Database },
+    { n: "03", title: "Connect Phone Number", desc: "Get a dedicated PSTN number or bring your SIP trunk. Inbound and outbound routing configured in one click.", icon: Phone },
+    { n: "04", title: "Launch & Monitor", desc: "Go live. Monitor calls in real-time, read transcripts, view AI call analytics, and iterate from the dashboard.", icon: BarChart3 },
   ];
 
   return (
-    <section className="py-28 px-4 lg:px-8 relative overflow-hidden bg-[#F1F5F9]">
-      <div className="max-w-[1400px] mx-auto">
-        <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
-          <SectionLabel text="Deploy in Under 10 Minutes" color="green" />
-          <h2 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A] leading-tight"
-            style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
-            From Zero to Live AI Voice Agent
-          </h2>
-          <p className="text-slate-500 leading-relaxed">
-            No code. No call center setup. No engineering team. Build and deploy your AI phone agent in minutes.
-          </p>
-        </div>
+    <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <div className="hatched-strip h-10 w-full mb-10" />
+      <div className="text-center max-w-3xl mx-auto mb-14 space-y-3">
+        <SectionLabel text="Deploy in Under 10 Minutes" />
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-normal sm:font-medium text-[#121212] tracking-tight leading-[1.1] font-sans">
+          From Zero to Live AI Voice Agent
+        </h2>
+        <p className="text-[#5E5D57] text-sm sm:text-base leading-relaxed">
+          No code. No call center setup. No engineering team. Build and deploy your AI phone agent in minutes.
+        </p>
+      </div>
 
-        {/* Horizontal Interlocking Cards Container */}
-        <div className="flex flex-col xl:flex-row items-stretch justify-center pl-0 xl:pl-16 gap-y-12 xl:gap-y-0 max-w-full overflow-hidden pb-12 pt-8">
-          {steps.map((step, i) => {
-            const Icon = step.icon;
-            // z-index increases left to right so that right cards overlap left cards
-            const zIndex = (i + 1) * 10;
-            // The left margin creates the overlap on desktop
-            const marginLeft = i === 0 ? "0" : "-ml-0 xl:-ml-12";
-            // Extra right padding for cards 1, 2, 3 to prevent their text from being covered by the next card's overlapping number
-            const paddingRight = i !== steps.length - 1 ? "xl:pr-32" : "";
-            
-            return (
-              <motion.div 
-                key={i}
-                initial={{ opacity: 0, x: 50 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true, margin: "-50px" }}
-                transition={{ duration: 0.6, delay: i * 0.1 }}
-                className={`relative flex-1 rounded-3xl p-8 lg:p-10 ${paddingRight} flex flex-col justify-between min-h-[380px] shadow-2xl ${marginLeft}`}
-                style={{ 
-                  backgroundColor: step.color, 
-                  zIndex: zIndex,
-                }}
-              >
-                {/* Large Interlocking Number (Hidden on very small mobile, visible mostly on tablet/desktop) */}
-                <div 
-                  className="absolute hidden sm:block top-1/2 -translate-y-1/2 font-black select-none pointer-events-none transition-transform"
-                  style={{
-                    left: "-3.5rem", // Protrudes to the left to overlap the previous card
-                    fontSize: "240px",
-                    lineHeight: "0.8",
-                    color: step.color, // Exactly matches the card background to form a seamless extension
-                    textShadow: "-12px 0px 20px rgba(0,0,0,0.35)", // Creates the 3D interlocking illusion
-                    zIndex: -1 // Sits just behind the card content but above the previous card
-                  }}
-                >
-                  {step.n}
-                </div>
-
-                {/* Mobile version of the number (Since horizontal overlap doesn't work well on vertical stack) */}
-                <div className="sm:hidden absolute -top-8 left-8 text-7xl font-black text-white/20 select-none">
-                  {step.n}
-                </div>
-
-                {/* Card Content */}
-                <div className="relative z-10 flex flex-col h-full">
-                  <div className="mb-8">
-                    <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center mb-6 shadow-inner border border-white/5">
-                      <Icon className="w-7 h-7 text-white" strokeWidth={1.5} />
-                    </div>
-                    <h3 className="text-2xl font-extrabold text-white mb-4 leading-snug">
-                      {step.title}
-                    </h3>
-                    <p className="text-white/80 leading-relaxed font-medium text-sm">
-                      {step.desc}
-                    </p>
-                  </div>
-
-                  <div className="mt-auto">
-                    <div className="w-full h-[1px] bg-white/20 mb-4"></div>
-                    <p className="text-xs font-bold text-white/60 uppercase tracking-widest font-mono">
-                      Phase {step.n}
-                    </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {steps.map((step, i) => {
+          const Icon = step.icon;
+          return (
+            <div
+              key={i}
+              className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-6 flex flex-col justify-between hover:border-[#9C998F] transition-colors"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <span className="font-mono text-2xl font-bold text-[#121212]">
+                    {step.n}
+                  </span>
+                  <div className="w-8 h-8 rounded-[2px] bg-[#DFDCD4] flex items-center justify-center text-[#121212]">
+                    <Icon className="w-4 h-4" />
                   </div>
                 </div>
-              </motion.div>
-            )
-          })}
-        </div>
+                <h3 className="text-sm sm:text-base font-medium text-[#121212] mb-2 leading-snug font-sans">
+                  {step.title}
+                </h3>
+                <p className="text-xs text-[#5E5D57] leading-relaxed font-sans">
+                  {step.desc}
+                </p>
+              </div>
+              <div className="pt-4 mt-6 border-t border-[#CBC8BE]/60 text-[10px] font-mono text-[#5E5D57] uppercase tracking-wider">
+                Phase {step.n}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </section>
   );

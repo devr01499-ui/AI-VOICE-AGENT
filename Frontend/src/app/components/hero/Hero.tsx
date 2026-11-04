@@ -157,13 +157,13 @@ function HdGeometricalArchitectureDiagram() {
     <div className="w-full flex flex-col space-y-4 font-sans">
       
       {/* ── Top Telemetry & Control Bar ────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white/95 backdrop-blur-md rounded-2xl p-3.5 border border-slate-200/90 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-[#EBE9E2] rounded-[2px] p-3.5 border border-[#CBC8BE]">
         <div className="flex items-center gap-2.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#059669] animate-pulse shadow-[0_0_8px_#059669]" />
-          <span className="text-xs font-extrabold text-[#0F172A] font-mono tracking-wider">
+          <div className="w-2 h-2 rounded-full bg-[#121212] animate-pulse" />
+          <span className="text-xs font-bold text-[#121212] font-mono tracking-wider">
             PIPECAT NATIVE VOICE ENGINE
           </span>
-          <span className="text-[11px] font-bold font-mono text-[#059669] bg-[#ECFDF5] px-2.5 py-0.5 rounded-md border border-[#059669]/20">
+          <span className="text-[11px] font-bold font-mono text-[#121212] bg-[#DFDCD4] px-2 py-0.5 rounded-[2px] border border-[#CBC8BE]">
             {simulatedLatency}ms
           </span>
         </div>
@@ -172,36 +172,36 @@ function HdGeometricalArchitectureDiagram() {
         <div className="flex items-center gap-2 ml-auto">
           <button
             onClick={() => setActiveTab("flow")}
-            className={`text-xs font-bold font-mono px-3.5 py-1.5 rounded-xl transition-all ${
+            className={`text-xs font-mono px-3 py-1 rounded-[2px] transition-all ${
               activeTab === "flow"
-                ? "bg-[#059669] text-white shadow-sm"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                ? "bg-[#121212] text-white"
+                : "bg-transparent border border-[#CBC8BE] text-[#5E5D57] hover:text-[#121212]"
             }`}
           >
             Diagram Flow
           </button>
           <button
             onClick={() => setActiveTab("features")}
-            className={`text-xs font-bold font-mono px-3.5 py-1.5 rounded-xl transition-all ${
+            className={`text-xs font-mono px-3 py-1 rounded-[2px] transition-all ${
               activeTab === "features"
-                ? "bg-[#059669] text-white shadow-sm"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                ? "bg-[#121212] text-white"
+                : "bg-transparent border border-[#CBC8BE] text-[#5E5D57] hover:text-[#121212]"
             }`}
           >
             USP Grid
           </button>
           <button
             onClick={() => setIsPlaying(!isPlaying)}
-            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700 transition-colors ml-1"
+            className="w-7 h-7 rounded-[2px] border border-[#CBC8BE] bg-transparent hover:bg-black/5 flex items-center justify-center text-[#121212] transition-colors ml-1"
             title={isPlaying ? "Pause Rotation" : "Play Rotation"}
           >
             {isPlaying ? (
               <div className="flex gap-0.5">
-                <div className="w-1 h-3 rounded-sm bg-slate-700" />
-                <div className="w-1 h-3 rounded-sm bg-slate-700" />
+                <div className="w-1 h-2.5 bg-[#121212]" />
+                <div className="w-1 h-2.5 bg-[#121212]" />
               </div>
             ) : (
-              <Play className="w-3.5 h-3.5 ml-0.5 fill-slate-700 text-slate-700" />
+              <Play className="w-3 h-3 ml-0.5 fill-[#121212] text-[#121212]" />
             )}
           </button>
         </div>
@@ -209,7 +209,7 @@ function HdGeometricalArchitectureDiagram() {
 
       {/* ── Main Canvas View: Interactive Architecture Diagram Flow ────────── */}
       {activeTab === "flow" ? (
-        <div className="relative w-full rounded-3xl bg-white/95 backdrop-blur-xl p-5 md:p-6 border border-slate-200/90 shadow-[0_16px_40px_rgba(0,0,0,0.06)] overflow-hidden">
+        <div className="relative w-full rounded-[2px] bg-[#EBE9E2] p-5 md:p-6 border border-[#CBC8BE] overflow-hidden">
           
           {/* Background SVG Geometrical Grid & Laser Beams */}
           <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-40" viewBox="0 0 650 360">
@@ -450,23 +450,13 @@ function HdGeometricalArchitectureDiagram() {
   );
 }
 
-// ── Main Hero Section ─────────────────────────────────────────────────────────
+// ── Main Hero Section (EdgeSkool Minimalist Wireframe Style) ─────────────────
 export default function Hero({ setPage }: HeroProps) {
   return (
-    <section className="relative overflow-hidden pt-8 pb-16 lg:pt-12 lg:pb-24 bg-[#FBF9F4]">
+    <section className="relative overflow-hidden pt-6 pb-16 lg:pt-8 lg:pb-20 bg-[#E5E3DC]">
       
-      {/* Background Architectural Grid Pattern */}
-      <div 
-        className="absolute inset-0 pointer-events-none opacity-[0.035]" 
-        style={{ 
-          backgroundImage: "radial-gradient(circle, #0F172A 1px, transparent 1px)", 
-          backgroundSize: "28px 28px" 
-        }} 
-      />
-
-      {/* Warm Ambient Radial Glows (No blue, no black, no purple!) */}
-      <div className="absolute top-10 left-8 w-80 h-80 bg-[#D1FAE5]/50 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-10 right-10 w-[450px] h-[450px] bg-[#FEF3C7]/50 rounded-full blur-[120px] pointer-events-none" />
+      {/* Signature EdgeSkool Diagonal Hatched Decorative Banner */}
+      <div className="hatched-strip h-12 w-full mb-10" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
@@ -474,66 +464,58 @@ export default function Hero({ setPage }: HeroProps) {
           {/* ── LEFT COLUMN: Clear Enterprise Messaging & CTAs (6 Cols) ─────── */}
           <motion.div 
             className="lg:col-span-6 space-y-6 text-left"
-            initial={{ opacity: 0, y: 24 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.5 }}
           >
-            {/* Live Status Pill */}
-            <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full border border-emerald-800/10 bg-emerald-500/10 backdrop-blur-md">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#059669] animate-pulse" />
-              <span className="text-xs font-extrabold text-[#059669] uppercase tracking-wider font-mono">
-                #1 Enterprise AI Voice Platform · Claritiy Voice
-              </span>
+            {/* Live Status Tag */}
+            <div className="flex items-center gap-2 text-xs font-mono text-[#5E5D57]">
+              <span className="text-[#121212] font-bold">|</span>
+              <span className="uppercase tracking-wider">Claritiy Voice · Enterprise Outbound, Support & IVR</span>
             </div>
 
             {/* Headline */}
-            <h1 
-              className="text-[#0F172A] text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.08]"
-              style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}
-            >
+            <h1 className="text-[#121212] text-4xl sm:text-5xl lg:text-6xl font-normal lg:font-medium tracking-tight leading-[1.08] font-sans">
               Human-Like AI Voice Agents for Outbound Sales, Support & IVR
             </h1>
 
             {/* Clear Explanation of What We Do */}
-            <p className="text-slate-600 text-base sm:text-lg leading-relaxed font-medium font-plus-jakarta">
-              Claritiy Voice builds sub-second (<span className="text-[#059669] font-bold">180ms</span>) conversational AI phone agents that place outbound sales calls, handle inbound customer support, qualify leads, and automate payment reminders across <span className="text-[#D97706] font-bold">70+ languages</span> with zero setup overhead.
+            <p className="text-[#5E5D57] text-base sm:text-lg leading-relaxed font-normal">
+              Claritiy Voice builds sub-second (<span className="text-[#121212] font-semibold">180ms</span>) conversational AI phone agents that place outbound sales calls, handle inbound customer support, qualify leads, and automate payment reminders across <span className="text-[#121212] font-semibold">70+ languages</span> with zero setup overhead.
             </p>
 
             {/* Primary & Secondary CTAs */}
-            <div className="flex flex-wrap items-center gap-4 pt-2">
+            <div className="flex flex-wrap items-center gap-3 pt-2">
               <button
                 onClick={() => setPage("dashboard")}
-                className="inline-flex items-center gap-2.5 text-white font-extrabold text-base px-8 py-4 rounded-2xl shadow-[0_10px_25px_rgba(5,150,105,0.3)] transition-all hover:scale-[1.02] active:scale-[0.98]"
-                style={{ background: "linear-gradient(135deg, #059669 0%, #047857 100%)" }}
+                className="btn-primary uppercase font-mono text-xs tracking-wider px-6 py-3"
               >
                 Build Your AI Agent
-                <ArrowRight className="w-5 h-5" />
+                <ArrowRight className="w-4 h-4" />
               </button>
 
               <button
                 onClick={() => setPage("how-it-works")}
-                className="inline-flex items-center gap-2.5 text-[#0F172A] font-bold text-base px-7 py-4 rounded-2xl bg-white border border-slate-200 shadow-sm hover:bg-slate-50 transition-all"
+                className="btn-secondary uppercase font-mono text-xs tracking-wider px-6 py-3 flex items-center gap-2"
               >
-                <div className="w-7 h-7 rounded-xl bg-emerald-50 flex items-center justify-center">
-                  <Play className="w-3.5 h-3.5 text-[#059669] ml-0.5" />
-                </div>
+                <Play className="w-3.5 h-3.5 fill-[#121212] text-[#121212]" />
                 Hear Sample AI Call
               </button>
             </div>
 
             {/* Platform Proof Metrics Bar */}
-            <div className="pt-6 border-t border-slate-200/80 grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="pt-6 border-t border-[#CBC8BE] grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { label: "Response Latency", value: "< 500ms" },
                 { label: "Supported Languages", value: "70+ Dialects" },
                 { label: "Human Voice Parity", value: "99.9%" },
                 { label: "Security & Privacy", value: "256-Bit TLS" }
               ].map((stat, idx) => (
-                <div key={idx} className="space-y-0.5">
-                  <p className="text-lg sm:text-xl font-extrabold text-[#0F172A] font-mono">
+                <div key={idx} className="bg-[#EBE9E2] border border-[#CBC8BE] p-3 rounded-[2px] space-y-0.5">
+                  <p className="text-base sm:text-lg font-bold text-[#121212] font-mono">
                     {stat.value}
                   </p>
-                  <p className="text-xs text-slate-500 font-semibold">
+                  <p className="text-[11px] text-[#5E5D57] font-mono">
                     {stat.label}
                   </p>
                 </div>
@@ -545,11 +527,10 @@ export default function Hero({ setPage }: HeroProps) {
           {/* ── RIGHT COLUMN: HD Graphical Architecture Diagram (6 Cols) ─────── */}
           <motion.div 
             className="lg:col-span-6 relative w-full"
-            initial={{ opacity: 0, scale: 0.94 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.15 }}
           >
-            {/* The High-Definition Architecture & Animation Engine */}
             <HdGeometricalArchitectureDiagram />
           </motion.div>
 

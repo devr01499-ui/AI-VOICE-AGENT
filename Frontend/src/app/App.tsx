@@ -8304,7 +8304,7 @@ export default function App() {
   }
 
   return (
-    <div className="bg-cream-bg text-ink min-h-screen relative overflow-hidden font-plus-jakarta selection:bg-mint-primary/30 selection:text-forest-deep">
+    <div className="bg-[#E5E3DC] text-[#121212] min-h-screen relative overflow-hidden font-sans selection:bg-[#121212] selection:text-[#E5E3DC]">
       
       <style>{`
         @keyframes wave {
@@ -8315,9 +8315,9 @@ export default function App() {
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(5,150,105,0.2); border-radius: 999px; }
         ::-webkit-scrollbar-thumb:hover { background: rgba(5,150,105,0.4); }
-        * { font-family: 'Plus Jakarta Sans', sans-serif; }
+        * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
         .font-sora { font-family: 'Sora', sans-serif; }
-        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .font-mono { font-family: 'Space Mono', 'IBM Plex Mono', monospace; }
       `}</style>
 
       <Navbar page={page} setPage={handleNavigate} session={session} />

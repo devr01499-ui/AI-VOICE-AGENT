@@ -1,5 +1,13 @@
 # CHANGELOG
 
+- Frontend Editorial Design Overhaul (EdgeSkool Warm Stone Wireframe System):
+  - **Design Language Alignment (`theme.css`, `fonts.css`, `App.tsx`)**: Upgraded global styling palette to warm stone `#E5E3DC`, stone cards `#EBE9E2`, hairline borders `#CBC8BE`, and deep charcoal text `#121212`. Added `Inter` and `Space Mono` typography scales with micro-radii `rounded-[2px]`. Defined signature 45° diagonal hatched strip utility (`.hatched-strip`).
+  - **Minimalist Top Navigation (`Navbar.tsx`)**: Replaced floating pill navbar with full-width architectural header featuring 1px bottom border, monospace navigation links, outline "How It Works" button, and solid black "Join Now" CTA button.
+  - **Architectural Hero Section (`Hero.tsx`)**: Added signature diagonal hatched decorative band, sentence-case neo-grotesque headline, monospace status indicator, high-contrast action buttons, and wireframe telemetry panel.
+  - **Testimonials Bento Grid (`Home.tsx`)**: Added dedicated 3-column bento card grid directly replicating the EdgeSkool reference template with `- Author` monospace footer attribution and hairline borders. Refactored feature capabilities, comparison table, and final CTA into wireframe grid cards.
+  - **Wireframe Footer (`Footer.tsx`)**: Refactored consultation callout, system telemetry monitor, and compliance badges into crisp wireframe containers with high contrast.
+  - **Zero Regressions & Clean Builds**: Preserved 100% of existing page routes, copy, and backend contracts. Built and verified cleanly across all 108 static pre-rendered routes.
+
 - End-Call & Live Monitoring Fix (21/21 tests passing, zero TypeScript errors):
   - **Carrier Hangup — Single Source of Truth (`carrierHangup.ts`)**: New module is the only place that tells the carrier to hang up. Resolves OUR DID (outbound: `fromPhoneNumber`, inbound: `recipientPhoneNumber`) to pick the right carrier/sub-account, retries transient 5xx errors up to 3 times, treats 404/410 as `already_ended`, and emits structured `[CARRIER_HANGUP]` / `[CARRIER_HANGUP_FAILED]` log lines for alerting. Previously the AI's own `end_call` tool never hung up the phone (keepCallAlive=true), and inbound calls used the wrong carrier.
   - **Farewell Watchdog (`CallOrchestrator.ts`)**: `armFarewellWatchdog` listens for a final agent turn that ends with a genuine goodbye phrase (`FAREWELL_PATTERN`). After the goodbye audio finishes playing, it waits `FAREWELL_HANGUP_SILENCE_MS` (default 5 s) for caller silence and then calls `endCallGracefully`. Cancelled immediately if the caller speaks or the agent starts a new turn. Prevents calls staying connected indefinitely when the model says goodbye but forgets to call `end_call`.
