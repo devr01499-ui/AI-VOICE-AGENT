@@ -88,11 +88,10 @@ export default function LottieVoiceOrb({ className = "", onExploreClick }: Lotti
   const current = scenarios[activeScenario];
 
   return (
-    <div className={`relative rounded-3xl bg-[#0D1117] text-white p-6 md:p-8 border border-slate-800 shadow-2xl overflow-hidden font-plus-jakarta ${className}`}>
+    <div className={`relative rounded-[2px] bg-[#121212] text-white p-6 md:p-8 border border-[#2A2926] overflow-hidden font-sans ${className}`}>
       
       {/* ── Background Glow Accents ───────────────────────────────────────── */}
-      <div className="absolute -top-24 -right-24 w-72 h-72 bg-[#059669]/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-[#F59E0B]/15 rounded-full blur-3xl pointer-events-none" />
+      
       
       {/* ── Top Header Deck ──────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-800/80 relative z-10">
@@ -181,7 +180,7 @@ export default function LottieVoiceOrb({ className = "", onExploreClick }: Lotti
             />
 
             {/* Center Floating Status Badge */}
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 bg-slate-950/90 backdrop-blur-md border border-emerald-500/40 px-3 py-1 rounded-full text-[10px] font-mono font-bold text-emerald-400 flex items-center gap-1.5 shadow-lg whitespace-nowrap">
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 bg-slate-950/90 backdrop-blur-md border border-[#444444] px-2.5 py-0.5 rounded-[2px] text-[10px] font-mono text-neutral-300 bg-[#1A1918] flex items-center gap-1.5 shadow-lg whitespace-nowrap">
               <Zap className="w-3 h-3 text-emerald-400" />
               <span>{current.metrics.latency} Latency</span>
             </div>
@@ -198,7 +197,7 @@ export default function LottieVoiceOrb({ className = "", onExploreClick }: Lotti
         <div className="lg:col-span-7 space-y-4">
           
           {/* Live Conversational Speech Bubble */}
-          <div className="bg-slate-900/90 rounded-2xl p-4.5 border border-slate-800/80 space-y-3 min-h-[160px] flex flex-col justify-between">
+          <div className="bg-[#1A1918] rounded-[2px] p-4.5 border border-[#333333] space-y-3 min-h-[160px] flex flex-col justify-between">
             <div className="flex items-center justify-between text-xs text-slate-400 font-mono pb-2 border-b border-slate-800">
               <span className="text-emerald-400 font-bold">{current.tag}</span>
               <span>Turn {dialogueIndex + 1} of 3</span>

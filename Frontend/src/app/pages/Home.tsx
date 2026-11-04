@@ -222,128 +222,55 @@ function BentoCapabilitySection({ setPage }: { setPage: (p: Page) => void }) {
   );
 }
 
-// ── Interlocking Clover Infographic Section ─────────────────────────────────────
+// ── Technical Neo-Brutalist Use Cases Section ──────────────────────────────────
 function UseCaseSection({ setPage }: { setPage: (p: Page) => void }) {
   const useCases = [
-    { step: "FIRST USE CASE", num: "01", title: "APPOINTMENTS", desc: "Automate booking, demo scheduling, and calendar integration. Reduce no-shows by 89%.", icon: Clock },
-    { step: "SECOND USE CASE", num: "02", title: "QUALIFICATION", desc: "Contact leads within 3s of form submission. Qualify budgets and score intent.", icon: TrendingUp },
-    { step: "THIRD USE CASE", num: "03", title: "INBOUND", desc: "Handle inbound calls, answer FAQs, and intelligently route to human agents.", icon: PhoneCall },
-    { step: "FOURTH USE CASE", num: "04", title: "COLLECTIONS", desc: "Automate EMI reminders and debt outreach with secure data handling.", icon: Activity },
+    { step: "FIRST USE CASE", num: "01", title: "APPOINTMENTS", desc: "Automate booking, demo scheduling, and calendar integration. Reduce no-shows by 89%.", icon: Clock, metric: "89% No-Show Reduction" },
+    { step: "SECOND USE CASE", num: "02", title: "QUALIFICATION", desc: "Contact leads within 3s of form submission. Qualify budgets and score intent.", icon: TrendingUp, metric: "3s Response Window" },
+    { step: "THIRD USE CASE", num: "03", title: "INBOUND", desc: "Handle inbound calls, answer FAQs, and intelligently route to human agents.", icon: PhoneCall, metric: "0ms First-Ring Answering" },
+    { step: "FOURTH USE CASE", num: "04", title: "COLLECTIONS", desc: "Automate EMI reminders and debt outreach with secure data handling.", icon: Activity, metric: "42% Recovery Lift" },
   ];
 
-  // Colors from the design: Teal, Orange, Beige, Brown
-  const colors = ["#5BC4BF", "#F58220", "#F4D09C", "#6D534A"];
-
   return (
-    <section className="py-24 px-4 bg-[#FAF9F6] relative overflow-hidden">
-      <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
-        <SectionLabel text="Use Cases" color="orange" />
-        <h2 className="text-4xl lg:text-5xl font-extrabold text-[#2C3E50] leading-tight"
-          style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
-          One Platform. Every High-Value<br />Call Automation Use Case.
+    <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <div className="hatched-strip h-10 w-full mb-10" />
+      <div className="text-center max-w-3xl mx-auto mb-14 space-y-3">
+        <SectionLabel text="Use Cases" />
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-normal sm:font-medium text-[#121212] tracking-tight leading-[1.1] font-sans">
+          One Platform. Every High-Value Call Automation Use Case.
         </h2>
       </div>
 
-      <div className="max-w-[850px] mx-auto relative w-full aspect-square md:aspect-auto md:h-[850px] mt-10">
-        
-        {/* SVG Interlocking Ribbons */}
-        <svg className="absolute inset-0 w-full h-full drop-shadow-xl" viewBox="-280 -280 560 560">
-          <defs>
-            <filter id="ribbon-shadow" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="2" dy="6" stdDeviation="8" floodOpacity="0.25" floodColor="#000000" />
-            </filter>
-            
-            <clipPath id="tr-head-clip">
-              <rect x="0" y="0" width="280" height="280" />
-            </clipPath>
-
-            {/* Curved Text Paths (Radius 130, Center +/-110) */}
-            <path id="text-tl" d="M -240 -110 A 130 130 0 0 1 -110 -240" fill="none" />
-            <path id="text-tr" d="M 110 -240 A 130 130 0 0 1 240 -110" fill="none" />
-            <path id="text-br" d="M 110 240 A 130 130 0 0 0 240 110" fill="none" />
-            <path id="text-bl" d="M -240 110 A 130 130 0 0 0 -110 240" fill="none" />
-            
-            {/* The 4 Ribbon Paths (Thickness 40, Inner 110, Outer 150) */}
-            {/* TR (Orange) */}
-            <path id="path-tr" d="M -40 -110 A 150 150 0 1 1 110 40 L 90 20 L 110 0 A 110 110 0 1 0 0 -110 Z" />
-            {/* TL (Teal) */}
-            <path id="path-tl" d="M -110 40 A 150 150 0 1 1 40 -110 L 20 -90 L 0 -110 A 110 110 0 1 0 -110 0 Z" />
-            {/* BL (Brown) */}
-            <path id="path-bl" d="M 40 110 A 150 150 0 1 1 -110 -40 L -90 -20 L -110 0 A 110 110 0 1 0 0 110 Z" />
-            {/* BR (Beige) */}
-            <path id="path-br" d="M 110 -40 A 150 150 0 1 1 -40 110 L -20 90 L 0 110 A 110 110 0 1 0 110 0 Z" />
-          </defs>
-
-          {/* Draw Ribbons in Pinwheel Order */}
-          <use href="#path-tr" fill={colors[1]} filter="url(#ribbon-shadow)" />
-          <use href="#path-tl" fill={colors[0]} filter="url(#ribbon-shadow)" />
-          <use href="#path-bl" fill={colors[3]} filter="url(#ribbon-shadow)" />
-          <use href="#path-br" fill={colors[2]} filter="url(#ribbon-shadow)" />
-          
-          {/* Re-draw TR Head to complete the pinwheel overlap */}
-          <use href="#path-tr" fill={colors[1]} clipPath="url(#tr-head-clip)" filter="url(#ribbon-shadow)" />
-
-          {/* Curved Text */}
-          <text fill="#ffffff" fontSize="14" fontWeight="bold" letterSpacing="2" fontFamily="'Plus Jakarta Sans', sans-serif">
-            <textPath href="#text-tl" startOffset="50%" textAnchor="middle">
-              {useCases[0].step} <tspan fontSize="22">{useCases[0].num}</tspan>
-            </textPath>
-          </text>
-          
-          <text fill="#ffffff" fontSize="14" fontWeight="bold" letterSpacing="2" fontFamily="'Plus Jakarta Sans', sans-serif">
-            <textPath href="#text-tr" startOffset="50%" textAnchor="middle">
-              {useCases[1].step} <tspan fontSize="22">{useCases[1].num}</tspan>
-            </textPath>
-          </text>
-
-          <text fill="#6D534A" fontSize="14" fontWeight="bold" letterSpacing="2" fontFamily="'Plus Jakarta Sans', sans-serif">
-            <textPath href="#text-br" startOffset="50%" textAnchor="middle">
-              {useCases[2].step} <tspan fontSize="22">{useCases[2].num}</tspan>
-            </textPath>
-          </text>
-
-          <text fill="#F4D09C" fontSize="14" fontWeight="bold" letterSpacing="2" fontFamily="'Plus Jakarta Sans', sans-serif">
-            <textPath href="#text-bl" startOffset="50%" textAnchor="middle">
-              {useCases[3].step} <tspan fontSize="22">{useCases[3].num}</tspan>
-            </textPath>
-          </text>
-        </svg>
-
-        {/* Central Hub Icon */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-30">
-          <div className="w-16 h-16 md:w-24 md:h-24 bg-white rounded-2xl shadow-[0_15px_30px_rgba(0,0,0,0.1)] flex items-center justify-center border-4 border-slate-50 rotate-45 transform transition-transform hover:scale-110">
-            <div className="rotate-[-45deg] flex flex-col items-center">
-              <Bot className="w-6 h-6 md:w-10 md:h-10 text-indigo-600 mb-1" strokeWidth={1.5} />
-              <span className="text-[8px] md:text-[10px] font-black tracking-widest text-slate-800">CORE</span>
-            </div>
-          </div>
-        </div>
-
-        {/* HTML Content placed perfectly in the center of each ring */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {useCases.map((uc, i) => {
           const Icon = uc.icon;
-          // Centers: 30.3% and 69.6% based on SVG coordinates
-          const posX = i === 0 || i === 3 ? "30.3%" : "69.6%";
-          const posY = i === 0 || i === 1 ? "30.3%" : "69.6%";
-          
           return (
-            <div 
-              key={i} 
-              className="absolute flex flex-col items-center justify-center text-center w-48 md:w-64 px-2"
-              style={{ left: posX, top: posY, transform: "translate(-50%, -50%)" }}
+            <div
+              key={i}
+              className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-6 flex flex-col justify-between hover:border-[#9C998F] transition-colors"
             >
-              <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-white flex items-center justify-center shadow-lg mb-4" style={{ color: colors[i] }}>
-                <Icon className="w-6 h-6 md:w-8 md:h-8" strokeWidth={2} />
+              <div>
+                <div className="flex items-center justify-between mb-5">
+                  <span className="text-[10px] font-mono text-[#5E5D57] uppercase tracking-wider">
+                    [ {uc.num} ] · {uc.step}
+                  </span>
+                  <div className="w-8 h-8 rounded-[2px] bg-[#DFDCD4] flex items-center justify-center text-[#121212]">
+                    <Icon className="w-4 h-4" />
+                  </div>
+                </div>
+                <h3 className="text-base font-medium text-[#121212] mb-2 font-sans tracking-tight">
+                  {uc.title}
+                </h3>
+                <p className="text-xs text-[#5E5D57] leading-relaxed font-sans">
+                  {uc.desc}
+                </p>
               </div>
-              <h3 className="font-black text-slate-900 text-sm md:text-xl mb-2 tracking-wide leading-tight drop-shadow-sm">{uc.title}</h3>
-              <div className="w-12 h-1.5 mb-3 rounded-full opacity-80 shadow-sm" style={{ backgroundColor: colors[i] }}></div>
-              <p className="text-[11px] md:text-sm text-slate-700 font-semibold leading-relaxed drop-shadow-sm">
-                {uc.desc}
-              </p>
+              <div className="pt-4 mt-6 border-t border-[#CBC8BE]/60 text-[11px] font-mono font-medium text-[#121212]">
+                {uc.metric}
+              </div>
             </div>
-          )
+          );
         })}
-        
       </div>
     </section>
   );
@@ -529,129 +456,109 @@ export default function Home({ setPage }: HomeProps) {
         <IndustryShowroomGrid />
       </section>
 
-      {/* ── INBOUND + OUTBOUND SPLIT ── */}
-      <section className="py-24 px-6 max-w-7xl mx-auto">
-        <div className="text-center max-w-3xl mx-auto mb-14 space-y-4">
+      {/* ── INBOUND + OUTBOUND SPLIT (Technical Wireframe Style) ── */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <div className="hatched-strip h-10 w-full mb-10" />
+        <div className="text-center max-w-3xl mx-auto mb-14 space-y-3">
           <SectionLabel text="Inbound & Outbound AI Calling" />
-          <h2 className="text-4xl lg:text-5xl font-extrabold text-[#0F172A]"
-            style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-normal sm:font-medium text-[#121212] tracking-tight leading-[1.1] font-sans">
             One Unified Voice Automation Platform.<br />Two Powerful Directions.
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Inbound */}
-          <motion.div className="relative overflow-hidden rounded-3xl p-10 space-y-6"
-            initial={{ opacity: 0, x: -24 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
-            style={{ background: "linear-gradient(145deg, #1B4332 0%, #14532D 100%)", boxShadow: "0 20px 48px rgba(11,41,26,0.2)" }}>
-            <div className="absolute top-0 right-0 w-48 h-48 opacity-15 rounded-full"
-              style={{ background: "radial-gradient(circle, #34D399, transparent)" }} />
-            <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center">
-              <Headphones className="w-7 h-7 text-[#34D399]" />
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Inbound Technical Dark Card */}
+          <div className="rounded-[2px] bg-[#121212] border border-[#2A2926] text-white p-8 lg:p-10 space-y-6 flex flex-col justify-between">
             <div>
-              <p className="text-xs font-bold text-[#34D399] font-mono uppercase tracking-widest mb-2">AI Inbound Calling</p>
-              <h3 className="text-2xl font-extrabold text-white mb-3">AI Receptionist & Inbound Call Automation</h3>
-              <p className="text-white/65 text-sm leading-relaxed">
+              <div className="w-9 h-9 rounded-[2px] bg-[#222120] border border-[#333333] flex items-center justify-center text-white mb-4">
+                <Headphones className="w-4 h-4" />
+              </div>
+              <p className="text-xs font-mono uppercase tracking-wider text-neutral-400 mb-2">AI Inbound Calling</p>
+              <h3 className="text-2xl font-medium text-white mb-3 font-sans">AI Receptionist & Inbound Call Automation</h3>
+              <p className="text-neutral-400 text-xs sm:text-sm leading-relaxed font-sans">
                 Answer every inbound call on the first ring — 24/7. Deflect FAQs, book appointments, qualify leads, and execute warm transfers to human agents. Replace legacy IVR with conversational AI voice.
               </p>
             </div>
-            <ul className="space-y-2.5">
+            <ul className="space-y-2 border-t border-[#2A2926] pt-4">
               {["Zero-wait first-ring AI answering", "CRM & calendar booking integration", "Warm human escalation with transcript", "Intent classification & smart routing", "AI receptionist for 12+ industries", "Front desk automation"].map((f, i) => (
-                <li key={i} className="flex items-center gap-2.5 text-sm font-medium text-white/80">
-                  <CheckCircle2 className="w-4 h-4 text-[#34D399] flex-shrink-0" /> {f}
+                <li key={i} className="flex items-center gap-2.5 text-xs font-mono text-neutral-300">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-white flex-shrink-0" /> {f}
                 </li>
               ))}
             </ul>
-          </motion.div>
+          </div>
 
-          {/* Outbound */}
-          <motion.div className="relative overflow-hidden rounded-3xl p-10 space-y-6 bg-white border border-[#EADEC9]"
-            initial={{ opacity: 0, x: 24 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
-            style={{ boxShadow: "0 12px 40px rgba(0,0,0,0.07)" }}>
-            <div className="w-14 h-14 rounded-2xl bg-[#FEF3C7] flex items-center justify-center">
-              <TrendingUp className="w-7 h-7 text-[#EA580C]" />
-            </div>
+          {/* Outbound Technical Warm Stone Card */}
+          <div className="rounded-[2px] bg-[#EBE9E2] border border-[#CBC8BE] text-[#121212] p-8 lg:p-10 space-y-6 flex flex-col justify-between">
             <div>
-              <p className="text-xs font-bold text-[#EA580C] font-mono uppercase tracking-widest mb-2">AI Outbound Calling</p>
-              <h3 className="text-2xl font-extrabold text-[#0F172A] mb-3">Outbound AI Calling Campaign Engine</h3>
-              <p className="text-slate-500 text-sm leading-relaxed">
+              <div className="w-9 h-9 rounded-[2px] bg-[#DFDCD4] border border-[#CBC8BE] flex items-center justify-center text-[#121212] mb-4">
+                <TrendingUp className="w-4 h-4" />
+              </div>
+              <p className="text-xs font-mono uppercase tracking-wider text-[#5E5D57] mb-2">AI Outbound Calling</p>
+              <h3 className="text-2xl font-medium text-[#121212] mb-3 font-sans">Outbound AI Calling Campaign Engine</h3>
+              <p className="text-[#5E5D57] text-xs sm:text-sm leading-relaxed font-sans">
                 Contact thousands of leads within seconds of form submission. Verify COD orders, recover abandoned carts, collect EMI payments, and reactivate cold databases with personalized AI voice calls.
               </p>
             </div>
-            <ul className="space-y-2.5">
+            <ul className="space-y-2 border-t border-[#CBC8BE]/60 pt-4">
               {["3-second speed-to-lead response time", "Smart retry for busy / unanswered lines", "Dynamic call disposition & sentiment scoring", "Batch campaign with 10,000+ concurrent calls", "COD verification & RTO reduction", "AI-powered collections calls"].map((f, i) => (
-                <li key={i} className="flex items-center gap-2.5 text-sm font-medium text-[#334155]">
-                  <CheckCircle2 className="w-4 h-4 text-[#EA580C] flex-shrink-0" /> {f}
+                <li key={i} className="flex items-center gap-2.5 text-xs font-mono text-[#5E5D57]">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#121212] flex-shrink-0" /> {f}
                 </li>
               ))}
             </ul>
-            <div className="grid grid-cols-3 gap-3 pt-4 border-t border-[#EADEC9]">
+            <div className="grid grid-cols-3 gap-3 pt-4 border-t border-[#CBC8BE]">
               {[{ v: "94.2%", l: "Contact rate" }, { v: "1m 45s", l: "Avg qualify" }, { v: "₹6.98", l: "Per lead" }].map((m, i) => (
-                <div key={i} className="text-center p-3 rounded-2xl bg-[#FEF3C7]">
-                  <p className="text-lg font-extrabold text-[#EA580C]">{m.v}</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">{m.l}</p>
+                <div key={i} className="text-center p-3 rounded-[2px] bg-[#DFDCD4] border border-[#CBC8BE]">
+                  <p className="text-base font-bold font-mono text-[#121212]">{m.v}</p>
+                  <p className="text-[10px] font-mono text-[#5E5D57] mt-0.5">{m.l}</p>
                 </div>
               ))}
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* ── USE CASES ── */}
       <UseCaseSection setPage={setPage} />
 
-      {/* ── ABOUT / ARCHITECTURE ── */}
-      <section className="py-24 px-6 max-w-7xl mx-auto">
-        <div className="bg-white rounded-[40px] p-10 lg:p-16 border border-[#E2E8F0] shadow-[0_24px_80px_-12px_rgba(0,0,0,0.06),_0_12px_24px_-4px_rgba(0,0,0,0.04)] relative overflow-hidden">
-          {/* Subtle background decoration inside the box */}
-          <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={{ backgroundImage: "radial-gradient(circle, #000 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-20 items-center relative z-10">
+      {/* ── ABOUT / ARCHITECTURE (Wireframe Minimalist Style) ── */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <div className="hatched-strip h-10 w-full mb-10" />
+        <div className="bg-[#EBE9E2] rounded-[2px] p-8 lg:p-12 border border-[#CBC8BE] relative overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             
             {/* Left: Text Content */}
-            <motion.div 
-              className="space-y-6" 
-              initial={{ opacity: 0, x: -30 }} 
-              whileInView={{ opacity: 1, x: 0 }} 
-              viewport={{ once: true }}
-            >
-              <h2 
-                className="text-4xl lg:text-5xl font-extrabold text-[#0F172A] leading-[1.15]"
-                style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}
-              >
-                Built Different — Not Just<br />Another Stacked Voice API
+            <div className="space-y-4">
+              <SectionLabel text="Architecture" />
+              <h2 className="text-3xl sm:text-4xl font-normal sm:font-medium text-[#121212] tracking-tight leading-[1.1] font-sans">
+                Built Different — Not Just Another Stacked Voice API
               </h2>
-              <p className="text-slate-500 text-[17px] leading-[1.7] max-w-[500px]">
+              <p className="text-[#5E5D57] text-sm sm:text-base leading-relaxed font-sans">
                 Most AI voice calling software chains third-party STT → LLM → TTS providers, adding 800ms–1.5s of pipeline latency. Claritiy Voice runs a vertically integrated audio model — direct WebRTC streaming with sub-180ms response. That's the difference between a voice bot and a real AI phone agent.
               </p>
-            </motion.div>
+            </div>
 
-            {/* Right: 4 Feature Cards */}
-            <div className="space-y-4">
+            {/* Right: 4 Wireframe Cards */}
+            <div className="space-y-3">
               {[
-                { icon: Zap, title: "Sub-180ms End-to-End Latency", desc: "No REST overhead — direct audio streaming", color: "#059669" },
-                { icon: Globe2, title: "70+ Regional Dialects, Zero Translation", desc: "Native speech models, no lossy intermediate API", color: "#EA580C" },
-                { icon: ShieldCheck, title: "Edge-Level PII Redaction", desc: "MSME Certified, DPDP Act & TLS 1.3 encryption", color: "#059669" },
-                { icon: Network, title: "Function Calling & Tool Calling", desc: "Real-time API execution while live on the call", color: "#EA580C" },
-              ].map(({ icon: Icon, title, desc, color }, i) => (
-                <motion.div
+                { icon: Zap, title: "Sub-180ms End-to-End Latency", desc: "No REST overhead — direct audio streaming" },
+                { icon: Globe2, title: "70+ Regional Dialects, Zero Translation", desc: "Native speech models, no lossy intermediate API" },
+                { icon: ShieldCheck, title: "Edge-Level PII Redaction", desc: "MSME Certified, DPDP Act & TLS 1.3 encryption" },
+                { icon: Network, title: "Function Calling & Tool Calling", desc: "Real-time API execution while live on the call" },
+              ].map(({ icon: Icon, title, desc }, i) => (
+                <div
                   key={i}
-                  className="flex items-center gap-5 bg-white border border-[#E2E8F0] rounded-2xl px-6 py-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_4px_24px_rgba(0,0,0,0.06)] hover:border-[#CBD5E1] transition-all w-full"
-                  initial={{ opacity: 0, y: 15 }} 
-                  whileInView={{ opacity: 1, y: 0 }} 
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
+                  className="flex items-center gap-4 bg-[#E5E3DC] border border-[#CBC8BE] rounded-[2px] px-5 py-4 hover:border-[#9C998F] transition-colors w-full"
                 >
-                  <div className="w-[46px] h-[46px] rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ background: color === "#059669" ? "#ECFDF5" : "#FFF7ED" }}>
-                    <Icon className="w-5 h-5" style={{ color }} strokeWidth={2.5} />
+                  <div className="w-8 h-8 rounded-[2px] bg-[#DFDCD4] border border-[#CBC8BE] flex items-center justify-center flex-shrink-0 text-[#121212]">
+                    <Icon className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-[#0F172A] text-[16px]">{title}</h4>
-                    <p className="text-[14px] text-slate-500 mt-1">{desc}</p>
+                    <h4 className="font-medium text-[#121212] text-sm font-sans">{title}</h4>
+                    <p className="text-xs text-[#5E5D57] mt-0.5 font-sans">{desc}</p>
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
 
@@ -663,35 +570,27 @@ export default function Home({ setPage }: HomeProps) {
       <ComparisonSection setPage={setPage} />
 
 
-      {/* ── COMPLIANCE BADGE PANEL ── */}
-      <section className="py-24 px-6">
+      {/* ── COMPLIANCE BADGE PANEL (Technical Wireframe Style) ── */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">
-          <motion.div className="relative overflow-hidden rounded-3xl p-12 lg:p-16 text-center space-y-8"
-            initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-            style={{ background: "linear-gradient(145deg, #1B4332 0%, #0D2B20 100%)", boxShadow: "0 32px 64px rgba(11,41,26,0.22)" }}>
-            <div className="absolute inset-0 opacity-10"
-              style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
-            <div className="relative z-10 space-y-6">
-              <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center mx-auto">
-                <Lock className="w-8 h-8 text-[#34D399]" />
-              </div>
-              <h2 className="text-3xl lg:text-5xl font-extrabold text-white"
-                style={{ fontFamily: "'Clash Display', 'Plus Jakarta Sans', sans-serif" }}>
-                Enterprise Security & MSME Certification
-              </h2>
-              <p className="text-white/55 max-w-2xl mx-auto text-base leading-relaxed">
-                Claritiy Voice is an officially registered MSME enterprise. Edge-level PII redaction, consent-based calling, audit logs, and escalation logic — built for performance and compliance.
-              </p>
-              <div className="flex flex-wrap justify-center gap-3">
-                {["📜 MSME REGISTERED", "🔒 256-BIT TLS 1.3", "🛡️ AES-256 ENCRYPTION", "⚖️ DPDP ACT ALIGNED", "📋 CONSENT-BASED CALLS"].map((b, i) => (
-                  <span key={i} className="text-xs font-bold font-mono px-4 py-2 rounded-full"
-                    style={{ background: "rgba(255,255,255,0.08)", color: "#A7F3D0", border: "1px solid rgba(167,243,208,0.2)" }}>
-                    {b}
-                  </span>
-                ))}
-              </div>
+          <div className="rounded-[2px] bg-[#121212] border border-[#2A2926] p-10 lg:p-14 text-center space-y-6 text-white">
+            <div className="w-10 h-10 rounded-[2px] bg-[#222120] border border-[#333333] flex items-center justify-center mx-auto text-white">
+              <Lock className="w-4 h-4" />
             </div>
-          </motion.div>
+            <h2 className="text-2xl sm:text-4xl font-medium text-white tracking-tight font-sans">
+              Enterprise Security & MSME Certification
+            </h2>
+            <p className="text-neutral-400 max-w-2xl mx-auto text-xs sm:text-sm leading-relaxed font-sans">
+              Claritiy Voice is an officially registered MSME enterprise. Edge-level PII redaction, consent-based calling, audit logs, and escalation logic — built for performance and compliance.
+            </p>
+            <div className="flex flex-wrap justify-center gap-2 pt-2">
+              {["📜 MSME REGISTERED", "🔒 256-BIT TLS 1.3", "🛡️ AES-256 ENCRYPTION", "⚖️ DPDP ACT ALIGNED", "📋 CONSENT-BASED CALLS"].map((b, i) => (
+                <span key={i} className="text-[11px] font-mono text-neutral-300 bg-[#1E1D1B] border border-[#333333] rounded-[2px] px-3 py-1.5 uppercase">
+                  {b}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
