@@ -143,6 +143,11 @@ if (parsed.data.NODE_ENV === 'production' && parsed.data.GOOGLE_CALENDAR_ENABLED
   }
 }
 
+// Warn loudly if no Gemini API key is configured for the platform
+if (!parsed.data.GEMINI_API_KEY && !parsed.data.GOOGLE_API_KEY) {
+  console.warn('⚠️  Platform Configuration Alert: Neither GEMINI_API_KEY nor GOOGLE_API_KEY is configured in the environment. AI voice calls will fail unless individual users save their own Gemini API key in Settings > API Keys.');
+}
+
 /**
  * Fully validated and typed environment variables.
  *

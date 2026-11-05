@@ -747,7 +747,7 @@ export class AudioStreamHandler {
 
           // ✅ Terminate carrier call to prevent stranded PSTN leg
           import('../services/CallService').then(({ CallService }) => {
-            CallService.terminateCall(callId).catch((termErr) => {
+            CallService.terminateCall(callId, 'agent_failed', err instanceof Error ? err.message : String(err), 'system').catch((termErr) => {
               logger.warn('AudioStreamHandler: failed to terminate carrier call on session startup error', { callId, error: String(termErr) });
             });
           }).catch(() => {});

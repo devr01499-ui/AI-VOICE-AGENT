@@ -24,6 +24,7 @@ import { injectVoicePersonaDirective } from '../../utils/personaPrompt';
 import { deduplicateSystemPrompt } from '../../utils/promptOptimizer';
 import { buildFinalSystemInstruction } from '../../utils/systemInstructionBuilder';
 import { getCallableSecondsRemaining } from '../../utils/balanceUtils';
+import { EncryptionService } from '../../utils/EncryptionService';
 import type {
   IRealtimeProvider,
   HealthCheckResult,
@@ -161,7 +162,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
   }>();
 
   constructor() {
-    this.apiKey = env.GEMINI_API_KEY || env.GOOGLE_API_KEY || '';
+    this.apiKey = env.GEMINI_API_KEY || env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
   }
 
   public getApiKey(): string {
@@ -336,14 +337,19 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     const userProfile = callData.user;
     logger.info('[LATENCY_TEST] setup: finished combined db lookup', { timestamp: Date.now(), durationMs: Date.now() - tStartDb });
 
-    let selectedApiKey: string;
+    let selectedApiKey: string = '';
     let accountsAgainstPlatformBalance = false;
 
     const callableSeconds = getCallableSecondsRemaining(userProfile);
 
-    if (userProfile.geminiApiKey && userProfile.geminiApiKey.trim() !== '') {
+    // Decrypt user's custom BYOK key if present
+    const rawUserApiKey = userProfile.geminiApiKey
+      ? EncryptionService.decryptIfEncrypted(userProfile.geminiApiKey.trim())
+      : null;
+
+    if (rawUserApiKey && rawUserApiKey.trim() !== '') {
       // Use User's Custom Key (BYOK Mode - Cost Free to Platform)
-      selectedApiKey = userProfile.geminiApiKey.trim();
+      selectedApiKey = rawUserApiKey.trim();
       logger.info('Monetization Gateway: BYOK Mode enabled', { userId, callId });
     } else if (userProfile.email === ADMIN_EMAIL || userProfile.accountType === 'admin') {
       // Admin account: always use platform master key, never block, track usage only
@@ -358,7 +364,25 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     } else {
       // Block Session Execution completely due to empty balances
       logger.warn('Monetization Gateway: Access blocked. Insufficient balances or missing keys.', { userId, callId, callableSeconds });
-      throw new Error("You're out of calling minutes. Add minutes or your own Gemini API key in Settings.");
+      throw new CallError(
+        callId,
+        "You're out of calling minutes. Add minutes or configure your own Gemini API key in Settings.",
+        'INSUFFICIENT_FUNDS'
+      );
+    }
+
+    if (!selectedApiKey || selectedApiKey.trim() === '') {
+      logger.error('GeminiLiveProvider: No valid Gemini API key available for call session', {
+        userId,
+        callId,
+        hasByokKey: Boolean(userProfile.geminiApiKey),
+        hasPlatformMasterKey: Boolean(this.apiKey && this.apiKey.trim().length > 0)
+      });
+      throw new CallError(
+        callId,
+        'Voice AI unavailable: No Gemini API key configured. Please set GEMINI_API_KEY in the server environment or enter your Gemini API key in Settings > API Keys.',
+        'INVALID_API_KEY'
+      );
     }
 
     const apiVersion = 'v1alpha';
