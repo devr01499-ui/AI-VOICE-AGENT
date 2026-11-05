@@ -2040,8 +2040,9 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
       } else {
         setTestCallStatus('error');
       }
-    } catch {
+    } catch (err: any) {
       setTestCallStatus('error');
+      alert('Unable to launch call: ' + (err?.message || 'Call initialization failed. Please check your caller ID and minutes balance.'));
     } finally {
       setTimeout(() => setTestCallStatus('idle'), 3000);
       setShowPicker(false);
@@ -3877,14 +3878,16 @@ function DashCallLogs() {
       `"${r.date}"`,
       `"${(r.summary || '').replace(/"/g, '""')}"`
     ]);
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
+    const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    link.setAttribute("href", url);
     link.setAttribute("download", `claritiy_voice_calls_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 
   const selectedCallRow = normalizedRows.find(c => c.id === transcriptOpen);
@@ -5487,13 +5490,14 @@ function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; 
 
 // ── Settings ──
 function DashSettings({ profile }: { profile: ApiProfile | null }) {
-  const [stab, setStab] = useState<"workspace"|"kyc"|"api"|"team">(() => {
+  const [stab, setStab] = useState<"workspace"|"kyc"|"api"|"webhooks"|"team">(() => {
     try {
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
         const t = params.get('tab');
         if (t === 'kyc') return 'kyc';
         if (t === 'api') return 'api';
+        if (t === 'webhooks') return 'webhooks';
         if (t === 'team') return 'team';
         if (window.location.pathname.includes('/compliance')) return 'kyc';
       }
@@ -5832,7 +5836,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
     setTimeout(() => setCopiedSecret(false), 2000);
   };
 
-  const tabConfig: { id: "workspace"|"kyc"|"api"|"team"; label: string; icon: any; badge?: React.ReactNode }[] = [
+  const tabConfig: { id: "workspace"|"kyc"|"api"|"webhooks"|"team"; label: string; icon: any; badge?: React.ReactNode }[] = [
     { id: "workspace", label: "General & Voice", icon: Sliders },
     { 
       id: "kyc", 
@@ -5850,6 +5854,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
       )
     },
     { id: "api", label: "API & Keys", icon: Key },
+    { id: "webhooks", label: "Webhooks", icon: Radio },
     { id: "team", label: `Team (${team.length})`, icon: Users },
   ];
 

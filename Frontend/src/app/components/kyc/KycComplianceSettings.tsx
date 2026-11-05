@@ -414,6 +414,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
         const status = res.data.data?.status;
         if (status === 'verified') {
           try { sessionStorage.removeItem('kyc_access_request_id'); } catch {}
+          setAccessRequestId(null);
           setNotification({
             type: 'success',
             message: 'Aadhaar identity verified successfully via DigiLocker!',

@@ -116,6 +116,21 @@ export class UsageSyncService {
       where: { id: phoneNumber.id }
     });
 
+    // Check if the user has any other numbers. If none left, unlock number selection
+    const remainingCount = await prisma.phoneNumber.count({
+      where: { userId }
+    });
+
+    if (remainingCount === 0) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { numberLocked: false }
+      }).catch(err => {
+        logger.warn('UsageSyncService: Failed to unlock number selection for user', { userId, error: String(err) });
+      });
+      logger.info('UsageSyncService: Unlocked number selection for user as all numbers released', { userId });
+    }
+
     logger.info('UsageSyncService: Successfully released number from DB', { phoneNumberId, userId });
   }
 }

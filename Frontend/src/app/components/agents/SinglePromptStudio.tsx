@@ -1481,9 +1481,15 @@ export default function SinglePromptStudio({
     const rawCfg = initialAgent?.agentConfig;
     const initialConfig = typeof rawCfg === 'string' ? (() => { try { return JSON.parse(rawCfg); } catch { return {}; } })() : (rawCfg || {});
 
-    const assignedKbIds = kbList
-      .filter((k) => (k.agentIds && currentAgentId && k.agentIds.includes(currentAgentId)) || k.agentId === currentAgentId)
-      .map((k) => k.id);
+    const initialKbIds: string[] = Array.isArray(initialConfig.knowledgeBaseIds)
+      ? initialConfig.knowledgeBaseIds
+      : [];
+
+    const assignedKbIds = kbList.length > 0
+      ? kbList
+          .filter((k) => (k.agentIds && currentAgentId && k.agentIds.includes(currentAgentId)) || k.agentId === currentAgentId)
+          .map((k) => k.id)
+      : initialKbIds;
 
     return {
       name: agentName,

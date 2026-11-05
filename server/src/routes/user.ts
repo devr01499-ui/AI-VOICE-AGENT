@@ -7,6 +7,7 @@ import { CallOrchestrator } from '../core/orchestrator/CallOrchestrator';
 import { normalizeEmail, isDisposableEmail, isValidEmail } from '../utils/emailNormalizer';
 import { signupLimiter, authIpThrottleDelay, sensitiveOperationsLimiter } from '../middleware/rateLimiter';
 import { ADMIN_EMAIL } from '../config/constants';
+import { EncryptionService } from '../utils/EncryptionService';
 
 const router = Router();
 
@@ -31,10 +32,12 @@ router.post('/billing-config', requireAuth, sensitiveOperationsLimiter, async (r
 
     logger.info('User billing-config: updating custom Gemini API key', { userId, hasKey: !!apiKeyVal });
 
+    const encryptedKey = apiKeyVal ? EncryptionService.encrypt(apiKeyVal) : null;
+
     await prisma.user.update({
       where: { id: userId },
       data: {
-        geminiApiKey: apiKeyVal
+        geminiApiKey: encryptedKey
       }
     });
 

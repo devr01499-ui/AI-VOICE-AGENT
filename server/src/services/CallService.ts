@@ -24,6 +24,7 @@ import { ContactsController } from '../controllers/ContactsController';
 import { redactPii } from '../utils/piiRedactor';
 import { countActiveCalls, countGlobalActiveCalls, GLOBAL_TELEPHONY_CAP, withUserCallLock } from '../utils/concurrency';
 import { hasCallableBalance, getCallableSecondsRemaining } from '../utils/balanceUtils';
+import { EncryptionService } from '../utils/EncryptionService';
 
 // ─── Input Shapes ─────────────────────────────────
 
@@ -144,7 +145,10 @@ export class CallService {
         phoneNumber,
         `+${cleanToDigits}`,
         cleanToDigits,
-      ]));
+        cleanToDigits.length === 10 ? `+91${cleanToDigits}` : '',
+        cleanToDigits.length === 10 ? `91${cleanToDigits}` : '',
+        cleanToDigits.startsWith('91') && cleanToDigits.length === 12 ? cleanToDigits.slice(2) : '',
+      ])).filter(Boolean);
 
       const optedOutContact = await prisma.contact.findFirst({
         where: {
@@ -485,7 +489,8 @@ export class CallService {
 
       const transcriptText = segments.map((s: any) => `${s.speaker === 'agent' ? 'Agent' : 'Caller'}: ${s.content}`).join('\n');
 
-      const apiKey = call.user.geminiApiKey || env.GEMINI_API_KEY || env.GOOGLE_API_KEY;
+      const rawUserApiKey = EncryptionService.decryptIfEncrypted(call.user?.geminiApiKey);
+      const apiKey = rawUserApiKey || env.GEMINI_API_KEY || env.GOOGLE_API_KEY;
       if (!apiKey || apiKey.trim() === '') {
         logger.warn('generatePostCallIntelligence: skipped, missing gemini api key');
         return;

@@ -127,6 +127,14 @@ export class ContactsController {
         return;
       }
 
+      const rawPhone = String(phoneNumber).trim();
+      const cleanDigits = rawPhone.replace(/\D/g, '');
+      if (cleanDigits.length < 7 || cleanDigits.length > 15) {
+        res.status(400).json({ success: false, error: 'Invalid phone number format. Must contain 7-15 digits.' });
+        return;
+      }
+      const normalizedPhone = rawPhone.startsWith('+') ? `+${cleanDigits}` : (cleanDigits.length === 10 ? `+91${cleanDigits}` : `+${cleanDigits}`);
+
       const formattedTags = Array.isArray(tags) ? JSON.stringify(tags) : (typeof tags === 'string' ? tags : '[]');
       const parsedConsentDate = consentDate ? new Date(consentDate) : new Date();
 
@@ -134,7 +142,7 @@ export class ContactsController {
         where: {
           userId_phoneNumber: {
             userId,
-            phoneNumber,
+            phoneNumber: normalizedPhone,
           },
         },
         update: {
@@ -148,7 +156,7 @@ export class ContactsController {
         },
         create: {
           userId,
-          phoneNumber,
+          phoneNumber: normalizedPhone,
           name: name || null,
           tags: formattedTags,
           notes: notes || null,
@@ -246,8 +254,12 @@ export class ContactsController {
       const now = Date.now();
 
       for (const item of contacts) {
-        const phone = (item.phoneNumber || item.phone || '').trim();
-        if (!phone) continue;
+        const rawPhone = (item.phoneNumber || item.phone || item.mobile || item.contact || '').trim();
+        if (!rawPhone) continue;
+
+        const cleanDigits = rawPhone.replace(/\D/g, '');
+        if (cleanDigits.length < 7 || cleanDigits.length > 15) continue;
+        const phone = rawPhone.startsWith('+') ? `+${cleanDigits}` : (cleanDigits.length === 10 ? `+91${cleanDigits}` : `+${cleanDigits}`);
 
         const consentDate = item.consentDate ? new Date(item.consentDate) : new Date();
         const isExpired = !item.consentDate || (now - consentDate.getTime() > SIX_MONTHS_MS);

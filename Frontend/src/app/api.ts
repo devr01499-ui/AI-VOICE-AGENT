@@ -223,7 +223,7 @@ async function apiFetch<T>(
     throw err;
   }
 
-  if (res.status === 401 || res.status === 403) {
+  if (res.status === 401) {
     await supabase.auth.signOut().catch(() => {});
     throw new Error("UNAUTHORIZED_ACCESS");
   }
@@ -1095,9 +1095,7 @@ export const reportsApi = {
     if (params?.reviewNeeded !== undefined) qs.append('reviewNeeded', String(params.reviewNeeded));
     const query = qs.toString() ? `?${qs.toString()}` : '';
 
-    const token = typeof window !== 'undefined'
-      ? (localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token'))
-      : null;
+    const token = await getValidAuthToken();
     const headers: Record<string, string> = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
 

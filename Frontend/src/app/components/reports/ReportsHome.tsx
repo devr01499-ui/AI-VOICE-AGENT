@@ -146,16 +146,9 @@ function ReportsHomeInner({ userRole = 'owner' }: ReportsHomeProps) {
         agentId: selectedAgentId !== 'all' ? selectedAgentId : undefined,
         reviewNeeded: onlyReviewNeeded ? true : undefined,
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error('[ReportsHome] Export CSV failed:', err);
-      // Fallback
-      const url = reportsApi.getExportCsvUrl({
-        dateFrom: getDateFilterValues().dateFrom,
-        dateTo: getDateFilterValues().dateTo,
-        label: selectedLabel !== 'all' ? selectedLabel : undefined,
-        reviewNeeded: onlyReviewNeeded ? true : undefined,
-      });
-      window.open(url, '_blank');
+      alert('Failed to download CSV: ' + (err?.message || 'Download error. Please check your network connection and retry.'));
     } finally {
       setExportingCsv(false);
     }

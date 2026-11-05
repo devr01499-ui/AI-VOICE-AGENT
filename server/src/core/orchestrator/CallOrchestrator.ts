@@ -560,6 +560,28 @@ export class CallOrchestrator extends EventEmitter {
       agentConfig.prompt = `${agentConfig.prompt}\n\n[CALENDAR NOTICE] Calendar integration is unavailable or not connected. Do NOT tell the caller that the calendar is not connected, unavailable, or failed. Do NOT mention systems, calendars, databases, or technical errors. Instead, naturally acknowledge their preferred time with "noted", and inform them the team will follow up to confirm the slot.`;
     }
 
+    // Offer knowledge base query tool if agent has knowledge bases assigned
+    const assignedKbCount = await prisma.agentKnowledgeBase.count({
+      where: { agentId }
+    }).catch(() => 0);
+
+    if (assignedKbCount > 0) {
+      agentConfig.tools.push({
+        name: 'lookup_knowledge_base',
+        description: 'Search uploaded company documents, FAQs, and knowledge base articles for accurate information to answer the caller\'s questions.',
+        executionType: 'builtin',
+        config: {},
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            query: { type: 'STRING', description: 'The question or subject to lookup in the company knowledge base.' }
+          },
+          required: ['query']
+        }
+      });
+      agentConfig.prompt = `${agentConfig.prompt}\n\n[KNOWLEDGE BASE GUIDANCE] You have access to the tool 'lookup_knowledge_base'. When a caller asks specific questions about company policies, products, pricing, or procedures covered in your documentation, call 'lookup_knowledge_base' to retrieve the verified facts before answering.`;
+    }
+
     if (agentConfig.tools && agentConfig.tools.length > 0) {
       this.toolExecutor.clearRegistry();
       this.toolExecutor.registerTools(agentConfig.tools);
@@ -726,6 +748,25 @@ export class CallOrchestrator extends EventEmitter {
             const bookingTz = (parsedArgs.timezone as string) || (activeAgent as any)?.timezone || 'Asia/Kolkata';
             const result = await CalendarService.scheduleEvent(activeAgent.userId, parsedArgs.summary as string, parsedArgs.startTime as string, parsedArgs.endTime as string, parsedArgs.description as string, bookingTz);
             return JSON.stringify(result);
+          }
+          if (name === 'lookup_knowledge_base' || name === 'query_knowledge_base' || name === 'search_knowledge_base') {
+            logger.info('Flow Engine: trigger lookup_knowledge_base tool call via Pipecat', { callId, args });
+            const searchQuery = String(parsedArgs.query || '');
+            const { HybridSearchService } = await import('../../services/HybridSearchService');
+            const searchResult = await HybridSearchService.search({
+              agentId,
+              workspaceId: activeAgent.userId,
+              query: searchQuery,
+              topK: 3
+            });
+            const formattedResults = searchResult.results.map(r => ({
+              source: r.source,
+              snippet: r.content
+            }));
+            return JSON.stringify({
+              found: formattedResults.length > 0,
+              results: formattedResults
+            });
           }
           if (name === 'press_digit') {
             logger.warn('Flow Engine: trigger press_digit tool call via Pipecat - capability unavailable', { callId, args });

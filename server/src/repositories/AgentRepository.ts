@@ -5,6 +5,7 @@
 import { prisma } from '../lib/prisma';
 import { DatabaseError, NotFoundError } from '../types/errors';
 import { logger } from '../utils/logger';
+import { EncryptionService } from '../utils/EncryptionService';
 
 /**
  * Filtering and pagination options for user-scoped agent queries.
@@ -201,6 +202,9 @@ export class AgentRepository {
           updatedAt: true,
         },
       });
+      if (profile && profile.geminiApiKey) {
+        profile.geminiApiKey = EncryptionService.decryptIfEncrypted(profile.geminiApiKey);
+      }
       return profile || { id: userId, callingBalanceMinutes: 0, geminiApiKey: null };
     } catch (error) {
       logger.error('Failed to get user monetization profile', { error });

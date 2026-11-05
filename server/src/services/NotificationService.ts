@@ -101,7 +101,7 @@ export class NotificationService {
   public static async markAsRead(id: string, userId: string) {
     try {
       await prisma.systemAlert.updateMany({
-        where: { id, OR: [{ userId }, { userId: null }] },
+        where: { id, userId },
         data: { isResolved: true }
       });
       return true;
@@ -114,7 +114,7 @@ export class NotificationService {
   public static async markAllAsRead(userId: string) {
     try {
       await prisma.systemAlert.updateMany({
-        where: { OR: [{ userId }, { userId: null }] },
+        where: { userId },
         data: { isResolved: true }
       });
       return true;

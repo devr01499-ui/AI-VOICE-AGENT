@@ -28,13 +28,14 @@ export function DashIntegrations() {
     try {
       setLoading(true);
       const res = await apiClient.get('/api/v2/calendar/status');
-      if (res.data && typeof res.data.connected === 'boolean') {
+      const payload = res.data?.data || res.data;
+      if (payload && typeof payload.connected === 'boolean') {
         setStatus({
-          connected: res.data.connected,
-          status: res.data.status || (res.data.connected ? 'healthy' : 'disconnected'),
-          lastCheckedAt: res.data.lastCheckedAt,
-          googleEmail: res.data.googleEmail,
-          message: res.data.message
+          connected: payload.connected,
+          status: payload.status || (payload.connected ? 'healthy' : 'disconnected'),
+          lastCheckedAt: payload.lastCheckedAt,
+          googleEmail: payload.googleEmail,
+          message: payload.message
         });
       } else {
         setStatus({ connected: false, status: 'disconnected' });
@@ -66,8 +67,9 @@ export function DashIntegrations() {
     try {
       setConnecting(true);
       const res = await apiClient.post('/api/v2/calendar/connect-url');
-      if (res.data?.url) {
-        window.location.assign(res.data.url);
+      const payload = res.data?.data || res.data;
+      if (payload?.url) {
+        window.location.assign(payload.url);
       } else {
         alert('Failed to generate Google Calendar authorization link.');
       }
@@ -82,8 +84,9 @@ export function DashIntegrations() {
     try {
       setTestingSlots(true);
       const res = await apiClient.post('/api/v2/calendar/slots', {});
-      if (res.data?.slots && Array.isArray(res.data.slots)) {
-        setTestSlots(res.data.slots);
+      const payload = res.data?.data || res.data;
+      if (payload?.slots && Array.isArray(payload.slots)) {
+        setTestSlots(payload.slots);
       } else {
         setTestSlots([]);
       }

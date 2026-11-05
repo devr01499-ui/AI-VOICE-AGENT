@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { fetchProfile, updateBillingConfig } from "../../api";
-import { Key, CreditCard, ShieldAlert, CheckCircle2, RefreshCw } from "lucide-react";
+import { fetchProfile, updateBillingConfig, apiClient } from "../../api";
+import { Key, CreditCard, ShieldAlert, CheckCircle2, RefreshCw, Zap } from "lucide-react";
 
 export default function BillingGateway() {
   const [geminiKey, setGeminiKey] = useState("");
@@ -10,6 +10,77 @@ export default function BillingGateway() {
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [selectedPlan, setSelectedPlan] = useState("trial");
+  const [purchasingPlan, setPurchasingPlan] = useState(false);
+
+  const handlePurchasePlan = async () => {
+    try {
+      setPurchasingPlan(true);
+      setErrorMsg("");
+      setSuccessMsg("");
+
+      const res = await apiClient.post('/api/v2/billing/create-plan-order', {
+        planName: selectedPlan,
+      });
+
+      const orderData = res.data?.data || res.data;
+      if (!orderData) throw new Error("Could not initialize plan order.");
+
+      if (orderData.mock) {
+        await apiClient.post('/api/v2/billing/verify-plan', {
+          planName: selectedPlan,
+          orderId: orderData.id || orderData.orderId,
+          paymentId: `pay_mock_${Date.now()}`,
+          signature: 'mock_signature',
+        });
+        setSuccessMsg(`Successfully subscribed to ${selectedPlan.toUpperCase()} plan! Minutes credited.`);
+        await loadProfile();
+        return;
+      }
+
+      if (!(window as any).Razorpay) {
+        throw new Error("Razorpay payment gateway script not loaded. Please disable ad-blockers and refresh.");
+      }
+
+      const razorpayKey =
+        orderData.keyId ||
+        orderData.key ||
+        (import.meta as any).env?.VITE_RAZORPAY_KEY_ID ||
+        'rzp_test_TO7mXkVkl4AFCy';
+
+      const options = {
+        key: razorpayKey,
+        amount: orderData.amount,
+        currency: orderData.currency || 'INR',
+        name: 'Claritiy Voice',
+        description: `${selectedPlan.toUpperCase()} Plan Subscription`,
+        order_id: orderData.orderId || orderData.id,
+        prefill: { email: '' },
+        handler: async function (response: any) {
+          try {
+            await apiClient.post('/api/v2/billing/verify-plan', {
+              planName: selectedPlan,
+              orderId: response.razorpay_order_id,
+              paymentId: response.razorpay_payment_id,
+              signature: response.razorpay_signature,
+            });
+            setSuccessMsg(`Payment confirmed! ${selectedPlan.toUpperCase()} plan minutes credited to your balance.`);
+            await loadProfile();
+          } catch (err: any) {
+            setErrorMsg("Payment verification error: " + (err?.message || "Verification failed"));
+          }
+        },
+        theme: { color: '#059669' }
+      };
+
+      const paymentObject = new (window as any).Razorpay(options);
+      paymentObject.open();
+    } catch (err: any) {
+      setErrorMsg(err?.message || "Failed to initiate plan purchase");
+    } finally {
+      setPurchasingPlan(false);
+    }
+  };
 
   const loadProfile = async () => {
     try {
@@ -182,13 +253,41 @@ export default function BillingGateway() {
               )}
             </div>
 
-            <button
-              disabled
-              className="w-full nm-raised text-sm font-bold py-3 rounded-xl cursor-not-allowed text-[var(--nm-text)] opacity-50"
-              style={{ fontFamily: "'Figtree', sans-serif" }}
-            >
-              Purchase Calling Credits (Stripe Launching Soon)
-            </button>
+            <div className="space-y-3">
+              <label className="text-xs font-bold text-[var(--nm-text)] block uppercase tracking-wider" style={{ fontFamily: "'DM Mono', monospace" }}>
+                SELECT PLAN / TOP-UP
+              </label>
+              <select
+                value={selectedPlan}
+                onChange={(e) => setSelectedPlan(e.target.value)}
+                className="w-full px-4 py-3 nm-input rounded-xl text-sm font-bold text-[var(--nm-text)] focus:outline-none"
+                style={{ fontFamily: "'Figtree', sans-serif" }}
+              >
+                <option value="trial">Trial Plan — ₹1 (20 Bundled Mins)</option>
+                <option value="starter">Starter Plan — ₹800 (500 Bundled Mins)</option>
+                <option value="startup">Startup Plan — ₹3,799 (750 Bundled Mins)</option>
+                <option value="growth">Growth Plan — ₹10,799 (2,865 Bundled Mins)</option>
+                <option value="enterprise">Enterprise Plan — ₹30,799 (10,000 Bundled Mins)</option>
+              </select>
+
+              <button
+                type="button"
+                onClick={handlePurchasePlan}
+                disabled={purchasingPlan}
+                className="w-full nm-button nm-state-success text-sm font-bold py-3 rounded-xl transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                style={{ fontFamily: "'Figtree', sans-serif" }}
+              >
+                {purchasingPlan ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" /> Processing Order…
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4" /> Purchase Minutes with Razorpay
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>

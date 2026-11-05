@@ -211,4 +211,20 @@ export class EncryptionService {
     }
     return parts.length === 3 && parts[0].length === this.IV_LENGTH * 2 && parts[1].length === this.AUTH_TAG_LENGTH * 2;
   }
+
+  /**
+   * Decrypts an encrypted string if it matches encrypted format, or returns the plaintext as is.
+   */
+  static decryptIfEncrypted(text?: string | null): string | null {
+    if (!text) return text ?? null;
+    if (this.isEncrypted(text)) {
+      try {
+        return this.decrypt(text);
+      } catch (err) {
+        logger.warn('EncryptionService: Failed to decrypt value', { error: String(err) });
+        return null;
+      }
+    }
+    return text;
+  }
 }

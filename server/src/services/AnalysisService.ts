@@ -12,6 +12,7 @@
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { WebhookDispatcher } from '../utils/WebhookDispatcher';
+import { EncryptionService } from '../utils/EncryptionService';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { env } from '../config/env';
 import { REPORT_BLUEPRINTS, ReportBlueprint } from '../config/reportBlueprints';
@@ -409,7 +410,8 @@ export class AnalysisService {
     const chunks = chunkTranscriptTurns(turns, 8000, 2);
     const chunkExtractionResults: Array<{ fields: Record<string, any>; evidence: Record<string, any>; lastTurnSequence: number }> = [];
 
-    const apiKey = call.user?.geminiApiKey || env.GEMINI_API_KEY || env.GOOGLE_API_KEY;
+    const rawUserApiKey = EncryptionService.decryptIfEncrypted(call.user?.geminiApiKey);
+    const apiKey = rawUserApiKey || env.GEMINI_API_KEY || env.GOOGLE_API_KEY;
     if (!apiKey || apiKey.trim() === '') {
       logger.warn('AnalysisService: Missing Gemini API key for deep extraction, falling back to basic transcript summary', { callId });
       return await this.persistResult(call, blueprint, {

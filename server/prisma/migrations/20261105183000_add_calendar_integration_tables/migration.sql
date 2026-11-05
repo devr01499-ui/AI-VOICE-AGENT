@@ -75,3 +75,4 @@ CREATE UNIQUE INDEX IF NOT EXISTS "calendar_bookings_idempotency_key_key" ON "ca
 CREATE INDEX IF NOT EXISTS "calendar_bookings_workspace_id_idx" ON "calendar_bookings"("workspace_id");
 CREATE INDEX IF NOT EXISTS "calendar_bookings_agent_id_idx" ON "calendar_bookings"("agent_id");
 CREATE INDEX IF NOT EXISTS "calendar_bookings_start_utc_idx" ON "calendar_bookings"("start_utc");
+

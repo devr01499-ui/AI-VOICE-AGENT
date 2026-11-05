@@ -20,6 +20,7 @@ import { ADMIN_EMAIL } from '../config/constants';
 import { QaController } from '../controllers/QaController';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { detectIndustry } from '../utils/systemInstructionBuilder';
+import { EncryptionService } from '../utils/EncryptionService';
 
 const router = Router();
 
@@ -942,7 +943,8 @@ router.post(
 
       // 2. Fetch User's Gemini API Key (or fallback to ENV)
       const user = await prisma.user.findUnique({ where: { id: userId } });
-      const geminiApiKey = (user as any)?.geminiApiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+      const rawUserApiKey = EncryptionService.decryptIfEncrypted((user as any)?.geminiApiKey);
+      const geminiApiKey = rawUserApiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
       if (!geminiApiKey) {
         res.status(400).json({ success: false, error: 'Gemini API key is not configured.' });
