@@ -1,5 +1,15 @@
 # CHANGELOG
 
+- Google Calendar Integration Hardening & 1-Click Sign-Up Ready (Part 1 & 2):
+  - **1-Click Google Sign-up Calendar Auto-Link (`AuthGateway.tsx`, `App.tsx`, `calendar.ts`)**: Added default-ON consent checkbox to the Google OAuth sign-in flow. Immediately forwards the one-time `session.provider_refresh_token` on first dashboard load to `POST /api/v2/calendar/link-from-signin`. Verifies matching verified email, granted calendar scopes, and runs 1 real free/busy query before marking healthy.
+  - **Database Migration & Additive Schemas (`schema.prisma`, `migration.sql`)**: Created dedicated `calendar_connections`, `agent_scheduling_rules`, and `calendar_bookings` tables with zero breaking column modifications. Encrypts all access and refresh tokens at rest using versioned AES-256-GCM (`v2:...`).
+  - **Availability Engine & DST-Safe Slot Math (`CalendarService.ts`)**: Built server-side availability engine computing working hours, shifts, buffers, minimum notice, blackout dates, and daily caps. Guarantees timezone and daylight saving time correctness across `Asia/Kolkata` and `America/New_York` DST transitions.
+  - **Atomic Concurrency Lock & Idempotent Bookings (`CalendarService.ts`)**: Implemented in-memory per-calendar lock preventing race-condition double-bookings during concurrent live calls. Added deterministic idempotency keys (`call_id + slot_id`) preventing duplicate bookings upon model retries.
+  - **AI Tooling & Orchestrator Dispatch (`CallOrchestrator.ts`, `SandboxStreamHandler.ts`)**: Registered `get_available_slots`, `book_appointment`, `reschedule_appointment`, and `cancel_appointment` with caller phone authorization safeguards and fallback notices.
+  - **UI Updates (`DashIntegrations.tsx`, `SinglePromptStudio.tsx`, `CalendarOverview.tsx`)**: Added "Test now" button with next 3 open slots preview in Integrations, full Scheduling configuration tab in Agent Studio with AI natural language rule extraction, and real bookings week/list views with cancellation support.
+  - **Automated Verification Suites**: 19/19 PASSED (Part 1 Suite), 21/21 PASSED (Part 2 Suite), 19/19 PASSED (Security Suite), 23/23 PASSED (OWASP Top 10 Suite), 108/108 SEO routes pre-rendered.
+
+
 - Frontend Editorial Design Overhaul (EdgeSkool Warm Stone Wireframe System):
   - **Design Language Alignment (`theme.css`, `fonts.css`, `App.tsx`)**: Upgraded global styling palette to warm stone `#E5E3DC`, stone cards `#EBE9E2`, hairline borders `#CBC8BE`, and deep charcoal text `#121212`. Added `Inter` and `Space Mono` typography scales with micro-radii `rounded-[2px]`. Defined signature 45° diagonal hatched strip utility (`.hatched-strip`).
   - **Minimalist Top Navigation (`Navbar.tsx`)**: Replaced floating pill navbar with full-width architectural header featuring 1px bottom border, monospace navigation links, outline "How It Works" button, and solid black "Join Now" CTA button.

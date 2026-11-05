@@ -146,5 +146,29 @@ phases:
         status: completed
       - task: 11.7 Zero-defect verification harness (audit_reports.ts 28/28 OK, 31/31 normalizer tests)
         status: completed
+  11:
+    name: Google Calendar Integration & Sign-Up Auto-Link Platform (Part 1 & 2)
+    tasks:
+      - task: 12.1 Connect flow URL rewrite & Bearer auth fix (POST /connect-url)
+        status: completed
+      - task: 12.2 Single-use signed OAuth state nonce & replay rejection
+        status: completed
+      - task: 12.3 Token encryption at rest (v2: AES-256-GCM) & calendar_connections schema
+        status: completed
+      - task: 12.4 Disconnect revocation with Google OAuth revoke endpoint
+        status: completed
+      - task: 12.5 Temporal context injection (live date, day, time, timezone) in prompt builder
+        status: completed
+      - task: 12.6 Availability engine (getFreeSlots) with DST safety & buffer math
+        status: completed
+      - task: 12.7 Atomic per-calendar lock & idempotent booking engine (bookAppointment)
+        status: completed
+      - task: 12.8 1-click Google sign-up calendar auto-link (POST /link-from-signin)
+        status: completed
+      - task: 12.9 Agent Studio Scheduling tab, Integrations "Test now" & Calendar view UI
+        status: completed
+      - task: 12.10 Zero-defect automated test suite (Part 1: 19/19 OK, Part 2: 21/21 OK)
+        status: completed
+
 
 
