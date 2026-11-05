@@ -47,7 +47,11 @@ export class PipecatRunner {
 
     // 2. SECURE THE MULTIMODAL PROVIDER BUS
     this.geminiService = new GeminiLiveLLMService({
-      apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '',
+      apiKey:
+        process.env.GEMINI_API_KEY ||
+        process.env.GOOGLE_API_KEY ||
+        process.env.GOOGLE_GENAI_API_KEY ||
+        '',
       model: config.model,
       apiVersion: 'v1alpha',
       voiceConfig: { prebuiltVoiceConfig: { voiceName: config.voice } },

@@ -143,6 +143,14 @@ export function resolveGreeting(
     text = `${text} Please note this call is recorded for quality and compliance.`;
   }
 
+  // Outbound calls: The AI is reaching out to the customer. Defaulting to user_first with silence disabled
+  // leads to dead air where neither party speaks. For outbound calls, enforce agent_first so the AI
+  // introduces itself immediately upon call answer.
+  const isOutbound = (direction || agent?.direction || '').toLowerCase() === 'outbound';
+  if (isOutbound && mode === 'user_first' && !silenceStart.enabled) {
+    mode = 'agent_first';
+  }
+
   return { mode, text, silenceStart };
 }
 
