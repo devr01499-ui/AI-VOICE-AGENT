@@ -1,38 +1,43 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar, CheckCircle2, XCircle, RefreshCw, LogIn, LogOut, Sliders } from 'lucide-react';
+import { Calendar, CheckCircle2, XCircle, AlertTriangle, RefreshCw, LogIn, Sliders } from 'lucide-react';
 import { apiClient } from '../../api';
 
 interface CalendarStatus {
   connected: boolean;
+  status?: 'healthy' | 'needs_reauth' | 'disconnected';
+  lastCheckedAt?: string;
+  message?: string;
 }
 
 /**
- * DashIntegrations — Google Calendar only.
+ * DashIntegrations — Google Calendar Integration Management.
  *
- * All other integrations (Cal.com, Zapier, Make.com, Generic Webhook, Slack,
- * Google Sheets, HubSpot, Salesforce) were removed because the route they
- * relied on (/api/v2/integrations) was never mounted in the server, making
- * every request silently return 404.
- *
- * Google Calendar is the only supported integration and operates via the
- * fully mounted /api/v2/calendar route.
+ * Provides single-click OAuth initiation via POST /api/v2/calendar/connect-url,
+ * token revocation on disconnect, connection health tracking, and callback toast handling.
  */
 export function DashIntegrations() {
   const [status, setStatus] = useState<CalendarStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const fetchStatus = useCallback(async () => {
     try {
       setLoading(true);
       const res = await apiClient.get('/api/v2/calendar/status');
       if (res.data && typeof res.data.connected === 'boolean') {
-        setStatus({ connected: res.data.connected });
+        setStatus({
+          connected: res.data.connected,
+          status: res.data.status || (res.data.connected ? 'healthy' : 'disconnected'),
+          lastCheckedAt: res.data.lastCheckedAt,
+          message: res.data.message
+        });
       } else {
-        setStatus({ connected: false });
+        setStatus({ connected: false, status: 'disconnected' });
       }
     } catch {
-      setStatus({ connected: false });
+      setStatus({ connected: false, status: 'disconnected' });
     } finally {
       setLoading(false);
     }
@@ -40,19 +45,45 @@ export function DashIntegrations() {
 
   useEffect(() => {
     fetchStatus();
+
+    // Catch callback query params from OAuth redirection: ?calendar=connected or ?calendar=error&reason=...
+    const urlParams = new URLSearchParams(window.location.search);
+    const calendarParam = urlParams.get('calendar');
+    if (calendarParam === 'connected') {
+      setNotification({ type: 'success', message: 'Google Calendar successfully connected!' });
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (calendarParam === 'error') {
+      const reason = urlParams.get('reason') || 'unknown';
+      setNotification({ type: 'error', message: `Google Calendar connection failed: ${reason}` });
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   }, [fetchStatus]);
 
-  const handleConnect = () => {
-    // Opens the OAuth redirect flow — server generates the Google auth URL
-    window.location.href = '/api/v2/calendar/auth';
+  const handleConnect = async () => {
+    try {
+      setConnecting(true);
+      const res = await apiClient.post('/api/v2/calendar/connect-url');
+      if (res.data?.url) {
+        window.location.assign(res.data.url);
+      } else {
+        alert('Failed to generate Google Calendar authorization link.');
+      }
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Failed to initiate Google Calendar connection.');
+    } finally {
+      setConnecting(false);
+    }
   };
 
   const handleDisconnect = async () => {
-    if (!window.confirm('Disconnect Google Calendar? Your AI agents will lose access to your calendar.')) return;
+    if (!window.confirm('Disconnect Google Calendar? Your AI agents will lose access to check your availability and schedule appointments.')) {
+      return;
+    }
     try {
       setDisconnecting(true);
       await apiClient.delete('/api/v2/calendar/disconnect');
-      setStatus({ connected: false });
+      setStatus({ connected: false, status: 'disconnected' });
+      setNotification({ type: 'success', message: 'Google Calendar disconnected and access revoked.' });
     } catch {
       alert('Failed to disconnect Google Calendar. Please try again.');
     } finally {
@@ -61,9 +92,29 @@ export function DashIntegrations() {
   };
 
   const connected = status?.connected ?? false;
+  const isNeedsReauth = status?.status === 'needs_reauth';
 
   return (
     <div className="space-y-6 font-sans">
+      {/* Notifications */}
+      {notification && (
+        <div
+          className={`p-4 rounded-xl text-xs font-semibold flex items-center justify-between border ${
+            notification.type === 'success'
+              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+              : 'bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+          }`}
+        >
+          <span>{notification.message}</span>
+          <button
+            onClick={() => setNotification(null)}
+            className="text-xs font-bold underline ml-4 hover:opacity-80"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -106,12 +157,18 @@ export function DashIntegrations() {
                   className={`px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1.5 ${
                     connected
                       ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300'
+                      : isNeedsReauth
+                      ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
                   }`}
                 >
                   {connected ? (
                     <>
                       <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Connected
+                    </>
+                  ) : isNeedsReauth ? (
+                    <>
+                      <AlertTriangle className="w-3 h-3 text-amber-500" /> Needs Reconnect
                     </>
                   ) : (
                     <>
@@ -124,6 +181,8 @@ export function DashIntegrations() {
               <p className="text-xs text-slate-500 leading-relaxed">
                 {connected
                   ? 'Your Google Calendar is linked. AI agents can check your availability and schedule events during live calls.'
+                  : isNeedsReauth
+                  ? 'Your Google Calendar authorization has expired or was revoked. Please reconnect to restore AI scheduling.'
                   : 'Link your Google Calendar to allow AI agents to check your availability and schedule appointments automatically during calls.'}
               </p>
             </div>
@@ -145,9 +204,11 @@ export function DashIntegrations() {
               ) : (
                 <button
                   onClick={handleConnect}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5"
+                  disabled={connecting}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-50"
                 >
-                  <LogIn className="w-3.5 h-3.5" /> Connect Google Calendar
+                  <LogIn className="w-3.5 h-3.5" />
+                  {connecting ? 'Redirecting…' : isNeedsReauth ? 'Reconnect Calendar' : 'Connect Google Calendar'}
                 </button>
               )}
             </div>

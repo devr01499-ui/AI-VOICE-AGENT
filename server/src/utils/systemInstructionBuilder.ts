@@ -206,6 +206,8 @@ export interface CallContext {
   inlinedKbFacts?: string;
   hasKbDocs?: boolean;
   tools?: any[];
+  timezone?: string;
+  currentDate?: Date | string;
   speechSettings?: {
     speed?: number;
     volume?: number;
@@ -330,6 +332,46 @@ export function buildFinalSystemInstruction(
   // ── (d) PLATFORM HARD RULES ──
   // Capability Guard
   sections.push(`[PLATFORM CAPABILITY GUARDRAILS]\nYou are operating as a pure voice telephony agent. You cannot send text SMS messages, initiate visual file transfers, or navigate web browsers unless a dedicated tool is explicitly invoked. Never claim you just sent a text or email if no tool was executed.`);
+
+  // Temporal & Scheduling Context (Current Date, Time, Timezone)
+  const now = callContext.currentDate ? new Date(callContext.currentDate) : new Date();
+  const effectiveTz = callContext.timezone || agentCfg?.timezone || 'Asia/Kolkata';
+
+  let formattedDate = '';
+  let formattedTime = '';
+  let dayOfWeek = '';
+
+  try {
+    formattedDate = new Intl.DateTimeFormat('en-US', {
+      timeZone: effectiveTz,
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }).format(now);
+
+    formattedTime = new Intl.DateTimeFormat('en-US', {
+      timeZone: effectiveTz,
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    }).format(now);
+
+    dayOfWeek = new Intl.DateTimeFormat('en-US', {
+      timeZone: effectiveTz,
+      weekday: 'long',
+    }).format(now);
+  } catch {
+    formattedDate = now.toDateString();
+    formattedTime = now.toTimeString().slice(0, 5);
+    dayOfWeek = 'Today';
+  }
+
+  sections.push(`[TEMPORAL & SCHEDULING CONTEXT]
+- Current Local Date: ${formattedDate} (${dayOfWeek})
+- Current Local Time: ${formattedTime}
+- Business Time Zone: ${effectiveTz}
+- Scheduling Instruction: Use this exact date, day of week, and time zone when resolving dates such as "tomorrow", "this Friday", or "next week". Never guess calendar dates.`);
 
   // Ending the call (always on, independent of the core-skills kill switch): without this the model says
   // goodbye and then leaves the call connected, which keeps billing minutes.

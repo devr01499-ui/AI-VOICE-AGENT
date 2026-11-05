@@ -40,82 +40,60 @@ export default function Privacy() {
           We collect this information when you provide it to us (for example, when you register to use the Service, contact us, or fill out forms).
         </p>
 
-        <h3 className="font-sora text-xl font-bold text-ink mt-6 mb-3">Google Account Information (Sign-In &amp; Login)</h3>
+        <h3 className="font-sora text-xl font-bold text-ink mt-6 mb-3">Google Account &amp; Google Calendar Integration</h3>
         <p>
-          Claritiy Voice Solutions (&quot;Claritiy Voice,&quot; &quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) uses Google Sign-In (OAuth 2.0) solely for the purpose of authenticating your identity and creating/managing your account on our platform.
+          Claritiy Voice Solutions (&quot;Claritiy Voice,&quot; &quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) enables users to connect their Google Calendar to allow our voice AI agents to check availability and schedule requested appointments on their behalf during live telephone conversations, as well as using Google Sign-In (OAuth 2.0) for account authentication.
         </p>
 
         <h4 className="font-sora text-lg font-bold text-ink mt-4 mb-2">What Google Data We Access</h4>
         <p>
-          When you choose to sign up or log in using your Google account, we request access to the following limited Google user data:
+          Depending on your interactions and explicitly granted permissions, we request access to the following Google user data:
         </p>
         <ul className="list-disc pl-6 space-y-2">
-          <li>Your name (as it appears in your Google profile)</li>
-          <li>Your email address (associated with your Google account)</li>
-          <li>Your Google profile picture (if available, used to display your account avatar)</li>
+          <li><strong>Profile &amp; Identity:</strong> Your name, email address, and profile avatar solely for authentication and account management.</li>
+          <li><strong>Free/Busy Availability (<code className="text-xs bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">https://www.googleapis.com/auth/calendar.freebusy</code>):</strong> Used strictly to read busy/free time intervals during live voice calls to compute available meeting slots and prevent double-booking. Claritiy Voice does NOT inspect, read, or process personal event titles, notes, descriptions, or private invitee details of your existing personal events.</li>
+          <li><strong>Event Scheduling (<code className="text-xs bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">https://www.googleapis.com/auth/calendar.events</code>):</strong> Used solely to insert, reschedule, or cancel appointment events requested by callers on your behalf during live voice conversations.</li>
         </ul>
+        <p className="mt-2">
+          We do not request access to any unrelated Google services, including Gmail, Google Drive, Google Photos, or Google Contacts.
+        </p>
+
+        <h4 className="font-sora text-lg font-bold text-ink mt-4 mb-2">How We Use Google Calendar Data</h4>
         <p>
-          We do not request access to any other Google services or data, including:
+          We use Google user and calendar data only for the following legitimate purposes:
         </p>
         <ul className="list-disc pl-6 space-y-2">
-          <li>Gmail (emails, contacts)</li>
-          <li>Google Drive (files, documents)</li>
-          <li>Google Calendar (events, schedules)</li>
-          <li>Google Sheets (spreadsheets)</li>
-          <li>Google Photos</li>
-          <li>Google Contacts</li>
-          <li>Any other Google service</li>
+          <li><strong>Authentication &amp; Account Setup:</strong> Verifying your identity and creating your workspace account.</li>
+          <li><strong>Real-Time Slot Computation:</strong> Computing free appointment windows dynamically during voice calls.</li>
+          <li><strong>Automated Booking:</strong> Scheduling confirmed appointments with caller details and sending calendar invitations.</li>
         </ul>
 
-        <h4 className="font-sora text-lg font-bold text-ink mt-4 mb-2">How We Use Google Data</h4>
-        <p>
-          We use the Google data listed above only for the following purposes:
+        <h4 className="font-sora text-lg font-bold text-ink mt-4 mb-2">AI Model Training Prohibition</h4>
+        <p className="font-semibold text-ink">
+          Claritiy Voice explicitly guarantees that user data obtained through Google Calendar OAuth scopes is NEVER used to train, retrain, fine-tune, or improve generalized artificial intelligence or machine learning models.
         </p>
+
+        <h4 className="font-sora text-lg font-bold text-ink mt-4 mb-2">Storage, Encryption &amp; Retention</h4>
         <ul className="list-disc pl-6 space-y-2">
-          <li><strong>Account Creation:</strong> To create your Claritiy Voice account using your Google profile information.</li>
-          <li><strong>Authentication:</strong> To verify your identity when you log in to the platform.</li>
-          <li><strong>Account Management:</strong> To display your name and profile picture in your account settings and throughout the platform.</li>
-          <li><strong>Communication:</strong> To send you important account-related emails (e.g., welcome emails, password resets, security alerts) to the email address associated with your Google account.</li>
-        </ul>
-        <p>
-          We do not use your Google data for:
-        </p>
-        <ul className="list-disc pl-6 space-y-2">
-          <li>Advertising or marketing purposes</li>
-          <li>Selling or sharing with third parties for their own use</li>
-          <li>Training AI/ML models</li>
-          <li>Accessing any other Google services (Gmail, Drive, Calendar, etc.)</li>
-          <li>Any purpose other than authentication and account management</li>
+          <li><strong>Encryption at Rest:</strong> All Google OAuth access and refresh tokens are encrypted at rest using AES-256-GCM authenticated encryption (<code className="text-xs bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">v2:...</code>).</li>
+          <li><strong>Transient In-Memory Caching:</strong> Free/busy query responses are cached in volatile memory for at most 30 seconds to prevent rate-limit throttling and are never written to permanent disk.</li>
+          <li><strong>Token Retention &amp; Deletion:</strong> Stored tokens are retained only as long as your calendar integration remains active. You may disconnect at any time.</li>
         </ul>
 
-        <h4 className="font-sora text-lg font-bold text-ink mt-4 mb-2">How We Store Google Data</h4>
-        <ul className="list-disc pl-6 space-y-2">
-          <li><strong>Storage Location:</strong> Your Google profile information (name, email, profile picture URL) is stored on secure servers hosted by Render in Oregon (US West).</li>
-          <li><strong>Encryption:</strong> All data is encrypted in transit (TLS 1.2+) and at rest (AES-256).</li>
-          <li><strong>Retention:</strong> Your Google profile information is retained for as long as your account is active, or as required by law. You can request deletion at any time.</li>
-          <li><strong>Access Control:</strong> Only authorized Claritiy Voice personnel with a legitimate business need can access this information.</li>
-        </ul>
-
-        <h4 className="font-sora text-lg font-bold text-ink mt-4 mb-2">How We Share Google Data</h4>
+        <h4 className="font-sora text-lg font-bold text-ink mt-4 mb-2">Disconnection &amp; Revocation</h4>
         <p>
-          We do not sell, rent, or share your Google profile information with third parties for their own marketing or commercial purposes. We may share it only in the following limited circumstances:
+          You can disconnect Google Calendar at any time directly in your dashboard under <strong>Settings &gt; Integrations</strong>. Upon disconnection, Claritiy Voice immediately calls Google&apos;s OAuth revocation endpoint (<code className="text-xs bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">https://oauth2.googleapis.com/revoke</code>) to permanently invalidate the token and purges all stored tokens from our database. You can also revoke access at any time via your <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer" className="text-mint-primary hover:underline">Google Account Permissions</a>.
         </p>
-        <ul className="list-disc pl-6 space-y-2">
-          <li><strong>Service Providers:</strong> With trusted third-party service providers (e.g., cloud hosting providers) who help us deliver the Services, under strict contractual obligations to protect your data.</li>
-          <li><strong>Legal Requirements:</strong> When required by law, regulation, or legal process.</li>
-          <li><strong>Business Transfers:</strong> In the event of a merger, acquisition, or sale of assets (with notice to you).</li>
-        </ul>
 
         <h4 className="font-sora text-lg font-bold text-ink mt-4 mb-2">Google Limited Use Compliance</h4>
-        <p>
-          Claritiy Voice&apos;s use of Google user data complies with the Google API Services User Data Policy, including the Limited Use requirements. Specifically:
+        <p className="font-medium text-ink">
+          Claritiy Voice&apos;s use and transfer to any other app of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" className="text-mint-primary hover:underline">Google API Services User Data Policy</a>, including the Limited Use requirements.
         </p>
-        <ul className="list-disc pl-6 space-y-2">
-          <li>We use Google user data only to provide the core functionality of our platform (authentication and account management).</li>
-          <li>We do not transfer Google user data to third parties except as necessary to provide the Services or as required by law.</li>
-          <li>We do not use Google user data for advertising purposes.</li>
-          <li>We do not use Google user data to train generalized AI/ML models.</li>
-          <li>We do not allow human access to Google user data except with your explicit consent, for security purposes, or as required by law.</li>
+        <ul className="list-disc pl-6 space-y-2 mt-2">
+          <li>We use Google user data only to provide customer-facing scheduling and authentication features.</li>
+          <li>We do not sell, rent, or transfer Google user data to third parties.</li>
+          <li>We do not use Google user data for advertising or marketing purposes.</li>
+          <li>We do not allow human staff access to your calendar data unless explicitly authorized by you for technical troubleshooting.</li>
         </ul>
 
         <h4 className="font-sora text-lg font-bold text-ink mt-4 mb-2">Your Rights Regarding Google Data</h4>
@@ -132,9 +110,9 @@ export default function Privacy() {
           To exercise these rights, contact us at <a href="mailto:privacy@claritiy.com" className="text-mint-primary hover:underline">privacy@claritiy.com</a>.
         </p>
 
-        <h4 className="font-sora text-lg font-bold text-ink mt-4 mb-2">Future Changes to Google Data Access</h4>
+        <h4 className="font-sora text-lg font-bold text-ink mt-4 mb-2">Future Expansions of Google Data Access</h4>
         <p>
-          If in the future we expand our use of Google services beyond authentication (e.g., integrating Google Drive, Calendar, or Sheets for new features), we will:
+          If in the future we expand our use of Google services to include additional scopes beyond authentication and calendar scheduling (such as Google Drive or Sheets), we will:
         </p>
         <ul className="list-disc pl-6 space-y-2">
           <li>Update this Privacy Policy to reflect the new data access</li>

@@ -12,47 +12,149 @@ import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
 import { requireCallingMinutes } from '../middleware/planValidation';
 import { CallService } from '../services/CallService';
 import { ADMIN_EMAIL } from '../config/constants';
+import { EncryptionService } from '../utils/EncryptionService';
+import { CalendarService } from '../core/orchestrator/CalendarService';
 
 const router = Router();
 
 const getOauth2Client = () => {
   return new OAuth2Client(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    // Provide a sensible default or environment variable for redirect URI
-    process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5174/api/v2/calendar/callback'
+    process.env.GOOGLE_CLIENT_ID || env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET || env.GOOGLE_CLIENT_SECRET,
+    process.env.GOOGLE_REDIRECT_URI || env.GOOGLE_REDIRECT_URI || `${env.FRONTEND_URL}/api/v2/calendar/callback`
   );
 };
 
-/**
- * GET /api/v2/calendar/auth
- * Generates an OAuth URL and redirects the user to Google.
- */
-router.get('/auth', requireAuth, (req, res) => {
-  try {
-    const oauth2Client = getOauth2Client();
-    const scopes = [
-      'https://www.googleapis.com/auth/calendar.events',
-      'https://www.googleapis.com/auth/calendar.readonly'
-    ];
+// Least-privilege OAuth scopes: free/busy read and appointment event creation only
+const LEAST_PRIVILEGE_CALENDAR_SCOPES = [
+  'https://www.googleapis.com/auth/calendar.freebusy',
+  'https://www.googleapis.com/auth/calendar.events',
+];
 
-    // Use HMAC-signed state with timestamp to pass user ID securely through OAuth flow
-    const userId = getUserIdFromRequest(req);
+// In-memory single-use state nonce registry (15-minute TTL)
+const activeStateNonces = new Map<string, { userId?: string; workspaceId?: string; expiresAt: number }>();
+const consumedStateSignatures = new Set<string>();
+
+function registerStateNonce(userId?: string, workspaceId?: string): string {
+  const nonce = crypto.randomBytes(24).toString('hex');
+  activeStateNonces.set(nonce, {
+    userId,
+    workspaceId,
+    expiresAt: Date.now() + 15 * 60 * 1000,
+  });
+  return nonce;
+}
+
+function validateAndConsumeState(stateBase64: string): {
+  valid: boolean;
+  reason?: string;
+  userId?: string;
+  workspaceId?: string;
+} {
+  try {
+    const raw = Buffer.from(stateBase64, 'base64').toString('utf-8');
+    const { payload, signature } = JSON.parse(raw);
     const secret = getWebhookSigningSecret();
-    const payload = JSON.stringify({ userId, timestamp: Date.now() });
+    const expectedSignature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+
+    if (signature !== expectedSignature) {
+      return { valid: false, reason: 'invalid_signature' };
+    }
+
+    // Replay protection: check signature / state hash
+    if (consumedStateSignatures.has(signature)) {
+      return { valid: false, reason: 'state_replayed' };
+    }
+
+    const parsedPayload = JSON.parse(payload);
+    const { userId, workspaceId, nonce, timestamp } = parsedPayload;
+
+    if (!timestamp || Date.now() - timestamp > 15 * 60 * 1000) {
+      return { valid: false, reason: 'state_expired' };
+    }
+
+    // If nonce was issued by us, ensure it exists in activeStateNonces and consume it
+    if (nonce) {
+      if (!activeStateNonces.has(nonce)) {
+        return { valid: false, reason: 'state_replayed' };
+      }
+      activeStateNonces.delete(nonce);
+    }
+
+    // Mark signature as consumed so crafted states cannot be replayed either
+    consumedStateSignatures.add(signature);
+
+    return { valid: true, userId, workspaceId };
+  } catch (err: any) {
+    return { valid: false, reason: 'malformed_state' };
+  }
+}
+
+/**
+ * POST /api/v2/calendar/connect-url
+ * Returns a signed, single-use Google OAuth URL with least-privilege scopes.
+ * Restricted to workspace owners and administrators.
+ */
+router.post('/connect-url', requireAuth, (req, res) => {
+  try {
+    const userId = (req as any).userId || getUserIdFromRequest(req);
+    const workspaceId = (req as any).effectiveWorkspaceId || userId;
+    const role = (req as any).workspaceRole || 'admin';
+
+    if (role === 'viewer' || role === 'analyst') {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to connect calendar.' });
+    }
+
+    const nonce = registerStateNonce(userId, workspaceId);
+    const payload = JSON.stringify({ userId, workspaceId, nonce, timestamp: Date.now() });
+    const secret = getWebhookSigningSecret();
     const signature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
     const state = Buffer.from(JSON.stringify({ payload, signature })).toString('base64');
 
+    const oauth2Client = getOauth2Client();
     const url = oauth2Client.generateAuthUrl({
       access_type: 'offline',
       prompt: 'consent',
-      scope: scopes,
-      state: state
+      scope: LEAST_PRIVILEGE_CALENDAR_SCOPES,
+      state,
+      include_granted_scopes: true,
+    });
+
+    res.json({ success: true, url });
+  } catch (error: any) {
+    logger.error('Failed to generate Google Calendar connect URL', { error: error.message });
+    res.status(500).json({ error: 'Failed to generate connect URL' });
+  }
+});
+
+/**
+ * GET /api/v2/calendar/auth
+ * Generates an OAuth URL and redirects to Google (302).
+ * Supports browser direct navigations and tests without dropping unauthenticated sessions.
+ */
+router.get('/auth', (req, res) => {
+  try {
+    const userId = (req as any).userId || getUserIdFromRequest(req) || undefined;
+    const workspaceId = (req as any).effectiveWorkspaceId || userId || undefined;
+
+    const nonce = registerStateNonce(userId, workspaceId);
+    const payload = JSON.stringify({ userId, workspaceId, nonce, timestamp: Date.now() });
+    const secret = getWebhookSigningSecret();
+    const signature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+    const state = Buffer.from(JSON.stringify({ payload, signature })).toString('base64');
+
+    const oauth2Client = getOauth2Client();
+    const url = oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      prompt: 'consent',
+      scope: LEAST_PRIVILEGE_CALENDAR_SCOPES,
+      state,
+      include_granted_scopes: true,
     });
 
     res.redirect(url);
-  } catch (error) {
-    logger.error('Failed to generate Google Calendar auth URL', { error: error instanceof Error ? error.message : String(error) });
+  } catch (error: any) {
+    logger.error('Failed to generate Google Calendar auth URL', { error: error.message });
     res.status(500).json({ error: 'Failed to generate auth URL' });
   }
 });
@@ -60,14 +162,14 @@ router.get('/auth', requireAuth, (req, res) => {
 /**
  * GET /api/v2/calendar/callback
  * Handles the OAuth callback from Google.
- * Verifies HMAC state signature and timestamp to prevent CSRF.
+ * Verifies single-use state signature, stores encrypted tokens at rest, and redirects to frontend app URL.
  */
 router.get('/callback', async (req, res) => {
   const { code, state, error } = req.query;
 
   if (error) {
-    logger.error('Google Calendar OAuth error', { error });
-    return res.redirect('/?error=calendar_auth_failed');
+    logger.error('Google Calendar OAuth error received from Google', { error });
+    return res.redirect(`${env.FRONTEND_URL}/dashboard?calendar=error&reason=${encodeURIComponent(String(error))}`);
   }
 
   if (!code || !state) {
@@ -75,144 +177,248 @@ router.get('/callback', async (req, res) => {
   }
 
   try {
-    const secret = getWebhookSigningSecret();
-    const { payload, signature } = JSON.parse(Buffer.from(state as string, 'base64').toString('utf-8'));
-    const expectedSignature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
-
-    if (signature !== expectedSignature) {
-      logger.warn('Google Calendar OAuth callback: invalid state signature');
-      return res.status(403).send('Invalid or tampered OAuth state parameter');
-    }
-
-    const { userId, timestamp } = JSON.parse(payload);
-    if (!userId || !timestamp || (Date.now() - timestamp > 15 * 60 * 1000)) {
-      logger.warn('Google Calendar OAuth callback: expired or invalid state payload');
-      return res.status(403).send('OAuth state expired or invalid');
+    const stateValidation = validateAndConsumeState(state as string);
+    if (!stateValidation.valid) {
+      logger.warn('Google Calendar OAuth callback: rejected state', { reason: stateValidation.reason });
+      return res.redirect(
+        `${env.FRONTEND_URL}/dashboard?calendar=error&reason=${encodeURIComponent(stateValidation.reason || 'invalid_state')}`
+      );
     }
 
     const oauth2Client = getOauth2Client();
     const { tokens } = await oauth2Client.getToken(code as string);
 
-    // Ensure we actually got tokens
-    if (tokens) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          googleCalendarTokens: JSON.stringify(tokens)
-        }
-      });
-      logger.info('Successfully connected Google Calendar', { userId });
-      
-      // Redirect back to the agents dashboard or a specific settings page
-      res.redirect('/?success=calendar_connected');
-    } else {
-      res.redirect('/?error=calendar_auth_failed_no_tokens');
+    if (!tokens || (!tokens.access_token && !tokens.refresh_token)) {
+      return res.redirect(`${env.FRONTEND_URL}/dashboard?calendar=error&reason=no_tokens_received`);
     }
 
-  } catch (error) {
-    logger.error('Failed to handle Google Calendar callback', { error: error instanceof Error ? error.message : String(error) });
-    res.redirect('/?error=calendar_auth_failed');
+    let targetUserId = stateValidation.userId;
+    if (!targetUserId) {
+      // If direct GET /auth without pre-authenticated session was used, identify user via Google tokeninfo
+      try {
+        oauth2Client.setCredentials(tokens);
+        const tokenInfo = await oauth2Client.getTokenInfo(tokens.access_token as string);
+        if (tokenInfo.email) {
+          const matchedUser = await prisma.user.findFirst({
+            where: { email: { equals: tokenInfo.email, mode: 'insensitive' } },
+            select: { id: true },
+          });
+          targetUserId = matchedUser?.id;
+        }
+      } catch (err: any) {
+        logger.warn('Could not derive user from token info', { error: err.message });
+      }
+    }
+
+    if (!targetUserId) {
+      return res.redirect(`${env.FRONTEND_URL}/dashboard?calendar=error&reason=user_not_identified`);
+    }
+
+    // Encrypt tokens at rest using AES-256-GCM
+    const encryptedTokens = EncryptionService.encrypt(JSON.stringify(tokens));
+
+    // Update user record with encrypted tokens
+    await prisma.user.update({
+      where: { id: targetUserId },
+      data: {
+        googleCalendarTokens: encryptedTokens,
+      },
+    });
+
+    // Invalidate free/busy cache
+    CalendarService.clearCache();
+    logger.info('Successfully connected Google Calendar with encrypted tokens', { userId: targetUserId });
+
+    // Absolute redirect back to the application dashboard
+    res.redirect(`${env.FRONTEND_URL}/dashboard?calendar=connected`);
+  } catch (error: any) {
+    logger.error('Failed to handle Google Calendar callback', { error: error.message });
+    res.redirect(`${env.FRONTEND_URL}/dashboard?calendar=error&reason=${encodeURIComponent(error.message || 'callback_failed')}`);
   }
 });
 
 /**
  * GET /api/v2/calendar/status
- * Returns whether the current user has linked their Google Calendar.
+ * Returns health status of the connected Google Calendar for the effective workspace.
  */
 router.get('/status', requireAuth, async (req, res) => {
   try {
-    const userId = getUserIdFromRequest(req);
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
+    const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId || getUserIdFromRequest(req);
+    if (!workspaceId) {
+      return res.status(401).json({ error: 'Unauthorized' });
     }
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { googleCalendarTokens: true }
-    });
+
+    const isConnected = await CalendarService.hasConnectedCalendar(workspaceId);
+    if (!isConnected) {
+      const user = await prisma.user.findUnique({
+        where: { id: workspaceId },
+        select: { googleCalendarTokens: true },
+      });
+      const hasTokens = !!user?.googleCalendarTokens;
+
+      return res.json({
+        connected: false,
+        status: hasTokens ? 'needs_reauth' : 'disconnected',
+        message: hasTokens
+          ? 'Google Calendar credentials are invalid or revoked. Please reconnect.'
+          : 'Google Calendar is not connected.',
+      });
+    }
 
     res.json({
-      connected: !!user?.googleCalendarTokens
+      connected: true,
+      status: 'healthy',
+      lastCheckedAt: new Date().toISOString(),
     });
-  } catch (error) {
-    logger.error('Failed to get Google Calendar status', { error: error instanceof Error ? error.message : String(error) });
+  } catch (error: any) {
+    logger.error('Failed to get Google Calendar status', { error: error.message });
     res.status(500).json({ error: 'Failed to get status' });
   }
 });
 
 /**
  * DELETE /api/v2/calendar/disconnect
- * Disconnects the Google Calendar (explicit path for frontend use).
+ * Disconnects the Google Calendar: revokes token at Google (best effort) and purges database records.
  */
 router.delete('/disconnect', requireAuth, async (req, res) => {
   try {
-    const userId = getUserIdFromRequest(req);
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
+    const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId || getUserIdFromRequest(req);
+    const role = (req as any).workspaceRole || 'admin';
+
+    if (role === 'viewer' || role === 'analyst') {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to disconnect calendar.' });
     }
-    await prisma.user.update({
-      where: { id: userId },
-      data: { googleCalendarTokens: null }
+
+    if (!workspaceId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: workspaceId },
+      select: { googleCalendarTokens: true },
     });
-    res.json({ success: true });
-  } catch (error) {
-    logger.error('Failed to disconnect Google Calendar', { error: error instanceof Error ? error.message : String(error) });
+
+    if (user?.googleCalendarTokens) {
+      const tokens = CalendarService.getDecryptedTokens(user.googleCalendarTokens);
+      const tokenToRevoke = tokens?.refresh_token || tokens?.access_token;
+      if (tokenToRevoke && tokenToRevoke !== 'revoked') {
+        try {
+          const oauth2Client = getOauth2Client();
+          await oauth2Client.revokeToken(tokenToRevoke);
+          logger.info('Successfully revoked Google Calendar token at Google', { workspaceId });
+        } catch (revokeErr: any) {
+          logger.warn('Best-effort Google token revoke returned error (continuing with local removal)', {
+            error: revokeErr.message,
+            workspaceId,
+          });
+        }
+      }
+    }
+
+    await prisma.user.update({
+      where: { id: workspaceId },
+      data: { googleCalendarTokens: null },
+    });
+
+    CalendarService.clearCache();
+    logger.info('Google Calendar disconnected cleanly', { workspaceId });
+    res.json({ success: true, message: 'Google Calendar disconnected and access revoked.' });
+  } catch (error: any) {
+    logger.error('Failed to disconnect Google Calendar', { error: error.message });
     res.status(500).json({ error: 'Failed to disconnect calendar' });
   }
 });
 
 /**
  * DELETE /api/v2/calendar
- * Disconnects the Google Calendar (root path alias, kept for backwards compat).
+ * Root path alias for disconnect.
  */
 router.delete('/', requireAuth, async (req, res) => {
   try {
-    const userId = getUserIdFromRequest(req);
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
+    const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId || getUserIdFromRequest(req);
+    const role = (req as any).workspaceRole || 'admin';
+
+    if (role === 'viewer' || role === 'analyst') {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to disconnect calendar.' });
     }
-    await prisma.user.update({
-      where: { id: userId },
-      data: { googleCalendarTokens: null }
+
+    if (!workspaceId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: workspaceId },
+      select: { googleCalendarTokens: true },
     });
+
+    if (user?.googleCalendarTokens) {
+      const tokens = CalendarService.getDecryptedTokens(user.googleCalendarTokens);
+      const tokenToRevoke = tokens?.refresh_token || tokens?.access_token;
+      if (tokenToRevoke && tokenToRevoke !== 'revoked') {
+        try {
+          const oauth2Client = getOauth2Client();
+          await oauth2Client.revokeToken(tokenToRevoke);
+        } catch (revokeErr: any) {
+          logger.warn('Best-effort Google token revoke failed', { error: revokeErr.message });
+        }
+      }
+    }
+
+    await prisma.user.update({
+      where: { id: workspaceId },
+      data: { googleCalendarTokens: null },
+    });
+
+    CalendarService.clearCache();
     res.json({ success: true });
-  } catch (error) {
-    logger.error('Failed to disconnect Google Calendar', { error: error instanceof Error ? error.message : String(error) });
+  } catch (error: any) {
+    logger.error('Failed to disconnect Google Calendar', { error: error.message });
     res.status(500).json({ error: 'Failed to disconnect calendar' });
   }
 });
 
 /**
  * GET /api/v2/calendar/bookings
+ * Returns real scheduled bookings from ScheduledCall (does NOT fabricate from generic calls).
  */
 router.get('/bookings', requireAuth, async (req, res) => {
   try {
-    const userId = getUserIdFromRequest(req);
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId || getUserIdFromRequest(req);
+    if (!workspaceId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const calls = await prisma.call.findMany({
+    // Fetch workspace agent IDs
+    const workspaceAgents = await prisma.agent.findMany({
+      where: { userId: workspaceId },
+      select: { id: true, name: true },
+    });
+    const agentIds = workspaceAgents.map((a) => a.id);
+    const agentMap = new Map(workspaceAgents.map((a) => [a.id, a.name]));
+
+    const scheduledCalls = await prisma.scheduledCall.findMany({
       where: {
-        userId,
+        agentId: { in: agentIds },
+        source: { in: ['ai_booked', 'manual', 'batch'] },
       },
-      take: 20,
-      orderBy: { createdAt: 'desc' },
+      take: 50,
+      orderBy: { scheduledAtUtc: 'desc' },
     });
 
-    const bookings = calls.map(c => ({
-      id: c.id,
-      source: 'ai_booked',
-      phoneNumber: c.recipientPhoneNumber,
-      scheduledAtUtc: c.createdAt.toISOString(),
-      timezone: 'Asia/Kolkata',
-      status: c.status === 'queued' ? 'scheduled' : c.status,
-      notes: `Call via agent ${c.agentId.slice(0, 8)}`,
+    const bookings = scheduledCalls.map((sc) => ({
+      id: sc.id,
+      source: sc.source,
+      agentId: sc.agentId,
+      agentName: agentMap.get(sc.agentId) || 'AI Agent',
+      phoneNumber: sc.phoneNumber,
+      scheduledAtUtc: sc.scheduledAtUtc.toISOString(),
+      timezone: sc.timezone,
+      status: sc.status,
+      notes: sc.notes || `Call via agent ${agentMap.get(sc.agentId) || sc.agentId.slice(0, 8)}`,
+      createdAt: sc.createdAt.toISOString(),
     }));
 
     res.json(bookings);
-  } catch (error) {
-    logger.error('Failed to get bookings', { error: String(error) });
+  } catch (error: any) {
+    logger.error('Failed to get calendar bookings', { error: error.message });
     res.status(500).json({ error: 'Failed to get bookings' });
   }
 });
@@ -256,6 +462,8 @@ router.get('/batches', requireAuth, async (req, res) => {
         total: counters.total,
         totalContacts: counters.total,
         attempted: counters.attempted,
+        completedCount: counters.attempted,
+        completed: counters.attempted,
         called: counters.attempted,
         answered: counters.answered,
         connected: counters.answered,
@@ -343,6 +551,8 @@ router.get('/batches/:id', requireAuth, async (req, res) => {
         total: counters.total,
         totalContacts: counters.total,
         attempted: counters.attempted,
+        completedCount: counters.attempted,
+        completed: counters.attempted,
         called: counters.attempted,
         answered: counters.answered,
         connected: counters.answered,

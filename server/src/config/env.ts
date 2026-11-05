@@ -97,6 +97,12 @@ const envSchema = z.object({
   GEMINI_WS_BASE: z.string().trim().optional(),
   GEMINI_HTTP_BASE: z.string().trim().optional(),
 
+  // ── Google Calendar OAuth ───────────────────
+  GOOGLE_CLIENT_ID: z.string().trim().default(''),
+  GOOGLE_CLIENT_SECRET: z.string().trim().default(''),
+  GOOGLE_REDIRECT_URI: z.string().trim().default(''),
+  GOOGLE_CALENDAR_ENABLED: z.string().trim().default('false'),
+
   // ── Networking / Tunnels ────────────────────
   // Optional at boot — required at runtime only for telephony webhook callbacks
   PUBLIC_URL: z.string().trim().default(''),
@@ -127,6 +133,14 @@ if (!parsed.success) {
 
   // Hard exit — the server cannot operate with invalid config.
   process.exit(1);
+}
+
+// Fail loudly in production if Google Calendar is enabled but credentials are missing
+if (parsed.data.NODE_ENV === 'production' && parsed.data.GOOGLE_CALENDAR_ENABLED === 'true') {
+  if (!parsed.data.GOOGLE_CLIENT_ID || !parsed.data.GOOGLE_CLIENT_SECRET) {
+    console.error('❌  Production Configuration Error: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured when GOOGLE_CALENDAR_ENABLED=true.');
+    process.exit(1);
+  }
 }
 
 /**
