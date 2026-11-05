@@ -18,7 +18,7 @@ import { ProviderError } from '../../types/errors';
 import { CallError } from '../../utils/CallError';
 import { env } from '../../config/env';
 import { ADMIN_EMAIL } from '../../config/constants';
-import { resolveLiveModel } from '../../utils/modelResolver';
+import { resolveLiveModel, UNIVERSAL_FALLBACK_LIVE_MODEL } from '../../utils/modelResolver';
 import { callTimingTracker } from '../../utils/CallTimingTracker';
 import { injectVoicePersonaDirective } from '../../utils/personaPrompt';
 import { deduplicateSystemPrompt } from '../../utils/promptOptimizer';
@@ -398,10 +398,12 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     const wsUrl = `${baseUrl}?key=${encodeURIComponent(selectedApiKey)}`;
 
     const sessionId = `gemini-sess-${Date.now()}`;
-    const targetModel = resolveLiveModel(config.model);
     const isSafeTier = Boolean((config as any)._isSafeTier || (config as any)._isRetry);
+    const targetModel = isSafeTier
+      ? UNIVERSAL_FALLBACK_LIVE_MODEL
+      : resolveLiveModel(config.model);
     if (isSafeTier) {
-      logger.info('GeminiLiveProvider: Initializing session with SAFE setup tier', { callId, sessionId });
+      logger.info('GeminiLiveProvider: Initializing session with SAFE setup tier and universal model fallback', { callId, sessionId, targetModel });
     }
     const ws = new WebSocket(wsUrl);
 
@@ -667,18 +669,11 @@ export class GeminiLiveProvider implements IRealtimeProvider {
                 }
               }
             },
-            ...(!isSafeTier && {
-              thinkingConfig: {
-                thinkingBudget: 0
-              }
-            }),
             temperature: 0.5
           },
           systemInstruction: {
             parts: [{ text: systemInstructionString }]
           },
-          inputAudioTranscription: {},
-          outputAudioTranscription: {},
           ...(!isSafeTier && {
             realtimeInputConfig: {
               automaticActivityDetection: {
@@ -736,12 +731,29 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       try {
         const event = JSON.parse(raw.toString()) as GeminiServerEvent;
 
-        // Trace error packets from Google
+        // Handle error packets from Google
         if (event.error) {
+          const errDetail = event.error.message || JSON.stringify(event.error);
           logger.error('GeminiLiveProvider [HANDSHAKE/RUNTIME ERROR]: Google returned error payload', {
             sessionId,
-            error: JSON.stringify(event.error)
+            callId,
+            error: errDetail
           });
+          const handler = this.setupCompletePromises.get(sessionId);
+          if (handler) {
+            clearTimeout(handler.timeoutId);
+            handler.reject(new CallError(callId, `Google Gemini rejected setup: ${errDetail}`, 'GEMINI_ERROR'));
+            this.setupCompletePromises.delete(sessionId);
+            try {
+              ws.close(1008, 'Setup rejected by Google');
+            } catch {}
+            return;
+          }
+          callbacks.onError?.(
+            sessionId,
+            new Error(`Google Gemini error: ${errDetail}`)
+          );
+          return;
         }
 
         // Handshake complete once setupComplete is received
@@ -842,11 +854,19 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     } catch (err) {
       this.activeSessions.delete(sessionId);
       this.setupCompletePromises.delete(sessionId);
+      try {
+        ws.close(1000);
+      } catch {}
 
       // Retry setup once if not already retried
       if (!(config as any)._isRetry) {
-        logger.warn('GeminiLiveProvider: setupComplete failed before audio started. Retrying once (SAFE setup tier)...', { callId, error: String(err) });
-        const retryConfig = { ...config, _isRetry: true, _isSafeTier: true };
+        logger.warn('GeminiLiveProvider: setupComplete failed before audio started. Retrying once with universal fallback model...', { callId, error: String(err) });
+        const retryConfig = {
+          ...config,
+          model: UNIVERSAL_FALLBACK_LIVE_MODEL,
+          _isRetry: true,
+          _isSafeTier: true
+        };
         return this.createSession(retryConfig, callbacks);
       }
 

@@ -842,6 +842,13 @@ export async function updateBillingConfig(geminiApiKey: string | null): Promise<
   });
 }
 
+export async function verifyGeminiKey(geminiApiKey?: string | null): Promise<{ valid: boolean; message?: string; error?: string; availableModelsCount?: number }> {
+  return apiFetch<any>('/api/v2/user/verify-gemini-key', {
+    method: 'POST',
+    body: JSON.stringify({ geminiApiKey: geminiApiKey || undefined }),
+  });
+}
+
 // ─── Shared KYC API Response Contract ──────────────────────────────────────
 export interface KycSuccessResponse<T = Record<string, unknown>> {
   success: true;

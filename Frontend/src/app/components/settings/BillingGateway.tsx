@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { fetchProfile, updateBillingConfig, apiClient } from "../../api";
+import { fetchProfile, updateBillingConfig, verifyGeminiKey, apiClient } from "../../api";
 import { Key, CreditCard, ShieldAlert, CheckCircle2, RefreshCw, Zap } from "lucide-react";
 
 export default function BillingGateway() {
@@ -8,6 +8,7 @@ export default function BillingGateway() {
   const [balance, setBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [selectedPlan, setSelectedPlan] = useState("trial");
@@ -122,6 +123,25 @@ export default function BillingGateway() {
     }
   };
 
+  const handleTestKey = async () => {
+    setTesting(true);
+    setSuccessMsg("");
+    setErrorMsg("");
+    try {
+      const trimmedKey = geminiKey.trim();
+      const res = await verifyGeminiKey(trimmedKey || null);
+      if (res.valid) {
+        setSuccessMsg(`✓ Google API Key verified! (${res.availableModelsCount || 0} models accessible)`);
+      } else {
+        setErrorMsg(`Google API Key verification failed: ${res.error || 'Unknown error'}`);
+      }
+    } catch (err: any) {
+      setErrorMsg(`Verification error: ${err.message || String(err)}`);
+    } finally {
+      setTesting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 space-y-4">
@@ -201,14 +221,25 @@ export default function BillingGateway() {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full nm-button nm-state-success text-sm font-bold py-3 rounded-xl transition-all active:scale-95 disabled:opacity-50"
-                style={{ fontFamily: "'Figtree', sans-serif" }}
-              >
-                {saving ? "Saving Custom Key..." : "Save Custom Key"}
-              </button>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={handleTestKey}
+                  disabled={testing || saving}
+                  className="w-full nm-button text-sm font-bold py-3 rounded-xl transition-all active:scale-95 disabled:opacity-50"
+                  style={{ fontFamily: "'Figtree', sans-serif" }}
+                >
+                  {testing ? "Testing Key..." : "Test Connection"}
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving || testing}
+                  className="w-full nm-button nm-state-success text-sm font-bold py-3 rounded-xl transition-all active:scale-95 disabled:opacity-50"
+                  style={{ fontFamily: "'Figtree', sans-serif" }}
+                >
+                  {saving ? "Saving..." : "Save Custom Key"}
+                </button>
+              </div>
             </form>
           </div>
         </div>

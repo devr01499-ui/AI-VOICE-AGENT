@@ -12,6 +12,7 @@
  * without a data migration.
  */
 
+export const UNIVERSAL_FALLBACK_LIVE_MODEL = 'models/gemini-2.0-flash-exp';
 export const DEFAULT_LIVE_MODEL = 'models/gemini-2.5-flash-native-audio-latest';
 
 export function resolveLiveModel(value: string | null | undefined): string {

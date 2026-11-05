@@ -51,6 +51,75 @@ router.post('/billing-config', requireAuth, sensitiveOperationsLimiter, async (r
   }
 });
 
+/**
+ * POST /api/v2/user/verify-gemini-key
+ * Validates a Gemini API key against Google's Generative Language API.
+ */
+router.post('/verify-gemini-key', requireAuth, sensitiveOperationsLimiter, async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+
+    const { geminiApiKey } = req.body;
+    let keyToTest = (geminiApiKey && typeof geminiApiKey === 'string' && geminiApiKey.trim())
+      ? geminiApiKey.trim()
+      : null;
+
+    if (!keyToTest) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { geminiApiKey: true }
+      });
+      if (user?.geminiApiKey) {
+        keyToTest = EncryptionService.decryptIfEncrypted(user.geminiApiKey.trim());
+      }
+    }
+
+    if (!keyToTest) {
+      keyToTest = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENAI_API_KEY || null;
+    }
+
+    if (!keyToTest) {
+      res.json({
+        valid: false,
+        error: 'No Gemini or Google API key found to test. Please provide a key in the request or configure one in Settings.'
+      });
+      return;
+    }
+
+    const httpBase = (process.env.GEMINI_HTTP_BASE || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
+    const checkRes = await fetch(`${httpBase}/v1alpha/models?key=${encodeURIComponent(keyToTest)}`);
+
+    if (!checkRes.ok) {
+      const errorData = await checkRes.json().catch(() => ({})) as any;
+      const errorMsg = errorData?.error?.message || `HTTP ${checkRes.status}: ${checkRes.statusText}`;
+      res.json({
+        valid: false,
+        error: errorMsg
+      });
+      return;
+    }
+
+    const data = await checkRes.json().catch(() => ({})) as any;
+    const models = Array.isArray(data?.models) ? data.models.map((m: any) => m.name) : [];
+
+    res.json({
+      valid: true,
+      message: 'Gemini API key is verified and active.',
+      availableModelsCount: models.length
+    });
+  } catch (err: any) {
+    logger.error('User verify-gemini-key error', { error: err.message || String(err) });
+    res.json({
+      valid: false,
+      error: `Network error connecting to Google API: ${err.message || String(err)}`
+    });
+  }
+});
+
 import { NotificationService } from '../services/NotificationService';
 
 /**
