@@ -65,6 +65,8 @@ model User {
   consents             UserConsent[]
   invoices             Invoice[]
   minutesLedgerEntries MinutesLedger[]
+  calendarConnection   CalendarConnection?
+  calendarBookings     CalendarBooking[]
 
   @@index([createdAt])
   @@index([accountStatus])
@@ -146,6 +148,8 @@ model Agent {
   callSessions   CallSession[]
   chatMessages   ChatMessage[]
   kbLinks        AgentKnowledgeBase[]
+  schedulingRule AgentSchedulingRule?
+  calendarBookings CalendarBooking[]
 
   // Knowledge base relationships stored as JSON array of IDs in agentConfig
   // for simplicity — a proper join table can be added later.
@@ -823,6 +827,83 @@ model BatchCampaign {
   updatedAt         DateTime @updatedAt
 
   @@index([status])
+}
+
+model CalendarConnection {
+  id              String    @id @default(uuid())
+  workspaceId     String    @unique @map("workspace_id")
+  provider        String    @default("google")
+  googleEmail     String    @map("google_email")
+  encryptedTokens String    @map("encrypted_tokens")
+  scopes          String    @default("")
+  status          String    @default("healthy") // healthy | needs_reauth | revoked
+  lastCheckedAt   DateTime? @map("last_checked_at")
+  lastErrorCode   String?   @map("last_error_code")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user            User                  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  schedulingRules AgentSchedulingRule[]
+  bookings        CalendarBooking[]
+
+  @@map("calendar_connections")
+}
+
+model AgentSchedulingRule {
+  id                       String   @id @default(uuid())
+  agentId                  String   @unique @map("agent_id")
+  calendarConnectionId     String?  @map("calendar_connection_id")
+  timeZone                 String   @default("Asia/Kolkata") @map("time_zone")
+  workingDays              String   @default("[1,2,3,4,5]") @map("working_days") // JSON array: 0=Sun, 1=Mon...
+  workingHours             String   @default("{\"start\":\"09:00\",\"end\":\"17:00\"}") @map("working_hours") // JSON: shifts/hours
+  appointmentMinutes       Int      @default(30) @map("appointment_minutes")
+  bufferBeforeAfterMinutes Int      @default(10) @map("buffer_before_after_minutes")
+  minNoticeMinutes         Int      @default(120) @map("min_notice_minutes")
+  maxDaysAhead             Int      @default(30) @map("max_days_ahead")
+  maxBookingsPerDay        Int      @default(8) @map("max_bookings_per_day")
+  blackoutDates            String   @default("[]") @map("blackout_dates") // JSON array of ISO dates
+  treatAllDayEventsAsBusy  Boolean  @default(true) @map("treat_all_day_events_as_busy")
+  allowedCalendars         String   @default("[\"primary\"]") @map("allowed_calendars") // JSON array
+  attendeeMode             String   @default("invite_caller") @map("attendee_mode") // invite_caller | owner_only
+  addMeetLink              Boolean  @default(false) @map("add_meet_link")
+  instructions             String?  @map("instructions")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
+
+  agent                    Agent               @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  calendarConnection       CalendarConnection? @relation(fields: [calendarConnectionId], references: [id], onDelete: SetNull)
+
+  @@map("agent_scheduling_rules")
+}
+
+model CalendarBooking {
+  id                   String    @id @default(uuid())
+  workspaceId          String    @map("workspace_id")
+  agentId              String    @map("agent_id")
+  callId               String?   @map("call_id")
+  calendarConnectionId String?   @map("calendar_connection_id")
+  googleEventId        String?   @map("google_event_id")
+  calendarId           String    @default("primary") @map("calendar_id")
+  startUtc             DateTime  @map("start_utc")
+  endUtc               DateTime  @map("end_utc")
+  timeZone             String    @default("Asia/Kolkata") @map("time_zone")
+  status               String    @default("confirmed") // confirmed | cancelled | rescheduled | failed
+  callerName           String?   @map("caller_name")
+  callerPhone          String?   @map("caller_phone")
+  callerEmail          String?   @map("caller_email")
+  notes                String?
+  idempotencyKey       String    @unique @map("idempotency_key")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  user                 User                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  agent                Agent               @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  calendarConnection   CalendarConnection? @relation(fields: [calendarConnectionId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([agentId])
+  @@index([startUtc])
+  @@map("calendar_bookings")
 }
 
 // ─────────────────────────────────────────────

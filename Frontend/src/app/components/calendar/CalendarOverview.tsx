@@ -6,6 +6,7 @@ import { Calendar, Clock, MapPin, User, Bot, AlertCircle } from 'lucide-react';
 interface Booking {
   id: string;
   source: string;
+  callerName?: string;
   phoneNumber: string;
   scheduledAtUtc: string;
   timezone: string;
@@ -25,8 +26,9 @@ export function DashCalendar() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadData = () => {
     Promise.all([fetchCalendarBookings(), fetchCalendarBatches()])
       .then(([bData, batData]) => {
         setBookings(bData || []);
@@ -34,7 +36,25 @@ export function DashCalendar() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
+
+  const handleCancelBooking = async (id: string) => {
+    if (!window.confirm('Are you sure you want to cancel this appointment in Google Calendar?')) return;
+    try {
+      setCancellingId(id);
+      const { apiClient } = await import('../../api');
+      await apiClient.post(`/api/v2/calendar/bookings/${id}/cancel`);
+      loadData();
+    } catch {
+      alert('Failed to cancel appointment. Please try again.');
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -50,7 +70,7 @@ export function DashCalendar() {
   
   // Custom Tailwind Calendar Grid Generation (simplistic week/list hybrid for aesthetics)
   // We'll show the upcoming list with beautiful glass cards
-  const upcomingBookings = bookings.filter(b => b.status === 'scheduled');
+  const upcomingBookings = bookings.filter(b => b.status === 'scheduled' || b.status === 'confirmed' || b.status === 'rescheduled');
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto w-full h-full pb-10">
@@ -137,7 +157,7 @@ export function DashCalendar() {
                           </span>
                         </div>
                         <h4 className="text-lg font-bold text-[var(--nm-text)] mt-2" style={{fontFamily:"'Outfit', sans-serif"}}>
-                          {booking.phoneNumber}
+                          {booking.callerName ? `${booking.callerName} (${booking.phoneNumber})` : booking.phoneNumber}
                         </h4>
                         
                         {booking.notes && (
@@ -146,6 +166,15 @@ export function DashCalendar() {
                             {booking.notes}
                           </p>
                         )}
+                        <div className="mt-3">
+                          <button
+                            onClick={() => handleCancelBooking(booking.id)}
+                            disabled={cancellingId === booking.id}
+                            className="text-xs text-rose-400 hover:text-rose-300 font-semibold underline disabled:opacity-50"
+                          >
+                            {cancellingId === booking.id ? 'Cancelling…' : 'Cancel appointment'}
+                          </button>
+                        </div>
                       </div>
                       
                       <div className="text-right flex flex-col items-end justify-center nm-pressed px-4 py-2 rounded-xl border border-white/5">

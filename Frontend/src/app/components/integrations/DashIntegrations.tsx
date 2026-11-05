@@ -20,6 +20,8 @@ export function DashIntegrations() {
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [testingSlots, setTestingSlots] = useState(false);
+  const [testSlots, setTestSlots] = useState<Array<{ id: string; spokenLabel: string; startIso: string; endIso: string }> | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const fetchStatus = useCallback(async () => {
@@ -31,6 +33,7 @@ export function DashIntegrations() {
           connected: res.data.connected,
           status: res.data.status || (res.data.connected ? 'healthy' : 'disconnected'),
           lastCheckedAt: res.data.lastCheckedAt,
+          googleEmail: res.data.googleEmail,
           message: res.data.message
         });
       } else {
@@ -72,6 +75,22 @@ export function DashIntegrations() {
       alert(err?.response?.data?.error || 'Failed to initiate Google Calendar connection.');
     } finally {
       setConnecting(false);
+    }
+  };
+
+  const handleTestNow = async () => {
+    try {
+      setTestingSlots(true);
+      const res = await apiClient.post('/api/v2/calendar/slots', {});
+      if (res.data?.slots && Array.isArray(res.data.slots)) {
+        setTestSlots(res.data.slots);
+      } else {
+        setTestSlots([]);
+      }
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Failed to query real-time free/busy slots.');
+    } finally {
+      setTestingSlots(false);
     }
   };
 
@@ -185,6 +204,57 @@ export function DashIntegrations() {
                   ? 'Your Google Calendar authorization has expired or was revoked. Please reconnect to restore AI scheduling.'
                   : 'Link your Google Calendar to allow AI agents to check your availability and schedule appointments automatically during calls.'}
               </p>
+
+              {connected && (
+                <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  {status?.googleEmail && (
+                    <div className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center justify-between">
+                      <span className="font-medium">Account:</span>
+                      <span className="font-mono text-slate-700 dark:text-slate-300 font-semibold truncate max-w-[180px]">
+                        {status.googleEmail}
+                      </span>
+                    </div>
+                  )}
+                  {status?.lastCheckedAt && (
+                    <div className="text-[10px] text-slate-400 flex items-center justify-between">
+                      <span>Last checked:</span>
+                      <span>{new Date(status.lastCheckedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleTestNow}
+                    disabled={testingSlots}
+                    className="w-full mt-2 py-1.5 px-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${testingSlots ? 'animate-spin' : ''}`} />
+                    {testingSlots ? 'Querying free/busy…' : 'Test now (view 3 free slots)'}
+                  </button>
+
+                  {testSlots !== null && (
+                    <div className="mt-2 p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1.5 text-left">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Next 3 Available Slots
+                      </div>
+                      {testSlots.length === 0 ? (
+                        <p className="text-[11px] text-slate-500 italic">No open slots in the next 7 days.</p>
+                      ) : (
+                        <div className="space-y-1">
+                          {testSlots.map((slot) => (
+                            <div
+                              key={slot.id}
+                              className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded-md border border-emerald-100 dark:border-emerald-900"
+                            >
+                              <span>•</span>
+                              <span>{slot.spokenLabel}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">

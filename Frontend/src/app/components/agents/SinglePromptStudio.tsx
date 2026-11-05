@@ -35,6 +35,7 @@ import {
   ShieldCheck,
   Wand2,
   CheckCircle2,
+  Calendar,
 } from 'lucide-react';
 import {
   apiClient,
@@ -532,6 +533,7 @@ export default function SinglePromptStudio({
     intelligence: false,
     functions: false,
     kb: false,
+    scheduling: false,
     speech: false,
     transcription: false,
     callSettings: false,
@@ -540,6 +542,107 @@ export default function SinglePromptStudio({
     webhooks: false,
     mcps: false,
   });
+
+  const [schedulingRule, setSchedulingRule] = useState<{
+    timeZone: string;
+    workingDays: number[];
+    workingHours: { start: string; end: string };
+    appointmentMinutes: number;
+    bufferBeforeAfterMinutes: number;
+    minNoticeMinutes: number;
+    maxDaysAhead: number;
+    maxBookingsPerDay: number;
+    addMeetLink: boolean;
+    instructions: string;
+  }>({
+    timeZone: 'Asia/Kolkata',
+    workingDays: [1, 2, 3, 4, 5],
+    workingHours: { start: '09:00', end: '17:00' },
+    appointmentMinutes: 30,
+    bufferBeforeAfterMinutes: 10,
+    minNoticeMinutes: 120,
+    maxDaysAhead: 30,
+    maxBookingsPerDay: 8,
+    addMeetLink: false,
+    instructions: '',
+  });
+  const [isSavingScheduling, setIsSavingScheduling] = useState(false);
+  const [isParsingInstructions, setIsParsingInstructions] = useState(false);
+  const [schedulingPreviewSlots, setSchedulingPreviewSlots] = useState<any[] | null>(null);
+  const [isPreviewingSlots, setIsPreviewingSlots] = useState(false);
+
+  useEffect(() => {
+    if (currentAgentId) {
+      apiClient.get(`/api/v2/calendar/rules/${currentAgentId}`).then((res) => {
+        if (res.data?.rule) {
+          const r = res.data.rule;
+          setSchedulingRule({
+            timeZone: r.timeZone || 'Asia/Kolkata',
+            workingDays: Array.isArray(r.workingDays) ? r.workingDays : [1, 2, 3, 4, 5],
+            workingHours: r.workingHours || { start: '09:00', end: '17:00' },
+            appointmentMinutes: r.appointmentMinutes || 30,
+            bufferBeforeAfterMinutes: r.bufferBeforeAfterMinutes || 10,
+            minNoticeMinutes: r.minNoticeMinutes || 120,
+            maxDaysAhead: r.maxDaysAhead || 30,
+            maxBookingsPerDay: r.maxBookingsPerDay || 8,
+            addMeetLink: Boolean(r.addMeetLink),
+            instructions: r.instructions || '',
+          });
+        }
+      }).catch(() => {});
+    }
+  }, [currentAgentId]);
+
+  const handleSaveSchedulingRule = async () => {
+    if (!currentAgentId) return;
+    try {
+      setIsSavingScheduling(true);
+      await apiClient.post(`/api/v2/calendar/rules/${currentAgentId}`, schedulingRule);
+      alert('Scheduling rules saved successfully!');
+    } catch {
+      alert('Failed to save scheduling rules.');
+    } finally {
+      setIsSavingScheduling(false);
+    }
+  };
+
+  const handleParseInstructions = async () => {
+    if (!currentAgentId || !schedulingRule.instructions) return;
+    try {
+      setIsParsingInstructions(true);
+      const res = await apiClient.post(`/api/v2/calendar/rules/${currentAgentId}/parse-instructions`, {
+        instructions: schedulingRule.instructions,
+      });
+      if (res.data?.parsed) {
+        setSchedulingRule((prev) => ({
+          ...prev,
+          ...res.data.parsed,
+        }));
+      }
+    } catch {
+      alert('Failed to parse instructions.');
+    } finally {
+      setIsParsingInstructions(false);
+    }
+  };
+
+  const handleTryItSlots = async () => {
+    try {
+      setIsPreviewingSlots(true);
+      const res = await apiClient.post('/api/v2/calendar/slots', {
+        agentId: currentAgentId,
+      });
+      if (res.data?.slots && Array.isArray(res.data.slots)) {
+        setSchedulingPreviewSlots(res.data.slots);
+      } else {
+        setSchedulingPreviewSlots([]);
+      }
+    } catch {
+      alert('Failed to preview available slots. Ensure Google Calendar is connected.');
+    } finally {
+      setIsPreviewingSlots(false);
+    }
+  };
 
   const toggleAccordion = (key: string) => {
     setAccordionState((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -2300,6 +2403,223 @@ export default function SinglePromptStudio({
                     })}
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+
+          {/* Accordion: Scheduling & Calendar */}
+          <div className="p-3">
+            <button
+              onClick={() => toggleAccordion('scheduling')}
+              className="w-full flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200"
+            >
+              <span className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-emerald-500" /> Scheduling & Calendar
+              </span>
+              {accordionState.scheduling ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            </button>
+            {accordionState.scheduling && (
+              <div className="mt-3 space-y-3 text-xs text-slate-500">
+                <p>Configure automated appointment booking rules, working hours, and availability buffers.</p>
+
+                {/* Working Hours */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Daily Working Hours
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block mb-0.5">Start</span>
+                      <input
+                        type="time"
+                        value={schedulingRule.workingHours.start}
+                        onChange={(e) =>
+                          setSchedulingRule((prev) => ({
+                            ...prev,
+                            workingHours: { ...prev.workingHours, start: e.target.value },
+                          }))
+                        }
+                        className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-200 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block mb-0.5">End</span>
+                      <input
+                        type="time"
+                        value={schedulingRule.workingHours.end}
+                        onChange={(e) =>
+                          setSchedulingRule((prev) => ({
+                            ...prev,
+                            workingHours: { ...prev.workingHours, end: e.target.value },
+                          }))
+                        }
+                        className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-200 font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Duration & Buffer */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+                      Duration (min)
+                    </label>
+                    <input
+                      type="number"
+                      value={schedulingRule.appointmentMinutes}
+                      onChange={(e) =>
+                        setSchedulingRule((prev) => ({
+                          ...prev,
+                          appointmentMinutes: parseInt(e.target.value, 10) || 30,
+                        }))
+                      }
+                      className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+                      Buffer (min)
+                    </label>
+                    <input
+                      type="number"
+                      value={schedulingRule.bufferBeforeAfterMinutes}
+                      onChange={(e) =>
+                        setSchedulingRule((prev) => ({
+                          ...prev,
+                          bufferBeforeAfterMinutes: parseInt(e.target.value, 10) || 10,
+                        }))
+                      }
+                      className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-200"
+                    />
+                  </div>
+                </div>
+
+                {/* Min Notice & Max Bookings */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+                      Min Notice (min)
+                    </label>
+                    <input
+                      type="number"
+                      value={schedulingRule.minNoticeMinutes}
+                      onChange={(e) =>
+                        setSchedulingRule((prev) => ({
+                          ...prev,
+                          minNoticeMinutes: parseInt(e.target.value, 10) || 120,
+                        }))
+                      }
+                      className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+                      Daily Max Calls
+                    </label>
+                    <input
+                      type="number"
+                      value={schedulingRule.maxBookingsPerDay}
+                      onChange={(e) =>
+                        setSchedulingRule((prev) => ({
+                          ...prev,
+                          maxBookingsPerDay: parseInt(e.target.value, 10) || 8,
+                        }))
+                      }
+                      className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-200"
+                    />
+                  </div>
+                </div>
+
+                {/* Google Meet Link Toggle */}
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={schedulingRule.addMeetLink}
+                    onChange={(e) =>
+                      setSchedulingRule((prev) => ({
+                        ...prev,
+                        addMeetLink: e.target.checked,
+                      }))
+                    }
+                    className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <span className="text-xs text-slate-700 dark:text-slate-300">
+                    Automatically generate Google Meet link for bookings
+                  </span>
+                </label>
+
+                {/* Natural Language Instructions */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Owner Scheduling Rules
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleParseInstructions}
+                      disabled={isParsingInstructions || !schedulingRule.instructions}
+                      className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold hover:underline disabled:opacity-50"
+                    >
+                      {isParsingInstructions ? 'Parsing…' : 'Parse with AI'}
+                    </button>
+                  </div>
+                  <textarea
+                    rows={2}
+                    value={schedulingRule.instructions}
+                    onChange={(e) =>
+                      setSchedulingRule((prev) => ({
+                        ...prev,
+                        instructions: e.target.value,
+                      }))
+                    }
+                    placeholder="e.g. No appointments on Fridays after 3 pm, prefer mornings, 4 hours notice"
+                    className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-200 resize-none"
+                  />
+                </div>
+
+                {/* Save Rules Button */}
+                <button
+                  type="button"
+                  onClick={handleSaveSchedulingRule}
+                  disabled={isSavingScheduling}
+                  className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors disabled:opacity-50"
+                >
+                  {isSavingScheduling ? 'Saving…' : 'Save Scheduling Rules'}
+                </button>
+
+                {/* Try It Preview Box */}
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Try It: Caller Slots Preview
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleTryItSlots}
+                      disabled={isPreviewingSlots}
+                      className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold hover:underline disabled:opacity-50"
+                    >
+                      {isPreviewingSlots ? 'Checking…' : 'Check Open Slots'}
+                    </button>
+                  </div>
+                  {schedulingPreviewSlots !== null && (
+                    <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 space-y-1">
+                      {schedulingPreviewSlots.length === 0 ? (
+                        <p className="text-[10px] text-slate-400 italic">No free slots found.</p>
+                      ) : (
+                        schedulingPreviewSlots.map((s) => (
+                          <div
+                            key={s.id}
+                            className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium"
+                          >
+                            ✓ Propose: "{s.spokenLabel}"
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

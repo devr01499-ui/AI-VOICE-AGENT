@@ -313,6 +313,52 @@ export class SandboxStreamHandler {
               logger.error('SandboxStreamHandler: Custom API tool execution failed', { name, error: err?.message || String(err) });
               resultOutput = { error: `Failed to execute custom API function: ${err?.message || String(err)}` };
             }
+          } else if (name === 'get_available_slots') {
+            try {
+              const slots = await CalendarService.getFreeSlots(userId, agentId, {
+                fromDate: (args as any)?.date ? String((args as any).date) : undefined,
+                partOfDay: (args as any)?.part_of_day ? String((args as any).part_of_day) : undefined,
+              });
+              resultOutput = { success: true, slots };
+            } catch (err: any) {
+              resultOutput = { success: false, error: err?.message || 'Failed to get slots' };
+            }
+          } else if (name === 'book_appointment') {
+            try {
+              const booking = await CalendarService.bookAppointment({
+                workspaceId: userId,
+                agentId,
+                slotId: String((args as any)?.slot_id),
+                callerName: String((args as any)?.caller_name || 'Caller'),
+                callerPhone: (args as any)?.caller_phone ? String((args as any).caller_phone) : undefined,
+                callerEmail: (args as any)?.caller_email ? String((args as any).caller_email) : undefined,
+                notes: (args as any)?.notes ? String((args as any).notes) : undefined,
+              });
+              resultOutput = booking;
+            } catch (err: any) {
+              resultOutput = { status: 'failed', error: err?.message || 'Failed to book' };
+            }
+          } else if (name === 'reschedule_appointment') {
+            try {
+              const resched = await CalendarService.rescheduleAppointment({
+                workspaceId: userId,
+                bookingId: String((args as any)?.booking_id),
+                slotId: String((args as any)?.slot_id),
+              });
+              resultOutput = resched;
+            } catch (err: any) {
+              resultOutput = { status: 'failed', error: err?.message || 'Failed to reschedule' };
+            }
+          } else if (name === 'cancel_appointment') {
+            try {
+              const canc = await CalendarService.cancelAppointment({
+                workspaceId: userId,
+                bookingId: String((args as any)?.booking_id),
+              });
+              resultOutput = canc;
+            } catch (err: any) {
+              resultOutput = { status: 'failed', error: err?.message || 'Failed to cancel' };
+            }
           } else if (name === 'check_calendar_availability' || name === 'check_availability') {
             try {
               const avail = await CalendarService.checkAvailability(

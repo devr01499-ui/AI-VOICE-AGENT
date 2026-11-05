@@ -469,8 +469,65 @@ export class CallOrchestrator extends EventEmitter {
 
     if (isGoogleCalendarConnected) {
       agentConfig.tools.push({
+        name: 'get_available_slots',
+        description: 'Get up to 3 available appointment slots from the calendar for a given date or part of day (morning, afternoon, evening)',
+        executionType: 'builtin',
+        config: {},
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            date: { type: 'STRING', description: 'Desired appointment date (e.g. YYYY-MM-DD or relative like tomorrow)' },
+            part_of_day: { type: 'STRING', description: 'Preferred time of day: morning, afternoon, or evening' }
+          }
+        }
+      });
+      agentConfig.tools.push({
+        name: 'book_appointment',
+        description: 'Book a confirmed appointment slot. Call this ONLY after the caller agrees to a specific slot.',
+        executionType: 'builtin',
+        config: {},
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            slot_id: { type: 'STRING', description: 'The unique slot id returned by get_available_slots' },
+            caller_name: { type: 'STRING', description: 'Caller full name' },
+            caller_phone: { type: 'STRING', description: 'Caller phone number' },
+            caller_email: { type: 'STRING', description: 'Caller email address (optional)' },
+            notes: { type: 'STRING', description: 'Appointment topic or meeting notes' }
+          },
+          required: ['slot_id', 'caller_name']
+        }
+      });
+      agentConfig.tools.push({
+        name: 'reschedule_appointment',
+        description: 'Reschedule an existing booking to a new available slot',
+        executionType: 'builtin',
+        config: {},
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            booking_id: { type: 'STRING', description: 'The booking id to reschedule' },
+            slot_id: { type: 'STRING', description: 'The new slot id returned by get_available_slots' }
+          },
+          required: ['booking_id', 'slot_id']
+        }
+      });
+      agentConfig.tools.push({
+        name: 'cancel_appointment',
+        description: 'Cancel an existing appointment booking',
+        executionType: 'builtin',
+        config: {},
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            booking_id: { type: 'STRING', description: 'The booking id to cancel' }
+          },
+          required: ['booking_id']
+        }
+      });
+      agentConfig.tools.push({
         name: 'check_availability',
-        description: 'Check Google Calendar for available meeting slots',
+        description: 'Check Google Calendar for available meeting slots (legacy format)',
         executionType: 'builtin',
         config: {},
         parameters: {
@@ -484,7 +541,7 @@ export class CallOrchestrator extends EventEmitter {
       });
       agentConfig.tools.push({
         name: 'schedule_event',
-        description: 'Schedule an event on Google Calendar',
+        description: 'Schedule an event on Google Calendar (legacy format)',
         executionType: 'builtin',
         config: {},
         parameters: {
@@ -498,6 +555,9 @@ export class CallOrchestrator extends EventEmitter {
           required: ['summary', 'startTime', 'endTime']
         }
       });
+    } else {
+      // Unhealthy or not connected: inject safe fallback instructions
+      agentConfig.prompt = `${agentConfig.prompt}\n\n[CALENDAR NOTICE] Calendar integration is unavailable or not connected. Do NOT tell the caller that the calendar is not connected, unavailable, or failed. Do NOT mention systems, calendars, databases, or technical errors. Instead, naturally acknowledge their preferred time with "noted", and inform them the team will follow up to confirm the slot.`;
     }
 
     if (agentConfig.tools && agentConfig.tools.length > 0) {
@@ -611,6 +671,49 @@ export class CallOrchestrator extends EventEmitter {
           if (name === 'book_follow_up_call') {
             logger.info('Flow Engine: trigger book_follow_up_call tool call via Pipecat', { callId, args });
             const result = await executeBookFollowUpCall(agentId, phoneNumber, callId, parsedArgs);
+            return JSON.stringify(result);
+          }
+          if (name === 'get_available_slots') {
+            logger.info('Flow Engine: trigger get_available_slots tool call via Pipecat', { callId, args });
+            const slots = await CalendarService.getFreeSlots(activeAgent.userId, agentId, {
+              fromDate: parsedArgs.date ? String(parsedArgs.date) : undefined,
+              partOfDay: parsedArgs.part_of_day ? String(parsedArgs.part_of_day) : undefined,
+            });
+            return JSON.stringify({ success: true, slots });
+          }
+          if (name === 'book_appointment') {
+            logger.info('Flow Engine: trigger book_appointment tool call via Pipecat', { callId, args });
+            const result = await CalendarService.bookAppointment({
+              workspaceId: activeAgent.userId,
+              agentId,
+              callId,
+              slotId: String(parsedArgs.slot_id),
+              callerName: String(parsedArgs.caller_name || 'Caller'),
+              callerPhone: parsedArgs.caller_phone ? String(parsedArgs.caller_phone) : phoneNumber,
+              callerEmail: parsedArgs.caller_email ? String(parsedArgs.caller_email) : undefined,
+              notes: parsedArgs.notes ? String(parsedArgs.notes) : undefined,
+            });
+            return JSON.stringify(result);
+          }
+          if (name === 'reschedule_appointment') {
+            logger.info('Flow Engine: trigger reschedule_appointment tool call via Pipecat', { callId, args });
+            const result = await CalendarService.rescheduleAppointment({
+              workspaceId: activeAgent.userId,
+              bookingId: String(parsedArgs.booking_id),
+              slotId: String(parsedArgs.slot_id),
+              callId,
+              callerPhone: phoneNumber,
+            });
+            return JSON.stringify(result);
+          }
+          if (name === 'cancel_appointment') {
+            logger.info('Flow Engine: trigger cancel_appointment tool call via Pipecat', { callId, args });
+            const result = await CalendarService.cancelAppointment({
+              workspaceId: activeAgent.userId,
+              bookingId: String(parsedArgs.booking_id),
+              callId,
+              callerPhone: phoneNumber,
+            });
             return JSON.stringify(result);
           }
           if (name === 'check_availability' || name === 'check_calendar_availability') {

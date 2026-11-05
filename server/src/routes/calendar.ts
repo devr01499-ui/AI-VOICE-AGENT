@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { Router } from 'express';
 import { OAuth2Client } from 'google-auth-library';
+import { calendar as getCalendar } from 'googleapis/build/src/apis/calendar';
 import { requireAuth } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
 import { getUserIdFromRequest } from '../utils/auth';
@@ -13,7 +14,7 @@ import { requireCallingMinutes } from '../middleware/planValidation';
 import { CallService } from '../services/CallService';
 import { ADMIN_EMAIL } from '../config/constants';
 import { EncryptionService } from '../utils/EncryptionService';
-import { CalendarService } from '../core/orchestrator/CalendarService';
+import { CalendarService, SchedulingRuleConfig } from '../core/orchestrator/CalendarService';
 
 const router = Router();
 
@@ -89,6 +90,126 @@ function validateAndConsumeState(stateBase64: string): {
     return { valid: false, reason: 'malformed_state' };
   }
 }
+
+/**
+ * POST /api/v2/calendar/link-from-signin
+ * Links Google Calendar from OAuth provider refresh token received during 1-click Google Sign-in.
+ */
+router.post('/link-from-signin', requireAuth, async (req, res) => {
+  try {
+    const userId = (req as any).userId || getUserIdFromRequest(req);
+    const workspaceId = (req as any).effectiveWorkspaceId || userId;
+    const userEmail = (req as any).user?.email;
+    const { providerRefreshToken } = req.body;
+
+    if (!providerRefreshToken || typeof providerRefreshToken !== 'string') {
+      return res.status(400).json({ error: 'Missing providerRefreshToken' });
+    }
+
+    const oauth2Client = getOauth2Client();
+    oauth2Client.setCredentials({ refresh_token: providerRefreshToken });
+
+    // 1. Refresh to get fresh access token & tokeninfo
+    const refreshRes = await oauth2Client.refreshAccessToken();
+    const credentials = refreshRes.credentials;
+    const accessToken = credentials.access_token;
+    if (!accessToken) {
+      return res.status(400).json({ error: 'Failed to obtain access token from provider refresh token' });
+    }
+
+    const tokenInfo = await oauth2Client.getTokenInfo(accessToken);
+
+    // 2. Verify Google account email equals verified Supabase email
+    if (userEmail && tokenInfo.email && tokenInfo.email.toLowerCase() !== userEmail.toLowerCase()) {
+      logger.warn('[Calendar Link] Google email does not match user account email', {
+        googleEmail: tokenInfo.email,
+        userEmail
+      });
+      return res.status(400).json({
+        error: 'GOOGLE_EMAIL_MISMATCH',
+        message: 'The Google account email does not match your Claritiy Voice login email.'
+      });
+    }
+
+    // 3. Verify granted scopes include calendar scopes
+    const scopes = tokenInfo.scopes || [];
+    const hasFreeBusy = scopes.some(s => s.includes('calendar.freebusy') || s.includes('calendar'));
+    const hasEvents = scopes.some(s => s.includes('calendar.events') || s.includes('calendar'));
+
+    if (!hasFreeBusy || !hasEvents) {
+      logger.warn('[Calendar Link] Calendar scopes were unticked or not granted', { scopes });
+      return res.status(400).json({
+        error: 'CALENDAR_SCOPES_NOT_GRANTED',
+        message: 'Required calendar permissions were not granted. Please reconnect and allow calendar access.'
+      });
+    }
+
+    // 4. Test 1 real free/busy call succeeds
+    const calendar = (getCalendar as any)({ version: 'v3', auth: oauth2Client });
+    const now = new Date();
+    const oneHourLater = new Date(now.getTime() + 3600000);
+    await calendar.freebusy.query({
+      requestBody: {
+        timeMin: now.toISOString(),
+        timeMax: oneHourLater.toISOString(),
+        items: [{ id: 'primary' }]
+      }
+    });
+
+    // 5. Encrypt tokens at rest
+    const tokensToStore = {
+      access_token: accessToken,
+      refresh_token: providerRefreshToken,
+      expiry_date: credentials.expiry_date,
+      scope: scopes.join(' ')
+    };
+    const encryptedTokens = EncryptionService.encrypt(JSON.stringify(tokensToStore));
+    const googleEmail = tokenInfo.email || userEmail || 'unknown@google.com';
+
+    // 6. Upsert calendar_connections table
+    await prisma.calendarConnection.upsert({
+      where: { workspaceId },
+      update: {
+        googleEmail,
+        encryptedTokens,
+        scopes: scopes.join(' '),
+        status: 'healthy',
+        lastCheckedAt: new Date(),
+        lastErrorCode: null,
+      },
+      create: {
+        workspaceId,
+        provider: 'google',
+        googleEmail,
+        encryptedTokens,
+        scopes: scopes.join(' '),
+        status: 'healthy',
+        lastCheckedAt: new Date(),
+      }
+    });
+
+    // Keep legacy column updated in sync
+    await prisma.user.update({
+      where: { id: workspaceId },
+      data: { googleCalendarTokens: encryptedTokens }
+    }).catch(() => {});
+
+    CalendarService.clearCache();
+    logger.info('[Calendar Link] Successfully linked Google Calendar from sign-in', { workspaceId, googleEmail });
+
+    res.json({
+      success: true,
+      email: googleEmail,
+      status: 'healthy'
+    });
+  } catch (error: any) {
+    logger.error('Failed to link calendar from sign-in', { error: error.message });
+    res.status(500).json({
+      error: 'CALENDAR_LINK_FAILED',
+      message: error.message || 'Failed to link Google Calendar'
+    });
+  }
+});
 
 /**
  * POST /api/v2/calendar/connect-url
@@ -193,41 +314,64 @@ router.get('/callback', async (req, res) => {
     }
 
     let targetUserId = stateValidation.userId;
-    if (!targetUserId) {
-      // If direct GET /auth without pre-authenticated session was used, identify user via Google tokeninfo
-      try {
-        oauth2Client.setCredentials(tokens);
-        const tokenInfo = await oauth2Client.getTokenInfo(tokens.access_token as string);
-        if (tokenInfo.email) {
-          const matchedUser = await prisma.user.findFirst({
-            where: { email: { equals: tokenInfo.email, mode: 'insensitive' } },
-            select: { id: true },
-          });
-          targetUserId = matchedUser?.id;
-        }
-      } catch (err: any) {
-        logger.warn('Could not derive user from token info', { error: err.message });
+    let googleEmail = '';
+    try {
+      oauth2Client.setCredentials(tokens);
+      const tokenInfo = await oauth2Client.getTokenInfo(tokens.access_token as string);
+      googleEmail = tokenInfo.email || '';
+      if (!targetUserId && tokenInfo.email) {
+        const matchedUser = await prisma.user.findFirst({
+          where: { email: { equals: tokenInfo.email, mode: 'insensitive' } },
+          select: { id: true },
+        });
+        targetUserId = matchedUser?.id;
       }
+    } catch (err: any) {
+      logger.warn('Could not derive user from token info', { error: err.message });
     }
 
     if (!targetUserId) {
       return res.redirect(`${env.FRONTEND_URL}/dashboard?calendar=error&reason=user_not_identified`);
     }
 
+    const targetWorkspaceId = stateValidation.workspaceId || targetUserId;
+
     // Encrypt tokens at rest using AES-256-GCM
     const encryptedTokens = EncryptionService.encrypt(JSON.stringify(tokens));
 
-    // Update user record with encrypted tokens
+    // Upsert calendar_connections record
+    await prisma.calendarConnection.upsert({
+      where: { workspaceId: targetWorkspaceId },
+      update: {
+        googleEmail: googleEmail || 'unknown@google.com',
+        encryptedTokens,
+        scopes: tokens.scope || '',
+        status: 'healthy',
+        lastCheckedAt: new Date(),
+        lastErrorCode: null,
+      },
+      create: {
+        workspaceId: targetWorkspaceId,
+        provider: 'google',
+        googleEmail: googleEmail || 'unknown@google.com',
+        encryptedTokens,
+        scopes: tokens.scope || '',
+        status: 'healthy',
+        lastCheckedAt: new Date(),
+      }
+    });
+
+    // Update user record with encrypted tokens for backwards compatibility
     await prisma.user.update({
       where: { id: targetUserId },
       data: {
         googleCalendarTokens: encryptedTokens,
       },
-    });
+    }).catch(() => {});
 
     // Invalidate free/busy cache
     CalendarService.clearCache();
-    logger.info('Successfully connected Google Calendar with encrypted tokens', { userId: targetUserId });
+    logger.info('Successfully connected Google Calendar with encrypted tokens', { userId: targetUserId, workspaceId: targetWorkspaceId });
 
     // Absolute redirect back to the application dashboard
     res.redirect(`${env.FRONTEND_URL}/dashboard?calendar=connected`);
@@ -248,13 +392,17 @@ router.get('/status', requireAuth, async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
+    const conn = await prisma.calendarConnection.findUnique({
+      where: { workspaceId }
+    });
+
     const isConnected = await CalendarService.hasConnectedCalendar(workspaceId);
     if (!isConnected) {
       const user = await prisma.user.findUnique({
         where: { id: workspaceId },
         select: { googleCalendarTokens: true },
       });
-      const hasTokens = !!user?.googleCalendarTokens;
+      const hasTokens = (conn && conn.status !== 'revoked') || !!user?.googleCalendarTokens;
 
       return res.json({
         connected: false,
@@ -267,8 +415,9 @@ router.get('/status', requireAuth, async (req, res) => {
 
     res.json({
       connected: true,
-      status: 'healthy',
-      lastCheckedAt: new Date().toISOString(),
+      status: conn?.status || 'healthy',
+      googleEmail: conn?.googleEmail || undefined,
+      lastCheckedAt: conn?.lastCheckedAt?.toISOString() || new Date().toISOString(),
     });
   } catch (error: any) {
     logger.error('Failed to get Google Calendar status', { error: error.message });
@@ -293,13 +442,17 @@ router.delete('/disconnect', requireAuth, async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
+    const conn = await prisma.calendarConnection.findUnique({
+      where: { workspaceId }
+    });
     const user = await prisma.user.findUnique({
       where: { id: workspaceId },
       select: { googleCalendarTokens: true },
     });
 
-    if (user?.googleCalendarTokens) {
-      const tokens = CalendarService.getDecryptedTokens(user.googleCalendarTokens);
+    const rawTokens = conn?.encryptedTokens || user?.googleCalendarTokens;
+    if (rawTokens) {
+      const tokens = CalendarService.getDecryptedTokens(rawTokens);
       const tokenToRevoke = tokens?.refresh_token || tokens?.access_token;
       if (tokenToRevoke && tokenToRevoke !== 'revoked') {
         try {
@@ -315,10 +468,17 @@ router.delete('/disconnect', requireAuth, async (req, res) => {
       }
     }
 
+    if (conn) {
+      await prisma.calendarConnection.update({
+        where: { workspaceId },
+        data: { status: 'revoked', lastErrorCode: 'MANUAL_DISCONNECT' }
+      });
+    }
+
     await prisma.user.update({
       where: { id: workspaceId },
       data: { googleCalendarTokens: null },
-    });
+    }).catch(() => {});
 
     CalendarService.clearCache();
     logger.info('Google Calendar disconnected cleanly', { workspaceId });
@@ -346,13 +506,17 @@ router.delete('/', requireAuth, async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
+    const conn = await prisma.calendarConnection.findUnique({
+      where: { workspaceId }
+    });
     const user = await prisma.user.findUnique({
       where: { id: workspaceId },
       select: { googleCalendarTokens: true },
     });
 
-    if (user?.googleCalendarTokens) {
-      const tokens = CalendarService.getDecryptedTokens(user.googleCalendarTokens);
+    const rawTokens = conn?.encryptedTokens || user?.googleCalendarTokens;
+    if (rawTokens) {
+      const tokens = CalendarService.getDecryptedTokens(rawTokens);
       const tokenToRevoke = tokens?.refresh_token || tokens?.access_token;
       if (tokenToRevoke && tokenToRevoke !== 'revoked') {
         try {
@@ -364,10 +528,17 @@ router.delete('/', requireAuth, async (req, res) => {
       }
     }
 
+    if (conn) {
+      await prisma.calendarConnection.update({
+        where: { workspaceId },
+        data: { status: 'revoked', lastErrorCode: 'MANUAL_DISCONNECT' }
+      });
+    }
+
     await prisma.user.update({
       where: { id: workspaceId },
       data: { googleCalendarTokens: null },
-    });
+    }).catch(() => {});
 
     CalendarService.clearCache();
     res.json({ success: true });
@@ -378,8 +549,209 @@ router.delete('/', requireAuth, async (req, res) => {
 });
 
 /**
+ * GET /api/v2/calendar/rules/:agentId
+ * Get scheduling rules for a specific agent.
+ */
+router.get('/rules/:agentId', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId || getUserIdFromRequest(req);
+    const agentId = Array.isArray(req.params.agentId) ? req.params.agentId[0] : req.params.agentId;
+    const rule = await CalendarService.getSchedulingRule(agentId, workspaceId);
+    res.json({ success: true, rule });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to get scheduling rules' });
+  }
+});
+
+/**
+ * POST /api/v2/calendar/rules/:agentId
+ * Update or create scheduling rules for a specific agent.
+ */
+router.post('/rules/:agentId', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId || getUserIdFromRequest(req);
+    const agentId = Array.isArray(req.params.agentId) ? req.params.agentId[0] : req.params.agentId;
+    const role = (req as any).workspaceRole || 'admin';
+
+    if (role === 'viewer' || role === 'analyst') {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to edit scheduling rules.' });
+    }
+
+    const {
+      timeZone,
+      workingDays,
+      workingHours,
+      appointmentMinutes,
+      bufferBeforeAfterMinutes,
+      minNoticeMinutes,
+      maxDaysAhead,
+      maxBookingsPerDay,
+      blackoutDates,
+      treatAllDayEventsAsBusy,
+      allowedCalendars,
+      attendeeMode,
+      addMeetLink,
+      instructions,
+    } = req.body;
+
+    const upserted = await prisma.agentSchedulingRule.upsert({
+      where: { agentId },
+      update: {
+        timeZone: timeZone || 'Asia/Kolkata',
+        workingDays: JSON.stringify(workingDays || [1, 2, 3, 4, 5]),
+        workingHours: JSON.stringify(workingHours || { start: '09:00', end: '17:00' }),
+        appointmentMinutes: Number(appointmentMinutes) || 30,
+        bufferBeforeAfterMinutes: Number(bufferBeforeAfterMinutes) || 10,
+        minNoticeMinutes: Number(minNoticeMinutes) || 120,
+        maxDaysAhead: Number(maxDaysAhead) || 30,
+        maxBookingsPerDay: Number(maxBookingsPerDay) || 8,
+        blackoutDates: JSON.stringify(blackoutDates || []),
+        treatAllDayEventsAsBusy: treatAllDayEventsAsBusy !== false,
+        allowedCalendars: JSON.stringify(allowedCalendars || ['primary']),
+        attendeeMode: attendeeMode || 'invite_caller',
+        addMeetLink: Boolean(addMeetLink),
+        instructions: instructions || null,
+      },
+      create: {
+        agentId,
+        timeZone: timeZone || 'Asia/Kolkata',
+        workingDays: JSON.stringify(workingDays || [1, 2, 3, 4, 5]),
+        workingHours: JSON.stringify(workingHours || { start: '09:00', end: '17:00' }),
+        appointmentMinutes: Number(appointmentMinutes) || 30,
+        bufferBeforeAfterMinutes: Number(bufferBeforeAfterMinutes) || 10,
+        minNoticeMinutes: Number(minNoticeMinutes) || 120,
+        maxDaysAhead: Number(maxDaysAhead) || 30,
+        maxBookingsPerDay: Number(maxBookingsPerDay) || 8,
+        blackoutDates: JSON.stringify(blackoutDates || []),
+        treatAllDayEventsAsBusy: treatAllDayEventsAsBusy !== false,
+        allowedCalendars: JSON.stringify(allowedCalendars || ['primary']),
+        attendeeMode: attendeeMode || 'invite_caller',
+        addMeetLink: Boolean(addMeetLink),
+        instructions: instructions || null,
+      },
+    });
+
+    res.json({ success: true, rule: upserted });
+  } catch (err: any) {
+    logger.error('Failed to save scheduling rules', { error: err.message });
+    res.status(500).json({ error: 'Failed to save scheduling rules' });
+  }
+});
+
+/**
+ * POST /api/v2/calendar/rules/:agentId/parse-instructions
+ * Parses natural language instructions into structured scheduling rules.
+ */
+router.post('/rules/:agentId/parse-instructions', requireAuth, async (req, res) => {
+  try {
+    const { instructions } = req.body;
+    if (!instructions || typeof instructions !== 'string') {
+      return res.status(400).json({ error: 'Instructions text is required' });
+    }
+
+    const text = instructions.toLowerCase();
+    const parsed: Partial<SchedulingRuleConfig> = {
+      instructions,
+    };
+
+    // Parse appointment minutes
+    const slotDurationMatch = text.match(/(\d+)\s*(?:min|minute)s?\s*(?:slot|appointment|duration|call|meeting)/);
+    if (slotDurationMatch) {
+      parsed.appointmentMinutes = parseInt(slotDurationMatch[1], 10);
+    } else if (text.includes('1 hour') || text.includes('60 min')) {
+      parsed.appointmentMinutes = 60;
+    } else if (text.includes('45 min')) {
+      parsed.appointmentMinutes = 45;
+    } else if (text.includes('30 min')) {
+      parsed.appointmentMinutes = 30;
+    } else if (text.includes('15 min') && !text.includes('15 min buffer') && !text.includes('15 min break')) {
+      parsed.appointmentMinutes = 15;
+    }
+
+    // Parse buffer
+    const bufferMatch = text.match(/(\d+)\s*(?:min|minute)s?\s*(?:buffer|break|between)/);
+    if (bufferMatch) {
+      parsed.bufferBeforeAfterMinutes = parseInt(bufferMatch[1], 10);
+    }
+
+    // Parse notice
+    const noticeMatch = text.match(/(\d+)\s*hour(?:s)?\s*notice/);
+    if (noticeMatch) {
+      parsed.minNoticeMinutes = parseInt(noticeMatch[1], 10) * 60;
+    }
+
+    // Parse daily cap
+    const capMatch = text.match(/max(?:imum)?\s*(\d+)\s*(?:bookings|calls|appointments)/);
+    if (capMatch) {
+      parsed.maxBookingsPerDay = parseInt(capMatch[1], 10);
+    }
+
+    // Parse Google Meet preference
+    if (text.includes('meet') || text.includes('google meet') || text.includes('video call')) {
+      parsed.addMeetLink = true;
+    }
+
+    // Parse working hours
+    const hoursMatch = text.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:to|-)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)/);
+    if (hoursMatch) {
+      let h1 = parseInt(hoursMatch[1], 10);
+      const m1 = hoursMatch[2] ? parseInt(hoursMatch[2], 10) : 0;
+      const p1 = hoursMatch[3];
+      let h2 = parseInt(hoursMatch[4], 10);
+      const m2 = hoursMatch[5] ? parseInt(hoursMatch[5], 10) : 0;
+      const p2 = hoursMatch[6];
+
+      if (p1 === 'pm' && h1 < 12) h1 += 12;
+      if (p1 === 'am' && h1 === 12) h1 = 0;
+      if (p2 === 'pm' && h2 < 12) h2 += 12;
+      if (p2 === 'am' && h2 === 12) h2 = 0;
+
+      parsed.workingHours = {
+        start: `${String(h1).padStart(2, '0')}:${String(m1).padStart(2, '0')}`,
+        end: `${String(h2).padStart(2, '0')}:${String(m2).padStart(2, '0')}`,
+      };
+    }
+
+    // Parse working days
+    let workingDays = [1, 2, 3, 4, 5];
+    if (text.includes('no friday') || text.includes('fridays off')) {
+      workingDays = workingDays.filter((d) => d !== 5);
+    }
+    if (text.includes('saturday') && !text.includes('no weekend') && !text.includes('except')) {
+      workingDays.push(6);
+    }
+    parsed.workingDays = workingDays;
+
+    res.json({ success: true, parsed });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to parse instructions' });
+  }
+});
+
+/**
+ * POST /api/v2/calendar/slots
+ * Evaluates real-time availability and returns top 3 available appointment slots.
+ */
+router.post('/slots', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId || getUserIdFromRequest(req);
+    const { agentId, fromDate, toDate, partOfDay, durationMinutes } = req.body;
+    const slots = await CalendarService.getFreeSlots(workspaceId, agentId, {
+      fromDate,
+      toDate,
+      partOfDay,
+      durationMinutes,
+    });
+    res.json({ success: true, slots });
+  } catch (err: any) {
+    logger.error('Failed to get slots', { error: err.message });
+    res.status(500).json({ error: 'Failed to get slots' });
+  }
+});
+
+/**
  * GET /api/v2/calendar/bookings
- * Returns real scheduled bookings from ScheduledCall (does NOT fabricate from generic calls).
+ * Returns real scheduled bookings from CalendarBooking (with ScheduledCall fallback).
  */
 router.get('/bookings', requireAuth, async (req, res) => {
   try {
@@ -391,12 +763,38 @@ router.get('/bookings', requireAuth, async (req, res) => {
       where: { userId: workspaceId },
       select: { id: true, name: true },
     });
-    const agentIds = workspaceAgents.map((a) => a.id);
     const agentMap = new Map(workspaceAgents.map((a) => [a.id, a.name]));
+
+    const dbBookings = await prisma.calendarBooking.findMany({
+      where: { workspaceId },
+      orderBy: { startUtc: 'desc' },
+      take: 50,
+    });
+
+    if (dbBookings.length > 0) {
+      const formatted = dbBookings.map((b) => ({
+        id: b.id,
+        source: 'ai_booked',
+        agentId: b.agentId,
+        agentName: agentMap.get(b.agentId) || 'AI Agent',
+        callerName: b.callerName,
+        phoneNumber: b.callerPhone || 'Caller',
+        callerEmail: b.callerEmail,
+        scheduledAtUtc: b.startUtc.toISOString(),
+        endUtc: b.endUtc.toISOString(),
+        timezone: b.timeZone,
+        status: b.status,
+        notes: b.notes || `Appointment with ${b.callerName || 'Caller'}`,
+        googleEventId: b.googleEventId,
+        callId: b.callId,
+        createdAt: b.createdAt.toISOString(),
+      }));
+      return res.json(formatted);
+    }
 
     const scheduledCalls = await prisma.scheduledCall.findMany({
       where: {
-        agentId: { in: agentIds },
+        agentId: { in: Array.from(agentMap.keys()) },
         source: { in: ['ai_booked', 'manual', 'batch'] },
       },
       take: 50,
@@ -422,6 +820,54 @@ router.get('/bookings', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Failed to get bookings' });
   }
 });
+
+/**
+ * POST /api/v2/calendar/bookings/:id/cancel
+ * Cancels a booking in Google Calendar and sets database record status to cancelled.
+ */
+router.post('/bookings/:id/cancel', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId || getUserIdFromRequest(req);
+    const bookingId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const result = await CalendarService.cancelAppointment({
+      workspaceId,
+      bookingId,
+    });
+    if (result.status === 'failed') {
+      return res.status(400).json(result);
+    }
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to cancel booking' });
+  }
+});
+
+/**
+ * POST /api/v2/calendar/bookings/:id/reschedule
+ * Reschedules a booking in Google Calendar and updates database record.
+ */
+router.post('/bookings/:id/reschedule', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId || getUserIdFromRequest(req);
+    const bookingId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const { slotId } = req.body;
+    if (!slotId) {
+      return res.status(400).json({ error: 'Missing slotId' });
+    }
+    const result = await CalendarService.rescheduleAppointment({
+      workspaceId,
+      bookingId,
+      slotId,
+    });
+    if (result.status === 'failed' || result.status === 'slot_taken') {
+      return res.status(400).json(result);
+    }
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to reschedule booking' });
+  }
+});
+
 
 /**
  * GET /api/v2/calendar/batches

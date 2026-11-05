@@ -241,6 +241,7 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsOfUseAccepted, setTermsOfUseAccepted] = useState(false);
   const [submittingConsent, setSubmittingConsent] = useState(false);
+  const [connectCalendar, setConnectCalendar] = useState(true);
 
   useEffect(() => {
     // Check if redirect contains password reset token / recovery type
@@ -388,11 +389,20 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
   const handleGoogleOAuth = async () => {
     setError('');
     try {
+      const options: any = {
+        redirectTo: `${window.location.origin}/dashboard`
+      };
+      if (connectCalendar) {
+        options.scopes = 'https://www.googleapis.com/auth/calendar.freebusy https://www.googleapis.com/auth/calendar.events';
+        options.queryParams = {
+          access_type: 'offline',
+          prompt: 'consent',
+          include_granted_scopes: 'true'
+        };
+      }
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/dashboard`
-        }
+        options
       });
       if (oauthError) throw oauthError;
     } catch (err: any) {
@@ -629,6 +639,19 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">or</span>
                 <div className="flex-1 h-px bg-[#EADEC9]" />
               </div>
+
+              {/* Google Calendar Consent Checkbox */}
+              <label className="flex items-start gap-2.5 mb-3 cursor-pointer select-none text-[11px] text-slate-600 font-medium leading-relaxed">
+                <input
+                  type="checkbox"
+                  checked={connectCalendar}
+                  onChange={(e) => setConnectCalendar(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded text-[#059669] focus:ring-[#059669] border-[#EADEC9] cursor-pointer"
+                />
+                <span>
+                  Also connect my Google Calendar so my AI agent can check my free time and book appointments. You can disconnect any time.
+                </span>
+              </label>
 
               {/* Google */}
               <button

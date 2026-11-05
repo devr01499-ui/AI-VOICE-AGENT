@@ -8273,6 +8273,16 @@ export default function App() {
         if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
           window.history.replaceState(null, '', window.location.pathname);
         }
+
+        // Part 2: Read provider_refresh_token on first dashboard load after Google sign-in and link calendar
+        if ((currentSession as any)?.provider_refresh_token) {
+          const providerRefreshToken = (currentSession as any).provider_refresh_token;
+          apiClient.post('/api/v2/calendar/link-from-signin', {
+            providerRefreshToken
+          }).catch((err) => {
+            console.warn('[Calendar Auto-Link] Notice:', err?.response?.data?.error || err.message);
+          });
+        }
         const pendingPlan = localStorage.getItem('pending_plan_purchase');
         if (pendingPlan) {
           handleNavigate("pricing");

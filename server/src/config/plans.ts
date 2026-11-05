@@ -10,12 +10,19 @@ export interface KbPlanLimits {
   maxKbAttachedPerAgent: number;
 }
 
+export interface CalendarPlanLimits {
+  maxCalendarsPerWorkspace: number;
+  maxBookingsPerMonth: number;
+  apiCallsPerMinute: number;
+}
+
 export interface PlanDetails {
   name: string;
   price: number; // Price in INR (₹)
   minutes: number;
   accountType: string;
   kbLimits: KbPlanLimits;
+  calendarLimits: CalendarPlanLimits;
 }
 
 export const PLAN_CONFIG: Record<string, PlanDetails> = {
@@ -31,6 +38,11 @@ export const PLAN_CONFIG: Record<string, PlanDetails> = {
       maxChunksPerWorkspace: 200,
       maxKbAttachedPerAgent: 1,
     },
+    calendarLimits: {
+      maxCalendarsPerWorkspace: 1,
+      maxBookingsPerMonth: 20,
+      apiCallsPerMinute: 15,
+    },
   },
   starter: {
     name: 'Starter',
@@ -43,6 +55,11 @@ export const PLAN_CONFIG: Record<string, PlanDetails> = {
       maxFileSizeMb: 10,
       maxChunksPerWorkspace: 1500,
       maxKbAttachedPerAgent: 3,
+    },
+    calendarLimits: {
+      maxCalendarsPerWorkspace: 1,
+      maxBookingsPerMonth: 100,
+      apiCallsPerMinute: 30,
     },
   },
   startup: {
@@ -57,6 +74,11 @@ export const PLAN_CONFIG: Record<string, PlanDetails> = {
       maxChunksPerWorkspace: 5000,
       maxKbAttachedPerAgent: 5,
     },
+    calendarLimits: {
+      maxCalendarsPerWorkspace: 3,
+      maxBookingsPerMonth: 500,
+      apiCallsPerMinute: 60,
+    },
   },
   growth: {
     name: 'Growth',
@@ -69,6 +91,11 @@ export const PLAN_CONFIG: Record<string, PlanDetails> = {
       maxFileSizeMb: 50,
       maxChunksPerWorkspace: 20000,
       maxKbAttachedPerAgent: 15,
+    },
+    calendarLimits: {
+      maxCalendarsPerWorkspace: 5,
+      maxBookingsPerMonth: 2500,
+      apiCallsPerMinute: 120,
     },
   },
   enterprise: {
@@ -83,8 +110,21 @@ export const PLAN_CONFIG: Record<string, PlanDetails> = {
       maxChunksPerWorkspace: 200000,
       maxKbAttachedPerAgent: 50,
     },
+    calendarLimits: {
+      maxCalendarsPerWorkspace: 20,
+      maxBookingsPerMonth: 10000,
+      apiCallsPerMinute: 300,
+    },
   },
 };
+
+export function getCalendarPlanLimits(planNameOrAccountType?: string | null): CalendarPlanLimits {
+  if (!planNameOrAccountType) return PLAN_CONFIG.trial.calendarLimits;
+  const key = planNameOrAccountType.trim().toLowerCase();
+  if (PLAN_CONFIG[key]) return PLAN_CONFIG[key].calendarLimits;
+  const match = Object.values(PLAN_CONFIG).find(p => p.accountType.toLowerCase() === key);
+  return match ? match.calendarLimits : PLAN_CONFIG.trial.calendarLimits;
+}
 
 export function getPlanConfig(planName: string): PlanDetails | null {
   if (!planName || typeof planName !== 'string') return null;
