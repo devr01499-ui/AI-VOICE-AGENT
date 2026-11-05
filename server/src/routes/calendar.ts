@@ -218,6 +218,16 @@ router.post('/link-from-signin', requireAuth, async (req, res) => {
  */
 router.post('/connect-url', requireAuth, (req, res) => {
   try {
+    const clientId = process.env.GOOGLE_CLIENT_ID || env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET || env.GOOGLE_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      return res.status(503).json({
+        error: 'GOOGLE_OAUTH_NOT_CONFIGURED',
+        message: 'Google Calendar OAuth is not configured on this server. Please configure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in the environment variables.',
+      });
+    }
+
     const userId = (req as any).userId || getUserIdFromRequest(req);
     const workspaceId = (req as any).effectiveWorkspaceId || userId;
     const role = (req as any).workspaceRole || 'admin';
@@ -255,6 +265,13 @@ router.post('/connect-url', requireAuth, (req, res) => {
  */
 router.get('/auth', (req, res) => {
   try {
+    const clientId = process.env.GOOGLE_CLIENT_ID || env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET || env.GOOGLE_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      return res.redirect(`${env.FRONTEND_URL}/dashboard?calendar=error&reason=oauth_not_configured`);
+    }
+
     const userId = (req as any).userId || getUserIdFromRequest(req) || undefined;
     const workspaceId = (req as any).effectiveWorkspaceId || userId || undefined;
 

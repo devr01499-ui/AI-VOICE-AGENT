@@ -74,7 +74,8 @@ export function DashIntegrations() {
         alert('Failed to generate Google Calendar authorization link.');
       }
     } catch (err: any) {
-      alert(err?.response?.data?.error || 'Failed to initiate Google Calendar connection.');
+      const errorMsg = err?.response?.data?.message || err?.response?.data?.error || err?.message || 'Failed to initiate Google Calendar connection.';
+      alert(`Google Calendar Setup:\n\n${errorMsg}`);
     } finally {
       setConnecting(false);
     }
