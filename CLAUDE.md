@@ -156,6 +156,17 @@ End-call/hangup architecture (single `hangupCarrierLeg`, farewell watchdog ancho
 At the end of each issue: 3-line summary (what was wrong, what changed, how proven). At the end of everything: honest **Verified / Not verifiable here** table (e.g. real carrier calls, real Razorpay live payments, production load), plus remaining risks. If blocked or unsure, ask Rohit instead of guessing.
 
 ---------------------------------------------------------------------
+## 12a. CONTINUOUS MODE (owner instruction 2026-11-16 — overrides "one phase per session" in §13/§14)
+The owner wants the product taken to launch-ready without stopping between phases.
+- Work through phases 1 → 14 in order, back to back. Do not wait for `/clear` or a new prompt between phases; the phase prompts in `docs/PHASED_PROMPTS.md` are the scope for each phase.
+- Everything else stays binding: one issue at a time, root cause written down, failing-before/passing-after test, proof before "fixed", commit per fix, no destructive actions, production database untouchable, no secrets in docs/logs/chat.
+- Each phase lives on its own branch (names in `docs/PHASED_PROMPTS.md`) and is pushed. Merging to `main` deploys to production (Render + Vercel), so merge only when that phase's typecheck, build and tests pass, and only as the owner has instructed.
+- `docs/PROGRESS.md` is still the memory: update it at the end of every issue (status, proof, next exact step) so work survives context compaction. Re-read PROGRESS.md and CODEMAP.md after any compaction instead of trusting recall.
+- A phase is DONE only with proof. What cannot be verified here goes under "Needs owner verification" in PROGRESS.md with exact steps — never skipped silently, never reported as fixed.
+- Beyond the listed issues: when the code shows other defects, security gaps or weak architecture, log them in PROGRESS.md and fix them in the phase that owns that area (security in Phase 12, dead files in Phase 13).
+- The owner will rotate all keys later. Until then treat every key in `.env` and in git history as compromised: never use, print or copy them.
+
+---------------------------------------------------------------------
 ## 13. PHASED WORKFLOW (binding)
 Work is delivered in 15 phases (0–14), **one phase per session**, in order:
 0 Setup/code map · 1 Frontend flash + auth · 2 Dashboard UI (templates, bell, remove Review QA/Auto-detect) · 3 Prompt Coach + Test Lab · 4 Agent editor + conversational format · 5 Knowledge base/RAG · 6 Billing (critical) · 7 Numbers/KYC/sub-accounts · 8 Batch calling · 9 Calling-config speed + data pages · 10 Recording · 11 Latency/voice · 12 Security/traffic · 13 Dead code · 14 CI/E2E/final.
