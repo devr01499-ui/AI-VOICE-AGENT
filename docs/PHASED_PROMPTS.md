@@ -109,7 +109,8 @@ Scope: CLAUDE.md section 9. Run knip/ts-prune/depcheck, verify candidates by gre
 ## PHASE 14 — CI, end-to-end smoke test, final verification
 ```
 Header as above. Phase 14 of 14. Branch ci/final-verification.
-Scope: add .github/workflows CI (typecheck, build, tests); Playwright smoke: signup -> create agent -> buy plan (Razorpay test mode) -> unlock number (simulated) -> test call -> history + recording. Re-run full tests once. Update LAUNCH_CHECKLIST with proof links and write a final Verified / Could-not-verify table and remaining risks. STOP.
+Scope: add .github/workflows CI (typecheck, build, tests); Playwright smoke: signup -> create agent -> buy plan (Razorpay test mode) -> unlock number (simulated) -> test call -> history + recording. Re-run full tests once. Update LAUNCH_CHECKLIST with proof links and write a final Verified / Could-not-verify table and remaining risks.
+Final gate - zero open defects: every item in docs/LAUNCH_CHECKLIST.md must be either DONE with proof (test name, command output summary or screenshot path) or listed in docs/PROGRESS.md under "Needs owner verification" with exact steps. Nothing may stay unchecked, and nothing is closed as "known issue", "later" or "cannot reproduce" without written proof. Typecheck must be 0 errors for BOTH frontend and server. Render must deploy with prisma migrate deploy (never db push) and CI must build an empty database from the committed migrations. STOP.
 ```
 
 ---
