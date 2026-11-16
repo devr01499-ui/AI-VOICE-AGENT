@@ -14,7 +14,8 @@
  *      in server/.env or the repo-root .env (the production database): same
  *      host, same Supabase project ref, or same host+port+database name.
  *   3. Refuses any non-local host unless TEST_DATABASE_ALLOW_REMOTE=1 is set.
- *   4. Overwrites process.env.DATABASE_URL and DIRECT_URL with the test URL so
+ *   4. Blanks live-service secrets (see LIVE_SERVICE_KEYS) unless TEST_<NAME> is set.
+ *   5. Overwrites process.env.DATABASE_URL and DIRECT_URL with the test URL so
  *      Prisma, pg and later dotenv loads (which never override) use it.
  *
  * It never prints a connection string, password or the production host.
@@ -120,12 +121,52 @@ function findViolation(testUrl, protectedUrls, allowRemote) {
   return null;
 }
 
+/**
+ * Live-service isolation. Guarded scripts must never reach real payment, email,
+ * carrier, AI or Supabase-admin services with the keys from server/.env.
+ * Each key below is blanked before dotenv can load it (dotenv never overrides a
+ * key that already exists), so application code falls back to its mock mode.
+ * To use a sandbox/test credential on purpose, set TEST_<NAME> (for example
+ * TEST_RAZORPAY_KEY_ID=rzp_test_...). Live Razorpay keys are always refused.
+ */
+const LIVE_SERVICE_KEYS = [
+  'RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET',
+  'RESEND_API_KEY',
+  'VOBIZ_AUTH_ID', 'VOBIZ_AUTH_TOKEN', 'VOBIZ_WEBHOOK_SECRET',
+  'PLIVO_AUTH_ID', 'PLIVO_AUTH_TOKEN', 'TELEPHONY_AUTH_TOKEN',
+  'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENAI_API_KEY', 'OPENAI_API_KEY',
+  'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SERVICE_KEY',
+  'GOOGLE_CLIENT_SECRET', 'NGROK_AUTH_TOKEN',
+];
+
+/** Returns a reason string if the environment must be refused, otherwise null. Mutates `env`. */
+function isolateLiveServiceSecrets(env) {
+  if (env.NODE_ENV === 'production') {
+    return 'NODE_ENV is "production". Tests and DB scripts never run in production mode.';
+  }
+  for (const key of LIVE_SERVICE_KEYS) {
+    const override = env['TEST_' + key];
+    if (override && /^rzp_live_/i.test(override)) {
+      return 'TEST_' + key + ' is a LIVE Razorpay key. Only rzp_test_ keys are allowed in tests.';
+    }
+    env[key] = override || '';
+  }
+  // Pin the mode so a later dotenv load cannot switch the process to production.
+  if (!env.NODE_ENV) env.NODE_ENV = 'test';
+  return null;
+}
+
 function assertTestDatabase() {
   const testUrl = process.env.TEST_DATABASE_URL;
   const violation = findViolation(testUrl, readProtectedUrls(), process.env.TEST_DATABASE_ALLOW_REMOTE === '1');
   if (violation) {
     console.error('\n[test-db-guard] BLOCKED: ' + violation);
     console.error('[test-db-guard] Start a throwaway local Postgres and set TEST_DATABASE_URL (see docs/RUNBOOK.md).\n');
+    process.exit(1);
+  }
+  const secretsViolation = isolateLiveServiceSecrets(process.env);
+  if (secretsViolation) {
+    console.error('\n[test-db-guard] BLOCKED: ' + secretsViolation + '\n');
     process.exit(1);
   }
   process.env.DATABASE_URL = testUrl;
@@ -136,4 +177,4 @@ function assertTestDatabase() {
   }
 }
 
-module.exports = { assertTestDatabase, findViolation, describeDbUrl };
+module.exports = { assertTestDatabase, findViolation, describeDbUrl, isolateLiveServiceSecrets, LIVE_SERVICE_KEYS };
