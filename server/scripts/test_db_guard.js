@@ -113,5 +113,49 @@ test('entry file forces DATABASE_URL to the test URL and hides credentials', () 
   assert.strictEqual((r.stdout + r.stderr).includes(':pw@'), false);
 });
 
+// ── Live-service secret isolation ─────────────────────────────────────────────
+const { isolateLiveServiceSecrets, LIVE_SERVICE_KEYS } = require('./lib/testDbGuardCore.cjs');
+
+test('every live-service secret is blanked, so .env values can never load later', () => {
+  const env = {};
+  for (const k of LIVE_SERVICE_KEYS) env[k] = 'real-looking-value';
+  assert.strictEqual(isolateLiveServiceSecrets(env), null);
+  for (const k of LIVE_SERVICE_KEYS) assert.strictEqual(env[k], '', `${k} should be blank`);
+  assert.strictEqual(env.NODE_ENV, 'test');
+});
+
+test('covers payment, email, carrier, AI and Supabase-admin keys', () => {
+  for (const k of ['RAZORPAY_KEY_SECRET', 'RESEND_API_KEY', 'VOBIZ_AUTH_TOKEN', 'PLIVO_AUTH_TOKEN', 'GEMINI_API_KEY', 'SUPABASE_SERVICE_ROLE_KEY']) {
+    assert.ok(LIVE_SERVICE_KEYS.includes(k), `${k} missing from LIVE_SERVICE_KEYS`);
+  }
+});
+
+test('explicit TEST_<NAME> sandbox value is used instead of the real one', () => {
+  const env = { RAZORPAY_KEY_ID: 'rzp_live_real', TEST_RAZORPAY_KEY_ID: 'rzp_test_sandbox' };
+  assert.strictEqual(isolateLiveServiceSecrets(env), null);
+  assert.strictEqual(env.RAZORPAY_KEY_ID, 'rzp_test_sandbox');
+});
+
+test('a live Razorpay key passed as a test override is refused', () => {
+  assert.match(isolateLiveServiceSecrets({ TEST_RAZORPAY_KEY_ID: 'rzp_live_abc123' }), /LIVE Razorpay key/);
+});
+
+test('NODE_ENV=production is refused', () => {
+  assert.match(isolateLiveServiceSecrets({ NODE_ENV: 'production' }), /production/);
+});
+
+test('entry file blanks real secrets already present in the environment', () => {
+  const r = spawnSync(
+    process.execPath,
+    ['-e', "require(process.argv[1]); console.log('KEYS=' + JSON.stringify([process.env.RAZORPAY_KEY_SECRET, process.env.RESEND_API_KEY, process.env.NODE_ENV]));", path.join(__dirname, 'lib', 'testDbGuard.cjs')],
+    { env: { ...process.env, TEST_DATABASE_URL: LOCAL_TEST, NODE_ENV: '', RAZORPAY_KEY_SECRET: 'real', RESEND_API_KEY: 'real', TEST_RAZORPAY_KEY_SECRET: '', TEST_RESEND_API_KEY: '' }, encoding: 'utf8' }
+  );
+  if (r.status === 0) {
+    assert.match(r.stdout, /KEYS=\["","","test"\]/);
+  } else {
+    assert.match(r.stderr, /BLOCKED/);
+  }
+});
+
 console.log(`\nTEST DATABASE GUARD: ${passed === total ? 'PASS' : 'FAIL'} — ${passed}/${total} tests passed\n`);
 process.exit(passed === total ? 0 : 1);
