@@ -1,23 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Claritiy Voice</title>
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <meta name="description" content="Claritiy Voice: multilingual AI voice agents for inbound, outbound and batch calling." />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <style>
+      html, body { height: 100%; margin: 0; background: #E5E3DC; }
+      #root { height: 100%; }
+      /* First-paint splash. It is the only thing a visitor sees until the real page is ready,
+         so no other page can flash. Keep in sync with components/common/BrandSplash.tsx. */
+      .cv-splash { position: fixed; inset: 0; z-index: 2147483000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: #E5E3DC; font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+      .cv-splash__word { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; color: #121212; }
+      .cv-splash__word span { color: #059669; }
+      .cv-splash__bar { width: 120px; height: 3px; border-radius: 999px; background: rgba(5, 150, 105, 0.18); overflow: hidden; }
+      .cv-splash__bar::after { content: ''; display: block; width: 40%; height: 100%; border-radius: 999px; background: #059669; animation: cv-splash-slide 1.1s ease-in-out infinite; }
+      @keyframes cv-splash-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+      @media (prefers-reduced-motion: reduce) { .cv-splash__bar::after { animation: none; width: 100%; opacity: 0.5; } }
+    </style>
+    <!-- Without JavaScript the splash would never be removed, so hide it and show the page content. -->
+    <noscript><style>.cv-splash { display: none; }</style></noscript>
+    <script src="https://checkout.razorpay.com/v1/checkout.js" async defer></script>
+  </head>
 
-  <!DOCTYPE html>
-  <html lang="en">
-    <head>
-      
-      <meta charset="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>Claritiy Voice</title>
-      <link rel="icon" type="image/png" href="/logo.png" />
-      <meta name="description" content="Confirm cash-on-delivery (COD) orders before dispatch to reduce RTO (return-to-origin) and failed deliveries using automated AI voice calls." />
-      <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
-      <style>html, body { height: 100%; margin: 0; } #root { height: 100%; }</style>
-      <script src="https://checkout.razorpay.com/v1/checkout.js" async defer></script>
-    </head>
-
-    <body>
-      
-      <div id="root"></div>
-      <script type="module" src="/src/main.tsx"></script>
-      
-    </body>
-  </html>
-  
+  <body>
+    <div id="root"><div class="cv-splash" role="status" aria-label="Loading Claritiy Voice"><div class="cv-splash__word">Claritiy <span>Voice</span></div><div class="cv-splash__bar"></div></div><!--cv-prerender--></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -50,6 +50,8 @@ import { RealCallModal } from "./components/calls/RealCallModal";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { formatDateTime, formatDate, formatTime, normalizeTimezone } from "./lib/dateFormat";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import BrandSplash from "./components/common/BrandSplash";
+import { resolveRoute, pathForPage, type Page } from "./lib/routes";
 const Home = lazy(() => import("./pages/Home"));
 const Solutions = lazy(() => import("./pages/Solutions"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
@@ -70,29 +72,7 @@ const UseCases = lazy(() => import("./pages/UseCases"));
 const AiVoiceAgentSoftware = lazy(() => import("./pages/AiVoiceAgentSoftware"));
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Page = 
-  | "home" 
-  | "solutions" 
-  | "how-it-works" 
-  | "voices" 
-  | "pricing" 
-  | "blog" 
-  | "blog-rto" 
-  | "blog-healthcare" 
-  | "blog-fintech" 
-  | "docs" 
-  | "privacy"
-  | "terms"
-  | "security"
-  | "dashboard" 
-  | "industries"
-  | "use-cases"
-  | "faq"
-  | "contact"
-  | "compare"
-  | "numbers_buy"
-  | "voice-ai-index"
-  | "ai-voice-agent-software";
+// Page type and URL ⇄ page mapping live in ./lib/routes (single source of truth).
 
 // ─── Sound Wave Component ─────────────────────────────────────────────────────
 function SoundWave({ active = true, bars = 32, className = "" }: { active?: boolean; bars?: number; className?: string }) {
@@ -7850,49 +7830,8 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   
-  const [page, setPage] = useState<Page>(() => {
-    if (typeof window !== "undefined") {
-      const path = window.location.pathname.replace(/\/+$/, '') || '/';
-      const pathMap: Record<string, Page> = {
-        "/": "home",
-        "/pricing": "pricing",
-        "/how-it-works": "how-it-works",
-        "/industries": "industries",
-        "/dashboard": "dashboard",
-        "/compliance": "dashboard",
-        "/settings": "dashboard",
-        "/login": "dashboard",
-        "/signup": "dashboard",
-        "/register": "dashboard",
-        "/auth": "dashboard",
-        "/auth/callback": "dashboard",
-        "/confirm": "dashboard",
-        "/faq": "faq",
-        "/contact": "contact",
-        "/solutions": "solutions",
-        "/use-cases": "use-cases",
-        "/voices": "voices",
-        "/docs": "docs",
-        "/privacy": "privacy",
-        "/terms": "terms",
-        "/security": "security",
-        "/voice-ai-index": "voice-ai-index",
-        "/ai-voice-agent-software": "ai-voice-agent-software",
-        "/blog": "blog",
-        "/blog/how-to-reduce-cod-rto": "blog-rto",
-        "/blog/healthcare-ai-calling": "blog-healthcare",
-        "/blog/fintech-collections-ai": "blog-fintech",
-      };
-      
-      if (pathMap[path]) return pathMap[path];
-      if (path === "/compare") return "solutions";
-      if (path.startsWith("/use-cases") || path.startsWith("/industries")) return "use-cases";
-      if (path.startsWith("/dashboard") || path.startsWith("/compliance") || path.startsWith("/settings") || path.startsWith("/login") || path.startsWith("/signup") || path.startsWith("/register") || path.startsWith("/auth") || path.startsWith("/confirm")) return "dashboard";
-      if (path.startsWith("/blog/how-to-reduce-cod-rto")) return "blog-rto";
-      if (path.startsWith("/voice-ai-index")) return "voice-ai-index";
-    }
-    return "home";
-  });
+  // First render must already be the correct page for the URL (no intermediate page).
+  const [page, setPage] = useState<Page>(() => resolveRoute(window.location.pathname).page);
   
   const [currentTopicId, setCurrentTopicId] = useState<string | null>(() => {
     const path = window.location.pathname;
@@ -7913,59 +7852,10 @@ export default function App() {
   // Sync state with browser back/forward buttons
   useEffect(() => {
     const handlePopState = () => {
-      const path = window.location.pathname.replace(/\/+$/, '') || '/';
-      const pathMap: Record<string, Page> = {
-        "/": "home",
-        "/pricing": "pricing",
-        "/how-it-works": "how-it-works",
-        "/industries": "industries",
-        "/dashboard": "dashboard",
-        "/compliance": "dashboard",
-        "/settings": "dashboard",
-        "/login": "dashboard",
-        "/signup": "dashboard",
-        "/register": "dashboard",
-        "/auth": "dashboard",
-        "/auth/callback": "dashboard",
-        "/confirm": "dashboard",
-        "/faq": "faq",
-        "/contact": "contact",
-        "/solutions": "solutions",
-        "/voices": "voices",
-        "/docs": "docs",
-        "/privacy": "privacy",
-        "/terms": "terms",
-        "/security": "security",
-        "/voice-ai-index": "voice-ai-index",
-        "/ai-voice-agent-software": "ai-voice-agent-software",
-        "/blog": "blog",
-        "/blog/how-to-reduce-cod-rto": "blog-rto",
-        "/blog/healthcare-ai-calling": "blog-healthcare",
-        "/blog/fintech-collections-ai": "blog-fintech",
-      };
-      
-      if (pathMap[path]) {
-        setPage(pathMap[path]);
-      } else if (path === "/compare") {
-        setPage("solutions");
-      } else if (path.startsWith("/use-cases") || path.startsWith("/industries")) {
-        setPage("use-cases");
-        const match = path.match(/\/(?:use-cases|industries)\/([^/]+)/);
-        setCurrentIndustryId(match ? match[1] : null);
-      } else if (path.startsWith("/dashboard") || path.startsWith("/compliance") || path.startsWith("/settings") || path.startsWith("/login") || path.startsWith("/signup") || path.startsWith("/register") || path.startsWith("/auth") || path.startsWith("/confirm")) {
-        setPage("dashboard");
-      } else if (path.startsWith("/blog/how-to-reduce-cod-rto")) {
-        setPage("blog-rto");
-      } else if (path.startsWith("/voice-ai-index")) {
-        setPage("voice-ai-index");
-        if (path.startsWith("/voice-ai-index/")) {
-          setCurrentTopicId(path.replace("/voice-ai-index/", ""));
-        } else {
-          setCurrentTopicId(null);
-        }
-      } else {
-        setPage("home");
-      }
+      const route = resolveRoute(window.location.pathname);
+      setPage(route.page);
+      if (route.page === "use-cases") setCurrentIndustryId(route.industryId);
+      if (route.page === "voice-ai-index") setCurrentTopicId(route.topicId);
     };
 
     window.addEventListener("popstate", handlePopState);
@@ -7977,31 +7867,7 @@ export default function App() {
     if (p === "use-cases" || p === "industries") {
       setCurrentIndustryId(extraId || null);
     }
-    const pathMap: Record<Page, string> = {
-      home: "/",
-      industries: extraId ? `/use-cases/${extraId}` : "/use-cases",
-      "use-cases": extraId ? `/use-cases/${extraId}` : "/use-cases",
-      pricing: "/pricing",
-      "how-it-works": "/how-it-works",
-      "blog-rto": "/blog/how-to-reduce-cod-rto",
-      dashboard: "/dashboard",
-      faq: "/faq",
-      contact: "/contact",
-      solutions: "/solutions",
-      voices: "/voices",
-      blog: "/blog",
-      "blog-healthcare": "/blog/healthcare-ai-calling",
-      "blog-fintech": "/blog/fintech-collections-ai",
-      docs: "/docs",
-      privacy: "/privacy",
-      terms: "/terms",
-      security: "/security",
-      "voice-ai-index": "/voice-ai-index",
-      "ai-voice-agent-software": "/ai-voice-agent-software",
-      compare: "/compare",
-      numbers_buy: "/dashboard",
-    };
-    const targetPath = pathMap[p] || "/";
+    const targetPath = pathForPage(p, extraId);
     if (window.location.pathname !== targetPath) {
       window.history.pushState(null, "", targetPath);
     }
@@ -8337,7 +8203,8 @@ export default function App() {
 
       <Navbar page={page} setPage={handleNavigate} session={session} />
 
-      <AnimatePresence mode="wait">
+      {/* initial={false}: the first page appears immediately; the fade only runs on later navigations. */}
+      <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={page}
           initial={{ opacity: 0, y: 12 }}
@@ -8346,7 +8213,7 @@ export default function App() {
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           className="pt-20"
         >
-          <Suspense fallback={<div className="h-screen w-full flex items-center justify-center"><div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div></div>}>
+          <Suspense fallback={<BrandSplash />}>
             {page === "home" && <Home setPage={handleNavigate} />}
             {page === "solutions" && <Solutions setPage={handleNavigate} />}
             {page === "pricing" && <Pricing setPage={handleNavigate} />}

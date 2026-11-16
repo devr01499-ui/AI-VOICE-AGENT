@@ -1,6 +1,7 @@
 import React, { ReactNode } from 'react';
 import { Session } from '@supabase/supabase-js';
 import AuthGateway from './AuthGateway';
+import BrandSplash from '../common/BrandSplash';
 import { GlobalConsentModal } from '../common/GlobalConsentModal';
 
 interface ProtectedRouteProps {
@@ -16,16 +17,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   onSuccessRedirect,
   children
 }) => {
-  // 1. Display loading skeleton while session is initializing
+  // 1. While the session is being checked show the same neutral splash as first paint,
+  //    so neither the login form nor the dashboard can flash before auth state is known.
   if (authLoading) {
-    return (
-      <div className="min-h-screen bg-[#FAF8F5] flex flex-col items-center justify-center space-y-4 font-sans">
-        <div className="w-10 h-10 border-3 border-emerald-500/20 border-t-emerald-600 rounded-full animate-spin" />
-        <p className="text-sm font-semibold text-slate-600 tracking-tight font-mono">
-          Verifying Workspace Credentials…
-        </p>
-      </div>
-    );
+    return <BrandSplash />;
   }
 
   // 2. Unauthenticated: Render AuthGateway login/signup form cleanly within SPA

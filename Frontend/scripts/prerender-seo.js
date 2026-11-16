@@ -368,7 +368,13 @@ ${canonicalTag}`;
     </main>
   `;
 
-  updated = updated.replace('<div id="root"></div>', `<div id="root">${renderedContent}</div>`);
+  // The template's #root already holds the first-paint splash (a fixed overlay, see index.html).
+  // The crawlable content goes after it, in normal flow: same HTML for crawlers and visitors,
+  // but visitors see the splash and then the real page, never this fallback layout.
+  if (!updated.includes('<!--cv-prerender-->')) {
+    throw new Error('prerender-seo: <!--cv-prerender--> marker missing from index.html; refusing to write pages without the splash.');
+  }
+  updated = updated.replace('<!--cv-prerender-->', `<div class="cv-prerender">${renderedContent}</div>`);
 
   return updated;
 }

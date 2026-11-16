@@ -3,7 +3,7 @@
 | Phase | Scope | Status |
 |---|---|---|
 | 0 | Setup, baseline, code map, test-DB guard, test-secret isolation | DONE 2026-11-16, on `main` |
-| 1 | F1 first-load flash, F2 auth | NEXT — branch `fix/frontend-first-load-auth` from `main` |
+| 1 | F1 first-load flash, F2 auth | IN PROGRESS on `fix/frontend-first-load-auth` — F1 fixed + proven logged-out (FIX_LOG, docs/proof/F1); F2 not started |
 | 2–14 | See CLAUDE.md §13 | not started |
 
 ## PRODUCTION — UNTOUCHABLE (nothing relaxed; no real customers yet, launch is soon)
@@ -47,5 +47,7 @@
 2. CLAUDE.md §11 `devr0144@gmail.com` Growth upgrade address — owner confirms later.
 3. Migration Option A or B (PRELAUNCH_NOTES.md §4).
 
+4. F1 logged-in check: sign in, open `/dashboard` in a new tab with the network throttled to "Slow 4G" (browser dev tools). Expected: only the "Claritiy Voice" splash, then the dashboard — no sign-in form and no white page in between. Not provable here: the simulated session was rejected by the Supabase client.
+
 ## Next exact step
-Fresh session → paste Phase 1.
+Continuous mode (CLAUDE.md §12a). Next: F2 auth on the same branch — start with the two leads: `/api/v2/user` pre-signup routes behind `requireAuth` (server/src/index.ts ~L336, routes/user.ts `/validate-signup`, `/consent`) and missing phone validation (AuthGateway.tsx ~L547). Then fix the 4 type errors in AuthGateway.tsx and api.ts. Harness for filmstrips: rebuild `serve.cjs` + `filmstrip.cjs` (static server with SPA fallback + Playwright from `Frontend/node_modules/@playwright/test`). Marketing claims seen that need measured proof by Phase 11/14: "sub-180ms" (prerender home summary), "Sub-Second Latency" (AuthGateway).
