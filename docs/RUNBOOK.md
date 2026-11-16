@@ -12,7 +12,7 @@ Status: skeleton created in Phase 0. Deploy, rollback, carrier webhook URLs and 
 ## Test database (mandatory for every test and DB script)
 `DATABASE_URL` in `server/.env` is the PRODUCTION database. Never connect to it from a dev machine: no tests, no Prisma migrate/db push, no seeds, no ad-hoc queries.
 
-Every test script and DB-touching script loads `server/scripts/lib/testDbGuard.cjs` first (added on branch `chore/test-db-guard`). It exits unless `TEST_DATABASE_URL` is set, refuses the database configured in `.env`, refuses non-local hosts unless `TEST_DATABASE_ALLOW_REMOTE=1`, then forces `DATABASE_URL` and `DIRECT_URL` to the test URL. There is no bypass switch.
+Every test script and DB-touching script loads `server/scripts/lib/testDbGuard.cjs` first (added on branch `chore/test-db-guard`). It exits unless `TEST_DATABASE_URL` is set, refuses the database configured in `.env`, refuses non-local hosts unless `TEST_DATABASE_ALLOW_REMOTE=1`, then forces `DATABASE_URL` and `DIRECT_URL` to the test URL. There is no bypass switch. The same guard blanks live payment, email, carrier, AI and Supabase-admin keys so guarded scripts cannot reach real services; set `TEST_<NAME>` (for example `TEST_RAZORPAY_KEY_ID` with an `rzp_test_` key) to use a sandbox credential on purpose. Live Razorpay keys and `NODE_ENV=production` are refused.
 
 Local throwaway database used so far (PGlite: in-memory Postgres with pgvector; nothing is installed in the repo):
 1. In a temp folder outside the repo: `npm i @electric-sql/pglite @electric-sql/pglite-pgvector @electric-sql/pglite-socket`.

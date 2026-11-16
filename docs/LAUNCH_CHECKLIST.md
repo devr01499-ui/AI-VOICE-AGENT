@@ -2,6 +2,8 @@
 
 Source: CLAUDE.md §6 (17 issues) + §7, §8, §9, §10. An item is ticked **only with proof links** (test output, screenshot, FIX_LOG entry).
 
+Launch gate (Phase 14): every item below is either DONE with proof or listed in PROGRESS.md under "Needs owner verification" with exact steps. Nothing may stay unchecked.
+
 ## Frontend
 - [ ] **F1** No flash of another page on first load (Playwright filmstrip on `/`, `/pricing`, `/login`, `/dashboard`) — Phase 1 — Proof:
 - [ ] **F2** Auth: login, sign-up, Google, forgot password, phone/email validation, E2E per path — Phase 1 — Proof:
@@ -27,4 +29,7 @@ Source: CLAUDE.md §6 (17 issues) + §7, §8, §9, §10. An item is ticked **onl
 - [ ] **S7** Security / firewall / traffic hardening pass, `docs/SECURITY_AUDIT.md` (CLAUDE.md §7) — Phase 12 — Proof:
 - [ ] **Q8** CI workflow + Playwright end-to-end smoke test + quality gates (CLAUDE.md §8) — Phase 14 — Proof:
 - [ ] **D9** Dead-code removal + `docs/BACKEND_UNUSED_REPORT.md` (CLAUDE.md §9) — Phase 13 — Proof:
+- [ ] **T0** Typecheck at 0 errors for frontend and server (frontend starts at 41) — all phases, closed in Phase 14 — Proof:
+- [ ] **M0** Migrations rebuilt from an offline baseline; Render uses `prisma migrate deploy`; CI builds an empty database from migrations (PRELAUNCH_NOTES.md §4) — owner choice pending — Proof:
+- [ ] **K0** Production database password rotated after public exposure; Google key literal confirmed revoked — owner — Proof:
 - [ ] **D10** Docs hygiene: SYSTEM_CHARTER/TECH_DEBT corrected, RUNBOOK, COMPLIANCE_NOTES current (CLAUDE.md §10) — Phases 13–14 — Proof:

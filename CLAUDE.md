@@ -121,6 +121,9 @@ Tests: extend `test:security` / `test:owasp` — must stay 100%.
 
 ---------------------------------------------------------------------
 ## 8. QUALITY GATES BEFORE "LAUNCH READY"
+- **Zero open defects (final gate, Phase 14):** every item in `docs/LAUNCH_CHECKLIST.md` is either DONE with proof (test name, command output summary or screenshot path) or listed in `docs/PROGRESS.md` under "Needs owner verification" with exact steps for the owner. Nothing stays unchecked. Nothing is closed as "known issue", "later" or "cannot reproduce" without written proof. Never skip silently what cannot be verified here (real carrier calls, live payments).
+- Typecheck at 0 errors for both frontend and server.
+- Render deploys with `prisma migrate deploy`, never `db push`; a clean empty database builds from the committed migrations in CI.
 - typecheck/build/tests green on a clean checkout; CI workflow file (`.github/workflows`) runs them on PRs.
 - Playwright E2E smoke: signup → verify → create agent → buy plan (Razorpay test mode) → unlock number (simulated carrier) → place test call → see history + recording → logout.
 - No console errors on any dashboard page; no `any`-casts hiding errors in touched code; no TODO/FIXME left in touched files without an issue entry.
