@@ -9,10 +9,26 @@ Status: skeleton created in Phase 0. Deploy, rollback, carrier webhook URLs and 
 ## Commands
 - `npm run typecheck` · `npm run build` · `npm run test:security` (root; see CLAUDE.md §2 for the full list).
 
+## Test database (mandatory for every test and DB script)
+`DATABASE_URL` in `server/.env` is the PRODUCTION database. Never connect to it from a dev machine: no tests, no Prisma migrate/db push, no seeds, no ad-hoc queries.
+
+Every test script and DB-touching script loads `server/scripts/lib/testDbGuard.cjs` first (added on branch `chore/test-db-guard`). It exits unless `TEST_DATABASE_URL` is set, refuses the database configured in `.env`, refuses non-local hosts unless `TEST_DATABASE_ALLOW_REMOTE=1`, then forces `DATABASE_URL` and `DIRECT_URL` to the test URL. There is no bypass switch.
+
+Local throwaway database used so far (PGlite: in-memory Postgres with pgvector; nothing is installed in the repo):
+1. In a temp folder outside the repo: `npm i @electric-sql/pglite @electric-sql/pglite-pgvector @electric-sql/pglite-socket`.
+2. Start a small script that calls `PGlite.create({ extensions: { vector } })`, runs `CREATE EXTENSION IF NOT EXISTS vector; CREATE SCHEMA auth;` plus a stub `auth.uid()` function, and serves it with `PGLiteSocketServer` on `127.0.0.1:54330`.
+3. Set `TEST_DATABASE_URL` to `postgresql://postgres:postgres@127.0.0.1:54330/postgres?sslmode=disable`. `sslmode=disable` is required: the app's pg pool otherwise demands TLS.
+4. Create the schema from `server/`: run `npx prisma db push` with BOTH `DATABASE_URL` and `DIRECT_URL` set inline to the test URL. The Prisma CLI reads `server/.env` and is NOT covered by the guard, so never run it without those two inline variables.
+5. Run `npm run build` in `server/` (the JS suites import `dist/`), then `npm run test:security`.
+
+Why `db push` and not `migrate deploy`: the committed migrations cannot build the schema from an empty database (see PROGRESS.md, finding 2).
+
 ## Environment variables (names only — never commit values)
 Collected by scanning `process.env.*` in `server/src`, `import.meta.env.*` in `Frontend/src`, `render.yaml` and the `.env.example` files. Which ones are required vs optional is defined in `server/src/config/env.ts`.
 
 ### Server
+Tests only: `TEST_DATABASE_URL`, `TEST_DATABASE_ALLOW_REMOTE`, `TEST_API_URL`
+
 Core: `NODE_ENV`, `PORT`, `PUBLIC_URL`, `PUBLIC_IP`, `FRONTEND_URL`, `ADMIN_ORIGIN`, `ADMIN_IP_ALLOWLIST`, `LOG_LEVEL`, `DATABASE_URL`, `ENCRYPTION_KEY`, `ENABLE_STRICT_AUTH`, `SEED_TEST_DATA`
 
 Supabase / auth: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXTAUTH_SECRET`
