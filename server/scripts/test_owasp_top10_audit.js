@@ -1,3 +1,4 @@
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Claritiy Voice — Automated OWASP Top 10 (2026) Security Verification Suite
  *

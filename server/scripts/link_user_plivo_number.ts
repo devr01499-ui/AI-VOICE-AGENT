@@ -1,3 +1,4 @@
+import './lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 import path from 'path';
 import dotenv from 'dotenv';
 

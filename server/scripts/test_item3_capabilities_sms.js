@@ -1,3 +1,4 @@
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Verification Test Script: Item 3 - Capability Gating & SMS Prohibition
  * 

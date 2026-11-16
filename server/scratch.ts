@@ -1,3 +1,4 @@
+import './scripts/lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();

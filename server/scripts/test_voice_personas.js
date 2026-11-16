@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Claritiy Voice — Voice Personas & Natural Speech Verification Suite (Task T6)
  *

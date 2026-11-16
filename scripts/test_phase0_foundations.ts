@@ -1,3 +1,4 @@
+import '../server/scripts/lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 /**
  * Phase 0 Foundations Test Suite
  * Tests all Phase 0 architectural requirements:

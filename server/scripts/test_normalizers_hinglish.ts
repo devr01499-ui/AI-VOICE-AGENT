@@ -1,3 +1,4 @@
+import './lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 /**
  * test_normalizers_hinglish.ts — Comprehensive Test Table for Deterministic Normalizers
  *

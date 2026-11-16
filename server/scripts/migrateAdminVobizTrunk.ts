@@ -1,3 +1,4 @@
+import './lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 import { prisma } from '../src/lib/prisma';
 import { EncryptionService } from '../src/utils/EncryptionService';
 import { env } from '../src/config/env';

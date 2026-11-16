@@ -1,3 +1,4 @@
+require('../server/scripts/lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Permanent Demo Data Purge Script
  * Cleans up seeded demo agents, fake calls, demo KB documents, and mock phone numbers from PostgreSQL/Supabase.

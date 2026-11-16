@@ -1,3 +1,4 @@
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 const dotenv = require('dotenv');
 const path = require('path');
 dotenv.config({ path: path.join(__dirname, '../.env') });

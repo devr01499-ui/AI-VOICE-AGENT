@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require('../lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Claritiy Voice — A/B WAV Generator for Blind Listening Tests (Task T1)
  * 

@@ -1,3 +1,4 @@
+import './lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 /**
  * Claritiy Voice — Knowledge Base Load Test & Latency Budget Benchmark
  *

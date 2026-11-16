@@ -1,3 +1,4 @@
+import './lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 /**
  * Comprehensive Automated Verification Suite for Google Calendar Integration (Part 1)
  *

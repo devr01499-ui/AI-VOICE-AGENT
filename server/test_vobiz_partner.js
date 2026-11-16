@@ -1,3 +1,4 @@
+require('./scripts/lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 async function test() {
   const url = 'https://api.vobiz.ai/partner/accounts';
   

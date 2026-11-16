@@ -1,3 +1,4 @@
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 const path = require('path');
 process.env.VOBIZ_FROM_NUMBER = '+919999000000';
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });

@@ -1,3 +1,4 @@
+import './lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 /**
  * Claritiy Voice — Automated Street-Smart Regression Test Suite (41/41)
  * 

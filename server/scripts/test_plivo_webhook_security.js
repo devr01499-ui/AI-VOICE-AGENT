@@ -1,3 +1,4 @@
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Claritiy Voice — Plivo Webhook Verification Security & Penetration Suite (Batch A1 / P0-5)
  *

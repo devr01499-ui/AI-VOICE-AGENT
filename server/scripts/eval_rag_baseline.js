@@ -1,3 +1,4 @@
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 require('dotenv').config();
 const { prisma } = require('../dist/lib/prisma');
 

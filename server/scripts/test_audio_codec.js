@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Claritiy Voice — Audio Codec & G.711 μ-law Verification Suite (Task T3)
  *

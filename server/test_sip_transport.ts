@@ -1,3 +1,4 @@
+import './scripts/lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 import { SipProvider } from './src/providers/sip/SipProvider';
 import { prisma } from './src/lib/prisma';
 import { EncryptionService } from './src/utils/EncryptionService';

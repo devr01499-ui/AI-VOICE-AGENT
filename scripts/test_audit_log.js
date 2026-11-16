@@ -1,3 +1,4 @@
+require('../server/scripts/lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Phase 2 Audit Log Verification Suite
  * 

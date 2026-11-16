@@ -1,3 +1,4 @@
+import './lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 import { config } from 'dotenv';
 config();
 import { prisma } from '../src/lib/prisma';

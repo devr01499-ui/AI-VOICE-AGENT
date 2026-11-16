@@ -1,3 +1,4 @@
+import './lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 import { PLAYBOOKS, generatePlaybookPrompt, reviewPromptQuality, PlaybookType } from '../src/utils/playbooks';
 import {
   PlaybookTemplateSchema,

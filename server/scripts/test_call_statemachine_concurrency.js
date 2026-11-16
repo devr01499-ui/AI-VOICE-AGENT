@@ -1,3 +1,4 @@
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * CLARITIY VOICE — BATCH B AUTOMATED TEST SUITE
  * Validates Call State Machine Integrity, Concurrency Caps, Stuck Call Reaper,

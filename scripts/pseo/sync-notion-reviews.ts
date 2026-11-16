@@ -1,3 +1,4 @@
+import '../../server/scripts/lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 import { getReviewedEntries, updateReviewEntryStatus } from '../../lib/pseo/notion-client';
 import { prisma } from '../../lib/prisma';
 import { generateSchemaMarkup } from '../../lib/pseo/schema-markup';

@@ -1,3 +1,4 @@
+import './lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 /** Audit harness (not product code): exercises the real calendar routes/services. */
 import http from 'http';
 import express from 'express';

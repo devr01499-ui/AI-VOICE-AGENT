@@ -1,3 +1,4 @@
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Verification test for Item 1: Rate Limiting & Trust Proxy
  * Per GOVERNANCE_RULES §6: Directly invokes compiled production code

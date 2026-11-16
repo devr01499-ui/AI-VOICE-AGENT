@@ -1,3 +1,4 @@
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Test Suite: Batch D — Media Pipeline & Audio Reliability (P0-7, P0-8)
  *

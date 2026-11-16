@@ -1,3 +1,4 @@
+require('../server/scripts/lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Phase 1 RBAC Verification Suite
  * 

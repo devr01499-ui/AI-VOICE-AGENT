@@ -1,3 +1,4 @@
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Unit tests for resolveLiveModel — server/src/utils/modelResolver.ts
  * Per GOVERNANCE_RULES §6: imports from compiled production code only.

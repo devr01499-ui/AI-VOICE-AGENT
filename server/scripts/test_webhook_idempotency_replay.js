@@ -1,3 +1,4 @@
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Test Suite: Batch E — Webhook Idempotency, Replay Attack Defense & Signature Verification (Non-Plivo: Vobiz, Razorpay, Telephony)
  */

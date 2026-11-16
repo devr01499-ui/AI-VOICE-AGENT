@@ -1,3 +1,4 @@
+import './lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 import assert from 'assert';
 import { normalizeEmail, isValidEmail, isDisposableEmail } from '../src/utils/emailNormalizer.ts';
 

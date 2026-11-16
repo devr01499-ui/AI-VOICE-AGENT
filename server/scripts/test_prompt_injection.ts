@@ -1,3 +1,4 @@
+import './lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 /**
  * test_prompt_injection.ts — Prompt Injection & Untrusted Data Defense Suite
  *

@@ -1,3 +1,4 @@
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Claritiy Voice — Audio Stream Authentication & Tenant Isolation Test Suite (Batch A2 / P0-2)
  *

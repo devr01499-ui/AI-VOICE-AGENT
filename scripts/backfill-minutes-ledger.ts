@@ -1,3 +1,4 @@
+import '../server/scripts/lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 /**
  * Claritiy Voice — Minutes Ledger Opening Balance Backfill Script
  * Backfills one `opening_balance` entry per existing user from their current balance.

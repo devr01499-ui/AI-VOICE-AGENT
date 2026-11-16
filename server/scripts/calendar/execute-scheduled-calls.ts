@@ -1,3 +1,4 @@
+import '../lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 import { prisma } from '../../src/lib/prisma';
 import { CallService } from '../../src/services/CallService';
 import { checkAvailability } from '../../src/lib/calendar/availability';

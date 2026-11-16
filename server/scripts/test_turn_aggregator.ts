@@ -1,3 +1,4 @@
+import './lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 /**
  * Claritiy Voice - TurnAggregator v2 tests (interleaved caller/agent transcript streams)
  * Run: npx tsx scripts/test_turn_aggregator.ts   (exit 1 on failure)

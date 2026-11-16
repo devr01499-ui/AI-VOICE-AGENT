@@ -1,3 +1,4 @@
+import './scripts/lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 import 'dotenv/config';
 import { prisma } from './src/lib/prisma';
 import { VobizSubAccountService } from './src/services/VobizSubAccountService';

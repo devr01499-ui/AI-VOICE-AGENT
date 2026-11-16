@@ -1,3 +1,4 @@
+import '../../server/scripts/lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 import { fetchGscPerformanceData } from '../../lib/pseo/gsc-client';
 import { prisma } from '../../lib/prisma';
 import dotenv from 'dotenv';

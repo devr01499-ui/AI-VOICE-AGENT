@@ -1,3 +1,4 @@
+import './lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 /**
  * test_speaker_attribution.ts — Speaker Attribution & Hallucination Defense Tests
  *
