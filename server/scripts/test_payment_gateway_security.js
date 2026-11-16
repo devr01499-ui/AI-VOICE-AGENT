@@ -1,3 +1,4 @@
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Automated Payment Gateway Security Audit Test Suite
  * Tests all 6 critical dimensions:

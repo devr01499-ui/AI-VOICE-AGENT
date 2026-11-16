@@ -1,3 +1,4 @@
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Verification test for Item 2: Number Unlocking & Auto-Activation
  * Per GOVERNANCE_RULES §6: Directly invokes compiled production code from dist/

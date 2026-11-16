@@ -1,3 +1,4 @@
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Claritiy Voice — Phase 5 Unified Security & Penetration Testing Suite
  *
@@ -360,7 +361,12 @@ async function main() {
   });
 
   console.log('\n================================================================================');
-  console.log(`🎉 PHASE 5 PENETRATION & SECURITY SUITE RESULTS: ${passedTests}/${totalTests} TESTS PASSED (100% COVERAGE)`);
+  const failedTests = totalTests - passedTests;
+  if (failedTests === 0) {
+    console.log(`✅ PHASE 5 PENETRATION & SECURITY SUITE: PASS — ${passedTests}/${totalTests} tests passed`);
+  } else {
+    console.log(`❌ PHASE 5 PENETRATION & SECURITY SUITE: FAIL — ${failedTests} of ${totalTests} tests failed (${passedTests} passed)`);
+  }
   console.log('================================================================================\n');
 
   if (passedTests === totalTests) {

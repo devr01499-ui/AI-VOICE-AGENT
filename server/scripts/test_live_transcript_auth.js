@@ -1,3 +1,4 @@
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Claritiy Voice — Live Transcript WebSocket Authentication & Anti-IDOR Test Suite (Batch A3 / P0-3)
  *

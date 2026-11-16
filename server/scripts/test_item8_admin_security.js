@@ -1,3 +1,4 @@
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Item 8 Verification Script: Admin Auth Bypass Closure & CORS Tightening
  *

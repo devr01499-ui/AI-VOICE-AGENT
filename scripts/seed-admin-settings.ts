@@ -1,3 +1,4 @@
+import '../server/scripts/lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 /**
  * Claritiy Voice — Seed Default Admin Settings
  * Populates default role caps and system configuration into admin_settings table.

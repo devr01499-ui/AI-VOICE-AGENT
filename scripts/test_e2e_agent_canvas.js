@@ -1,3 +1,4 @@
+require('../server/scripts/lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * E2E Verification Script: Flow Canvas Agent Creation & Legacy Agent Backward Compatibility
  */

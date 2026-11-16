@@ -1,3 +1,4 @@
+import './lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 /**
  * Comprehensive Certification Test Suite for Batch Calling v3
  * Certifies Items A through J:

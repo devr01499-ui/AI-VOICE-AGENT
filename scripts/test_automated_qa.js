@@ -1,3 +1,4 @@
+require('../server/scripts/lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 require('dotenv').config({ path: './server/.env' });
 const { prisma } = require('../server/dist/lib/prisma');
 const { QaController } = require('../server/dist/controllers/QaController');

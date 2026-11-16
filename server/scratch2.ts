@@ -1,3 +1,4 @@
+import './scripts/lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 import { prisma } from './src/lib/prisma';
 
 async function main() {

@@ -1,3 +1,4 @@
+import './lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 /**
  * test_m2_mechanics_suite.ts — M2 Mechanics Suite on Synthetic Transcripts
  *

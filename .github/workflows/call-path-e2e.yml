@@ -78,6 +78,7 @@ jobs:
           echo "Resolved Postgres port: $POSTGRES_PORT"
           echo "DATABASE_URL=postgresql://claritiy:testpassword@127.0.0.1:${POSTGRES_PORT}/claritiy_test?schema=public" >> $GITHUB_ENV
           echo "DIRECT_URL=postgresql://claritiy:testpassword@127.0.0.1:${POSTGRES_PORT}/claritiy_test?schema=public" >> $GITHUB_ENV
+          echo "TEST_DATABASE_URL=postgresql://claritiy:testpassword@127.0.0.1:${POSTGRES_PORT}/claritiy_test?schema=public" >> $GITHUB_ENV
           echo "NODE_ENV=test" >> $GITHUB_ENV
           echo "JWT_SECRET=ci_jwt_secret_test_32_characters_long_min" >> $GITHUB_ENV
           echo "ENCRYPTION_KEY=ci_aes_encryption_key_32_chars_ok" >> $GITHUB_ENV

@@ -1,3 +1,4 @@
+import '../server/scripts/lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 import 'dotenv/config';
 import { requireActivePlan } from '../server/src/middleware/planValidation';
 import {

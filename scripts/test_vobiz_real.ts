@@ -1,3 +1,4 @@
+import '../server/scripts/lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 import { env } from '../server/src/config/env';
 import fetch from 'node-fetch'; // Or native fetch if Node 18+
 

@@ -1,3 +1,4 @@
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * End-to-end verification test for ITEM 5:
  * Turn Aggregator, Live WS events, and Database Segment Persistence

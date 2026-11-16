@@ -1,3 +1,4 @@
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 require('dotenv').config();
 const assert = require('assert');
 const { normalizeEmail, isValidEmail, isDisposableEmail } = require('../dist/utils/emailNormalizer');

@@ -1,3 +1,4 @@
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * CLARITIY VOICE — BATCH C AUTOMATED TEST SUITE
  * Validates Monetization Gateway, Minute Decrement Correctness, Billable Ceiling Rounding,

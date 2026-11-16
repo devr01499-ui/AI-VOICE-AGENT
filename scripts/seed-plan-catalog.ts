@@ -1,3 +1,4 @@
+import '../server/scripts/lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 /**
  * Claritiy Voice — Plan Catalog Seeding Script
  * Seeds the public plans from PLAN_CONFIG into the additive plan_catalog database table.

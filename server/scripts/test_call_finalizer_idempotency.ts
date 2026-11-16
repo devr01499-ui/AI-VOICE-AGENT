@@ -1,3 +1,4 @@
+import './lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 /**
  * test_call_finalizer_idempotency.ts — M1 Reliability Pipeline Verification Suite
  *

@@ -1,3 +1,4 @@
+require('../server/scripts/lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Automated Security & Regression Suite: Dashboard Authentication & Subsystem Verification
  *

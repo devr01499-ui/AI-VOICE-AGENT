@@ -1,3 +1,4 @@
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Verification test for Item 4+6:
  * Call History Accuracy, Direction, Normalized DTO, and Elimination of Demo Static Transcript

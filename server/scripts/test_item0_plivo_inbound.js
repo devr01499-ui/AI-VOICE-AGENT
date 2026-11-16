@@ -1,3 +1,4 @@
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Verification test for ITEM 0: Plivo Inbound Call Routing
  * 

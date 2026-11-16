@@ -1,3 +1,4 @@
+require('./scripts/lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 const { Client } = require('pg');
 
 const tablesWithUserId = [

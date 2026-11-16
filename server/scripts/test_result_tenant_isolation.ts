@@ -1,3 +1,4 @@
+import './lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 /**
  * test_result_tenant_isolation.ts — Cross-Tenant Isolation & RBAC Security Verification
  *

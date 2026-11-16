@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Claritiy Voice — Turn-Taking Configuration Verification Suite (Task T4)
  *

@@ -1,3 +1,4 @@
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 const assert = require('assert');
 const path = require('path');
 const dotenv = require('dotenv');

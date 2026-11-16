@@ -1,3 +1,4 @@
+import './lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 /**
  * test_evidence_substring_check.ts — Verbatim Evidence Grounding Verification Suite
  *

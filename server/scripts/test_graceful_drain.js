@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test database
 /**
  * Claritiy Voice — Graceful Shutdown & Drain State Machine Verification (Task T5)
  *

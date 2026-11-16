@@ -1,3 +1,4 @@
+import './lib/testDbGuard.cjs'; // MUST stay first: blocks any non-test database
 import fs from 'fs';
 import path from 'path';
 import { prisma } from '../src/lib/prisma';
