@@ -964,7 +964,6 @@ export default function SinglePromptStudio({
     return cfg.callSettings || {};
   })();
 
-  const [ambientNoise, setAmbientNoise] = useState<string>(initialCallSettings.ambientNoise || 'None');
   const [endCallToolEnabled, setEndCallToolEnabled] = useState<boolean>(initialCallSettings.endCallToolEnabled !== undefined ? Boolean(initialCallSettings.endCallToolEnabled) : true);
   const [endOnGoodbyeEnabled, setEndOnGoodbyeEnabled] = useState<boolean>(initialCallSettings.endOnGoodbyeEnabled !== undefined ? Boolean(initialCallSettings.endOnGoodbyeEnabled) : true);
   const [closingMessage, setClosingMessage] = useState<string>(
@@ -1628,7 +1627,6 @@ export default function SinglePromptStudio({
             .filter((k) => k.length > 0),
         },
         callSettings: {
-          ambientNoise,
           endCallToolEnabled,
           endOnGoodbyeEnabled,
           closingMessage,
@@ -3016,23 +3014,6 @@ export default function SinglePromptStudio({
                   <p className="mt-1 text-[10px] text-slate-400">
                     Spoken by the agent right before ending the call session.
                   </p>
-                </div>
-
-                {/* Ambient Noise Track */}
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Ambient Background Noise
-                  </label>
-                  <select
-                    value={ambientNoise}
-                    onChange={(e) => setAmbientNoise(e.target.value)}
-                    className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-green-500"
-                  >
-                    <option value="None">None (Clean studio audio)</option>
-                    <option value="Office / Corporate">Office / Corporate</option>
-                    <option value="Coffee Shop">Coffee Shop / Busy Cafe</option>
-                    <option value="Call Center">Call Center Background Chatter</option>
-                  </select>
                 </div>
 
                 {/* Max Call Duration Limit */}

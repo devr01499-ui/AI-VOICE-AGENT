@@ -154,6 +154,27 @@ interface PrewarmedSession {
   ttlTimeout: NodeJS.Timeout;
 }
 
+/** Platform ceiling for any single call (cost and abuse protection). */
+export const PLATFORM_MAX_CALL_SECONDS = 3600;
+
+/**
+ * Effective max duration: the agent's "Max call duration" when set, otherwise the call's own limit
+ * (every call row has one; default 30 min), never above the platform ceiling and never under 60 s.
+ */
+export function resolveMaxCallSeconds(agentSeconds: unknown, callSeconds: unknown): number {
+  const a = Number(agentSeconds);
+  const c = Number(callSeconds);
+  const chosen = Number.isFinite(a) && a > 0 ? a : Number.isFinite(c) && c > 0 ? c : PLATFORM_MAX_CALL_SECONDS;
+  return Math.min(PLATFORM_MAX_CALL_SECONDS, Math.max(60, Math.round(chosen)));
+}
+
+/** Effective end-on-silence period: 0 = off; otherwise clamped to 10–600 seconds. */
+export function resolveSilenceSeconds(value: unknown): number {
+  const v = Number(value);
+  if (!Number.isFinite(v) || v <= 0) return 0;
+  return Math.min(600, Math.max(10, Math.round(v)));
+}
+
 export class CallOrchestrator extends EventEmitter {
   private static _instance: CallOrchestrator | null = null;
   private readonly activeCalls = new Map<string, CallSession>();
@@ -806,6 +827,14 @@ export class CallOrchestrator extends EventEmitter {
     const startedAt = new Date();
     await CallRepository.updateStatus(callId, 'in_progress', { startTime: startedAt });
 
+    // Hard time limits on a live call (they were never enforced): the agent's "max duration",
+    // capped by the call's own limit and the platform ceiling; and "end on silence".
+    const callRow = await prisma.call.findUnique({ where: { id: callId }, select: { maxDuration: true } }).catch(() => null);
+    this.armCallTimers(callId, {
+      maxDurationSeconds: resolveMaxCallSeconds(callSettings.maxDurationSeconds, callRow?.maxDuration),
+      silenceSeconds: resolveSilenceSeconds(callSettings.endCallOnSilenceSeconds),
+    });
+
     // Agent webhook: call_started (fire-and-forget; never delays the call).
     void WebhookDispatcher.dispatch({
       agentId,
@@ -1053,6 +1082,7 @@ export class CallOrchestrator extends EventEmitter {
     detail?: string,
     endedBy?: string
   ): Promise<void> {
+    this.clearCallTimers(callId);
     const rawReason = (reason || '').toLowerCase().trim();
     let normalizedReason = 'unknown';
     let defaultEndedBy = 'system';
@@ -1291,6 +1321,60 @@ export class CallOrchestrator extends EventEmitter {
       logger.warn('CallOrchestrator: playout drain before hangup failed; ending immediately', { callId, error: String(err) });
     }
     await this.endCallSession(callId, reason, detail);
+  }
+
+  // ─── Per-call limits: max duration and end-on-silence ──────
+  private readonly callTimers = new Map<string, { max?: NodeJS.Timeout; silence?: NodeJS.Timeout; silenceSeconds: number; onTranscript?: (p: any) => void }>();
+
+  /** Starts the max-duration timer and (if configured) the silence timer for a call. */
+  armCallTimers(callId: string, limits: { maxDurationSeconds: number; silenceSeconds: number }): void {
+    this.clearCallTimers(callId);
+    const entry: { max?: NodeJS.Timeout; silence?: NodeJS.Timeout; silenceSeconds: number; onTranscript?: (p: any) => void } = { silenceSeconds: limits.silenceSeconds };
+    entry.max = setTimeout(() => {
+      logger.info('[CALL_LIMIT] Maximum call duration reached; ending the call', { callId, seconds: limits.maxDurationSeconds });
+      this.endCallGracefully(callId, 'max_duration', `Maximum call duration of ${limits.maxDurationSeconds}s reached`).catch((err) => {
+        logger.error('[CALL_LIMIT] failed to end call at max duration', { callId, error: String(err) });
+      });
+    }, limits.maxDurationSeconds * 1000);
+    entry.max.unref?.();
+
+    if (limits.silenceSeconds > 0) {
+      const restart = () => {
+        const cur = this.callTimers.get(callId);
+        if (!cur) return;
+        if (cur.silence) clearTimeout(cur.silence);
+        cur.silence = setTimeout(() => {
+          logger.info('[CALL_LIMIT] No speech for the configured silence period; ending the call', { callId, seconds: limits.silenceSeconds });
+          this.endCallGracefully(callId, 'silence_timeout', `No speech for ${limits.silenceSeconds}s`).catch((err) => {
+            logger.error('[CALL_LIMIT] failed to end call on silence', { callId, error: String(err) });
+          });
+        }, limits.silenceSeconds * 1000);
+        cur.silence.unref?.();
+      };
+      // Any speech from either side (partial or final transcript) resets the silence timer.
+      entry.onTranscript = (payload: any) => {
+        if (payload && payload.callId === callId && String(payload.text || '').trim()) restart();
+      };
+      eventBus.subscribe(PROVIDER_EVENTS.TRANSCRIPT_UPDATED, entry.onTranscript);
+      this.callTimers.set(callId, entry);
+      restart();
+      return;
+    }
+    this.callTimers.set(callId, entry);
+  }
+
+  clearCallTimers(callId: string): void {
+    const entry = this.callTimers.get(callId);
+    if (!entry) return;
+    if (entry.max) clearTimeout(entry.max);
+    if (entry.silence) clearTimeout(entry.silence);
+    if (entry.onTranscript) eventBus.unsubscribe(PROVIDER_EVENTS.TRANSCRIPT_UPDATED, entry.onTranscript);
+    this.callTimers.delete(callId);
+  }
+
+  /** Tests only: whether a call currently has limits armed. */
+  hasCallTimers(callId: string): boolean {
+    return this.callTimers.has(callId);
   }
 
   // ─── Farewell watchdog ────────────────────────────────────────────────────────────────────────

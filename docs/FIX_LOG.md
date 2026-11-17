@@ -191,3 +191,10 @@ One entry per fix, newest at the bottom. Template:
 - Root cause: the editor loaded the knowledge-base list only when that section was expanded, and the parent never passed one in.
 - Fix: the list loads when the editor opens and refreshes whenever the section is opened.
 - Test: browser test in `Frontend/e2e/test-lab.spec.ts` (badge shows "Knowledge Base (2)" for an agent with two attached KBs, without opening the section); fails with the old condition, passes now.
+
+## Call Settings no-ops — max duration, end on silence, closing message, ambient noise (Phase 4)
+- Root cause: on live calls nothing enforced "Max call duration" (not even the 30-minute default every call row carries — calls had no length limit at all, a cost/abuse risk); "End on silence" was only a sentence in the prompt; "Closing message" was never read; "Ambient noise" only added a meaningless prompt line (no audio can be mixed).
+- Fix: per-call timers in `CallOrchestrator`, armed when the call starts and cleared in the single end-call path: max duration = the agent's setting when set, else the call's limit, never above a 60-minute platform ceiling (min 60 s); end-on-silence (10–600 s) restarted by any speech from either side, ending with reason `silence_timeout`. The closing message is added to the agent's instructions. The ambient-noise control was removed and is ignored.
+- Files: server/src/core/orchestrator/CallOrchestrator.ts, server/src/utils/systemInstructionBuilder.ts, server/scripts/test_call_limits.js (new), server/package.json, Frontend/src/app/components/agents/SinglePromptStudio.tsx.
+- Tests: `npm run test:call-limits` (7, in test:security) with the production orchestrator (only its end action replaced by a recorder): limit rules, max duration fires, silence fires and speech resets it, other calls' speech ignored, timers cleared on end, closing message in / ambient noise out.
+- Caveat (to watch in live calls, Phase 11): the silence timer is reset by transcript events; if a caller speaks continuously for longer than the silence period without any transcript event, the call could end early. The minimum period is 10 s and the default 30 s.

@@ -428,9 +428,10 @@ export function buildFinalSystemInstruction(
     sections.push(`[SPEECH TRANSCRIPTION KEYWORD BOOST]\nPay special attention to recognizing and accurately transcribing the following proper nouns and domain terms: ${transcriptionSettings.boostedKeywords.join(', ')}.`);
   }
 
-  // Ambient Noise Simulation
-  if (callSettings.ambientNoise && callSettings.ambientNoise !== 'None') {
-    sections.push(`[AMBIENT ENVIRONMENT HINT]\nSimulate a natural ${callSettings.ambientNoise} background environment in your voice cadence and delivery style.`);
+  // Closing message (Call Settings). The old "ambient noise" setting only added a prompt line and
+  // could not add real background audio, so it was removed from the editor and is ignored here.
+  if (typeof callSettings.closingMessage === 'string' && callSettings.closingMessage.trim()) {
+    sections.push(`[CLOSING MESSAGE]\nWhen the call is ending, say this closing line (in the caller's language) before hanging up: "${callSettings.closingMessage.trim().slice(0, 300).replace(/"/g, "'")}"`);
   }
 
   // Silence Cutoff Policy
