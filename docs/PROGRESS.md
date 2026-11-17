@@ -6,7 +6,7 @@
 | 1 | F1 first-load flash, F2 auth | DONE, merged to `main` 2026-11-17 (owner said "yes to main directly") |
 | 2 | B1 templates, B2 bell, B4 remove Review QA/Auto-detect (+ calendar status fix) | DONE, merged to `main` 2026-11-17 |
 | 3 | B3 Prompt Coach, B5 Test Lab | DONE, merged to `main` 2026-11-17 |
-| 4 | B6 agent editor sections, B7 conversational builder | NEXT — branch `fix/agent-editor` from `main` |
+| 4 | B6 agent editor sections, B7 conversational builder | IN PROGRESS on `fix/agent-editor` — done: calendar bookings, A1–A5, A7, A11, A12 (see AGENT_EDITOR_AUDIT.md). Left: A6, A8, A9, A10, A13, A14 + no-op controls |
 | 5–14 | See CLAUDE.md §13 | not started |
 
 ## PRODUCTION — UNTOUCHABLE (nothing relaxed)
@@ -51,6 +51,7 @@
 - Browser tests: `cd Frontend && npx playwright test`; helpers in `e2e/helpers/dashboard.ts` (fake session + stubbed backend; session key `claritiy_voice_supabase_auth_token`).
 - Customer bell shows own rows + `ANNOUNCEMENT` rows only; owner-less rows of other types are admin-only.
 - AI features use `services/ai/textModel.ts` (timeouts, retry, fallback, BYOK) + `aiFeatureLimiter`; tests stub it with `setTextModelTransportForTests`. Never run `db push --accept-data-loss`, even locally.
+- LOW MEMORY: when PGlite dies with "out of memory: Zone", use the native test DB: scratchpad `pg/start.mjs` (port 54329, password localtest, db `claritiy_phase4`) and push a copy of schema.prisma with `Unsupported("vector(3072)")` → `Unsupported("text")` (vector search tests still need PGlite). Never use git stash for before/after proofs (a cut-off session can strand work): copy the file aside, test, restore.
 - Playwright runs 2 workers locally (memory-bound machine); measure layout with offsetWidth, not boundingBox, when animations exist.
 - Sign-up "Account Type" saved but unused by the server (decide in Phase 4/13).
 

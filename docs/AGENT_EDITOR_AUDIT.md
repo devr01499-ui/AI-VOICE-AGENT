@@ -1,4 +1,4 @@
-# Agent editor audit — what each control really does on a live call
+| FIXED (FIX_LOG) || FIXED (FIX_LOG) || FIXED (FIX_LOG) || FIXED (FIX_LOG) || FIXED (FIX_LOG) || FIXED (FIX_LOG) || FIXED (FIX_LOG) || FIXED (FIX_LOG) |# Agent editor audit — what each control really does on a live call
 
 Built 2026-11-17 (Phase 4) from a read-only trace: editor → `getStudioPayload` → `routes/agents.ts` (POST/PUT) → `Agent.agentConfig` → live call path (carrier → `CallOrchestrator.startVoiceSession` → PipecatRunner → `GeminiLiveProvider`, greeting/silence in `AudioStreamHandler`). Line numbers are from that date; re-grep before editing. "Status" column is updated as each item is fixed (see FIX_LOG.md).
 
