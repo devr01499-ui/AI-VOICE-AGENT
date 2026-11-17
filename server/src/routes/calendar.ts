@@ -775,7 +775,7 @@ router.post('/slots', requireAuth, async (req, res) => {
 router.get('/bookings', requireAuth, async (req, res) => {
   try {
     const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId || getUserIdFromRequest(req);
-    if (!workspaceId) return res.status(401).json({ error: 'Unauthorized' });
+    if (!workspaceId) return res.status(401).json({ success: false, error: 'Unauthorized' });
 
     // Fetch workspace agent IDs
     const workspaceAgents = await prisma.agent.findMany({
@@ -808,7 +808,9 @@ router.get('/bookings', requireAuth, async (req, res) => {
         callId: b.callId,
         createdAt: b.createdAt.toISOString(),
       }));
-      return res.json(formatted);
+      // Standard { success, data } envelope: without it the dashboard client treated the list as an
+      // error and the Calendar page always showed no bookings.
+      return res.json({ success: true, data: formatted });
     }
 
     const scheduledCalls = await prisma.scheduledCall.findMany({
@@ -833,10 +835,10 @@ router.get('/bookings', requireAuth, async (req, res) => {
       createdAt: sc.createdAt.toISOString(),
     }));
 
-    res.json(bookings);
+    res.json({ success: true, data: bookings });
   } catch (error: any) {
     logger.error('Failed to get calendar bookings', { error: error.message });
-    res.status(500).json({ error: 'Failed to get bookings' });
+    res.status(500).json({ success: false, error: 'Failed to get bookings' });
   }
 });
 
@@ -844,20 +846,36 @@ router.get('/bookings', requireAuth, async (req, res) => {
  * POST /api/v2/calendar/bookings/:id/cancel
  * Cancels a booking in Google Calendar and sets database record status to cancelled.
  */
-router.post('/bookings/:id/cancel', requireAuth, async (req, res) => {
+const BOOKING_ID = /^[A-Za-z0-9-]{1,64}$/;
+
+/** Maps calendar-service failure codes to clear HTTP answers in the standard envelope. */
+function sendBookingFailure(res: any, code?: string) {
+  const map: Record<string, [number, string]> = {
+    BOOKING_NOT_FOUND: [404, 'Appointment not found.'],
+    CALENDAR_NOT_CONNECTED: [409, 'Google Calendar is not connected. Reconnect it in Integrations, then try again.'],
+    CALENDAR_DELETE_FAILED: [502, 'Google Calendar did not remove the appointment. Nothing was changed; please try again.'],
+    SLOT_TAKEN: [409, 'That time slot was just taken. Please choose another one.'],
+    UNAUTHORIZED_CALLER: [403, 'Not allowed.'],
+  };
+  const [status, message] = map[code || ''] || [400, 'The appointment could not be updated. Please try again.'];
+  return res.status(status).json({ success: false, error: message, code: code || 'FAILED' });
+}
+
+router.post('/bookings/:id/cancel', requireAuth, sensitiveOperationsLimiter, async (req, res) => {
   try {
     const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId || getUserIdFromRequest(req);
-    const bookingId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const result = await CalendarService.cancelAppointment({
-      workspaceId,
-      bookingId,
-    });
-    if (result.status === 'failed') {
-      return res.status(400).json(result);
+    const bookingId = String(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id);
+    if (!BOOKING_ID.test(bookingId)) {
+      return res.status(400).json({ success: false, error: 'Invalid booking id' });
     }
-    res.json(result);
+    const result = await CalendarService.cancelAppointment({ workspaceId, bookingId });
+    if (result.status !== 'cancelled') {
+      return sendBookingFailure(res, result?.error);
+    }
+    res.json({ success: true, data: result });
   } catch (err: any) {
-    res.status(500).json({ error: 'Failed to cancel booking' });
+    logger.error('Failed to cancel booking', { error: String(err?.message || err) });
+    res.status(500).json({ success: false, error: 'Failed to cancel the appointment. Please try again.' });
   }
 });
 
@@ -865,25 +883,25 @@ router.post('/bookings/:id/cancel', requireAuth, async (req, res) => {
  * POST /api/v2/calendar/bookings/:id/reschedule
  * Reschedules a booking in Google Calendar and updates database record.
  */
-router.post('/bookings/:id/reschedule', requireAuth, async (req, res) => {
+router.post('/bookings/:id/reschedule', requireAuth, sensitiveOperationsLimiter, async (req, res) => {
   try {
     const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId || getUserIdFromRequest(req);
-    const bookingId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const { slotId } = req.body;
-    if (!slotId) {
-      return res.status(400).json({ error: 'Missing slotId' });
+    const bookingId = String(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id);
+    const { slotId } = req.body || {};
+    if (!BOOKING_ID.test(bookingId)) {
+      return res.status(400).json({ success: false, error: 'Invalid booking id' });
     }
-    const result = await CalendarService.rescheduleAppointment({
-      workspaceId,
-      bookingId,
-      slotId,
-    });
+    if (!slotId || typeof slotId !== 'string' || slotId.length > 200) {
+      return res.status(400).json({ success: false, error: 'Choose a new time slot.' });
+    }
+    const result = await CalendarService.rescheduleAppointment({ workspaceId, bookingId, slotId });
     if (result.status === 'failed' || result.status === 'slot_taken') {
-      return res.status(400).json(result);
+      return sendBookingFailure(res, result.status === 'slot_taken' ? 'SLOT_TAKEN' : result?.error);
     }
-    res.json(result);
+    res.json({ success: true, data: result });
   } catch (err: any) {
-    res.status(500).json({ error: 'Failed to reschedule booking' });
+    logger.error('Failed to reschedule booking', { error: String(err?.message || err) });
+    res.status(500).json({ success: false, error: 'Failed to reschedule the appointment. Please try again.' });
   }
 });
 

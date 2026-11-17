@@ -958,7 +958,13 @@ export class CalendarService {
     const releaseLock = await this.acquireCalendarLock(calendarId);
 
     try {
-      if (conn && booking.googleEventId) {
+      if (booking.googleEventId) {
+        // The appointment must disappear from the customer's Google Calendar too. If it cannot be
+        // removed, keep the booking unchanged and report failure so it can be retried — otherwise
+        // the slot stays blocked in Google and the caller may still turn up.
+        if (!conn) {
+          return { status: 'failed', error: 'CALENDAR_NOT_CONNECTED' };
+        }
         try {
           const tokens = this.getDecryptedTokens(conn.encryptedTokens);
           const oauth2Client = this.getOauth2Client();
@@ -970,7 +976,12 @@ export class CalendarService {
             eventId: booking.googleEventId
           });
         } catch (eventErr: any) {
-          logger.warn('Could not delete Google Calendar event during cancellation', { error: eventErr.message });
+          const code = Number(eventErr?.code || eventErr?.status || eventErr?.response?.status || 0);
+          if (code !== 404 && code !== 410) {
+            logger.warn('Could not delete Google Calendar event; booking left unchanged', { bookingId, code, error: eventErr?.message });
+            return { status: 'failed', error: 'CALENDAR_DELETE_FAILED' };
+          }
+          // 404/410: the event is already gone from Google — safe to mark the booking cancelled.
         }
       }
 

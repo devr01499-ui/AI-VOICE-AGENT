@@ -121,3 +121,13 @@ One entry per fix, newest at the bottom. Template:
 - Verified: migration proven offline-generated and applied to the old schema with zero remaining difference; full regression green (see PROGRESS).
 - Not verified here: a real run against the live AI model (keys treated as compromised until rotated); grading quality can only be judged live.
 - Disclosure: while proving the migration I ran `prisma db push --accept-data-loss` against the LOCAL throwaway database only (CLAUDE.md forbids the flag). It failed and changed nothing; the proof did not depend on it. Not repeated.
+
+## B6-CAL — Calendar bookings never showed; successful cancels reported as failures; cancel left Google events behind (Phase 4, branch fix/agent-editor)
+- Root causes:
+  1. `GET /calendar/bookings`, `POST /calendar/bookings/:id/cancel` and `/reschedule` answered without the standard `{ success, data }` envelope. The dashboard client rejects such answers, so the Calendar page always showed no bookings and every successful cancel showed "Failed to cancel".
+  2. `CalendarService.cancelAppointment` swallowed a failed Google Calendar delete and still marked the booking cancelled, so the appointment stayed in the customer's Google Calendar (slot blocked, caller may still turn up). The same function is used by the live-call agent's cancel tool.
+  3. Cancel/reschedule had no rate limiter and no id validation.
+- Fix: envelopes with clear status codes (404 not found, 409 not connected / slot taken, 502 Google refused); cancel keeps the booking unchanged unless Google deleted the event (or it was already gone: 404/410); `sensitiveOperationsLimiter` + id/slot validation; the Calendar page shows a load error instead of an empty list and shows the server's message on a failed cancel.
+- Files: server/src/routes/calendar.ts, server/src/core/orchestrator/CalendarService.ts, server/scripts/test_calendar_bookings.js (new), server/package.json, Frontend/src/app/components/calendar/CalendarOverview.tsx.
+- Tests: `npm run test:calendar-bookings` (7, in test:security) on the local test DB with the production handlers: envelope, tenant isolation of list and cancel, successful cancel, Google-failure keeps booking, validation, limiter + login present. Against the previous code 6 of 7 FAIL; now 7/7.
+- Not verified here: a real Google Calendar delete/reschedule (needs a connected Google account).
