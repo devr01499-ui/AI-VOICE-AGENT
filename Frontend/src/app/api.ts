@@ -713,6 +713,32 @@ export async function fetchPlaybooks(): Promise<PlaybookTemplate[]> {
   }));
 }
 
+export interface PromptCoachEnhanceResult {
+  improvedPrompt: string;
+  summary: string;
+  changes: Array<{ area: string; change: string; reason: string }>;
+  placeholders: string[];
+  diff: Array<{ type: 'same' | 'added' | 'removed'; text: string }>;
+  scoreBefore: number;
+  scoreAfter: number;
+  model: string;
+}
+
+/** Rewrites the agent's own prompt with the AI model (server-side; keys never reach the browser). */
+export async function enhancePromptWithCoach(input: {
+  prompt: string;
+  goal?: string;
+  agentName?: string;
+  direction?: 'inbound' | 'outbound' | 'both';
+  language?: string;
+  industry?: string;
+}): Promise<PromptCoachEnhanceResult> {
+  return apiFetch<PromptCoachEnhanceResult>('/api/v2/agents/prompt-coach/enhance', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
 export async function generatePromptFromCoach(playbookId: string, businessFacts: Record<string, string>): Promise<{
   playbookId: string;
   title: string;
@@ -734,31 +760,54 @@ export async function generatePromptFromCoach(playbookId: string, businessFacts:
   };
 }
 
-export async function runTestLabSimulation(agentId: string, personas?: string[]): Promise<{
-  scorecard: {
-    passed: boolean;
-    averageScore: number;
-    results: Array<{
-      persona: string;
-      score: number;
-      passed: boolean;
-      dimensionScores: {
-        objectionHandling: number;
-        kbAccuracy: number;
-        compliance: number;
-        nextStepAsk: number;
-        tone: number;
-      };
-      feedback: string[];
-      turnsCount: number;
-    }>;
-  };
-}> {
-  const res = await apiFetch<{ success: boolean; data: any }>(`/api/v2/agents/${agentId}/test-lab`, {
+export type TestLabPersona = 'hesitant' | 'price_sensitive' | 'angry' | 'rushed' | 'hinglish_speaker';
+
+export interface TestLabPersonaResult {
+  persona: TestLabPersona;
+  name: string;
+  status: 'completed' | 'error';
+  passed: boolean;
+  score: number;
+  dimensionScores: { objectionHandling: number; accuracy: number; compliance: number; nextStep: number; tone: number } | null;
+  issues: string[];
+  transcript: Array<{ speaker: 'customer' | 'agent'; text: string }>;
+  error?: string;
+}
+
+export interface TestLabRun {
+  runId: string;
+  agentId: string;
+  agentName: string;
+  passed: boolean;
+  averageScore: number;
+  model: string;
+  createdAt: string;
+  results: TestLabPersonaResult[];
+}
+
+export interface TestLabRunSummary {
+  runId: string;
+  passed: boolean;
+  averageScore: number;
+  personaCount: number;
+  createdAt: string;
+}
+
+/** Tests the agent's SAVED prompt against simulated callers with the AI model (no call minutes used). */
+export async function runTestLabSimulation(agentId: string, personas?: TestLabPersona[]): Promise<TestLabRun> {
+  return apiFetch<TestLabRun>(`/api/v2/agents/${encodeURIComponent(agentId)}/test-lab`, {
     method: 'POST',
-    body: JSON.stringify({ personas }),
+    body: JSON.stringify(personas ? { personas } : {}),
   });
-  return (res as any)?.data || res;
+}
+
+export async function listTestLabRuns(agentId: string): Promise<TestLabRunSummary[]> {
+  const data = await apiFetch<TestLabRunSummary[]>(`/api/v2/agents/${encodeURIComponent(agentId)}/test-lab/runs`);
+  return Array.isArray(data) ? data : [];
+}
+
+export async function getTestLabRun(agentId: string, runId: string): Promise<TestLabRun> {
+  return apiFetch<TestLabRun>(`/api/v2/agents/${encodeURIComponent(agentId)}/test-lab/runs/${encodeURIComponent(runId)}`);
 }
 
 export async function fetchCalendarBookings(): Promise<any> {

@@ -5,8 +5,9 @@
 | 0 | Setup, code map, test-DB guard, test-secret isolation | DONE, on `main` |
 | 1 | F1 first-load flash, F2 auth | DONE, merged to `main` 2026-11-17 (owner said "yes to main directly") |
 | 2 | B1 templates, B2 bell, B4 remove Review QA/Auto-detect (+ calendar status fix) | DONE, merged to `main` 2026-11-17 |
-| 3 | B3 Prompt Coach, B5 Test Lab | NEXT — branch `fix/prompt-coach-testlab` from `fix/dashboard-ui-1` |
-| 4–14 | See CLAUDE.md §13 | not started |
+| 3 | B3 Prompt Coach, B5 Test Lab | DONE, merged to `main` 2026-11-17 |
+| 4 | B6 agent editor sections, B7 conversational builder | NEXT — branch `fix/agent-editor` from `main` |
+| 5–14 | See CLAUDE.md §13 | not started |
 
 ## PRODUCTION — UNTOUCHABLE (nothing relaxed)
 - `DATABASE_URL` in `server/.env` is production. Never connect; never copy it or any key anywhere. Tests use `TEST_DATABASE_URL` only (RUNBOOK.md); the guard blanks live service keys.
@@ -14,19 +15,20 @@
 - No command text inside double quotes/unquoted backticks; write files with Write/Edit or `<<'EOF'`.
 - Every push to `main` auto-deploys Render and runs `prisma db push` on production (P1).
 
-## Status of checks (2026-11-17, branch fix/dashboard-ui-1)
+## Status of checks (2026-11-17, after Phase 3)
 - Typecheck: server 0; frontend 33 (App.tsx 21, SinglePromptStudio.tsx 12). Must be 0 by Phase 14.
-- test:security = guard 19 + sign-up 11 + agent rules 7 + bell 16 + calendar status 2 + security 19, all pass; owasp 23/23; payment 16/16; street-smart 32/32; browser 81+ pass, 1 skipped (live login).
+- test:security = guard 19 + sign-up 11 + agent rules 7 + bell 16 + calendar status 2 + prompt coach 16 + test lab 12 + security 19, all pass; owasp 23/23; payment 16/16; street-smart 32/32; browser 94 pass, 1 skipped (live login).
 - TS2367 "can never be true" in App.tsx settings tabs (`"audit"`, `"billing"`) — dead tab code, check when Settings is touched (Phase 9).
 
 ## Pre-launch items
 - P0 OWNER: rotate the production DB password (was public in git history); confirm the Google key literal in GeminiLiveProvider.ts is revoked.
-- P1 Migrations/Render (PRELAUNCH_NOTES §4, Option A recommended, owner choice pending). New additive migration `20261117120000_add_notification_receipts` exists; under the current `db push` deploy the table is created automatically.
+- P1 Migrations/Render (PRELAUNCH_NOTES §4, Option A recommended, owner choice pending). New additive migrations `20261117120000_add_notification_receipts`, `20261117130000_add_test_lab_runs`; under the current `db push` deploy the tables are created automatically.
 - P2 Payments (Phase 6): plan check fails open if the gateway API errors; plan payment re-usable on paid number routes.
 - P3 One-number lock (Phase 7): DB-level unique constraint or locked transaction + parallel test.
 - P4 `requireActivePlan` passes free accounts with leftover minutes (Phase 7).
 - P5 Security (Phase 12): rate-limit key trusts client `x-user-id` header on public routes.
 - P6 White-label (Phases 6/7/9): carrier names still in some user-facing errors (CallService L129/136, billing minutes-overview, KYC errors).
+- P8 Plans (Phases 6–7): `PAID_ACCOUNT_TYPES` lists growth/scale (unused) but not starter/trial; plans.ts types are trial, starter, developer, professional (Growth), enterprise. Paying Starter users count as entitled only while minutes remain.
 - P7 Found by backend inventory (BACKEND_UNUSED_REPORT.md): data-retention job never runs (Phase 10, DPDP); KYC page calls 3 routes that do not exist (Phase 7); MCPs only used in browser test calls (Phase 4); calendar bookings routes lack the response envelope (Phase 4).
 
 ## Needs owner verification (exact steps)
@@ -39,6 +41,7 @@
 7. Password reset: email → "Set New Password" → dashboard; old password fails; reusing the link says expired.
 8. Supabase → Authentication: redirect URLs include `https://www.claritiy.com/dashboard`; min password length 8; rate limits on.
 9. After Phase 2 is deployed: Render deploy log shows the `notification_receipts` table created; the bell's Delete works on the live site.
+11. Prompt Coach + Test Lab live smoke (after key rotation): open an agent → Prompt Coach → Enhance; then Test Lab → Run. Expected: a rewritten prompt with placeholders; Test Lab shows 5 callers with transcripts. Judge the quality of the AI answers.
 10. "Email on notification" and "mute preferences" (CLAUDE.md §2 of B2): no such code was found on the server. Tell Claude where these live or whether they still need building.
 
 ## Decisions
@@ -47,7 +50,8 @@
 - Frontend uses pnpm; root/server npm. No `gh`, Docker or Postgres here; local DB = PGlite (RUNBOOK). Don't probe its port with a raw socket before it is up.
 - Browser tests: `cd Frontend && npx playwright test`; helpers in `e2e/helpers/dashboard.ts` (fake session + stubbed backend; session key `claritiy_voice_supabase_auth_token`).
 - Customer bell shows own rows + `ANNOUNCEMENT` rows only; owner-less rows of other types are admin-only.
-- `test:street-smart` "assembly latency < 1.0 ms" is load-sensitive (Phase 11).
+- AI features use `services/ai/textModel.ts` (timeouts, retry, fallback, BYOK) + `aiFeatureLimiter`; tests stub it with `setTextModelTransportForTests`. Never run `db push --accept-data-loss`, even locally.
+- Playwright runs 2 workers locally (memory-bound machine); measure layout with offsetWidth, not boundingBox, when animations exist.
 - Sign-up "Account Type" saved but unused by the server (decide in Phase 4/13).
 
 ## Open questions (owner)
@@ -55,4 +59,4 @@
 - STANDING OWNER RULE (2026-11-17, CLAUDE.md §0.6/§12a): merge every verified phase to `main` and push directly; never ask between phases; report once at the end.
 
 ## Next exact step
-Phase 3 (B3 Prompt Coach, B5 Test Lab) per docs/PHASED_PROMPTS.md. Start: CODEMAP B3/B5 pointers (re-grep line numbers); Prompt Coach and Test Lab currently make no AI call. Use a stubbed AI transport in tests; never call the live AI API (keys are compromised until rotated).
+Phase 4 (B6 agent editor sections, B7 conversational builder) per docs/PHASED_PROMPTS.md: build docs/AGENT_EDITOR_AUDIT.md (control → API → DB field → runtime consumer → works/broken/no-op), fix or remove no-ops section by section. Known leads: `securityFallback` has no server reader; MCPs only used in browser test calls; calendar bookings routes lack the envelope; agent PUT body has no schema validation.

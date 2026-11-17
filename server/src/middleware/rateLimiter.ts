@@ -72,6 +72,20 @@ export const notificationActionLimiter = rateLimit({
 });
 
 /**
+ * AI-model features that cost money per call (Prompt Coach, Test Lab): 30 per user per hour.
+ * Protects the platform AI bill from scripted abuse while leaving normal use untouched.
+ */
+export const aiFeatureLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getRateLimitKey,
+  validate: false,
+  message: { success: false, error: 'You have used the AI assistant many times in the last hour. Please wait a little and try again.', code: 'AI_RATE_LIMITED' },
+});
+
+/**
  * Dedicated Webhook Rate Limiter: Max 100 requests per IP per 15 minutes.
  * Defends payment gateway webhook callback ingress against denial-of-service and flood attacks.
  */

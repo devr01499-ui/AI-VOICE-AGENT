@@ -222,11 +222,10 @@ export async function requireActivePlanOrBYOK(
       return next();
     }
 
-    const hasByokKey = Boolean(
-      user.geminiApiKey ||
-      (typeof req.headers['x-gemini-api-key'] === 'string' && req.headers['x-gemini-api-key'].trim()) ||
-      (req.body && typeof req.body.geminiApiKey === 'string' && req.body.geminiApiKey.trim())
-    );
+    // Only a key SAVED in the account counts (Settings → billing config). A key sent in the request
+    // header or body is never trusted here: the gated features do not use it, so accepting it would
+    // let any free account bypass the plan check and spend the platform's AI quota.
+    const hasByokKey = Boolean(typeof user.geminiApiKey === 'string' && user.geminiApiKey.trim());
 
     const entitled = isUserEntitled(user);
 
