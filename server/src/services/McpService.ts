@@ -70,6 +70,7 @@ export class McpService {
             params: {},
           }),
           signal: controller.signal,
+          redirect: 'error', // never follow a redirect to an address the SSRF check did not see
         });
 
         clearTimeout(timeoutId);
@@ -152,6 +153,7 @@ export class McpService {
           },
         }),
         signal: controller.signal,
+        redirect: 'error', // never follow a redirect to an address the SSRF check did not see
       });
 
       clearTimeout(timeoutId);

@@ -144,6 +144,16 @@ async function main() {
     assert.strictEqual((await ex.executeTool('missing', {})).success, false);
   });
 
+  await test('browser test calls use the same hardened executor (no raw fetch of customer URLs)', async () => {
+    const fs = require('fs');
+    const path = require('path');
+    const src = fs.readFileSync(path.join(__dirname, '../src/websockets/SandboxStreamHandler.ts'), 'utf8');
+    assert.ok(src.includes('buildAgentTools([functionDef]'), 'sandbox must build tools with buildAgentTools');
+    assert.ok(!/fetch\(fetchUrl/.test(src), 'sandbox must not fetch customer URLs directly');
+    const mcp = fs.readFileSync(path.join(__dirname, '../src/services/McpService.ts'), 'utf8');
+    assert.strictEqual((mcp.match(/redirect: 'error'/g) || []).length, 2, 'both MCP requests must refuse redirects');
+  });
+
   console.log('\n--- CALL ORCHESTRATOR ---');
   const { CallOrchestrator } = require('../dist/core/orchestrator/CallOrchestrator');
   const orchestrator = CallOrchestrator.getInstance ? CallOrchestrator.getInstance() : new CallOrchestrator();

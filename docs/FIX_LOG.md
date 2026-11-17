@@ -173,3 +173,9 @@ One entry per fix, newest at the bottom. Template:
 - Files: server/src/repositories/TranscriptRepository.ts, server/src/services/CallService.ts, server/scripts/test_pii_redaction_settings.js (new), server/package.json, Frontend/src/app/components/agents/SinglePromptStudio.tsx.
 - Tests: `npm run test:pii-settings` (6, in test:security) on the local test DB: per-category redaction, Aadhaar vs phone, ordinary text untouched, redaction before storage, no redaction when off, legacy switch, redaction on read. 5 of 6 FAIL on the previous code; now 6/6.
 - Note: post-call extraction and reports read the redacted transcript, so a redacted phone/email cannot be extracted — that is the intended effect of the customer's choice and is stated in the editor.
+
+## A10 (part) — browser test calls fetched customer URLs with no SSRF check or timeout (Phase 4)
+- Root cause: `SandboxStreamHandler` had its own copy of custom-API execution: no SSRF check, no timeout, unsanitised headers, redirects followed. MCP requests followed redirects.
+- Fix: test calls now use the same `buildAgentTools` + `ToolExecutor` path as live calls (SSRF check, 10 s timeout, no redirects, safe headers). MCP requests use `redirect: 'error'`.
+- Remaining (Phase 12, logged as P10): `assertSafeUrl` resolves DNS once and fetch resolves again, so a DNS-rebinding attack is still theoretically possible; the fix is pinning the checked IP in the HTTP agent.
+- Tests: regression check added to `npm run test:agent-tools` (13/13).
