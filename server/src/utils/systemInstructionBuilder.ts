@@ -465,3 +465,19 @@ export function buildFinalSystemInstruction(
 
   return finalInstruction;
 }
+
+/**
+ * Industries a customer can choose for an agent. The old "auto" choice was removed from the
+ * product; "auto" can still exist on agents saved earlier and is still resolved at call time
+ * (see resolveEffectiveIndustry), but it is never accepted as new input.
+ */
+export const SELECTABLE_INDUSTRIES = ['sales', 'support', 'bfsi', 'healthcare', 'real_estate', 'recruitment', 'other'] as const;
+
+/** Returns the industry if it is one a customer may choose, otherwise null. */
+export function normalizeIndustryInput(value: unknown): Exclude<IndustryType, 'auto'> | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.toLowerCase().trim();
+  return (SELECTABLE_INDUSTRIES as readonly string[]).includes(normalized)
+    ? (normalized as Exclude<IndustryType, 'auto'>)
+    : null;
+}

@@ -49,7 +49,6 @@ import {
   unassignKBAgent,
   fetchPlaybooks,
   generatePromptFromCoach,
-  reviewPromptWithCoach,
   runTestLabSimulation,
   type ApiAgent,
   type ApiKnowledgeBase,
@@ -267,24 +266,21 @@ export default function SinglePromptStudio({
   const [direction, setDirection] = useState<'outbound' | 'inbound' | 'both'>(
     initialAgent?.direction === 'inbound' || initialAgent?.direction === 'both' ? initialAgent.direction : 'outbound'
   );
-  const [industry, setIndustry] = useState<string>(
-    initialAgent?.industry || (typeof initialAgent?.agentConfig === 'string' ? (() => { try { return JSON.parse(initialAgent.agentConfig)?.industry; } catch { return 'auto'; } })() : initialAgent?.agentConfig?.industry) || 'auto'
-  );
-
-  const detectedIndustry = useMemo(() => {
-    const text = `${agentName} ${initialAgent?.name || ''} ${initialAgent?.systemPrompt || ''}`.toLowerCase();
-    const bfsiKw = ['loan', 'emi', 'credit card', 'insurance', 'policy', 'premium', 'mutual fund', 'investment', 'kyc', 'collections', 'bank', 'nbfc'];
-    if (bfsiKw.some(kw => text.includes(kw))) return 'bfsi';
-    const healthKw = ['clinic', 'doctor', 'hospital', 'patient', 'appointment', 'dentist', 'dental', 'medical', 'prescription'];
-    if (healthKw.some(kw => text.includes(kw))) return 'healthcare';
-    const reKw = ['real estate', 'property', 'builder', 'developer', 'flat', 'apartment', 'villa', 'plot', 'bhk'];
-    if (reKw.some(kw => text.includes(kw))) return 'real_estate';
-    const suppKw = ['support', 'ticket', 'customer service', 'troubleshoot', 'complaint', 'refund'];
-    if (suppKw.some(kw => text.includes(kw))) return 'support';
-    const salesKw = ['sales', 'lead', 'pitch', 'pricing', 'discount', 'demo'];
-    if (salesKw.some(kw => text.includes(kw))) return 'sales';
-    return 'other';
-  }, [agentName, initialAgent]);
+  // "Auto-detect" was removed. Agents saved with it open on the industry the server was already
+  // applying for them, so re-saving does not change how their live calls behave.
+  const [industry, setIndustry] = useState<string>(() => {
+    const allowed = ['sales', 'support', 'bfsi', 'healthcare', 'real_estate', 'recruitment', 'other'];
+    let saved: unknown = initialAgent?.industry;
+    if (!saved) {
+      try {
+        const cfg = typeof initialAgent?.agentConfig === 'string' ? JSON.parse(initialAgent.agentConfig) : initialAgent?.agentConfig;
+        saved = cfg?.industry;
+      } catch { /* unreadable config: fall through to the default */ }
+    }
+    if (typeof saved === 'string' && allowed.includes(saved)) return saved;
+    const applied: unknown = (initialAgent as { detectedIndustry?: string } | null | undefined)?.detectedIndustry;
+    return typeof applied === 'string' && allowed.includes(applied) ? applied : 'other';
+  });
 
   const [systemPrompt, setSystemPrompt] = useState(
     initialAgent?.systemPrompt ||
@@ -675,12 +671,6 @@ export default function SinglePromptStudio({
   const [isGeneratingCoach, setIsGeneratingCoach] = useState(false);
   const [coachError, setCoachError] = useState<string | null>(null);
 
-  // ── Prompt Review (QA Score) State ───────────────────────────────────────
-  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-  const [isReviewingPrompt, setIsReviewingPrompt] = useState(false);
-  const [reviewResult, setReviewResult] = useState<any | null>(null);
-  const [reviewError, setReviewError] = useState<string | null>(null);
-
   // ── Test Lab Simulation State ─────────────────────────────────────────────
   const [isTestLabRunning, setIsTestLabRunning] = useState(false);
   const [testLabScorecard, setTestLabScorecard] = useState<any | null>(null);
@@ -754,20 +744,6 @@ export default function SinglePromptStudio({
       setCoachError(err?.message || 'Failed to generate prompt from coach.');
     } finally {
       setIsGeneratingCoach(false);
-    }
-  }
-
-  async function handleReviewPrompt() {
-    try {
-      setIsReviewingPrompt(true);
-      setReviewError(null);
-      setIsReviewModalOpen(true);
-      const res = await reviewPromptWithCoach(systemPrompt);
-      setReviewResult(res);
-    } catch (err: any) {
-      setReviewError(err?.message || 'Failed to analyze prompt quality.');
-    } finally {
-      setIsReviewingPrompt(false);
     }
   }
 
@@ -1499,7 +1475,7 @@ export default function SinglePromptStudio({
       systemVoice: voice,
       languageMode: language,
       direction,
-      industry: industry || 'auto',
+      industry: industry || 'other',
       systemPrompt: compilePromptWithHandbook(systemPrompt, handbookPresets, direction),
       welcomeMessageMode,
       customWelcomeText,
@@ -1508,7 +1484,7 @@ export default function SinglePromptStudio({
       firstMessage: welcomeMessageMode === 'agent_first' ? customWelcomeText : null,
       agentConfig: {
         ...initialConfig,
-        industry: industry || 'auto',
+        industry: industry || 'other',
         responseStyle,
         intelligenceMode,
         greeting: {
@@ -1638,33 +1614,6 @@ export default function SinglePromptStudio({
       setIsPublishing(false);
     }
   };
-
-  const qaScore = useMemo(() => {
-    let score = 100;
-    const issues: string[] = [];
-    const prompt = (systemPrompt || '').trim();
-    if (!prompt) {
-      score -= 50;
-      issues.push('Prompt is missing or empty');
-    } else {
-      if (prompt.length < 30) {
-        score -= 30;
-        issues.push('Prompt is too brief (< 30 characters)');
-      }
-      const lower = prompt.toLowerCase();
-      if (!lower.includes('greet') && !lower.includes('hello') && !lower.includes('welcome') && !lower.includes('you are') && !lower.includes('persona')) {
-        score -= 10;
-        issues.push('Prompt lacks explicit persona or greeting instruction');
-      }
-      if (!lower.includes('fallback') && !lower.includes('apologize') && !lower.includes('transfer') && !lower.includes('cannot') && !lower.includes('help') && !lower.includes('rules')) {
-        score -= 10;
-        issues.push('Prompt lacks explicit boundary or fallback guidance');
-      }
-    }
-    score = Math.max(0, Math.min(100, score));
-    const status: 'PASS' | 'WARN' | 'FAIL' = score >= 80 ? 'PASS' : score >= 60 ? 'WARN' : 'FAIL';
-    return { score, passed: score >= 70, status, issues };
-  }, [systemPrompt]);
 
   const rawJsonConfig = JSON.stringify(
     {
@@ -1804,20 +1753,6 @@ export default function SinglePromptStudio({
                 </button>
               </div>
             )}
-          </div>
-
-          <div
-            className={`px-2.5 py-1 text-xs font-bold rounded-lg border flex items-center gap-1.5 cursor-help transition-all ${
-              qaScore.status === 'PASS'
-                ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
-                : qaScore.status === 'WARN'
-                ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300'
-                : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300'
-            }`}
-            title={`Automated QA Evaluation: ${qaScore.status} (${qaScore.score}/100).\n${qaScore.issues.length > 0 ? qaScore.issues.join('\n') : 'All quality thresholds passed.'}`}
-          >
-            <span className={`w-2 h-2 rounded-full ${qaScore.status === 'PASS' ? 'bg-emerald-500' : qaScore.status === 'WARN' ? 'bg-amber-500' : 'bg-rose-500'}`} />
-            QA: {qaScore.status} {qaScore.score}/100
           </div>
 
           {isDirty && (
@@ -2035,12 +1970,12 @@ export default function SinglePromptStudio({
                   className="bg-transparent text-xs font-semibold focus:outline-none"
                   title="Industry Sector & Street-Smart Conversation Skills"
                 >
-                  <option value="auto">Auto-detect ({detectedIndustry})</option>
                   <option value="sales">Sales / Lead-gen</option>
                   <option value="support">Customer Support</option>
                   <option value="bfsi">BFSI (Banking / Loans / Insurance)</option>
                   <option value="healthcare">Healthcare</option>
                   <option value="real_estate">Real Estate</option>
+                  <option value="recruitment">Recruitment / HR</option>
                   <option value="other">Other</option>
                 </select>
               </div>
@@ -2126,17 +2061,6 @@ export default function SinglePromptStudio({
                 title="Generate production prompt from playbooks"
               >
                 <Wand2 className="w-3.5 h-3.5 text-indigo-500" /> Prompt Coach
-              </button>
-
-              {/* Review Prompt QA Button */}
-              <button
-                type="button"
-                onClick={handleReviewPrompt}
-                disabled={isReviewingPrompt}
-                className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
-                title="Review prompt completeness and compliance rules"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Review QA
               </button>
 
               {/* Prompt History Clock Button (Item 6) */}
@@ -2724,21 +2648,21 @@ export default function SinglePromptStudio({
                       onChange={(e) => setIndustry(e.target.value)}
                       className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-medium focus:outline-none"
                     >
-                      <option value="auto">Auto-detect (Recommended)</option>
                       <option value="sales">Sales / Lead-gen</option>
                       <option value="support">Customer Support</option>
                       <option value="bfsi">BFSI (Banking, Financial Services & Insurance)</option>
                       <option value="healthcare">Healthcare</option>
                       <option value="real_estate">Real Estate</option>
+                      <option value="recruitment">Recruitment / HR</option>
                       <option value="other">Other</option>
                     </select>
                   </div>
                   <div className="p-2 bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/40 rounded-md text-[11px] text-emerald-800 dark:text-emerald-300">
                     <div className="font-semibold flex items-center gap-1.5">
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                      Active Overlay: {industry === 'auto' ? `Auto-detected (${detectedIndustry.toUpperCase()})` : industry.toUpperCase()}
+                      Active Overlay: {industry.replace('_', ' ').toUpperCase()}
                     </div>
-                    {((industry === 'auto' && detectedIndustry === 'bfsi') || industry === 'bfsi') && (
+                    {industry === 'bfsi' && (
                       <div className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-1">
                         Strict BFSI compliance active: OTP protection, no guaranteed returns, debt distress escalation.
                       </div>
@@ -4492,141 +4416,6 @@ export default function SinglePromptStudio({
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Prompt QA Review Modal ── */}
-      {isReviewModalOpen && (
-        <div className="fixed inset-0 z-[10000] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden text-xs">
-            {/* Header */}
-            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/40">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                  <ShieldCheck className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Prompt QA & Architecture Audit</h3>
-                  <p className="text-[11px] text-slate-500">Real multi-dimensional scorecard inspecting sections, contradictions, and compliance.</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsReviewModalOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {isReviewingPrompt ? (
-                <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
-                  <div className="w-8 h-8 border-3 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
-                  <p className="font-semibold text-slate-600 dark:text-slate-300">Auditing prompt architecture & compliance...</p>
-                </div>
-              ) : reviewError ? (
-                <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-center space-y-2">
-                  <AlertCircle className="w-6 h-6 text-rose-500 mx-auto" />
-                  <p className="font-semibold">{reviewError}</p>
-                  <button
-                    type="button"
-                    onClick={handleReviewPrompt}
-                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-xs"
-                  >
-                    Retry Audit
-                  </button>
-                </div>
-              ) : reviewResult ? (
-                <div className="space-y-4">
-                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Overall Score</p>
-                      <div className="flex items-baseline gap-2 mt-0.5">
-                        <span className={`text-3xl font-extrabold ${reviewResult.score >= 80 ? 'text-emerald-500' : 'text-amber-500'}`}>
-                          {reviewResult.score} / 100
-                        </span>
-                        <span className="text-sm font-bold px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200">
-                          Grade {reviewResult.letterGrade}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-right text-[11px] text-slate-500">
-                      <div>Length: {reviewResult.characterCount} chars</div>
-                      <div className="text-emerald-600 font-semibold">{reviewResult.strengths?.length || 0} checks passed</div>
-                    </div>
-                  </div>
-
-                  {/* Missing Sections */}
-                  {reviewResult.missingSections?.length > 0 && (
-                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-1.5">
-                      <div className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                        <AlertCircle className="w-3.5 h-3.5" /> Missing Recommended Sections
-                      </div>
-                      <ul className="list-disc list-inside text-[11px] text-slate-600 dark:text-slate-400 space-y-0.5 pl-1">
-                        {reviewResult.missingSections.map((sec: string, idx: number) => (
-                          <li key={idx}>Missing {sec.replace('_', ' ')} directive.</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Contradictions */}
-                  {reviewResult.contradictions?.length > 0 && (
-                    <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 space-y-1.5">
-                      <div className="font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
-                        <AlertTriangle className="w-3.5 h-3.5" /> Potential Directive Contradictions
-                      </div>
-                      <ul className="list-disc list-inside text-[11px] text-slate-600 dark:text-slate-400 space-y-0.5 pl-1">
-                        {reviewResult.contradictions.map((c: string, idx: number) => (
-                          <li key={idx}>{c}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Warnings / Optimization Tips */}
-                  {reviewResult.warnings?.length > 0 && (
-                    <div className="space-y-1.5">
-                      <p className="font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider text-[10px]">Optimization Tips</p>
-                      {reviewResult.warnings.map((w: string, idx: number) => (
-                        <div key={idx} className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 text-[11px]">
-                          {w}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Strengths */}
-                  {reviewResult.strengths?.length > 0 && (
-                    <div className="space-y-1.5">
-                      <p className="font-bold text-emerald-600 uppercase tracking-wider text-[10px]">Verified Strengths</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {reviewResult.strengths.map((s: string, idx: number) => (
-                          <div key={idx} className="p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/20 text-emerald-600 text-[10px] font-medium flex items-center gap-1.5">
-                            <Check className="w-3 h-3 flex-shrink-0" />
-                            <span>{s}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : null}
-            </div>
-
-            {/* Footer */}
-            <div className="px-6 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-end">
-              <button
-                type="button"
-                onClick={() => setIsReviewModalOpen(false)}
-                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-semibold transition-colors"
-              >
-                Close Audit
-              </button>
             </div>
           </div>
         </div>

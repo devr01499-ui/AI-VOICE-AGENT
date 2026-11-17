@@ -48,7 +48,7 @@ import { KycComplianceSettings } from "./components/kyc/KycComplianceSettings";
 import { ReportsHome } from "./components/reports/ReportsHome";
 import { RealCallModal } from "./components/calls/RealCallModal";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
-import { formatDateTime, formatDate, formatTime, normalizeTimezone } from "./lib/dateFormat";
+import { formatDateTime, formatDate, formatTime, formatRelativeTime, normalizeTimezone } from "./lib/dateFormat";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import BrandSplash from "./components/common/BrandSplash";
 import { resolveRoute, pathForPage, type Page } from "./lib/routes";
@@ -2527,8 +2527,8 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
 
   if (view === "create") {
     return (
-      <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-6xl mx-auto h-[90vh] flex flex-col p-6 shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
+      <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-6 overflow-hidden">
+        <div data-testid="create-agent-dialog" className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-[1760px] mx-auto h-[92vh] flex flex-col p-4 sm:p-6 shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Create agent</h3>
@@ -2628,7 +2628,9 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
 
           {/* Template Cards Grid + Desktop Preview Panel */}
           <div className="flex gap-4 flex-1 overflow-hidden min-h-0 pt-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto flex-1 p-1 content-start">
+            {/* Columns are sized by the space actually available (not the screen), so a card is never
+                narrower than 240px even when the preview panel is open; rows grow to fit their text. */}
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,240px),1fr))] auto-rows-max gap-4 overflow-y-auto flex-1 min-w-0 p-1 content-start">
               <button
                 onClick={() => {
                   if (createType === 'conversational') {
@@ -2637,7 +2639,8 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
                     setSinglePromptStudioAgent({ name: form.name || 'Single-Prompt Agent' });
                   }
                 }}
-                className="p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 text-left transition-all bg-slate-50/50 dark:bg-slate-800/30 flex flex-col justify-between min-h-[120px] shadow-sm hover:shadow-md"
+                data-testid="template-card"
+                className="p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 text-left transition-all bg-slate-50/50 dark:bg-slate-800/30 flex flex-col justify-between min-h-[120px] min-w-0 h-full overflow-hidden shadow-sm hover:shadow-md"
               >
                 <div className="w-8 h-8 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-200 font-bold text-sm mb-3">+</div>
                 <div>
@@ -2655,7 +2658,8 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
                     setSinglePromptStudioAgent({ name: 'Generated Sales Agent', systemPrompt: generatedPrompt });
                   }
                 }}
-                className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-indigo-500 text-left transition-all bg-white dark:bg-slate-900 flex flex-col justify-between min-h-[120px] shadow-sm hover:shadow-md"
+                data-testid="template-card"
+                className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-indigo-500 text-left transition-all bg-white dark:bg-slate-900 flex flex-col justify-between min-h-[120px] min-w-0 h-full overflow-hidden shadow-sm hover:shadow-md"
               >
                 <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 w-fit mb-3">
                   <Sparkles className="w-5 h-5" />
@@ -2671,6 +2675,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
                 return (
                   <button
                     key={tpl.id}
+                    data-testid="template-card"
                     onClick={() => {
                       setSelectedTemplate(tpl);
                       if (typeof window !== 'undefined' && window.innerWidth < 1024) {
@@ -2678,25 +2683,25 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
                       }
                     }}
                     onMouseEnter={() => setSelectedTemplate(tpl)}
-                    className={`p-4 rounded-xl border text-left transition-all bg-white dark:bg-slate-900 flex flex-col justify-between min-h-[120px] shadow-sm hover:shadow-md group ${
+                    className={`p-4 rounded-xl border text-left transition-all bg-white dark:bg-slate-900 flex flex-col gap-3 min-h-[120px] min-w-0 h-full overflow-hidden shadow-sm hover:shadow-md group ${
                       isSelected
                         ? 'border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-50/10 dark:bg-indigo-950/20'
                         : 'border-slate-200 dark:border-slate-800 hover:border-indigo-500'
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-2 mb-3">
-                      <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                    <div className="flex items-center justify-between gap-2 w-full min-w-0">
+                      <span className={`px-2 py-0.5 rounded text-[11px] font-bold shrink-0 ${
                         tpl.type === 'conversational' ? 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300' : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
                       }`}>
                         {tpl.type === 'conversational' ? 'Flow' : 'Prompt'}
                       </span>
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider truncate max-w-[120px]" title={tpl.category}>
+                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider truncate min-w-0 text-right" title={tpl.category}>
                         {tpl.category}
                       </span>
                     </div>
-                    <div>
-                      <p className="font-bold text-sm text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{tpl.name}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed line-clamp-3">{tpl.description}</p>
+                    <div className="w-full min-w-0">
+                      <p data-testid="template-name" className="font-bold text-sm text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors break-words line-clamp-2" title={tpl.name}>{tpl.name}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed break-words line-clamp-3" title={tpl.description}>{tpl.description}</p>
                     </div>
                   </button>
                 );
@@ -2711,9 +2716,9 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
 
             {/* Desktop Preview Panel */}
             {selectedTemplate && (
-              <div className="hidden lg:flex w-80 shrink-0 flex-col border-l border-slate-200 dark:border-slate-700 p-4 overflow-y-auto">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">{selectedTemplate.name}</h3>
+              <div className="hidden lg:flex w-[clamp(320px,30%,520px)] shrink-0 flex-col border-l border-slate-200 dark:border-slate-700 p-4 overflow-y-auto min-w-0">
+                <div className="flex items-start justify-between gap-2 mb-2 min-w-0">
+                  <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 break-words min-w-0">{selectedTemplate.name}</h3>
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${
                     selectedTemplate.type === 'conversational'
                       ? 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300'
@@ -2723,7 +2728,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">{selectedTemplate.description}</p>
-                <pre className="text-xs bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 p-3 rounded-lg border border-slate-200 dark:border-slate-700 overflow-auto flex-1 whitespace-pre-wrap font-mono">
+                <pre className="text-xs bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 p-3 rounded-lg border border-slate-200 dark:border-slate-700 overflow-auto flex-1 min-h-[160px] whitespace-pre-wrap break-words font-mono">
                   {selectedTemplate.systemPrompt || selectedTemplate.prompt || ''}
                 </pre>
                 <button
@@ -6608,22 +6613,47 @@ interface NotificationItem {
   isRead: boolean;
   metadata?: Record<string, any>;
   createdAt: string;
+  isAnnouncement?: boolean;
 }
 
 function NotificationBellDropdown({ onNavigate }: { onNavigate: (section: string) => void }) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  // Actions still waiting for the server. While any is pending, background refreshes are
+  // skipped so a slow poll cannot bring back an item the user just deleted.
+  const pendingActions = useRef(0);
 
   const fetchNotifs = useCallback(() => {
+    if (pendingActions.current > 0) return;
     apiClient.get('/api/v2/user/notifications')
       .then(res => {
-        if (res.data?.data && Array.isArray(res.data.data)) {
+        if (pendingActions.current === 0 && res.data?.data && Array.isArray(res.data.data)) {
           setNotifications(res.data.data);
         }
       })
       .catch(() => {});
   }, []);
+
+  /**
+   * Applies a change to the list immediately, then confirms it with the server. If the server
+   * refuses, the list goes back to exactly how it was and a short message explains why.
+   */
+  const runOptimistic = async (change: (list: NotificationItem[]) => NotificationItem[], request: () => Promise<unknown>, failure: string) => {
+    let snapshot: NotificationItem[] = [];
+    setNotifications(prev => { snapshot = prev; return change(prev); });
+    setActionError(null);
+    pendingActions.current += 1;
+    try {
+      await request();
+    } catch {
+      setNotifications(snapshot);
+      setActionError(failure);
+    } finally {
+      pendingActions.current -= 1;
+    }
+  };
 
   useEffect(() => {
     fetchNotifs();
@@ -6645,27 +6675,35 @@ function NotificationBellDropdown({ onNavigate }: { onNavigate: (section: string
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
-  const handleMarkAsRead = async (id: string, e?: React.MouseEvent) => {
+  const handleMarkAsRead = (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    try {
-      await apiClient.post(`/api/v2/user/notifications/${id}/read`);
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-    } catch {}
+    return runOptimistic(
+      list => list.map(n => n.id === id ? { ...n, isRead: true } : n),
+      () => apiClient.post(`/api/v2/user/notifications/${encodeURIComponent(id)}/read`),
+      'Could not mark that notification as read. Please try again.'
+    );
   };
 
-  const handleMarkAllRead = async () => {
-    try {
-      await apiClient.post('/api/v2/user/notifications/mark-all-read');
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-    } catch {}
+  const handleDelete = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    return runOptimistic(
+      list => list.filter(n => n.id !== id),
+      () => apiClient.delete(`/api/v2/user/notifications/${encodeURIComponent(id)}`),
+      'Could not delete that notification. Please try again.'
+    );
   };
 
-  const handleClearAll = async () => {
-    try {
-      await apiClient.delete('/api/v2/user/notifications/clear-all');
-      setNotifications(prev => prev.filter(n => !n.isRead));
-    } catch {}
-  };
+  const handleMarkAllRead = () => runOptimistic(
+    list => list.map(n => ({ ...n, isRead: true })),
+    () => apiClient.post('/api/v2/user/notifications/mark-all-read'),
+    'Could not mark all notifications as read. Please try again.'
+  );
+
+  const handleClearAll = () => runOptimistic(
+    list => list.filter(n => !n.isRead),
+    () => apiClient.delete('/api/v2/user/notifications/clear-all'),
+    'Could not clear read notifications. Please try again.'
+  );
 
   const handleNotificationClick = (item: NotificationItem) => {
     if (!item.isRead) {
@@ -6711,17 +6749,19 @@ function NotificationBellDropdown({ onNavigate }: { onNavigate: (section: string
         onClick={() => setIsOpen(!isOpen)}
         className="relative nm-icon-btn p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
         title="Notifications"
+        aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+        data-testid="notification-bell"
       >
         <Bell className="w-4 h-4 text-[var(--nm-text)]" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 px-1.5 py-0.2 min-w-[18px] h-[18px] bg-rose-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center animate-in zoom-in-75">
+          <span data-testid="notification-badge" className="absolute -top-1 -right-1 px-1.5 py-0.2 min-w-[18px] h-[18px] bg-rose-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center animate-in zoom-in-75">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-11 w-80 sm:w-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-50 overflow-hidden text-xs">
+        <div data-testid="notification-panel" className="fixed left-3 right-3 top-[4.5rem] sm:absolute sm:left-auto sm:right-0 sm:top-11 sm:w-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-50 overflow-hidden text-xs">
           <div className="p-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/40">
             <div className="flex items-center gap-2">
               <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">Notifications</span>
@@ -6751,6 +6791,12 @@ function NotificationBellDropdown({ onNavigate }: { onNavigate: (section: string
             </div>
           </div>
 
+          {actionError && (
+            <div role="alert" className="px-3.5 py-2 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 text-[11px] font-medium border-b border-rose-100 dark:border-rose-900/40">
+              {actionError}
+            </div>
+          )}
+
           <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
             {notifications.length === 0 ? (
               <div className="p-8 text-center text-slate-400 space-y-1">
@@ -6762,6 +6808,7 @@ function NotificationBellDropdown({ onNavigate }: { onNavigate: (section: string
               notifications.map((item) => (
                 <div
                   key={item.id}
+                  data-testid="notification-item"
                   onClick={() => handleNotificationClick(item)}
                   className={`p-3.5 flex items-start gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors ${
                     !item.isRead ? 'bg-indigo-50/20 dark:bg-indigo-950/20' : ''
@@ -6782,16 +6829,30 @@ function NotificationBellDropdown({ onNavigate }: { onNavigate: (section: string
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug line-clamp-2">
                       {item.message}
                     </p>
-                    <div className="flex items-center justify-between mt-1 text-[10px] text-slate-400 font-mono">
-                      <span>{new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                      {!item.isRead && (
+                    <div className="flex items-center justify-between gap-2 mt-1 text-[10px] text-slate-400 font-mono">
+                      <span title={formatDateTime(item.createdAt, { showZone: true })}>
+                        {item.isAnnouncement ? 'Announcement · ' : ''}{formatRelativeTime(item.createdAt)}
+                      </span>
+                      <span className="flex items-center gap-3 font-sans">
+                        {!item.isRead && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleMarkAsRead(item.id, e)}
+                            className="text-indigo-600 dark:text-indigo-400 hover:underline"
+                          >
+                            Mark read
+                          </button>
+                        )}
                         <button
-                          onClick={(e) => handleMarkAsRead(item.id, e)}
-                          className="text-indigo-600 dark:text-indigo-400 hover:underline font-sans"
+                          type="button"
+                          onClick={(e) => handleDelete(item.id, e)}
+                          className="flex items-center gap-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400"
+                          aria-label={`Delete notification: ${item.title}`}
+                          title="Delete"
                         >
-                          Mark read
+                          <Trash2 className="w-3.5 h-3.5" /> Delete
                         </button>
-                      )}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -6909,7 +6970,8 @@ function DashboardPage({ session }: { session: Session }) {
     };
   }, []);
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Open by default on desktop; closed on phones, where the menu is a drawer that would cover the page.
+  const [sidebarOpen, setSidebarOpen] = useState(() => (typeof window === "undefined" ? true : window.innerWidth >= 768));
   const [studioAgent, setStudioAgent] = useState<{ id?: string; name: string; systemPrompt?: string; flowGraph?: any } | null>(null);
   const [singlePromptStudioAgent, setSinglePromptStudioAgent] = useState<ApiAgent | any | null>(null);
   const [profile, setProfile] = useState<ApiProfile | null>(() => {
@@ -7182,8 +7244,17 @@ function DashboardPage({ session }: { session: Session }) {
       >
         <div className="h-16 flex items-center px-4 justify-between flex-shrink-0">
           <div className={`flex items-center gap-2 min-w-0 ${!sidebarOpen ? "md:hidden" : ""}`}>
-            <div className="w-6 h-6 rounded bg-indigo-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0">R</div>
-            <span className="text-xs font-bold text-[var(--nm-text)] truncate">Rohit's Workspace</span>
+            {(() => {
+              // Each customer sees their own name here (it used to be a fixed name for everyone).
+              const ownerName = (profile?.fullName || session?.user?.user_metadata?.full_name || session?.user?.email?.split("@")[0] || "").trim();
+              const firstName = ownerName.split(/\s+/)[0] || "";
+              return (
+                <>
+                  <div className="w-6 h-6 rounded bg-indigo-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0">{(firstName[0] || "W").toUpperCase()}</div>
+                  <span data-testid="workspace-name" className="text-xs font-bold text-[var(--nm-text)] truncate" title={ownerName ? `${ownerName}'s Workspace` : "Workspace"}>{firstName ? `${firstName}'s Workspace` : "Workspace"}</span>
+                </>
+              );
+            })()}
           </div>
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -7237,9 +7308,11 @@ function DashboardPage({ session }: { session: Session }) {
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-0">
-        <div className="nm-raised px-4 md:px-8 h-16 flex items-center justify-between flex-shrink-0 m-2 md:m-4 rounded-2xl gap-3">
+      {/* Main Content Area. No z-index here on purpose: a z-index would trap every pop-up opened
+          from a dashboard page underneath the sidebar (which is what hid the left edge of them). */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        {/* relative z-30: the header (and the notification panel inside it) must sit above page content. */}
+        <div className="nm-raised relative z-30 px-4 md:px-8 h-16 flex items-center justify-between flex-shrink-0 m-2 md:m-4 rounded-2xl gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setSidebarOpen(true)}

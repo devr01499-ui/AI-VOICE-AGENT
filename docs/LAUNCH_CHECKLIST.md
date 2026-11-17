@@ -5,14 +5,14 @@ Source: CLAUDE.md §6 (17 issues) + §7, §8, §9, §10. An item is ticked **onl
 Launch gate (Phase 14): every item below is either DONE with proof or listed in PROGRESS.md under "Needs owner verification" with exact steps. Nothing may stay unchecked.
 
 ## Frontend
-- [ ] **F1** No flash of another page on first load (Playwright filmstrip on `/`, `/pricing`, `/login`, `/dashboard`) — Phase 1 — Proof:
-- [ ] **F2** Auth: login, sign-up, Google, forgot password, phone/email validation, E2E per path — Phase 1 — Proof:
+- [x] **F1** No flash of another page on first load — Phase 1 — Proof: FIX_LOG F1; `Frontend/scripts/verify-first-paint.js` (build gate); docs/proof/F1/. Logged-in check: PROGRESS owner step 4
+- [x] **F2** Auth — Phase 1 — Proof: FIX_LOG F2; `npm run test:signup` 11/11; `Frontend/e2e/auth-flows.spec.ts` 12/12; docs/proof/F2/. Live email/Google: PROGRESS owner steps 5–8
 
 ## Backend / Dashboard
-- [ ] **B1** Templates modal + Create Agent layout (no overflow, full width, responsive) — Phase 2 — Proof:
-- [ ] **B2** Notification bell: mark read, delete, mark-all-read, badge, tenant-safe endpoints — Phase 2 — Proof:
+- [x] **B1** Templates + Create Agent layout — Phase 2 — Proof: FIX_LOG B1; `Frontend/e2e/agent-templates-layout.spec.ts` 10/10 (390–1920 px); docs/proof/B1/
+- [x] **B2** Notification bell — Phase 2 — Proof: FIX_LOG B2; `npm run test:notifications` 16/16; `Frontend/e2e/notification-bell.spec.ts` 9/9; docs/proof/B2/. Live deploy + email/mute: PROGRESS owner steps 9–10
 - [ ] **B3** Prompt Coach: server-side LLM enhancement, limits, injection-safe — Phase 3 — Proof:
-- [ ] **B4** "Review QA" and "Auto-detect" removed from UI + dead backend — Phase 2 — Proof:
+- [x] **B4** Review QA + Auto-detect removed — Phase 2 — Proof: FIX_LOG B4; `npm run test:agent-rules` 7/7; `Frontend/e2e/agent-editor-removed-features.spec.ts` 3/3; docs/BACKEND_UNUSED_REPORT.md
 - [ ] **B5** Test Lab works end to end, tenant-isolated — Phase 3 — Proof:
 - [ ] **B6** Prompt-based agent editor: every section saves, persists, and is honoured at runtime — Phase 4 — Proof:
 - [ ] **B7** Conversational-format builder: full multi-node flow works — Phase 4 — Proof:

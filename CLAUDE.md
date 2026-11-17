@@ -13,7 +13,7 @@ The prior PM/dev ("Antigravity") left defects. Your job is to fix them **permane
 3. **Evidence over assertion.** "Fixed" means you ran it and saw it work (test output, curl response, browser screenshot via Playwright). Say plainly what you could NOT verify (e.g. live carrier calls) instead of claiming success.
 4. **No destructive actions without a safety net.** No `rm -rf`, `git reset --hard`, `git push --force`, `prisma migrate reset`, `DROP`/`TRUNCATE`, or `prisma db push --accept-data-loss`. Deleting code = see §9. Production data is never touched by you.
 5. **Never commit secrets**, `.env`, API keys, or customer data. If you find a committed secret, report it and tell the owner to rotate it; do not paste it into output.
-6. **Never push to `main`.** Open PRs from branches. The stray untracked nested `repo/` folder (old local clone only) must not be committed or modified.
+6. **Shipping to `main` (owner standing instruction, 2026-11-17 — replaces the old "never push to main / PRs only" rule):** always merge the latest verified work into `main` and push it directly, without asking. Pushing `main` auto-deploys to production (Render + Vercel), so push only after that change's typecheck, build and test suites pass on a clean run — never push a red build. Work on a branch per phase, merge with `--no-ff` into `main`, push, and record the merge in `docs/PROGRESS.md`. Never force-push and never rewrite `main` history. The stray untracked nested `repo/` folder (old local clone only) must not be committed or modified.
 7. Never implement anything illegal (call recording without consent notices, TRAI/DND violations, fake KYC, unlicensed number resale). When in doubt about law, implement the conservative option and flag it in `docs/COMPLIANCE_NOTES.md`.
 8. If a requirement conflicts with this file or GOVERNANCE_RULES.md, **stop and ask** — do not silently choose.
 
@@ -156,11 +156,13 @@ End-call/hangup architecture (single `hangupCarrierLeg`, farewell watchdog ancho
 At the end of each issue: 3-line summary (what was wrong, what changed, how proven). At the end of everything: honest **Verified / Not verifiable here** table (e.g. real carrier calls, real Razorpay live payments, production load), plus remaining risks. If blocked or unsure, ask Rohit instead of guessing.
 
 ---------------------------------------------------------------------
-## 12a. CONTINUOUS MODE (owner instruction 2026-11-16 — overrides "one phase per session" in §13/§14)
+## 12a. CONTINUOUS MODE (owner instruction 2026-11-16, confirmed 2026-11-17 — overrides "one phase per session" and "STOP" rules in §13/§14)
 The owner wants the product taken to launch-ready without stopping between phases.
-- Work through phases 1 → 14 in order, back to back. Do not wait for `/clear` or a new prompt between phases; the phase prompts in `docs/PHASED_PROMPTS.md` are the scope for each phase.
+- Work through phases 1 → 14 in order, back to back. **Do not ask the owner whether to start the next phase, and do not stop at phase ends.** Do not wait for `/clear` or a new prompt between phases; the phase prompts in `docs/PHASED_PROMPTS.md` are the scope for each phase. Report to the owner once, when all phases are done (plus anything that genuinely needs the owner, e.g. key rotation or dashboard settings — list those in PROGRESS.md "Needs owner verification" and keep working).
+- At the end of every phase: run the full regression, merge the phase branch into `main` and push (§0.6), update PROGRESS.md, then start the next phase immediately.
+- Quality bar from the owner: enterprise grade, zero known defects, nothing destroyed. Never claim a fix without proof; never leave a known error unlisted; never delete or rewrite working features without the safety steps in §0, §5 and §9.
 - Everything else stays binding: one issue at a time, root cause written down, failing-before/passing-after test, proof before "fixed", commit per fix, no destructive actions, production database untouchable, no secrets in docs/logs/chat.
-- Each phase lives on its own branch (names in `docs/PHASED_PROMPTS.md`) and is pushed. Merging to `main` deploys to production (Render + Vercel), so merge only when that phase's typecheck, build and tests pass, and only as the owner has instructed.
+- Each phase lives on its own branch (names in `docs/PHASED_PROMPTS.md`), is pushed, and is merged to `main` and pushed as soon as its typecheck, build and tests pass (standing owner instruction, §0.6).
 - `docs/PROGRESS.md` is still the memory: update it at the end of every issue (status, proof, next exact step) so work survives context compaction. Re-read PROGRESS.md and CODEMAP.md after any compaction instead of trusting recall.
 - A phase is DONE only with proof. What cannot be verified here goes under "Needs owner verification" in PROGRESS.md with exact steps — never skipped silently, never reported as fixed.
 - Beyond the listed issues: when the code shows other defects, security gaps or weak architecture, log them in PROGRESS.md and fix them in the phase that owns that area (security in Phase 12, dead files in Phase 13).
@@ -170,10 +172,10 @@ The owner wants the product taken to launch-ready without stopping between phase
 ## 13. PHASED WORKFLOW (binding)
 Work is delivered in 15 phases (0–14), **one phase per session**, in order:
 0 Setup/code map · 1 Frontend flash + auth · 2 Dashboard UI (templates, bell, remove Review QA/Auto-detect) · 3 Prompt Coach + Test Lab · 4 Agent editor + conversational format · 5 Knowledge base/RAG · 6 Billing (critical) · 7 Numbers/KYC/sub-accounts · 8 Batch calling · 9 Calling-config speed + data pages · 10 Recording · 11 Latency/voice · 12 Security/traffic · 13 Dead code · 14 CI/E2E/final.
-Only work on the phase you were given. Never start the next phase in the same session. Phase state lives in `docs/PROGRESS.md`.
+Phases run in order and back to back (§12a supersedes the old "one phase per session" rule). Phase state lives in `docs/PROGRESS.md`.
 
-## 14. TOKEN RULES (binding)
-- One phase per session. Never start the next phase in the same session.
+## 14. TOKEN RULES (binding, except where §12a overrides)
+- Phases run back to back (§12a); keep PROGRESS.md current so work survives context compaction.
 - Memory = `docs/PROGRESS.md` (max 60 lines) + `docs/CODEMAP.md`. Read these first; do NOT re-read this whole file, GOVERNANCE_RULES.md or old chat; do not re-explore what CODEMAP already maps.
 - Never read a whole large file. Use `grep -n`, then Read with offset/limit (40–120 line window). `App.tsx` (~8,300 lines) must never be read whole.
 - Broad searches go to an Explore subagent that returns a short conclusion, not file dumps.
@@ -182,6 +184,6 @@ Only work on the phase you were given. Never start the next phase in the same se
 - Don't re-read a file you just edited; don't paste file contents or diffs back into chat.
 - Playwright: only the screenshots needed for proof; don't view them repeatedly.
 - Keep replies short: 3 lines per fix (wrong / changed / proved).
-- At ~60% context: update PROGRESS.md (done, in-progress, next exact step, files touched), commit, and STOP so the owner can resume in a fresh session.
-- At phase end: update PROGRESS.md and FIX_LOG.md, commit, then say "PHASE N DONE – /clear and paste next phase".
+- Keep PROGRESS.md (done, in-progress, next exact step, files touched) current at all times and commit it, so context compaction never loses work. Do not stop for context; continue.
+- At phase end: update PROGRESS.md and FIX_LOG.md, commit, merge to `main`, push, and continue with the next phase (§12a).
 - Learned something durable (command, gotcha)? Add one line to PROGRESS.md "Decisions" — that is how future sessions remember, not chat.
