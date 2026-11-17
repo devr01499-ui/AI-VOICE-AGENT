@@ -573,8 +573,23 @@ export interface KBTestQueryChunk {
   section: string;
   page?: number;
   score: number;
+  /** 0..1 meaning-match strength (only for chunks found by meaning). */
+  similarity?: number;
   matchType: string;
+  /** False for near-misses that live calls do not use. */
+  usedOnCalls?: boolean;
   content: string;
+}
+
+export interface KBLimitsInfo {
+  limits: { maxDocuments: number; maxStorageMb: number; maxFileSizeMb: number; maxChunksPerWorkspace: number; maxKbAttachedPerAgent: number };
+  usage: { documents: number; storageMb: number; chunks: number };
+  supportedFileTypes: string[];
+}
+
+/** GET /api/v2/knowledge-base/limits — plan limits (effective) and usage. */
+export async function fetchKBLimits(): Promise<KBLimitsInfo> {
+  return apiFetch<KBLimitsInfo>('/api/v2/knowledge-base/limits');
 }
 
 export interface KBTestQueryResult {
@@ -585,6 +600,9 @@ export interface KBTestQueryResult {
   embeddingMs: number;
   dbQueryMs: number;
   chunks: KBTestQueryChunk[];
+  /** Best chunks the relevance gate keeps away from calls (too weak a match). */
+  nearMisses?: KBTestQueryChunk[];
+  message?: string;
 }
 
 export async function fetchKBList(): Promise<ApiKnowledgeBase[]> {
