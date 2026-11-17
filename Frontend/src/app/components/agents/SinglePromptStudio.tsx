@@ -479,9 +479,20 @@ export default function SinglePromptStudio({
       setFnFormError('Function name is required.');
       return;
     }
-    const cleanedName = fnName.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    const cleanedName = fnName.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/^[^a-z_]+/, '').slice(0, 64);
     if (!cleanedName) {
       setFnFormError('Valid function name (alphanumeric & underscore) is required.');
+      return;
+    }
+    // Same rules as the server (runtime/agentTools.ts): a function may not reuse a built-in tool
+    // name, and names must be unique, otherwise it would be skipped on live calls.
+    const BUILT_IN_TOOL_NAMES = ['hang_up', 'end_call', 'transfer_call', 'send_sms', 'book_follow_up_call', 'get_available_slots', 'book_appointment', 'reschedule_appointment', 'cancel_appointment', 'check_availability', 'check_calendar_availability', 'schedule_event', 'lookup_knowledge_base', 'query_knowledge_base', 'search_knowledge_base', 'press_digit', 'agent_transfer', 'execute_inline_code'];
+    if (fnType === 'custom_api' && (BUILT_IN_TOOL_NAMES.includes(cleanedName) || cleanedName.startsWith('code_'))) {
+      setFnFormError(`"${cleanedName}" is a built-in tool name. Choose a different name.`);
+      return;
+    }
+    if (functions.some((f) => f.name === cleanedName && f.id !== editingFunction?.id)) {
+      setFnFormError(`A function named "${cleanedName}" already exists.`);
       return;
     }
     if (!fnDesc.trim()) {
@@ -494,6 +505,19 @@ export default function SinglePromptStudio({
       if (!fnUrl.trim()) {
         setFnFormError('URL is required for Custom API functions.');
         return;
+      }
+      if (!/^https?:\/\/[^\s]+$/i.test(fnUrl.trim())) {
+        setFnFormError('The URL must start with https:// (or http://).');
+        return;
+      }
+      if (fnHeaders.trim()) {
+        try {
+          const h = JSON.parse(fnHeaders);
+          if (!h || typeof h !== 'object' || Array.isArray(h)) throw new Error('not an object');
+        } catch {
+          setFnFormError('Headers must be a JSON object, for example {"Authorization": "Bearer ..."}.');
+          return;
+        }
       }
       try {
         parsedParameters = JSON.parse(fnParamsJson);

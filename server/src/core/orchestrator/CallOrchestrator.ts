@@ -9,6 +9,8 @@ import { ProviderManager } from '../../providers/ProviderManager';
 import { AgentRepository } from '../../repositories/AgentRepository';
 import { CallRepository } from '../../repositories/CallRepository';
 import { ToolExecutor } from '../../runtime/ToolExecutor';
+import { buildAgentTools, toModelDeclaration } from '../../runtime/agentTools';
+import type { ToolDefinition } from '../../types';
 import { CallStatus, AgentConfig } from '../../types';
 import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
@@ -43,16 +45,8 @@ export function extractToolsFromFlowGraph(flowGraphInput: string | object | null
     const data = node.data || {};
 
     if (type === 'function' || type === 'callTool') {
-      const toolName = (data.toolName || data.label || 'custom_tool').toLowerCase().replace(/[^a-z0-9_]/g, '_');
-      if (!registeredNames.has(toolName)) {
-        registeredNames.add(toolName);
-        tools.push({
-          type: 'function',
-          name: toolName,
-          description: data.instructions || data.prompt || `Dynamic flow tool: ${data.label || toolName}`,
-          parameters: data.parameters || { type: 'OBJECT', properties: {} },
-        });
-      }
+      // Executable flow tools (with their URL) are built by buildAgentTools in runtime/agentTools.
+      continue;
     } else if (type === 'checkCalendar') {
       if (!registeredNames.has('check_calendar_availability')) {
         registeredNames.add('check_calendar_availability');
@@ -163,7 +157,6 @@ export class CallOrchestrator extends EventEmitter {
   private readonly activeCalls = new Map<string, CallSession>();
   private readonly prewarmedSessions = new Map<string, PrewarmedSession>();
   private readonly stateMachines = new Map<string, CallStateMachine>();
-  private readonly toolExecutor = new ToolExecutor();
 
   private constructor() {
     super();
@@ -351,6 +344,7 @@ export class CallOrchestrator extends EventEmitter {
 
     let agentConfig: AgentConfig;
     let activeAgent: any = null;
+    let executableTools: ToolDefinition[] = [];
     try {
       const agent = await AgentRepository.findById(agentId);
       if (!agent) {
@@ -389,21 +383,17 @@ export class CallOrchestrator extends EventEmitter {
       const isRecordingEnabled = rawConfig.isRecordingEnabled ?? rawConfig.settings?.isRecordingEnabled ?? false;
       const isTranscriptionEnabled = rawConfig.isTranscriptionEnabled ?? rawConfig.settings?.isTranscriptionEnabled ?? false;
 
-      let compiledFunctionsTools: any[] = [];
-      if (Array.isArray(rawConfig.functions)) {
-        compiledFunctionsTools = rawConfig.functions.map((fn: any) => ({
-          type: 'function',
-          name: fn.name,
-          description: fn.description || '',
-          parameters: fn.parameters || { type: 'OBJECT', properties: {} },
-        }));
-      }
-
+      // Custom API functions (editor) and flow "function" nodes become EXECUTABLE http tools; the
+      // flow's built-in nodes (calendar, end call, ...) stay declarations handled below by name.
+      executableTools = buildAgentTools(rawConfig.functions, agent.flowGraph, { callId });
       const flowGraphTools = extractToolsFromFlowGraph(agent.flowGraph);
-      const combinedTools = [
-        ...compiledFunctionsTools,
-        ...flowGraphTools,
-      ];
+      const combinedTools: any[] = [];
+      const declaredNames = new Set<string>();
+      for (const t of [...executableTools.map(toModelDeclaration), ...flowGraphTools]) {
+        if (!t?.name || declaredNames.has(t.name)) continue;
+        declaredNames.add(t.name);
+        combinedTools.push(t);
+      }
 
       agentConfig = {
         prompt: buildFinalSystemInstruction(agent, { callId }),
@@ -422,28 +412,15 @@ export class CallOrchestrator extends EventEmitter {
       };
 
     } catch (err) {
-      logger.error('CRITICAL: Forensic audit lookup failed. Injecting default fallback config.', {
+      // The call must run as ITS agent and ITS account, or not at all. (It used to fall back to a
+      // hard-coded user id and prompt, which charged and booked on the wrong account.) The caller
+      // of startVoiceSession hangs up the carrier leg when this throws.
+      logger.error('CallOrchestrator: agent could not be loaded; refusing to start the call', {
+        callId,
+        agentId,
         error: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack : undefined
       });
-
-      activeAgent = {
-        systemPrompt: "You are Claritiy AI, a highly professional, senior executive talent acquisition manager for Claritiy. Your sole mission is to execute a brief, high-signal preliminary phone screening with the candidate on the line. - Personality: Articulate, warm, objective, professional, and conversational. - Constraints: Keep your utterances concise and tightly focused. Never output multi-paragraph answers or text formatting characters. Do not use markdown blocks. Speak naturally, allowing comfortable pauses, and avoid talking over the candidate. - Flow: First, greet them and confirm you are speaking with the applicant. Second, ask them to briefly detail their hands-on engineering experiences deploying large language models or low-latency system components. Third, inquire about their expected salary bounds. Finally, thank them for their time and state that our executive operations board will follow up with next steps.",
-        voiceName: 'Puck',
-        model: 'models/gemini-2.5-flash-native-audio-latest',
-        userId: '1e69187e-82d5-4166-929f-4bbba90e5304',
-      };
-
-      agentConfig = {
-        prompt: buildFinalSystemInstruction(activeAgent, { callId }),
-        voice: activeAgent.voiceName,
-        llm: {
-          provider: 'gemini',
-          model: activeAgent.model,
-          temperature: 0.7,
-        },
-        tools: [],
-      };
+      throw err instanceof Error ? err : new Error(String(err));
     }
 
     logger.info('CallOrchestrator: agent config validated', { 
@@ -582,10 +559,8 @@ export class CallOrchestrator extends EventEmitter {
       agentConfig.prompt = `${agentConfig.prompt}\n\n[KNOWLEDGE BASE GUIDANCE] You have access to the tool 'lookup_knowledge_base'. When a caller asks specific questions about company policies, products, pricing, or procedures covered in your documentation, call 'lookup_knowledge_base' to retrieve the verified facts before answering.`;
     }
 
-    if (agentConfig.tools && agentConfig.tools.length > 0) {
-      this.toolExecutor.clearRegistry();
-      this.toolExecutor.registerTools(agentConfig.tools);
-    }
+    const callToolExecutor = new ToolExecutor();
+    callToolExecutor.registerTools(executableTools);
 
     const existingCall = await CallRepository.findById(callId).catch(() => null);
     const stateMachine = this.stateMachines.get(callId) || new CallStateMachine(callId, (existingCall?.status as CallStatus) || 'queued');
@@ -780,7 +755,7 @@ export class CallOrchestrator extends EventEmitter {
             logger.warn('Flow Engine: trigger custom code tool call via Pipecat - capability unavailable', { callId, name, args });
             return JSON.stringify({ success: false, error: 'Inline code execution capability is currently unavailable on this system.' });
           }
-          const result = await this.toolExecutor.executeTool(name, parsedArgs);
+          const result = await callToolExecutor.executeTool(name, parsedArgs);
           return JSON.stringify(result);
         } catch (err) {
           logger.error('CallOrchestrator: tool execution error in Pipecat handler', { toolCallId, name, err });

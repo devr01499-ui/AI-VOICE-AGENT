@@ -131,3 +131,15 @@ One entry per fix, newest at the bottom. Template:
 - Files: server/src/routes/calendar.ts, server/src/core/orchestrator/CalendarService.ts, server/scripts/test_calendar_bookings.js (new), server/package.json, Frontend/src/app/components/calendar/CalendarOverview.tsx.
 - Tests: `npm run test:calendar-bookings` (7, in test:security) on the local test DB with the production handlers: envelope, tenant isolation of list and cancel, successful cancel, Google-failure keeps booking, validation, limiter + login present. Against the previous code 6 of 7 FAIL; now 7/7.
 - Not verified here: a real Google Calendar delete/reschedule (needs a connected Google account).
+
+## A2–A5 — Agent Functions never ran on live calls; tools shared across calls; hard-coded fallback account (Phase 4)
+- Root causes (from docs/AGENT_EDITOR_AUDIT.md, confirmed in code):
+  - A5: saved "Custom API" functions (and flow function nodes) were declared to the AI model without URL or execution type, so every invocation failed with "Unsupported execution type".
+  - A2: `CallOrchestrator` kept ONE `ToolExecutor` for all calls and cleared/refilled it per call, so concurrent calls overwrote each other's tools.
+  - A4: a duplicate or built-in tool name threw and aborted the whole call start.
+  - A3: if the agent could not be loaded, the call ran as a hard-coded user id with a recruiter prompt (billing and calendar actions on the wrong account).
+  - HTTP tools had no timeout, followed redirects (SSRF bypass) and sent a body on GET (which fetch rejects); non-JSON replies threw.
+- Fix: new `runtime/agentTools.ts` builds executable http tools (URL, method, safe headers, parameter schema) from editor functions and flow nodes, skipping built-in/invalid/duplicate names with a log line; platform types (end call, calendar, transfer, SMS) are not declared twice. One `ToolExecutor` per call. `ToolExecutor`: 10 s timeout, `redirect: 'error'`, GET/DELETE params in the query string, custom headers, non-JSON replies returned as text, duplicate names skipped. A call with no loadable agent is refused (the carrier leg is hung up by the existing failure path). Editor validates function names (built-in names, duplicates), URL format and header JSON.
+- Files: server/src/runtime/agentTools.ts (new), server/src/runtime/ToolExecutor.ts, server/src/core/orchestrator/CallOrchestrator.ts, server/scripts/test_agent_tools.js (new), server/package.json, Frontend/src/app/components/agents/SinglePromptStudio.tsx.
+- Tests: `npm run test:agent-tools` (12, in test:security; outbound HTTP stubbed via global fetch, production code otherwise): executable tool built, reserved/invalid/duplicate skipped, platform types not duplicated, flow nodes, header sanitising, GET query + headers + no redirect + timeout signal, POST body + text reply, hung endpoint fails fast, internal addresses refused before any request, duplicate registration not fatal, no shared registry, missing agent refused.
+- Not verified here: a live call invoking a customer's real API.
