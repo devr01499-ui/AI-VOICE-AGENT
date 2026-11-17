@@ -11,9 +11,9 @@ Launch gate (Phase 14): every item below is either DONE with proof or listed in 
 ## Backend / Dashboard
 - [x] **B1** Templates + Create Agent layout — Phase 2 — Proof: FIX_LOG B1; `Frontend/e2e/agent-templates-layout.spec.ts` 10/10 (390–1920 px); docs/proof/B1/
 - [x] **B2** Notification bell — Phase 2 — Proof: FIX_LOG B2; `npm run test:notifications` 16/16; `Frontend/e2e/notification-bell.spec.ts` 9/9; docs/proof/B2/. Live deploy + email/mute: PROGRESS owner steps 9–10
-- [ ] **B3** Prompt Coach: server-side LLM enhancement, limits, injection-safe — Phase 3 — Proof:
+- [x] **B3** Prompt Coach — Phase 3 — Proof: FIX_LOG B3; `npm run test:prompt-coach` 16/16; `Frontend/e2e/prompt-coach.spec.ts` 6/6. Live AI quality: PROGRESS owner step 11
 - [x] **B4** Review QA + Auto-detect removed — Phase 2 — Proof: FIX_LOG B4; `npm run test:agent-rules` 7/7; `Frontend/e2e/agent-editor-removed-features.spec.ts` 3/3; docs/BACKEND_UNUSED_REPORT.md
-- [ ] **B5** Test Lab works end to end, tenant-isolated — Phase 3 — Proof:
+- [x] **B5** Test Lab — Phase 3 — Proof: FIX_LOG B5; `npm run test:test-lab` 12/12; `Frontend/e2e/test-lab.spec.ts` 5/5. Live AI run: PROGRESS owner step 11
 - [ ] **B6** Prompt-based agent editor: every section saves, persists, and is honoured at runtime — Phase 4 — Proof:
 - [ ] **B7** Conversational-format builder: full multi-node flow works — Phase 4 — Proof:
 - [ ] **B8** Knowledge Base RAG Retrieval Inspector + per-plan limits + 1,000-user safety — Phase 5 — Proof:
