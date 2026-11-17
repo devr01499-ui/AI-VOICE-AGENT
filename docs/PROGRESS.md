@@ -6,7 +6,7 @@
 | 1 | F1 first-load flash, F2 auth | DONE, merged to `main` 2026-11-17 (owner said "yes to main directly") |
 | 2 | B1 templates, B2 bell, B4 remove Review QA/Auto-detect (+ calendar status fix) | DONE, merged to `main` 2026-11-17 |
 | 3 | B3 Prompt Coach, B5 Test Lab | DONE, merged to `main` 2026-11-17 |
-| 4 | B6 agent editor sections, B7 conversational builder | IN PROGRESS on `fix/agent-editor` — done: calendar bookings, A1–A5, A7, A11, A12 (see AGENT_EDITOR_AUDIT.md). Left: A6, A8, A9, A10, A13, A14 + no-op controls |
+| 4 | B6 agent editor sections, B7 conversational builder | IN PROGRESS on `fix/agent-editor` (pushed) — done: calendar bookings, A1–A8, A10 (part), A11–A14, call limits/closing message. Left: A9 flow builder, Meet link, speed/volume/boost labels |
 | 5–14 | See CLAUDE.md §13 | not started |
 
 ## PRODUCTION — UNTOUCHABLE (nothing relaxed)
@@ -58,4 +58,4 @@
 1. Gemini model policy (CLAUDE.md §3). 2. `devr0144@gmail.com` address (§11). 3. Migration Option A or B. STANDING RULE (§0.6/§12a): merge each verified phase to `main`, push, never ask between phases.
 
 ## Next exact step
-Phase 4, remaining audit items in docs/AGENT_EDITOR_AUDIT.md: A6 post-call extraction on live calls + show results; A8 Security & Fallback (wire PII switch to `isPiiRedactionEnabled`, wire or remove fallback controls); A9 flow builder (global prompt, direction, edge labels, reload of voice/language/flexibility, panels saved); A10 sandbox SSRF/timeout; A13 MCP on live calls or label sandbox-only; A14 KB badge; no-op controls (closing message, ambient noise, max duration, Meet link). Then full regression, merge to main, Phase 5.
+Phase 4: A9 flow builder (VisualFlowCanvas.tsx + server FlowCompiler.ts + systemInstructionBuilder.ts ~273-283): keep global prompt/handbook for flow agents, honour direction, save edge labels (branch conditions), reload voice/language/flexibility, save flow KB/Speech/Transcription panels, fix Extract Variable key (`variableKey` vs `variable`), hide no-op Code/MCP/Subagent nodes or mark Soon. Then Meet link on bookings; label speed/volume/boosted keywords as prompt guidance. Then full regression (use native test DB on 54329 if PGlite OOMs), merge to main, Phase 5.
