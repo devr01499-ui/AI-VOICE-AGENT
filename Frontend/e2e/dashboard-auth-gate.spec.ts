@@ -37,8 +37,12 @@ test.describe('Dashboard Authentication Gate', () => {
   });
 
   test('Authenticated user can log in and view dashboard content', async ({ page }) => {
-    const testEmail = process.env.TEST_USER_EMAIL || 'test-user@claritiy.com';
-    const testPassword = process.env.TEST_USER_PASSWORD || 'TestPassword123!';
+    // This is the only test that signs in against the real auth service. It runs only when a
+    // dedicated test account is supplied; it never falls back to built-in credentials.
+    const testEmail = process.env.TEST_USER_EMAIL;
+    const testPassword = process.env.TEST_USER_PASSWORD;
+    test.skip(!testEmail || !testPassword, 'Set TEST_USER_EMAIL and TEST_USER_PASSWORD (a dedicated test account) to run the live sign-in check.');
+    if (!testEmail || !testPassword) return;
 
     await page.goto('/login');
     await page.evaluate(() => localStorage.clear());

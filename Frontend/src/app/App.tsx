@@ -52,6 +52,7 @@ import { formatDateTime, formatDate, formatTime, normalizeTimezone } from "./lib
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import BrandSplash from "./components/common/BrandSplash";
 import { resolveRoute, pathForPage, type Page } from "./lib/routes";
+import { initialAuthRedirect } from "./lib/authRedirect";
 const Home = lazy(() => import("./pages/Home"));
 const Solutions = lazy(() => import("./pages/Solutions"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
@@ -7829,7 +7830,9 @@ function ComparePage({ setPage }: { setPage: (p: Page) => void }) {
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  
+  // True while a visitor who arrived from a reset-password email still has to set a new password.
+  const [passwordRecovery, setPasswordRecovery] = useState(initialAuthRedirect.isRecovery);
+
   // First render must already be the correct page for the URL (no intermediate page).
   const [page, setPage] = useState<Page>(() => resolveRoute(window.location.pathname).page);
   
@@ -8137,6 +8140,12 @@ export default function App() {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
+      // A reset-password link signs the visitor in. They must choose a new password
+      // before the dashboard opens, so remember that until the password is updated.
+      if (event === 'PASSWORD_RECOVERY') {
+        setPasswordRecovery(true);
+        setPage("dashboard");
+      }
       setSession(currentSession);
       setAuthLoading(false);
       if (currentSession) {
@@ -8167,6 +8176,20 @@ export default function App() {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  if (page === "dashboard" && passwordRecovery) {
+    return (
+      <ErrorBoundary>
+        <AuthGateway
+          forceReset
+          onSuccess={() => {
+            setPasswordRecovery(false);
+            handleNavigate("dashboard");
+          }}
+        />
+      </ErrorBoundary>
+    );
+  }
 
   if (page === "dashboard") {
     return (

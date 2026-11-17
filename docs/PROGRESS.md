@@ -3,8 +3,9 @@
 | Phase | Scope | Status |
 |---|---|---|
 | 0 | Setup, baseline, code map, test-DB guard, test-secret isolation | DONE 2026-11-16, on `main` |
-| 1 | F1 first-load flash, F2 auth | IN PROGRESS on `fix/frontend-first-load-auth` — F1 fixed + proven logged-out (FIX_LOG, docs/proof/F1); F2 not started |
-| 2–14 | See CLAUDE.md §13 | not started |
+| 1 | F1 first-load flash, F2 auth | CODE DONE on `fix/frontend-first-load-auth` (pushed, not merged) — F1 + F2 fixed with tests (FIX_LOG, docs/proof/F1, F2); owner checks 4–8 below still open |
+| 2 | B1 templates/create-agent, B2 bell, B4 remove Review QA/Auto-detect | NEXT — branch `fix/dashboard-ui-1` from `fix/frontend-first-load-auth` |
+| 3–14 | See CLAUDE.md §13 | not started |
 
 ## PRODUCTION — UNTOUCHABLE (nothing relaxed; no real customers yet, launch is soon)
 - `DATABASE_URL` in `server/.env` is production. Never connect: no tests, Prisma commands, seeds or queries. Never copy it or any key into docs, logs, commits or chat.
@@ -14,7 +15,7 @@
 - Every push to `main` auto-deploys Render and runs `prisma db push` against production (see pre-launch item P1).
 
 ## Baseline (2026-11-16)
-- Build PASS. Typecheck: server 0 errors; frontend 41 errors (App.tsx 21, SinglePromptStudio.tsx 13, DashIntegrations.tsx 3, AuthGateway.tsx 2, api.ts 2). Must be 0 by Phase 14.
+- Build PASS. Typecheck: server 0 errors; frontend 37 errors after Phase 1 (App.tsx 21, SinglePromptStudio.tsx 13, DashIntegrations.tsx 3). Must be 0 by Phase 14.
 - Fix per phase: AuthGateway.tsx + api.ts in Phase 1; DashIntegrations.tsx in Phase 2; SinglePromptStudio.tsx in Phases 3–4; App.tsx whenever touched.
 - "Comparison can never be true" (TS2367), likely dead settings tabs — check for real logic bugs: App.tsx L5555 (`"audit"`), L6260 (`"billing"`), L6414 (`"audit"`), all against a type that only allows `webhooks | kyc | workspace | api | team`.
 - Local test DB, guard + isolation on: `test:security` 19/19 (+19/19 guard tests), `test:owasp` 23/23, `test:payment-security` 16/16, `test:street-smart` 32/32.
@@ -48,6 +49,10 @@
 3. Migration Option A or B (PRELAUNCH_NOTES.md §4).
 
 4. F1 logged-in check: sign in, open `/dashboard` in a new tab with the network throttled to "Slow 4G" (browser dev tools). Expected: only the "Claritiy Voice" splash, then the dashboard — no sign-in form and no white page in between. Not provable here: the simulated session was rejected by the Supabase client.
+5. Email sign-up: on the deployed site create an account with a new email and an Indian mobile number. Expected: "verification link has been sent"; the email arrives; its link opens the dashboard. Also try phone `12345`: it must be refused.
+6. Google: click "Continue with Google" with a Google account never used here. Expected: lands on the dashboard, and exactly one user appears in the admin user list.
+7. Password reset: "Forgot password?" → email arrives → link opens "Set New Password" (not the dashboard) → after saving, the dashboard opens and the old password no longer works. Open the same link again: expected "link has expired or was already used".
+8. Supabase dashboard → Authentication: confirm the Site URL and Redirect URLs include `https://www.claritiy.com/dashboard`, minimum password length is 8, and leaked-password protection and rate limits are on.
 
 ## Next exact step
-Continuous mode (CLAUDE.md §12a). Next: F2 auth on the same branch — start with the two leads: `/api/v2/user` pre-signup routes behind `requireAuth` (server/src/index.ts ~L336, routes/user.ts `/validate-signup`, `/consent`) and missing phone validation (AuthGateway.tsx ~L547). Then fix the 4 type errors in AuthGateway.tsx and api.ts. Harness for filmstrips: rebuild `serve.cjs` + `filmstrip.cjs` (static server with SPA fallback + Playwright from `Frontend/node_modules/@playwright/test`). Marketing claims seen that need measured proof by Phase 11/14: "sub-180ms" (prerender home summary), "Sub-Second Latency" (AuthGateway).
+Continuous mode (CLAUDE.md §12a). Next: Phase 2 (B1, B2, B4) per docs/PHASED_PROMPTS.md; CODEMAP has the pointers (App.tsx line numbers moved by about -130 after Phase 1 — re-grep). Browser tests: `cd Frontend && npx playwright test` (dev server starts itself; stub every outside request as in e2e/auth-flows.spec.ts). Supabase session storage key is `claritiy_voice_supabase_auth_token` (needed to fake a logged-in session in tests). Known flaky: `test:street-smart` "assembly latency < 1.0 ms" fails when the machine is busy (Phase 11). Sign-up "Account Type" is saved in sign-up data but unused by the server (decide in Phase 4/13). Marketing claims seen that need measured proof by Phase 11/14: "sub-180ms" (prerender home summary), "Sub-Second Latency" (AuthGateway).

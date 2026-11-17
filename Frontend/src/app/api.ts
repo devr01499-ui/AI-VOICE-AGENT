@@ -537,7 +537,7 @@ export async function getCallTranscript(callId: string): Promise<CallTranscriptR
  */
 export async function requestTranscriptTicket(callId: string): Promise<string> {
   const res = await apiClient.post(`/api/v2/calls/${callId}/transcript-ticket`);
-  return res.data?.data?.ticket || res.data?.ticket || '';
+  return res.data?.data?.ticket || '';
 }
 
 /**
@@ -985,7 +985,7 @@ export interface ReportListItem {
   };
 }
 
-export interface DetailedReport extends ReportListItem {
+export interface DetailedReport extends Omit<ReportListItem, 'call'> {
   call: ApiCall & {
     agent?: { id: string; name: string } | null;
   };

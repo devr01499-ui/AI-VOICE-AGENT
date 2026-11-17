@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { apiClient } from '../../api';
+import { initialAuthRedirect } from '../../lib/authRedirect';
+import { normalizePhoneNumber, isValidEmailFormat, passwordPolicyError } from '../../lib/phone';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Mail, Lock, ShieldAlert, LogIn, UserPlus, Eye, EyeOff,
@@ -212,10 +214,28 @@ function LeftPanel() {
 
 interface AuthGatewayProps {
   onSuccess?: () => void;
+  /** Open directly on the "set new password" form (visitor arrived from a reset email). */
+  forceReset?: boolean;
 }
 
-export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
+/** Turns raw auth/API errors into a message a customer can act on. Never shows internal codes. */
+function friendlyAuthError(err: any, fallback: string): string {
+  const raw = String(err?.message || '');
+  if (/UNAUTHORIZED_ACCESS/.test(raw)) return 'We could not reach the sign-up service. Please refresh the page and try again.';
+  if (/DUPLICATE_EMAIL|already exists|already registered/i.test(raw)) return 'An account with this email already exists. Please sign in instead.';
+  if (/DISPOSABLE_EMAIL/i.test(raw)) return 'Temporary or disposable email addresses are not allowed. Please use your permanent email.';
+  if (/Invalid login credentials/i.test(raw)) return 'Incorrect email or password.';
+  if (/Email not confirmed/i.test(raw)) return 'Please confirm your email first. Check your inbox for the verification link.';
+  if (/rate limit|429|too many/i.test(raw)) return 'Too many attempts. Please wait a few minutes and try again.';
+  if (/same password|different from the old/i.test(raw)) return 'Your new password must be different from your old password.';
+  if (/session missing|session_not_found|JWT/i.test(raw)) return 'This reset link has expired or was already used. Request a new one.';
+  return raw || fallback;
+}
+
+export default function AuthGateway({ onSuccess, forceReset = false }: AuthGatewayProps = {}) {
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot' | 'reset'>(() => {
+    if (forceReset || initialAuthRedirect.isRecovery) return 'reset';
+    if (initialAuthRedirect.linkExpired) return 'forgot';
     if (typeof window !== 'undefined') {
       const path = window.location.pathname.toLowerCase();
       const search = window.location.search.toLowerCase();
@@ -232,7 +252,8 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
   const [accountType, setAccountType] = useState('Individual');
   const [contactNumber, setContactNumber] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  // A failed or expired email/OAuth link is explained once, on arrival.
+  const [error, setError] = useState(initialAuthRedirect.errorMessage || '');
   const [message, setMessage] = useState('');
   const [honeypot, setHoneypot] = useState('');
 
@@ -279,17 +300,17 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
     setMessage('');
     try {
       // 1. Authoritative Pre-validation Gate (Normalization, Duplicate Detection, Disposable Email Blocking & Honeypot)
+      // (apiClient throws on any non-success response, so reaching the next line means it passed.)
       const validateRes = await apiClient.post('/api/v2/user/validate-signup', {
         email: email.trim(),
         fullName: fullName.trim(),
+        contactNumber: contactNumber.trim(),
         honeypot: honeypot.trim(),
       });
 
-      if (!validateRes.data?.success && validateRes.data?.error) {
-        throw new Error(validateRes.data?.error);
-      }
-
       const canonicalEmail = validateRes.data?.data?.normalizedEmail || email.trim().toLowerCase();
+      const localPhone = normalizePhoneNumber(contactNumber);
+      const canonicalPhone: string = validateRes.data?.data?.normalizedContactNumber || (localPhone.ok ? localPhone.e164 : '');
 
       // 2. Record legal consent with canonical email
       try {
@@ -315,7 +336,8 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
           emailRedirectTo: redirectUrl,
           data: {
             full_name: fullName.trim(),
-            contact_number: contactNumber.trim(),
+            contact_number: canonicalPhone,
+            account_type_selected: accountType,
             has_consented_terms: true,
           },
         },
@@ -331,7 +353,8 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
         setMode('signin');
       }
     } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred during signup.');
+      setShowConsentModal(false);
+      setError(friendlyAuthError(err, 'An unexpected error occurred during signup.'));
     } finally {
       setSubmittingConsent(false);
       setLoading(false);
@@ -348,12 +371,18 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
         setError('Please enter your full name.');
         return;
       }
-      if (!email.trim()) {
-        setError('Please enter your email address.');
+      if (!isValidEmailFormat(email)) {
+        setError('Please enter a valid email address, for example you@company.com.');
         return;
       }
-      if (!password || password.length < 6) {
-        setError('Password must be at least 6 characters.');
+      const phoneCheck = normalizePhoneNumber(contactNumber);
+      if (!phoneCheck.ok) {
+        setError(phoneCheck.error);
+        return;
+      }
+      const policyError = passwordPolicyError(password);
+      if (policyError) {
+        setError(policyError);
         return;
       }
       // Mandatory popup modal box appears on signup
@@ -361,26 +390,52 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
       return;
     }
 
+    // Emails are case-insensitive; always send the trimmed, lower-case form.
+    const cleanEmail = email.trim().toLowerCase();
+    if (mode !== 'reset' && !isValidEmailFormat(cleanEmail)) {
+      setError('Please enter a valid email address, for example you@company.com.');
+      return;
+    }
+    if (mode === 'reset') {
+      const policyError = passwordPolicyError(password);
+      if (policyError) {
+        setError(policyError);
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       if (mode === 'signin') {
-        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
         if (signInError) throw signInError;
         if (onSuccess) onSuccess();
       } else if (mode === 'forgot') {
-        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
           redirectTo: `${window.location.origin}/dashboard`,
         });
-        if (resetError) throw resetError;
-        setMessage('A password reset link has been sent to your email address. Please check your inbox.');
+        // Rate limiting is the only failure worth showing. Anything else gets the same neutral
+        // answer as success, so this form cannot be used to discover which emails have accounts.
+        if (resetError && /rate limit|429|too many/i.test(resetError.message || '')) throw resetError;
+        setMessage('If an account exists for that email, a password reset link is on its way. Please check your inbox and spam folder.');
       } else if (mode === 'reset') {
         const { error: updateError } = await supabase.auth.updateUser({ password });
         if (updateError) throw updateError;
-        setMessage('Password updated successfully! Please sign in with your new password.');
-        setMode('signin');
+        setPassword('');
+        if (typeof window !== 'undefined' && window.location.hash) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+        // The reset link already signed the visitor in, so go straight to the dashboard.
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData?.session && onSuccess) {
+          onSuccess();
+        } else {
+          setMessage('Password updated. Please sign in with your new password.');
+          setMode('signin');
+        }
       }
     } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred.');
+      setError(friendlyAuthError(err, 'An unexpected error occurred.'));
     } finally {
       setLoading(false);
     }
@@ -406,7 +461,7 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
       });
       if (oauthError) throw oauthError;
     } catch (err: any) {
-      setError(err.message || 'Google sign-in failed.');
+      setError(friendlyAuthError(err, 'Google sign-in failed. Please try again.'));
     }
   };
 
@@ -544,8 +599,10 @@ export default function AuthGateway({ onSuccess }: AuthGatewayProps = {}) {
                       </div>
                       <div>
                         <label className={labelClass}>Contact Number</label>
-                        <input type="tel" required placeholder="+91 99999 99999" value={contactNumber}
+                        <input type="tel" required inputMode="tel" autoComplete="tel" maxLength={32}
+                          placeholder="+91 98765 43210" value={contactNumber}
                           onChange={e => setContactNumber(e.target.value)} className={inputClass} />
+                        <p className="text-[11px] text-slate-500 mt-1">10-digit mobile number. Add the country code if outside India.</p>
                       </div>
                     </motion.div>
                   )}

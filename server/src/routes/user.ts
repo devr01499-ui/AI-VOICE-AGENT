@@ -1,5 +1,6 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import { prisma } from '../lib/prisma';
+import { normalizePhoneNumber } from '../utils/phoneValidator';
 import { requireAuth, requireRole, AuthenticatedRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
 import { logAuditEvent } from '../utils/auditLogger';
@@ -10,6 +11,22 @@ import { ADMIN_EMAIL } from '../config/constants';
 import { EncryptionService } from '../utils/EncryptionService';
 
 const router = Router();
+
+/**
+ * Routes a visitor must reach BEFORE they have an account (sign-up pre-check and
+ * consent logging). They are mounted without `requireAuth`; each one carries its own
+ * rate limiter, IP throttle and honeypot check.
+ */
+export const publicUserRouter = Router();
+
+/**
+ * Mounts the user API. Public pre-signup routes first, then everything else behind auth.
+ * index.ts and the tests both use this function, so the mount order cannot drift.
+ */
+export function mountUserRoutes(app: { use: (...args: any[]) => unknown }, authMiddleware: RequestHandler): void {
+  app.use('/api/v2/user', publicUserRouter);
+  app.use('/api/v2/user', authMiddleware, router);
+}
 
 /**
  * POST /api/v2/user/billing-config
@@ -412,9 +429,9 @@ router.post('/concurrency', requireAuth, requireRole(['admin']), sensitiveOperat
  * Pre-registration gate enforcing email normalization, disposable domain filtering,
  * bot honeypot detection, and duplicate email prevention.
  */
-router.post('/validate-signup', signupLimiter, authIpThrottleDelay, async (req, res) => {
+publicUserRouter.post('/validate-signup', signupLimiter, authIpThrottleDelay, async (req, res) => {
   try {
-    const { email, fullName, honeypot } = req.body;
+    const { email, fullName, honeypot, contactNumber } = req.body || {};
 
     // 1. Honeypot check: If the hidden honeypot input contains any text, drop silently
     if (honeypot && String(honeypot).trim() !== '') {
@@ -446,6 +463,13 @@ router.post('/validate-signup', signupLimiter, authIpThrottleDelay, async (req, 
       return;
     }
 
+    // 2b. Contact number: validated and normalised server-side (never trust the client format)
+    const phone = normalizePhoneNumber(contactNumber);
+    if (!phone.ok) {
+      res.status(400).json({ success: false, error: phone.error, code: 'INVALID_CONTACT_NUMBER' });
+      return;
+    }
+
     // 3. Email Normalization
     const canonicalEmail = normalizeEmail(email);
 
@@ -468,6 +492,7 @@ router.post('/validate-signup', signupLimiter, authIpThrottleDelay, async (req, 
       success: true,
       data: {
         normalizedEmail: canonicalEmail,
+        normalizedContactNumber: phone.e164,
         valid: true,
       },
     });
@@ -482,9 +507,9 @@ router.post('/validate-signup', signupLimiter, authIpThrottleDelay, async (req, 
  * Stores user legal consent for Terms and Conditions, Terms of Use, and Acceptable Calling policies.
  * Can be invoked during initial signup or by logged-in users.
  */
-router.post('/consent', signupLimiter, authIpThrottleDelay, async (req, res) => {
+publicUserRouter.post('/consent', signupLimiter, authIpThrottleDelay, async (req, res) => {
   try {
-    const { email, fullName, termsAndConditions, termsOfUse, privacyPolicy, consentVersion, honeypot } = req.body;
+    const { email, fullName, termsAndConditions, termsOfUse, privacyPolicy, consentVersion, honeypot } = req.body || {};
 
     // Honeypot bot protection
     if (honeypot && String(honeypot).trim() !== '') {
