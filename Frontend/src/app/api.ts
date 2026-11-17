@@ -734,26 +734,6 @@ export async function generatePromptFromCoach(playbookId: string, businessFacts:
   };
 }
 
-export async function reviewPromptWithCoach(prompt: string): Promise<PromptCoachReviewData> {
-  const res = await apiFetch<{ success: boolean; data: any }>('/api/v2/agents/prompt-coach/review', {
-    method: 'POST',
-    body: JSON.stringify({ prompt }),
-  });
-  const data = (res as any)?.data || res;
-  return {
-    score: typeof data.score === 'number' ? data.score : 0,
-    letterGrade: data.letterGrade || (data.score >= 80 ? 'A' : 'C'),
-    missingSections: data.missingSections || [],
-    contradictions: data.contradictions || [],
-    warnings: data.warnings || (data.recommendations || []),
-    strengths: data.strengths || [],
-    characterCount: typeof data.characterCount === 'number' ? data.characterCount : (prompt.length || 0),
-    passed: data.passed,
-    issues: data.issues || [],
-    recommendations: data.recommendations || [],
-  };
-}
-
 export async function runTestLabSimulation(agentId: string, personas?: string[]): Promise<{
   scorecard: {
     passed: boolean;

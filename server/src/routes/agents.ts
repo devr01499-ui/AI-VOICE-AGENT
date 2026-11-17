@@ -19,7 +19,7 @@ import { logAuditEvent } from '../utils/auditLogger';
 import { ADMIN_EMAIL } from '../config/constants';
 import { QaController } from '../controllers/QaController';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
-import { detectIndustry } from '../utils/systemInstructionBuilder';
+import { detectIndustry, normalizeIndustryInput } from '../utils/systemInstructionBuilder';
 import { EncryptionService } from '../utils/EncryptionService';
 
 const router = Router();
@@ -572,7 +572,8 @@ router.post(
           languageMode: languageMode || 'auto',
           direction: direction || 'outbound',
           isPiiRedactionEnabled: Boolean(isPiiRedactionEnabled),
-          industry: industry || 'auto',
+          // "auto" is no longer offered. New agents get no industry overlay unless one is chosen.
+          industry: normalizeIndustryInput(industry) || 'other',
         },
       });
 
@@ -734,7 +735,8 @@ router.put(
           ...(languageMode !== undefined && { languageMode }),
           ...(direction !== undefined && { direction }),
           ...(isPiiRedactionEnabled !== undefined && { isPiiRedactionEnabled: Boolean(isPiiRedactionEnabled) }),
-          ...(industry !== undefined && { industry }),
+          // Unknown values and the retired "auto" are ignored, leaving the stored industry unchanged.
+          ...(normalizeIndustryInput(industry) && { industry: normalizeIndustryInput(industry) }),
         },
       });
 
@@ -1110,32 +1112,6 @@ router.post(
     } catch (err: any) {
       logger.error('Prompt coach generate error', { error: err.message });
       res.status(500).json({ success: false, error: 'Failed to generate prompt from playbook' });
-    }
-  }
-);
-
-/** POST /api/v2/agents/prompt-coach/review — Review prompt quality and score across missing sections & compliance */
-router.post(
-  '/prompt-coach/review',
-  requireAuth,
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { prompt } = req.body;
-      if (!prompt || typeof prompt !== 'string') {
-        res.status(400).json({ success: false, error: 'prompt text is required' });
-        return;
-      }
-
-      const { reviewPromptQuality } = await import('../utils/playbooks');
-      const review = reviewPromptQuality(prompt);
-
-      res.json({
-        success: true,
-        data: review,
-      });
-    } catch (err: any) {
-      logger.error('Prompt coach review error', { error: err.message });
-      res.status(500).json({ success: false, error: 'Failed to review prompt' });
     }
   }
 );

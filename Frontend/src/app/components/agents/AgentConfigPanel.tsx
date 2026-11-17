@@ -29,26 +29,19 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
   const [voice, setVoice] = useState(agent.systemVoice || agent.voice || "Puck");
   const [temp, setTemp] = useState(agent.temperature ?? 0.7);
   const [languageMode, setLanguageMode] = useState(agent.languageMode || "auto");
-  const [industry, setIndustry] = useState(agent.industry || "auto");
+  // The "auto" industry option was removed. Agents saved with it open on the industry the server was
+  // already applying for them, so re-saving does not change how their live calls behave.
+  const [industry, setIndustry] = useState<string>(() => {
+    const allowed = ['sales', 'support', 'bfsi', 'healthcare', 'real_estate', 'recruitment', 'other'];
+    const saved: unknown = agent.industry;
+    if (typeof saved === 'string' && allowed.includes(saved)) return saved;
+    const applied: unknown = (agent as { detectedIndustry?: string }).detectedIndustry;
+    return typeof applied === 'string' && allowed.includes(applied) ? applied : 'other';
+  });
   const [isPiiRedactionEnabled, setIsPiiRedactionEnabled] = useState(agent.isPiiRedactionEnabled || false);
   const [calendarConnected, setCalendarConnected] = useState(false);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
-
-  const detectedIndustry = React.useMemo(() => {
-    const text = `${agent.name || ''} ${prompt || ''}`.toLowerCase();
-    const bfsiKw = ['loan', 'emi', 'credit card', 'insurance', 'policy', 'premium', 'mutual fund', 'investment', 'kyc', 'collections', 'bank', 'nbfc'];
-    if (bfsiKw.some(kw => text.includes(kw))) return 'bfsi';
-    const healthKw = ['clinic', 'doctor', 'hospital', 'patient', 'appointment', 'dentist', 'dental', 'medical', 'prescription'];
-    if (healthKw.some(kw => text.includes(kw))) return 'healthcare';
-    const reKw = ['real estate', 'property', 'builder', 'developer', 'flat', 'apartment', 'villa', 'plot', 'bhk'];
-    if (reKw.some(kw => text.includes(kw))) return 'real_estate';
-    const suppKw = ['support', 'ticket', 'customer service', 'troubleshoot', 'complaint', 'refund'];
-    if (suppKw.some(kw => text.includes(kw))) return 'support';
-    const salesKw = ['sales', 'lead', 'pitch', 'pricing', 'discount', 'demo'];
-    if (salesKw.some(kw => text.includes(kw))) return 'sales';
-    return 'other';
-  }, [agent.name, prompt]);
 
   useEffect(() => {
     return () => {
@@ -368,7 +361,7 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
               INDUSTRY OVERLAY & CONVERSATION SKILLS
             </label>
             <span className="text-[10px] font-mono text-emerald-600 font-bold uppercase">
-              {industry === 'auto' ? `Auto (${detectedIndustry})` : industry}
+              {industry.replace('_', ' ')}
             </span>
           </div>
           <div className="relative">
@@ -381,12 +374,12 @@ export default function AgentConfigPanel({ agent, onUpdate, onSaveStatus }: Agen
               className="nm-input w-full px-5 py-3 text-sm focus:outline-none"
               style={{ fontFamily: "'Figtree', sans-serif" }}
             >
-              <option value="auto">Auto-detect (recommended: {detectedIndustry})</option>
               <option value="sales">Sales / Lead-gen</option>
               <option value="support">Customer Support</option>
               <option value="bfsi">BFSI (Banking / Loans / Insurance)</option>
               <option value="healthcare">Healthcare</option>
               <option value="real_estate">Real Estate</option>
+              <option value="recruitment">Recruitment / HR</option>
               <option value="other">Other</option>
             </select>
           </div>

@@ -55,3 +55,12 @@ One entry per fix, newest at the bottom. Template:
 - Verified: before the fix the same test failed 7 of 8 (text outside cards on every size); after, 10 of 10 pass. Screenshots in docs/proof/B1/. Frontend type errors unchanged at 37.
 - Checked and left alone: the agent editor page itself already uses the full screen width at 1440 and 1920 px.
 - Not verified here: other dashboard pop-ups were not individually re-tested after the `z-index` change (they are covered page by page in Phases 4–10).
+
+## B4 — Remove "Review QA" and industry "Auto-detect" (Phase 2, branch fix/dashboard-ui-1)
+- Issue: owner asked for both features to be removed.
+- What was there: "Review QA" was a button plus pop-up in the prompt editor (calling `POST /api/v2/agents/prompt-coach/review`) and a "QA: PASS 90/100" badge computed in the browser from a few keyword checks. "Auto-detect" was the default industry choice in both agent editors; the server guessed the industry from keywords in the prompt.
+- Fix: removed the button, pop-up, badge, client function `reviewPromptWithCoach` and the server route. Removed "Auto-detect" from both industry menus; new agents start on "Other". Added the missing "Recruitment / HR" option the server already supported. The server now rejects "auto" or unknown values as new input (`normalizeIndustryInput`), keeping the stored value unchanged.
+- Kept on purpose: `reviewPromptQuality` (Prompt Coach "generate" uses it); the language option "Automatic / Multilingual" (a different feature); codec detection in `audioConverter.ts`; and the server's call-time resolution for agents saved earlier with "auto", so their live calls behave exactly as before. When such an agent is opened, the editor pre-selects the industry the server was already applying, so saving it does not change behaviour. The BFSI compliance safety gate still overrides any choice.
+- Files: Frontend/src/app/components/agents/SinglePromptStudio.tsx, AgentConfigPanel.tsx, Frontend/src/app/api.ts, server/src/routes/agents.ts, server/src/utils/systemInstructionBuilder.ts, server/scripts/test_agent_industry_rules.js (new), server/package.json, Frontend/e2e/agent-editor-removed-features.spec.ts (new).
+- Tests: `npm run test:agent-rules` (7, part of test:security): review route gone, generate still present, "auto"/junk rejected, old "auto" agents still resolve, BFSI gate. Browser: 3 tests (no Review QA/badge/Auto-detect, industry list exact, review request never sent).
+- Verified: 7/7 and 3/3 pass; server typecheck 0 errors; frontend type errors 37 → 36.
