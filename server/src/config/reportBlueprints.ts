@@ -41,6 +41,8 @@ export interface ReportBlueprint {
   labels: BlueprintLabel[];
   fields: BlueprintField[];
   rubric?: BlueprintRubricItem[];
+  /** The agent's own "summary prompt" (Post-Call Data Extraction), when set. */
+  summaryInstruction?: string;
 }
 
 export const REPORT_BLUEPRINTS: Record<string, ReportBlueprint> = {

@@ -140,6 +140,14 @@ test('a live Razorpay key passed as a test override is refused', () => {
   assert.match(isolateLiveServiceSecrets({ TEST_RAZORPAY_KEY_ID: 'rzp_live_abc123' }), /LIVE Razorpay key/);
 });
 
+test('production encryption keys are replaced by test-only keys', () => {
+  const { TEST_ONLY_KEYS } = require('./lib/testDbGuardCore.cjs');
+  const env = { ENCRYPTION_KEY: 'production-key', SIP_ENCRYPTION_KEY: 'production-sip' };
+  assert.strictEqual(isolateLiveServiceSecrets(env), null);
+  assert.strictEqual(env.ENCRYPTION_KEY, TEST_ONLY_KEYS.ENCRYPTION_KEY);
+  assert.strictEqual(env.SIP_ENCRYPTION_KEY, TEST_ONLY_KEYS.SIP_ENCRYPTION_KEY);
+});
+
 test('NODE_ENV=production is refused', () => {
   assert.match(isolateLiveServiceSecrets({ NODE_ENV: 'production' }), /production/);
 });

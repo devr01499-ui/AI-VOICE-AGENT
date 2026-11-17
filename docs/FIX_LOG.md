@@ -121,3 +121,92 @@ One entry per fix, newest at the bottom. Template:
 - Verified: migration proven offline-generated and applied to the old schema with zero remaining difference; full regression green (see PROGRESS).
 - Not verified here: a real run against the live AI model (keys treated as compromised until rotated); grading quality can only be judged live.
 - Disclosure: while proving the migration I ran `prisma db push --accept-data-loss` against the LOCAL throwaway database only (CLAUDE.md forbids the flag). It failed and changed nothing; the proof did not depend on it. Not repeated.
+
+## B6-CAL — Calendar bookings never showed; successful cancels reported as failures; cancel left Google events behind (Phase 4, branch fix/agent-editor)
+- Root causes:
+  1. `GET /calendar/bookings`, `POST /calendar/bookings/:id/cancel` and `/reschedule` answered without the standard `{ success, data }` envelope. The dashboard client rejects such answers, so the Calendar page always showed no bookings and every successful cancel showed "Failed to cancel".
+  2. `CalendarService.cancelAppointment` swallowed a failed Google Calendar delete and still marked the booking cancelled, so the appointment stayed in the customer's Google Calendar (slot blocked, caller may still turn up). The same function is used by the live-call agent's cancel tool.
+  3. Cancel/reschedule had no rate limiter and no id validation.
+- Fix: envelopes with clear status codes (404 not found, 409 not connected / slot taken, 502 Google refused); cancel keeps the booking unchanged unless Google deleted the event (or it was already gone: 404/410); `sensitiveOperationsLimiter` + id/slot validation; the Calendar page shows a load error instead of an empty list and shows the server's message on a failed cancel.
+- Files: server/src/routes/calendar.ts, server/src/core/orchestrator/CalendarService.ts, server/scripts/test_calendar_bookings.js (new), server/package.json, Frontend/src/app/components/calendar/CalendarOverview.tsx.
+- Tests: `npm run test:calendar-bookings` (7, in test:security) on the local test DB with the production handlers: envelope, tenant isolation of list and cancel, successful cancel, Google-failure keeps booking, validation, limiter + login present. Against the previous code 6 of 7 FAIL; now 7/7.
+- Not verified here: a real Google Calendar delete/reschedule (needs a connected Google account).
+
+## A2–A5 — Agent Functions never ran on live calls; tools shared across calls; hard-coded fallback account (Phase 4)
+- Root causes (from docs/AGENT_EDITOR_AUDIT.md, confirmed in code):
+  - A5: saved "Custom API" functions (and flow function nodes) were declared to the AI model without URL or execution type, so every invocation failed with "Unsupported execution type".
+  - A2: `CallOrchestrator` kept ONE `ToolExecutor` for all calls and cleared/refilled it per call, so concurrent calls overwrote each other's tools.
+  - A4: a duplicate or built-in tool name threw and aborted the whole call start.
+  - A3: if the agent could not be loaded, the call ran as a hard-coded user id with a recruiter prompt (billing and calendar actions on the wrong account).
+  - HTTP tools had no timeout, followed redirects (SSRF bypass) and sent a body on GET (which fetch rejects); non-JSON replies threw.
+- Fix: new `runtime/agentTools.ts` builds executable http tools (URL, method, safe headers, parameter schema) from editor functions and flow nodes, skipping built-in/invalid/duplicate names with a log line; platform types (end call, calendar, transfer, SMS) are not declared twice. One `ToolExecutor` per call. `ToolExecutor`: 10 s timeout, `redirect: 'error'`, GET/DELETE params in the query string, custom headers, non-JSON replies returned as text, duplicate names skipped. A call with no loadable agent is refused (the carrier leg is hung up by the existing failure path). Editor validates function names (built-in names, duplicates), URL format and header JSON.
+- Files: server/src/runtime/agentTools.ts (new), server/src/runtime/ToolExecutor.ts, server/src/core/orchestrator/CallOrchestrator.ts, server/scripts/test_agent_tools.js (new), server/package.json, Frontend/src/app/components/agents/SinglePromptStudio.tsx.
+- Tests: `npm run test:agent-tools` (12, in test:security; outbound HTTP stubbed via global fetch, production code otherwise): executable tool built, reserved/invalid/duplicate skipped, platform types not duplicated, flow nodes, header sanitising, GET query + headers + no redirect + timeout signal, POST body + text reply, hung endpoint fails fast, internal addresses refused before any request, duplicate registration not fatal, no shared registry, missing agent refused.
+- Not verified here: a live call invoking a customer's real API.
+
+## A1, A7, A11, A12 — flow saves wiped settings; webhooks incomplete; no save validation; secrets in plain text (Phase 4)
+- Root causes:
+  - A1: the flow builder sends `agentConfig: { handbookPresets }` only and `PUT /agents/:id` replaced the whole stored config, wiping webhooks, post-call fields, functions, MCPs, call settings and greeting on every flow save.
+  - A11: create/update accepted any body (status any string, agentType, workspaceId from the client) with no rate limiter.
+  - A12: webhook signing secret and MCP API keys were stored and returned to the browser in plain text.
+  - A7: only `call_analyzed` was ever sent although the editor offers four events; no retries; signature had no timestamp (replayable); deliveries sequential; stored secret not decrypted.
+- Fix:
+  - Update merges the incoming config onto the stored one section by section (a sent section replaces that section; others are kept).
+  - zod body schema on create and update (types, enums, sizes; unknown helper fields pass through); `workspaceId` never taken from the client; new `agentWriteLimiter` (120 per 15 min).
+  - New `utils/agentSecrets.ts`: secrets encrypted at rest, masked (`••••••••`) in every agent response, a masked value sent back keeps the stored secret; decrypted only where used (WebhookDispatcher, McpService).
+  - WebhookDispatcher: decrypts secret, keeps the existing signature header and adds `X-Claritiy-Timestamp` + `X-Claritiy-Signature-V2` (HMAC of `timestamp.body`), 3 attempts with backoff on network/5xx/429 (no retry on other 4xx), parallel delivery, no redirects, sanitised custom headers. `call_started`, `call_ended` (once, after finalisation) and `transcript_updated` (per finished turn) are now sent.
+  - Test guard: production `ENCRYPTION_KEY`/`SIP_ENCRYPTION_KEY` are replaced with test-only values in every guarded script.
+- Files: server/src/routes/agents.ts, server/src/utils/agentSecrets.ts (new), server/src/utils/WebhookDispatcher.ts, server/src/services/McpService.ts, server/src/core/orchestrator/CallOrchestrator.ts, server/src/middleware/rateLimiter.ts, server/scripts/lib/testDbGuardCore.cjs, server/scripts/test_db_guard.js, server/scripts/test_agent_config_integrity.js (new), server/package.json.
+- Tests: `npm run test:agent-config` (11, in test:security): partial save keeps other sections, secrets masked and kept, new secrets encrypted, invalid fields rejected, workspaceId ignored, cross-workspace update refused, limiter present, v2 signature, unsubscribed event not sent, 5xx retried / 4xx not, internal URLs refused. Against the previous route 6 of 11 FAIL; now 11/11. Guard tests 20/20.
+- Not verified here: a real receiver verifying the v2 signature; live call_started/call_ended deliveries.
+
+## A6 — Post-Call Data Extraction never ran on live calls (Phase 4)
+- Root cause: the editor saves `agentConfig.postCallAnalysis` (summary prompt + fields), but the live hang-up path (CallFinalizer → AnalysisService) chose a fixed report template and never read it; only an unused generic-webhook path (CallService) did, storing results where no screen reads them.
+- Fix: `AnalysisService.resolveBlueprint` now returns a COPY of the chosen template plus the agent's fields (normalised names, types, enum options, max 25, matched case-insensitively against template fields so nothing is duplicated) and the agent's summary instruction, which is added to the analysis prompt. Results are stored with the call's report, so they show in Call Reports → Fields and in the `call_analyzed` webhook. The editor now says where results appear.
+- Files: server/src/services/AnalysisService.ts, server/src/config/reportBlueprints.ts, server/scripts/test_post_call_fields.js (new), server/package.json, Frontend/src/app/components/agents/SinglePromptStudio.tsx.
+- Tests: `npm run test:post-call-fields` (6, in test:security): fields included, summary carried, shared templates unchanged, same-name field replaces not duplicates, safe defaults, limits. Fails on the previous code.
+- Not verified here: an extraction by the live AI model after a real call.
+
+## A8 — Security & Fallback settings did nothing (Phase 4)
+- Root cause: the editor saved `securityFallback.{piiRedaction, fallbackModel, fallbackVoice, maxRetries}` but no server code read any of it; the real switch `Agent.isPiiRedactionEnabled` was never set by the editor; the category redactor existed but nothing passed it categories; its phone pattern only matched US formats; there was no Aadhaar or PAN option (US "SSN" instead).
+- Fix: transcripts are now redacted BEFORE they are stored, with the categories the agent chose (`TranscriptRepository.addSegment` looks them up per call, cached), and again when read (covers older rows). Categories: phone (Indian +91/0/plain and international), email, Aadhaar, PAN, card numbers (`ssn` still honoured for older agents). Older agents with only the on/off switch get everything redacted. The editor sends `isPiiRedactionEnabled` with saves and explains what redaction does. The fallback model / voice / retry controls were removed (nothing read them; failover is automatic; the model policy itself awaits the owner's Gemini decision) and replaced by a one-line explanation.
+- Files: server/src/repositories/TranscriptRepository.ts, server/src/services/CallService.ts, server/scripts/test_pii_redaction_settings.js (new), server/package.json, Frontend/src/app/components/agents/SinglePromptStudio.tsx.
+- Tests: `npm run test:pii-settings` (6, in test:security) on the local test DB: per-category redaction, Aadhaar vs phone, ordinary text untouched, redaction before storage, no redaction when off, legacy switch, redaction on read. 5 of 6 FAIL on the previous code; now 6/6.
+- Note: post-call extraction and reports read the redacted transcript, so a redacted phone/email cannot be extracted — that is the intended effect of the customer's choice and is stated in the editor.
+
+## A10 (part) — browser test calls fetched customer URLs with no SSRF check or timeout (Phase 4)
+- Root cause: `SandboxStreamHandler` had its own copy of custom-API execution: no SSRF check, no timeout, unsanitised headers, redirects followed. MCP requests followed redirects.
+- Fix: test calls now use the same `buildAgentTools` + `ToolExecutor` path as live calls (SSRF check, 10 s timeout, no redirects, safe headers). MCP requests use `redirect: 'error'`.
+- Remaining (Phase 12, logged as P10): `assertSafeUrl` resolves DNS once and fetch resolves again, so a DNS-rebinding attack is still theoretically possible; the fix is pinning the checked IP in the HTTP agent.
+- Tests: regression check added to `npm run test:agent-tools` (13/13).
+
+## A13 — MCP servers only worked in browser test calls (Phase 4)
+- Root cause: only `SandboxStreamHandler` (browser test calls) discovered and executed MCP tools; `CallOrchestrator` (real phone calls) ignored `agentConfig.mcpServers`.
+- Fix: live calls discover MCP tools (max 5 servers, 6 s overall cap, during the pre-warm while the phone rings; failures and timeouts never block the call), declare them to the AI model (built-in names protected), and route their calls to `McpService.executeMcpTool` with the decrypted key, SSRF check and no redirects.
+- Files: server/src/core/orchestrator/CallOrchestrator.ts, server/scripts/test_mcp_live.js (new), server/package.json.
+- Tests: `npm run test:mcp-live` (4, in test:security): discovery with decrypted key and no redirects, execution, internal URLs refused, live-call wiring present (source check: a real call needs the voice AI service).
+- Not verified here: a live phone call using a real MCP server.
+
+## A14 — Knowledge Base badge showed 0 until the section was opened (Phase 4)
+- Root cause: the editor loaded the knowledge-base list only when that section was expanded, and the parent never passed one in.
+- Fix: the list loads when the editor opens and refreshes whenever the section is opened.
+- Test: browser test in `Frontend/e2e/test-lab.spec.ts` (badge shows "Knowledge Base (2)" for an agent with two attached KBs, without opening the section); fails with the old condition, passes now.
+
+## Call Settings no-ops — max duration, end on silence, closing message, ambient noise (Phase 4)
+- Root cause: on live calls nothing enforced "Max call duration" (not even the 30-minute default every call row carries — calls had no length limit at all, a cost/abuse risk); "End on silence" was only a sentence in the prompt; "Closing message" was never read; "Ambient noise" only added a meaningless prompt line (no audio can be mixed).
+- Fix: per-call timers in `CallOrchestrator`, armed when the call starts and cleared in the single end-call path: max duration = the agent's setting when set, else the call's limit, never above a 60-minute platform ceiling (min 60 s); end-on-silence (10–600 s) restarted by any speech from either side, ending with reason `silence_timeout`. The closing message is added to the agent's instructions. The ambient-noise control was removed and is ignored.
+- Files: server/src/core/orchestrator/CallOrchestrator.ts, server/src/utils/systemInstructionBuilder.ts, server/scripts/test_call_limits.js (new), server/package.json, Frontend/src/app/components/agents/SinglePromptStudio.tsx.
+- Tests: `npm run test:call-limits` (7, in test:security) with the production orchestrator (only its end action replaced by a recorder): limit rules, max duration fires, silence fires and speech resets it, other calls' speech ignored, timers cleared on end, closing message in / ambient noise out.
+- Caveat (to watch in live calls, Phase 11): the silence timer is reset by transcript events; if a caller speaks continuously for longer than the silence period without any transcript event, the call could end early. The minimum period is 10 s and the default 30 s.
+
+## A9 — Conversational flow builder lost its settings and ran different instructions (Phase 4, B7)
+- Root cause: (1) on reopen the builder loaded the whole saved prompt (global prompt + compiled flow + handbook) into the "Global Prompt" box, so every save nested another copy; the input hint text was stored as the value and reached calls. (2) Direction, voice, language, flexibility, speech and transcription settings always reset to defaults on reopen, and the app saved only the handbook list. (3) At call time the server threw the saved prompt away and recompiled the bare graph without direction, dropping the global prompt and handbook. (4) Branches of a Logic Split could not be named (edges saved without labels), so the agent had only "Condition 1/2". (5) The builder's Knowledge Base toggle changed nothing on the server. (6) Extract Variable's key (`variableKey`) was ignored by both compilers. (7) Code, MCP and Subagent nodes did nothing on a live call.
+- Fix: `agentConfig.flowSettings` {globalPrompt, flexibilityMode, handbookPresets} plus speech/transcription saved through one payload builder in App.tsx; the builder reloads all of them from the saved agent and recovers the user's own text from old saves (`extractFlowGlobalPrompt`). One server resolver `FlowCompiler.resolveFlowAgentInstructions` is used by live calls, browser test calls and the instruction builder (Test Lab): the builder's saved prompt runs as previewed, old nested copies collapse to one, agents without a builder prompt compile with their own direction. Logic Split inspector names each branch; unnamed branches block saving. KB toggle assigns/unassigns on the server (saves a new agent first), with rollback on error. Both compilers read `variableKey`. Code/MCP/Subagent marked Soon and blocked on save like the other Soon nodes.
+- Files: Frontend/src/app/components/agents/VisualFlowCanvas.tsx, flowCompiler.ts, Frontend/src/app/App.tsx, server/src/core/orchestrator/FlowCompiler.ts, CallOrchestrator.ts, server/src/websockets/SandboxStreamHandler.ts, server/src/utils/systemInstructionBuilder.ts, server/scripts/test_flow_agent_instructions.js (new), Frontend/e2e/flow-builder.spec.ts (new), server/package.json.
+- Tests: `npm run test:flow-agent` (8, in test:security): 0/8 on the old code, 8/8 now. `Frontend/e2e/flow-builder.spec.ts` (4): reload, save payload + branch names, KB assignment, Soon nodes: 4/4 fail on the old code, 4/4 pass now.
+- Not verified here: a live phone call on a flow agent (needs carrier + voice AI).
+
+## Speech speed / volume / boosted keywords described as exact settings (Phase 4)
+- Root cause: these controls only add speaking-style text to the AI's instructions (the voice AI has no exact rate/volume/keyword-boost setting), but the labels promised exact audio and recognition changes.
+- Fix: helper text in the prompt editor and the flow builder now says they are guidance to the AI voice. Volume still changes the in-browser preview loudness. Audit also corrected: "Add Meet link" does work (saved by the calendar rules route; booking adds a Google Meet conference to the event).
+- Test: `Frontend/e2e/flow-builder.spec.ts` "speed and keywords say honestly…" (passes).

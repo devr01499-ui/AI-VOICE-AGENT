@@ -6,7 +6,7 @@
 | 1 | F1 first-load flash, F2 auth | DONE, merged to `main` 2026-11-17 (owner said "yes to main directly") |
 | 2 | B1 templates, B2 bell, B4 remove Review QA/Auto-detect (+ calendar status fix) | DONE, merged to `main` 2026-11-17 |
 | 3 | B3 Prompt Coach, B5 Test Lab | DONE, merged to `main` 2026-11-17 |
-| 4 | B6 agent editor sections, B7 conversational builder | NEXT — branch `fix/agent-editor` from `main` |
+| 4 | B6 agent editor sections, B7 conversational builder | DONE, merged to `main` 2026-11-17 |
 | 5–14 | See CLAUDE.md §13 | not started |
 
 ## PRODUCTION — UNTOUCHABLE (nothing relaxed)
@@ -15,9 +15,9 @@
 - No command text inside double quotes/unquoted backticks; write files with Write/Edit or `<<'EOF'`.
 - Every push to `main` auto-deploys Render and runs `prisma db push` on production (P1).
 
-## Status of checks (2026-11-17, after Phase 3)
+## Status of checks (2026-11-17, after Phase 4)
 - Typecheck: server 0; frontend 33 (App.tsx 21, SinglePromptStudio.tsx 12). Must be 0 by Phase 14.
-- test:security = guard 19 + sign-up 11 + agent rules 7 + bell 16 + calendar status 2 + prompt coach 16 + test lab 12 + security 19, all pass; owasp 23/23; payment 16/16; street-smart 32/32; browser 94 pass, 1 skipped (live login).
+- test:security 16 suites all pass (guard 20, flow-agent 8, call-limits 7, mcp 4, ...); owasp 23/23; payment 16/16; street-smart 32/32 + regression 41/41; m2 37/37; batch b–f pass; browser 100 pass, 1 skipped (live login).
 - TS2367 "can never be true" in App.tsx settings tabs (`"audit"`, `"billing"`) — dead tab code, check when Settings is touched (Phase 9).
 
 ## Pre-launch items
@@ -29,34 +29,31 @@
 - P5 Security (Phase 12): rate-limit key trusts client `x-user-id` header on public routes.
 - P6 White-label (Phases 6/7/9): carrier names still in some user-facing errors (CallService L129/136, billing minutes-overview, KYC errors).
 - P8 Plans (Phases 6–7): `PAID_ACCOUNT_TYPES` lists growth/scale (unused) but not starter/trial; plans.ts types are trial, starter, developer, professional (Growth), enterprise. Paying Starter users count as entitled only while minutes remain.
+- P11 Pre-existing on `main` (same result before Phase 4): `test:m1-pipeline` 10/13 (analysis worker stale-lock reclaim; Plivo "Busy" scored null) → Phase 9; `test:batch-a` 8/9 (audio-stream handshake with valid HMAC in extraHeaders refused) → Phase 11/12. Scripts that load `-r dotenv/config` need `NODE_ENV=test` set inline (guard blocks production mode — correct).
 - P7 Found by backend inventory (BACKEND_UNUSED_REPORT.md): data-retention job never runs (Phase 10, DPDP); KYC page calls 3 routes that do not exist (Phase 7); MCPs only used in browser test calls (Phase 4); calendar bookings routes lack the response envelope (Phase 4).
 
 ## Needs owner verification (exact steps)
 1. Password rotation: Supabase → Project Settings → Database → reset; update `DATABASE_URL` on Render and local `server/.env`; check `/live` returns 200.
-2. Render: Settings → Build Command; tell Claude if it matches `render.yaml` and whether the last deploy log shows `prisma db push` succeeding.
-3. Vercel: confirm the latest frontend deployment succeeded.
+2. Render: Settings → Build Command; tell Claude if it matches `render.yaml` and whether the last deploy log shows `prisma db push` succeeding. 3. Vercel: confirm the latest frontend deployment succeeded.
 4. F1 logged-in: sign in, open `/dashboard` in a new tab on "Slow 4G": only the splash, then the dashboard.
 5. Email sign-up on the live site with a new email and Indian mobile; verification email arrives; phone `12345` is refused.
 6. Google sign-in with a new Google account lands on the dashboard; exactly one user in the admin list.
 7. Password reset: email → "Set New Password" → dashboard; old password fails; reusing the link says expired.
 8. Supabase → Authentication: redirect URLs include `https://www.claritiy.com/dashboard`; min password length 8; rate limits on.
 9. After Phase 2 is deployed: Render deploy log shows the `notification_receipts` table created; the bell's Delete works on the live site.
-11. Prompt Coach + Test Lab live smoke (after key rotation): open an agent → Prompt Coach → Enhance; then Test Lab → Run. Expected: a rewritten prompt with placeholders; Test Lab shows 5 callers with transcripts. Judge the quality of the AI answers.
 10. "Email on notification" and "mute preferences" (CLAUDE.md §2 of B2): no such code was found on the server. Tell Claude where these live or whether they still need building.
+11. Prompt Coach + Test Lab live smoke (after key rotation): open an agent → Prompt Coach → Enhance; then Test Lab → Run. Expected: a rewritten prompt with placeholders; Test Lab shows 5 callers with transcripts. Judge the quality of the AI answers.
+12. Flow + prompt agents live call (after key rotation): call a test number with a flow agent that has a global prompt, inbound direction and two named branches; the agent follows the branches and never reads the instructions aloud; max duration / end-on-silence end the call.
 
 ## Decisions
-- Checklist = 17 issues + S7, Q8, D9, D10, T0, M0, K0. Zero-open-defects gate in Phase 14.
-- `npm run build` rewrites `Frontend/public/sitemap.xml` dates — `git restore` it.
-- Frontend uses pnpm; root/server npm. No `gh`, Docker or Postgres here; local DB = PGlite (RUNBOOK). Don't probe its port with a raw socket before it is up.
-- Browser tests: `cd Frontend && npx playwright test`; helpers in `e2e/helpers/dashboard.ts` (fake session + stubbed backend; session key `claritiy_voice_supabase_auth_token`).
-- Customer bell shows own rows + `ANNOUNCEMENT` rows only; owner-less rows of other types are admin-only.
+- Checklist = 17 issues + S7, Q8, D9, D10, T0, M0, K0. Zero-open-defects gate in Phase 14. `npm run build` rewrites `Frontend/public/sitemap.xml` dates — `git restore` it.
+- Frontend uses pnpm; root/server npm. No `gh`, Docker or Postgres here; local DB = PGlite (RUNBOOK). Don't probe its port with a raw socket before it is up. Browser tests: `cd Frontend && npx playwright test`; helpers in `e2e/helpers/dashboard.ts` (fake session + stubbed backend; session key `claritiy_voice_supabase_auth_token`).
 - AI features use `services/ai/textModel.ts` (timeouts, retry, fallback, BYOK) + `aiFeatureLimiter`; tests stub it with `setTextModelTransportForTests`. Never run `db push --accept-data-loss`, even locally.
-- Playwright runs 2 workers locally (memory-bound machine); measure layout with offsetWidth, not boundingBox, when animations exist.
-- Sign-up "Account Type" saved but unused by the server (decide in Phase 4/13).
+- LOW MEMORY: when PGlite dies with "out of memory: Zone", use the native test DB: scratchpad `pg/start.mjs` (port 54329, password localtest, db `claritiy_phase4`) and push a copy of schema.prisma with `Unsupported("vector(3072)")` → `Unsupported("text")` (vector search tests still need PGlite). Never use git stash for before/after proofs (a cut-off session can strand work): copy the file aside, test, restore.
+- Playwright runs 2 workers locally (memory-bound machine); measure layout with offsetWidth, not boundingBox, when animations exist. Bell: customers see own rows + `ANNOUNCEMENT` rows only. Sign-up "Account Type" saved but unused by the server (decide in Phase 13).
 
 ## Open questions (owner)
-1. Gemini model policy (CLAUDE.md §3). 2. `devr0144@gmail.com` address (§11). 3. Migration Option A or B.
-- STANDING OWNER RULE (2026-11-17, CLAUDE.md §0.6/§12a): merge every verified phase to `main` and push directly; never ask between phases; report once at the end.
+1. Gemini model policy (CLAUDE.md §3). 2. `devr0144@gmail.com` address (§11). 3. Migration Option A or B. STANDING RULE (§0.6/§12a): merge each verified phase to `main`, push, never ask between phases.
 
 ## Next exact step
-Phase 4 (B6 agent editor sections, B7 conversational builder) per docs/PHASED_PROMPTS.md: build docs/AGENT_EDITOR_AUDIT.md (control → API → DB field → runtime consumer → works/broken/no-op), fix or remove no-ops section by section. Known leads: `securityFallback` has no server reader; MCPs only used in browser test calls; calendar bookings routes lack the envelope; agent PUT body has no schema validation.
+Phase 5 (branch `fix/kb-rag`, see PHASED_PROMPTS.md): B8 RAG v2 Retrieval Inspector — KnowledgeBaseService, HybridSearchService, KB routes, inspector UI; per-plan KB limits; indexing queue/backpressure. Vector tests need PGlite (pgvector); native DB on 54329 has no vector type.

@@ -14,6 +14,8 @@ import { injectVoicePersonaDirective } from '../utils/personaPrompt';
 import { buildFinalSystemInstruction } from '../utils/systemInstructionBuilder';
 import { buildCapabilitiesBlock, filterActiveTools } from '../utils/capabilities';
 import { hasCallableBalance } from '../utils/balanceUtils';
+import { buildAgentTools } from '../runtime/agentTools';
+import { ToolExecutor } from '../runtime/ToolExecutor';
 
 interface ActiveSandboxSession {
   ws: WebSocket;
@@ -211,11 +213,7 @@ export class SandboxStreamHandler {
       if (agent.flowGraph && agent.flowGraph !== '' && agent.flowGraph !== '{}') {
         try {
           const FlowCompiler = require('../core/orchestrator/FlowCompiler');
-          const parsedAgentCfg = typeof agent.agentConfig === 'string'
-            ? (() => { try { return JSON.parse(agent.agentConfig); } catch { return {}; } })()
-            : (agent.agentConfig || {});
-          const flexibilityMode = (parsedAgentCfg as any)?.flexibilityMode || 'rigid';
-          sandboxInstructions = FlowCompiler.compile(agent.flowGraph, agent.name, flexibilityMode);
+          sandboxInstructions = FlowCompiler.resolveFlowAgentInstructions(agent);
           logger.info('SandboxStreamHandler: FlowCompiler compiled instructions for flow agent', { connectionId, agentId });
         } catch (compileErr) {
           logger.warn('SandboxStreamHandler: FlowCompiler failed, falling back to systemPrompt', { error: String(compileErr) });
@@ -281,37 +279,19 @@ export class SandboxStreamHandler {
             const discoveredMcp = mcpToolMap.get(name)!;
             resultOutput = await McpService.executeMcpTool(discoveredMcp, args as Record<string, any>);
           } else if (functionDef && functionDef.type === 'custom_api' && functionDef.url) {
-            try {
-              const method = (functionDef.method || 'POST').toUpperCase();
-              const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-              if (functionDef.headers) {
-                try {
-                  const customH = typeof functionDef.headers === 'string' ? JSON.parse(functionDef.headers) : functionDef.headers;
-                  Object.assign(headers, customH);
-                } catch {}
+            // Same hardened path as live calls (SSRF check, timeout, no redirects, safe headers):
+            // a test call must never be able to reach internal addresses either.
+            const [tool] = buildAgentTools([functionDef], null);
+            if (!tool) {
+              resultOutput = { error: `Function "${name}" has an invalid name or URL.` };
+            } else {
+              const executor = new ToolExecutor();
+              executor.registerTools([tool]);
+              const result = await executor.executeTool(tool.name, (args || {}) as Record<string, unknown>);
+              if (!result.success) {
+                logger.warn('SandboxStreamHandler: Custom API tool execution failed', { name, error: result.error });
               }
-
-              let fetchUrl = functionDef.url;
-              let body: string | undefined = undefined;
-
-              if (method === 'GET' || method === 'DELETE') {
-                const urlObj = new URL(fetchUrl);
-                Object.entries(args).forEach(([k, v]) => urlObj.searchParams.append(k, String(v)));
-                fetchUrl = urlObj.toString();
-              } else {
-                body = JSON.stringify(args);
-              }
-
-              const response = await fetch(fetchUrl, { method, headers, body });
-              const responseText = await response.text();
-              try {
-                resultOutput = JSON.parse(responseText);
-              } catch {
-                resultOutput = { responseText, statusCode: response.status };
-              }
-            } catch (err: any) {
-              logger.error('SandboxStreamHandler: Custom API tool execution failed', { name, error: err?.message || String(err) });
-              resultOutput = { error: `Failed to execute custom API function: ${err?.message || String(err)}` };
+              resultOutput = result.success ? result.result : { error: `Failed to execute custom API function: ${result.error}` };
             }
           } else if (name === 'get_available_slots') {
             try {

@@ -479,9 +479,20 @@ export default function SinglePromptStudio({
       setFnFormError('Function name is required.');
       return;
     }
-    const cleanedName = fnName.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    const cleanedName = fnName.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/^[^a-z_]+/, '').slice(0, 64);
     if (!cleanedName) {
       setFnFormError('Valid function name (alphanumeric & underscore) is required.');
+      return;
+    }
+    // Same rules as the server (runtime/agentTools.ts): a function may not reuse a built-in tool
+    // name, and names must be unique, otherwise it would be skipped on live calls.
+    const BUILT_IN_TOOL_NAMES = ['hang_up', 'end_call', 'transfer_call', 'send_sms', 'book_follow_up_call', 'get_available_slots', 'book_appointment', 'reschedule_appointment', 'cancel_appointment', 'check_availability', 'check_calendar_availability', 'schedule_event', 'lookup_knowledge_base', 'query_knowledge_base', 'search_knowledge_base', 'press_digit', 'agent_transfer', 'execute_inline_code'];
+    if (fnType === 'custom_api' && (BUILT_IN_TOOL_NAMES.includes(cleanedName) || cleanedName.startsWith('code_'))) {
+      setFnFormError(`"${cleanedName}" is a built-in tool name. Choose a different name.`);
+      return;
+    }
+    if (functions.some((f) => f.name === cleanedName && f.id !== editingFunction?.id)) {
+      setFnFormError(`A function named "${cleanedName}" already exists.`);
       return;
     }
     if (!fnDesc.trim()) {
@@ -494,6 +505,19 @@ export default function SinglePromptStudio({
       if (!fnUrl.trim()) {
         setFnFormError('URL is required for Custom API functions.');
         return;
+      }
+      if (!/^https?:\/\/[^\s]+$/i.test(fnUrl.trim())) {
+        setFnFormError('The URL must start with https:// (or http://).');
+        return;
+      }
+      if (fnHeaders.trim()) {
+        try {
+          const h = JSON.parse(fnHeaders);
+          if (!h || typeof h !== 'object' || Array.isArray(h)) throw new Error('not an object');
+        } catch {
+          setFnFormError('Headers must be a JSON object, for example {"Authorization": "Bearer ..."}.');
+          return;
+        }
       }
       try {
         parsedParameters = JSON.parse(fnParamsJson);
@@ -863,9 +887,12 @@ export default function SinglePromptStudio({
         setIsLoadingKb(false);
       }
     }
-    if (accordionState.kb) {
+    // Load once when the editor opens (so the "Knowledge Base (n)" badge is right before the section
+    // is expanded), and refresh whenever the section is opened.
+    if (accordionState.kb || kbList.length === 0) {
       loadKBs();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accordionState.kb]);
 
   const toggleKbAssignment = async (kb: ApiKnowledgeBase) => {
@@ -937,7 +964,6 @@ export default function SinglePromptStudio({
     return cfg.callSettings || {};
   })();
 
-  const [ambientNoise, setAmbientNoise] = useState<string>(initialCallSettings.ambientNoise || 'None');
   const [endCallToolEnabled, setEndCallToolEnabled] = useState<boolean>(initialCallSettings.endCallToolEnabled !== undefined ? Boolean(initialCallSettings.endCallToolEnabled) : true);
   const [endOnGoodbyeEnabled, setEndOnGoodbyeEnabled] = useState<boolean>(initialCallSettings.endOnGoodbyeEnabled !== undefined ? Boolean(initialCallSettings.endOnGoodbyeEnabled) : true);
   const [closingMessage, setClosingMessage] = useState<string>(
@@ -1046,9 +1072,6 @@ export default function SinglePromptStudio({
   const [piiCategories, setPiiCategories] = useState<string[]>(
     Array.isArray(initialSecurity.piiRedaction) ? initialSecurity.piiRedaction : []
   );
-  const [fallbackModel, setFallbackModel] = useState<string>(initialSecurity.fallbackModel || 'models/gemini-2.5-flash-native-audio-latest');
-  const [fallbackVoice, setFallbackVoice] = useState<string>(initialSecurity.fallbackVoice || 'Puck');
-  const [maxRetries, setMaxRetries] = useState<number>(initialSecurity.maxRetries ?? 2);
 
   const togglePiiCategory = (category: string) => {
     setPiiCategories((prev) =>
@@ -1559,6 +1582,8 @@ export default function SinglePromptStudio({
     return {
       name: agentName,
       agentType: 'prompt',
+      // Redaction is on when any category is chosen (the server reads the categories at save time).
+      isPiiRedactionEnabled: piiCategories.length > 0,
       model,
       voiceName: voice,
       systemVoice: voice,
@@ -1602,7 +1627,6 @@ export default function SinglePromptStudio({
             .filter((k) => k.length > 0),
         },
         callSettings: {
-          ambientNoise,
           endCallToolEnabled,
           endOnGoodbyeEnabled,
           closingMessage,
@@ -1623,9 +1647,6 @@ export default function SinglePromptStudio({
         },
         securityFallback: {
           piiRedaction: piiCategories,
-          fallbackModel,
-          fallbackVoice,
-          maxRetries,
         },
         webhooks: {
           url: webhookUrl.trim(),
@@ -2790,6 +2811,9 @@ export default function SinglePromptStudio({
                     onChange={(e) => setSpeechSpeed(parseFloat(e.target.value))}
                     className="w-full accent-purple-600"
                   />
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    Tells the AI voice to speak slower or faster. It is guidance to the voice, not an exact rate.
+                  </p>
                   <div className="flex justify-between text-[10px] text-slate-400">
                     <span>0.8x Slow</span>
                     <span>1.0x Normal</span>
@@ -2870,6 +2894,9 @@ export default function SinglePromptStudio({
                     onChange={(e) => setSpeechVolume(parseFloat(e.target.value))}
                     className="w-full accent-purple-600"
                   />
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    Changes the preview loudness here. On calls it guides the voice to sound softer or more projected.
+                  </p>
                 </div>
               </div>
             )}
@@ -2912,7 +2939,7 @@ export default function SinglePromptStudio({
                     className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <p className="mt-1 text-[10px] text-slate-400">
-                    Comma-separated proper nouns, brand names, or jargon to boost live speech recognition accuracy.
+                    Comma-separated names, brands or jargon. The AI is told to listen for and pronounce these carefully (guidance, not a hard speech-recognition setting).
                   </p>
                 </div>
               </div>
@@ -2993,23 +3020,6 @@ export default function SinglePromptStudio({
                   <p className="mt-1 text-[10px] text-slate-400">
                     Spoken by the agent right before ending the call session.
                   </p>
-                </div>
-
-                {/* Ambient Noise Track */}
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Ambient Background Noise
-                  </label>
-                  <select
-                    value={ambientNoise}
-                    onChange={(e) => setAmbientNoise(e.target.value)}
-                    className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-green-500"
-                  >
-                    <option value="None">None (Clean studio audio)</option>
-                    <option value="Office / Corporate">Office / Corporate</option>
-                    <option value="Coffee Shop">Coffee Shop / Busy Cafe</option>
-                    <option value="Call Center">Call Center Background Chatter</option>
-                  </select>
                 </div>
 
                 {/* Max Call Duration Limit */}
@@ -3124,6 +3134,9 @@ export default function SinglePromptStudio({
             </button>
             {accordionState.postCall && (
               <div className="mt-3 space-y-3.5 text-xs text-slate-600 dark:text-slate-400">
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  After every call the AI fills in these fields from the conversation. Results appear in <strong>Call Reports</strong> (open a call → Fields) and in the <code>call_analyzed</code> webhook.
+                </p>
                 {/* Custom Summary Prompt */}
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -3218,15 +3231,19 @@ export default function SinglePromptStudio({
               <div className="mt-3 space-y-3.5 text-xs text-slate-600 dark:text-slate-400">
                 {/* PII Redaction Categories */}
                 <div>
-                  <span className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                    PII Redaction Categories (Transcripts & Logs)
+                  <span className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Redact personal data from saved transcripts
                   </span>
+                  <p className="text-[11px] text-slate-500 mb-1.5 leading-relaxed">
+                    Selected items are replaced with [REDACTED …] before the transcript is stored, so call history, reports, exports and post-call extraction never contain them. The AI still hears the caller normally during the call.
+                  </p>
                   <div className="grid grid-cols-2 gap-2">
                     {[
-                      { id: 'credit_card', label: 'Credit Cards' },
-                      { id: 'ssn', label: 'SSNs' },
-                      { id: 'phone', label: 'Phone Numbers' },
-                      { id: 'email', label: 'Email Addresses' },
+                      { id: 'phone', label: 'Phone numbers' },
+                      { id: 'email', label: 'Email addresses' },
+                      { id: 'aadhaar', label: 'Aadhaar numbers' },
+                      { id: 'pan', label: 'PAN numbers' },
+                      { id: 'credit_card', label: 'Card numbers' },
                     ].map((cat) => {
                       const isChecked = piiCategories.includes(cat.id);
                       return (
@@ -3251,59 +3268,10 @@ export default function SinglePromptStudio({
                   </div>
                 </div>
 
-                {/* Fallback Model */}
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Fallback LLM Model (Failover)
-                  </label>
-                  <select
-                    value={fallbackModel}
-                    onChange={(e) => setFallbackModel(e.target.value)}
-                    className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-rose-500"
-                  >
-                    <option value="models/gemini-2.5-flash-native-audio-latest">Gemini 2.5 Flash Native (Default Backup)</option>
-                    <option value="models/gemini-2.0-flash">Gemini 2.0 Flash</option>
-                  </select>
-                </div>
-
-                {/* Fallback Voice */}
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Fallback Voice Profile
-                  </label>
-                  <select
-                    value={fallbackVoice}
-                    onChange={(e) => setFallbackVoice(e.target.value)}
-                    className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-rose-500"
-                  >
-                    {GEMINI_VOICES.map((v) => (
-                      <option key={v.name} value={v.name}>
-                        {v.desc}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Max Connection Retries */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold text-slate-700 dark:text-slate-300">Max Connection Retries</span>
-                    <span className="font-mono font-bold text-rose-600 dark:text-rose-400">{maxRetries} retries</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="5"
-                    step="1"
-                    value={maxRetries}
-                    onChange={(e) => setMaxRetries(parseInt(e.target.value, 10))}
-                    className="w-full accent-rose-600"
-                  />
-                  <div className="flex justify-between text-[10px] text-slate-400">
-                    <span>0 (No retry)</span>
-                    <span>2 (Recommended)</span>
-                    <span>5 Max</span>
-                  </div>
+                {/* The old fallback model / voice / retry controls were removed: nothing on the
+                    server read them (audit A8). Failover is handled by the platform. */}
+                <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-[11px] text-slate-500">
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">Automatic failover:</span> if the voice AI connection drops during a call, the platform reconnects automatically. No setup is needed.
                 </div>
               </div>
             )}

@@ -27,14 +27,19 @@ export function DashCalendar() {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadData = () => {
     Promise.all([fetchCalendarBookings(), fetchCalendarBatches()])
       .then(([bData, batData]) => {
-        setBookings(bData || []);
+        setBookings(Array.isArray(bData) ? bData : []);
         setBatches(batData || []);
+        setLoadError(null);
       })
-      .catch(console.error)
+      .catch((err) => {
+        // Never show an empty calendar as if there were no bookings when loading actually failed.
+        setLoadError(err?.message ? String(err.message) : 'Could not load your calendar. Please refresh the page.');
+      })
       .finally(() => setLoading(false));
   };
 
@@ -47,10 +52,10 @@ export function DashCalendar() {
     try {
       setCancellingId(id);
       const { apiClient } = await import('../../api');
-      await apiClient.post(`/api/v2/calendar/bookings/${id}/cancel`);
+      await apiClient.post(`/api/v2/calendar/bookings/${encodeURIComponent(id)}/cancel`);
       loadData();
-    } catch {
-      alert('Failed to cancel appointment. Please try again.');
+    } catch (err: any) {
+      alert(err?.message || 'Failed to cancel appointment. Please try again.');
     } finally {
       setCancellingId(null);
     }
@@ -80,6 +85,12 @@ export function DashCalendar() {
           <p className="text-sm text-gray-500 mt-1" style={{fontFamily:"'Outfit', sans-serif"}}>Monitor automated outreach and AI-booked follow-ups.</p>
         </div>
       </div>
+
+      {loadError && (
+        <div role="alert" className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 text-sm text-rose-700 dark:text-rose-300">
+          {loadError}
+        </div>
+      )}
 
       {/* Stats Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

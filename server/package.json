@@ -11,7 +11,14 @@
     "prisma:check-drift": "prisma migrate status",
     "prisma:studio": "prisma studio",
     "typecheck": "node --max-old-space-size=4096 node_modules/typescript/bin/tsc --noEmit",
-    "test:security": "node scripts/test_db_guard.js && node scripts/test_signup_public_routes.js && node scripts/test_agent_industry_rules.js && node scripts/test_notifications.js && node scripts/test_calendar_status_contract.js && node scripts/test_prompt_coach.js && node scripts/test_test_lab.js && node scripts/test_phase5_security_suite.js",
+    "test:security": "node scripts/test_db_guard.js && node scripts/test_signup_public_routes.js && node scripts/test_agent_industry_rules.js && node scripts/test_notifications.js && node scripts/test_calendar_status_contract.js && node scripts/test_prompt_coach.js && node scripts/test_test_lab.js && node scripts/test_calendar_bookings.js && node scripts/test_agent_tools.js && node scripts/test_agent_config_integrity.js && node scripts/test_post_call_fields.js && node scripts/test_pii_redaction_settings.js && node scripts/test_mcp_live.js && node scripts/test_call_limits.js && node scripts/test_flow_agent_instructions.js && node scripts/test_phase5_security_suite.js",
+    "test:call-limits": "node scripts/test_call_limits.js",
+    "test:mcp-live": "node scripts/test_mcp_live.js",
+    "test:pii-settings": "node scripts/test_pii_redaction_settings.js",
+    "test:post-call-fields": "node scripts/test_post_call_fields.js",
+    "test:agent-config": "node scripts/test_agent_config_integrity.js",
+    "test:agent-tools": "node scripts/test_agent_tools.js",
+    "test:calendar-bookings": "node scripts/test_calendar_bookings.js",
     "test:test-lab": "node scripts/test_test_lab.js",
     "test:prompt-coach": "node scripts/test_prompt_coach.js",
     "test:calendar-status": "node scripts/test_calendar_status_contract.js",
@@ -46,7 +53,8 @@
     "test:m2-accuracy": "npx tsx scripts/test_normalizers_hinglish.ts && npx tsx scripts/test_speaker_attribution.ts && npx tsx scripts/test_prompt_injection.ts && npx tsx scripts/test_evidence_substring_check.ts && npx tsx scripts/test_m2_mechanics_suite.ts",
     "eval:reports": "npx tsx -r dotenv/config scripts/eval/run_eval_harness.ts",
     "eval:smoke": "npx tsx -r dotenv/config scripts/eval/run_eval_harness.ts --smoke",
-    "admin:upgrade-plan": "npx tsx scripts/admin_upgrade_plan.ts"
+    "admin:upgrade-plan": "npx tsx scripts/admin_upgrade_plan.ts",
+    "test:flow-agent": "node scripts/test_flow_agent_instructions.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

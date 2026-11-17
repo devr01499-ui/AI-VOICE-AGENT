@@ -9,6 +9,10 @@ import { ProviderManager } from '../../providers/ProviderManager';
 import { AgentRepository } from '../../repositories/AgentRepository';
 import { CallRepository } from '../../repositories/CallRepository';
 import { ToolExecutor } from '../../runtime/ToolExecutor';
+import { buildAgentTools, toModelDeclaration, isReservedToolName } from '../../runtime/agentTools';
+import { McpService, type DiscoveredMcpTool } from '../../services/McpService';
+import { WebhookDispatcher } from '../../utils/WebhookDispatcher';
+import type { ToolDefinition } from '../../types';
 import { CallStatus, AgentConfig } from '../../types';
 import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
@@ -43,16 +47,8 @@ export function extractToolsFromFlowGraph(flowGraphInput: string | object | null
     const data = node.data || {};
 
     if (type === 'function' || type === 'callTool') {
-      const toolName = (data.toolName || data.label || 'custom_tool').toLowerCase().replace(/[^a-z0-9_]/g, '_');
-      if (!registeredNames.has(toolName)) {
-        registeredNames.add(toolName);
-        tools.push({
-          type: 'function',
-          name: toolName,
-          description: data.instructions || data.prompt || `Dynamic flow tool: ${data.label || toolName}`,
-          parameters: data.parameters || { type: 'OBJECT', properties: {} },
-        });
-      }
+      // Executable flow tools (with their URL) are built by buildAgentTools in runtime/agentTools.
+      continue;
     } else if (type === 'checkCalendar') {
       if (!registeredNames.has('check_calendar_availability')) {
         registeredNames.add('check_calendar_availability');
@@ -158,12 +154,32 @@ interface PrewarmedSession {
   ttlTimeout: NodeJS.Timeout;
 }
 
+/** Platform ceiling for any single call (cost and abuse protection). */
+export const PLATFORM_MAX_CALL_SECONDS = 3600;
+
+/**
+ * Effective max duration: the agent's "Max call duration" when set, otherwise the call's own limit
+ * (every call row has one; default 30 min), never above the platform ceiling and never under 60 s.
+ */
+export function resolveMaxCallSeconds(agentSeconds: unknown, callSeconds: unknown): number {
+  const a = Number(agentSeconds);
+  const c = Number(callSeconds);
+  const chosen = Number.isFinite(a) && a > 0 ? a : Number.isFinite(c) && c > 0 ? c : PLATFORM_MAX_CALL_SECONDS;
+  return Math.min(PLATFORM_MAX_CALL_SECONDS, Math.max(60, Math.round(chosen)));
+}
+
+/** Effective end-on-silence period: 0 = off; otherwise clamped to 10–600 seconds. */
+export function resolveSilenceSeconds(value: unknown): number {
+  const v = Number(value);
+  if (!Number.isFinite(v) || v <= 0) return 0;
+  return Math.min(600, Math.max(10, Math.round(v)));
+}
+
 export class CallOrchestrator extends EventEmitter {
   private static _instance: CallOrchestrator | null = null;
   private readonly activeCalls = new Map<string, CallSession>();
   private readonly prewarmedSessions = new Map<string, PrewarmedSession>();
   private readonly stateMachines = new Map<string, CallStateMachine>();
-  private readonly toolExecutor = new ToolExecutor();
 
   private constructor() {
     super();
@@ -351,6 +367,8 @@ export class CallOrchestrator extends EventEmitter {
 
     let agentConfig: AgentConfig;
     let activeAgent: any = null;
+    let executableTools: ToolDefinition[] = [];
+    let mcpToolMap = new Map<string, DiscoveredMcpTool>();
     try {
       const agent = await AgentRepository.findById(agentId);
       if (!agent) {
@@ -379,7 +397,7 @@ export class CallOrchestrator extends EventEmitter {
       } else {
         try {
           const FlowCompiler = require('./FlowCompiler');
-          systemInstructions = FlowCompiler.compile(agent.flowGraph, agent.name, rawConfig.flexibilityMode || 'rigid');
+          systemInstructions = FlowCompiler.resolveFlowAgentInstructions(agent);
         } catch (parseError) {
           logger.error('CallOrchestrator: Canvas layout parsing failed. Utilizing baseline system instruction prompt block.', { error: String(parseError) });
           systemInstructions = agent.systemPrompt || defaultPrompt;
@@ -389,21 +407,42 @@ export class CallOrchestrator extends EventEmitter {
       const isRecordingEnabled = rawConfig.isRecordingEnabled ?? rawConfig.settings?.isRecordingEnabled ?? false;
       const isTranscriptionEnabled = rawConfig.isTranscriptionEnabled ?? rawConfig.settings?.isTranscriptionEnabled ?? false;
 
-      let compiledFunctionsTools: any[] = [];
-      if (Array.isArray(rawConfig.functions)) {
-        compiledFunctionsTools = rawConfig.functions.map((fn: any) => ({
-          type: 'function',
-          name: fn.name,
-          description: fn.description || '',
-          parameters: fn.parameters || { type: 'OBJECT', properties: {} },
-        }));
+      // Custom API functions (editor) and flow "function" nodes become EXECUTABLE http tools; the
+      // flow's built-in nodes (calendar, end call, ...) stay declarations handled below by name.
+      executableTools = buildAgentTools(rawConfig.functions, agent.flowGraph, { callId });
+      const flowGraphTools = extractToolsFromFlowGraph(agent.flowGraph);
+      const combinedTools: any[] = [];
+      const declaredNames = new Set<string>();
+      for (const t of [...executableTools.map(toModelDeclaration), ...flowGraphTools]) {
+        if (!t?.name || declaredNames.has(t.name)) continue;
+        declaredNames.add(t.name);
+        combinedTools.push(t);
       }
 
-      const flowGraphTools = extractToolsFromFlowGraph(agent.flowGraph);
-      const combinedTools = [
-        ...compiledFunctionsTools,
-        ...flowGraphTools,
-      ];
+      // MCP servers (they used to work only in browser test calls). Discovery runs during the
+      // pre-warm while the phone rings; it is capped so a slow server can never block the call.
+      if (Array.isArray(rawConfig.mcpServers) && rawConfig.mcpServers.length > 0) {
+        try {
+          const discovery = await Promise.race([
+            McpService.fetchMcpTools(rawConfig.mcpServers.slice(0, 5)),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 6_000)),
+          ]);
+          if (!discovery) {
+            logger.warn('CallOrchestrator: MCP discovery timed out; continuing without MCP tools', { callId });
+          } else {
+            for (const decl of discovery.functionDeclarations) {
+              if (!decl?.name || declaredNames.has(decl.name) || isReservedToolName(decl.name)) continue;
+              const mcpTool = discovery.mcpToolMap.get(decl.name);
+              if (!mcpTool) continue;
+              declaredNames.add(decl.name);
+              combinedTools.push(decl);
+              mcpToolMap.set(decl.name, mcpTool);
+            }
+          }
+        } catch (mcpErr) {
+          logger.warn('CallOrchestrator: MCP discovery failed; continuing without MCP tools', { callId, error: String(mcpErr) });
+        }
+      }
 
       agentConfig = {
         prompt: buildFinalSystemInstruction(agent, { callId }),
@@ -422,28 +461,15 @@ export class CallOrchestrator extends EventEmitter {
       };
 
     } catch (err) {
-      logger.error('CRITICAL: Forensic audit lookup failed. Injecting default fallback config.', {
+      // The call must run as ITS agent and ITS account, or not at all. (It used to fall back to a
+      // hard-coded user id and prompt, which charged and booked on the wrong account.) The caller
+      // of startVoiceSession hangs up the carrier leg when this throws.
+      logger.error('CallOrchestrator: agent could not be loaded; refusing to start the call', {
+        callId,
+        agentId,
         error: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack : undefined
       });
-
-      activeAgent = {
-        systemPrompt: "You are Claritiy AI, a highly professional, senior executive talent acquisition manager for Claritiy. Your sole mission is to execute a brief, high-signal preliminary phone screening with the candidate on the line. - Personality: Articulate, warm, objective, professional, and conversational. - Constraints: Keep your utterances concise and tightly focused. Never output multi-paragraph answers or text formatting characters. Do not use markdown blocks. Speak naturally, allowing comfortable pauses, and avoid talking over the candidate. - Flow: First, greet them and confirm you are speaking with the applicant. Second, ask them to briefly detail their hands-on engineering experiences deploying large language models or low-latency system components. Third, inquire about their expected salary bounds. Finally, thank them for their time and state that our executive operations board will follow up with next steps.",
-        voiceName: 'Puck',
-        model: 'models/gemini-2.5-flash-native-audio-latest',
-        userId: '1e69187e-82d5-4166-929f-4bbba90e5304',
-      };
-
-      agentConfig = {
-        prompt: buildFinalSystemInstruction(activeAgent, { callId }),
-        voice: activeAgent.voiceName,
-        llm: {
-          provider: 'gemini',
-          model: activeAgent.model,
-          temperature: 0.7,
-        },
-        tools: [],
-      };
+      throw err instanceof Error ? err : new Error(String(err));
     }
 
     logger.info('CallOrchestrator: agent config validated', { 
@@ -582,10 +608,8 @@ export class CallOrchestrator extends EventEmitter {
       agentConfig.prompt = `${agentConfig.prompt}\n\n[KNOWLEDGE BASE GUIDANCE] You have access to the tool 'lookup_knowledge_base'. When a caller asks specific questions about company policies, products, pricing, or procedures covered in your documentation, call 'lookup_knowledge_base' to retrieve the verified facts before answering.`;
     }
 
-    if (agentConfig.tools && agentConfig.tools.length > 0) {
-      this.toolExecutor.clearRegistry();
-      this.toolExecutor.registerTools(agentConfig.tools);
-    }
+    const callToolExecutor = new ToolExecutor();
+    callToolExecutor.registerTools(executableTools);
 
     const existingCall = await CallRepository.findById(callId).catch(() => null);
     const stateMachine = this.stateMachines.get(callId) || new CallStateMachine(callId, (existingCall?.status as CallStatus) || 'queued');
@@ -780,7 +804,11 @@ export class CallOrchestrator extends EventEmitter {
             logger.warn('Flow Engine: trigger custom code tool call via Pipecat - capability unavailable', { callId, name, args });
             return JSON.stringify({ success: false, error: 'Inline code execution capability is currently unavailable on this system.' });
           }
-          const result = await this.toolExecutor.executeTool(name, parsedArgs);
+          const mcpTool = mcpToolMap.get(name);
+          if (mcpTool) {
+            return JSON.stringify(await McpService.executeMcpTool(mcpTool, parsedArgs));
+          }
+          const result = await callToolExecutor.executeTool(name, parsedArgs);
           return JSON.stringify(result);
         } catch (err) {
           logger.error('CallOrchestrator: tool execution error in Pipecat handler', { toolCallId, name, err });
@@ -796,7 +824,24 @@ export class CallOrchestrator extends EventEmitter {
     await pipecatRunner.start();
     logger.info('CallOrchestrator: pipeline execution started successfully', { callId });
 
-    await CallRepository.updateStatus(callId, 'in_progress', { startTime: new Date() });
+    const startedAt = new Date();
+    await CallRepository.updateStatus(callId, 'in_progress', { startTime: startedAt });
+
+    // Hard time limits on a live call (they were never enforced): the agent's "max duration",
+    // capped by the call's own limit and the platform ceiling; and "end on silence".
+    const callRow = await prisma.call.findUnique({ where: { id: callId }, select: { maxDuration: true } }).catch(() => null);
+    this.armCallTimers(callId, {
+      maxDurationSeconds: resolveMaxCallSeconds(callSettings.maxDurationSeconds, callRow?.maxDuration),
+      silenceSeconds: resolveSilenceSeconds(callSettings.endCallOnSilenceSeconds),
+    });
+
+    // Agent webhook: call_started (fire-and-forget; never delays the call).
+    void WebhookDispatcher.dispatch({
+      agentId,
+      userId: activeAgent?.userId,
+      eventType: 'call_started',
+      payload: { callId, agentId, phoneNumber, startedAt: startedAt.toISOString() },
+    });
 
     const sessionId = `pipecat-sess-${Date.now()}`;
     logger.info('CallOrchestrator: sessionId generated', { callId, sessionId });
@@ -1037,6 +1082,7 @@ export class CallOrchestrator extends EventEmitter {
     detail?: string,
     endedBy?: string
   ): Promise<void> {
+    this.clearCallTimers(callId);
     const rawReason = (reason || '').toLowerCase().trim();
     let normalizedReason = 'unknown';
     let defaultEndedBy = 'system';
@@ -1213,6 +1259,22 @@ export class CallOrchestrator extends EventEmitter {
     });
     await SessionLogger.logCallEnded(callId, normalizedReason, session?.providerSessionId || '');
 
+    // Agent webhook: call_ended — once, because an already-finalized call returned above.
+    void WebhookDispatcher.dispatch({
+      agentId: call?.agentId || session?.agentId,
+      userId: call?.userId || undefined,
+      eventType: 'call_ended',
+      payload: {
+        callId,
+        agentId: call?.agentId || session?.agentId,
+        status: mappedStatus,
+        endReason: normalizedReason,
+        endedBy: resolvedEndedBy,
+        durationSeconds: finalDurationSeconds,
+        endedAt: endTime.toISOString(),
+      },
+    });
+
     // Trigger post-call deduction asynchronously
     const { CallService } = await import('../../services/CallService');
     CallService.deductCallMinutes(callId, finalDurationSeconds).catch((deductErr: any) => {
@@ -1259,6 +1321,60 @@ export class CallOrchestrator extends EventEmitter {
       logger.warn('CallOrchestrator: playout drain before hangup failed; ending immediately', { callId, error: String(err) });
     }
     await this.endCallSession(callId, reason, detail);
+  }
+
+  // ─── Per-call limits: max duration and end-on-silence ──────
+  private readonly callTimers = new Map<string, { max?: NodeJS.Timeout; silence?: NodeJS.Timeout; silenceSeconds: number; onTranscript?: (p: any) => void }>();
+
+  /** Starts the max-duration timer and (if configured) the silence timer for a call. */
+  armCallTimers(callId: string, limits: { maxDurationSeconds: number; silenceSeconds: number }): void {
+    this.clearCallTimers(callId);
+    const entry: { max?: NodeJS.Timeout; silence?: NodeJS.Timeout; silenceSeconds: number; onTranscript?: (p: any) => void } = { silenceSeconds: limits.silenceSeconds };
+    entry.max = setTimeout(() => {
+      logger.info('[CALL_LIMIT] Maximum call duration reached; ending the call', { callId, seconds: limits.maxDurationSeconds });
+      this.endCallGracefully(callId, 'max_duration', `Maximum call duration of ${limits.maxDurationSeconds}s reached`).catch((err) => {
+        logger.error('[CALL_LIMIT] failed to end call at max duration', { callId, error: String(err) });
+      });
+    }, limits.maxDurationSeconds * 1000);
+    entry.max.unref?.();
+
+    if (limits.silenceSeconds > 0) {
+      const restart = () => {
+        const cur = this.callTimers.get(callId);
+        if (!cur) return;
+        if (cur.silence) clearTimeout(cur.silence);
+        cur.silence = setTimeout(() => {
+          logger.info('[CALL_LIMIT] No speech for the configured silence period; ending the call', { callId, seconds: limits.silenceSeconds });
+          this.endCallGracefully(callId, 'silence_timeout', `No speech for ${limits.silenceSeconds}s`).catch((err) => {
+            logger.error('[CALL_LIMIT] failed to end call on silence', { callId, error: String(err) });
+          });
+        }, limits.silenceSeconds * 1000);
+        cur.silence.unref?.();
+      };
+      // Any speech from either side (partial or final transcript) resets the silence timer.
+      entry.onTranscript = (payload: any) => {
+        if (payload && payload.callId === callId && String(payload.text || '').trim()) restart();
+      };
+      eventBus.subscribe(PROVIDER_EVENTS.TRANSCRIPT_UPDATED, entry.onTranscript);
+      this.callTimers.set(callId, entry);
+      restart();
+      return;
+    }
+    this.callTimers.set(callId, entry);
+  }
+
+  clearCallTimers(callId: string): void {
+    const entry = this.callTimers.get(callId);
+    if (!entry) return;
+    if (entry.max) clearTimeout(entry.max);
+    if (entry.silence) clearTimeout(entry.silence);
+    if (entry.onTranscript) eventBus.unsubscribe(PROVIDER_EVENTS.TRANSCRIPT_UPDATED, entry.onTranscript);
+    this.callTimers.delete(callId);
+  }
+
+  /** Tests only: whether a call currently has limits armed. */
+  hasCallTimers(callId: string): boolean {
+    return this.callTimers.has(callId);
   }
 
   // ─── Farewell watchdog ────────────────────────────────────────────────────────────────────────
@@ -1402,6 +1518,24 @@ export class CallOrchestrator extends EventEmitter {
   // ─── Event Bus Listeners ──────────────────────────
 
   private subscribeToEventBus(): void {
+    // Agent webhook: transcript_updated, once per finished turn (final transcripts only).
+    eventBus.subscribe(PROVIDER_EVENTS.TRANSCRIPT_UPDATED, (payload: any) => {
+      if (!payload || !payload.isFinal || !payload.callId) return;
+      const session = this.activeCalls.get(payload.callId);
+      if (!session) return;
+      void WebhookDispatcher.dispatch({
+        agentId: session.agentId,
+        eventType: 'transcript_updated',
+        payload: {
+          callId: payload.callId,
+          agentId: session.agentId,
+          speaker: payload.speaker === 'user' ? 'caller' : payload.speaker,
+          text: String(payload.text || '').slice(0, 4000),
+          at: new Date().toISOString(),
+        },
+      });
+    });
+
     eventBus.subscribe(PROVIDER_EVENTS.CALL_CONNECTED, (payload) => {
       logger.info('Orchestrator: Event CALL_CONNECTED', payload);
     });

@@ -21,22 +21,58 @@ interface AddSegmentData {
   sequenceNumber?: number;
 }
 
+/** Redaction categories an agent can choose (Security & Fallback). `ssn` kept for older agents. */
+export const PII_CATEGORIES = ['phone', 'email', 'aadhaar', 'pan', 'credit_card', 'ssn'] as const;
+
 export function applyPiiRedaction(text: string, categories: string[] = []): string {
   if (!text || !categories || categories.length === 0) return text;
   let redacted = text;
+  // Order matters: longer digit runs first so a card or Aadhaar number is not half-matched as a phone.
   if (categories.includes('credit_card')) {
-    redacted = redacted.replace(/\b(?:\d[ -]*?){13,16}\b/g, '[REDACTED CREDIT CARD]');
+    redacted = redacted.replace(/\b(?:\d[ -]?){12,15}\d\b/g, (m) => (m.replace(/\D/g, '').length >= 13 ? '[REDACTED CARD]' : m));
+  }
+  if (categories.includes('aadhaar')) {
+    redacted = redacted.replace(/\b\d{4}[ -]?\d{4}[ -]?\d{4}\b/g, '[REDACTED AADHAAR]');
+  }
+  if (categories.includes('pan')) {
+    redacted = redacted.replace(/\b[A-Za-z]{5}\d{4}[A-Za-z]\b/g, '[REDACTED PAN]');
   }
   if (categories.includes('ssn')) {
     redacted = redacted.replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[REDACTED SSN]');
   }
-  if (categories.includes('phone')) {
-    redacted = redacted.replace(/\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, '[REDACTED PHONE]');
-  }
   if (categories.includes('email')) {
     redacted = redacted.replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '[REDACTED EMAIL]');
   }
+  if (categories.includes('phone')) {
+    // Indian mobiles (+91 / 0 / plain, spaced or not) and common international formats.
+    redacted = redacted.replace(/(?:\+?\d{1,3}[-.\s]?)?(?:\b[6-9]\d{4}[-.\s]?\d{5}\b|\(?\b\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b)/g, '[REDACTED PHONE]');
+  }
   return redacted;
+}
+
+/** The redaction categories chosen for the agent handling a call (cached briefly per call). */
+const callCategoryCache = new Map<string, { at: number; categories: string[] }>();
+export async function piiCategoriesForCall(callId: string): Promise<string[]> {
+  const hit = callCategoryCache.get(callId);
+  if (hit && Date.now() - hit.at < 5 * 60_000) return hit.categories;
+  let categories: string[] = [];
+  try {
+    const call = await prisma.call.findUnique({
+      where: { id: callId },
+      select: { agent: { select: { agentConfig: true, isPiiRedactionEnabled: true } } },
+    });
+    const raw = call?.agent?.agentConfig;
+    const cfg = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    const chosen = Array.isArray(cfg?.securityFallback?.piiRedaction) ? cfg.securityFallback.piiRedaction : [];
+    categories = chosen.filter((c: unknown) => typeof c === 'string' && (PII_CATEGORIES as readonly string[]).includes(c));
+    // Older agents only had the on/off switch: redact everything.
+    if (categories.length === 0 && call?.agent?.isPiiRedactionEnabled) categories = ['phone', 'email', 'aadhaar', 'pan', 'credit_card'];
+  } catch (err) {
+    logger.warn('TranscriptRepository: could not read PII settings for call', { callId, error: String(err) });
+  }
+  if (callCategoryCache.size > 5_000) callCategoryCache.clear();
+  callCategoryCache.set(callId, { at: Date.now(), categories });
+  return categories;
 }
 
 /**
@@ -64,8 +100,10 @@ export class TranscriptRepository {
         data.callId
       );
 
-      const sanitizedContent = piiCategories && piiCategories.length > 0
-        ? applyPiiRedaction(data.content, piiCategories)
+      // Redact BEFORE storing, using the categories the agent chose (unless the caller passed them).
+      const categories = piiCategories ?? await piiCategoriesForCall(data.callId);
+      const sanitizedContent = categories.length > 0
+        ? applyPiiRedaction(data.content, categories)
         : data.content;
 
       const segment = await prisma.transcriptSegment.create({

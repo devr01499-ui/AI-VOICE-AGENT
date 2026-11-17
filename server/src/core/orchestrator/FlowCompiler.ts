@@ -19,6 +19,8 @@ export interface FlowNodeData {
   message?: string;
   variable?: string;
   variableName?: string;
+  /** Extract Variable node's slot key (what the flow builder writes). */
+  variableKey?: string;
   instructions?: string;
   branches?: Array<{ condition: string; targetNodeId: string }>;
   targetNumber?: string;
@@ -192,8 +194,9 @@ export function compileFlowToPrompt(
       prompt += `- MESSAGE TO SPEAK: "${spokenText}"\n`;
     }
 
-    if (data.variable || data.variableName) {
-      prompt += `- CAPTURE VARIABLE: Record caller response as '${data.variable || data.variableName}'.\n`;
+    const variableName = data.variable || data.variableName || data.variableKey;
+    if (variableName) {
+      prompt += `- CAPTURE VARIABLE: Record caller response as '${variableName}'.\n`;
     }
 
     // Branching evaluation
@@ -263,4 +266,62 @@ export function compile(
   const edges = Array.isArray(parsed.edges) ? parsed.edges : [];
 
   return compileFlowToPrompt(agentName, parsed.nodes, edges, mode, callDirection);
+}
+
+/** Start of every compiled flow prompt (the flow builder's preview compiler uses the same text). */
+export const FLOW_PROMPT_HEADER = '# AGENT IDENTITY & ROLE\nYou are an autonomous AI voice agent (';
+/** Old flow-builder builds saved this input hint as the global prompt's value. */
+const GLOBAL_PROMPT_PLACEHOLDER = 'Enter your global prompt here. Type {{ to add dynamic variables.';
+
+function parseConfig(raw: unknown): Record<string, any> {
+  if (!raw) return {};
+  if (typeof raw === 'object') return raw as Record<string, any>;
+  if (typeof raw !== 'string') return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * The one place that decides a flow agent's base instructions (live calls, test calls and the
+ * final instruction builder all use it, so they agree).
+ *
+ * - The flow builder saves "<global prompt> + <compiled flow> + <direction/handbook>" as the
+ *   systemPrompt; that text is what the user saw in the builder's preview, so it is used as is.
+ *   Old saves nested a new copy on every save: keep the user's text before the first copy and
+ *   only the last (current) copy.
+ * - Otherwise (agent created from a template or the API) the graph is compiled here with the
+ *   agent's own direction and flexibility, after the global prompt.
+ */
+export function resolveFlowAgentInstructions(agent: {
+  name?: string | null;
+  systemPrompt?: string | null;
+  flowGraph?: unknown;
+  agentConfig?: unknown;
+  direction?: string | null;
+}): string {
+  const cfg = parseConfig(agent.agentConfig);
+  const flowSettings = parseConfig(cfg.flowSettings);
+  const saved = typeof agent.systemPrompt === 'string'
+    ? agent.systemPrompt.split(GLOBAL_PROMPT_PLACEHOLDER).join('')
+    : '';
+
+  const first = saved.indexOf(FLOW_PROMPT_HEADER);
+  if (first >= 0) {
+    const last = saved.lastIndexOf(FLOW_PROMPT_HEADER);
+    const head = saved.slice(0, first).trim();
+    const tail = saved.slice(last).trim();
+    return head ? `${head}\n\n${tail}` : tail;
+  }
+
+  const flexibilityMode: 'flex' | 'rigid' = (flowSettings.flexibilityMode || cfg.flexibilityMode) === 'flex' ? 'flex' : 'rigid';
+  const direction = agent.direction === 'inbound' || agent.direction === 'both' || agent.direction === 'outbound'
+    ? agent.direction
+    : undefined;
+  const compiled = compile((agent.flowGraph as any) || '', agent.name || 'Claritiy AI', flexibilityMode, direction);
+  const globalPrompt = typeof flowSettings.globalPrompt === 'string' ? flowSettings.globalPrompt.trim() : saved.trim();
+  return globalPrompt ? `${globalPrompt}\n\n${compiled}` : compiled;
 }

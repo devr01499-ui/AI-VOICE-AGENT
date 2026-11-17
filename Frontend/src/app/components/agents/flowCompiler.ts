@@ -5,6 +5,8 @@ export interface FlowNodeData {
   prompt?: string;
   variable?: string;
   variableName?: string;
+  /** Extract Variable node's slot key. */
+  variableKey?: string;
   instructions?: string;
   branches?: Array<{ condition: string; targetNodeId: string }>;
   targetNumber?: string;
@@ -61,6 +63,30 @@ export interface FlowGraph {
   schemaVersion: number;
   nodes: FlowNode[];
   edges: FlowEdge[];
+}
+
+/** Start of every compiled flow prompt (same text in the server's FlowCompiler). */
+export const FLOW_PROMPT_HEADER = '# AGENT IDENTITY & ROLE\nYou are an autonomous AI voice agent (';
+/** Old builds stored this hint as the global prompt's value; it must never reach a live call. */
+export const GLOBAL_PROMPT_PLACEHOLDER = 'Enter your global prompt here. Type {{ to add dynamic variables.';
+
+/**
+ * Recovers the user's own global prompt from a saved flow agent's systemPrompt (agents saved
+ * before `agentConfig.flowSettings.globalPrompt` existed). The saved text is
+ * "<global prompt>\n\n<compiled flow>\n\n<direction/handbook>"; only the first part is the user's.
+ * Cutting at the FIRST compiled-flow header also undoes the old bug where each save nested
+ * another copy of the whole prompt inside the global prompt.
+ */
+export function extractFlowGlobalPrompt(saved?: string | null): string {
+  if (!saved) return '';
+  let text = saved;
+  const idx = text.indexOf(FLOW_PROMPT_HEADER);
+  if (idx >= 0) text = text.slice(0, idx);
+  return text
+    .replace(/\n*\[CALL DIRECTION INSTRUCTION\][\s\S]*?(?=\n*\[[A-Z\s_]+\]|$)/g, '')
+    .replace(/\n*\[AGENT HANDBOOK INSTRUCTIONS\][\s\S]*?(?=\n*\[[A-Z\s_]+\]|$)/g, '')
+    .split(GLOBAL_PROMPT_PLACEHOLDER).join('')
+    .trim();
 }
 
 /**
@@ -232,7 +258,7 @@ export function compileFlowToSystemPrompt(
       case 'logicSplit':
       case 'conditionBranch':
         prompt += `## STEP ${stepNum}: ${data.label || 'Logic Split'} [Type: Condition Branch]\n`;
-        prompt += `- ACTION: Evaluate caller response against branching criteria:\n`;
+        prompt += `- ACTION: Evaluate caller response against branching criteria${data.variable ? ` (based on '${data.variable}')` : ''}:\n`;
         if (data.branches && data.branches.length > 0) {
           data.branches.forEach((b, bIdx) => {
             const targetRef = getStepRef(b.targetNodeId);
@@ -256,7 +282,7 @@ export function compileFlowToSystemPrompt(
 
       case 'extractVariable':
         prompt += `## STEP ${stepNum}: ${data.label || 'Extract Variable'} [Type: Variable Extraction]\n`;
-        prompt += `- ACTION: Extract variable '${data.variable || 'user_intent'}' from caller response.\n\n`;
+        prompt += `- ACTION: Extract variable '${data.variableKey || data.variable || data.variableName || 'user_intent'}' from caller response.\n\n`;
         break;
 
       case 'code':
