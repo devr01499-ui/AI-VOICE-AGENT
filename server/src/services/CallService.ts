@@ -21,7 +21,7 @@ import { prisma } from '../lib/prisma';
 import { ADMIN_EMAIL } from '../config/constants';
 import { WebhookDispatcher } from '../utils/WebhookDispatcher';
 import { ContactsController } from '../controllers/ContactsController';
-import { redactPii } from '../utils/piiRedactor';
+import { applyPiiRedaction, piiCategoriesForCall } from '../repositories/TranscriptRepository';
 import { countActiveCalls, countGlobalActiveCalls, GLOBAL_TELEPHONY_CAP, withUserCallLock } from '../utils/concurrency';
 import { hasCallableBalance, getCallableSecondsRemaining } from '../utils/balanceUtils';
 import { EncryptionService } from '../utils/EncryptionService';
@@ -299,18 +299,14 @@ export class CallService {
     const call = await CallRepository.findById(callId);
     const segments = await TranscriptRepository.findByCallId(callId);
 
-    let isRedactionEnabled = false;
-    if (call?.agentId) {
-      const agent = await prisma.agent.findUnique({ where: { id: call.agentId } });
-      if (agent?.isPiiRedactionEnabled) {
-        isRedactionEnabled = true;
-      }
-    }
+    // Transcripts are redacted when stored; this also covers segments saved before redaction was
+    // switched on, using the same categories the agent chose.
+    const categories = await piiCategoriesForCall(callId);
 
     return segments.map((seg: TranscriptSegment) => ({
       id: seg.id,
       speaker: seg.speaker as Speaker,
-      content: isRedactionEnabled ? redactPii(seg.content) : seg.content,
+      content: categories.length > 0 ? applyPiiRedaction(seg.content, categories) : seg.content,
       startTime: seg.startTime,
       endTime: seg.endTime,
       sequenceNumber: seg.sequenceNumber,
