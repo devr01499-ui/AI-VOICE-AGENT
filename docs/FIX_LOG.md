@@ -179,3 +179,10 @@ One entry per fix, newest at the bottom. Template:
 - Fix: test calls now use the same `buildAgentTools` + `ToolExecutor` path as live calls (SSRF check, 10 s timeout, no redirects, safe headers). MCP requests use `redirect: 'error'`.
 - Remaining (Phase 12, logged as P10): `assertSafeUrl` resolves DNS once and fetch resolves again, so a DNS-rebinding attack is still theoretically possible; the fix is pinning the checked IP in the HTTP agent.
 - Tests: regression check added to `npm run test:agent-tools` (13/13).
+
+## A13 — MCP servers only worked in browser test calls (Phase 4)
+- Root cause: only `SandboxStreamHandler` (browser test calls) discovered and executed MCP tools; `CallOrchestrator` (real phone calls) ignored `agentConfig.mcpServers`.
+- Fix: live calls discover MCP tools (max 5 servers, 6 s overall cap, during the pre-warm while the phone rings; failures and timeouts never block the call), declare them to the AI model (built-in names protected), and route their calls to `McpService.executeMcpTool` with the decrypted key, SSRF check and no redirects.
+- Files: server/src/core/orchestrator/CallOrchestrator.ts, server/scripts/test_mcp_live.js (new), server/package.json.
+- Tests: `npm run test:mcp-live` (4, in test:security): discovery with decrypted key and no redirects, execution, internal URLs refused, live-call wiring present (source check: a real call needs the voice AI service).
+- Not verified here: a live phone call using a real MCP server.

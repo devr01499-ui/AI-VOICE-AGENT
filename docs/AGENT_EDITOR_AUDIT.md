@@ -15,10 +15,10 @@ Built 2026-11-17 (Phase 4) from a read-only trace: editor → `getStudioPayload`
 | A7 | Webhooks: only `call_analyzed` is ever sent; `call_started`, `call_ended`, `transcript_updated` never fire; no retries; signature has no timestamp (replayable); deliveries sequential | WebhookDispatcher.ts | FIXED (see FIX_LOG) |
 | A8 | Security & Fallback section is a no-op (PII categories, fallback model/voice/retries have no reader); the real PII switch `Agent.isPiiRedactionEnabled` is never set by the editor | grep of server/src | FIXED (see FIX_LOG) |
 | A9 | Flow agents: global prompt + handbook discarded at call time; direction ignored (always outbound); branch conditions lost (edges saved without labels); voice/language/flexibility not reloaded, so re-saving resets them; KB/Speech/Transcription panels in the flow builder not saved | systemInstructionBuilder.ts ~273-283; FlowCompiler.ts ~262; VisualFlowCanvas.tsx ~213-218, ~351-355 | open |
-| A10 | SSRF: sandbox custom API calls have no SSRF check and no timeout; live HTTP tools have no timeout; `assertSafeUrl` checks DNS once and fetch follows redirects (rebinding/redirect bypass) | SandboxStreamHandler.ts ~305; ToolExecutor.ts ~223; ssrfValidator.ts ~204 | open (Phase 4 + 12) |
+| A10 | SSRF: sandbox custom API calls have no SSRF check and no timeout; live HTTP tools have no timeout; `assertSafeUrl` checks DNS once and fetch follows redirects (rebinding/redirect bypass) | SandboxStreamHandler.ts ~305; ToolExecutor.ts ~223; ssrfValidator.ts ~204 | PARTLY FIXED — DNS-rebinding pin left for Phase 12 (P10) |
 | A11 | PUT `/agents/:id` has no body schema; client can set `status` (any string), `agentType`, `workspaceId` | agents.ts ~639-731 | FIXED (see FIX_LOG) |
 | A12 | Webhook secret and MCP `apiKey` stored and returned in plain text by GET | agents.ts ~409 | FIXED (see FIX_LOG) |
-| A13 | MCP servers used only in browser test calls, never on live calls | SandboxStreamHandler.ts ~190-282 | open |
+| A13 | MCP servers used only in browser test calls, never on live calls | SandboxStreamHandler.ts ~190-282 | FIXED (see FIX_LOG) |
 | A14 | Knowledge Base count badge shows 0 until the section is opened | SinglePromptStudio.tsx ~266, ~2377 | open |
 
 ## Single-prompt editor controls

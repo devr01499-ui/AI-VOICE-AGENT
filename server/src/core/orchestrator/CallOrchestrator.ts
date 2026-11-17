@@ -9,7 +9,8 @@ import { ProviderManager } from '../../providers/ProviderManager';
 import { AgentRepository } from '../../repositories/AgentRepository';
 import { CallRepository } from '../../repositories/CallRepository';
 import { ToolExecutor } from '../../runtime/ToolExecutor';
-import { buildAgentTools, toModelDeclaration } from '../../runtime/agentTools';
+import { buildAgentTools, toModelDeclaration, isReservedToolName } from '../../runtime/agentTools';
+import { McpService, type DiscoveredMcpTool } from '../../services/McpService';
 import { WebhookDispatcher } from '../../utils/WebhookDispatcher';
 import type { ToolDefinition } from '../../types';
 import { CallStatus, AgentConfig } from '../../types';
@@ -346,6 +347,7 @@ export class CallOrchestrator extends EventEmitter {
     let agentConfig: AgentConfig;
     let activeAgent: any = null;
     let executableTools: ToolDefinition[] = [];
+    let mcpToolMap = new Map<string, DiscoveredMcpTool>();
     try {
       const agent = await AgentRepository.findById(agentId);
       if (!agent) {
@@ -394,6 +396,31 @@ export class CallOrchestrator extends EventEmitter {
         if (!t?.name || declaredNames.has(t.name)) continue;
         declaredNames.add(t.name);
         combinedTools.push(t);
+      }
+
+      // MCP servers (they used to work only in browser test calls). Discovery runs during the
+      // pre-warm while the phone rings; it is capped so a slow server can never block the call.
+      if (Array.isArray(rawConfig.mcpServers) && rawConfig.mcpServers.length > 0) {
+        try {
+          const discovery = await Promise.race([
+            McpService.fetchMcpTools(rawConfig.mcpServers.slice(0, 5)),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 6_000)),
+          ]);
+          if (!discovery) {
+            logger.warn('CallOrchestrator: MCP discovery timed out; continuing without MCP tools', { callId });
+          } else {
+            for (const decl of discovery.functionDeclarations) {
+              if (!decl?.name || declaredNames.has(decl.name) || isReservedToolName(decl.name)) continue;
+              const mcpTool = discovery.mcpToolMap.get(decl.name);
+              if (!mcpTool) continue;
+              declaredNames.add(decl.name);
+              combinedTools.push(decl);
+              mcpToolMap.set(decl.name, mcpTool);
+            }
+          }
+        } catch (mcpErr) {
+          logger.warn('CallOrchestrator: MCP discovery failed; continuing without MCP tools', { callId, error: String(mcpErr) });
+        }
       }
 
       agentConfig = {
@@ -755,6 +782,10 @@ export class CallOrchestrator extends EventEmitter {
           if (name.startsWith('code_') || name === 'execute_inline_code') {
             logger.warn('Flow Engine: trigger custom code tool call via Pipecat - capability unavailable', { callId, name, args });
             return JSON.stringify({ success: false, error: 'Inline code execution capability is currently unavailable on this system.' });
+          }
+          const mcpTool = mcpToolMap.get(name);
+          if (mcpTool) {
+            return JSON.stringify(await McpService.executeMcpTool(mcpTool, parsedArgs));
           }
           const result = await callToolExecutor.executeTool(name, parsedArgs);
           return JSON.stringify(result);
