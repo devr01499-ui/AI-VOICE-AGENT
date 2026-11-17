@@ -1326,9 +1326,29 @@ model SystemAlert {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
+  receipts NotificationReceipt[]
+
   @@index([userId])
   @@index([type, isResolved])
   @@map("system_alerts")
+}
+
+/// Per-workspace read/dismiss state for company-wide announcements (SystemAlert rows with
+/// userId = null and type = "ANNOUNCEMENT"). One announcement row is shared by every customer,
+/// so "read" and "deleted" have to be stored per workspace here instead of on the shared row.
+model NotificationReceipt {
+  id          String    @id @default(uuid())
+  alertId     String    @map("alert_id")
+  userId      String    @map("user_id")
+  readAt      DateTime? @map("read_at")
+  dismissedAt DateTime? @map("dismissed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  alert SystemAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+
+  @@unique([alertId, userId])
+  @@index([userId])
+  @@map("notification_receipts")
 }
 
 // ─────────────────────────────────────────────

@@ -124,9 +124,14 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
           assignResult,
         });
 
-        // Broadcast critical in-app notification to founder/admins
+        // Internal operations alert for the admin console (type FAILED_PROVISIONING). It has no owner,
+        // so it is never shown in any customer's bell (only ANNOUNCEMENT rows are shared).
         NotificationService.createInAppNotification({
           userId: null,
+          type: 'FAILED_PROVISIONING',
+          title: 'Number assignment failed',
+          severity: 'critical',
+          metadata: { orderId: order.id, userId: params.userId, e164: numberDetails.e164 },
           message: `🚨 ADMIN ALERT: Phone number ${numberDetails.e164} was purchased but assignment to sub-account ${subAccount.authId} failed (Order #${order.id}). Manual intervention required in Vobiz console.`,
           isImportant: true,
         });

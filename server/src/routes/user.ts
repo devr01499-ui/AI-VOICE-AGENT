@@ -6,7 +6,7 @@ import { logger } from '../utils/logger';
 import { logAuditEvent } from '../utils/auditLogger';
 import { CallOrchestrator } from '../core/orchestrator/CallOrchestrator';
 import { normalizeEmail, isDisposableEmail, isValidEmail } from '../utils/emailNormalizer';
-import { signupLimiter, authIpThrottleDelay, sensitiveOperationsLimiter } from '../middleware/rateLimiter';
+import { signupLimiter, authIpThrottleDelay, sensitiveOperationsLimiter, notificationActionLimiter } from '../middleware/rateLimiter';
 import { ADMIN_EMAIL } from '../config/constants';
 import { EncryptionService } from '../utils/EncryptionService';
 
@@ -137,58 +137,98 @@ router.post('/verify-gemini-key', requireAuth, sensitiveOperationsLimiter, async
   }
 });
 
-import { NotificationService } from '../services/NotificationService';
+import { NotificationService, ANNOUNCEMENT_TYPE } from '../services/NotificationService';
 
 /**
  * GET /api/v2/user/notifications
  * Returns list of in-app notifications for the logged-in user and company announcements.
  */
-router.get('/notifications', requireAuth, async (req: AuthenticatedRequest, res) => {
+router.get('/notifications', async (req: AuthenticatedRequest, res) => {
   try {
-    const userId = (req as any).effectiveWorkspaceId || req.userId;
-    const notifications = await NotificationService.getForUser(userId);
+    const ownerId = (req as any).effectiveWorkspaceId || req.userId;
+    const notifications = await NotificationService.getForUser(ownerId);
     res.json({ success: true, data: notifications });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to fetch notifications' });
   }
 });
 
-/**
- * POST /api/v2/user/notifications/:id/read
- */
-router.post('/notifications/:id/read', requireAuth, async (req: AuthenticatedRequest, res) => {
-  try {
-    const userId = (req as any).effectiveWorkspaceId || req.userId;
-    await NotificationService.markAsRead(String(req.params.id), userId);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ success: false, error: 'Failed to mark notification as read' });
-  }
-});
+// Notification ids are UUIDs; anything else is rejected before touching the database.
+const NOTIFICATION_ID = /^[A-Za-z0-9-]{1,64}$/;
 
 /**
  * POST /api/v2/user/notifications/mark-all-read
+ * (Registered before the "/:id" routes so the literal path always wins.)
  */
-router.post('/notifications/mark-all-read', requireAuth, async (req: AuthenticatedRequest, res) => {
+router.post('/notifications/mark-all-read', notificationActionLimiter, async (req: AuthenticatedRequest, res) => {
   try {
-    const userId = (req as any).effectiveWorkspaceId || req.userId;
-    await NotificationService.markAllAsRead(userId);
-    res.json({ success: true });
+    const ownerId = (req as any).effectiveWorkspaceId || req.userId;
+    await NotificationService.markAllAsRead(ownerId);
+    res.json({ success: true, data: { markedAllRead: true } });
   } catch (err) {
+    logger.error('Failed to mark all notifications read', { error: String(err) });
     res.status(500).json({ success: false, error: 'Failed to mark all as read' });
   }
 });
 
 /**
- * DELETE /api/v2/user/notifications/clear-all
+ * DELETE /api/v2/user/notifications/clear-all — deletes every READ notification.
  */
-router.delete('/notifications/clear-all', requireAuth, async (req: AuthenticatedRequest, res) => {
+router.delete('/notifications/clear-all', notificationActionLimiter, async (req: AuthenticatedRequest, res) => {
   try {
-    const userId = (req as any).effectiveWorkspaceId || req.userId;
-    await NotificationService.clearAll(userId);
-    res.json({ success: true });
+    const ownerId = (req as any).effectiveWorkspaceId || req.userId;
+    await NotificationService.clearAll(ownerId);
+    res.json({ success: true, data: { cleared: true } });
   } catch (err) {
+    logger.error('Failed to clear notifications', { error: String(err) });
     res.status(500).json({ success: false, error: 'Failed to clear notifications' });
+  }
+});
+
+/**
+ * POST /api/v2/user/notifications/:id/read — marks one notification read.
+ * 404 when the id does not belong to this workspace (no hint whether it exists elsewhere).
+ */
+router.post('/notifications/:id/read', notificationActionLimiter, async (req: AuthenticatedRequest, res) => {
+  try {
+    const id = String(req.params.id);
+    if (!NOTIFICATION_ID.test(id)) {
+      res.status(400).json({ success: false, error: 'Invalid notification id' });
+      return;
+    }
+    const ownerId = (req as any).effectiveWorkspaceId || req.userId;
+    const result = await NotificationService.markAsRead(id, ownerId);
+    if (result === 'not_found') {
+      res.status(404).json({ success: false, error: 'Notification not found' });
+      return;
+    }
+    res.json({ success: true, data: { id, isRead: true } });
+  } catch (err) {
+    logger.error('Failed to mark notification read', { error: String(err) });
+    res.status(500).json({ success: false, error: 'Failed to mark notification as read' });
+  }
+});
+
+/**
+ * DELETE /api/v2/user/notifications/:id — deletes one notification for this workspace.
+ */
+router.delete('/notifications/:id', notificationActionLimiter, async (req: AuthenticatedRequest, res) => {
+  try {
+    const id = String(req.params.id);
+    if (!NOTIFICATION_ID.test(id)) {
+      res.status(400).json({ success: false, error: 'Invalid notification id' });
+      return;
+    }
+    const ownerId = (req as any).effectiveWorkspaceId || req.userId;
+    const result = await NotificationService.deleteOne(id, ownerId);
+    if (result === 'not_found') {
+      res.status(404).json({ success: false, error: 'Notification not found' });
+      return;
+    }
+    res.json({ success: true, data: { id, deleted: true } });
+  } catch (err) {
+    logger.error('Failed to delete notification', { error: String(err) });
+    res.status(500).json({ success: false, error: 'Failed to delete notification' });
   }
 });
 
@@ -211,9 +251,12 @@ router.post('/notifications', requireAuth, sensitiveOperationsLimiter, async (re
       return;
     }
 
-    const newNotif = NotificationService.createInAppNotification({
-      message: message.trim(),
-      isImportant: !!isImportant
+    // Company-wide announcement: the only kind of owner-less notification customers can see.
+    const newNotif = await NotificationService.createInAppNotification({
+      type: ANNOUNCEMENT_TYPE,
+      title: 'Announcement',
+      message: message.trim().slice(0, 2000),
+      isImportant: !!isImportant,
     });
 
     res.json({ success: true, data: newNotif });

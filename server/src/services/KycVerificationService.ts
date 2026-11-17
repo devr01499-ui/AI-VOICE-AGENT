@@ -179,7 +179,7 @@ async function notifyFullKycApproved(userId: string) {
 
     NotificationService.createInAppNotification({
       userId,
-      message: '🎉 KYC Verification Approved: Your account verification with Vobiz is complete! You can now activate and use your phone numbers.',
+      message: '🎉 KYC Verification Approved: Your account verification with our telephony network is complete! You can now activate and use your phone numbers.',
       isImportant: true,
     });
 

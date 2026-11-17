@@ -58,6 +58,20 @@ export const sensitiveOperationsLimiter = rateLimit({
 });
 
 /**
+ * Notification actions (mark read, delete, mark all read, clear): 120 per user per 15 minutes.
+ * Generous enough for someone working through their bell, low enough to stop scripted abuse.
+ */
+export const notificationActionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getRateLimitKey,
+  validate: false,
+  message: { success: false, error: 'Too many notification actions. Please wait a moment and try again.' },
+});
+
+/**
  * Dedicated Webhook Rate Limiter: Max 100 requests per IP per 15 minutes.
  * Defends payment gateway webhook callback ingress against denial-of-service and flood attacks.
  */
