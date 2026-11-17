@@ -47,7 +47,8 @@ import webhookRoutes from './routes/webhooks';
 import { SandboxStreamHandler } from './websockets/SandboxStreamHandler';
 import { requireAuth } from './middleware/auth';
 import { WebhookController } from './controllers/WebhookController';
-import kbRoutes from './routes/knowledgeBase';
+import kbRoutes, { KB_UPLOAD_PATH } from './routes/knowledgeBase';
+import { KnowledgeBaseService } from './services/KnowledgeBaseService';
 import { mountUserRoutes } from './routes/user';
 import contactRoutes from './routes/contact';
 import teamRoutes from './routes/team';
@@ -157,12 +158,15 @@ app.use(cors({
 }));
 
 // ── Body Parsing ──────────────────────────────────
-app.use(express.json({ 
+// Knowledge-base file uploads parse their own (larger, capped and concurrency-gated) body in the
+// KB router; every other request keeps the 10 MB limit.
+const defaultJsonParser = express.json({
   limit: '10mb',
   verify: (req: any, res, buf) => {
     req.rawBody = buf;
   }
-}));
+});
+app.use((req, res, next) => (req.path === KB_UPLOAD_PATH ? next() : defaultJsonParser(req, res, next)));
 app.use(express.urlencoded({ extended: true }));
 
 // ── Request ID ────────────────────────────────────
@@ -703,6 +707,11 @@ async function bootstrap(): Promise<void> {
         error: err instanceof Error ? err.message : String(err),
       });
     }
+
+    // Knowledge-base documents a restart left "queued"/"processing" go back on the indexing queue.
+    KnowledgeBaseService.resumePendingIngestions().catch((err) => {
+      logger.warn('Knowledge base: could not resume pending indexing jobs', { error: err instanceof Error ? err.message : String(err) });
+    });
 
     // Initialize providers (non-fatal if they fail)
     try {

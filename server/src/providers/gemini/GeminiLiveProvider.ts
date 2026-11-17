@@ -1028,12 +1028,14 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     logger.info('[LATENCY_TEST] Knowledge base tool invoked', { sessionId, query, agentId, turnIndex: currentTurn, timestamp: tStartKb });
 
     try {
-      const { HybridSearchService } = await import('../../services/HybridSearchService');
+      const { HybridSearchService, LIVE_CALL_SEARCH_TIMEOUT_MS } = await import('../../services/HybridSearchService');
       const searchResult = await HybridSearchService.search({
         agentId,
+        workspaceId: userId,
         query,
         topK: 4,
         conversationContext: session.recentTurns,
+        timeoutMs: LIVE_CALL_SEARCH_TIMEOUT_MS,
       });
 
       const total_ms = Date.now() - tStartKb;
@@ -1075,8 +1077,13 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       logger.info('[LATENCY_TEST] Knowledge base tool result returning', { sessionId, timestamp: Date.now(), durationMs: total_ms });
       this.sendFunctionResult(sessionId, callId, JSON.stringify({ results: formattedResults }));
     } catch (err) {
+      // Same instruction as "nothing found": a failed or slow lookup must never invite guessing.
       logger.error('GeminiLiveProvider: Failed hybrid search', { sessionId, error: String(err) });
-      this.sendFunctionResult(sessionId, callId, JSON.stringify({ results: [] }));
+      this.sendFunctionResult(sessionId, callId, JSON.stringify({
+        status: 'NO_RELEVANT_FACTS_FOUND',
+        message: 'The knowledge base could not be checked right now. Do not invent an answer. State that you will check and arrange a callback.',
+        results: []
+      }));
     }
   }
 
