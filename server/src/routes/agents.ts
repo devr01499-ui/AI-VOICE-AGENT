@@ -21,6 +21,9 @@ import { QaController } from '../controllers/QaController';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { detectIndustry, normalizeIndustryInput } from '../utils/systemInstructionBuilder';
 import { EncryptionService } from '../utils/EncryptionService';
+import { aiFeatureLimiter } from '../middleware/rateLimiter';
+import { TextModelError } from '../services/ai/textModel';
+import { enhancePrompt, PromptCoachEnhanceRequestSchema, PromptCoachInputError } from '../services/PromptCoachService';
 
 const router = Router();
 
@@ -1057,6 +1060,57 @@ router.get(
       success: true,
       data: Object.values(PLAYBOOKS),
     });
+  }
+);
+
+/**
+ * Maps AI-model failures to clear HTTP answers. Never returns provider error text or keys.
+ */
+function sendTextModelError(res: Response, err: unknown, feature: string): void {
+  if (err instanceof TextModelError) {
+    const map: Record<string, [number, string]> = {
+      not_configured: [503, `${feature} is not available right now: no AI model is configured. Please contact support.`],
+      timeout: [504, `${feature} took too long to answer. Please try again.`],
+      rate_limited: [503, `${feature} is busy right now. Please try again in a minute.`],
+      unavailable: [503, `${feature} is temporarily unavailable. Please try again shortly.`],
+      blocked: [422, `${feature} could not process this text. Please rephrase it and try again.`],
+      bad_output: [502, err.message],
+    };
+    const [status, message] = map[err.kind] || [503, `${feature} is temporarily unavailable.`];
+    res.status(status).json({ success: false, error: message, code: `AI_${err.kind.toUpperCase()}` });
+    return;
+  }
+  logger.error(`${feature} failed`, { error: String((err as any)?.message || err) });
+  res.status(500).json({ success: false, error: `${feature} failed. Please try again.` });
+}
+
+/**
+ * POST /api/v2/agents/prompt-coach/enhance — rewrite the customer's own prompt with the AI model.
+ * Body: { prompt, goal?, agentName?, direction?, language?, industry? }
+ */
+router.post(
+  '/prompt-coach/enhance',
+  requireAuth,
+  requireEditor,
+  aiFeatureLimiter,
+  requireActivePlanOrBYOK,
+  async (req: Request, res: Response): Promise<void> => {
+    const parsed = PromptCoachEnhanceRequestSchema.safeParse(req.body || {});
+    if (!parsed.success) {
+      res.status(400).json({ success: false, error: 'Invalid request. Please send the prompt text to enhance.' });
+      return;
+    }
+    const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId;
+    try {
+      const result = await enhancePrompt(workspaceId, parsed.data);
+      res.json({ success: true, data: result });
+    } catch (err) {
+      if (err instanceof PromptCoachInputError) {
+        res.status(400).json({ success: false, error: err.message });
+        return;
+      }
+      sendTextModelError(res, err, 'Prompt Coach');
+    }
   }
 );
 

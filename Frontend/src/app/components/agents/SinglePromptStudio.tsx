@@ -49,6 +49,8 @@ import {
   unassignKBAgent,
   fetchPlaybooks,
   generatePromptFromCoach,
+  enhancePromptWithCoach,
+  type PromptCoachEnhanceResult,
   runTestLabSimulation,
   type ApiAgent,
   type ApiKnowledgeBase,
@@ -670,6 +672,46 @@ export default function SinglePromptStudio({
   const [coachGeneratedPrompt, setCoachGeneratedPrompt] = useState<string | null>(null);
   const [isGeneratingCoach, setIsGeneratingCoach] = useState(false);
   const [coachError, setCoachError] = useState<string | null>(null);
+
+  // ── Prompt Coach: AI enhancement of the agent's own prompt ────────────────
+  const [coachTab, setCoachTab] = useState<'enhance' | 'playbook'>('enhance');
+  const [enhanceGoal, setEnhanceGoal] = useState('');
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  const [enhanceError, setEnhanceError] = useState<string | null>(null);
+  const [enhanceResult, setEnhanceResult] = useState<PromptCoachEnhanceResult | null>(null);
+  const [enhanceView, setEnhanceView] = useState<'result' | 'diff'>('result');
+
+  async function handleEnhancePrompt() {
+    setEnhanceError(null);
+    setEnhanceResult(null);
+    const text = (systemPrompt || '').trim();
+    if (text.length < 20) {
+      setEnhanceError('Write at least a sentence or two about what your agent should do, then press Enhance.');
+      return;
+    }
+    if (text.length > 12000) {
+      setEnhanceError(`Your prompt is ${text.length} characters; Prompt Coach can enhance up to 12,000. Shorten it and try again.`);
+      return;
+    }
+    setIsEnhancing(true);
+    try {
+      const result = await enhancePromptWithCoach({
+        prompt: text,
+        goal: enhanceGoal.trim() || undefined,
+        agentName: agentName || undefined,
+        direction,
+        language: language || undefined,
+        industry: industry || undefined,
+      });
+      setEnhanceResult(result);
+      setEnhanceView('result');
+    } catch (err: any) {
+      const msg = String(err?.message || '');
+      setEnhanceError(/UNAUTHORIZED_ACCESS/.test(msg) ? 'Your session has expired. Please sign in again.' : msg || 'Prompt Coach could not enhance your prompt. Please try again.');
+    } finally {
+      setIsEnhancing(false);
+    }
+  }
 
   // ── Test Lab Simulation State ─────────────────────────────────────────────
   const [isTestLabRunning, setIsTestLabRunning] = useState(false);
@@ -2058,7 +2100,7 @@ export default function SinglePromptStudio({
                 type="button"
                 onClick={() => setIsCoachModalOpen(true)}
                 className="px-2.5 py-1 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 hover:from-indigo-500/20 hover:to-purple-500/20 border border-indigo-500/30 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
-                title="Generate production prompt from playbooks"
+                title="Improve your prompt with AI, or start from a playbook"
               >
                 <Wand2 className="w-3.5 h-3.5 text-indigo-500" /> Prompt Coach
               </button>
@@ -4229,8 +4271,8 @@ export default function SinglePromptStudio({
                   <Wand2 className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">AI Prompt Coach & Starter Playbooks</h3>
-                  <p className="text-[11px] text-slate-500">Generate a high-converting, compliant production prompt tailored to your business in seconds.</p>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">AI Prompt Coach</h3>
+                  <p className="text-[11px] text-slate-500">Turn your prompt into a clear, complete, production-ready voice-agent prompt.</p>
                 </div>
               </div>
               <button
@@ -4242,9 +4284,164 @@ export default function SinglePromptStudio({
               </button>
             </div>
 
+            {/* Tabs */}
+            <div className="px-6 pt-3 flex gap-1 border-b border-slate-200 dark:border-slate-800" role="tablist">
+              {([['enhance', 'Enhance my prompt'], ['playbook', 'Start from a playbook']] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={coachTab === key}
+                  onClick={() => setCoachTab(key)}
+                  className={`px-3.5 py-2 -mb-px border-b-2 font-bold text-xs transition-colors ${
+                    coachTab === key
+                      ? 'border-indigo-600 text-indigo-700 dark:text-indigo-300'
+                      : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
             {/* Body */}
             <div className="flex-1 overflow-y-auto p-6">
-              {isLoadingPlaybooks ? (
+              {coachTab === 'enhance' ? (
+                <div className="space-y-4" data-testid="coach-enhance">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    <div className="md:col-span-5 space-y-3">
+                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                        Prompt Coach reads your current prompt ({(systemPrompt || '').trim().length.toLocaleString()} characters) and rewrites it with a clear role, goal, tone, call flow, objection handling, guardrails and escalation rules. It keeps your facts and never invents prices or policies: anything missing becomes a <span className="font-mono font-semibold">[PLACEHOLDER]</span> for you to fill in.
+                      </div>
+                      <div>
+                        <label htmlFor="coach-goal" className="font-bold text-slate-700 dark:text-slate-300 block mb-1.5">What should the agent achieve? <span className="font-normal text-slate-400">(optional)</span></label>
+                        <textarea
+                          id="coach-goal"
+                          value={enhanceGoal}
+                          maxLength={1000}
+                          rows={3}
+                          onChange={(e) => setEnhanceGoal(e.target.value)}
+                          placeholder="e.g. Book a dental check-up, confirm the patient's name and preferred time, and send the clinic address."
+                          className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                        />
+                        <div className="text-right text-[10px] text-slate-400">{enhanceGoal.length}/1000</div>
+                      </div>
+                      {enhanceError && (
+                        <div role="alert" className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-[11px] font-medium flex items-start gap-1.5">
+                          <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                          <span>{enhanceError}</span>
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleEnhancePrompt}
+                        disabled={isEnhancing}
+                        className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isEnhancing ? (
+                          <>
+                            <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            Enhancing your prompt… (up to 30 seconds)
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-3.5 h-3.5" /> {enhanceResult ? 'Enhance again' : 'Enhance my prompt'}
+                          </>
+                        )}
+                      </button>
+
+                      {enhanceResult && (
+                        <div className="space-y-3" data-testid="coach-result-details">
+                          <div className="flex items-center gap-2 text-[11px]">
+                            <span className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 font-semibold text-slate-600 dark:text-slate-300">Quality before: {enhanceResult.scoreBefore}/100</span>
+                            <span className="px-2 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/50 font-bold text-emerald-700 dark:text-emerald-300">After: {enhanceResult.scoreAfter}/100</span>
+                          </div>
+                          {enhanceResult.summary && <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">{enhanceResult.summary}</p>}
+                          {enhanceResult.changes.length > 0 && (
+                            <div>
+                              <div className="font-bold text-slate-700 dark:text-slate-300 mb-1">What changed</div>
+                              <ul className="space-y-1.5">
+                                {enhanceResult.changes.map((c, idx) => (
+                                  <li key={idx} className="text-[11px] text-slate-600 dark:text-slate-300 leading-snug break-words">
+                                    <span className="font-semibold text-indigo-600 dark:text-indigo-400">{c.area}:</span> {c.change}
+                                    {c.reason && <span className="text-slate-400"> — {c.reason}</span>}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {enhanceResult.placeholders.length > 0 && (
+                            <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 text-[11px] text-amber-800 dark:text-amber-300">
+                              <div className="font-bold mb-1">Fill these in before going live</div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {enhanceResult.placeholders.map((p) => (
+                                  <span key={p} className="px-1.5 py-0.5 rounded bg-white/70 dark:bg-amber-900/40 font-mono break-all">{p}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="md:col-span-7 flex flex-col space-y-2 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-bold text-slate-700 dark:text-slate-300">{enhanceResult ? 'Enhanced prompt' : 'Your current prompt'}</span>
+                        {enhanceResult && (
+                          <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 text-[11px] font-semibold">
+                            {([['result', 'Enhanced'], ['diff', 'Compare changes']] as const).map(([key, label]) => (
+                              <button key={key} type="button" onClick={() => setEnhanceView(key)}
+                                className={`px-2.5 py-1 rounded-md ${enhanceView === key ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 shadow-sm' : 'text-slate-500'}`}>
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div data-testid="coach-preview" className="flex-1 min-h-[340px] max-h-[52vh] p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 font-mono text-[11px] leading-relaxed overflow-y-auto whitespace-pre-wrap break-words select-text">
+                        {!enhanceResult ? (
+                          (systemPrompt || '').trim() || <span className="text-slate-400">Your prompt is empty. Write what your agent should do first.</span>
+                        ) : enhanceView === 'result' ? (
+                          enhanceResult.improvedPrompt
+                        ) : (
+                          enhanceResult.diff.map((line, idx) => (
+                            <div key={idx} className={
+                              line.type === 'added' ? 'bg-emerald-100/70 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-200'
+                                : line.type === 'removed' ? 'bg-rose-100/70 dark:bg-rose-900/30 text-rose-900 dark:text-rose-200 line-through'
+                                : 'text-slate-600 dark:text-slate-300'
+                            }>
+                              <span className="select-none opacity-60 mr-1">{line.type === 'added' ? '+' : line.type === 'removed' ? '−' : ' '}</span>{line.text || ' '}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      {enhanceResult && (
+                        <div className="flex items-center justify-end gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setEnhanceResult(null)}
+                            className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-semibold transition-colors"
+                          >
+                            Discard
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSystemPrompt(enhanceResult.improvedPrompt);
+                              setLastSavedAt(null); // Mark unsaved
+                              setEnhanceResult(null);
+                              setIsCoachModalOpen(false);
+                            }}
+                            className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-sm transition-all"
+                          >
+                            <Check className="w-4 h-4" /> Use enhanced prompt
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : isLoadingPlaybooks ? (
                 <div className="py-20 flex flex-col items-center justify-center text-center space-y-3">
                   <div className="w-8 h-8 border-3 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
                   <p className="font-semibold text-slate-600 dark:text-slate-300">Loading enterprise playbooks...</p>

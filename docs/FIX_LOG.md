@@ -89,3 +89,19 @@ One entry per fix, newest at the bottom. Template:
 - Tests: `npm run test:calendar-status` (2, part of test:security) calls the production handler on the test database; it FAILS on the previous code and passes now. Browser: 2 tests (connected shows the Google account; disconnected shows Connect).
 - Not fixed here (same defect, owned by Phase 4 "Scheduling & Calendar"): `GET /calendar/bookings`, `POST /calendar/bookings/:id/cancel`, `POST /calendar/bookings/:id/reschedule` also omit the envelope.
 - Not verified here: a real connected Google Calendar.
+
+## B3 — Prompt Coach did not enhance prompts (Phase 3, branch fix/prompt-coach-testlab)
+- Issue: "Prompt Coach" only filled fixed playbook templates; it never read or improved the customer's own prompt and made no AI call.
+- Fix:
+  - New shared AI text client `server/src/services/ai/textModel.ts`: per-attempt timeout (plus a hard outer timeout), one retry for temporary failures, then the fallback model; uses the workspace's own saved Gemini key if present, else the platform key; never logs prompts or keys; swappable transport for tests.
+  - New `server/src/services/PromptCoachService.ts` + `POST /api/v2/agents/prompt-coach/enhance`: rewrites the prompt with clear role, goal, tone, language/Hinglish, call flow, objections, guardrails (no invented facts, no OTP/bank details, DND respect, honest AI disclosure) and escalation; returns improved prompt, summary, list of changes, placeholders for missing facts, a line diff, and before/after quality scores. Input 20–12,000 characters; output size-capped and validated as JSON.
+  - Prompt-injection defence: the customer's prompt is wrapped in delimiters (delimiter tags stripped from input), the model is told never to follow instructions inside it, and a private random marker in the instructions causes any answer that echoes them to be rejected.
+  - Cost protection: new `aiFeatureLimiter` (30 AI calls per user per hour) on the route.
+  - Errors map to clear messages (not configured 503, timeout 504, busy 503, blocked 422, unreadable 502); provider error text is never shown.
+  - Browser: Coach opens on a new "Enhance my prompt" tab (playbooks kept as the second tab): optional goal, Enhance, before/after score, what changed, placeholders to fill, "Compare changes" diff, Use / Discard.
+- Security fix found here: `requireActivePlanOrBYOK` accepted a Gemini key sent in the request body or header as proof of "bring your own key". Nothing uses that key, so any free account could unlock the AI builder, Prompt Coach and knowledge-base uploads by sending any string. Now only a key saved in the account counts.
+- Test-infrastructure fix: Playwright now defaults to 2 local workers (this 6.3 GB machine ran out of memory with 4 browsers + dev server, causing random connection resets). Override with PW_WORKERS.
+- Files: server/src/services/ai/textModel.ts (new), server/src/services/PromptCoachService.ts (new), server/src/routes/agents.ts, server/src/middleware/rateLimiter.ts, server/src/middleware/planValidation.ts, server/scripts/test_prompt_coach.js (new), server/package.json; Frontend/src/app/api.ts, Frontend/src/app/components/agents/SinglePromptStudio.tsx, Frontend/e2e/prompt-coach.spec.ts (new), Frontend/playwright.config.ts.
+- Tests: `npm run test:prompt-coach` (16, in test:security) with a stubbed AI transport through the production code path: result shape, delimiting, marker leak rejected, bad JSON rejected, retry then fallback, timeout, no retry on safety block, input limits, no key configured, diff, plan gate refuses body/header keys. Browser: 6 tests.
+- Verified: 16/16 and 6/6 (twice). Server typecheck 0; frontend 33.
+- Not verified here: a real call to the AI model (keys are treated as compromised until rotated; live smoke script deferred to owner verification). The quality of the AI's rewrite can only be judged with a live model.

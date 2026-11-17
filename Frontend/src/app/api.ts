@@ -713,6 +713,32 @@ export async function fetchPlaybooks(): Promise<PlaybookTemplate[]> {
   }));
 }
 
+export interface PromptCoachEnhanceResult {
+  improvedPrompt: string;
+  summary: string;
+  changes: Array<{ area: string; change: string; reason: string }>;
+  placeholders: string[];
+  diff: Array<{ type: 'same' | 'added' | 'removed'; text: string }>;
+  scoreBefore: number;
+  scoreAfter: number;
+  model: string;
+}
+
+/** Rewrites the agent's own prompt with the AI model (server-side; keys never reach the browser). */
+export async function enhancePromptWithCoach(input: {
+  prompt: string;
+  goal?: string;
+  agentName?: string;
+  direction?: 'inbound' | 'outbound' | 'both';
+  language?: string;
+  industry?: string;
+}): Promise<PromptCoachEnhanceResult> {
+  return apiFetch<PromptCoachEnhanceResult>('/api/v2/agents/prompt-coach/enhance', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
 export async function generatePromptFromCoach(playbookId: string, businessFacts: Record<string, string>): Promise<{
   playbookId: string;
   title: string;
