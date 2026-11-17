@@ -181,20 +181,29 @@ async function runTestSuite() {
   const { logger } = await import('../src/utils/logger');
   const originalSilent = logger.silent;
   logger.silent = true;
-  const t0 = process.hrtime.bigint();
-  for (let i = 0; i < 1000; i++) {
-    buildFinalSystemInstruction({
-      name: `Benchmark Agent ${i}`,
-      systemPrompt: `Prompt instructions for benchmark test iteration ${i}`,
-      industry: 'auto',
-    });
+  // Warm up first (JIT), then time 5 batches of 200 and use the MEDIAN batch average. A single
+  // batch was skewed by one garbage-collection pause or a busy CPU (it failed at 4 ms once while
+  // the same code measured ~0.5 ms idle). The 1 ms target itself is unchanged.
+  const assemble = (i: number) => buildFinalSystemInstruction({
+    name: `Benchmark Agent ${i}`,
+    systemPrompt: `Prompt instructions for benchmark test iteration ${i}`,
+    industry: 'auto',
+  });
+  for (let i = 0; i < 200; i++) assemble(i);
+  const batchAverages: number[] = [];
+  let totalMs = 0;
+  for (let batch = 0; batch < 5; batch++) {
+    const t0 = process.hrtime.bigint();
+    for (let i = 0; i < 200; i++) assemble(batch * 200 + i);
+    const ms = Number(process.hrtime.bigint() - t0) / 1_000_000;
+    totalMs += ms;
+    batchAverages.push(ms / 200);
   }
-  const t1 = process.hrtime.bigint();
   logger.silent = originalSilent;
-  const totalMs = Number(t1 - t0) / 1_000_000;
-  const avgMs = totalMs / 1000;
-  console.log(`  1,000 prompt assemblies completed in ${totalMs.toFixed(2)}ms`);
-  console.log(`  Average assembly latency per call: ${avgMs.toFixed(4)}ms (Target: < 1.0ms)`);
+  batchAverages.sort((a, b) => a - b);
+  const avgMs = batchAverages[2];
+  console.log(`  1,000 prompt assemblies completed in ${totalMs.toFixed(2)}ms (5 batches of 200 after warm-up)`);
+  console.log(`  Median per-call assembly latency: ${avgMs.toFixed(4)}ms (Target: < 1.0ms)`);
   assert(avgMs < 1.0, `Assembly latency < 1.0ms (actual: ${avgMs.toFixed(4)}ms)`);
 
   // ── SUMMARY REPORT ───────────────────────────────────────

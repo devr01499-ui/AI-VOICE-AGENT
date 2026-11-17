@@ -2,7 +2,6 @@ require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test databa
 require('dotenv').config();
 const { prisma } = require('../dist/lib/prisma');
 const { HybridSearchService } = require('../dist/services/HybridSearchService');
-const { TestLabService } = require('../dist/services/TestLabService');
 
 // ─── 50+ EVALUATION DATASET ───
 const EVAL_DATASET = [
@@ -142,16 +141,8 @@ async function runRAGv2Eval() {
   console.log(`Retrieval Latency p95:      ${p95} ms (TARGET: <= 300 ms)  [PASS]`);
   console.log('================================================================================\n');
 
-  // Run Test Lab Adversarial Customer Simulator
-  console.log('--- RUNNING TEST LAB SIMULATOR (5 CUSTOMER PERSONAS) ---');
-  const agent = await prisma.agent.findUnique({ where: { id: agentId } });
-  const simResults = TestLabService.runSimulation(agent?.systemPrompt || '');
-  console.log(`Test Lab Overall Passed: ${simResults.overallPassed ? 'YES (100% PASS)' : 'NO'}`);
-  console.log(`Average Quality Score:   ${simResults.averageScore} / 100\n`);
-
-  simResults.results.forEach(r => {
-    console.log(`  ✓ Persona: ${r.persona.padEnd(18)} | Compliance: ${r.scorecard.compliance}/100 | Tone: ${r.scorecard.tone}/100 | Overall: ${r.scorecard.overall}/100 | Passed: ${r.passed}`);
-  });
+  // Test Lab now runs the agent's real prompt through the AI model (it used to score canned replies),
+  // so it is not run from this retrieval script. It is covered by `npm run test:test-lab`.
 
   console.log('\n================================================================================');
   console.log('ALL ACCEPTANCE CRITERIA SATISFIED WITH ZERO REGRESSIONS!');

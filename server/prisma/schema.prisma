@@ -1432,3 +1432,21 @@ model CallResult {
   @@map("call_results")
 }
 
+
+/// One Test Lab run: an agent's real prompt tested against simulated callers by the AI model.
+/// Results (per persona: transcript, scores, issues) are stored as JSON. Only the latest 20 runs
+/// per agent are kept. Runs use AI credits, never call minutes.
+model TestLabRun {
+  id           String   @id @default(uuid())
+  agentId      String   @map("agent_id")
+  userId       String   @map("user_id")
+  passed       Boolean
+  averageScore Int      @map("average_score")
+  personaCount Int      @map("persona_count")
+  model        String
+  results      String   @default("[]")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([agentId, userId, createdAt])
+  @@map("test_lab_runs")
+}

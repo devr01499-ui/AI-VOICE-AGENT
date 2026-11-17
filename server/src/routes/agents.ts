@@ -24,6 +24,7 @@ import { EncryptionService } from '../utils/EncryptionService';
 import { aiFeatureLimiter } from '../middleware/rateLimiter';
 import { TextModelError } from '../services/ai/textModel';
 import { enhancePrompt, PromptCoachEnhanceRequestSchema, PromptCoachInputError } from '../services/PromptCoachService';
+import { runTestLab, listTestLabRuns, getTestLabRun, TestLabInputError } from '../services/TestLabService';
 
 const router = Router();
 
@@ -1170,42 +1171,80 @@ router.post(
   }
 );
 
-/** POST /api/v2/agents/:agentId/test-lab — Run automated adversarial customer simulation */
+const TEST_LAB_ID = /^[A-Za-z0-9-]{1,64}$/;
+
+/**
+ * POST /api/v2/agents/:agentId/test-lab — test the agent's SAVED prompt against simulated callers
+ * using the AI model, grade the transcripts, save and return the run. Uses AI credits, never call minutes.
+ * Body: { personas?: string[] }  (default: all five)
+ */
 router.post(
   '/:agentId/test-lab',
   requireAuth,
   requireEditor,
+  aiFeatureLimiter,
+  requireActivePlanOrBYOK,
   async (req: Request, res: Response): Promise<void> => {
+    const agentId = String(req.params.agentId);
+    if (!TEST_LAB_ID.test(agentId)) {
+      res.status(400).json({ success: false, error: 'Invalid agent id' });
+      return;
+    }
+    const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId;
     try {
-      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;
-      const agentId = req.params.agentId as string;
-
-      const agent = await prisma.agent.findFirst({
-        where: { id: agentId, userId },
-      });
-
-      if (!agent) {
-        res.status(404).json({ success: false, error: 'Agent not found in your workspace' });
+      const run = await runTestLab(workspaceId, agentId, req.body?.personas);
+      res.json({ success: true, data: run });
+    } catch (err) {
+      if (err instanceof TestLabInputError) {
+        if (err.message === 'AGENT_NOT_FOUND') {
+          res.status(404).json({ success: false, error: 'Agent not found in your workspace' });
+        } else {
+          res.status(400).json({ success: false, error: err.message });
+        }
         return;
       }
-
-      const { TestLabService } = await import('../services/TestLabService');
-      const simulation = TestLabService.runSimulation(agent.systemPrompt || '');
-
-      res.json({
-        success: true,
-        data: {
-          agentId: agent.id,
-          agentName: agent.name,
-          ...simulation,
-        },
-      });
-    } catch (err: any) {
-      logger.error('Test lab simulation error', { error: err.message });
-      res.status(500).json({ success: false, error: 'Failed to execute Test Lab simulation' });
+      sendTextModelError(res, err, 'Test Lab');
     }
   }
 );
+
+/** GET /api/v2/agents/:agentId/test-lab/runs — latest saved Test Lab runs (summaries). */
+router.get('/:agentId/test-lab/runs', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const agentId = String(req.params.agentId);
+  if (!TEST_LAB_ID.test(agentId)) {
+    res.status(400).json({ success: false, error: 'Invalid agent id' });
+    return;
+  }
+  try {
+    const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId;
+    res.json({ success: true, data: await listTestLabRuns(workspaceId, agentId) });
+  } catch (err: any) {
+    logger.error('Test Lab: failed to list runs', { error: String(err?.message || err) });
+    res.status(500).json({ success: false, error: 'Failed to load Test Lab history' });
+  }
+});
+
+/** GET /api/v2/agents/:agentId/test-lab/runs/:runId — one saved run with transcripts. */
+router.get('/:agentId/test-lab/runs/:runId', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const agentId = String(req.params.agentId);
+  const runId = String(req.params.runId);
+  if (!TEST_LAB_ID.test(agentId) || !TEST_LAB_ID.test(runId)) {
+    res.status(400).json({ success: false, error: 'Invalid id' });
+    return;
+  }
+  try {
+    const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId;
+    const run = await getTestLabRun(workspaceId, agentId, runId);
+    if (!run) {
+      res.status(404).json({ success: false, error: 'Test Lab run not found' });
+      return;
+    }
+    res.json({ success: true, data: run });
+  } catch (err: any) {
+    logger.error('Test Lab: failed to load run', { error: String(err?.message || err) });
+    res.status(500).json({ success: false, error: 'Failed to load the Test Lab run' });
+  }
+});
 
 export default router;
 

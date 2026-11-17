@@ -68,14 +68,15 @@ for (const vp of VIEWPORTS.filter((v) => v.width >= 1280)) {
   test(`create-agent pop-up uses the available width at ${vp.width}px`, async ({ page }) => {
     await page.setViewportSize({ width: vp.width, height: vp.height });
     await openCreateAgent(page);
-    const dialog = await page.locator('[data-testid="create-agent-dialog"]').boundingBox();
-    expect(dialog).not.toBeNull();
+    // offsetWidth is the laid-out width; it ignores the pop-up's zoom-in animation, which made a
+    // bounding-box measurement read ~0.1% small if taken a moment too early.
+    const dialogWidth = await page.locator('[data-testid="create-agent-dialog"]').evaluate((el) => (el as HTMLElement).offsetWidth);
     // At least 90% of the screen width (up to a readable maximum of 1760px).
     const expected = Math.min(vp.width * 0.9, 1760 * 0.98);
-    expect(dialog!.width).toBeGreaterThanOrEqual(expected);
+    expect(dialogWidth).toBeGreaterThanOrEqual(expected);
     // And template cards stay comfortably readable.
-    const card = await page.locator('[data-testid="template-card"]').first().boundingBox();
-    expect(card!.width).toBeGreaterThanOrEqual(220);
+    const cardWidth = await page.locator('[data-testid="template-card"]').first().evaluate((el) => (el as HTMLElement).offsetWidth);
+    expect(cardWidth).toBeGreaterThanOrEqual(220);
   });
 }
 

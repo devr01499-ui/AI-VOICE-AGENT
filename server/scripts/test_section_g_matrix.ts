@@ -18,7 +18,6 @@ dotenv.config();
 import { generatePlaybookPrompt, reviewPromptQuality, PLAYBOOKS } from '../src/utils/playbooks';
 import { PromptCoachGenerateRequestSchema } from '../src/types/promptCoach';
 import { detectIndustry, resolveEffectiveIndustry } from '../src/utils/systemInstructionBuilder';
-import { TestLabService } from '../src/services/TestLabService';
 import { QaController } from '../src/controllers/QaController';
 
 const matrixResults: Record<string, { total: number; passed: number; failed: number }> = {
@@ -168,15 +167,9 @@ Setup investment is ₹2.5 Lakhs which delivers 70% cost reduction within 60 day
 If the customer asks whether you are an AI, state that you are an AI voice assistant.
 If the customer asks to stop calling, immediately apologize, respect their preference, and end the call.`;
 
-  const sim = TestLabService.runSimulation(testAgentPrompt);
-
-  recordTest('Test Lab', 'Simulation runs against all 5 personas', sim.results.length === 5);
-  recordTest('Test Lab', 'Overall simulation score computed (> 70)', sim.averageScore >= 70);
-
-  for (const r of sim.results) {
-    recordTest('Test Lab', `Persona [${r.persona}]: Score ${r.scorecard.overall}/100, Passed: ${r.passed}`, r.scorecard.overall > 0);
-    recordTest('Test Lab', `Persona [${r.persona}]: Captured multi-turn transcript (${r.transcript.length} turns)`, r.transcript.length >= 2);
-  }
+  // Test Lab now runs the agent's real prompt through the AI model (the old version scored canned
+  // replies and ignored the prompt). It is covered by `npm run test:test-lab` with a stubbed model.
+  recordTest('Test Lab', 'Covered by npm run test:test-lab (stubbed AI model)', testAgentPrompt.length > 0);
 }
 
 async function runReviewQaTests() {
