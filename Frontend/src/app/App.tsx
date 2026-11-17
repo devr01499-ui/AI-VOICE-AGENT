@@ -12,7 +12,7 @@ import {
   fetchAgents, fetchAgent, fetchCalls, fetchProfile, createAgent, updateAgent, deleteAgent, chatWithAgent,
   exportAgentAsJson, importAgentFromJson,
   initiateCall, getCallTranscript, getLiveTranscriptWsUrl, requestTranscriptTicket,
-  fetchKBList, uploadKBDocument, scrapeKBUrl, deleteKBDocument, reindexKBDocument, testKBQuery, fetchCalendarBatches, fetchCalendarBatchDetail, createBatchCampaign, pauseBatchCampaign, resumeBatchCampaign, cancelBatchCampaign,
+  fetchKBList, fetchKBLimits, uploadKBDocument, scrapeKBUrl, deleteKBDocument, reindexKBDocument, testKBQuery, fetchCalendarBatches, fetchCalendarBatchDetail, createBatchCampaign, pauseBatchCampaign, resumeBatchCampaign, cancelBatchCampaign,
   fetchAuditLogs, fetchDataRetention, updateDataRetention, fetchIpAllowlist, updateIpAllowlist, fetchConcurrencyTelemetry, updateConcurrencyLimit,
   DEV_USER_ID, DEFAULT_AGENT_ID, API_BASE, apiClient,
   type ApiAgent, type ApiCall, type ApiProfile, type ApiKnowledgeBase, type ApiAuditLog, type KBTestQueryResult,
@@ -4535,10 +4535,14 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
   const [testResult, setTestResult] = useState<KBTestQueryResult | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
   const [expandedChunkId, setExpandedChunkId] = useState<string | null>(null);
+  const [kbLimits, setKbLimits] = useState<Awaited<ReturnType<typeof fetchKBLimits>> | null>(null);
+  const [addError, setAddError] = useState<string | null>(null);
 
-  const loadDocs = async () => {
+  const loadLimits = () => { fetchKBLimits().then(setKbLimits).catch(() => {}); };
+
+  const loadDocs = async (quiet = false) => {
     try {
-      setLoading(true);
+      if (!quiet) setLoading(true);
       const list = await fetchKBList();
       setDocs(list);
       if (list.length > 0 && !testTargetKbId) {
@@ -4547,21 +4551,29 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
     } catch (err) {
       console.error("Failed to load knowledge base", err);
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadDocs();
+    loadLimits();
   }, []);
+
+  // While any document is waiting or indexing, refresh its status every few seconds.
+  const hasPendingDocs = docs.some(d => d.status === 'queued' || d.status === 'processing');
+  useEffect(() => {
+    if (!hasPendingDocs) return;
+    const timer = setInterval(() => { loadDocs(true); }, 4000);
+    return () => { clearInterval(timer); loadLimits(); };
+  }, [hasPendingDocs]);
 
   async function handleReindex(id: string) {
     try {
       setReindexingId(id);
       await reindexKBDocument(id);
-      // Poll or update local status to processing
-      setDocs(prev => prev.map(d => d.id === id ? { ...d, status: 'processing', progress: 10 } : d));
-      setTimeout(loadDocs, 2500);
+      // Queued now; the status refresh above follows it to Ready/Failed.
+      setDocs(prev => prev.map(d => d.id === id ? { ...d, status: 'queued', progress: 0, errorMessage: undefined } : d));
     } catch (err: any) {
       alert("Re-index failed: " + (err?.message || String(err)));
     } finally {
@@ -4596,14 +4608,14 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
     if (!url) return;
     try {
       setLoading(true);
+      setAddError(null);
       const newDoc = await scrapeKBUrl(url, selectedAgentId || undefined as any);
-      setDocs(prev => [...prev, newDoc]);
+      setDocs(prev => [newDoc, ...prev]);
       setShowAdd(false);
       setUrl("");
-      setTimeout(loadDocs, 3000);
+      loadLimits();
     } catch (err) {
-      console.error("Failed to crawl URL", err);
-      alert("Failed to crawl URL: " + (err instanceof Error ? err.message : String(err)));
+      setAddError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -4611,7 +4623,21 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
 
   function addFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
+    setAddError(null);
+    const ext = file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.')).toLowerCase() : '';
+    const allowed = kbLimits?.supportedFileTypes || ['.pdf', '.txt', '.csv', '.md'];
+    if (!allowed.includes(ext)) {
+      setAddError(`This file type is not supported. Upload ${allowed.join(', ')} files.`);
+      return;
+    }
+    if (kbLimits && file.size > kbLimits.limits.maxFileSizeMb * 1024 * 1024) {
+      setAddError(`File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds your limit of ${kbLimits.limits.maxFileSizeMb} MB per file.`);
+      return;
+    }
+
+
     
     const reader = new FileReader();
     reader.onload = async (event) => {
@@ -4621,12 +4647,11 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
       try {
         setLoading(true);
         const newDoc = await uploadKBDocument(file.name, selectedAgentId || undefined as any, base64Data);
-        setDocs(prev => [...prev, newDoc]);
+        setDocs(prev => [newDoc, ...prev]);
         setShowAdd(false);
-        setTimeout(loadDocs, 3000);
+        loadLimits();
       } catch (err) {
-        console.error("Failed to upload document", err);
-        alert("Failed to upload document: " + (err instanceof Error ? err.message : String(err)));
+        setAddError(err instanceof Error ? err.message : String(err));
       } finally {
         setLoading(false);
       }
@@ -4672,16 +4697,20 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
           <p className="text-xs text-muted-foreground mt-0.5">Hybrid dense-vector + lexical indexing with reciprocal rank fusion and zero-hallucination gating.</p>
         </div>
         <div className="flex items-center gap-2">
-          <DBtn variant="secondary" onClick={loadDocs} disabled={loading}><RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`}/> Refresh</DBtn>
-          <DBtn onClick={()=>setShowAdd(true)}><Plus className="w-4 h-4"/> Add document</DBtn>
+          <DBtn variant="secondary" onClick={() => { loadDocs(); loadLimits(); }} disabled={loading}><RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`}/> Refresh</DBtn>
+          <DBtn onClick={()=>{ setAddError(null); setShowAdd(true); }}><Plus className="w-4 h-4"/> Add document</DBtn>
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-6">
-        {[{label:"Total documents",v:docs.length},{label:"Total characters",v:docs.reduce((s,d)=>s+d.sizeChars,0).toLocaleString()},{label:"RAG Engine",v:"v2 Hybrid HNSW"}].map(s=>(
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6" data-testid="kb-usage">
+        {[
+          {label:"Documents",v: kbLimits ? `${kbLimits.usage.documents} / ${kbLimits.limits.maxDocuments}` : String(docs.length)},
+          {label:"Storage used",v: kbLimits ? `${kbLimits.usage.storageMb} / ${kbLimits.limits.maxStorageMb} MB` : `${(docs.reduce((s,d)=>s+d.sizeChars,0) / (1024 * 1024)).toFixed(2)} MB`},
+          {label:"Max file size",v: kbLimits ? `${kbLimits.limits.maxFileSizeMb} MB` : "—"},
+        ].map(s=>(
           <div key={s.label} className="nm-card p-4 text-center"><p className="text-xs font-bold text-[var(--nm-text)] mb-2" style={{fontFamily:"'Outfit', sans-serif"}}>{s.label.toUpperCase()}</p><p className="text-2xl font-bold" style={{fontFamily:"'Instrument Serif',serif"}}>{s.v}</p></div>
         ))}
       </div>
-      <div className="nm-raised rounded-2xl overflow-hidden mt-6">
+      <div className="nm-raised rounded-2xl overflow-x-auto mt-6">
         {loading && docs.length === 0 ? (
           <div className="p-8 text-center text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>LOADING DATASETS...</div>
         ) : (
@@ -4701,14 +4730,21 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
                     </div>
                   </td>
                   <td className="px-5 py-4">
-                    {d.status === 'processing' ? (
+                    {d.status === 'queued' ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-500/10 text-slate-500 border border-slate-500/20">
+                        <Clock className="w-3 h-3"/> Waiting to index
+                      </span>
+                    ) : d.status === 'processing' ? (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                        <RefreshCw className="w-3 h-3 animate-spin"/> Processing ({d.progress || 0}%)
+                        <RefreshCw className="w-3 h-3 animate-spin"/> Indexing ({d.progress || 0}%)
                       </span>
                     ) : d.status === 'failed' ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-500/10 text-rose-500 border border-rose-500/20" title={d.errorMessage || 'Failed'}>
-                        <AlertCircle className="w-3 h-3"/> Ingestion Failed
-                      </span>
+                      <div className="max-w-[260px]">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                          <AlertCircle className="w-3 h-3"/> Indexing failed
+                        </span>
+                        {d.errorMessage && <p className="text-[11px] text-rose-500 mt-1 break-words" data-testid={`kb-error-${d.id}`}>{d.errorMessage}</p>}
+                      </div>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
                         <CheckCircle2 className="w-3 h-3"/> Ready (RAG v2)
@@ -4811,7 +4847,7 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
                     <div className="flex items-center justify-end gap-1">
                       <button 
                         onClick={() => handleReindex(d.id)} 
-                        disabled={reindexingId === d.id || d.status === 'processing'}
+                        disabled={reindexingId === d.id || d.status === 'processing' || d.status === 'queued'}
                         title="Re-index with structure-aware chunking"
                         className="p-1.5 rounded hover:bg-muted/50 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
                       >
@@ -4859,7 +4895,7 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
             >
               <option value="">Any linked document</option>
               {docs.map(d => (
-                <option key={d.id} value={d.id}>{d.name}</option>
+                <option key={d.id} value={d.id} disabled={d.status !== undefined && d.status !== 'ready'}>{d.name}{d.status && d.status !== 'ready' ? (d.status === 'failed' ? ' (failed)' : ' (indexing…)') : ''}</option>
               ))}
             </select>
           </div>
@@ -4910,12 +4946,12 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
               </div>
             )}
             {testResult.chunks.length > 0 && (
-              <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 space-y-1.5">
+              <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 space-y-1.5" data-testid="kb-top-match">
                 <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold text-xs">
-                  <Bot className="w-4 h-4" /> Synthesized Agent Answer
+                  <Bot className="w-4 h-4" /> Top match the agent would read on a call
                 </div>
-                <p className="text-xs text-foreground leading-relaxed">
-                  Based on {testResult.chunks[0].source || 'your document'}: "{testResult.chunks[0].content.slice(0, 280)}..."
+                <p className="text-xs text-foreground leading-relaxed break-words">
+                  From {testResult.chunks[0].source || 'your document'}: "{testResult.chunks[0].content.slice(0, 280)}{testResult.chunks[0].content.length > 280 ? '…' : ''}"
                 </p>
               </div>
             )}
@@ -4968,7 +5004,7 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-500 font-semibold uppercase">{chunk.matchType}</span>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-[11px] font-mono text-muted-foreground">Score: {chunk.score}</span>
+                        <span className="text-[11px] font-mono text-muted-foreground">Score: {chunk.score}{chunk.similarity != null ? ` · Similarity ${Math.round(chunk.similarity * 100)}%` : ''}</span>
                         <ChevronRight className={`w-3.5 h-3.5 transition-transform ${expandedChunkId === chunk.id ? 'rotate-90' : ''}`}/>
                       </div>
                     </div>
@@ -4981,12 +5017,33 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
                 ))}
               </div>
             )}
+
+            {(testResult.nearMisses?.length ?? 0) > 0 && (
+              <div className="space-y-2" data-testid="kb-near-misses">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Close but not used on calls ({testResult.nearMisses!.length})</p>
+                <p className="text-[11px] text-muted-foreground">These sections are related but not a strong enough match, so the agent will not read them out. If one of them is the right answer, add the caller's wording to your document.</p>
+                {testResult.nearMisses!.map((chunk, idx) => (
+                  <div key={chunk.id || idx} className="rounded-xl border border-dashed border-border/60 px-4 py-2.5 text-xs bg-background min-w-0">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-semibold text-foreground break-words">{chunk.section || chunk.source}</span>
+                      <span className="text-[11px] font-mono text-muted-foreground">{chunk.similarity != null ? `Similarity ${Math.round(chunk.similarity * 100)}%` : `Score ${chunk.score}`}</span>
+                    </div>
+                    <p className="mt-1 text-muted-foreground break-words">{chunk.content.slice(0, 200)}{chunk.content.length > 200 ? '…' : ''}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
 
       <DModal open={showAdd} onClose={()=>setShowAdd(false)} title="Add to knowledge base">
         <div className="space-y-4">
+          {addError && (
+            <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs text-rose-600 flex items-start gap-2" role="alert" data-testid="kb-add-error">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5"/><span className="break-words">{addError}</span>
+            </div>
+          )}
           <div className="flex gap-2 border-b border-border pb-3">{(["file","url"] as const).map(t=><button key={t} onClick={()=>setAddTab(t)} className={`text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${addTab===t?"bg-foreground text-white":"text-muted-foreground hover:text-foreground"}`} style={{fontFamily:"'Outfit', sans-serif"}}>{t==="file"?"Upload file":"Crawl URL"}</button>)}</div>
           
           <div className="mb-2">
@@ -5007,8 +5064,8 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
             <div className="border-2 border-dashed border-border rounded-xl p-10 text-center cursor-pointer hover:bg-muted/20 transition-colors" onClick={()=>fileRef.current?.click()}>
               <Upload className="w-7 h-7 text-muted-foreground mx-auto mb-3"/>
               <p className="text-sm font-medium mb-1" style={{fontFamily:"'Outfit', sans-serif"}}>Drop file or click to browse</p>
-              <p className="text-xs text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>TXT, PDF, CSV, DOCX — automatic structure-aware chunking & background async embedding</p>
-              <input ref={fileRef} type="file" accept=".txt,.pdf,.csv,.docx" className="hidden" onChange={addFile}/>
+              <p className="text-xs text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>PDF (text, not scanned), TXT, CSV or MD{kbLimits ? ` — up to ${kbLimits.limits.maxFileSizeMb} MB per file` : ''}. Indexed in the background.</p>
+              <input ref={fileRef} type="file" accept=".txt,.pdf,.csv,.md" className="hidden" onChange={addFile} data-testid="kb-file-input"/>
             </div>
           ):(
             <div className="space-y-3">

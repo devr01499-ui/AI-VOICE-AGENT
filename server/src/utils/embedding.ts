@@ -9,6 +9,15 @@ interface CacheEntry {
 }
 
 const MAX_CACHE_SIZE = 2000;
+/** One embedding request never waits longer than this (a hung request used to stall calls and indexing). */
+export const EMBEDDING_REQUEST_TIMEOUT_MS = 5000;
+
+export class EmbeddingUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'EmbeddingUnavailableError';
+  }
+}
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const embeddingCache = new Map<string, CacheEntry>();
 
@@ -72,13 +81,19 @@ export async function getEmbedding(
 
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   if (!apiKey) {
-    logger.warn('getEmbedding: No GEMINI_API_KEY configured, utilizing deterministic fallback vector');
+    // Fake vectors are for automated tests only. Anywhere else they would mark documents "ready"
+    // with meaningless vectors, so search would silently return nothing useful.
+    if (process.env.NODE_ENV !== 'test') {
+      throw new EmbeddingUnavailableError('The AI search service is not configured (embedding key missing).');
+    }
+    logger.warn('getEmbedding: No GEMINI_API_KEY configured, utilizing deterministic fallback vector (test mode)');
     const fallbackVec = generateDeterministicFallbackVector(text);
     embeddingCache.set(normalized, { vector: fallbackVec, cachedAt: Date.now() });
     return fallbackVec;
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-embedding-2:embedContent?key=${apiKey}`;
+  // Key in a header, not the URL (URLs end up in logs and error messages).
+  const url = 'https://generativelanguage.googleapis.com/v1/models/gemini-embedding-2:embedContent';
 
   const payload: any = {
     model: 'models/gemini-embedding-2',
@@ -104,8 +119,10 @@ export async function getEmbedding(
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
         },
         body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(EMBEDDING_REQUEST_TIMEOUT_MS),
       });
 
       if (!response.ok) {
@@ -117,7 +134,8 @@ export async function getEmbedding(
             continue;
           }
         }
-        throw new Error(`Google Embedding API error (status ${response.status}): ${errText}`);
+        logger.error('getEmbedding: embedding API error', { status: response.status, detail: errText.slice(0, 300) });
+        throw new EmbeddingUnavailableError(`The AI search service returned an error (status ${response.status}).`);
       }
 
       const data = (await response.json()) as any;

@@ -776,13 +776,20 @@ export class CallOrchestrator extends EventEmitter {
           if (name === 'lookup_knowledge_base' || name === 'query_knowledge_base' || name === 'search_knowledge_base') {
             logger.info('Flow Engine: trigger lookup_knowledge_base tool call via Pipecat', { callId, args });
             const searchQuery = String(parsedArgs.query || '');
-            const { HybridSearchService } = await import('../../services/HybridSearchService');
-            const searchResult = await HybridSearchService.search({
-              agentId,
-              workspaceId: activeAgent.userId,
-              query: searchQuery,
-              topK: 3
-            });
+            const { HybridSearchService, LIVE_CALL_SEARCH_TIMEOUT_MS } = await import('../../services/HybridSearchService');
+            let searchResult;
+            try {
+              searchResult = await HybridSearchService.search({
+                agentId,
+                workspaceId: activeAgent.userId,
+                query: searchQuery,
+                topK: 3,
+                timeoutMs: LIVE_CALL_SEARCH_TIMEOUT_MS,
+              });
+            } catch (kbErr: any) {
+              logger.warn('Flow Engine: knowledge base lookup failed', { callId, error: kbErr?.message });
+              return JSON.stringify({ found: false, status: 'NO_RELEVANT_FACTS_FOUND', message: 'The knowledge base could not be checked right now. Do not invent an answer; offer a callback.', results: [] });
+            }
             const formattedResults = searchResult.results.map(r => ({
               source: r.source,
               snippet: r.content

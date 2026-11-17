@@ -33,8 +33,12 @@ const getPrismaInstance = (): PrismaClient => {
     ? rawConnectionString.replace('sslmode=require', 'sslmode=no-verify')
     : rawConnectionString;
 
+  // Pool size: DB_POOL_MAX when set (1–100), else pg's default of 10. Tune it to the database
+  // plan's connection limit divided by the number of server instances.
+  const poolMax = Number.parseInt(process.env.DB_POOL_MAX || '', 10);
   const pool = new pg.Pool({
     connectionString,
+    max: Number.isFinite(poolMax) && poolMax >= 1 && poolMax <= 100 ? poolMax : 10,
     ssl: {
       rejectUnauthorized: false,
     },

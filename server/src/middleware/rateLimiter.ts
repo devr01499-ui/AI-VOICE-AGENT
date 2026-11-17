@@ -86,6 +86,41 @@ export const agentWriteLimiter = rateLimit({
 });
 
 /**
+ * Knowledge base: adding/re-indexing documents costs AI embedding calls (30 per user per hour);
+ * other KB writes (delete, attach to agents) are cheap but still capped; Retrieval Inspector
+ * questions cost one embedding each (60 per user per 10 minutes).
+ */
+export const kbIngestLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getRateLimitKey,
+  validate: false,
+  message: { success: false, error: 'You have added or re-indexed many documents in the last hour. Please wait a little and try again.', code: 'KB_RATE_LIMITED' },
+});
+
+export const kbWriteLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getRateLimitKey,
+  validate: false,
+  message: { success: false, error: 'Too many changes in a short time. Please wait a moment and try again.', code: 'KB_RATE_LIMITED' },
+});
+
+export const kbQueryLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getRateLimitKey,
+  validate: false,
+  message: { success: false, error: 'Too many test questions in a short time. Please wait a moment and try again.', code: 'KB_RATE_LIMITED' },
+});
+
+/**
  * AI-model features that cost money per call (Prompt Coach, Test Lab): 30 per user per hour.
  * Protects the platform AI bill from scripted abuse while leaving normal use untouched.
  */
