@@ -127,3 +127,11 @@ test('nodes that do nothing on a live call are marked Soon and cannot be added',
     await expect(page.getByRole('button', { name: new RegExp(`^${label}\\b`) }).first()).toBeDisabled();
   }
 });
+
+test('speed and keywords say honestly that they are guidance to the AI voice', async ({ page }) => {
+  await openFlowBuilder(page);
+  await page.getByRole('button', { name: /Speech Settings/ }).click();
+  await expect(page.getByText(/guidance, not an exact rate/)).toBeVisible();
+  await page.getByRole('button', { name: /Realtime Transcription Settings/ }).click();
+  await expect(page.getByText(/guidance, not a hard speech-recognition setting/)).toBeVisible();
+});

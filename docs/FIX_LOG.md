@@ -205,3 +205,8 @@ One entry per fix, newest at the bottom. Template:
 - Files: Frontend/src/app/components/agents/VisualFlowCanvas.tsx, flowCompiler.ts, Frontend/src/app/App.tsx, server/src/core/orchestrator/FlowCompiler.ts, CallOrchestrator.ts, server/src/websockets/SandboxStreamHandler.ts, server/src/utils/systemInstructionBuilder.ts, server/scripts/test_flow_agent_instructions.js (new), Frontend/e2e/flow-builder.spec.ts (new), server/package.json.
 - Tests: `npm run test:flow-agent` (8, in test:security): 0/8 on the old code, 8/8 now. `Frontend/e2e/flow-builder.spec.ts` (4): reload, save payload + branch names, KB assignment, Soon nodes: 4/4 fail on the old code, 4/4 pass now.
 - Not verified here: a live phone call on a flow agent (needs carrier + voice AI).
+
+## Speech speed / volume / boosted keywords described as exact settings (Phase 4)
+- Root cause: these controls only add speaking-style text to the AI's instructions (the voice AI has no exact rate/volume/keyword-boost setting), but the labels promised exact audio and recognition changes.
+- Fix: helper text in the prompt editor and the flow builder now says they are guidance to the AI voice. Volume still changes the in-browser preview loudness. Audit also corrected: "Add Meet link" does work (saved by the calendar rules route; booking adds a Google Meet conference to the event).
+- Test: `Frontend/e2e/flow-builder.spec.ts` "speed and keywords say honestly…" (passes).

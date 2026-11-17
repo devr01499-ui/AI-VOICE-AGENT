@@ -2811,6 +2811,9 @@ export default function SinglePromptStudio({
                     onChange={(e) => setSpeechSpeed(parseFloat(e.target.value))}
                     className="w-full accent-purple-600"
                   />
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    Tells the AI voice to speak slower or faster. It is guidance to the voice, not an exact rate.
+                  </p>
                   <div className="flex justify-between text-[10px] text-slate-400">
                     <span>0.8x Slow</span>
                     <span>1.0x Normal</span>
@@ -2891,6 +2894,9 @@ export default function SinglePromptStudio({
                     onChange={(e) => setSpeechVolume(parseFloat(e.target.value))}
                     className="w-full accent-purple-600"
                   />
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    Changes the preview loudness here. On calls it guides the voice to sound softer or more projected.
+                  </p>
                 </div>
               </div>
             )}
@@ -2933,7 +2939,7 @@ export default function SinglePromptStudio({
                     className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <p className="mt-1 text-[10px] text-slate-400">
-                    Comma-separated proper nouns, brand names, or jargon to boost live speech recognition accuracy.
+                    Comma-separated names, brands or jargon. The AI is told to listen for and pronounce these carefully (guidance, not a hard speech-recognition setting).
                   </p>
                 </div>
               </div>

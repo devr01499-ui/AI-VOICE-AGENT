@@ -1244,6 +1244,7 @@ export default function VisualFlowCanvas({
                           onChange={(e) => setSpeechSpeed(parseFloat(e.target.value))}
                           className="w-full"
                         />
+                        <p className="text-[10px] text-slate-400 mt-1">Tells the AI voice to speak slower or faster (guidance, not an exact rate).</p>
                       </div>
 
                       <div>
@@ -1297,7 +1298,7 @@ export default function VisualFlowCanvas({
                           placeholder="Claritiy, product_sku, jargon (comma-separated)"
                           className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
                         />
-                        <p className="text-[10px] text-slate-400 mt-1">Improves speech-to-text accuracy for specialized terminology.</p>
+                        <p className="text-[10px] text-slate-400 mt-1">The AI is told to listen for and pronounce these carefully (guidance, not a hard speech-recognition setting).</p>
                       </div>
                     </div>
                   )}

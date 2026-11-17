@@ -36,12 +36,12 @@ Built 2026-11-17 (Phase 4) from a read-only trace: editor → `getStudioPayload`
 | Functions | Check/Book calendar `calendarId` | never read | BROKEN |
 | Knowledge Base | Attach KBs | HybridSearchService on live calls | WORKS (badge A14) |
 | Scheduling | Hours, length, buffer, notice, max/day | CalendarService.getFreeSlots | WORKS (saved separately from main Save) |
-| Scheduling | Add Meet link | parsed only | NO-OP |
+| Scheduling | Add Meet link | saved (calendar rules route) → booking adds a Google Meet conference (CalendarService.bookAppointment conferenceData) | WORKS (re-checked in Phase 4; first audit row was wrong) |
 | Intelligence | Response style, Fast/Smart | prompt blocks | WORKS (prompt) |
-| Speech | Speed, Volume | prompt hint only, no audio change | PROMPT-ONLY |
+| Speech | Speed, Volume | prompt hint only, no audio change | PROMPT-ONLY — UI now says it is guidance (Phase 4) |
 | Speech | Responsiveness, Interruption sensitivity | Gemini VAD config | WORKS |
 | Speech | Backchanneling | prompt | WORKS (prompt) |
-| Transcription | Boosted keywords | prompt hint only | PROMPT-ONLY |
+| Transcription | Boosted keywords | prompt hint only | PROMPT-ONLY — UI now says it is guidance (Phase 4) |
 | Call settings | AI end-call tool, Auto-hangup on goodbye, Opt-out keywords | CallOrchestrator / prompt | WORKS |
 | Call settings | Closing message | none | NO-OP |
 | Call settings | Ambient noise | prompt text only | NO-OP |
