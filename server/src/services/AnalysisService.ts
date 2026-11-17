@@ -53,13 +53,60 @@ export interface AnalysisOutcome {
   latencyMs?: number;
 }
 
+const POST_CALL_FIELD_TYPES = new Set(['string', 'number', 'boolean', 'enum']);
+
+/** Adds the agent's Post-Call Data Extraction fields and summary instruction to a template copy. */
+export function withAgentPostCallConfig(base: ReportBlueprint, agent: any): ReportBlueprint {
+  let cfg: any = null;
+  try {
+    cfg = typeof agent?.agentConfig === 'string' ? JSON.parse(agent.agentConfig) : agent?.agentConfig;
+  } catch {
+    cfg = null;
+  }
+  const post = cfg?.postCallAnalysis;
+  const custom: any[] = Array.isArray(post?.fields) ? post.fields : [];
+  const fields = [...base.fields];
+  for (const f of custom.slice(0, 25)) {
+    const name = String(f?.name || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/^_+|_+$/g, '').slice(0, 60);
+    if (!name) continue;
+    const type = POST_CALL_FIELD_TYPES.has(f?.type) ? f.type : 'string';
+    const options = type === 'enum' && Array.isArray(f?.options)
+      ? f.options.map((o: unknown) => String(o).slice(0, 80)).filter(Boolean).slice(0, 20)
+      : undefined;
+    const field = {
+      name,
+      type,
+      description: String(f?.description || name).slice(0, 400),
+      required: false,
+      ...(options && options.length ? { options } : {}),
+      notStatedValue: null,
+    } as ReportBlueprint['fields'][number];
+    // Template names are camelCase (e.g. callerName); match case- and underscore-insensitively and
+    // keep the template's name so reports stay consistent.
+    const key = name.replace(/_/g, '');
+    const at = fields.findIndex((x) => x.name.toLowerCase().replace(/_/g, '') === key);
+    if (at >= 0) fields[at] = { ...field, name: fields[at].name }; else fields.push(field);
+  }
+  const summary = typeof post?.summaryPrompt === 'string' ? post.summaryPrompt.trim().slice(0, 1000) : '';
+  return { ...base, fields, ...(summary ? { summaryInstruction: summary } : {}) };
+}
+
 export class AnalysisService {
   /**
    * Resolves the matching report blueprint for an agent.
    * Checks agentConfig templateId, agent role/name keywords, transcript signals,
    * and falls back cleanly to General Call Analysis (tpl-0). Never defaults to Receptionist.
    */
+  /**
+   * The report template for a call: the chosen base template PLUS the agent's own Post-Call Data
+   * Extraction fields and summary instruction. (Before, the agent's fields were never extracted on
+   * live calls.) Always returns a copy; the shared templates are never modified.
+   */
   static resolveBlueprint(agent: any, transcriptSegments?: any[]): ReportBlueprint {
+    return withAgentPostCallConfig(this.resolveBaseBlueprint(agent, transcriptSegments), agent);
+  }
+
+  private static resolveBaseBlueprint(agent: any, transcriptSegments?: any[]): ReportBlueprint {
     if (agent && agent.agentConfig) {
       try {
         const config = typeof agent.agentConfig === 'string'
@@ -461,7 +508,10 @@ export class AnalysisService {
     for (const chunk of chunks) {
       const prompt = buildHardenedAnalysisPrompt({
         blueprintName: blueprint.templateName,
-        blueprintDefinition: blueprint.labels.map(l => `* ${l.label}: ${l.definition}`).join('\n'),
+        blueprintDefinition: blueprint.labels.map(l => `* ${l.label}: ${l.definition}`).join('\n')
+          + (blueprint.summaryInstruction
+            ? `\n\nSUMMARY INSTRUCTIONS FROM THE BUSINESS (apply to the "summary" field only):\n${blueprint.summaryInstruction}`
+            : ''),
         labelsEnum,
         fieldsDescription,
         transcriptTurns: chunk.turns,

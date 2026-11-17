@@ -3148,6 +3148,9 @@ export default function SinglePromptStudio({
             </button>
             {accordionState.postCall && (
               <div className="mt-3 space-y-3.5 text-xs text-slate-600 dark:text-slate-400">
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  After every call the AI fills in these fields from the conversation. Results appear in <strong>Call Reports</strong> (open a call → Fields) and in the <code>call_analyzed</code> webhook.
+                </p>
                 {/* Custom Summary Prompt */}
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
