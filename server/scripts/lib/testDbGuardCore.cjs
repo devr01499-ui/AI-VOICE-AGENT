@@ -139,6 +139,12 @@ const LIVE_SERVICE_KEYS = [
   'GOOGLE_CLIENT_SECRET', 'NGROK_AUTH_TOKEN',
 ];
 
+/** Keys that must have a value: tests get these test-only values instead of production's. */
+const TEST_ONLY_KEYS = {
+  ENCRYPTION_KEY: 'test-only-encryption-key-never-used-in-production',
+  SIP_ENCRYPTION_KEY: 'test-only-sip-encryption-key-never-used-in-production',
+};
+
 /** Returns a reason string if the environment must be refused, otherwise null. Mutates `env`. */
 function isolateLiveServiceSecrets(env) {
   if (env.NODE_ENV === 'production') {
@@ -150,6 +156,11 @@ function isolateLiveServiceSecrets(env) {
       return 'TEST_' + key + ' is a LIVE Razorpay key. Only rzp_test_ keys are allowed in tests.';
     }
     env[key] = override || '';
+  }
+  // Encryption keys cannot be blank (startup validation requires them), so tests get fixed
+  // test-only keys instead of the production keys from server/.env.
+  for (const [key, testValue] of Object.entries(TEST_ONLY_KEYS)) {
+    env[key] = env['TEST_' + key] || testValue;
   }
   // Pin the mode so a later dotenv load cannot switch the process to production.
   if (!env.NODE_ENV) env.NODE_ENV = 'test';
@@ -177,4 +188,4 @@ function assertTestDatabase() {
   }
 }
 
-module.exports = { assertTestDatabase, findViolation, describeDbUrl, isolateLiveServiceSecrets, LIVE_SERVICE_KEYS };
+module.exports = { assertTestDatabase, findViolation, describeDbUrl, isolateLiveServiceSecrets, LIVE_SERVICE_KEYS, TEST_ONLY_KEYS };

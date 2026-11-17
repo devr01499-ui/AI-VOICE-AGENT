@@ -10,6 +10,7 @@ import { AgentRepository } from '../../repositories/AgentRepository';
 import { CallRepository } from '../../repositories/CallRepository';
 import { ToolExecutor } from '../../runtime/ToolExecutor';
 import { buildAgentTools, toModelDeclaration } from '../../runtime/agentTools';
+import { WebhookDispatcher } from '../../utils/WebhookDispatcher';
 import type { ToolDefinition } from '../../types';
 import { CallStatus, AgentConfig } from '../../types';
 import { env } from '../../config/env';
@@ -771,7 +772,16 @@ export class CallOrchestrator extends EventEmitter {
     await pipecatRunner.start();
     logger.info('CallOrchestrator: pipeline execution started successfully', { callId });
 
-    await CallRepository.updateStatus(callId, 'in_progress', { startTime: new Date() });
+    const startedAt = new Date();
+    await CallRepository.updateStatus(callId, 'in_progress', { startTime: startedAt });
+
+    // Agent webhook: call_started (fire-and-forget; never delays the call).
+    void WebhookDispatcher.dispatch({
+      agentId,
+      userId: activeAgent?.userId,
+      eventType: 'call_started',
+      payload: { callId, agentId, phoneNumber, startedAt: startedAt.toISOString() },
+    });
 
     const sessionId = `pipecat-sess-${Date.now()}`;
     logger.info('CallOrchestrator: sessionId generated', { callId, sessionId });
@@ -1188,6 +1198,22 @@ export class CallOrchestrator extends EventEmitter {
     });
     await SessionLogger.logCallEnded(callId, normalizedReason, session?.providerSessionId || '');
 
+    // Agent webhook: call_ended — once, because an already-finalized call returned above.
+    void WebhookDispatcher.dispatch({
+      agentId: call?.agentId || session?.agentId,
+      userId: call?.userId || undefined,
+      eventType: 'call_ended',
+      payload: {
+        callId,
+        agentId: call?.agentId || session?.agentId,
+        status: mappedStatus,
+        endReason: normalizedReason,
+        endedBy: resolvedEndedBy,
+        durationSeconds: finalDurationSeconds,
+        endedAt: endTime.toISOString(),
+      },
+    });
+
     // Trigger post-call deduction asynchronously
     const { CallService } = await import('../../services/CallService');
     CallService.deductCallMinutes(callId, finalDurationSeconds).catch((deductErr: any) => {
@@ -1377,6 +1403,24 @@ export class CallOrchestrator extends EventEmitter {
   // ─── Event Bus Listeners ──────────────────────────
 
   private subscribeToEventBus(): void {
+    // Agent webhook: transcript_updated, once per finished turn (final transcripts only).
+    eventBus.subscribe(PROVIDER_EVENTS.TRANSCRIPT_UPDATED, (payload: any) => {
+      if (!payload || !payload.isFinal || !payload.callId) return;
+      const session = this.activeCalls.get(payload.callId);
+      if (!session) return;
+      void WebhookDispatcher.dispatch({
+        agentId: session.agentId,
+        eventType: 'transcript_updated',
+        payload: {
+          callId: payload.callId,
+          agentId: session.agentId,
+          speaker: payload.speaker === 'user' ? 'caller' : payload.speaker,
+          text: String(payload.text || '').slice(0, 4000),
+          at: new Date().toISOString(),
+        },
+      });
+    });
+
     eventBus.subscribe(PROVIDER_EVENTS.CALL_CONNECTED, (payload) => {
       logger.info('Orchestrator: Event CALL_CONNECTED', payload);
     });

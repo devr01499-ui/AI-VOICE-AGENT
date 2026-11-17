@@ -143,3 +143,19 @@ One entry per fix, newest at the bottom. Template:
 - Files: server/src/runtime/agentTools.ts (new), server/src/runtime/ToolExecutor.ts, server/src/core/orchestrator/CallOrchestrator.ts, server/scripts/test_agent_tools.js (new), server/package.json, Frontend/src/app/components/agents/SinglePromptStudio.tsx.
 - Tests: `npm run test:agent-tools` (12, in test:security; outbound HTTP stubbed via global fetch, production code otherwise): executable tool built, reserved/invalid/duplicate skipped, platform types not duplicated, flow nodes, header sanitising, GET query + headers + no redirect + timeout signal, POST body + text reply, hung endpoint fails fast, internal addresses refused before any request, duplicate registration not fatal, no shared registry, missing agent refused.
 - Not verified here: a live call invoking a customer's real API.
+
+## A1, A7, A11, A12 — flow saves wiped settings; webhooks incomplete; no save validation; secrets in plain text (Phase 4)
+- Root causes:
+  - A1: the flow builder sends `agentConfig: { handbookPresets }` only and `PUT /agents/:id` replaced the whole stored config, wiping webhooks, post-call fields, functions, MCPs, call settings and greeting on every flow save.
+  - A11: create/update accepted any body (status any string, agentType, workspaceId from the client) with no rate limiter.
+  - A12: webhook signing secret and MCP API keys were stored and returned to the browser in plain text.
+  - A7: only `call_analyzed` was ever sent although the editor offers four events; no retries; signature had no timestamp (replayable); deliveries sequential; stored secret not decrypted.
+- Fix:
+  - Update merges the incoming config onto the stored one section by section (a sent section replaces that section; others are kept).
+  - zod body schema on create and update (types, enums, sizes; unknown helper fields pass through); `workspaceId` never taken from the client; new `agentWriteLimiter` (120 per 15 min).
+  - New `utils/agentSecrets.ts`: secrets encrypted at rest, masked (`••••••••`) in every agent response, a masked value sent back keeps the stored secret; decrypted only where used (WebhookDispatcher, McpService).
+  - WebhookDispatcher: decrypts secret, keeps the existing signature header and adds `X-Claritiy-Timestamp` + `X-Claritiy-Signature-V2` (HMAC of `timestamp.body`), 3 attempts with backoff on network/5xx/429 (no retry on other 4xx), parallel delivery, no redirects, sanitised custom headers. `call_started`, `call_ended` (once, after finalisation) and `transcript_updated` (per finished turn) are now sent.
+  - Test guard: production `ENCRYPTION_KEY`/`SIP_ENCRYPTION_KEY` are replaced with test-only values in every guarded script.
+- Files: server/src/routes/agents.ts, server/src/utils/agentSecrets.ts (new), server/src/utils/WebhookDispatcher.ts, server/src/services/McpService.ts, server/src/core/orchestrator/CallOrchestrator.ts, server/src/middleware/rateLimiter.ts, server/scripts/lib/testDbGuardCore.cjs, server/scripts/test_db_guard.js, server/scripts/test_agent_config_integrity.js (new), server/package.json.
+- Tests: `npm run test:agent-config` (11, in test:security): partial save keeps other sections, secrets masked and kept, new secrets encrypted, invalid fields rejected, workspaceId ignored, cross-workspace update refused, limiter present, v2 signature, unsubscribed event not sent, 5xx retried / 4xx not, internal URLs refused. Against the previous route 6 of 11 FAIL; now 11/11. Guard tests 20/20.
+- Not verified here: a real receiver verifying the v2 signature; live call_started/call_ended deliveries.

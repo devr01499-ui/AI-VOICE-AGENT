@@ -72,6 +72,20 @@ export const notificationActionLimiter = rateLimit({
 });
 
 /**
+ * Creating/saving agents: 120 per user per 15 minutes (the agent panel autosaves while typing,
+ * so this is generous; it only stops scripted flooding).
+ */
+export const agentWriteLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getRateLimitKey,
+  validate: false,
+  message: { success: false, error: 'Too many saves in a short time. Please wait a moment and try again.' },
+});
+
+/**
  * AI-model features that cost money per call (Prompt Coach, Test Lab): 30 per user per hour.
  * Protects the platform AI bill from scripted abuse while leaving normal use untouched.
  */

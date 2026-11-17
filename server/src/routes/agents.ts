@@ -21,7 +21,8 @@ import { QaController } from '../controllers/QaController';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { detectIndustry, normalizeIndustryInput } from '../utils/systemInstructionBuilder';
 import { EncryptionService } from '../utils/EncryptionService';
-import { aiFeatureLimiter } from '../middleware/rateLimiter';
+import { aiFeatureLimiter, agentWriteLimiter } from '../middleware/rateLimiter';
+import { sealAgentSecrets, maskAgentSecrets } from '../utils/agentSecrets';
 import { TextModelError } from '../services/ai/textModel';
 import { enhancePrompt, PromptCoachEnhanceRequestSchema, PromptCoachInputError } from '../services/PromptCoachService';
 import { runTestLab, listTestLabRuns, getTestLabRun, TestLabInputError } from '../services/TestLabService';
@@ -39,6 +40,60 @@ const listQuerySchema = z.object({
   limit: z.string().regex(/^\d+$/).transform(Number).optional(),
   offset: z.string().regex(/^\d+$/).transform(Number).optional(),
 });
+
+/**
+ * Body schema for creating/updating an agent. Every field is optional (partial updates), but each
+ * one that is present must be valid. Unknown extra fields (e.g. welcome-message helpers read by
+ * normalizeGreetingConfig) pass through untouched. `userId`, `version` and `workspaceId` are
+ * never taken from the client.
+ */
+const MAX_CONFIG_BYTES = 1_000_000;
+const MAX_FLOW_BYTES = 2_000_000;
+const jsonSized = (max: number) => z.union([z.string(), z.record(z.unknown())]).refine(
+  (v) => (typeof v === 'string' ? v : JSON.stringify(v)).length <= max,
+  { message: `is too large (limit ${Math.round(max / 1000)} KB)` },
+);
+export const agentBodySchema = z.object({
+  name: z.string().max(120).optional(),
+  description: z.string().max(2000).nullable().optional(),
+  agentType: z.enum(['prompt', 'conversational', 'single-prompt']).optional(),
+  status: z.enum(['active', 'inactive', 'draft', 'paused']).optional(),
+  agentConfig: z.union([jsonSized(MAX_CONFIG_BYTES), z.null()]).optional(),
+  tags: z.union([z.string().max(4000), z.array(z.string().max(60)).max(50)]).optional(),
+  model: z.string().max(120).nullable().optional(),
+  voiceName: z.string().max(60).regex(/^[A-Za-z0-9 _.-]*$/, 'has invalid characters').nullable().optional(),
+  systemVoice: z.string().max(60).regex(/^[A-Za-z0-9 _.-]*$/, 'has invalid characters').nullable().optional(),
+  temperature: z.union([z.number().min(0).max(2), z.string().regex(/^d+(.d+)?$/), z.null()]).optional(),
+  systemPrompt: z.string().max(60_000).nullable().optional(),
+  firstMessage: z.string().max(2000).nullable().optional(),
+  flowGraph: z.union([jsonSized(MAX_FLOW_BYTES), z.null()]).optional(),
+  languageMode: z.string().max(40).optional(),
+  direction: z.enum(['inbound', 'outbound', 'both']).optional(),
+  isPiiRedactionEnabled: z.boolean().optional(),
+  industry: z.string().max(40).optional(),
+}).passthrough();
+
+function validateAgentBody(req: Request, res: Response, next: NextFunction): void {
+  const parsed = agentBodySchema.safeParse(req.body || {});
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    res.status(400).json({ success: false, error: `Invalid agent data: ${issue.path.join('.') || 'body'} ${issue.message}` });
+    return;
+  }
+  next();
+}
+
+/** Parses a stored or incoming agentConfig (object or JSON string) into an object. */
+function configObject(value: unknown): Record<string, unknown> {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value as Record<string, unknown>;
+  if (typeof value === 'string' && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+    } catch { /* unreadable: treat as empty */ }
+  }
+  return {};
+}
 
 // ─── Route Handlers ──────────────────────────────
 
@@ -406,7 +461,7 @@ router.get(
           firstMessage: agent.firstMessage,
           isPiiRedactionEnabled: Boolean(agent.isPiiRedactionEnabled),
           flowGraph: parsedFlowGraph,
-          agentConfig: parsedConfig,
+          agentConfig: maskAgentSecrets(parsedConfig),
           tags: JSON.parse(agent.tags || '[]'),
           createdAt: agent.createdAt.toISOString(),
           updatedAt: agent.updatedAt.toISOString(),
@@ -507,6 +562,8 @@ router.post(
   '/',
   requireAuth,
   requireEditor,
+  agentWriteLimiter,
+  validateAgentBody,
   requireAgentQuota,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -537,7 +594,6 @@ router.post(
         status,
         agentConfig,
         tags,
-        workspaceId,
         model,
         voiceName,
         systemVoice,
@@ -554,7 +610,9 @@ router.post(
       const parsedTemp = Number(temperature);
       const safeTemp = (temperature !== undefined && temperature !== null && !isNaN(parsedTemp)) ? parsedTemp : 0.7;
 
-      const { firstMessage: syncedFirstMessage, config: finalConfig } = normalizeGreetingConfig(agentConfig, req.body);
+      const { firstMessage: syncedFirstMessage, config: normalizedConfig } = normalizeGreetingConfig(agentConfig, req.body);
+      // Webhook secret / MCP keys are stored encrypted and never sent back in plain text.
+      const finalConfig = sealAgentSecrets(configObject(normalizedConfig), {});
 
       const newAgent = await prisma.agent.create({
         data: {
@@ -565,7 +623,8 @@ router.post(
           agentConfig: JSON.stringify(finalConfig),
           tags: typeof tags === 'string' ? tags : JSON.stringify(Array.isArray(tags) ? tags : []),
           userId: userId,
-          workspaceId: workspaceId || null,
+          // workspaceId is never taken from the client (zero client trust).
+          workspaceId: null,
           model: model || null,
           voiceName: voiceName || null,
           systemVoice: systemVoice || voiceName || 'Puck',
@@ -618,7 +677,7 @@ router.post(
           firstMessage: newAgent.firstMessage,
           isPiiRedactionEnabled: Boolean(newAgent.isPiiRedactionEnabled),
           flowGraph: parsedFlow,
-          agentConfig: finalConfig,
+          agentConfig: maskAgentSecrets(finalConfig),
           tags: JSON.parse(newAgent.tags || '[]'),
           qaEvaluation,
           createdAt: newAgent.createdAt.toISOString(),
@@ -636,7 +695,9 @@ router.put(
   '/:agentId',
   requireAuth,
   requireEditor,
+  agentWriteLimiter,
   validateParams(agentIdParamSchema),
+  validateAgentBody,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const primaryUserId = (req as any).user?.id || (req as any).userId;
@@ -658,7 +719,6 @@ router.put(
         status,
         agentConfig,
         tags,
-        workspaceId,
         model,
         voiceName,
         systemVoice,
@@ -710,9 +770,14 @@ router.put(
         silenceStartEnabled !== undefined ||
         silenceStartSeconds !== undefined
       ) {
-        const baseConfig = agentConfig !== undefined ? agentConfig : exists.agentConfig;
+        // Merge, section by section, onto what is stored: a client that sends only some sections
+        // (the flow builder sends only its own) must never wipe the others (webhooks, post-call
+        // fields, functions, MCPs, call settings, greeting...). Sending a section replaces it.
+        const baseConfig = agentConfig !== undefined
+          ? { ...configObject(exists.agentConfig), ...configObject(agentConfig) }
+          : exists.agentConfig;
         const normalized = normalizeGreetingConfig(baseConfig, req.body);
-        finalConfigToSave = JSON.stringify(normalized.config);
+        finalConfigToSave = JSON.stringify(sealAgentSecrets(configObject(normalized.config), configObject(exists.agentConfig)));
         syncedFirstMessage = normalized.firstMessage;
       }
 
@@ -728,7 +793,6 @@ router.put(
           ...(tags !== undefined && {
             tags: typeof tags === 'string' ? tags : JSON.stringify(Array.isArray(tags) ? tags : [])
           }),
-          ...(workspaceId !== undefined && { workspaceId }),
           ...(model !== undefined && { model }),
           ...(voiceName !== undefined && { voiceName, systemVoice: voiceName }),
           ...(systemVoice !== undefined && { systemVoice, voiceName: systemVoice }),
@@ -795,7 +859,7 @@ router.put(
           firstMessage: updatedAgent.firstMessage,
           isPiiRedactionEnabled: Boolean(updatedAgent.isPiiRedactionEnabled),
           flowGraph: parsedFlow,
-          agentConfig: parsedConfig,
+          agentConfig: maskAgentSecrets(parsedConfig),
           tags: JSON.parse(updatedAgent.tags || '[]'),
           qaEvaluation,
           createdAt: updatedAgent.createdAt.toISOString(),

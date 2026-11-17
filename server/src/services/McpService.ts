@@ -5,6 +5,7 @@
  * over HTTP or SSE JSON-RPC endpoints. Converts MCP tool definitions to Gemini functionDeclarations.
  */
 
+import { revealSecret } from '../utils/agentSecrets';
 import { logger } from '../utils/logger';
 import { assertSafeUrl } from '../utils/ssrfValidator';
 
@@ -51,8 +52,9 @@ export class McpService {
           'Content-Type': 'application/json',
           'User-Agent': 'Claritiy-Voice-MCP-Client/1.0',
         };
-        if (server.apiKey) {
-          headers['Authorization'] = `Bearer ${server.apiKey}`;
+        const serverKey = revealSecret(server.apiKey); // stored encrypted (utils/agentSecrets)
+        if (serverKey) {
+          headers['Authorization'] = `Bearer ${serverKey}`;
         }
 
         const controller = new AbortController();
@@ -126,8 +128,9 @@ export class McpService {
         'Content-Type': 'application/json',
         'User-Agent': 'Claritiy-Voice-MCP-Client/1.0',
       };
-      if (discoveredTool.apiKey) {
-        headers['Authorization'] = `Bearer ${discoveredTool.apiKey}`;
+      const toolKey = revealSecret(discoveredTool.apiKey);
+      if (toolKey) {
+        headers['Authorization'] = `Bearer ${toolKey}`;
       }
 
       // OWASP A10: Validate target MCP server URL against SSRF
