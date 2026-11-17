@@ -887,9 +887,12 @@ export default function SinglePromptStudio({
         setIsLoadingKb(false);
       }
     }
-    if (accordionState.kb) {
+    // Load once when the editor opens (so the "Knowledge Base (n)" badge is right before the section
+    // is expanded), and refresh whenever the section is opened.
+    if (accordionState.kb || kbList.length === 0) {
       loadKBs();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accordionState.kb]);
 
   const toggleKbAssignment = async (kb: ApiKnowledgeBase) => {

@@ -186,3 +186,8 @@ One entry per fix, newest at the bottom. Template:
 - Files: server/src/core/orchestrator/CallOrchestrator.ts, server/scripts/test_mcp_live.js (new), server/package.json.
 - Tests: `npm run test:mcp-live` (4, in test:security): discovery with decrypted key and no redirects, execution, internal URLs refused, live-call wiring present (source check: a real call needs the voice AI service).
 - Not verified here: a live phone call using a real MCP server.
+
+## A14 — Knowledge Base badge showed 0 until the section was opened (Phase 4)
+- Root cause: the editor loaded the knowledge-base list only when that section was expanded, and the parent never passed one in.
+- Fix: the list loads when the editor opens and refreshes whenever the section is opened.
+- Test: browser test in `Frontend/e2e/test-lab.spec.ts` (badge shows "Knowledge Base (2)" for an agent with two attached KBs, without opening the section); fails with the old condition, passes now.

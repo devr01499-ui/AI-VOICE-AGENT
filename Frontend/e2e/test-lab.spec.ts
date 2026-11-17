@@ -125,3 +125,20 @@ test('previous runs are listed and can be reopened', async ({ page }) => {
   await expect(page.getByTestId('test-lab-results')).toBeVisible();
   await expect(page.getByTestId('test-lab-persona')).toHaveCount(3);
 });
+
+test('the Knowledge Base badge counts attached knowledge bases without opening the section (A14)', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await loginAsTestUser(page);
+  await stubBackend(page, {
+    [`/api/v2/agents/${AGENT.id}`]: (route) => ok(route, AGENT),
+    '/api/v2/knowledge-base': (route) => ok(route, [
+      { id: 'kb-1', name: 'Price list', agentIds: [AGENT.id], status: 'ready' },
+      { id: 'kb-2', name: 'FAQ', agentIds: [AGENT.id], status: 'ready' },
+      { id: 'kb-3', name: 'Other agent docs', agentIds: ['someone-else'], status: 'ready' },
+    ]),
+    '/api/v2/agents': (route) => ok(route, [AGENT]),
+  });
+  await page.goto('/dashboard');
+  await page.getByRole('button', { name: 'Edit Studio' }).click({ timeout: 30_000 });
+  await expect(page.getByRole('button', { name: /Knowledge Base \(2\)/ })).toBeVisible({ timeout: 15_000 });
+});

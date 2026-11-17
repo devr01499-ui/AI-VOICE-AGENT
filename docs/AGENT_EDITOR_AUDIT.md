@@ -19,7 +19,7 @@ Built 2026-11-17 (Phase 4) from a read-only trace: editor → `getStudioPayload`
 | A11 | PUT `/agents/:id` has no body schema; client can set `status` (any string), `agentType`, `workspaceId` | agents.ts ~639-731 | FIXED (see FIX_LOG) |
 | A12 | Webhook secret and MCP `apiKey` stored and returned in plain text by GET | agents.ts ~409 | FIXED (see FIX_LOG) |
 | A13 | MCP servers used only in browser test calls, never on live calls | SandboxStreamHandler.ts ~190-282 | FIXED (see FIX_LOG) |
-| A14 | Knowledge Base count badge shows 0 until the section is opened | SinglePromptStudio.tsx ~266, ~2377 | open |
+| A14 | Knowledge Base count badge shows 0 until the section is opened | SinglePromptStudio.tsx ~266, ~2377 | FIXED (see FIX_LOG) |
 
 ## Single-prompt editor controls
 
