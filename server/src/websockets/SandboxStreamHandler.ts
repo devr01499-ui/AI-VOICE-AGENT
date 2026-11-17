@@ -213,11 +213,7 @@ export class SandboxStreamHandler {
       if (agent.flowGraph && agent.flowGraph !== '' && agent.flowGraph !== '{}') {
         try {
           const FlowCompiler = require('../core/orchestrator/FlowCompiler');
-          const parsedAgentCfg = typeof agent.agentConfig === 'string'
-            ? (() => { try { return JSON.parse(agent.agentConfig); } catch { return {}; } })()
-            : (agent.agentConfig || {});
-          const flexibilityMode = (parsedAgentCfg as any)?.flexibilityMode || 'rigid';
-          sandboxInstructions = FlowCompiler.compile(agent.flowGraph, agent.name, flexibilityMode);
+          sandboxInstructions = FlowCompiler.resolveFlowAgentInstructions(agent);
           logger.info('SandboxStreamHandler: FlowCompiler compiled instructions for flow agent', { connectionId, agentId });
         } catch (compileErr) {
           logger.warn('SandboxStreamHandler: FlowCompiler failed, falling back to systemPrompt', { error: String(compileErr) });

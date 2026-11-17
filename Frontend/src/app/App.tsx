@@ -1521,7 +1521,7 @@ function base64ToFloat32(base64: string): Float32Array {
 
 // ── Agents ──
 type AgentView = "list"|"create"|"detail";
-function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSinglePromptStudioAgent }: { session: Session | null; profile: ApiProfile | null; setApiAgents?: React.Dispatch<React.SetStateAction<ApiAgent[]>>; setStudioAgent: React.Dispatch<React.SetStateAction<{ id?: string; name: string; systemPrompt?: string; flowGraph?: any } | null>>; setSinglePromptStudioAgent?: React.Dispatch<React.SetStateAction<{ id?: string; name: string; systemPrompt?: string; model?: string; voiceName?: string } | null>> }) {
+function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSinglePromptStudioAgent }: { session: Session | null; profile: ApiProfile | null; setApiAgents?: React.Dispatch<React.SetStateAction<ApiAgent[]>>; setStudioAgent: React.Dispatch<React.SetStateAction<{ id?: string; name: string; systemPrompt?: string; flowGraph?: any; agent?: any } | null>>; setSinglePromptStudioAgent?: React.Dispatch<React.SetStateAction<{ id?: string; name: string; systemPrompt?: string; model?: string; voiceName?: string } | null>> }) {
   const [agents, setAgents] = useState<AgentRow[]>(() => {
     try {
       const cached = localStorage.getItem('cache_agent_rows');
@@ -1742,6 +1742,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
           name: newAgent.name,
           systemPrompt: newAgent.systemPrompt ?? undefined,
           flowGraph: parsedFlowGraph,
+          agent: newAgent,
         });
       } else if (setSinglePromptStudioAgent) {
         setSinglePromptStudioAgent(newAgent);
@@ -2941,6 +2942,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
                               name: a.name as string,
                               systemPrompt: fullAgent.systemPrompt ?? undefined,
                               flowGraph: fullAgent.flowGraph ?? undefined,
+                              agent: fullAgent,
                             });
                           } else if (setSinglePromptStudioAgent) {
                             setSinglePromptStudioAgent(fullAgent);
@@ -6972,7 +6974,27 @@ function DashboardPage({ session }: { session: Session }) {
 
   // Open by default on desktop; closed on phones, where the menu is a drawer that would cover the page.
   const [sidebarOpen, setSidebarOpen] = useState(() => (typeof window === "undefined" ? true : window.innerWidth >= 768));
-  const [studioAgent, setStudioAgent] = useState<{ id?: string; name: string; systemPrompt?: string; flowGraph?: any } | null>(null);
+  const [studioAgent, setStudioAgent] = useState<{ id?: string; name: string; systemPrompt?: string; flowGraph?: any; agent?: any } | null>(null);
+  // One payload for both "Save" and "Publish" in the flow builder. Every setting the builder shows is
+  // sent (flow settings, speech, transcription); the server merges agentConfig section by section.
+  const buildFlowAgentPayload = (name: string, compiledPrompt: string, flowGraph: any, extraConfig?: Record<string, any>) => ({
+    name,
+    agentType: 'conversational',
+    systemPrompt: compiledPrompt,
+    flowGraph,
+    direction: extraConfig?.direction || 'outbound',
+    languageMode: extraConfig?.languageMode || extraConfig?.language || 'auto',
+    systemVoice: extraConfig?.systemVoice || extraConfig?.voiceName || 'Puck',
+    voiceName: extraConfig?.voiceName || extraConfig?.systemVoice || 'Puck',
+    model: extraConfig?.model || 'gemini-2.5-flash-native-audio-latest',
+    agentConfig: extraConfig ? {
+      ...(extraConfig.flowSettings ? { flowSettings: extraConfig.flowSettings } : {}),
+      ...(extraConfig.handbookPresets ? { handbookPresets: extraConfig.handbookPresets } : {}),
+      ...(extraConfig.flexibilityMode ? { flexibilityMode: extraConfig.flexibilityMode } : {}),
+      ...(extraConfig.speechSettings ? { speechSettings: extraConfig.speechSettings } : {}),
+      ...(extraConfig.transcriptionSettings ? { transcriptionSettings: extraConfig.transcriptionSettings } : {}),
+    } : undefined,
+  });
   const [singlePromptStudioAgent, setSinglePromptStudioAgent] = useState<ApiAgent | any | null>(null);
   const [profile, setProfile] = useState<ApiProfile | null>(() => {
     try {
@@ -7099,19 +7121,9 @@ function DashboardPage({ session }: { session: Session }) {
         agentName={studioAgent.name}
         initialGraph={studioAgent.flowGraph}
         legacySystemPrompt={studioAgent.systemPrompt}
+        initialAgent={studioAgent.agent}
         onSave={async (compiledPrompt, flowGraph, extraConfig) => {
-          const payload = {
-            name: studioAgent.name,
-            agentType: 'conversational',
-            systemPrompt: compiledPrompt,
-            flowGraph: flowGraph as any,
-            direction: extraConfig?.direction || 'outbound',
-            languageMode: extraConfig?.languageMode || extraConfig?.language || 'auto',
-            systemVoice: extraConfig?.systemVoice || extraConfig?.voiceName || 'Puck',
-            voiceName: extraConfig?.voiceName || extraConfig?.systemVoice || 'Puck',
-            model: extraConfig?.model || 'gemini-2.5-flash-native-audio-latest',
-            agentConfig: extraConfig?.handbookPresets ? { handbookPresets: extraConfig.handbookPresets } : undefined,
-          };
+          const payload = buildFlowAgentPayload(studioAgent.name, compiledPrompt, flowGraph as any, extraConfig);
           if (studioAgent.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(studioAgent.id)) {
             await updateAgent(studioAgent.id, payload as any);
             alert("Conversational flow graph published successfully!");
@@ -7123,18 +7135,7 @@ function DashboardPage({ session }: { session: Session }) {
           fetchAgents().then(setApiAgents).catch(() => {});
         }}
         onEnsureSaved={async (compiledPrompt, flowGraph, extraConfig) => {
-          const payload = {
-            name: studioAgent.name,
-            agentType: 'conversational',
-            systemPrompt: compiledPrompt,
-            flowGraph: flowGraph as any,
-            direction: extraConfig?.direction || 'outbound',
-            languageMode: extraConfig?.languageMode || extraConfig?.language || 'auto',
-            systemVoice: extraConfig?.systemVoice || extraConfig?.voiceName || 'Puck',
-            voiceName: extraConfig?.voiceName || extraConfig?.systemVoice || 'Puck',
-            model: extraConfig?.model || 'gemini-2.5-flash-native-audio-latest',
-            agentConfig: extraConfig?.handbookPresets ? { handbookPresets: extraConfig.handbookPresets } : undefined,
-          };
+          const payload = buildFlowAgentPayload(studioAgent.name, compiledPrompt, flowGraph as any, extraConfig);
           if (studioAgent.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(studioAgent.id)) {
             await updateAgent(studioAgent.id, payload as any);
             fetchAgents().then(setApiAgents).catch(() => {});

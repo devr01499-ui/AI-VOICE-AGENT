@@ -397,7 +397,7 @@ export class CallOrchestrator extends EventEmitter {
       } else {
         try {
           const FlowCompiler = require('./FlowCompiler');
-          systemInstructions = FlowCompiler.compile(agent.flowGraph, agent.name, rawConfig.flexibilityMode || 'rigid');
+          systemInstructions = FlowCompiler.resolveFlowAgentInstructions(agent);
         } catch (parseError) {
           logger.error('CallOrchestrator: Canvas layout parsing failed. Utilizing baseline system instruction prompt block.', { error: String(parseError) });
           systemInstructions = agent.systemPrompt || defaultPrompt;

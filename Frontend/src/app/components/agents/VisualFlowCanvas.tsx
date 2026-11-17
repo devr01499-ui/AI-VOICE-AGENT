@@ -48,7 +48,7 @@ import {
   X,
   Check,
 } from 'lucide-react';
-import { FlowGraph, FlowNode, FlowNodeType, compileFlowToSystemPrompt } from './flowCompiler';
+import { FlowGraph, FlowNode, FlowNodeType, compileFlowToSystemPrompt, extractFlowGlobalPrompt } from './flowCompiler';
 import {
   GEMINI_VOICES,
   LANGUAGE_OPTIONS,
@@ -58,8 +58,10 @@ import {
 import { fetchKBList, assignKBAgent, unassignKBAgent, ApiKnowledgeBase, getSandboxTestWsUrl, getValidAuthToken } from '../../api';
 
 interface VisualFlowCanvasProps {
-  initialGraph?: FlowGraph | null;
+  initialGraph?: FlowGraph | string | null;
   legacySystemPrompt?: string;
+  /** The saved agent (id, direction, languageMode, voiceName, agentConfig) so every setting reloads. */
+  initialAgent?: Record<string, any> | null;
   agentName?: string;
   onSave: (compiledPrompt: string, flowGraph: FlowGraph, extraConfig?: Record<string, any>) => void;
   onEnsureSaved?: (compiledPrompt: string, flowGraph: FlowGraph, extraConfig?: Record<string, any>) => Promise<string>;
@@ -198,25 +200,57 @@ const nodeTypes = {
 };
 
 export default function VisualFlowCanvas({
-  initialGraph,
+  initialGraph: initialGraphProp,
   legacySystemPrompt,
+  initialAgent,
   agentName: initialAgentName = 'Conversation Flow Agent',
   onSave,
   onEnsureSaved,
   onBack,
 }: VisualFlowCanvasProps) {
+  // Some callers pass the graph as stored (a JSON string); the canvas needs the object.
+  const initialGraph = useMemo<FlowGraph | null>(() => {
+    if (!initialGraphProp) return null;
+    if (typeof initialGraphProp !== 'string') return initialGraphProp;
+    try { return JSON.parse(initialGraphProp) as FlowGraph; } catch { return null; }
+  }, [initialGraphProp]);
   const [agentName, setAgentName] = useState(initialAgentName);
   const [activePaletteTab, setActivePaletteTab] = useState<'node' | 'subflows'>('node');
   const [activeInspectorTab, setActiveInspectorTab] = useState<'global' | 'node'>('global');
   
-  // Retell Global Settings state
-  const [language, setLanguage] = useState('auto');
-  const [voice, setVoice] = useState('Puck');
+  // Saved settings (they used to be reset to defaults every time the builder opened).
+  const initialCfg = useMemo<Record<string, any>>(() => {
+    const raw = initialAgent?.agentConfig;
+    if (!raw) return {};
+    if (typeof raw === 'object') return raw as Record<string, any>;
+    try { return JSON.parse(raw) || {}; } catch { return {}; }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const savedFlow: Record<string, any> = (initialCfg.flowSettings && typeof initialCfg.flowSettings === 'object') ? initialCfg.flowSettings : {};
+  const savedSpeech: Record<string, any> = initialCfg.speechSettings || {};
+  const savedTranscription: Record<string, any> = initialCfg.transcriptionSettings || {};
+  const savedDirection = initialAgent?.direction;
+
+  // Global Settings state
+  const [language, setLanguage] = useState<string>(initialAgent?.languageMode || 'auto');
+  const [voice, setVoice] = useState<string>(initialAgent?.voiceName || initialAgent?.systemVoice || 'Puck');
   const [model] = useState('gemini-2.5-flash-native-audio-latest');
-  const [direction, setDirection] = useState<'outbound' | 'inbound' | 'both'>('outbound');
-  const [globalPrompt, setGlobalPrompt] = useState(legacySystemPrompt || 'Enter your global prompt here. Type {{ to add dynamic variables.');
-  const [flexibilityMode, setFlexibilityMode] = useState<'flex' | 'rigid'>('rigid');
-  const [handbookPresets, setHandbookPresets] = useState<string[]>(['ai_disclosure']);
+  const [direction, setDirection] = useState<'outbound' | 'inbound' | 'both'>(
+    savedDirection === 'inbound' || savedDirection === 'both' || savedDirection === 'outbound' ? savedDirection : 'outbound'
+  );
+  // Only the user's own text: the saved systemPrompt also holds the compiled flow, which must not
+  // be fed back in as the global prompt (that nested a new copy on every save).
+  const [globalPrompt, setGlobalPrompt] = useState<string>(
+    typeof savedFlow.globalPrompt === 'string' ? savedFlow.globalPrompt : extractFlowGlobalPrompt(legacySystemPrompt)
+  );
+  const [flexibilityMode, setFlexibilityMode] = useState<'flex' | 'rigid'>(
+    (savedFlow.flexibilityMode || initialCfg.flexibilityMode) === 'flex' ? 'flex' : 'rigid'
+  );
+  const [handbookPresets, setHandbookPresets] = useState<string[]>(
+    Array.isArray(savedFlow.handbookPresets) ? savedFlow.handbookPresets
+      : Array.isArray(initialCfg.handbookPresets) ? initialCfg.handbookPresets
+      : ['ai_disclosure']
+  );
   const [showHandbookPopover, setShowHandbookPopover] = useState(false);
 
   const toggleHandbookPreset = (id: string) => {
@@ -230,43 +264,48 @@ export default function VisualFlowCanvas({
   const [speechAccordionOpen, setSpeechAccordionOpen] = useState(false);
   const [transcriptionAccordionOpen, setTranscriptionAccordionOpen] = useState(false);
 
-  // KB state & assign handlers
+  // KB state: assignments live on the server (same as the prompt editor); the list loads on open
+  // so the count is right before the section is expanded.
   const [kbList, setKbList] = useState<ApiKnowledgeBase[]>([]);
   const [isLoadingKb, setIsLoadingKb] = useState(false);
-  const [assignedKbIds, setAssignedKbIds] = useState<string[]>([]);
+  const [currentAgentId, setCurrentAgentId] = useState<string | undefined>(initialAgent?.id || undefined);
+  const [kbBusyId, setKbBusyId] = useState<string | null>(null);
+  const isKbAssigned = (kb: ApiKnowledgeBase, agentId?: string) =>
+    Boolean(agentId && ((kb.agentIds && kb.agentIds.includes(agentId)) || kb.agentId === agentId));
+  const assignedKbIds = kbList.filter((kb) => isKbAssigned(kb, currentAgentId)).map((kb) => kb.id);
 
   useEffect(() => {
+    let cancelled = false;
     async function loadKBs() {
       try {
         setIsLoadingKb(true);
         const fetched = await fetchKBList();
-        setKbList(fetched);
+        if (!cancelled) setKbList(Array.isArray(fetched) ? fetched : []);
       } catch (err) {
         console.error('Failed to load KB list in flow canvas:', err);
       } finally {
-        setIsLoadingKb(false);
+        if (!cancelled) setIsLoadingKb(false);
       }
     }
-    if (kbAccordionOpen) {
+    if (kbAccordionOpen || kbList.length === 0) {
       loadKBs();
     }
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kbAccordionOpen]);
 
-  const toggleKbAssignment = (kbId: string) => {
-    setAssignedKbIds((prev) =>
-      prev.includes(kbId) ? prev.filter((id) => id !== kbId) : [...prev, kbId]
-    );
-  };
-
   // Speech settings state
-  const [speechSpeed, setSpeechSpeed] = useState<number>(1.0);
-  const [responsivenessMs, setResponsivenessMs] = useState<number>(600);
-  const [interruptionSensitivity, setInterruptionSensitivity] = useState<'HIGH' | 'LOW'>('HIGH');
-  const [backchannelingEnabled, setBackchannelingEnabled] = useState<boolean>(false);
-  const [speechVolume, setSpeechVolume] = useState<number>(1.0);
+  const [speechSpeed, setSpeechSpeed] = useState<number>(typeof savedSpeech.speed === 'number' ? savedSpeech.speed : 1.0);
+  const [responsivenessMs, setResponsivenessMs] = useState<number>(typeof savedSpeech.responsivenessMs === 'number' ? savedSpeech.responsivenessMs : 600);
+  const [interruptionSensitivity, setInterruptionSensitivity] = useState<'HIGH' | 'LOW'>(savedSpeech.interruptionSensitivity === 'LOW' ? 'LOW' : 'HIGH');
+  const [backchannelingEnabled, setBackchannelingEnabled] = useState<boolean>(savedSpeech.backchanneling === true);
+  const [speechVolume, setSpeechVolume] = useState<number>(typeof savedSpeech.volume === 'number' ? savedSpeech.volume : 1.0);
 
   // Realtime Transcription settings state
-  const [boostedKeywords, setBoostedKeywords] = useState<string>('');
+  const [boostedKeywords, setBoostedKeywords] = useState<string>(
+    Array.isArray(savedTranscription.boostedKeywords) ? savedTranscription.boostedKeywords.join(', ')
+      : typeof savedTranscription.boostedKeywords === 'string' ? savedTranscription.boostedKeywords : ''
+  );
 
   // Default Node Seeding
   const defaultNodes: Node[] = [
@@ -321,6 +360,7 @@ export default function VisualFlowCanvas({
         source: e.source,
         target: e.target,
         animated: true,
+        ...(e.label ? { label: e.label } : {}),
       }));
     }
     return defaultEdges;
@@ -352,6 +392,7 @@ export default function VisualFlowCanvas({
         id: e.id,
         source: e.source,
         target: e.target,
+        ...(typeof e.label === 'string' && e.label.trim() ? { label: e.label.trim() } : {}),
       })),
     }),
     [nodes, edges]
@@ -359,7 +400,8 @@ export default function VisualFlowCanvas({
 
   const compiledPrompt = useMemo(() => {
     const base = compileFlowToSystemPrompt(currentFlowGraph, agentName, direction, flexibilityMode);
-    const fullBase = `${globalPrompt}\n\n${base}`;
+    const userPrompt = globalPrompt.trim();
+    const fullBase = userPrompt ? `${userPrompt}\n\n${base}` : base;
     return compilePromptWithHandbook(fullBase, handbookPresets, direction);
   }, [currentFlowGraph, agentName, globalPrompt, handbookPresets, direction, flexibilityMode]);
 
@@ -637,13 +679,19 @@ export default function VisualFlowCanvas({
   }, [compiledPrompt, nodes]);
 
   const validateFlowGraph = (): void => {
-    const comingSoonTypes = new Set(['transferCall', 'pressDigit', 'agentTransfer', 'inCallSms']);
+    const comingSoonTypes = new Set(['transferCall', 'pressDigit', 'agentTransfer', 'inCallSms', 'subagent', 'code', 'mcp']);
     for (const node of nodes) {
       if (node.type && comingSoonTypes.has(node.type)) {
         throw new Error(`Node "${node.data?.label || node.type}" uses a Coming Soon feature that is not yet supported for live call execution.`);
       }
       if (node.type === 'askQuestion' && !node.data?.question && !node.data?.prompt && !node.data?.text) {
         throw new Error(`Node "${node.data?.label || 'Ask Question'}" requires a question prompt.`);
+      }
+      if (node.type === 'logicSplit' || node.type === 'conditionBranch') {
+        const out = edges.filter((e) => e.source === node.id);
+        if (out.length > 1 && out.some((e) => !(typeof e.label === 'string' && e.label.trim()))) {
+          throw new Error(`Name every branch of "${node.data?.label || 'Logic Split'}" (select it and fill in each "when the caller…" box) so the agent knows which way to go.`);
+        }
       }
     }
   };
@@ -658,6 +706,8 @@ export default function VisualFlowCanvas({
     flexibilityMode,
     handbookPresets,
     knowledgeBaseIds: assignedKbIds,
+    // Saved as agentConfig.flowSettings so the builder reopens exactly as it was left.
+    flowSettings: { globalPrompt: globalPrompt.trim(), flexibilityMode, handbookPresets },
     speechSettings: {
       speed: speechSpeed,
       responsivenessMs,
@@ -669,6 +719,38 @@ export default function VisualFlowCanvas({
       boostedKeywords: boostedKeywords ? boostedKeywords.split(',').map((s) => s.trim()).filter(Boolean) : [],
     },
   });
+
+  // Attaching a knowledge base needs a saved agent; a brand-new flow is saved first.
+  const toggleKbAssignment = async (kbId: string) => {
+    if (kbBusyId) return;
+    const kb = kbList.find((k) => k.id === kbId);
+    if (!kb) return;
+    setPublishError(null);
+    setKbBusyId(kbId);
+    const before = kbList;
+    try {
+      let agentId = currentAgentId;
+      if (!agentId) {
+        if (!onEnsureSaved) throw new Error('Save the agent before attaching a knowledge base.');
+        validateFlowGraph();
+        agentId = await onEnsureSaved(compiledPrompt, currentFlowGraph, getCanvasPayloadExtra());
+        setCurrentAgentId(agentId);
+      }
+      const wasAssigned = isKbAssigned(kb, agentId);
+      setKbList((list) => list.map((k) => {
+        if (k.id !== kbId) return k;
+        const ids = (k.agentIds || (k.agentId ? [k.agentId] : [])).filter((id) => id !== agentId);
+        return { ...k, agentIds: wasAssigned ? ids : [...ids, agentId as string] };
+      }));
+      if (wasAssigned) await unassignKBAgent(kbId, agentId);
+      else await assignKBAgent(kbId, agentId);
+    } catch (err: any) {
+      setKbList(before);
+      setPublishError(err?.message || 'Could not update the knowledge base for this agent.');
+    } finally {
+      setKbBusyId(null);
+    }
+  };
 
   const handleSave = async () => {
     try {
@@ -710,7 +792,7 @@ export default function VisualFlowCanvas({
     { type: 'conversation' as FlowNodeType, label: 'Conversation', desc: 'Agent speech or response', icon: <MessageSquare className="w-4 h-4 text-blue-500" /> },
     { type: 'askQuestion' as FlowNodeType, label: 'Collect Input', desc: 'Ask caller & store variable', icon: <HelpCircle className="w-4 h-4 text-violet-500" /> },
     { type: 'checkCalendar' as FlowNodeType, label: 'Check Calendar Availability', desc: 'Query open calendar slots', icon: <Calendar className="w-4 h-4 text-emerald-500" /> },
-    { type: 'subagent' as FlowNodeType, label: 'Subagent', desc: 'Delegate flow to subagent', icon: <Bot className="w-4 h-4 text-indigo-500" /> },
+    { type: 'subagent' as FlowNodeType, label: 'Subagent', desc: 'Delegate flow to subagent', icon: <Bot className="w-4 h-4 text-indigo-500" /> , comingSoon: true },
     { type: 'function' as FlowNodeType, label: 'Function', desc: 'Call external tool/webhook', icon: <Wrench className="w-4 h-4 text-purple-500" /> },
     { type: 'transferCall' as FlowNodeType, label: 'Call Transfer', desc: 'Transfer call to number', icon: <PhoneForwarded className="w-4 h-4 text-green-500" />, comingSoon: true },
     { type: 'pressDigit' as FlowNodeType, label: 'Press Digit', desc: 'IVR DTMF key press', icon: <Hash className="w-4 h-4 text-cyan-500" />, comingSoon: true },
@@ -718,8 +800,8 @@ export default function VisualFlowCanvas({
     { type: 'agentTransfer' as FlowNodeType, label: 'Agent Transfer', desc: 'Hand over to specialist', icon: <UserCheck className="w-4 h-4 text-emerald-500" />, comingSoon: true },
     { type: 'inCallSms' as FlowNodeType, label: 'In-Call SMS', desc: 'Send text during call', icon: <MessageCircle className="w-4 h-4 text-teal-500" />, comingSoon: true },
     { type: 'extractVariable' as FlowNodeType, label: 'Extract Variable', desc: 'Capture response slots', icon: <Binary className="w-4 h-4 text-pink-500" /> },
-    { type: 'code' as FlowNodeType, label: 'Code', desc: 'Execute inline code logic', icon: <Code className="w-4 h-4 text-slate-600" /> },
-    { type: 'mcp' as FlowNodeType, label: 'MCP', desc: 'Model Context Protocol', icon: <Globe className="w-4 h-4 text-sky-500" /> },
+    { type: 'code' as FlowNodeType, label: 'Code', desc: 'Execute inline code logic', icon: <Code className="w-4 h-4 text-slate-600" /> , comingSoon: true },
+    { type: 'mcp' as FlowNodeType, label: 'MCP', desc: 'Model Context Protocol', icon: <Globe className="w-4 h-4 text-sky-500" /> , comingSoon: true },
     { type: 'ending' as FlowNodeType, label: 'Ending', desc: 'Terminate call session', icon: <PhoneOff className="w-4 h-4 text-rose-500" /> },
     { type: 'note' as FlowNodeType, label: 'Note', desc: 'Add visual canvas note', icon: <StickyNote className="w-4 h-4 text-amber-500" /> },
   ];
@@ -1114,7 +1196,9 @@ export default function VisualFlowCanvas({
                               <div
                                 key={kb.id}
                                 onClick={() => toggleKbAssignment(kb.id)}
-                                className={`flex items-center justify-between p-2 rounded border cursor-pointer transition-colors ${
+                                aria-busy={kbBusyId === kb.id}
+                                data-testid={`flow-kb-${kb.id}`}
+                                className={`flex items-center justify-between p-2 rounded border cursor-pointer transition-colors ${kbBusyId === kb.id ? 'opacity-60 ' : ''}${
                                   isAssigned
                                     ? 'bg-teal-50/60 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800 text-teal-900 dark:text-teal-200 font-medium'
                                     : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600'
@@ -1410,6 +1494,33 @@ export default function VisualFlowCanvas({
                               placeholder="e.g. user_intent or booking_requested"
                               className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
                             />
+                            <label className="font-semibold text-slate-600 dark:text-slate-400 block pt-2">Branches</label>
+                            {edges.filter((e) => e.source === selectedNode.id).length === 0 ? (
+                              <p className="text-[11px] text-slate-500">Connect this node to the next steps, then describe here when each one applies.</p>
+                            ) : (
+                              edges.filter((e) => e.source === selectedNode.id).map((e) => {
+                                const target = nodes.find((n) => n.id === e.target);
+                                return (
+                                  <div key={e.id} className="min-w-0">
+                                    <span className="block text-[11px] text-slate-500 mb-1 break-words">
+                                      Go to “{String((target?.data as any)?.label || e.target)}” when the caller…
+                                    </span>
+                                    <input
+                                      type="text"
+                                      data-testid={`branch-label-${e.id}`}
+                                      value={typeof e.label === 'string' ? e.label : ''}
+                                      onChange={(ev) => {
+                                        const value = ev.target.value;
+                                        setEdges((eds) => eds.map((x) => (x.id === e.id ? { ...x, label: value } : x)));
+                                      }}
+                                      placeholder="e.g. wants to book an appointment"
+                                      maxLength={200}
+                                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                    />
+                                  </div>
+                                );
+                              })
+                            )}
                           </div>
                         )}
 

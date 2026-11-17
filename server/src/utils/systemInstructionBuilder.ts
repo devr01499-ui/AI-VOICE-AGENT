@@ -278,9 +278,9 @@ export function buildFinalSystemInstruction(
 
   if (isFlow && agent?.flowGraph) {
     try {
+      // Same resolver as live and test calls: keeps the global prompt, direction and handbook.
       const FlowCompiler = require('../core/orchestrator/FlowCompiler');
-      const flexibilityMode = agentCfg?.flexibilityMode || 'rigid';
-      baseInstructions = FlowCompiler.compile(agent.flowGraph, agent.name || 'Agent', flexibilityMode);
+      baseInstructions = FlowCompiler.resolveFlowAgentInstructions({ ...agent, systemPrompt: existingRaw });
     } catch (err) {
       baseInstructions = existingRaw || 'Default conversational assistant prompt.';
     }
