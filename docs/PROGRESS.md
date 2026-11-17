@@ -4,7 +4,7 @@
 |---|---|---|
 | 0 | Setup, code map, test-DB guard, test-secret isolation | DONE, on `main` |
 | 1 | F1 first-load flash, F2 auth | DONE, merged to `main` 2026-11-17 (owner said "yes to main directly") |
-| 2 | B1 templates, B2 bell, B4 remove Review QA/Auto-detect (+ calendar status fix) | DONE on `fix/dashboard-ui-1` (pushed, NOT merged — has a DB schema change, owner to decide) |
+| 2 | B1 templates, B2 bell, B4 remove Review QA/Auto-detect (+ calendar status fix) | DONE, merged to `main` 2026-11-17 |
 | 3 | B3 Prompt Coach, B5 Test Lab | NEXT — branch `fix/prompt-coach-testlab` from `fix/dashboard-ui-1` |
 | 4–14 | See CLAUDE.md §13 | not started |
 
@@ -51,7 +51,8 @@
 - Sign-up "Account Type" saved but unused by the server (decide in Phase 4/13).
 
 ## Open questions (owner)
-1. Gemini model policy (CLAUDE.md §3). 2. `devr0144@gmail.com` address (§11). 3. Migration Option A or B. 4. Merge Phase 2 to `main` now (it adds one DB table)?
+1. Gemini model policy (CLAUDE.md §3). 2. `devr0144@gmail.com` address (§11). 3. Migration Option A or B.
+- STANDING OWNER RULE (2026-11-17, CLAUDE.md §0.6/§12a): merge every verified phase to `main` and push directly; never ask between phases; report once at the end.
 
 ## Next exact step
 Phase 3 (B3 Prompt Coach, B5 Test Lab) per docs/PHASED_PROMPTS.md. Start: CODEMAP B3/B5 pointers (re-grep line numbers); Prompt Coach and Test Lab currently make no AI call. Use a stubbed AI transport in tests; never call the live AI API (keys are compromised until rotated).
