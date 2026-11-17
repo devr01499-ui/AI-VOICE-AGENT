@@ -41,23 +41,21 @@
 7. Password reset: email → "Set New Password" → dashboard; old password fails; reusing the link says expired.
 8. Supabase → Authentication: redirect URLs include `https://www.claritiy.com/dashboard`; min password length 8; rate limits on.
 9. After Phase 2 is deployed: Render deploy log shows the `notification_receipts` table created; the bell's Delete works on the live site.
-11. Prompt Coach + Test Lab live smoke (after key rotation): open an agent → Prompt Coach → Enhance; then Test Lab → Run. Expected: a rewritten prompt with placeholders; Test Lab shows 5 callers with transcripts. Judge the quality of the AI answers.
 10. "Email on notification" and "mute preferences" (CLAUDE.md §2 of B2): no such code was found on the server. Tell Claude where these live or whether they still need building.
+11. Prompt Coach + Test Lab live smoke (after key rotation): open an agent → Prompt Coach → Enhance; then Test Lab → Run. Expected: a rewritten prompt with placeholders; Test Lab shows 5 callers with transcripts. Judge the quality of the AI answers.
 
 ## Decisions
 - Checklist = 17 issues + S7, Q8, D9, D10, T0, M0, K0. Zero-open-defects gate in Phase 14.
 - `npm run build` rewrites `Frontend/public/sitemap.xml` dates — `git restore` it.
 - Frontend uses pnpm; root/server npm. No `gh`, Docker or Postgres here; local DB = PGlite (RUNBOOK). Don't probe its port with a raw socket before it is up.
 - Browser tests: `cd Frontend && npx playwright test`; helpers in `e2e/helpers/dashboard.ts` (fake session + stubbed backend; session key `claritiy_voice_supabase_auth_token`).
-- Customer bell shows own rows + `ANNOUNCEMENT` rows only; owner-less rows of other types are admin-only.
 - AI features use `services/ai/textModel.ts` (timeouts, retry, fallback, BYOK) + `aiFeatureLimiter`; tests stub it with `setTextModelTransportForTests`. Never run `db push --accept-data-loss`, even locally.
 - LOW MEMORY: when PGlite dies with "out of memory: Zone", use the native test DB: scratchpad `pg/start.mjs` (port 54329, password localtest, db `claritiy_phase4`) and push a copy of schema.prisma with `Unsupported("vector(3072)")` → `Unsupported("text")` (vector search tests still need PGlite). Never use git stash for before/after proofs (a cut-off session can strand work): copy the file aside, test, restore.
 - Playwright runs 2 workers locally (memory-bound machine); measure layout with offsetWidth, not boundingBox, when animations exist.
-- Sign-up "Account Type" saved but unused by the server (decide in Phase 4/13).
+- Bell: customers see own rows + `ANNOUNCEMENT` rows only. Sign-up "Account Type" saved but unused by the server (decide in Phase 13).
 
 ## Open questions (owner)
-1. Gemini model policy (CLAUDE.md §3). 2. `devr0144@gmail.com` address (§11). 3. Migration Option A or B.
-- STANDING OWNER RULE (2026-11-17, CLAUDE.md §0.6/§12a): merge every verified phase to `main` and push directly; never ask between phases; report once at the end.
+1. Gemini model policy (CLAUDE.md §3). 2. `devr0144@gmail.com` address (§11). 3. Migration Option A or B. STANDING RULE (§0.6/§12a): merge each verified phase to `main`, push, never ask between phases.
 
 ## Next exact step
-Phase 4 (B6 agent editor sections, B7 conversational builder) per docs/PHASED_PROMPTS.md: build docs/AGENT_EDITOR_AUDIT.md (control → API → DB field → runtime consumer → works/broken/no-op), fix or remove no-ops section by section. Known leads: `securityFallback` has no server reader; MCPs only used in browser test calls; calendar bookings routes lack the envelope; agent PUT body has no schema validation.
+Phase 4, remaining audit items in docs/AGENT_EDITOR_AUDIT.md: A6 post-call extraction on live calls + show results; A8 Security & Fallback (wire PII switch to `isPiiRedactionEnabled`, wire or remove fallback controls); A9 flow builder (global prompt, direction, edge labels, reload of voice/language/flexibility, panels saved); A10 sandbox SSRF/timeout; A13 MCP on live calls or label sandbox-only; A14 KB badge; no-op controls (closing message, ambient noise, max duration, Meet link). Then full regression, merge to main, Phase 5.
