@@ -6,6 +6,7 @@ interface CalendarStatus {
   connected: boolean;
   status?: 'healthy' | 'needs_reauth' | 'disconnected';
   lastCheckedAt?: string;
+  googleEmail?: string;
   message?: string;
 }
 

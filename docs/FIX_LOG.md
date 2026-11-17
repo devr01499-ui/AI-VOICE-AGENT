@@ -82,3 +82,10 @@ One entry per fix, newest at the bottom. Template:
 - Verified: 16/16 and 9/9. Full regression: test:security (19 guard + 11 sign-up + 7 agent rules + 16 bell + 19 security), test:owasp 23/23, test:payment-security 16/16, test:street-smart 32/32, root build, 81 browser tests passed + 1 skipped. Typecheck: server 0, frontend 36.
 - Not verified here: the new table being created on production (needs the deploy to apply the schema — see PROGRESS "Needs owner verification"); email-on-notification and mute preferences (no code for them was found in the server; listed in PROGRESS for the owner to confirm what was meant).
 - Behaviour change to note: older owner-less notifications of type SYSTEM (if any exist on production) are no longer shown to customers; only rows of type ANNOUNCEMENT are.
+
+## INT-1 — Integrations page always showed Google Calendar as "disconnected" (Phase 2, found while fixing DashIntegrations.tsx type errors)
+- Root cause: `GET /api/v2/calendar/status` answered without the standard `{ success, data }` envelope. The dashboard API client rejects any answer without `success: true`, so the page fell into its error path and showed "disconnected" even for a connected calendar. The agent editor's calendar check (`getCalendarStatus`) had the same problem.
+- Fix: the route now returns `{ success: true, data: {...} }` (errors return `success: false`); the page's type gained the `googleEmail` field the server already sent (3 type errors fixed, frontend 36 → 33).
+- Tests: `npm run test:calendar-status` (2, part of test:security) calls the production handler on the test database; it FAILS on the previous code and passes now. Browser: 2 tests (connected shows the Google account; disconnected shows Connect).
+- Not fixed here (same defect, owned by Phase 4 "Scheduling & Calendar"): `GET /calendar/bookings`, `POST /calendar/bookings/:id/cancel`, `POST /calendar/bookings/:id/reschedule` also omit the envelope.
+- Not verified here: a real connected Google Calendar.

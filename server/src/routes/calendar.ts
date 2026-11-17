@@ -421,24 +421,26 @@ router.get('/status', requireAuth, async (req, res) => {
       });
       const hasTokens = (conn && conn.status !== 'revoked') || !!user?.googleCalendarTokens;
 
-      return res.json({
+      // Standard { success, data } envelope: without it the dashboard API client treats the answer as an
+      // error, which made the Integrations page always show "disconnected".
+      return res.json({ success: true, data: {
         connected: false,
         status: hasTokens ? 'needs_reauth' : 'disconnected',
         message: hasTokens
           ? 'Google Calendar credentials are invalid or revoked. Please reconnect.'
           : 'Google Calendar is not connected.',
-      });
+      } });
     }
 
-    res.json({
+    res.json({ success: true, data: {
       connected: true,
       status: conn?.status || 'healthy',
       googleEmail: conn?.googleEmail || undefined,
       lastCheckedAt: conn?.lastCheckedAt?.toISOString() || new Date().toISOString(),
-    });
+    } });
   } catch (error: any) {
     logger.error('Failed to get Google Calendar status', { error: error.message });
-    res.status(500).json({ error: 'Failed to get status' });
+    res.status(500).json({ success: false, error: 'Failed to get status' });
   }
 });
 
