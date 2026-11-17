@@ -7,7 +7,7 @@
 | 2 | B1 templates, B2 bell, B4 remove Review QA/Auto-detect (+ calendar status fix) | DONE, merged to `main` 2026-11-17 |
 | 3 | B3 Prompt Coach, B5 Test Lab | DONE, merged to `main` 2026-11-17 |
 | 4 | B6 agent editor sections, B7 conversational builder | DONE, merged to `main` 2026-11-17 |
-| 5 | B8 knowledge base / RAG inspector | DONE on `fix/kb-rag` (merge pending at time of writing) |
+| 5 | B8 knowledge base / RAG inspector | DONE, merged to `main` 2026-11-17 |
 | 6–14 | See CLAUDE.md §13 | not started |
 
 ## PRODUCTION — UNTOUCHABLE (nothing relaxed)
@@ -16,9 +16,9 @@
 - No command text inside double quotes/unquoted backticks; write files with Write/Edit or `<<'EOF'`.
 - Every push to `main` auto-deploys Render and runs `prisma db push` on production (P1).
 
-## Status of checks (2026-11-17, after Phase 4)
+## Status of checks (2026-11-17, after Phase 5)
 - Typecheck: server 0; frontend 33 (App.tsx 21, SinglePromptStudio.tsx 12). Must be 0 by Phase 14.
-- test:security 16 suites all pass (guard 20, flow-agent 8, call-limits 7, mcp 4, ...); owasp 23/23; payment 16/16; street-smart 32/32 + regression 41/41; m2 37/37; batch b–f pass; browser 100 pass, 1 skipped (live login).
+- test:security 17 suites all pass (incl. kb-rag 20, flow-agent 8); kb-race 2/2 (native PG); owasp 23/23; payment 16/16; street-smart 32/32 + regression 41/41; m2 37/37; batch b–f pass; browser 106 pass, 1 skipped (live login).
 - TS2367 "can never be true" in App.tsx settings tabs (`"audit"`, `"billing"`) — dead tab code, check when Settings is touched (Phase 9).
 
 ## Pre-launch items
@@ -50,7 +50,7 @@
 - Frontend uses pnpm; root/server npm. No `gh`, Docker or Postgres here; local DB = PGlite (RUNBOOK). Don't probe its port with a raw socket before it is up. Browser tests: `cd Frontend && npx playwright test`; helpers in `e2e/helpers/dashboard.ts` (fake session + stubbed backend; session key `claritiy_voice_supabase_auth_token`).
 - AI features use `services/ai/textModel.ts` (timeouts, retry, fallback, BYOK) + `aiFeatureLimiter`; tests stub it with `setTextModelTransportForTests`. Never run `db push --accept-data-loss`, even locally.
 - LOW MEMORY: when PGlite dies with "out of memory: Zone", use the native test DB: scratchpad `pg/start.mjs` (port 54329, password localtest, db `claritiy_phase4`) and push a copy of schema.prisma with `Unsupported("vector(3072)")` → `Unsupported("text")` (vector search tests still need PGlite). Never use git stash for before/after proofs (a cut-off session can strand work): copy the file aside, test, restore.
-- KB tests: `test:kb-rag` on PGlite with 1 DB connection (set inside the script); `test:kb-race` needs a real Postgres (native DB on 54329). Playwright runs 2 workers locally (memory-bound machine); measure layout with offsetWidth, not boundingBox, when animations exist. Bell: customers see own rows + `ANNOUNCEMENT` rows only. Sign-up "Account Type" saved but unused by the server (decide in Phase 13).
+- On PGlite run suites with `DB_POOL_MAX=1` (it serialises connections; parallel pools break it). `test:kb-race` needs a real Postgres (native DB on 54329). Playwright runs 2 workers locally (memory-bound machine); measure layout with offsetWidth, not boundingBox, when animations exist. Bell: customers see own rows + `ANNOUNCEMENT` rows only. Sign-up "Account Type" saved but unused by the server (decide in Phase 13).
 
 ## Open questions (owner)
 1. Gemini model policy (CLAUDE.md §3). 2. `devr0144@gmail.com` address (§11). 3. Migration Option A or B. STANDING RULE (§0.6/§12a): merge each verified phase to `main`, push, never ask between phases.
