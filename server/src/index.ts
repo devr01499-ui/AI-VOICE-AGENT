@@ -48,7 +48,7 @@ import { SandboxStreamHandler } from './websockets/SandboxStreamHandler';
 import { requireAuth } from './middleware/auth';
 import { WebhookController } from './controllers/WebhookController';
 import kbRoutes from './routes/knowledgeBase';
-import userRoutes from './routes/user';
+import { mountUserRoutes } from './routes/user';
 import contactRoutes from './routes/contact';
 import teamRoutes from './routes/team';
 import apikeysRoutes from './routes/apikeys';
@@ -333,7 +333,8 @@ app.post('/api/v2/calls/outbound', requireAuthOrApiKey, sensitiveOperationsLimit
 app.use('/api/v2/agents', requireAuth, agentRoutes);
 app.use('/api/v2/numbers', requireAuth, numbersRoutes);
 app.use('/api/v2/knowledge-base', requireAuth, kbRoutes);
-app.use('/api/v2/user', requireAuth, userRoutes);
+// Public pre-signup routes (validate-signup, consent) first, then the authenticated user API.
+mountUserRoutes(app, requireAuth as any);
 app.use('/api/v2/team', requireAuth, teamRoutes);
 app.use('/api/v2/apikeys', requireAuth, apikeysRoutes);
 app.use('/api/v2/webhooks', webhookRoutes);

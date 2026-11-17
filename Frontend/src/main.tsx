@@ -1,3 +1,5 @@
+// Must be first: captures the auth redirect details in the URL before the Supabase client clears them.
+import "./app/lib/authRedirect";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./app/App.tsx";

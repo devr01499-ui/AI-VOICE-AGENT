@@ -7,6 +7,7 @@ import { env } from '../config/env';
 import { ADMIN_EMAIL } from '../config/constants';
 import { isIpAllowed, getTrustedClientIp } from '../utils/ipChecker';
 import { normalizeEmail, isDisposableEmail } from '../utils/emailNormalizer';
+import { normalizePhoneNumber } from '../utils/phoneValidator';
 
 export interface AuthenticatedRequest extends Request {
   userId?: string;
@@ -118,7 +119,9 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
 
     // Extract profile attributes
     const fullName = userMetadata.full_name || (normalizedEmail ? normalizedEmail.split('@')[0] : 'Supabase User');
-    const contactNumber = userMetadata.contact_number || null;
+    // Sign-up metadata is client-controlled: store the contact number only if it is a valid phone number.
+    const phoneCheck = normalizePhoneNumber(userMetadata.contact_number);
+    const contactNumber = phoneCheck.ok ? phoneCheck.e164 : null;
 
     activePhase = 'database_upsert';
     // Auto-upsert locally: NEVER allow client metadata to set or escalate accountType!
@@ -127,7 +130,8 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
       where: { id: userId },
       update: {
         fullName: fullName,
-        contactNumber: contactNumber,
+        // Only overwrite when the session carries a valid number; never wipe a stored one with null.
+        ...(contactNumber ? { contactNumber } : {}),
       },
       create: {
         id: userId,
