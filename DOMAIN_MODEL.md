@@ -1,5 +1,7 @@
 # DOMAIN MODEL
 
+> **Superseded note (2026-11-18):** This is the early design sketch. The real data model is server/prisma/schema.prisma (phone numbers use the two integrated carriers; Twilio/Exotel were never integrated).
+
 ## 1. Core Entities
 Our no-code Voice AI platform maintains a highly decoupled structural relationships optimized for performance and horizontal scale.
 

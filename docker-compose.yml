@@ -1,25 +1,8 @@
 version: '3.8'
 
+# Local container run of the API server. (The drachtio SIP service was removed in Phase 13: the
+# generic SIP trunking feature was unreachable; calls use the hosted carriers.)
 services:
-  drachtio:
-    image: drachtio/drachtio-server:latest
-    container_name: claritiy-voice-drachtio
-    restart: unless-stopped
-    ports:
-      - "${SIP_PORT:-5060}:5060/udp"
-      - "${SIP_PORT:-5060}:5060/tcp"
-      - "9022:9022"
-    environment:
-      - DRACHTIO_SECRET=${DRACHTIO_SECRET:-cymru}
-    # Using entrypoint or command to inject the public IP into contact
-    command: >
-      drachtio --contact "sip:${PUBLIC_IP:-127.0.0.1}:5060;transport=udp,tcp" 
-      --secret "${DRACHTIO_SECRET:-cymru}" 
-      --port 9022 
-      --loglevel info
-    networks:
-      - claritiy-voice-network
-
   server:
     build:
       context: ./server
@@ -31,15 +14,9 @@ services:
     env_file:
       - ./server/.env
     environment:
-      - DRACHTIO_HOST=drachtio
-      - DRACHTIO_PORT=9022
-      - DRACHTIO_SECRET=${DRACHTIO_SECRET:-cymru}
       - PUBLIC_IP=${PUBLIC_IP:-127.0.0.1}
-      - SIP_PORT=${SIP_PORT:-5060}
       - DATABASE_URL=${DATABASE_URL}
       - PORT=${PORT:-3001}
-    depends_on:
-      - drachtio
     networks:
       - claritiy-voice-network
 

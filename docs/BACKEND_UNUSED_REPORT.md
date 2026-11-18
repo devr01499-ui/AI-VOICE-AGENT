@@ -82,3 +82,58 @@ Defects found during this search (not dead code, but broken):
 ## 4. Frontend calls with no backend route
 - `KycComplianceSettings.tsx` → `/api/v2/kyc/initiate-session`, `/api/v2/kyc/digilocker/initiate`, `/api/v2/kyc/digilocker/verify`: these return 404 (Phase 7).
 - `/api/v2/sandbox/test-stream` is a WebSocket, not an HTTP route; its handler was not checked (Phase 3/4).
+
+## 5. Phase 13 outcome (2026-11-18): what was removed, what was kept and why
+
+Method:
+- grep across Frontend, Admin, server scripts/tests, e2e, docs and workflows;
+- an import graph from `server/src/index.ts` and from `Frontend/src/main.tsx`;
+- a declared-vs-imported dependency check.
+
+Each area is its own revertable commit on `chore/dead-code`. Typecheck, build and the affected suites passed after each.
+
+**Removed (no user value, nothing calls it):**
+- **Server routes:**
+  - `GET /billing/config`, `GET /billing/subscription-status`, `POST /billing/sync-entitlements`;
+  - `GET /calls/debug/gemini`, `POST /calls/sip-trunks`;
+  - `GET /numbers/vobiz-probe`, `GET /numbers/mine`, `POST /numbers/plivo/purchase`;
+  - `POST /agents/optimize`, `GET /calendar/batches/:id`, `DELETE /calendar`, `GET /reports/blueprints/:templateId`.
+  - `/billing/verify-plan-payment` and the `/telephony/*` purchase routes had already been removed in Phases 6–7.
+- **Server files:**
+  - `routes/integrations.ts`, `controllers/IntegrationsController.ts`;
+  - `providers/sip/SipProvider.ts`, plus the drachtio typings and the docker-compose drachtio service;
+  - `core/provider-sdk/provider.errors.ts`, `core/telephony/TranscriptRecorder.ts`, `runtime/CallLifecycleManager.ts`, `runtime/ConversationStateManager.ts`, `utils/piiRedactor.ts`;
+  - 19 scratch/probe files in `server/` (scratch*.ts, test-sip*, carrier probes, RLS check scripts, a migrate log).
+- **Frontend:**
+  - 51 files that are never imported: the unused shadcn `components/ui` kit, RoiCalculator, CompareTable, SolutionsTab, ImageWithFallback, `pages/Compare.tsx`;
+  - unused helpers `optimizePrompt`, `fetchCalendarBatchDetail`, `getExportCsvUrl`, `fetchAuditLogs`/`ApiAuditLog`;
+  - the leftover audit-log state in App.tsx.
+- **Dependencies:**
+  - 50 frontend packages: MUI/emotion, 25 Radix packages, recharts, puppeteer, react-router, react-dnd, react-hook-form, date-fns, sonner, vaul and others;
+  - 4 server packages: better-sqlite3, @prisma/adapter-better-sqlite3, sip.js, drachtio-srf.
+- **Root:** the Next.js template SVGs in `public/`, the stale `scripts/test_plan_security.ts`, and `scripts/test_pii_redaction.js` (it tested the removed module).
+
+**Kept on purpose:**
+- `POST /reports/:id/correction` and `GET /reports/export.csv`: contract aliases checked by the reports audit harness (`scripts/audit_reports.ts`, 28/28).
+- `POST /api/calls/outbound` (no `/v2`): public API alias for API-key customers.
+- Chat history (`/chat-history`, DashChatHistory): the owner chose to hide it, not delete it. Owner decision.
+- `POST /knowledge-base/:id/update-agents`: used by the frontend API layer and by test_kb_rag.
+- `GET /audit-logs` (server): audit writes and test_audit_logging_compliance use it.
+- `lib/calendar/timezone.test.ts`: a real IST/DST suite, now wired as `test:timezone`.
+- About 18 root `scripts/test_*` files:
+  - every import still resolves and most are guarded;
+  - they were not run here, because several call live carrier APIs or need a running server;
+  - Phase 14 wires the passing ones into CI and removes the broken ones.
+- WIRE-UP items stay open as product work: invoices/GST download, minutes overview, bulk contact import, booking reschedule, report accept.
+
+**Plain-language list for the owner: backend features that gave customers nothing and are now gone**
+- SIP trunking (its screen had already been removed).
+- A Gemini debug page and a carrier probe.
+- Duplicate "my numbers" and Plivo purchase routes.
+- An unused prompt optimiser.
+- An unused trio of billing config, status and sync routes.
+- A batch-detail route the screen never opened.
+- A duplicate calendar disconnect route.
+- A blueprint-detail route.
+- An integrations module that was never switched on.
+- An unused design kit and 50 unused frontend libraries.

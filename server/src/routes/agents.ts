@@ -11,14 +11,13 @@ import { Agent } from '@prisma/client';
 import { AgentRepository } from '../repositories/AgentRepository';
 import { validateParams, validateQuery } from '../middleware/validation';
 import { prisma } from '../lib/prisma';
-import { getUserIdFromRequest } from '../utils/auth';
 import { requireAuth, requireEditor } from '../middleware/auth';
 import { requireActivePlanOrBYOK, requireAgentQuota } from '../middleware/planValidation';
 import { logger } from '../utils/logger';
 import { logAuditEvent } from '../utils/auditLogger';
 import { ADMIN_EMAIL } from '../config/constants';
 import { QaController } from '../controllers/QaController';
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { detectIndustry, normalizeIndustryInput } from '../utils/systemInstructionBuilder';
 import { EncryptionService } from '../utils/EncryptionService';
 import { aiFeatureLimiter, agentWriteLimiter } from '../middleware/rateLimiter';
@@ -245,52 +244,6 @@ DO NOT wrap the JSON in markdown blocks. Output the raw JSON object string when 
       logger.error("Error in conversational builder", { error: error?.message || String(error), stack: error?.stack });
       res.status(500).json({ success: false, error: error?.message || 'Failed to process request' });
       return;
-    }
-  }
-);
-
-/** POST /api/v2/agents/optimize — Low-Code Prompt Optimizer helper. */
-router.post(
-  '/optimize',
-  requireAuth,
-  requireEditor,
-  aiFeatureLimiter,
-  requireActivePlanOrBYOK,
-  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;
-      if (!userId) {
-        res.status(401).json({ success: false, error: 'Unauthorized' });
-        return;
-      }
-
-      const { description } = req.body;
-      if (!description) {
-        res.status(400).json({ success: false, error: 'Description is required' });
-        return;
-      }
-
-      // Enrichment logic: append architectural filler, brevity boundaries, and voice pausing cues
-      const enrichedPrompt = `You are a professional voice AI assistant.
-Role description: ${description}
-
-CONVERSATIONAL RULES & VOICE METADATA:
-1. BREVITY BOUNDARIES: Keep answers strictly under 2 sentences. Never read raw bullet points or list items.
-2. VOICE PAUSING CUES: Pause slightly when introducing new topics. Use "..." or brief phrasing to give natural transitions.
-3. CONVERSATIONAL FILLERS: Speak naturally using polite fillers like "sure", "uh-huh", "got it" to sound human.
-4. TARGET REDIRECTS: If caller drifts off-topic, gently redirect them to the primary call objective.`;
-
-      res.json({
-        success: true,
-        data: {
-          prompt: enrichedPrompt,
-          model: 'gemini-2.0-flash',
-          voiceName: 'Puck',
-          temperature: 0.7,
-        }
-      });
-    } catch (err) {
-      next(err);
     }
   }
 );

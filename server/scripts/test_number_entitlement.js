@@ -104,20 +104,20 @@ async function main() {
 
   await test('every number route requires a paid plan and takes the slot before provisioning', async () => {
     const src = fs.readFileSync(path.join(__dirname, '../src/routes/numbers.ts'), 'utf8');
-    for (const route of ["'/create-order'", "'/purchase'", "'/claim'", "'/plivo/claim'", "'/plivo/purchase'"]) {
+    for (const route of ["'/create-order'", "'/purchase'", "'/claim'", "'/plivo/claim'"]) {
       const line = src.split('\n').find((l) => l.includes(`router.post(${route}`));
       assert.ok(line && line.includes('requirePaidPlan') && !line.includes('requireActivePlan'), `${route} must require a paid plan`);
     }
     const section = (from, to) => src.slice(src.indexOf(from), to ? src.indexOf(to) : undefined);
-    const claim = section("router.post('/claim'", "router.get('/mine'");
+    const claim = section("router.post('/claim'", "router.delete('/:id'");
     assert.ok(claim.indexOf('reserveNumberSlot(userId)') < claim.indexOf('purchaseAndAssignNumber'), 'claim reserves before provisioning');
     const purchase = section("router.post('/purchase'", "router.post('/claim'");
     assert.ok(purchase.indexOf('reserveNumberSlot(userId)') > purchase.indexOf('redeemNumberPayment') && purchase.indexOf('reserveNumberSlot(userId)') < purchase.indexOf('purchaseAndAssignNumber'));
     assert.ok(/NUMBER_SLOT_TAKEN[\s\S]{0,40}|refundOrder\(paymentId, paid\.amountPaise\)/.test(purchase), 'a paid purchase that loses the slot is refunded');
-    const plivoClaim = section("router.post('/plivo/claim'", "router.post('/plivo/purchase'");
+    const plivoClaim = section("router.post('/plivo/claim'");
     assert.ok(plivoClaim.indexOf('reserveNumberSlot(userId)') < plivoClaim.indexOf('purchaseAndAssignNumber'));
-    const plivoPurchase = section("router.post('/plivo/purchase'");
-    assert.ok(plivoPurchase.includes('reserveNumberSlot(userId)') && plivoPurchase.includes('refundOrder(paymentId, paid.amountPaise)'));
+    // Phase 13: the unused paid /plivo/purchase route (no screen, no order flow creates its orders) is gone.
+    assert.ok(!src.includes("router.post('/plivo/purchase'"), 'unused paid Plivo purchase route removed');
   });
 
   await test('the unpaid /telephony/purchase route is gone', async () => {

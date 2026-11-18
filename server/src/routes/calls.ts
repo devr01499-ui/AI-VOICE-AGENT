@@ -6,11 +6,9 @@ import { validateBody, validateParams } from '../middleware/validation';
 import { getUserIdFromRequest } from '../utils/auth';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
-import { env } from '../config/env';
-import { EncryptionService } from '../utils/EncryptionService';
 import { sensitiveOperationsLimiter, callActionLimiter } from '../middleware/rateLimiter';
 import { requireAuth } from '../middleware/auth';
-import { requireCallingMinutes, requireActivePlan } from '../middleware/planValidation';
+import { requireCallingMinutes } from '../middleware/planValidation';
 import { getWebhookSigningSecret } from '../utils/security';
 import { ADMIN_EMAIL } from '../config/constants';
 import { isAllowedRecordingUrl } from '../services/RecordingService';
@@ -276,99 +274,6 @@ router.post(
   CallController.initiateCall
 );
 
-/** GET /api/v2/calls/debug/gemini — Diagnostic endpoint for Gemini Live WebSocket connection. */
-router.get(
-  '/debug/gemini',
-  async (req, res) => {
-    const userId = getUserIdFromRequest(req);
-    if (!userId) {
-      return res.status(401).json({ success: false, error: 'Unauthorized' });
-    }
-
-    const { prisma } = await import('../lib/prisma');
-    const { ADMIN_EMAIL } = await import('../config/constants');
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user || (user.accountType !== 'admin' && user.email !== ADMIN_EMAIL)) {
-      return res.status(403).json({ success: false, error: 'Access Denied: Admin privileges required for diagnostic endpoint.' });
-    }
-
-    let geo: any = {};
-    try {
-      // Query server public IP geo-location
-      const geoRes = await fetch('http://ip-api.com/json/');
-      if (geoRes.ok) {
-        geo = await geoRes.json();
-      }
-    } catch (e) {
-      geo = { error: 'Failed to fetch geo-ip' };
-    }
-
-    try {
-      const { GeminiLiveProvider } = await import('../providers/gemini/GeminiLiveProvider');
-      const { env } = await import('../config/env');
-      
-      const apiVersion = (req.query.version as string) || env.GEMINI_API_VERSION || 'v1beta';
-      const modelName = (req.query.model as string) || env.GEMINI_REALTIME_MODEL || 'gemini-2.0-flash';
-
-      const provider = new GeminiLiveProvider();
-      const apiKey = provider.getApiKey();
-
-      // Early REST API key validation check
-      const keyError = await provider.verifyApiKey(apiKey);
-      if (keyError) {
-        return res.status(400).json({
-          success: false,
-          error: `API key validation failed: ${keyError}`,
-          geminiKeyPrefix: apiKey ? apiKey.substring(0, 6) : 'missing',
-          geminiKeyLength: apiKey ? apiKey.length : 0,
-          geo,
-        });
-      }
-
-      const config = {
-        callId: 'sandbox-0000-0000-0000-000000000000',
-        userId: userId,
-        model: modelName,
-        voice: 'alloy',
-        instructions: 'Test.',
-        apiVersion,
-      } as any;
-      const callbacks = {};
-      const result = await provider.createSession(config, callbacks);
-      await provider.closeSession(result.sessionId);
-      res.json({ success: true, apiVersion, model: modelName, sessionId: result.sessionId, geo });
-    } catch (err: any) {
-      const refCode = `CALLS-DEBUG-500-${Date.now()}`;
-      const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
-      const openaiKey = process.env.OPENAI_API_KEY || '';
-
-      logger.error(`Calls debug/gemini Exception [${refCode}]`, {
-        error: err.message || String(err),
-        stack: err.stack,
-        refCode,
-      });
-
-      if (env.NODE_ENV === 'production') {
-        res.status(500).json({
-          success: false,
-          error: `An unexpected error occurred during debug execution (Reference: ${refCode})`,
-        });
-      } else {
-        res.status(500).json({
-          success: false,
-          error: err.message || String(err),
-          geminiKeyPrefix: geminiKey ? geminiKey.substring(0, 6) : 'missing',
-          geminiKeyLength: geminiKey ? geminiKey.length : 0,
-          openaiKeyPrefix: openaiKey ? openaiKey.substring(0, 6) : 'missing',
-          openaiKeyLength: openaiKey ? openaiKey.length : 0,
-          geo,
-          stack: err.stack,
-        });
-      }
-    }
-  }
-);
-
 /** GET /api/v2/calls/:callId — Get call status and details. */
 router.get(
   '/:callId',
@@ -485,42 +390,6 @@ router.post(
     } catch (err: any) {
       logger.error('Error generating transcript ticket', { error: err.message });
       res.status(500).json({ success: false, error: 'Failed to generate transcript ticket' });
-    }
-  }
-);
-
-/** POST /api/v2/calls/sip-trunks — Register a new SIP Trunk. */
-router.post(
-  '/sip-trunks',
-  requireAuth,
-  sensitiveOperationsLimiter,
-  requireActivePlan,
-  async (req, res, next) => {
-    try {
-      const { name, sipUri, username, password, outboundProxy } = req.body;
-      const userId = getUserIdFromRequest(req);
-      if (!userId) {
-        res.status(401).json({ success: false, error: 'Unauthorized' });
-        return;
-      }
-      
-      const trunk = await prisma.sipTrunk.create({
-        data: {
-          userId,
-          name: name || 'Primary SIP Trunk',
-          sipUri,
-          username,
-          password: password ? EncryptionService.encrypt(password) : undefined,
-          outboundProxy,
-          codecs: '["PCMU","PCMA"]',
-          dtmfMode: 'rfc2833',
-          status: 'active'
-        }
-      });
-      
-      res.status(201).json({ success: true, data: trunk });
-    } catch (err) {
-      next(err);
     }
   }
 );

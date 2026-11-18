@@ -374,19 +374,6 @@ export async function updateAgent(
   });
 }
 
-/** POST /api/v2/agents/optimize — AI-powered system prompt optimizer */
-export async function optimizePrompt(description: string): Promise<{
-  prompt: string;
-  model: string;
-  voiceName: string;
-  temperature: number;
-}> {
-  return apiFetch("/api/v2/agents/optimize", {
-    method: "POST",
-    body: JSON.stringify({ description }),
-  });
-}
-
 /** POST /api/v2/agents/conversational-builder — Chat with AI to build agent config */
 export async function buildAgentConversation(
   message: string,
@@ -841,11 +828,6 @@ export async function fetchCalendarBatches(): Promise<any> {
   return res?.success && Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
 }
 
-export async function fetchCalendarBatchDetail(id: string): Promise<any> {
-  const res = await apiFetch<any>(`/api/v2/calendar/batches/${id}`);
-  return res?.success && res.data ? res.data : null;
-}
-
 export async function createBatchCampaign(data: {
   name: string;
   agentId: string;
@@ -947,25 +929,6 @@ export async function fetchTeamMembers(): Promise<ApiTeamMember[]> { return awai
 export async function inviteTeamMember(email: string, role: string = 'viewer'): Promise<ApiTeamMember> { return await apiFetch('/api/v2/team/invite', { method: 'POST', body: JSON.stringify({ email, role }) }); }
 export async function updateTeamMemberRole(memberId: string, role: string): Promise<ApiTeamMember> { return await apiFetch('/api/v2/team/' + memberId + '/role', { method: 'PUT', body: JSON.stringify({ role }) }); }
 export async function removeTeamMember(memberId: string): Promise<void> { await apiFetch('/api/v2/team/' + memberId, { method: 'DELETE' }); }
-
-export interface ApiAuditLog {
-  id: string;
-  workspaceOwnerId: string;
-  actorUserId: string;
-  action: string;
-  targetId: string | null;
-  metadata: any;
-  createdAt: string;
-}
-
-export async function fetchAuditLogs(filters?: { action?: string; startDate?: string; endDate?: string }): Promise<{ data: ApiAuditLog[]; pagination?: any }> {
-  const params = new URLSearchParams();
-  if (filters?.action) params.append('action', filters.action);
-  if (filters?.startDate) params.append('startDate', filters.startDate);
-  if (filters?.endDate) params.append('endDate', filters.endDate);
-  const query = params.toString() ? `?${params.toString()}` : '';
-  return await apiFetch(`/api/v2/audit-logs${query}`);
-}
 
 export async function fetchDataRetention(): Promise<{ dataRetentionDays: number | null }> {
   return await apiFetch('/api/v2/user/retention');
@@ -1172,13 +1135,4 @@ export const reportsApi = {
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
   },
-  getExportCsvUrl: (params?: { dateFrom?: string; dateTo?: string; label?: string; reviewNeeded?: boolean }) => {
-    const qs = new URLSearchParams();
-    if (params?.dateFrom) qs.append('dateFrom', params.dateFrom);
-    if (params?.dateTo) qs.append('dateTo', params.dateTo);
-    if (params?.label) qs.append('label', params.label);
-    if (params?.reviewNeeded !== undefined) qs.append('reviewNeeded', String(params.reviewNeeded));
-    const query = qs.toString() ? `?${qs.toString()}` : '';
-    return `${API_BASE}/api/v2/reports/export.csv${query}`;
-  }
 };

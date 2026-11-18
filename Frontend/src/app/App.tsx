@@ -11,10 +11,10 @@ import {
   fetchAgents, fetchAgent, fetchCalls, fetchProfile, createAgent, updateAgent, deleteAgent, chatWithAgent,
   exportAgentAsJson, importAgentFromJson,
   initiateCall, getCallTranscript, getLiveTranscriptWsUrl, requestTranscriptTicket,
-  fetchKBList, fetchKBLimits, uploadKBDocument, scrapeKBUrl, deleteKBDocument, reindexKBDocument, testKBQuery, fetchCalendarBatches, fetchCalendarBatchDetail, createBatchCampaign, pauseBatchCampaign, resumeBatchCampaign, cancelBatchCampaign,
-  fetchAuditLogs, fetchDataRetention, updateDataRetention, fetchIpAllowlist, updateIpAllowlist, fetchConcurrencyTelemetry, updateConcurrencyLimit,
+  fetchKBList, fetchKBLimits, uploadKBDocument, scrapeKBUrl, deleteKBDocument, reindexKBDocument, testKBQuery, fetchCalendarBatches, createBatchCampaign, pauseBatchCampaign, resumeBatchCampaign, cancelBatchCampaign,
+  fetchDataRetention, updateDataRetention, fetchIpAllowlist, updateIpAllowlist, fetchConcurrencyTelemetry, updateConcurrencyLimit,
   DEV_USER_ID, DEFAULT_AGENT_ID, API_BASE, apiClient,
-  type ApiAgent, type ApiCall, type ApiProfile, type ApiKnowledgeBase, type ApiAuditLog, type KBTestQueryResult,
+  type ApiAgent, type ApiCall, type ApiProfile, type ApiKnowledgeBase, type KBTestQueryResult,
 } from "./api";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -5563,29 +5563,6 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
   }, []);
 
   const canManageTeam = !profile?.workspaceRole || profile.workspaceRole === 'admin' || profile.workspaceRole === 'owner';
-
-  // Audit Logs State
-  const [auditLogs, setAuditLogs] = useState<ApiAuditLog[]>([]);
-  const [auditActionFilter, setAuditActionFilter] = useState('');
-  const [auditStartDate, setAuditStartDate] = useState('');
-  const [auditEndDate, setAuditEndDate] = useState('');
-  const [loadingAudit, setLoadingAudit] = useState(false);
-
-  const loadAuditLogs = useCallback(() => {
-    setLoadingAudit(true);
-    fetchAuditLogs({
-      action: auditActionFilter,
-      startDate: auditStartDate || undefined,
-      endDate: auditEndDate || undefined,
-    }).then(res => {
-      if (res.data && Array.isArray(res.data)) {
-        setAuditLogs(res.data);
-      }
-      setLoadingAudit(false);
-    }).catch(() => {
-      setLoadingAudit(false);
-    });
-  }, [auditActionFilter, auditStartDate, auditEndDate]);
 
   // Workspace Settings State (Hydrated from localStorage)
   const [wsName, setWsName] = useState(() => {
