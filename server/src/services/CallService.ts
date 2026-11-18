@@ -126,14 +126,14 @@ export class CallService {
           const subAccount = await prisma.vobizSubAccount.findUnique({ where: { userId } });
           if (!subAccount || subAccount.kycCallsBlocked) {
             throw new ValidationError('Vobiz account not provisioned or calls blocked — complete setup first.', [
-              { field: 'vobizSubAccount', message: 'Vobiz account is not provisioned or calls are blocked for this user. Complete setup/KYC first.' }
+              { field: 'vobizSubAccount', message: 'Your calling account is not set up yet or calls are paused. Complete setup and KYC first.' }
             ]);
           }
         } else if (provider === 'plivo') {
           const plivoSub = await prisma.plivoSubAccount.findUnique({ where: { userId } });
           if (plivoSub && !plivoSub.enabled) {
             throw new ValidationError('Plivo carrier account is disabled for this user.', [
-              { field: 'plivoSubAccount', message: 'Plivo carrier account is disabled.' }
+              { field: 'plivoSubAccount', message: 'Your calling account is disabled. Please contact support.' }
             ]);
           }
         }

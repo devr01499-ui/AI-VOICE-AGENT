@@ -9,7 +9,8 @@
 | 4 | B6 agent editor sections, B7 conversational builder | DONE, merged to `main` 2026-11-17 |
 | 5 | B8 knowledge base / RAG inspector | DONE, merged to `main` 2026-11-17 |
 | 6 | B13 billing / payment verification | DONE, merged to `main` 2026-11-18 |
-| 7–14 | See CLAUDE.md §13 | not started |
+| 7 | B9 numbers / KYC / carrier activation | DONE, merged to `main` 2026-11-18 |
+| 8–14 | See CLAUDE.md §13 | not started |
 
 ## PRODUCTION — UNTOUCHABLE (nothing relaxed)
 - `DATABASE_URL` in `server/.env` is production. Never connect; never copy it or any key anywhere. Tests use `TEST_DATABASE_URL` only (RUNBOOK.md); the guard blanks live service keys.
@@ -25,13 +26,10 @@
 ## Pre-launch items
 - P0 OWNER: rotate the production DB password (was public in git history); confirm the Google key literal in GeminiLiveProvider.ts is revoked.
 - P1 Migrations/Render (PRELAUNCH_NOTES §4, Option A recommended, owner choice pending). New additive migrations `20261117120000_add_notification_receipts`, `20261117130000_add_test_lab_runs`; under the current `db push` deploy the tables are created automatically. Phase 5 adds `20261117140000_kb_chunks_fulltext_index` (expression index: only `migrate deploy` creates it).
-- P3 One-number lock (Phase 7): DB-level unique constraint or locked transaction + parallel test.
-- P4 `requireActivePlan` passes free accounts with leftover minutes (Phase 7).
 - P5 Security (Phase 12): rate-limit key trusts client `x-user-id` header on public routes.
-- P6 White-label (Phases 6/7/9): carrier names still in some user-facing errors (CallService L129/136, billing minutes-overview, KYC errors).
-- P8 Plans (Phases 6–7): `PAID_ACCOUNT_TYPES` lists growth/scale (unused) but not starter/trial; plans.ts types are trial, starter, developer, professional (Growth), enterprise. Paying Starter users count as entitled only while minutes remain.
 - P11 Pre-existing on `main` (same result before Phase 4): `test:m1-pipeline` 10/13 (analysis worker stale-lock reclaim; Plivo "Busy" scored null) → Phase 9; `test:batch-a` 8/9 (audio-stream handshake with valid HMAC in extraHeaders refused) → Phase 11/12. Scripts that load `-r dotenv/config` need `NODE_ENV=test` set inline (guard blocks production mode — correct).
-- P7 Found by backend inventory (BACKEND_UNUSED_REPORT.md): data-retention job never runs (Phase 10, DPDP); KYC page calls 3 routes that do not exist (Phase 7); MCPs only used in browser test calls (Phase 4); calendar bookings routes lack the response envelope (Phase 4).
+- P7 Data-retention job never runs (Phase 10, DPDP).
+- P12 Security (Phase 12): carrier webhook secret falls back to ENCRYPTION_KEY / JWT secret when `VOBIZ_WEBHOOK_SECRET` is unset (key reuse). Owner: set a dedicated `VOBIZ_WEBHOOK_SECRET` on Render and at the carrier first, then remove the fallbacks.
 
 ## Needs owner verification (exact steps)
 1. Password rotation: Supabase → Project Settings → Database → reset; update `DATABASE_URL` on Render and local `server/.env`; check `/live` returns 200.
@@ -45,6 +43,7 @@
 12. Flow + prompt agents live call (after key rotation): call a test number with a flow agent that has a global prompt, inbound direction and two named branches; the agent follows the branches and never reads the instructions aloud; max duration / end-on-silence end the call.
 13. Knowledge base with real AI key: upload a real PDF, wait for Ready, ask 5 questions in the Retrieval Inspector (2 in Hinglish). Expected: right section on top; if right answers sit under "Close but not used on calls", tell Claude the similarity numbers (gate tuning). Also confirms the embedding model name works.
 14. Razorpay test mode on a staging deploy (test keys, `RAZORPAY_WEBHOOK_SECRET`, webhook per RUNBOOK): buy Starter; on a second try close the tab right after paying. Expected: both activate once; Render log shows webhook 200. Set `COMPANY_GSTIN`; have a CA review COMPLIANCE_NOTES.
+15. Numbers live (after keys): with a paid test account, complete KYC, claim one number; a second claim must be refused; a free account must see "needs an active paid plan".
 
 ## Decisions
 - Checklist = 17 issues + S7, Q8, D9, D10, T0, M0, K0. Zero-open-defects gate in Phase 14. `npm run build` rewrites `Frontend/public/sitemap.xml` dates — `git restore` it.
@@ -54,7 +53,7 @@
 - On PGlite run suites with `DB_POOL_MAX=1` (it serialises connections; parallel pools break it). `test:kb-race` needs a real Postgres (native DB on 54329). Playwright runs 2 workers locally (memory-bound machine); measure layout with offsetWidth, not boundingBox, when animations exist. Bell: customers see own rows + `ANNOUNCEMENT` rows only. Sign-up "Account Type" saved but unused by the server (decide in Phase 13).
 
 ## Open questions (owner)
-1. Gemini model policy (CLAUDE.md §3). 2. `devr0144@gmail.com` address (§11). 3. Migration Option A or B. STANDING RULE (§0.6/§12a): merge each verified phase to `main`, push, never ask between phases.
+1. Gemini model policy (CLAUDE.md §3). 2. `devr0144@gmail.com` address (§11). 3. Migration Option A or B. 4. When an account loses its paid plan (cancel/downgrade): keep its number working, pause calls on it, or release it after N days? STANDING RULE (§0.6/§12a): merge each verified phase to `main`, push, never ask between phases.
 
 ## Next exact step
-Phase 7 (branch `fix/numbers-kyc`, CLAUDE.md B9, P3/P4/P8): one-number lock with a DB constraint + parallel test; `requireActivePlan` = active paid plan only; the 3 missing KYC routes; duplicate Vobiz service files; sub-account idempotency; downgrade/expiry policy.
+Phase 8 (branch `fix/batch-calling`, CLAUDE.md B10): BatchService lifecycle, India calling hours (9am–9pm IST, `ALLOW_OFFHOURS_BATCH_CALLS` bypass), DND/opt-out, dedupe, CSV validation, no double-dial after restart, minute-balance guard, accurate counts; existing test:batch-a..f.
