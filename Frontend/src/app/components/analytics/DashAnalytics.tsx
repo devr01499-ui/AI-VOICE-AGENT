@@ -9,7 +9,8 @@ interface AnalyticsSummary {
   completionRatePct: number;
   averageDurationSeconds: number;
   totalDurationMinutes: number;
-  estimatedCostUsd: number;
+  /** Minutes taken from the plan: answered calls, per started minute (min 1). */
+  billedMinutes: number;
   statusBreakdown: {
     completed: number;
     failed: number;
@@ -204,13 +205,13 @@ export function DashAnalytics() {
 
             <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs space-y-2">
               <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-                <span>Estimated Spend</span>
+                <span>Billed Minutes</span>
                 <IndianRupee className="w-4 h-4 text-amber-500" />
               </div>
-              <p className="text-2xl font-bold font-mono text-slate-900 dark:text-slate-100">
-                {formatCurrency(summary.totalDurationMinutes * 4.0, 'INR')}
+              <p className="text-2xl font-bold font-mono text-slate-900 dark:text-slate-100" data-testid="billed-minutes">
+                {(summary.billedMinutes ?? 0).toLocaleString('en-IN')}
               </p>
-              <p className="text-[11px] text-slate-400 font-mono">Based on ₹4.00/min rate</p>
+              <p className="text-[11px] text-slate-400 font-mono">Taken from your plan minutes (per started minute)</p>
             </div>
           </div>
 

@@ -37,6 +37,7 @@ import SchemaInjector from "./components/seo/SchemaInjector";
 import { DashCompanionCall } from "./DashCompanionCall";
 import { NumberSearchAndPurchase } from "./components/numbers/NumberSearchAndPurchase";
 import { DashCallingConfig } from "./components/calling/DashCallingConfig";
+import { csvRow } from "./lib/csv";
 import { DashChatHistory } from "./components/chat/DashChatHistory";
 import { DashContacts } from "./components/contacts/DashContacts";
 import { DashAnalytics } from "./components/analytics/DashAnalytics";
@@ -3854,21 +3855,12 @@ function DashCallLogs() {
       return;
     }
     const headers = ["Call ID", "Campaign", "Direction", "Contact Number", "Business Number", "Agent", "Status", "Duration (Seconds)", "Billed Minutes", "Failure Reason", "Date / Time", "Summary"];
-    const rows = normalizedRows.map(r => [
-      `"${r.id}"`,
-      `"${(r.batchName || '').replace(/"/g, '""')}"`,
-      `"${r.direction}"`,
-      `"${r.contact}"`,
-      `"${r.business}"`,
-      `"${r.agent.replace(/"/g, '""')}"`,
-      `"${r.status}"`,
-      r.durSec,
-      r.billedMins,
-      `"${(r.lastError || r.lastErrorCode || '').replace(/"/g, '""')}"`,
-      `"${r.date}"`,
-      `"${(r.summary || '').replace(/"/g, '""')}"`
-    ]);
-    const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    // Every cell quoted and formula-safe (summaries and names come from callers and users).
+    const rows = normalizedRows.map(r => csvRow([
+      r.id, r.batchName || '', r.direction, r.contact, r.business, r.agent, r.status,
+      r.durSec, r.billedMins, r.lastError || r.lastErrorCode || '', r.date, r.summary || '',
+    ]));
+    const csvContent = [csvRow(headers), ...rows].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
