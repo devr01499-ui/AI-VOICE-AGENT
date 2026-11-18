@@ -18,13 +18,15 @@ import { env } from './config/env';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import { isAllowedCorsOrigin } from './config/cors';
+import { WS_MAX_AUDIO_MESSAGE_BYTES, WS_MAX_TRANSCRIPT_MESSAGE_BYTES } from './config/limits';
 import http from 'http';
 import { WebSocketServer } from 'ws';
 import { getWebhookSigningSecret } from './utils/security';
 import { ADMIN_EMAIL } from './config/constants';
 
 import { logger } from './utils/logger';
-import { errorHandler } from './utils/errorHandler';
+import { errorHandler, AppError } from './utils/errorHandler';
 import { requestIdMiddleware } from './middleware/requestId';
 import { initializeProviders } from './config/providers';
 import { ProviderManager } from './providers/ProviderManager';
@@ -123,18 +125,6 @@ app.use(
     },
   })
 );
-const adminOrigin = process.env.ADMIN_ORIGIN || 'https://admin.claritiy.com';
-const allowedOrigins = [
-  'https://www.claritiy.com',
-  'https://claritiy.com',
-  adminOrigin,
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://localhost:5175',
-  'http://localhost:5176',
-  'http://localhost:3000'
-];
-
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) {
@@ -142,15 +132,12 @@ app.use(cors({
       return;
     }
 
-    const frontendOrigin = env.FRONTEND_URL ? (() => { try { return new URL(env.FRONTEND_URL).origin; } catch { return null; } })() : null;
-    const isAllowedList = allowedOrigins.includes(origin) || (frontendOrigin !== null && origin === frontendOrigin);
-    const isAnchoredDomain = /^https:\/\/(www\.|app\.|admin\.)?claritiy\.com$/.test(origin) ||
-                             /^https:\/\/ai-voice-agent-backend-mv32\.onrender\.com$/.test(origin);
-
-    if (isAllowedList || isAnchoredDomain) {
+    // Strict allowlist; localhost origins only outside production (src/config/cors.ts).
+    if (isAllowedCorsOrigin(origin, { nodeEnv: env.NODE_ENV, frontendUrl: env.FRONTEND_URL, adminOrigin: process.env.ADMIN_ORIGIN })) {
       callback(null, true);
     } else {
-      callback(new Error('Cross-Origin Request Blocked by Security Policy'));
+      // 403 with a clear code instead of a logged 500 "unexpected error" for every blocked origin.
+      callback(new AppError(403, 'CORS_ORIGIN_BLOCKED', 'Cross-Origin Request Blocked by Security Policy'));
     }
   },
   credentials: true,
@@ -359,6 +346,7 @@ app.use('/api/v2/audit-logs', requireAuth, auditLogRoutes);
 app.use('/api/v2/reports', requireAuth, reportsRoutes);
 
 // Administrative Console API — Guarded by strict origin policy, RBAC and AAL2 MFA
+const adminOrigin = process.env.ADMIN_ORIGIN || 'https://admin.claritiy.com';
 app.use('/api/v2/admin', (req, res, next) => {
   const origin = req.headers.origin;
   if (origin) {
@@ -438,8 +426,11 @@ async function bootstrap(): Promise<void> {
   const server = http.createServer(app);
 
   // Create WebSocket server for audio streaming
+  // Message size caps (the ws default is 100 MB per message, enough for one connection to exhaust
+  // the voice server's memory). Carrier audio frames are ~1 KB; browser tester chunks are a few KB.
   const wss = new WebSocketServer({
     noServer: true,
+    maxPayload: WS_MAX_AUDIO_MESSAGE_BYTES,
   });
 
   const audioHandler = new AudioStreamHandler();
@@ -448,11 +439,13 @@ async function bootstrap(): Promise<void> {
   // Create WebSocket server for browser clients to stream live transcripts
   const wssTranscript = new WebSocketServer({
     noServer: true,
+    maxPayload: WS_MAX_TRANSCRIPT_MESSAGE_BYTES,
   });
 
   // Create WebSocket server for browser client sandbox tester streams
   const wssSandbox = new WebSocketServer({
     noServer: true,
+    maxPayload: WS_MAX_AUDIO_MESSAGE_BYTES,
   });
 
   const sandboxHandler = new SandboxStreamHandler();
