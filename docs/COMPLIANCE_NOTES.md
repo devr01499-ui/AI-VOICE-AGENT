@@ -29,3 +29,10 @@ Conservative choices made in code, and items a qualified professional (CA / lawy
 - **Destinations.** Campaigns accept Indian mobile numbers only (no international, landline or premium-rate numbers) — conservative toll-fraud protection. **Owner to decide** whether Indian landlines should be allowed.
 - **National DND registry (TRAI NCPR / DLT).** NOT checked by this software. Commercial calling in India generally requires registration as a telemarketer on the DLT platform, a registered 140/160-series or permitted number, and scrubbing against the national preference register. **Owner/lawyer to confirm** the obligations for Claritiy Voice and for its customers before launch, and whether to integrate a DND scrubbing API.
 - **Consent.** The customer must confirm consent for every campaign; who confirmed, when, and a hash of the list are stored.
+
+## Call recording (Phase 10, B14)
+- **Off by default, per agent.** Recording is switched on per agent ("Record calls" in Call Settings).
+- **Notice first.** When on, every call starts with a spoken notice before recording begins (default: "This call is recorded for quality and training purposes."). A custom notice is accepted only if it mentions recording; the notice cannot be switched off while recording is on. **Lawyer to confirm** the wording and whether explicit consent (press a key / say yes) is needed for some uses or callers (DPDP Act, sector rules).
+- **Access.** Recordings are played only by the account owner through 5-minute signed links to our server; the carrier link is never shown. Downloads are possible for the owner.
+- **Retention.** Recordings are deleted after 90 days by default (`RECORDING_RETENTION_DAYS`), and with the call when a workspace retention period (`dataRetentionDays`) expires. Deletion happens at the carrier first; if the carrier does not confirm, the call is kept and an `[ADMIN_ALERT][DPDP]` log line is written. **Owner/lawyer to confirm** the retention period and add it to the Privacy Policy.
+- **Plans.** No plan currently lists recording as a feature, so it is not plan-gated. **Owner to decide** whether recording is a paid feature.
