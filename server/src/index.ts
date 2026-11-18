@@ -43,7 +43,8 @@ import callRoutes from './routes/calls';
 import agentRoutes from './routes/agents';
 import numbersRoutes from './routes/numbers';
 import { getUserIdFromRequest, verifySupabaseToken } from './utils/auth';
-import webhookRoutes from './routes/webhooks';
+import webhookRoutes, { recordingStreamRouter } from './routes/webhooks';
+import { DataRetentionJob } from './services/DataRetentionJob';
 import { SandboxStreamHandler } from './websockets/SandboxStreamHandler';
 import { requireAuth } from './middleware/auth';
 import { WebhookController } from './controllers/WebhookController';
@@ -342,6 +343,7 @@ mountUserRoutes(app, requireAuth as any);
 app.use('/api/v2/team', requireAuth, teamRoutes);
 app.use('/api/v2/apikeys', requireAuth, apikeysRoutes);
 app.use('/api/v2/webhooks', webhookRoutes);
+app.use('/api/v2/recordings', recordingStreamRouter);
 app.use('/api/v2/webhooks', razorpayWebhookRouter);
 app.use('/api/v2/calendar', calendarRoutes);
 app.post('/api/v2/telephony/webhook', WebhookController.handleTelephonyWebhook);
@@ -737,6 +739,9 @@ async function bootstrap(): Promise<void> {
 
     // Payments: every 15 min, make sure every captured payment was fulfilled (no-op without keys).
     startPaymentReconciliation();
+
+    // Data retention (DPDP): purge expired calls and recordings every hour. It was never started before.
+    DataRetentionJob.startBackgroundWorker();
 
     // Boot recovery & 60s background cycle for batch campaigns & stuck calls
     Promise.all([

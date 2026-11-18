@@ -972,6 +972,8 @@ export default function SinglePromptStudio({
   const [closingMessage, setClosingMessage] = useState<string>(
     initialCallSettings.closingMessage || 'Thank you for your time. Have a wonderful day!'
   );
+  const [recordingEnabled, setRecordingEnabled] = useState<boolean>(Boolean(initialCallSettings.recordingEnabled));
+  const [recordingNotice, setRecordingNotice] = useState<string>(initialCallSettings.recordingNotice || '');
   const [endOnSilenceEnabled, setEndOnSilenceEnabled] = useState<boolean>(initialCallSettings.endCallOnSilenceSeconds ? true : false);
   const [endCallSilenceSec, setEndCallSilenceSec] = useState<number>(initialCallSettings.endCallOnSilenceSeconds || 30);
   const [maxCallDurationMins, setMaxCallDurationMins] = useState<number>(initialCallSettings.maxDurationSeconds ? Math.round(initialCallSettings.maxDurationSeconds / 60) : 15);
@@ -1633,6 +1635,8 @@ export default function SinglePromptStudio({
           endCallToolEnabled,
           endOnGoodbyeEnabled,
           closingMessage,
+          recordingEnabled,
+          recordingNotice: recordingNotice.trim(),
           endCallOnSilenceSeconds: endOnSilenceEnabled ? endCallSilenceSec : 0,
           maxDurationSeconds: maxCallDurationMins * 60,
           voicemailDetection: {
@@ -3024,6 +3028,26 @@ export default function SinglePromptStudio({
                   <p className="mt-1 text-[10px] text-slate-400">
                     Spoken by the agent right before ending the call session.
                   </p>
+                </div>
+
+                {/* Call recording (consent notice is always played first) */}
+                <div className="pt-1 border-t border-slate-200 dark:border-slate-700">
+                  <label className="flex items-center justify-between gap-3 font-semibold text-slate-700 dark:text-slate-300">
+                    <span>Record calls</span>
+                    <input type="checkbox" data-testid="recording-enabled" checked={recordingEnabled} onChange={(e) => setRecordingEnabled(e.target.checked)} className="rounded border-slate-300 text-green-600 focus:ring-green-500" />
+                  </label>
+                  <p className="mt-1 text-[10px] text-slate-400">Callers first hear a short notice that the call is recorded. Recordings are kept 90 days and played only from your dashboard.</p>
+                  {recordingEnabled && (
+                    <input
+                      type="text"
+                      value={recordingNotice}
+                      maxLength={200}
+                      onChange={(e) => setRecordingNotice(e.target.value)}
+                      placeholder="This call is recorded for quality and training purposes."
+                      className="mt-2 w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-green-500"
+                    />
+                  )}
+                  {recordingEnabled && <p className="mt-1 text-[10px] text-slate-400">Optional custom notice (must mention recording; otherwise the standard notice is used).</p>}
                 </div>
 
                 {/* Max Call Duration Limit */}

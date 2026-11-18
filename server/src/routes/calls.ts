@@ -13,6 +13,7 @@ import { requireAuth } from '../middleware/auth';
 import { requireCallingMinutes, requireActivePlan } from '../middleware/planValidation';
 import { getWebhookSigningSecret } from '../utils/security';
 import { ADMIN_EMAIL } from '../config/constants';
+import { isAllowedRecordingUrl } from '../services/RecordingService';
 
 const router = Router();
 
@@ -173,8 +174,9 @@ router.get(
           durationSeconds: durationSec,
           billedMinutes: billedMins,
           hasTranscript: hasTrans,
-          hasRecording: Boolean(recUrl),
-          recordingUrl: recUrl,
+          // The carrier link never leaves the server: play via GET /calls/:id/recording-link.
+          hasRecording: isAllowedRecordingUrl(recUrl),
+          recordingUrl: null,
           summary: c.summary || null,
           sentiment: c.sentiment || null,
           lastError: recipientRecord?.lastError || null,
@@ -207,6 +209,24 @@ router.get(
 );
 
 /** GET /api/v2/calls/live — Calls that are really live right now (Live Monitoring source of truth). */
+/**
+ * GET /api/v2/calls/:id/recording-link — owner only. Returns a 5-minute signed link to our stream
+ * endpoint; the carrier's own link is never sent to the browser.
+ */
+router.get('/:id/recording-link', requireAuth, async (req, res) => {
+  const userId = (req as any).effectiveWorkspaceId || getUserIdFromRequest(req);
+  if (!userId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+  try {
+    const { createPlaybackLink } = await import('../services/RecordingService');
+    const link = await createPlaybackLink(String(userId), String(req.params.id));
+    if (!link) { res.status(404).json({ success: false, error: 'No recording for this call.' }); return; }
+    res.json({ success: true, data: link });
+  } catch (err) {
+    logger.error('Calls: recording link failed', { error: String(err) });
+    res.status(500).json({ success: false, error: 'Could not open the recording.' });
+  }
+});
+
 router.get('/live', async (req, res) => {
   try {
     const userId = (req as any).effectiveWorkspaceId || (req as any).userId || ((req as any).user && (req as any).user.id);

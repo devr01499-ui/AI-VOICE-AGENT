@@ -239,21 +239,15 @@ export class CallService {
     const call = await CallRepository.findById(callId);
     const sessionInfo = callOrchestrator.getSessionInfo(callId);
 
-    let signedUrl = (call.execution as any)?.recordingUrl || call.recordingUrl || null;
-    if (signedUrl) {
-      const { supabaseClient } = await import('../utils/supabase');
-      const result = await supabaseClient.storage.from('call-recordings').createSignedUrl(signedUrl, 3600);
-      signedUrl = result.data?.signedUrl || null;
-    }
-
-    const modifiedExecution = call.execution ? {
-      ...call.execution,
-      recordingUrl: signedUrl
-    } : null;
+    // Recordings are played through GET /calls/:id/recording-link; the carrier link is never returned.
+    const { isAllowedRecordingUrl } = await import('./RecordingService');
+    const hasRecording = isAllowedRecordingUrl(call.recordingUrl);
+    const modifiedExecution = call.execution ? { ...call.execution, recordingUrl: null } : null;
 
     return {
       ...call,
-      recordingUrl: signedUrl,
+      recordingUrl: null,
+      hasRecording,
       execution: modifiedExecution,
       runtime: {
         active: sessionInfo.active,
@@ -452,14 +446,9 @@ export class CallService {
     options?: { status?: CallStatus; limit?: number; offset?: number }
   ) {
     const calls = await CallRepository.findByUserId(userId, options);
-    const { supabaseClient } = await import('../utils/supabase');
+    const { isAllowedRecordingUrl } = await import('./RecordingService');
 
     return Promise.all(calls.map(async (call: Call & { execution: Execution | null }) => {
-      let signedUrl = call.execution?.recordingUrl ?? null;
-      if (signedUrl) {
-        const result = await supabaseClient.storage.from('call-recordings').createSignedUrl(signedUrl, 3600);
-        signedUrl = result.data?.signedUrl || null;
-      }
       return {
         callId: call.id,
         status: call.status as CallStatus,
@@ -467,7 +456,8 @@ export class CallService {
         agentId: call.agentId,
         createdAt: call.createdAt.toISOString(),
         durationSeconds: call.durationSeconds,
-        recordingUrl: signedUrl,
+        recordingUrl: null,
+        hasRecording: isAllowedRecordingUrl(call.recordingUrl),
       };
     }));
   }

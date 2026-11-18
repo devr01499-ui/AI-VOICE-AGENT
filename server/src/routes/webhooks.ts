@@ -10,6 +10,8 @@ import { Router } from 'express';
 import { CallController } from '../controllers/CallController';
 import { verifyVobizWebhook } from '../middleware/vobizWebhook';
 import { verifyPlivoWebhook } from '../middleware/plivoWebhook';
+import { handleRecordingCallback, streamRecording } from '../services/RecordingService';
+import { webhookRateLimiter, generalApiLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
@@ -68,4 +70,14 @@ router.all('/plivo/hangup', verifyPlivoWebhook, CallController.handlePlivoHangup
  */
 router.all('/plivo/fallback', verifyPlivoWebhook, CallController.handlePlivoAnswer);
 
+/**
+ * POST /api/v2/webhooks/recording — carrier posts the finished recording link. Authorised by the
+ * per-call HMAC token in the callback URL (see RecordingService).
+ */
+router.post('/recording', webhookRateLimiter, handleRecordingCallback);
+
 export default router;
+
+/** Public router for /api/v2/recordings — signed, short-lived playback links only. */
+export const recordingStreamRouter = Router();
+recordingStreamRouter.get('/:callId/stream', generalApiLimiter, streamRecording);

@@ -1,3 +1,4 @@
+import { RecordingPlayer } from '../calls/RecordingPlayer';
 import React, { useState, useEffect } from 'react';
 import {
   X, AlertTriangle, CheckCircle2, ShieldCheck, RefreshCw,
@@ -21,9 +22,6 @@ export function CallResultDrawer({ callId, onClose, onReportUpdated, userRole = 
   const [activeTab, setActiveTab] = useState<'overview' | 'fields' | 'transcript' | 'correct' | 'audit'>('overview');
 
   // Audio player state
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [audioSpeed, setAudioSpeed] = useState<number>(1);
-  const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
   // Correction form state
   const [correctionLabel, setCorrectionLabel] = useState('');
@@ -57,33 +55,12 @@ export function CallResultDrawer({ callId, onClose, onReportUpdated, userRole = 
 
     return () => {
       mounted = false;
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
     };
   }, [callId]);
 
   if (!callId) return null;
 
   const isViewer = userRole === 'viewer';
-
-  const toggleAudio = () => {
-    if (!audioRef.current) return;
-    if (isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    } else {
-      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
-    }
-  };
-
-  const handleSpeedChange = () => {
-    if (!audioRef.current) return;
-    const speeds = [1, 1.25, 1.5, 2];
-    const nextSpeed = speeds[(speeds.indexOf(audioSpeed) + 1) % speeds.length];
-    audioRef.current.playbackRate = nextSpeed;
-    setAudioSpeed(nextSpeed);
-  };
 
   const handleReanalyze = async () => {
     if (!callId || reanalyzing) return;
@@ -261,36 +238,10 @@ export function CallResultDrawer({ callId, onClose, onReportUpdated, userRole = 
               )}
             </div>
 
-            {/* Audio Recording Player if present */}
-            {report.call?.recordingUrl && (
-              <div className="px-5 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 flex items-center justify-between gap-3">
-                <audio
-                  ref={audioRef}
-                  src={report.call.recordingUrl}
-                  onEnded={() => setIsPlaying(false)}
-                  preload="metadata"
-                />
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={toggleAudio}
-                    className="p-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm flex items-center justify-center transition-transform active:scale-95"
-                    aria-label={isPlaying ? 'Pause call audio' : 'Play call audio'}
-                  >
-                    {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
-                  </button>
-                  <div className="text-xs text-slate-600 dark:text-slate-300">
-                    <span className="font-semibold block">Call Audio Recording</span>
-                    <span className="text-[10px] text-slate-400">{formatSeconds(report.call.durationSeconds)}</span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleSpeedChange}
-                  className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-mono font-semibold hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-                  title="Cycle Playback Speed"
-                >
-                  {audioSpeed}x
-                </button>
+            {/* Call recording (signed, short-lived link fetched on Play) */}
+            {report.call?.hasRecording && (
+              <div className="px-5 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40">
+                <RecordingPlayer callId={report.callId || callId || ''} durationLabel={formatSeconds(report.call.durationSeconds)} />
               </div>
             )}
 

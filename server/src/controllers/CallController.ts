@@ -6,6 +6,7 @@
  * and response formatting.
  */
 
+import { recordingXml } from '../services/RecordingService';
 import crypto from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger';
@@ -24,6 +25,21 @@ import { hasCallableBalance } from '../utils/balanceUtils';
  * Handles all call-related HTTP endpoints.
  * Methods are static to avoid unnecessary instantiation.
  */
+
+/** Notice + recording XML for the answering agent (empty when recording is off or the agent is unknown). */
+async function answerRecordingXml(callId: string, agentId: string | undefined | null, publicUrl: string): Promise<string> {
+  if (!agentId) return '';
+  try {
+    const agent = await prisma.agent.findUnique({ where: { id: agentId }, select: { agentConfig: true } });
+    const xml = recordingXml(callId, publicUrl, agent?.agentConfig);
+    return xml ? `${xml}
+` : '';
+  } catch (err) {
+    logger.warn('CallController: recording setting lookup failed; call continues without recording', { callId, error: String(err) });
+    return '';
+  }
+}
+
 export class CallController {
   /**
    * POST /api/v2/calls
@@ -321,9 +337,11 @@ export class CallController {
       const token = crypto.createHmac('sha256', secret).update(`${callId}:${ts}`).digest('hex');
       const streamUrl = `${wsUrl}/audio-stream?callId=${encodeURIComponent(callId)}&token=${encodeURIComponent(token)}&ts=${ts}`;
 
+      // Recording (only when the agent has it on): spoken notice first, then carrier session recording.
+      const recXml = await answerRecordingXml(callId, targetAgentId, publicUrl);
       const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Stream streamTimeout="1800" keepCallAlive="true" bidirectional="true" contentType="audio/x-l16;rate=16000"><![CDATA[${streamUrl}]]></Stream>
+${recXml}  <Stream streamTimeout="1800" keepCallAlive="true" bidirectional="true" contentType="audio/x-l16;rate=16000"><![CDATA[${streamUrl}]]></Stream>
 </Response>`;
 
       res.set('Content-Type', 'application/xml; charset=utf-8');
@@ -478,9 +496,11 @@ export class CallController {
       const token = crypto.createHmac('sha256', secret).update(`${callId}:${ts}`).digest('hex');
       const rawStreamUrl = `${wsUrl}/audio-stream?callId=${encodeURIComponent(callId)}&token=${encodeURIComponent(token)}&ts=${ts}`;
 
+      // Recording (only when the agent has it on): spoken notice first, then carrier session recording.
+      const recXml = await answerRecordingXml(callId, targetAgentId, rawPublicUrl);
       const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/x-l16;rate=16000" extraHeaders="callId=${encodeURIComponent(callId)},token=${encodeURIComponent(token)},ts=${ts}"><![CDATA[${rawStreamUrl}]]></Stream>
+${recXml}  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/x-l16;rate=16000" extraHeaders="callId=${encodeURIComponent(callId)},token=${encodeURIComponent(token)},ts=${ts}"><![CDATA[${rawStreamUrl}]]></Stream>
 </Response>`;
 
       logger.info('CallController: Plivo answer webhook returning Stream XML', { callId, streamUrl: rawStreamUrl });
