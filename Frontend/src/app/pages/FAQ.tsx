@@ -30,7 +30,7 @@ const FAQS: FAQItem[] = [
   {
     category: "BFSI & Compliance",
     q: "How does Claritiy Voice comply with India's DPDP Act and data privacy standards?",
-    a: "Claritiy Voice is an officially registered MSME with the Government of India. We enforce edge-level PII data redaction before telemetry logging, encrypt all telephony sessions with TLS 1.3 / AES-256, and adhere to zero-retention audio streaming policies. Customer financial identifiers and CVVs are strictly prohibited from voice collection.",
+    a: "Claritiy Voice is an officially registered MSME with the Government of India. We redact personal data in transcripts and logs, encrypt data in transit (TLS) and at rest (AES-256), and record calls only for agents where you switch recording on, with a spoken notice to the caller and automatic deletion after the retention period. Customer financial identifiers and CVVs are strictly prohibited from voice collection.",
   },
   {
     category: "Integrations & Setup",
@@ -39,8 +39,8 @@ const FAQS: FAQItem[] = [
   },
   {
     category: "Integrations & Setup",
-    q: "Can we use our own telephony carrier (Twilio, Exotel, or SIP trunk)?",
-    a: "Yes. You can purchase local Indian and international phone numbers directly in our dashboard with one click, or bring your existing Twilio, Exotel, or custom SIP trunk credentials. Our gateway manages call initiation, answer detection, and carrier signaling seamlessly.",
+    q: "Can we use our own telephony carrier or SIP trunk?",
+    a: "Not yet. Every paid plan includes one local Indian (+91) business number on our integrated carrier network, set up in the dashboard after KYC. Bring-your-own carrier and SIP trunk connections are not available at the moment.",
   },
   {
     category: "Pricing & Scale",
@@ -184,7 +184,7 @@ export default function FAQ({ setPage }: FAQProps) {
             Have a custom compliance or telephony question?
           </h3>
           <p className="text-sm text-[#262523] max-w-md mx-auto font-sans">
-            Our engineering team will review your existing SIP trunks, CRM webhooks, and call flows.
+            Our engineering team will review your call flows, CRM webhooks, and number requirements.
           </p>
           <div className="pt-2 flex flex-wrap justify-center gap-3">
             <button

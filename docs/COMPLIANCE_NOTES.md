@@ -43,3 +43,23 @@ Conservative choices made in code, and items a qualified professional (CA / lawy
   - Pricing copy: "₹3.99/min pay-as-you-go", "from ₹1,799 per month", "750 Bundled Call Minutes (₹3.99/min after)" appear on Home, Pricing SEO, AiVoiceAgentSoftware, BlogIndex, FAQ and App.tsx structured data, but the product sells minute packs (₹1 / ₹800 / ₹3,799 / ₹10,799 / ₹30,799) with no pay-as-you-go or overage billing.
   - Competitor comparison pages naming Vapi and Retell with negative claims (Home comparison table, App.tsx comparison page, FAQ): comparative advertising needs evidence for every claim.
   - Unverified numbers: "99.8% / 99.9% accuracy" (LottieVoiceOrb), "70+ languages", "MSME registered", "TLS 1.3", "Delhivery / Shiprocket sync", "SIP-REFER human handover" (call transfer is marked "coming soon" in the product).
+
+## Marketing claims, part 2 (Phase 14)
+- **Fixed (claims the code proved false), guarded by `npm run test:marketing-claims`:**
+  - SRTP/UDP "zero-copy" transport: audio runs over a TLS WebSocket.
+  - "Zero audio retention": recording is opt-in per agent, with a spoken notice, and is deleted after the retention period.
+  - National DND/NCPR registry filtering: not implemented. Pages now say customers must scrub lists; the batch screen says the same.
+  - "10,000+ concurrent calls": plan and platform caps apply. Batches allow up to 5,000 contacts.
+  - "HIPAA-compliant/aligned": there is no HIPAA programme or BAA.
+  - FHIR and HNSW: not implemented.
+  - Bring-your-own Twilio/Exotel/SIP trunk, toll-free and international numbers: not supported; the plan includes one local +91 number.
+  - "TLS 1.3 everywhere": now worded as "TLS encryption".
+  - Fictional `/api/v2/crm|edu|finance|insurance|integrations/shopify` endpoints and `execution_ms`/`latency_ms` samples: now an honest example of a signed post-call webhook.
+  - Native Salesforce/HubSpot/Shopify sync: integrations are signed webhooks and custom API tools, plus Google Calendar.
+- **Owner / lawyer to review (business or legal statements, not changed):**
+  - Outcome and usage figures on Solutions/UseCases/Home (for example "40% RTO reduction", "1,200+ clinics active", "94.2% completed verification", "3.4× debt recovery") need evidence or removal.
+  - "MSME registered" and "DPDP Act aligned" badges.
+  - Solutions "integrations" chips (Finacle, Guidewire, LeadSquared, CDK and others): these are possible via webhooks/custom tools, not native connectors.
+  - Scenario stories that mention toll-free lines or CRM deal-stage updates.
+  - **Terms of Service §6** cites the US FTC Do Not Call Registry and US law. For an India-first service it should cite TRAI's TCCCPR 2018 / NCPR (DND), DLT registration and Indian law.
+  - **Privacy Policy** lists "Twilio" as an example provider. The actual processors are Supabase (database/auth), Google (Gemini AI, Calendar), the two carriers, Razorpay, Render, Vercel and Resend (email).

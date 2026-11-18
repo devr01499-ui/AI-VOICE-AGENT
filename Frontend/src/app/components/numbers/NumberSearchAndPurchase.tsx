@@ -808,7 +808,7 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
             <span>
               {provider === 'plivo'
                 ? 'Direct carrier integration provisions Indian local (+91) numbers into dedicated, customer-isolated accounts with centralized parent billing.'
-                : 'Our telephony network provides high-throughput SIP trunks and global voice routing.'}
+                : 'Indian local (+91) numbers on our integrated carrier network, set up in your own isolated account.'}
             </span>
           </div>
         </div>

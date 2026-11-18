@@ -360,7 +360,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
               Need a Custom Enterprise Contract or On-Premise Gateway?
             </h3>
             <p className="text-[#262523] text-sm font-sans max-w-2xl leading-relaxed">
-              For volume discounts above 30,000 minutes, dedicated telecom SIP trunks, or custom SLA contracts, our solution engineers can build a tailored deployment package.
+              For volume discounts above 30,000 minutes, custom telephony requirements, or custom SLA contracts, our solution engineers can build a tailored deployment package.
             </p>
           </div>
           <button 

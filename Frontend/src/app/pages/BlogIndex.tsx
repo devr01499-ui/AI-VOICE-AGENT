@@ -93,7 +93,7 @@ Deploying automated AI voice confirmation calls within 60 seconds of checkout al
     featured: false,
     excerpt: "Chaining Speech-to-Text (STT) to large language models (LLM) and Text-to-Speech (TTS) introduces significant HTTP latency.",
     nonTechSummary: "Traditional voice bots pause awkwardly for 2 seconds before answering because they have to convert voice to text, send text to an AI brain, and convert text back to voice. Claritiy Voice processes voice directly.",
-    techSummary: "Deep engineering breakdown of zero-copy memory buffers, UDP SRTP audio frame streaming, 20ms VAD energy thresholding, and HNSW vector index search.",
+    techSummary: "Engineering breakdown of streaming 16 kHz PCM audio in 20 ms frames, VAD energy thresholding, and hybrid vector + keyword knowledge search.",
     content: `Chaining Speech-to-Text (STT) to large language models (LLM) and Text-to-Speech (TTS) introduces significant HTTP latency.
 
 This deep technical guide explains how a single speech-to-speech model removes intermediary text translations to deliver fluid, real-time conversational speech.
@@ -117,7 +117,7 @@ This deep technical guide explains how a single speech-to-speech model removes i
     featured: false,
     excerpt: "Healthcare clinic reception desks face constant phone call queues for scheduling, pre-procedure prep, and intake.",
     nonTechSummary: "Clinics can answer every patient call on the first ring, schedule appointments automatically, and remind patients about clinic prep rules without hiring extra front-desk staff.",
-    techSummary: "Zero-retention audio buffer architecture, encrypted data transport, FHIR R4 API contracts, and real-time PII edge redaction.",
+    techSummary: "Opt-in call recording with retention limits, encrypted data transport, webhook delivery to your own systems, and PII redaction in transcripts.",
     content: `Healthcare clinic reception desks face constant phone call queues for scheduling, pre-procedure prep, and intake.
 
 AI voice receptionists answer calls on the first ring, schedule appointments directly into EHR software (Epic, Cerner), and enforce strict Data Redaction at Edge.`
@@ -162,7 +162,7 @@ Conversational AI voice agents maintain polite, non-judgmental dialogue, negotia
     featured: false,
     excerpt: "Deploying AI voice agents in enterprise environments demands robust data protection.",
     nonTechSummary: "A simple guide to how voice AI keeps customer conversations private, protects financial data, and complies with Indian privacy laws.",
-    techSummary: "AES-256 resting data encryption, TLS 1.3/SRTP transport, edge regex PII scrubber, and audit logging.",
+    techSummary: "AES-256 encryption at rest, TLS-encrypted transport, pattern-based PII redaction, and audit logging.",
     content: `Deploying AI voice agents in enterprise environments demands robust data protection.
 
 Learn how edge-based PII redaction, MSME registration, and DPDP Act 2023 compliance safeguard customer audio logs.`

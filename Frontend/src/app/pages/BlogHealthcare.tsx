@@ -51,7 +51,7 @@ export default function BlogHealthcare({ setPage }: BlogHealthcareProps) {
 
           <div className="bg-[#DFDCD4] border border-[#CBC8BE] rounded-[2px] p-6 font-medium text-[#262523] leading-relaxed">
             <p className="text-xs font-bold text-[#121212] font-mono uppercase tracking-wider mb-2">Direct Answer Summary</p>
-            HIPAA-compliant conversational AI voice agents automate clinic scheduling and follow-up reminders with zero wait times. By placing outbound calls immediately, explaining pre-op instructions, and confirming patient visit status automatically, healthcare organizations save up to 4 hours of front-desk operations daily.
+            Conversational AI voice agents automate clinic scheduling and follow-up reminders with zero wait times. By placing outbound calls immediately, explaining pre-op instructions, and confirming patient visit status automatically, healthcare organizations save up to 4 hours of front-desk operations daily.
           </div>
 
           <div className="space-y-6 text-[#262523] leading-relaxed">
@@ -60,7 +60,7 @@ export default function BlogHealthcare({ setPage }: BlogHealthcareProps) {
               Patients often wait on hold or miss callbacks from clinic schedulers. Schedulers spend hours manually dialing patients to verify appointments or outline pre-treatment instructions.
             </p>
             <p>
-              Claritiy Voice automates this entire outreach cycle securely, ensuring that HIPAA-compliant parameters encrypt patient data automatically.
+              Claritiy Voice automates this entire outreach cycle securely, with patient data encrypted in transit and at rest and personal details redacted in transcripts.
             </p>
 
             <h2 className="text-2xl font-bold text-[#121212] mt-8 mb-4">Actionable Benefits of Voice AI in Healthcare</h2>

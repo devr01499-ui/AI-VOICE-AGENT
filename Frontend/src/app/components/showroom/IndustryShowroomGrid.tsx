@@ -67,7 +67,7 @@ const INDUSTRIES = [
   {
     id: "bpo", label: "BPO / Call Centers", icon: Headphones,
     headline: "AI Voice Agents for BPO & Call Centers",
-    subhead: "Handle 10,000+ concurrent calls with zero queue. Inbound triage, overflow handling, and warm escalation.",
+    subhead: "Scale concurrent calls with your plan, with no hold queue. Inbound triage, overflow handling, and warm escalation.",
     stats: [{ v: "10K+", l: "Concurrent calls" }, { v: "60%", l: "Cost reduction" }, { v: "4.9★", l: "CSAT maintained" }],
     useCases: ["Queue overflow deflection", "Tier-1 FAQ & script handling", "Warm agent handoff with context", "Batch outbound campaigns", "Compliance call logging"],
     badge: "Infinite Scale",

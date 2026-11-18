@@ -10,13 +10,13 @@ export default function Security() {
     },
     {
       icon: Lock,
-      title: "TLS 1.3 & SRTP Audio Encryption",
-      desc: "All full-duplex telephony audio streams in transit are encrypted via SRTP and TLS 1.3. Persistent database records and audit trails are encrypted at rest with AES-256 keys."
+      title: "Encrypted Audio Transport",
+      desc: "Call audio between the carrier and our servers travels over an encrypted (TLS) WebSocket. Database records are encrypted at rest (AES-256), and sensitive fields such as calendar tokens are additionally encrypted by the application."
     },
     {
       icon: Server,
-      title: "Zero Audio Retention Architecture",
-      desc: "Raw customer voice audio is processed in volatile memory buffers for real-time neural inference and discarded immediately upon utterance delivery. No unencrypted audio is ever retained."
+      title: "Recording Only When You Choose",
+      desc: "Live call audio is processed in memory and not stored. Calls are recorded only for agents where you switch recording on: the caller hears a recording notice, playback links are private and short-lived, and recordings are deleted after the retention period (90 days by default)."
     },
     {
       icon: Key,

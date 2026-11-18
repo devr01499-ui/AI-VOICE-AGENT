@@ -242,12 +242,12 @@ const PILLARS = [
     id: "security",
     title: "Compliance & Secure Voice AI",
     subtitle: "MSME Registered & DPDP Aligned",
-    desc: "Rigorous compliance logging and audit logs. Built-in edge PII protection, DPDP Act compliance, and secure TLS 1.3 data encryption.",
+    desc: "Rigorous compliance logging and audit logs. Built-in PII redaction, DPDP Act-aligned controls, and TLS-encrypted transport.",
     icon: ShieldCheck,
     accent: "#059669",
     bg: "#D1FAE5",
     visual: ComplianceVisual,
-    keywords: ["compliance logging", "audit logs", "PII protection", "MSME voice AI", "DPDP Act voice AI", "TLS 1.3 voice AI", "data privacy voice automation"]
+    keywords: ["compliance logging", "audit logs", "PII protection", "MSME voice AI", "DPDP Act voice AI", "encrypted voice AI", "data privacy voice automation"]
   },
   {
     id: "campaigns",

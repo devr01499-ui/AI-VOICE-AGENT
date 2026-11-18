@@ -104,7 +104,7 @@ export default function Footer({ setPage }: FooterProps) {
           {/* Governance & Compliance Tags */}
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <span className="text-[10px] font-mono font-bold text-[#121212] bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] px-2.5 py-1">MSME REGISTERED</span>
-            <span className="text-[10px] font-mono font-bold text-[#121212] bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] px-2.5 py-1">TLS 1.3 / AES-256</span>
+            <span className="text-[10px] font-mono font-bold text-[#121212] bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] px-2.5 py-1">TLS / AES-256</span>
             <span className="text-[10px] font-mono font-bold text-[#121212] bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] px-2.5 py-1">DPDP ALIGNED</span>
             <span className="text-[10px] font-mono font-bold text-[#121212] bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] px-2.5 py-1">RBI FAIR PRACTICES</span>
           </div>
