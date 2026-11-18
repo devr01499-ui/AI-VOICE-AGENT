@@ -37,7 +37,9 @@ AI models: `GEMINI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_GENAI_API_KEY`, `GEMINI_A
 
 Carriers: `VOBIZ_API_URL`, `VOBIZ_AUTH_ID`, `VOBIZ_AUTH_TOKEN`, `VOBIZ_APPLICATION_ID`, `VOBIZ_FROM_NUMBER`, `VOBIZ_WEBHOOK_SECRET`, `PLIVO_API_BASE`, `PLIVO_AUTH_ID`, `PLIVO_AUTH_TOKEN`, `PLIVO_APP_ID`, `TELEPHONY_AUTH_TOKEN`
 
-Payments / invoices: `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `COMPANY_GSTIN`
+Payments / invoices: `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` (required: without it every webhook is refused), `COMPANY_GSTIN` (required for tax invoices; without it receipts are issued)
+
+Razorpay dashboard > Webhooks: URL `https://<backend>/api/v2/webhooks/razorpay`, secret = `RAZORPAY_WEBHOOK_SECRET`, events `payment.captured`, `order.paid`, `refund.processed` (and `payment.failed` for logging). The server answers 500 on temporary failures so Razorpay retries. A 15-minute reconciliation job also activates any captured plan payment that was missed and logs `[ADMIN_ALERT][PAYMENTS]` for paid numbers that were never provisioned.
 
 Email: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`
 
