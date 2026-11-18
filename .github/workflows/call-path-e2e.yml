@@ -38,7 +38,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:15
+        image: pgvector/pgvector:pg16  # schema needs the vector extension
         env:
           POSTGRES_USER: claritiy
           POSTGRES_PASSWORD: testpassword
@@ -58,7 +58,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
@@ -85,9 +85,12 @@ jobs:
           echo "PLIVO_AUTH_TOKEN=ci_test_plivo_auth_token" >> $GITHUB_ENV
 
       - name: Setup Database Schema
+        # Empty throwaway CI database: plain db push (never --accept-data-loss, owner rule).
         run: |
+          PGPASSWORD=testpassword psql -h 127.0.0.1 -U claritiy -d claritiy_test -c 'CREATE EXTENSION IF NOT EXISTS vector;'
           cd server
-          npx prisma db push --accept-data-loss
+          npx prisma generate
+          npx prisma db push --url "$TEST_DATABASE_URL"
 
       - name: Run E2E Call Harness
         run: |
