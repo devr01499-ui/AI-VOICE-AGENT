@@ -13,6 +13,7 @@
  * on network errors / 5xx / 429 (never on other 4xx), all targets in parallel.
  */
 
+import { ssrfSafeDispatcher } from './ssrfValidator';
 import crypto from 'crypto';
 import { logger } from './logger';
 import { prisma } from '../lib/prisma';
@@ -125,6 +126,7 @@ export class WebhookDispatcher {
       let retryable = true;
       try {
         const response = await fetch(url, {
+          ...({ dispatcher: ssrfSafeDispatcher } as object), // connect-time SSRF check (DNS rebinding)
           method: 'POST',
           headers,
           body,

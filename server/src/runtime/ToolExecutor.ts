@@ -13,6 +13,7 @@
  *  - `builtin`   — placeholder (not yet implemented)
  */
 
+import { ssrfSafeDispatcher } from '../utils/ssrfValidator';
 import { logger } from '../utils/logger';
 import { AppError } from '../types/errors';
 import type { ToolDefinition, ToolCallResult } from '../types';
@@ -260,6 +261,7 @@ export class ToolExecutor {
     }
 
     const response = await fetch(target, {
+      ...({ dispatcher: ssrfSafeDispatcher } as object), // connect-time SSRF check (DNS rebinding)
       method,
       headers: { 'Content-Type': 'application/json', ...customHeaders },
       body,
@@ -306,6 +308,7 @@ export class ToolExecutor {
     await assertSafeUrl(webhookUrl);
 
     const response = await fetch(webhookUrl, {
+      ...({ dispatcher: ssrfSafeDispatcher } as object), // connect-time SSRF check (DNS rebinding)
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),

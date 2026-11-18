@@ -5,6 +5,7 @@
  * over HTTP or SSE JSON-RPC endpoints. Converts MCP tool definitions to Gemini functionDeclarations.
  */
 
+import { ssrfSafeDispatcher } from '../utils/ssrfValidator';
 import { revealSecret } from '../utils/agentSecrets';
 import { logger } from '../utils/logger';
 import { assertSafeUrl } from '../utils/ssrfValidator';
@@ -61,6 +62,7 @@ export class McpService {
         const timeoutId = setTimeout(() => controller.abort(), 5000);
 
         const response = await fetch(server.url, {
+          ...({ dispatcher: ssrfSafeDispatcher } as object), // connect-time SSRF check (DNS rebinding)
           method: 'POST',
           headers,
           body: JSON.stringify({
@@ -141,6 +143,7 @@ export class McpService {
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
       const response = await fetch(discoveredTool.serverUrl, {
+        ...({ dispatcher: ssrfSafeDispatcher } as object), // connect-time SSRF check (DNS rebinding)
         method: 'POST',
         headers,
         body: JSON.stringify({
