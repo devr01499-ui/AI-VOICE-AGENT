@@ -25,6 +25,7 @@ import { applyPiiRedaction, piiCategoriesForCall } from '../repositories/Transcr
 import { countActiveCalls, countGlobalActiveCalls, GLOBAL_TELEPHONY_CAP, withUserCallLock } from '../utils/concurrency';
 import { hasCallableBalance, getCallableSecondsRemaining } from '../utils/balanceUtils';
 import { EncryptionService } from '../utils/EncryptionService';
+import { checkOutboundDestination } from '../utils/destinationPolicy';
 
 // ─── Input Shapes ─────────────────────────────────
 
@@ -61,6 +62,12 @@ export class CallService {
       throw new ValidationError('Invalid phone number', [
         { field: 'phoneNumber', message: 'Must be E.164 format (e.g., +919876543210)' },
       ]);
+    }
+
+    // ── Toll-fraud guard: Indian numbers only (premium-rate blocked) unless a country is enabled ──
+    const destination = checkOutboundDestination(phoneNumber);
+    if (!destination.allowed) {
+      throw new ValidationError('Destination not allowed', [{ field: 'phoneNumber', message: destination.reason }]);
     }
 
     return withUserCallLock(userId, async () => {
@@ -174,6 +181,11 @@ export class CallService {
 
       // ── Validate agent exists ──────────────────
       const agent = await AgentRepository.findById(agentId);
+      // Tenant isolation: an agent carries its owner's prompt, knowledge base, calendar and webhook
+      // secrets, so only its owner may place calls with it (same message as a missing agent).
+      if (!isAdmin && agent.userId !== userId) {
+        throw new NotFoundError('Agent');
+      }
       if (agent.status !== 'active' && agent.status !== 'draft') {
         throw new ValidationError('Agent is not available', [
           { field: 'agentId', message: `Agent status is '${agent.status}', must be 'active' or 'draft'` },
