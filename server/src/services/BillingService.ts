@@ -298,6 +298,14 @@ export class BillingService {
       throw new PaymentVerificationError(400, 'This payment was made for a different number.', 'PAYMENT_WRONG_NUMBER');
     }
     const amountInr = verified.amountPaise / 100;
+    const isSameRedemption = (t: { userId: string; orderId: string; paymentId: string; planName: string } | null) =>
+      Boolean(t && t.userId === params.userId && t.orderId === params.orderId && t.paymentId === params.paymentId && t.planName === 'phone_number');
+    // Normal retry path: answer from the existing record. The unique constraint below still decides races.
+    const prior = await prisma.paymentTransaction.findFirst({ where: { OR: [{ orderId: params.orderId }, { paymentId: params.paymentId }] } });
+    if (prior) {
+      if (isSameRedemption(prior)) return { amountInr, amountPaise: verified.amountPaise, alreadyRedeemed: true };
+      throw new PaymentVerificationError(409, 'Payment has already been redeemed.', 'PAYMENT_ALREADY_REDEEMED');
+    }
     try {
       await prisma.paymentTransaction.create({
         data: {
