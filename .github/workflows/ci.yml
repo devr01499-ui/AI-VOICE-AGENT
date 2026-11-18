@@ -89,15 +89,13 @@ jobs:
       - name: Install server
         working-directory: server
         run: npm ci
-      - name: Enable pgvector in the CI database
-        run: PGPASSWORD=ci_test_only psql -h 127.0.0.1 -U ci -d claritiy_ci_test -c 'CREATE EXTENSION IF NOT EXISTS vector;'
-      - name: Create the schema in the empty CI database
-        # Until the migration baseline (M0, owner decision) lands, the CI database is created from
-        # schema.prisma. Plain `db push` on an empty throwaway database; never --accept-data-loss.
+      - name: Supabase auth.uid() stub (RLS policies in the baseline call it; Supabase provides it)
+        run: PGPASSWORD=ci_test_only psql -h 127.0.0.1 -U ci -d claritiy_ci_test -c "CREATE SCHEMA IF NOT EXISTS auth; CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS 'select null::uuid';"
+      - name: Build the empty CI database from the committed migrations (M0)
         working-directory: server
         run: |
           npx prisma generate
-          npx prisma db push --url "$TEST_DATABASE_URL"
+          npx prisma migrate deploy
       - name: Build server
         working-directory: server
         run: npm run build
@@ -167,12 +165,9 @@ jobs:
           retention-days: 7
 
   migration-drift:
-    name: Migrations build an empty database (M0 — informational until the baseline lands)
+    name: Migrations build an empty database with zero drift from schema.prisma (M0)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Non-blocking on purpose and visible in every run: the committed migrations do not yet match
-    # schema.prisma (PRELAUNCH_NOTES §4). Becomes blocking when the owner picks Option A/B (PROGRESS P1).
-    continue-on-error: true
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -198,6 +193,8 @@ jobs:
       - name: Install server
         working-directory: server
         run: npm ci
+      - name: Supabase auth.uid() stub
+        run: PGPASSWORD=ci_test_only psql -h 127.0.0.1 -U ci -d claritiy_migrations -c "CREATE SCHEMA IF NOT EXISTS auth; CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS 'select null::uuid';"
       - name: Apply committed migrations to an empty database
         working-directory: server
         run: npx prisma migrate deploy

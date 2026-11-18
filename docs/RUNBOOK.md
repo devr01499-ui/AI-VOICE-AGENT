@@ -1,6 +1,6 @@
 # Runbook — Claritiy Voice
 
-Status: skeleton created in Phase 0. Deploy, rollback, carrier webhook URLs and incident steps are filled in during Phases 12–14.
+Status: complete as of Phase 14 (2026-11-18). Deploy, rollback, migrations, CI and incident steps are at the end.
 
 ## Hosting
 - Backend: Render (`render.yaml`, Singapore, health check `/live`).
@@ -18,10 +18,10 @@ Local throwaway database used so far (PGlite: in-memory Postgres with pgvector; 
 1. In a temp folder outside the repo: `npm i @electric-sql/pglite @electric-sql/pglite-pgvector @electric-sql/pglite-socket`.
 2. Start a small script that calls `PGlite.create({ extensions: { vector } })`, runs `CREATE EXTENSION IF NOT EXISTS vector; CREATE SCHEMA auth;` plus a stub `auth.uid()` function, and serves it with `PGLiteSocketServer` on `127.0.0.1:54330`.
 3. Set `TEST_DATABASE_URL` to `postgresql://postgres:postgres@127.0.0.1:54330/postgres?sslmode=disable`. `sslmode=disable` is required: the app's pg pool otherwise demands TLS.
-4. Create the schema from `server/`: run `npx prisma db push` with BOTH `DATABASE_URL` and `DIRECT_URL` set inline to the test URL. The Prisma CLI reads `server/.env` and is NOT covered by the guard, so never run it without those two inline variables.
+4. Create the schema from `server/`: run `npx prisma migrate deploy` (builds the database from the committed baseline, like CI) or `npx prisma db push`, with BOTH `DATABASE_URL` and `DIRECT_URL` set inline to the test URL. The Prisma CLI reads `server/.env` and is NOT covered by the guard, so never run it without those two inline variables.
 5. Run `npm run build` in `server/` (the JS suites import `dist/`), then `npm run test:security`.
 
-Why `db push` and not `migrate deploy`: the committed migrations cannot build the schema from an empty database (see PROGRESS.md, finding 2).
+Since Phase 14 the committed migrations build an empty database (one baseline, `20261118000000_baseline`; the 17 older ones are in `prisma/migrations_archive/`). CI proves it on every run: `migrate deploy` on an empty database, then `migrate diff` against `schema.prisma` must be empty.
 
 ## Environment variables (names only — never commit values)
 Collected by scanning `process.env.*` in `server/src`, `import.meta.env.*` in `Frontend/src`, `render.yaml` and the `.env.example` files. Which ones are required vs optional is defined in `server/src/config/env.ts`.
@@ -52,7 +52,7 @@ SIP / dev tooling: `SIP_ENCRYPTION_KEY` (still a fallback encryption key — do 
 ### Frontend (Vite, public at build time — never put secrets here)
 `VITE_API_BASE_URL`, `VITE_API_URL`, `VITE_BACKEND_URL`, `VITE_WS_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_RAZORPAY_KEY_ID`
 
-### Known gaps (to resolve in Phase 12, not yet verified against the Render dashboard)
+### Known gaps (not verifiable from the repo; check the Render dashboard)
 - `render.yaml` declares only 15 keys; `RAZORPAY_*`, `RESEND_*`, `ENCRYPTION_KEY` and `FRONTEND_URL` are not listed there.
 - `server/.env.example` has no `RAZORPAY_*`; `Frontend/.env.example` lists only `VITE_API_BASE_URL`.
 - `Admin/.env.example` was not scanned.
@@ -60,4 +60,22 @@ SIP / dev tooling: `SIP_ENCRYPTION_KEY` (still a fallback encryption key — do 
 - Stale names still referenced: `NEXTAUTH_SECRET`, `NEXT_PUBLIC_*` (no Next.js in this project).
 
 ## Deploy / rollback / incident steps
-To be written (Phases 12–14).
+
+### Deploy
+- Every push to `main` runs CI (`.github/workflows/ci.yml`): typecheck + build, the server test chain on a pgvector Postgres built from the migrations, browser tests, and the migration-drift check. The `deploy-render.yml` workflow calls the Render deploy hook (secret `RENDER_DEPLOY_HOOK_URL`) only after CI passes.
+- If Render auto-deploy on push is also on, Render deploys without waiting for CI. To make CI a hard gate: Render → service → Settings → Auto-Deploy: Off, and add the deploy hook URL as a GitHub secret.
+- Vercel deploys the frontend from `main` on its own; check the deployment in the Vercel dashboard.
+- Database schema on deploy: today the Render build runs `prisma db push` (render.yaml; the dashboard command may differ). After the owner completes the M0 steps (PROGRESS owner step 25), change the build command to `npm install --include=dev && npx prisma generate && npx prisma migrate deploy && npm run build`.
+
+### Schema changes (after M0)
+- Edit `schema.prisma`, then create an additive migration offline: `npx prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --script` into a new `prisma/migrations/<timestamp>_<name>/migration.sql` (test URL inline), apply it to a test database, and let CI prove zero drift. Never `--accept-data-loss`, never `migrate reset` on production.
+
+### Rollback
+- Code: Render → service → Events → pick the previous successful deploy → Rollback (or revert the merge commit on `main` and push). Vercel → Deployments → previous → Promote.
+- Schema: migrations are additive; each migration file states its rollback statement (for example `DROP INDEX IF EXISTS ...`). Run a rollback statement on production only after a backup (Supabase → Database → Backups).
+
+### Health and incidents
+- `/live` (liveness, Render health check), `/healthz`, `/health` and `/ready` (readiness: database reachable, analysis backlog).
+- Boot log lines starting with `🚨  CRITICAL security configuration` mean a secret is missing (SECURITY_AUDIT S14).
+- Calls failing: check carrier status, then the Render log for `[CallService]` / `AudioStreamHandler` errors and the `latency_summary` call events. Payments: search the log for `[ADMIN_ALERT][PAYMENTS]` (paid but not provisioned); the reconciliation job retries every 15 minutes.
+- Webhook URLs to configure at providers: carrier answer/status/hangup URLs are set per call by the server; Razorpay `https://<backend>/api/v2/webhooks/razorpay`; carrier KYC `https://<backend>/api/v2/kyc/webhook/vobiz`; recording callbacks `https://<backend>/api/v2/webhooks/recording` (signed, set per call).

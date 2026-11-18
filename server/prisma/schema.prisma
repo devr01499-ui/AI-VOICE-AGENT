@@ -1429,6 +1429,9 @@ model CallResult {
   @@index([workspaceId, batchId])
   @@index([workspaceId, resultLabel])
   @@index([workspaceId, status])
+  // JSON field search (was created only by migration 20261028170000; declared here so the schema,
+  // db push and the M0 baseline agree)
+  @@index([fields], type: Gin, map: "call_results_fields_gin_idx")
   @@map("call_results")
 }
 
