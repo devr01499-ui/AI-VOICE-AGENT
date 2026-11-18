@@ -1,0 +1,60 @@
+# Security audit — Phase 12 (CLAUDE.md §7)
+
+Date: 2026-11-18. Scope: `server/` (Express + Prisma), browser-facing config, dependencies.
+Method: code reading, an IDOR sweep of every Prisma call on tenant data in routes/controllers/services, and tests against the production code paths (`npm run test:security-hardening`, part of `npm run test:security`).
+Earlier phases already fixed and tested billing (Phase 6), numbers/KYC (Phase 7), batch/TRAI hours (Phase 8), KB upload/SSRF (Phase 5) and recordings (Phase 10). Those are listed briefly at the end.
+
+Status legend: **FIXED** (code changed and tested here) · **OK** (checked, no change needed) · **OWNER** (needs a setting or a check on a live system) · **ACCEPTED** (known, mitigated, reason given).
+
+## 1. Findings fixed in Phase 12
+
+| # | Severity | Finding | Fix | Proof |
+|---|---|---|---|---|
+| S1 | Critical | **Cross-tenant calls.** `POST /api/v2/calls` accepted any `agentId`, so a customer could place calls with another customer's agent: its prompt, knowledge base, calendar and webhook secrets. | `CallService.createCall` refuses an agent the caller does not own (404, same as a missing agent). Admins keep their bypass. Batches already checked ownership. | test "a user cannot place a call with another customer's agent" (fails on old code) |
+| S2 | High | **Calendar scheduling rules IDOR.** `GET/POST /api/v2/calendar/rules/:agentId` and `POST /calendar/slots` never checked the agent's owner. Anyone signed in could read or overwrite another customer's booking rules, including the free-text instructions the agent follows. | `ownsAgent()` check on all three routes (workspace or own user id). Rate limits added. | test "calendar scheduling rules…" (fails on old code) |
+| S3 | High | **Number purchase/claim attached a foreign agent.** `agentId` from the request body was stored as the number's `assignedAgentId`, so inbound calls to the attacker's number ran the victim's agent. | `ownedAgentIdOrNull()` in Vobiz and Plivo provisioning: a foreign id is dropped, not failed, because the number is already paid at that point. Inbound routing also re-checks that the agent belongs to the number owner, which covers old rows. The "any agent in the database" fallback for blocked calls was removed. | test "numbers: an agent id from another customer…" (fails on old code) |
+| S4 | Medium | **Legal consent forgery.** Public `POST /user/consent` marked any existing account as having accepted the Terms, by email alone. `consent-status` also self-healed from any record with that email. | An existing account is linked and flagged only when its own signed-in session sends the consent. Others get the same reply (no account enumeration) but the record stays unlinked. Self-heal accepts only linked records, or signup-time records (≤ 5 min after the account row). The client IP now comes from the trusted proxy hop, not the raw first `X-Forwarded-For` value. | test "legal consent…" (fails on old code) |
+| S5 | High | **Rate limits bypassable (P5).** The limiter key trusted the client header `x-user-id`; a new value per request was never limited. | Key uses only identities set by the auth middleware, else the IP. | test "rate-limit key ignores…" (fails on old code) |
+| S6 | High | **DNS rebinding (P10).** User-supplied URLs (agent webhooks, MCP servers, agent tools, KB page import) were validated once and then fetched. A DNS answer could change to a private IP between the check and the connection. | `ssrfSafeDispatcher` (undici Agent) checks every resolved address **at connect time**; all 6 such `fetch` calls use it. | tests "outbound fetch refuses…", "every user-URL fetch…" |
+| S7 | High | **Toll fraud.** Single calls could dial any country and premium-rate numbers; the platform pays the carrier. | `checkOutboundDestination`: Indian numbers only; 1900/1860 premium/shared-cost blocked; other countries only via `OUTBOUND_ALLOWED_COUNTRY_CODES`. Batches were already India-mobile-only. Spend is also capped by prepaid minutes, per-plan concurrency, the global cap and the 2-hour maximum call length. | test "toll fraud…" |
+| S8 | Medium | **CORS allowed `localhost` in production** with credentials, so any page served on a visitor's machine could call the API with their session. A blocked origin also produced a logged 500 error. | `config/cors.ts`: production allows only claritiy.com (+www/app/admin), `FRONTEND_URL` and `ADMIN_ORIGIN`, over https. localhost is allowed outside production only. A blocked origin now gets 403 `CORS_ORIGIN_BLOCKED`. | test "CORS…" |
+| S9 | Medium | **WebSocket messages up to 100 MB** (library default) on the carrier-audio, sandbox and transcript sockets: a memory-exhaustion vector on the voice server. | 1 MB cap (audio/sandbox; real frames are about 1–11 KB) and 64 KB (transcript). Every socket already handles `error`, so an oversized message closes only that socket. | test "WebSocket servers cap message size" |
+| S10 | Medium | **Secrets and personal data in logs.** Structured log metadata was written verbatim. | Logger redacts secret-named fields. Phone numbers are cut to their last 4 digits and emails to their first letter + domain; ids are kept. Error objects now log their message (they used to log `{}`). Circular metadata can no longer throw. | test "logs: secrets removed…" |
+| S11 | Medium | **Missing rate limits** on routes that change data or spend AI budget: agent delete, conversational builder, optimize, test-prompt, prompt-coach generate, agent chat, report re-analyse/correct/accept, call terminate/delete/transcript ticket, calendar connect/disconnect/rules/slots, billing sync, admin number activation. | `aiFeatureLimiter` (30/h) on AI routes; new `callActionLimiter` (120/15 min) on call and report actions; `agentWriteLimiter` / `sensitiveOperationsLimiter` elsewhere. | `test:rate-limiting` 7/7 |
+| S12 | Medium | **Admin order retry** changed order state with the read-only permission `customers:view`. | Now requires `numbers:activate` (owner/admin). | code review |
+| S13 | Medium | **Alert evaluation loaded every call row** of the window, every minute, for every rule. This does not scale under traffic. | Aggregated in the database (`groupBy` status + duration sum; one count for sentiment). Same metrics. | test "alert evaluation aggregates…" |
+| S14 | High | **Weak secret configuration goes unnoticed (P9/P12).** Without `ENCRYPTION_KEY`, stored secrets (calendar tokens, user AI keys) are encrypted with a key derived from the webhook secret, or with a legacy key written in the source code. Without `VOBIZ_WEBHOOK_SECRET`, webhook and stream signatures fall back to another service's secret or a per-process random value. | Production boot prints a `CRITICAL security configuration` line for each missing secret (`auditSecretConfiguration`). The server does not exit, so production is not taken down before the owner sets them. **OWNER** steps 20–21 below. Removing the legacy fallbacks is safe only after the variables are set and existing values are re-encrypted. | test "production boot reports…" |
+| S15 | High | **Dependency advisories.** `npm audit` found 15 (8 high): body-parser, qs, follow-redirects, mysql2, prisma CLI/config, undici, etc. | `npm audit fix` (non-breaking). Prisma CLI, client and adapter aligned at 7.10.1 (client regenerated). undici pinned at 7.30.2. Left: see A1, A2. | `npm audit --omit=dev`: 6 left (1 high, 5 moderate), all explained below |
+
+## 2. Checked, no change needed (OK)
+
+- **AuthN:** every protected route uses `requireAuth`, which verifies the token with Supabase (`auth.getUser`, server-side signature/expiry check), blocks disposable emails and loads the workspace role. Admin API: `requireStaff(permission)` on every route, an origin check, and AAL2/MFA as implemented in `adminRoutes.ts`.
+- **IDOR sweep (rest):** agents (CRUD, chat, test-lab), calls (status, transcript, end, transfer, delete, recording link), contacts, QA cohorts, alert rules, knowledge base, notifications, invoices, team, batches, API keys and calendar bookings all filter by user/workspace or check ownership after the fetch.
+- **Headers:** helmet (CSP, HSTS 1 y + preload, frameguard deny, nosniff, referrer policy); `x-powered-by` off; `trust proxy 1`.
+- **Errors:** production 500s return a reference code, never a stack trace or the raw message.
+- **Body size:** JSON 10 MB (KB uploads have their own capped, concurrency-gated parser, Phase 5).
+- **Webhooks:**
+  - Razorpay: timing-safe signature, fail-closed, idempotent (Phase 6).
+  - Carrier XML webhooks: signature-checked, and they return XML.
+  - Audio streams: an unverified handshake can no longer affect a call (Phase 11).
+- **Voice abuse:** 2-hour maximum call length (schema `maxDuration` ≤ 7200), per-plan concurrency, global telephony cap, prepaid minutes required before dialling, TRAI calling hours and opt-out list for batches (Phase 8).
+- **Boot/health:** `server.listen` is immediate; `/live`, `/healthz` and readiness probes exist; graceful shutdown with a 90 s delay (Render).
+- **Payments, invoices, CSV exports:** see Phases 6 and 9 (CSV formula injection neutralised in all exports).
+
+## 3. Accepted / owner items
+
+- **A1 zod (high, ACCEPTED until the zod 4 migration):** "memory exhaustion while validating oversized constrained collections". Only zod 4.6.6+ has the fix, and that is a breaking major upgrade touching every route schema.
+  - Mitigation: every request body is capped at 10 MB before zod runs, and arrays from users have explicit caps (batch recipients 5,000, KB uploads 20 MB).
+  - Plan: migrate to zod 4 as a separate, fully regression-tested change.
+- **A2 glob/minimatch/rimraf (moderate, ACCEPTED):** these are reached only through `googleapis → gaxios → rimraf` file utilities, with no user-controlled patterns. They clear with the next googleapis major.
+- **A3 Rate-limit store:** in memory per instance. Correct while Render runs one instance (`plan: starter`). Before scaling to 2+ instances, move the limiter store to Redis (connection details are owner infrastructure).
+- **A4 Supabase RLS (OWNER):** the browser apps never read tables directly (no `supabase.from(...)` in Frontend or Admin); every read goes through this API. The public anon key therefore only needs auth. Turning on RLS with no policies on every `public` table blocks direct PostgREST access with that key. Owner steps 22–23.
+- **A5 Phone numbers in logs:** masked to the last 4 digits (S10). Render log retention is the platform default; no other log sink is configured.
+
+## 4. Owner steps added by Phase 12 (also in PROGRESS.md)
+
+20. Render → Environment: add `ENCRYPTION_KEY` = 64 random hex characters (for example `openssl rand -hex 32`); keep a copy in your password manager. Existing encrypted values keep working: decryption also tries the previous keys (`EncryptionService.getCandidateKeys`). **Do not remove or change an existing `VOBIZ_WEBHOOK_SECRET` or `SIP_ENCRYPTION_KEY` afterwards** until Claude has re-encrypted the stored values with the new key. After the change: sign in, open Integrations, and check Google Calendar still shows "Connected".
+21. Render → Environment: add a dedicated `VOBIZ_WEBHOOK_SECRET`, and set the same secret wherever the carrier signs webhooks. The CRITICAL boot line disappears.
+22. Supabase → SQL editor (read-only check): `select relname from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;` lists tables without RLS. Also run `select rolbypassrls from pg_roles where rolname = current_user;` while connected as the role in `DATABASE_URL`; it must return `true` before step 23.
+23. Only if step 22 returned `true`: run `alter table public."<name>" enable row level security;` for each listed table, then check that the live dashboard still loads.
+24. Calls to countries other than India: set `OUTBOUND_ALLOWED_COUNTRY_CODES` (for example `971,65`) only for countries you sell to.

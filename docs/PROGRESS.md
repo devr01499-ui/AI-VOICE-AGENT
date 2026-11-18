@@ -14,22 +14,22 @@
 | 9 | B11 calling config speed, B12 data pages, typecheck 0 | DONE, merged to `main` 2026-11-18 |
 | 10 | B14 recording + P7 data retention | DONE, merged to `main` 2026-11-18 |
 | 11 | B15 latency/voice, P11 fixed | DONE, merged to `main` 2026-11-18 |
-| 12–14 | See CLAUDE.md §13 | not started |
+| 12 | S7 security/traffic hardening, P5/P9/P10/P12 (docs/SECURITY_AUDIT.md) | DONE, merged to `main` 2026-11-18 |
+| 13–14 | See CLAUDE.md §13 | not started |
 
 ## PRODUCTION — UNTOUCHABLE (nothing relaxed)
 - `DATABASE_URL` in `server/.env` is production. Never connect; never copy it or any key anywhere. Tests use `TEST_DATABASE_URL` only (RUNBOOK.md); the guard blanks live service keys.
 - Prisma CLI only with BOTH `DATABASE_URL` and `DIRECT_URL` set inline to the test URL. Offline SQL: `prisma migrate diff --from-schema <old> --to-schema prisma/schema.prisma --script`.
 - No command text inside double quotes/unquoted backticks; write files with Write/Edit or `<<'EOF'`. Every push to `main` auto-deploys Render and runs `prisma db push` on production (P1).
 
-## Status of checks (2026-11-18, after Phase 8)
-- Typecheck: server 0, frontend 0 (since Phase 9).
-- test:security 21 suites all pass on PGlite (DB_POOL_MAX=1) incl. billing 21, number-entitlement 9, batch-compliance 8, kb-rag 20; kb-race 2/2 (native PG); owasp 23/23; payment 16/16; street-smart 32/32 + regression 41/41; m2 37/37; batch b–f pass; browser 110 pass, 1 skipped (live login; run with --workers=1 when RAM is low).
+## Status of checks (2026-11-18, after Phase 12)
+- Typecheck: server 0, frontend 0.
+- test:security 25 suites all pass on PGlite (DB_POOL_MAX=1) incl. security-hardening 13; caller-id 5/5 (now wired); kb-race 2/2 (native PG); owasp, payment-security, batch a–f, m1, m2, street-smart + regression, plivo-webhook, audiostream-isolation, live-transcript-auth, prompt-injection, rate-limiting 7/7, audio/codec/drain/turn/persona/normalizers/speaker/evidence pass; playout passes 3/3 (one load-jitter failure under a busy machine: watch in CI); build OK. npm audit: 6 left, explained in SECURITY_AUDIT A1/A2.
 
 ## Pre-launch items
 - P0 OWNER: rotate the production DB password (was public in git history); confirm the Google key literal in GeminiLiveProvider.ts is revoked.
 - P1 Migrations/Render (PRELAUNCH_NOTES §4, Option A recommended, owner choice pending). New additive migrations `20261117120000_add_notification_receipts`, `20261117130000_add_test_lab_runs`; under the current `db push` deploy the tables are created automatically. Phase 5 adds `20261117140000_kb_chunks_fulltext_index` (expression index: only `migrate deploy` creates it).
-- P5 Security (Phase 12): rate-limit key trusts client `x-user-id` header on public routes.
-- P12 Security (Phase 12): carrier webhook secret falls back to ENCRYPTION_KEY / JWT secret when `VOBIZ_WEBHOOK_SECRET` is unset (key reuse). Owner: set a dedicated `VOBIZ_WEBHOOK_SECRET` on Render and at the carrier first, then remove the fallbacks.
+- P9/P12 (Phase 12): boot now prints CRITICAL when `ENCRYPTION_KEY` / `VOBIZ_WEBHOOK_SECRET` are unset; owner steps 20–21. Accepted: zod 4 upgrade (A1), Redis limiter store before 2+ instances (A3) — SECURITY_AUDIT §3.
 
 ## Needs owner verification (exact steps)
 1. Password rotation: Supabase → Project Settings → Database → reset; update `DATABASE_URL` on Render and local `server/.env`; check `/live` returns 200.
@@ -44,6 +44,7 @@
 17. Calling Configuration on the live site: open it 5 times; each load should feel instant (<1 s); change an agent — it updates at once.
 18. Recording live: switch "Record calls" on for a test agent, call it, hear the notice, then play the recording from Call History (seek, 1.5x, download). Ask Claude to check the Render log for the recording callback if nothing appears. Confirm notice wording/retention with a lawyer (COMPLIANCE_NOTES).
 19. Latency live: after 20 real calls, ask Claude to read the `latency_summary` call events (p50/p95). Only then publish a latency number. Existing agents saved with 600 ms "Responsiveness": lower to 300 ms in Speech Settings. Review pricing/competitor copy (COMPLIANCE_NOTES "Marketing claims").
+20–24. Security settings (SECURITY_AUDIT §4): set `ENCRYPTION_KEY`, a dedicated `VOBIZ_WEBHOOK_SECRET`, check/enable Supabase RLS (read-only query first), `OUTBOUND_ALLOWED_COUNTRY_CODES` only for countries you sell to.
 
 ## Decisions
 - Checklist = 17 issues + S7, Q8, D9, D10, T0, M0, K0. Zero-open-defects gate in Phase 14. `npm run build` rewrites `Frontend/public/sitemap.xml` dates — `git restore` it.
@@ -56,4 +57,4 @@
 1. Gemini model policy (CLAUDE.md §3). 2. `devr0144@gmail.com` address (§11). 3. Migration Option A or B. 4. When an account loses its paid plan (cancel/downgrade): keep its number working, pause calls on it, or release it after N days? STANDING RULE (§0.6/§12a): merge each verified phase to `main`, push, never ask between phases.
 
 ## Next exact step
-Phase 12 (branch `fix/security-hardening`, CLAUDE.md §7, P5/P9/P10/P12): docs/SECURITY_AUDIT.md; rate-limit key trusts x-user-id (P5); hard-coded legacy key in EncryptionService (P9); DNS-rebinding pin for outbound fetches (P10); carrier webhook secret fallback (P12); IDOR sweep; CORS/helmet/CSP; env validation; npm audit; per-day spend cap / destination allow-list for single calls; alert evaluator loads calls per rule.
+Phase 13 (branch `chore/dead-code`, CLAUDE.md §9): remove per docs/BACKEND_UNUSED_REPORT.md (unmounted routes/integrations.ts + IntegrationsController, stale root scripts/test_plan_security.ts, unused App.tsx audit-log state, stale SYSTEM_CHARTER.md/TECH_DEBT.md), run knip/depcheck, one revertable commit per area, `/live` 200 after each.

@@ -144,6 +144,40 @@ if (parsed.data.NODE_ENV === 'production' && parsed.data.GOOGLE_CALENDAR_ENABLED
   }
 }
 
+/**
+ * Secrets that the server can run without but that leave a security gap when missing (Phase 12, P9/P12).
+ * Returned as plain findings so the boot check is testable; nothing here exits the process, because
+ * failing hard would take production down before the owner has set the new variables.
+ *  - ENCRYPTION_KEY missing: stored secrets (calendar tokens, user API keys) are encrypted with a key
+ *    derived from the webhook secret, or with a legacy key that is written in the source code.
+ *  - VOBIZ_WEBHOOK_SECRET / SIP_ENCRYPTION_KEY missing: carrier webhooks and audio-stream tokens are
+ *    signed with another service's secret (Supabase JWT secret) or a per-process random value, which
+ *    breaks stream tokens across restarts and multiple instances.
+ */
+export function auditSecretConfiguration(e: Record<string, string | undefined>): string[] {
+  const has = (k: string) => typeof e[k] === 'string' && (e[k] as string).trim().length > 0;
+  const findings: string[] = [];
+  if (!has('ENCRYPTION_KEY')) {
+    findings.push(
+      has('VOBIZ_WEBHOOK_SECRET') || has('SIP_ENCRYPTION_KEY')
+        ? 'ENCRYPTION_KEY is not set: stored secrets are encrypted with a key derived from the carrier webhook secret. Set a dedicated ENCRYPTION_KEY (64 hex characters).'
+        : 'ENCRYPTION_KEY is not set and no carrier webhook secret exists: stored secrets are encrypted with the LEGACY key that is written in the source code. Set ENCRYPTION_KEY (64 hex characters) now.'
+    );
+  }
+  if (!has('VOBIZ_WEBHOOK_SECRET') && !has('SIP_ENCRYPTION_KEY')) {
+    findings.push(
+      'VOBIZ_WEBHOOK_SECRET is not set: carrier webhooks and audio-stream tokens are signed with a fallback secret (another service\'s secret or a random per-process value). Set VOBIZ_WEBHOOK_SECRET.'
+    );
+  }
+  return findings;
+}
+
+if (parsed.data.NODE_ENV === 'production') {
+  for (const finding of auditSecretConfiguration(process.env)) {
+    console.error(`🚨  CRITICAL security configuration: ${finding}`);
+  }
+}
+
 // Warn loudly if no Gemini API key is configured for the platform
 if (!parsed.data.GEMINI_API_KEY && !parsed.data.GOOGLE_API_KEY) {
   console.warn('⚠️  Platform Configuration Alert: Neither GEMINI_API_KEY nor GOOGLE_API_KEY is configured in the environment. AI voice calls will fail unless individual users save their own Gemini API key in Settings > API Keys.');

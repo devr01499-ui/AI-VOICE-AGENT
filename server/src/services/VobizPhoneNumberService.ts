@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { ProviderError } from '../types/errors';
 import { NotificationService } from './NotificationService';
+import { ownedAgentIdOrNull } from '../utils/agentOwnership';
 
 export class VobizPhoneNumberService extends VobizIntegrationService {
   
@@ -152,7 +153,7 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
       const newPhone = await prisma.phoneNumber.create({
         data: {
           userId: params.userId,
-          assignedAgentId: params.agentId || null,
+          assignedAgentId: await ownedAgentIdOrNull(params.userId, params.agentId), // tenant isolation
           phoneNumber: numberDetails.e164,
           countryCode: numberDetails.country,
           region: numberDetails.region || null,

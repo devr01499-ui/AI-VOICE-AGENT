@@ -129,19 +129,18 @@ export class AlertEvaluator {
   private static async evaluateSingleRule(rule: any): Promise<{ isBreached: boolean; metricValue: number; summary: string }> {
     const windowStart = new Date(Date.now() - rule.evaluationWindowMins * 60 * 1000);
 
-    const calls = await prisma.call.findMany({
-      where: {
-        userId: rule.userId,
-        createdAt: { gte: windowStart },
-      },
-      select: {
-        status: true,
-        sentiment: true,
-        durationSeconds: true,
-      },
+    // Aggregated in the database (Phase 12, heavy traffic): this runs every minute for every rule,
+    // and loading every call row of a busy workspace's window into memory does not scale.
+    const where = { userId: rule.userId, createdAt: { gte: windowStart } };
+    const byStatus = await prisma.call.groupBy({
+      by: ['status'],
+      where,
+      _count: { _all: true },
+      _sum: { durationSeconds: true },
     });
-
-    const totalCalls = calls.length;
+    const countWhere = (pred: (status: string) => boolean) =>
+      byStatus.reduce((acc, g) => acc + (pred(String(g.status || '').toLowerCase()) ? g._count._all : 0), 0);
+    const totalCalls = countWhere(() => true);
     let metricValue = 0;
 
     switch (rule.metric) {
@@ -149,22 +148,24 @@ export class AlertEvaluator {
         metricValue = totalCalls;
         break;
       case 'error_rate': {
-        const failedCalls = calls.filter((c) => ['failed', 'canceled', 'error'].includes((c.status || '').toLowerCase())).length;
+        const failedCalls = countWhere((s) => ['failed', 'canceled', 'error'].includes(s));
         metricValue = totalCalls > 0 ? Math.round((failedCalls / totalCalls) * 100) : 0;
         break;
       }
       case 'success_rate': {
-        const completedCalls = calls.filter((c) => (c.status || '').toLowerCase() === 'completed').length;
+        const completedCalls = countWhere((s) => s === 'completed');
         metricValue = totalCalls > 0 ? Math.round((completedCalls / totalCalls) * 100) : 100;
         break;
       }
       case 'cost': {
-        const totalDurationSec = calls.reduce((acc, c) => acc + (c.durationSeconds || 0), 0);
+        const totalDurationSec = byStatus.reduce((acc, g) => acc + (g._sum.durationSeconds || 0), 0);
         metricValue = Math.round((totalDurationSec / 60) * 0.05 * 100) / 100;
         break;
       }
       case 'sentiment_score': {
-        const positiveCalls = calls.filter((c) => (c.sentiment || '').toLowerCase().includes('positive')).length;
+        const positiveCalls = totalCalls > 0
+          ? await prisma.call.count({ where: { ...where, sentiment: { contains: 'positive', mode: 'insensitive' } } })
+          : 0;
         metricValue = totalCalls > 0 ? Math.round((positiveCalls / totalCalls) * 100) : 100;
         break;
       }

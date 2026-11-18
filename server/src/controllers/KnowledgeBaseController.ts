@@ -1,3 +1,4 @@
+import { ssrfSafeDispatcher } from '../utils/ssrfValidator';
 import { Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthenticatedRequest } from '../middleware/auth';
@@ -159,6 +160,7 @@ async function fetchPublicPage(rawUrl: string): Promise<{ finalUrl: string; body
       let response: globalThis.Response;
       try {
         response = await fetch(safe.toString(), {
+          ...({ dispatcher: ssrfSafeDispatcher } as object), // connect-time SSRF check (DNS rebinding)
           signal: controller.signal,
           redirect: 'manual',
           headers: { 'User-Agent': 'ClaritiyVoiceBot/1.0', Accept: 'text/html,text/plain;q=0.9' },

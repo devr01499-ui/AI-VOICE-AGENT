@@ -105,3 +105,6 @@ Sizes: App.tsx 8378 · SinglePromptStudio.tsx 4636 · VisualFlowCanvas.tsx 1648 
 - S/index.ts: helmet L88-122, CORS L136-158, parsers L160-166, general limiter L324, mounts L330-353, admin gate L356-366, error handler L383, WS auth L530-610, listen L664-756, shutdown L758-808
 - S/middleware/auth.ts L21/L230/L247; requireStaff.ts L41 (MFA L115-118); S/utils/ssrfValidator.ts L148, L240; S/config/env.ts L14-143
 - CI: `.github/workflows/call-path-e2e.yml`, `deploy-render.yml` (no typecheck/build/test workflow yet)
+
+## Security (Phase 12)
+- S/utils/ssrfValidator.ts `ssrfSafeDispatcher` (connect-time IP check; used by WebhookDispatcher, McpService, ToolExecutor, KnowledgeBaseController); S/config/cors.ts `isAllowedCorsOrigin`; S/config/limits.ts (ws maxPayload); S/utils/destinationPolicy.ts `checkOutboundDestination` (CallService.createCall); S/utils/agentOwnership.ts `ownedAgentIdOrNull`; calendar.ts `ownsAgent`; S/utils/logger.ts `redactLogMeta`; S/config/env.ts `auditSecretConfiguration`; rateLimiter.ts `callActionLimiter`. Test: S/scripts/test_security_hardening.js.

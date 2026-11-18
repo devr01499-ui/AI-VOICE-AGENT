@@ -8,7 +8,7 @@ import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { EncryptionService } from '../utils/EncryptionService';
-import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
+import { sensitiveOperationsLimiter, callActionLimiter } from '../middleware/rateLimiter';
 import { requireAuth } from '../middleware/auth';
 import { requireCallingMinutes, requireActivePlan } from '../middleware/planValidation';
 import { getWebhookSigningSecret } from '../utils/security';
@@ -395,6 +395,7 @@ router.get(
 /** POST /api/v2/calls/:callId/terminate — End an active call. */
 router.post(
   '/:callId/terminate',
+  callActionLimiter,
   validateParams(callIdParamSchema),
   async (req, res, next) => {
     const userId = getUserIdFromRequest(req);
@@ -441,6 +442,7 @@ router.get(
 /** POST /api/v2/calls/:callId/transcript-ticket — Issue a short-lived ticket to connect to the live transcript WebSocket stream. */
 router.post(
   '/:callId/transcript-ticket',
+  callActionLimiter,
   validateParams(callIdParamSchema),
   async (req, res) => {
     try {
@@ -526,6 +528,7 @@ router.post(
 /** DELETE /api/v2/calls/:callId — Permanently delete a call log and its child executions. */
 router.delete(
   '/:callId',
+  callActionLimiter,
   validateParams(callIdParamSchema),
   async (req, res, next) => {
     try {

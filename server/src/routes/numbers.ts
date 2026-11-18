@@ -782,7 +782,7 @@ router.delete('/:id', requireAuth, requireEditor, sensitiveOperationsLimiter, as
  * Admin-only status toggle flipping status to "active".
  * Scoped by admin role, looking up the number by id only (not owner userId), with audit logging.
  */
-router.patch('/:id/activate', requireAuth, async (req, res, next) => {
+router.patch('/:id/activate', requireAuth, sensitiveOperationsLimiter, async (req, res, next) => {
   try {
     const adminUserId = (req as any).userId;
     const adminUser = await prisma.user.findUnique({ where: { id: adminUserId } });
@@ -900,7 +900,7 @@ router.get('/pending-activations', requireAuth, async (req, res, next) => {
  *    A number becomes active automatically when (KYC verified OR number does not require KYC) AND walletFundedAt is set.
  * 3. Audit-logs who marked it and what was activated.
  */
-router.post('/:id/mark-funded-and-activate', requireAuth, async (req, res, next) => {
+router.post('/:id/mark-funded-and-activate', requireAuth, sensitiveOperationsLimiter, async (req, res, next) => {
   try {
     const adminUserId = (req as any).userId;
     const adminUser = await prisma.user.findUnique({ where: { id: adminUserId } });

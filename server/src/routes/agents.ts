@@ -133,6 +133,7 @@ router.post(
   '/conversational-builder',
   requireAuth,
   requireEditor,
+  aiFeatureLimiter,
   requireActivePlanOrBYOK,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -253,6 +254,7 @@ router.post(
   '/optimize',
   requireAuth,
   requireEditor,
+  aiFeatureLimiter,
   requireActivePlanOrBYOK,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -877,6 +879,7 @@ router.delete(
   '/:agentId',
   requireAuth,
   requireEditor,
+  agentWriteLimiter,
   validateParams(agentIdParamSchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -984,6 +987,7 @@ router.post(
   '/:agentId/chat',
   requireAuth,
   requireEditor,
+  agentWriteLimiter,
   validateParams(agentIdParamSchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -1059,6 +1063,7 @@ router.post(
   '/test-prompt',
   requireAuth,
   requireEditor,
+  aiFeatureLimiter,
   async (req: Request, res: Response): Promise<void> => {
     try {
       const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;
@@ -1184,6 +1189,7 @@ router.post(
   '/prompt-coach/generate',
   requireAuth,
   requireEditor,
+  aiFeatureLimiter,
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { PromptCoachGenerateRequestSchema } = await import('../types/promptCoach');

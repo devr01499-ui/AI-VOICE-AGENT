@@ -9,7 +9,7 @@ import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { getWebhookSigningSecret } from '../utils/security';
 import { scheduleCall, cancelBooking, rescheduleBooking } from '../lib/calendar/scheduler';
-import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
+import { sensitiveOperationsLimiter, agentWriteLimiter } from '../middleware/rateLimiter';
 import { requireCallingMinutes } from '../middleware/planValidation';
 import { CallService } from '../services/CallService';
 import { prepareBatchRecipients, MAX_BATCH_RECIPIENTS } from '../services/BatchService';
@@ -96,7 +96,7 @@ function validateAndConsumeState(stateBase64: string): {
  * POST /api/v2/calendar/link-from-signin
  * Links Google Calendar from OAuth provider refresh token received during 1-click Google Sign-in.
  */
-router.post('/link-from-signin', requireAuth, async (req, res) => {
+router.post('/link-from-signin', requireAuth, sensitiveOperationsLimiter, async (req, res) => {
   try {
     const userId = (req as any).userId || getUserIdFromRequest(req);
     const workspaceId = (req as any).effectiveWorkspaceId || userId;
@@ -217,7 +217,7 @@ router.post('/link-from-signin', requireAuth, async (req, res) => {
  * Returns a signed, single-use Google OAuth URL with least-privilege scopes.
  * Restricted to workspace owners and administrators.
  */
-router.post('/connect-url', requireAuth, (req, res) => {
+router.post('/connect-url', requireAuth, sensitiveOperationsLimiter, (req, res) => {
   try {
     const clientId = process.env.GOOGLE_CLIENT_ID || env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET || env.GOOGLE_CLIENT_SECRET;
@@ -449,7 +449,7 @@ router.get('/status', requireAuth, async (req, res) => {
  * DELETE /api/v2/calendar/disconnect
  * Disconnects the Google Calendar: revokes token at Google (best effort) and purges database records.
  */
-router.delete('/disconnect', requireAuth, async (req, res) => {
+router.delete('/disconnect', requireAuth, sensitiveOperationsLimiter, async (req, res) => {
   try {
     const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId || getUserIdFromRequest(req);
     const role = (req as any).workspaceRole || 'admin';
@@ -513,7 +513,7 @@ router.delete('/disconnect', requireAuth, async (req, res) => {
  * DELETE /api/v2/calendar
  * Root path alias for disconnect.
  */
-router.delete('/', requireAuth, async (req, res) => {
+router.delete('/', requireAuth, sensitiveOperationsLimiter, async (req, res) => {
   try {
     const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId || getUserIdFromRequest(req);
     const role = (req as any).workspaceRole || 'admin';
@@ -569,6 +569,19 @@ router.delete('/', requireAuth, async (req, res) => {
 });
 
 /**
+ * Tenant isolation for per-agent calendar settings: the agent must belong to the caller's workspace
+ * (or to the caller). Before this check any signed-in user could read or overwrite another
+ * customer's scheduling rule, including the free-text instructions the agent follows on calls.
+ */
+async function ownsAgent(req: any, agentId: unknown): Promise<boolean> {
+  if (typeof agentId !== 'string' || !agentId) return false;
+  const owners = Array.from(new Set([req.effectiveWorkspaceId, req.userId, getUserIdFromRequest(req)].filter((v): v is string => typeof v === 'string' && v.length > 0)));
+  if (owners.length === 0) return false;
+  const agent = await prisma.agent.findFirst({ where: { id: agentId, userId: { in: owners } }, select: { id: true } });
+  return Boolean(agent);
+}
+
+/**
  * GET /api/v2/calendar/rules/:agentId
  * Get scheduling rules for a specific agent.
  */
@@ -576,6 +589,9 @@ router.get('/rules/:agentId', requireAuth, async (req, res) => {
   try {
     const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId || getUserIdFromRequest(req);
     const agentId = Array.isArray(req.params.agentId) ? req.params.agentId[0] : req.params.agentId;
+    if (!(await ownsAgent(req, agentId))) {
+      return res.status(404).json({ success: false, error: 'Agent not found' });
+    }
     const rule = await CalendarService.getSchedulingRule(agentId, workspaceId);
     res.json({ success: true, rule });
   } catch (err: any) {
@@ -587,14 +603,16 @@ router.get('/rules/:agentId', requireAuth, async (req, res) => {
  * POST /api/v2/calendar/rules/:agentId
  * Update or create scheduling rules for a specific agent.
  */
-router.post('/rules/:agentId', requireAuth, async (req, res) => {
+router.post('/rules/:agentId', requireAuth, agentWriteLimiter, async (req, res) => {
   try {
-    const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId || getUserIdFromRequest(req);
     const agentId = Array.isArray(req.params.agentId) ? req.params.agentId[0] : req.params.agentId;
     const role = (req as any).workspaceRole || 'admin';
 
     if (role === 'viewer' || role === 'analyst') {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to edit scheduling rules.' });
+    }
+    if (!(await ownsAgent(req, agentId))) {
+      return res.status(404).json({ success: false, error: 'Agent not found' });
     }
 
     const {
@@ -662,7 +680,7 @@ router.post('/rules/:agentId', requireAuth, async (req, res) => {
  * POST /api/v2/calendar/rules/:agentId/parse-instructions
  * Parses natural language instructions into structured scheduling rules.
  */
-router.post('/rules/:agentId/parse-instructions', requireAuth, async (req, res) => {
+router.post('/rules/:agentId/parse-instructions', requireAuth, agentWriteLimiter, async (req, res) => {
   try {
     const { instructions } = req.body;
     if (!instructions || typeof instructions !== 'string') {
@@ -752,10 +770,14 @@ router.post('/rules/:agentId/parse-instructions', requireAuth, async (req, res) 
  * POST /api/v2/calendar/slots
  * Evaluates real-time availability and returns top 3 available appointment slots.
  */
-router.post('/slots', requireAuth, async (req, res) => {
+router.post('/slots', requireAuth, agentWriteLimiter, async (req, res) => {
   try {
     const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId || getUserIdFromRequest(req);
     const { agentId, fromDate, toDate, partOfDay, durationMinutes } = req.body;
+    // An agentId is optional (workspace defaults are used without one); when given it must be ours.
+    if (agentId !== undefined && agentId !== null && agentId !== '' && !(await ownsAgent(req, agentId))) {
+      return res.status(404).json({ success: false, error: 'Agent not found' });
+    }
     const slots = await CalendarService.getFreeSlots(workspaceId, agentId, {
       fromDate,
       toDate,

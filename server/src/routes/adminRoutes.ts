@@ -2032,7 +2032,7 @@ adminRouter.get('/provisioning-alerts', requireStaff('customers:view'), async (r
  * POST /api/v2/admin/orders/:orderId/retry
  * Resets a failed phone number order for retry.
  */
-adminRouter.post('/orders/:orderId/retry', requireStaff('customers:view'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+adminRouter.post('/orders/:orderId/retry', requireStaff('numbers:activate') /* changes order state: write permission, not view */, async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const orderId = String(req.params.orderId);
     const order = await prisma.phoneNumberOrder.findUnique({ where: { id: orderId } });

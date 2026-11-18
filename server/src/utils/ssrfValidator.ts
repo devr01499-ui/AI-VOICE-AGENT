@@ -245,3 +245,30 @@ export async function isSafeUrl(urlString: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * DNS-rebinding protection (P10). assertSafeUrl checks the addresses a hostname resolves to, but
+ * fetch used to resolve the name AGAIN when connecting, so a hostile DNS server could answer
+ * "public IP" to the check and "127.0.0.1 / 169.254.169.254" to the connection. This dispatcher
+ * re-checks every address at the moment of connecting; pass it as `dispatcher` to fetch for any
+ * URL that came from a customer (custom functions, webhooks, MCP servers, knowledge-base URLs).
+ */
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { Agent } = require('undici');
+export const ssrfSafeDispatcher = new Agent({
+  connect: {
+    lookup(hostname: string, options: any, callback: (...args: any[]) => void) {
+      dns.lookup(hostname, { all: true }, (err, addresses) => {
+        if (err) return callback(err);
+        const list = Array.isArray(addresses) ? addresses : [];
+        const blocked = list.find((a: any) => isRestrictedIp(a.address).isRestricted);
+        if (!list.length || blocked) {
+          logger.warn('SSRF defense blocked a connection at connect time (possible DNS rebinding)', { hostname, address: blocked?.address });
+          return callback(new AppError(400, 'SSRF_BLOCKED', `Connection to ${hostname} blocked: it resolves to a restricted address.`));
+        }
+        if (options && options.all) return callback(null, list);
+        return callback(null, list[0].address, list[0].family);
+      });
+    },
+  },
+});

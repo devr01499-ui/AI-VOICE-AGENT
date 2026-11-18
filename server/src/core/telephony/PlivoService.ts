@@ -2,6 +2,7 @@ import { env } from '../../config/env';
 import { prisma } from '../../lib/prisma';
 import { logger } from '../../utils/logger';
 import { EncryptionService } from '../../utils/EncryptionService';
+import { ownedAgentIdOrNull } from '../../utils/agentOwnership';
 
 export interface PlivoNumberItem {
   id: string;
@@ -337,7 +338,7 @@ export class PlivoService {
       data: {
         userId,
         phoneNumber: number,
-        assignedAgentId: agentId || null,
+        assignedAgentId: await ownedAgentIdOrNull(userId, agentId), // tenant isolation
         countryCode: 'IN',
         region: region || 'India Local',
         type: 'local',
