@@ -126,17 +126,17 @@ export class InboundCallService {
         if (!targetAgentId && numberRecord.inboundConfigs && numberRecord.inboundConfigs.length > 0) {
           targetAgentId = numberRecord.inboundConfigs[0].agentId || null;
         }
+        if (targetAgentId && !(await prisma.agent.findFirst({ where: { id: targetAgentId, userId: user.id }, select: { id: true } }))) {
+          targetAgentId = null; // never link this tenant's call row to another customer's agent
+        }
         if (!targetAgentId) {
           const fallbackAgent = await prisma.agent.findFirst({
             where: { userId: user.id }
           });
           targetAgentId = fallbackAgent?.id || null;
         }
-        if (!targetAgentId) {
-          const anyAgent = await prisma.agent.findFirst();
-          targetAgentId = anyAgent?.id || null;
-        }
-
+        // No "any agent in the database" fallback: that linked this tenant's blocked call to another
+        // customer's agent (cross-tenant data). Without an own agent the row is simply not recorded.
         if (!targetAgentId) {
           logger.warn('InboundCallService: Cannot record blocked call row because no agent exists in database', { callUuid });
           return undefined;
@@ -352,6 +352,19 @@ export class InboundCallService {
         const activeInboundConfig = numberRecord.inboundConfigs[0];
         if (activeInboundConfig.agentId) {
           targetAgentId = activeInboundConfig.agentId;
+        }
+      }
+
+      // Tenant isolation: an inbound call may only run an agent owned by the number's owner. Number
+      // rows written before the Phase 12 fix could point at another customer's agent.
+      if (targetAgentId) {
+        const owned = await prisma.agent.findFirst({ where: { id: targetAgentId, userId: user.id }, select: { id: true } });
+        if (!owned) {
+          logger.warn('InboundCallService: Assigned agent does not belong to the number owner; ignoring it', {
+            userId: user.id,
+            numberId: numberRecord.id,
+          });
+          targetAgentId = null;
         }
       }
 

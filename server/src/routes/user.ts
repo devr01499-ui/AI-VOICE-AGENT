@@ -9,6 +9,28 @@ import { normalizeEmail, isDisposableEmail, isValidEmail } from '../utils/emailN
 import { signupLimiter, authIpThrottleDelay, sensitiveOperationsLimiter, notificationActionLimiter } from '../middleware/rateLimiter';
 import { ADMIN_EMAIL } from '../config/constants';
 import { EncryptionService } from '../utils/EncryptionService';
+import { supabaseClient } from '../utils/supabase';
+import { getTrustedClientIp } from '../utils/ipChecker';
+
+/**
+ * Signed-in user id from an optional Bearer token, or null. Used by the public consent route so that
+ * consent is linked to an existing account only when that account's own session sends it.
+ */
+async function optionalVerifiedUserId(req: any): Promise<string | null> {
+  const header = req.headers?.authorization;
+  if (typeof header !== 'string' || !header.startsWith('Bearer ')) return null;
+  const token = header.slice(7).trim();
+  if (!token || token === 'undefined' || token === 'null' || token.startsWith('{')) return null;
+  try {
+    const { data, error } = await supabaseClient.auth.getUser(token);
+    return !error && data?.user?.id ? data.user.id : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Signup-time consent is sent before the account row exists; 5 minutes of tolerance covers slow sign-ups. */
+export const SIGNUP_CONSENT_WINDOW_MS = 5 * 60 * 1000;
 
 const router = Router();
 
@@ -592,7 +614,8 @@ publicUserRouter.post('/consent', signupLimiter, authIpThrottleDelay, async (req
     }
 
     const userAgent = (req.headers['user-agent'] as string) || null;
-    const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || null;
+    // Proxy-validated client IP (the raw X-Forwarded-For first hop is client-controlled).
+    const ipAddress = getTrustedClientIp(req) || null;
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -600,11 +623,17 @@ publicUserRouter.post('/consent', signupLimiter, authIpThrottleDelay, async (req
       select: { id: true },
     });
 
+    // Tenant/legal integrity: an existing account's consent is recorded only when that account's own
+    // session sends it. Anyone else posting this email gets the same answer (no account enumeration),
+    // but the record stays unlinked and does not mark the account as consented.
+    const verifiedUserId = existingUser ? await optionalVerifiedUserId(req) : null;
+    const linkToUser = Boolean(existingUser && verifiedUserId === existingUser.id);
+
     const consentRecord = await prisma.userConsent.create({
       data: {
         email: cleanEmail,
         fullName: fullName?.trim() || null,
-        userId: existingUser?.id || null,
+        userId: linkToUser ? existingUser!.id : null,
         termsAndConditions: true,
         termsOfUse: true,
         privacyPolicy: privacyPolicy !== false,
@@ -614,7 +643,7 @@ publicUserRouter.post('/consent', signupLimiter, authIpThrottleDelay, async (req
       },
     });
 
-    if (existingUser) {
+    if (existingUser && linkToUser) {
       await prisma.user.update({
         where: { id: existingUser.id },
         data: { hasConsentedTerms: true },
@@ -655,7 +684,7 @@ router.get('/consent-status', requireAuth, async (req: AuthenticatedRequest, res
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { email: true, hasConsentedTerms: true },
+      select: { email: true, hasConsentedTerms: true, createdAt: true },
     });
 
     if (!user) {
@@ -667,7 +696,12 @@ router.get('/consent-status', requireAuth, async (req: AuthenticatedRequest, res
     if (!hasConsented) {
       const consentRecord = await prisma.userConsent.findFirst({
         where: {
-          OR: [{ userId }, { email: user.email }],
+          // Own linked consent, or unlinked consent given at signup (before/just after the account was
+          // created). A later unlinked record by email could have been posted by someone else.
+          OR: [
+            { userId },
+            { userId: null, email: user.email, consentedAt: { lte: new Date(user.createdAt.getTime() + SIGNUP_CONSENT_WINDOW_MS) } },
+          ],
         },
       });
       if (consentRecord) {
