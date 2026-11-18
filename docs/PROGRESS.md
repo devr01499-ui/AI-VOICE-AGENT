@@ -11,7 +11,8 @@
 | 6 | B13 billing / payment verification | DONE, merged to `main` 2026-11-18 |
 | 7 | B9 numbers / KYC / carrier activation | DONE, merged to `main` 2026-11-18 |
 | 8 | B10 batch calling | DONE, merged to `main` 2026-11-18 |
-| 9–14 | See CLAUDE.md §13 | not started |
+| 9 | B11 calling config speed, B12 data pages, typecheck 0 | DONE, merged to `main` 2026-11-18 |
+| 10–14 | See CLAUDE.md §13 | not started |
 
 ## PRODUCTION — UNTOUCHABLE (nothing relaxed)
 - `DATABASE_URL` in `server/.env` is production. Never connect; never copy it or any key anywhere. Tests use `TEST_DATABASE_URL` only (RUNBOOK.md); the guard blanks live service keys.
@@ -19,7 +20,7 @@
 - No command text inside double quotes/unquoted backticks; write files with Write/Edit or `<<'EOF'`. Every push to `main` auto-deploys Render and runs `prisma db push` on production (P1).
 
 ## Status of checks (2026-11-18, after Phase 8)
-- Typecheck: server 0; frontend 33 (App.tsx 21, SinglePromptStudio.tsx 12; TS2367 dead settings tabs "audit"/"billing" → Phase 9). Must be 0 by Phase 14.
+- Typecheck: server 0, frontend 0 (since Phase 9).
 - test:security 21 suites all pass on PGlite (DB_POOL_MAX=1) incl. billing 21, number-entitlement 9, batch-compliance 8, kb-rag 20; kb-race 2/2 (native PG); owasp 23/23; payment 16/16; street-smart 32/32 + regression 41/41; m2 37/37; batch b–f pass; browser 110 pass, 1 skipped (live login; run with --workers=1 when RAM is low).
 
 ## Pre-launch items
@@ -33,8 +34,7 @@
 ## Needs owner verification (exact steps)
 1. Password rotation: Supabase → Project Settings → Database → reset; update `DATABASE_URL` on Render and local `server/.env`; check `/live` returns 200.
 2. Render: Settings → Build Command; tell Claude if it matches `render.yaml` and whether the last deploy log shows `prisma db push` succeeding. 3. Vercel: confirm the latest frontend deployment succeeded.
-4. F1 logged-in: sign in, open `/dashboard` in a new tab on "Slow 4G": only the splash, then the dashboard.
-5. Email sign-up on the live site with a new email and Indian mobile; verification email arrives; phone `12345` is refused. 6. Google sign-in with a new Google account lands on the dashboard; exactly one user in the admin list.
+4. F1 logged-in: sign in, open `/dashboard` in a new tab on "Slow 4G": only the splash, then the dashboard. 5. Email sign-up on the live site with a new email and Indian mobile; verification email arrives; phone `12345` is refused. 6. Google sign-in with a new Google account lands on the dashboard; exactly one user in the admin list.
 7. Password reset: email → "Set New Password" → dashboard; old password fails; reusing the link says expired. 8. Supabase → Authentication: redirect URLs include `https://www.claritiy.com/dashboard`; min password length 8; rate limits on.
 9. After Phase 2 is deployed: Render deploy log shows the `notification_receipts` table created; the bell's Delete works on the live site.
 10. "Email on notification" and "mute preferences" (CLAUDE.md §2 of B2): no such code was found on the server. Tell Claude where these live or whether they still need building.
@@ -44,6 +44,7 @@
 14. Razorpay test mode on a staging deploy (test keys, `RAZORPAY_WEBHOOK_SECRET`, webhook per RUNBOOK): buy Starter; on a second try close the tab right after paying. Expected: both activate once; Render log shows webhook 200. Set `COMPANY_GSTIN`; have a CA review COMPLIANCE_NOTES.
 15. Numbers live (after keys): with a paid test account, complete KYC, claim one number; a second claim must be refused; a free account must see "needs an active paid plan".
 16. Batch live: run a 3-contact campaign at 20:55 IST; it pauses at 21:00 and resumes at 09:00 by itself; an opted-out contact is skipped; get legal advice on TRAI DLT/NCPR (COMPLIANCE_NOTES).
+17. Calling Configuration on the live site: open it 5 times; each load should feel instant (<1 s); change an agent — it updates at once.
 
 ## Decisions
 - Checklist = 17 issues + S7, Q8, D9, D10, T0, M0, K0. Zero-open-defects gate in Phase 14. `npm run build` rewrites `Frontend/public/sitemap.xml` dates — `git restore` it.
@@ -56,4 +57,4 @@
 1. Gemini model policy (CLAUDE.md §3). 2. `devr0144@gmail.com` address (§11). 3. Migration Option A or B. 4. When an account loses its paid plan (cancel/downgrade): keep its number working, pause calls on it, or release it after N days? STANDING RULE (§0.6/§12a): merge each verified phase to `main`, push, never ask between phases.
 
 ## Next exact step
-Phase 9 (branch `fix/data-pages`, CLAUDE.md B11 + B12): Calling Configuration speed (DashCallingConfig.tsx loadData/handleUpdate, numbers.ts calling-config L945+), then Call History, Contacts, Analytics, Live Monitoring, AI QA, Call Reports, Alerting audits; TS2367 settings tabs; dead BillingGateway tab.
+Phase 10 (branch `fix/recording`, CLAUDE.md B14 + P7): recording capture per carrier, authenticated short-lived signed playback URLs (CallService L462-474 signs; calls.ts/reports.ts return raw recordingUrl), player with seek/speed/download in Call History + Reports drawer, per-agent recording consent disclosure, plan gating, DataRetentionJob actually scheduled (DPDP).
