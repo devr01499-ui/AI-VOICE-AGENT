@@ -9,6 +9,13 @@
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { logAuditEvent } from '../utils/auditLogger';
+import { deleteCarrierRecording } from './RecordingService';
+
+/** Recordings are kept at most this many days (RECORDING_RETENTION_DAYS, default 90), even without a workspace setting. */
+export function recordingRetentionDays(): number {
+  const n = Number.parseInt(process.env.RECORDING_RETENTION_DAYS || '', 10);
+  return Number.isFinite(n) && n >= 1 ? n : 90;
+}
 
 export class DataRetentionJob {
   private static isRunning = false;
@@ -66,11 +73,20 @@ export class DataRetentionJob {
             userId: user.id,
             createdAt: { lt: cutoffDate },
           },
-          select: { id: true },
+          select: { id: true, recordingUrl: true },
         });
 
-        if (expiredCalls.length > 0) {
-          const callIds = expiredCalls.map((c) => c.id);
+        // A call whose recording cannot be deleted at the carrier is kept (and retried next run),
+        // so no recording is left behind without a record of it.
+        const deletable: typeof expiredCalls = [];
+        for (const c of expiredCalls) {
+          if (!c.recordingUrl || !/^https:/.test(c.recordingUrl)) { deletable.push(c); continue; }
+          if (await deleteCarrierRecording(c.recordingUrl)) deletable.push(c);
+          else logger.error('[ADMIN_ALERT][DPDP] carrier recording could not be deleted; call kept for retry', { callId: c.id, userId: user.id });
+        }
+
+        if (deletable.length > 0) {
+          const callIds = deletable.map((c) => c.id);
 
           await prisma.transcriptSegment.deleteMany({
             where: { callId: { in: callIds } },
@@ -135,6 +151,30 @@ export class DataRetentionJob {
       this.isRunning = false;
     }
 
+    await this.purgeExpiredRecordings().catch((err) => logger.error('DataRetentionJob: recording purge failed', { error: err?.message }));
     return { processedWorkspaces, totalPurgedCalls };
+  }
+
+  /** Deletes recordings older than the recording retention period (carrier first, then our link). */
+  static async purgeExpiredRecordings(now = Date.now()): Promise<{ deleted: number; failed: number }> {
+    const cutoff = new Date(now - recordingRetentionDays() * 86400 * 1000);
+    const calls = await prisma.call.findMany({
+      where: { recordingUrl: { not: null }, createdAt: { lt: cutoff } },
+      select: { id: true, userId: true, recordingUrl: true },
+      take: 200,
+    });
+    let deleted = 0; let failed = 0;
+    for (const c of calls) {
+      const isCarrier = !!c.recordingUrl && /^https:/.test(c.recordingUrl);
+      if (isCarrier && !(await deleteCarrierRecording(c.recordingUrl!))) {
+        failed++;
+        logger.error('[ADMIN_ALERT][DPDP] expired recording could not be deleted at the carrier', { callId: c.id, userId: c.userId });
+        continue;
+      }
+      await prisma.call.updateMany({ where: { id: c.id, userId: c.userId }, data: { recordingUrl: null } });
+      deleted++;
+    }
+    if (deleted || failed) logger.info('DataRetentionJob: recording retention run', { deleted, failed, retentionDays: recordingRetentionDays() });
+    return { deleted, failed };
   }
 }

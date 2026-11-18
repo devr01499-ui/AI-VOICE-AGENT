@@ -11,6 +11,7 @@
  */
 
 import { sanitizeCsvCell as sharedSanitizeCsvCell } from '../utils/csv';
+import { isAllowedRecordingUrl } from '../services/RecordingService';
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
@@ -189,7 +190,8 @@ router.get('/', async (req: Request, res: Response, next: NextFunction): Promise
           businessNumber,
           status: r.call?.status || r.status,
           durationSeconds: r.call?.durationSeconds || 0,
-          recordingUrl: r.call?.recordingUrl || null,
+          recordingUrl: null,
+          hasRecording: isAllowedRecordingUrl(r.call?.recordingUrl),
           startedAt: r.call?.startTime ? r.call.startTime.toISOString() : undefined,
           endedAt: r.call?.endTime ? r.call.endTime.toISOString() : undefined,
           agent: r.call?.agent ? { id: r.call.agent.id, name: r.call.agent.name } : null,
@@ -613,7 +615,8 @@ router.get('/:callId', async (req: Request, res: Response, next: NextFunction): 
         businessNumber,
         status: result.call?.status || result.status,
         durationSeconds: result.call?.durationSeconds || 0,
-        recordingUrl: result.call?.recordingUrl || null,
+        recordingUrl: null,
+        hasRecording: isAllowedRecordingUrl(result.call?.recordingUrl),
         startedAt: result.call?.startTime ? result.call.startTime.toISOString() : undefined,
         endedAt: result.call?.endTime ? result.call.endTime.toISOString() : undefined,
         transcript,

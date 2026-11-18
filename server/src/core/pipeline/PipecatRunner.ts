@@ -3,7 +3,6 @@ import { GeminiLiveLLMService } from './pipecat/gemini';
 import { logger } from '../../utils/logger';
 import { convertInboundAudio, convertOutboundAudio, convertOutboundAudioStateful, StreamingResampler24to16 } from '../../utils/audioConverter';
 import { eventBus, PROVIDER_EVENTS } from '../provider-sdk/provider.events';
-import { supabaseClient } from '../../utils/supabase';
 
 export class PipecatRunner {
   private readonly pipeline: Pipeline;
@@ -11,7 +10,6 @@ export class PipecatRunner {
   private readonly isRecordingEnabled: boolean;
   private readonly userId: string;
   private readonly agentId: string;
-  private audioChunks: Buffer[] = [];
   private readonly outboundResampler = new StreamingResampler24to16();
 
   constructor(
@@ -40,10 +38,6 @@ export class PipecatRunner {
       userId: config.userId,
       isRecordingEnabled: this.isRecordingEnabled,
     });
-
-    if (this.isRecordingEnabled) {
-      logger.info('PipecatRunner: Call recording enabled in memory.');
-    }
 
     // 2. SECURE THE MULTIMODAL PROVIDER BUS
     this.geminiService = new GeminiLiveLLMService({
@@ -80,19 +74,8 @@ export class PipecatRunner {
 
     // 4. REAL-TIME RETURN AUDIO ROUTING
     // Catch Gemini's returned native audio frames and stream the binary buffers directly down the Vobiz socket
-    const MAX_RECORDING_CHUNKS = 5000; // ~100MB safety boundary per call session
     this.pipeline.addOutputSink((frame: { type: string; data: Buffer }) => {
       if (frame && frame.type === 'audio' && frame.data) {
-        // Record output audio stream if active
-        if (this.isRecordingEnabled) {
-          if (this.audioChunks.length < MAX_RECORDING_CHUNKS) {
-            this.audioChunks.push(frame.data);
-          } else if (this.audioChunks.length === MAX_RECORDING_CHUNKS) {
-            logger.warn('PipecatRunner: Call recording buffer safety limit reached (5000 chunks). Buffer capped to prevent OOM.', { callId: this.callId });
-            this.audioChunks.push(frame.data); // Final boundary chunk
-          }
-        }
-
         const telephonyCompressed = (process.env.RESAMPLER_V2 === 'true')
           ? convertOutboundAudioStateful(this.outboundResampler, frame.data)
           : convertOutboundAudio(frame.data);
@@ -104,11 +87,6 @@ export class PipecatRunner {
   handleInboundAudio(audioBase64: string, format?: string): void {
     const base64Str = convertInboundAudio(audioBase64, format);
     const buffer = Buffer.from(base64Str, 'base64');
-
-    // Record input audio stream if active
-    if (this.isRecordingEnabled && this.audioChunks.length < 5000) {
-      this.audioChunks.push(buffer);
-    }
 
     this.pipeline.pushInputFrame({
       type: 'audio',
@@ -151,41 +129,7 @@ export class PipecatRunner {
   async stop(): Promise<void> {
     logger.info('PipecatRunner: stopping pipeline execution', { callId: this.callId });
     
-    if (this.isRecordingEnabled && this.audioChunks.length > 0) {
-      const audioBuffer = Buffer.concat(this.audioChunks);
-      const bucketPath = `${this.userId}/${this.callId}.pcm`;
-      logger.info('PipecatRunner: Uploading call recording memory buffer to Supabase storage', { bucketPath, sizeBytes: audioBuffer.length });
-
-      try {
-        const { data, error } = await supabaseClient
-          .storage
-          .from('call-recordings')
-          .upload(bucketPath, audioBuffer, {
-            contentType: 'audio/x-pcm',
-            upsert: true
-          });
-
-        if (error) {
-          logger.error('PipecatRunner: Supabase storage upload failed', { error: error.message });
-        } else {
-          logger.info('PipecatRunner: Supabase storage upload successful', { path: data?.path });
-          import('../../repositories/CallRepository').then(({ CallRepository }) => {
-            if (data?.path) {
-              CallRepository.update(this.callId, { recordingUrl: data.path }).catch(err => {
-                logger.error('PipecatRunner: Failed to update Call recordingUrl', { error: String(err) });
-              });
-              CallRepository.updateExecution(this.callId, { recordingUrl: data.path }).catch(err => {
-                logger.error('PipecatRunner: Failed to update Execution recordingUrl', { error: String(err) });
-              });
-            }
-          }).catch(err => {
-            logger.error('PipecatRunner: Failed to load CallRepository', { error: String(err) });
-          });
-        }
-      } catch (err) {
-        logger.error('PipecatRunner: Exception during Supabase storage upload', { error: String(err) });
-      }
-    }
+    // Recording is done by the carrier (RecordingService); nothing is captured or uploaded here.
 
     await this.pipeline.stop();
   }
