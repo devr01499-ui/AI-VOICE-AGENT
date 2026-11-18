@@ -11,6 +11,27 @@ export interface GenerateInvoiceParams {
   minutesCredited: number;
 }
 
+/** Escapes text for HTML (customer names and plan names are user/admin controlled). */
+export function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/** Indian financial year (April–March) in IST, e.g. "FY26-27" for 2026-11-18. */
+export function financialYearLabel(date: Date = new Date()): string {
+  const ist = new Date(date.getTime() + 5.5 * 3600 * 1000);
+  const y = ist.getUTCFullYear();
+  const start = ist.getUTCMonth() >= 3 ? y : y - 1;
+  return `FY${String(start % 100).padStart(2, '0')}-${String((start + 1) % 100).padStart(2, '0')}`;
+}
+
+/** GST split: CGST+SGST when supplier and recipient GSTINs are in the same state, else IGST. */
+export function gstSplit(sellerGstin: string | null | undefined, buyerGstin: string | null | undefined): 'intra' | 'inter' | 'unknown' {
+  if (!sellerGstin || !buyerGstin) return 'unknown';
+  return sellerGstin.slice(0, 2) === buyerGstin.slice(0, 2) ? 'intra' : 'inter';
+}
+
 export class InvoiceService {
   /**
    * Generates a sequential GST-compliant invoice record atomically.
@@ -39,19 +60,18 @@ export class InvoiceService {
       if (!user) throw new Error(`USER_NOT_FOUND: User ${userId} not found.`);
 
       const buyerGstin = user.companyGstin || user.kycDocuments[0]?.gstin || null;
-      const sellerGstin = process.env.COMPANY_GSTIN || '27AAACC1206D1ZM'; // Configurable via environment
+      // The company's own GSTIN, from configuration only. (A hard-coded fallback used to print a
+      // GSTIN that is not ours on every invoice.) Without it the document is a receipt, not a tax invoice.
+      const sellerGstin = (process.env.COMPANY_GSTIN || '').trim().toUpperCase() || null;
+      if (!sellerGstin) logger.error('[INVOICE] COMPANY_GSTIN is not configured: issuing a payment receipt, not a tax invoice');
 
-      // Sequential Invoice Number: CLR-YYYY-XXXX
-      const currentYear = new Date().getFullYear();
-      const countThisYear = await prismaTx.invoice.count({
-        where: {
-          createdAt: {
-            gte: new Date(`${currentYear}-01-01T00:00:00.000Z`),
-          },
-        },
-      });
-      const sequence = String(countThisYear + 1).padStart(4, '0');
-      const invoiceNumber = `CLR-${currentYear}-${sequence}`;
+      // Consecutive number per Indian financial year (GST rule 46), e.g. CLR-FY26-27-0001.
+      // A transaction-scoped lock makes concurrent purchases take numbers one after another
+      // (a plain count gave two purchases the same number and failed the second one).
+      await prismaTx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtext($1))', 'invoice_number_sequence');
+      const prefix = `CLR-${financialYearLabel()}-`;
+      const countThisYear = await prismaTx.invoice.count({ where: { invoiceNumber: { startsWith: prefix } } });
+      const invoiceNumber = `${prefix}${String(countThisYear + 1).padStart(4, '0')}`;
 
       // GST Calculation (18% inclusive SaaS standard in India)
       const gstRate = 18.0;
@@ -111,11 +131,22 @@ export class InvoiceService {
    * Generates a printable HTML receipt representation for user download.
    */
   static generateInvoiceHtml(invoice: any) {
+    const e = escapeHtml;
+    const isTaxInvoice = Boolean(invoice.sellerGstin);
+    const title = isTaxInvoice ? 'TAX INVOICE' : 'PAYMENT RECEIPT';
+    const split = gstSplit(invoice.sellerGstin, invoice.buyerGstin);
+    const gst = Number(invoice.gstAmountInr || 0);
+    const half = (gst / 2).toFixed(2);
+    const taxRows = split === 'intra'
+      ? `<div class="total-row"><span>CGST (${Number(invoice.gstRate) / 2}%):</span><span>₹${half}</span></div><div class="total-row"><span>SGST (${Number(invoice.gstRate) / 2}%):</span><span>₹${(gst - Number(half)).toFixed(2)}</span></div>`
+      : split === 'inter'
+        ? `<div class="total-row"><span>IGST (${Number(invoice.gstRate)}%):</span><span>₹${gst.toFixed(2)}</span></div>`
+        : `<div class="total-row"><span>GST (${Number(invoice.gstRate)}%):</span><span>₹${gst.toFixed(2)}</span></div>`;
     return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Tax Invoice - ${invoice.invoiceNumber}</title>
+  <title>${title} - ${e(invoice.invoiceNumber)}</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 40px; color: #1e293b; line-height: 1.5; }
     .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; }
@@ -142,8 +173,8 @@ export class InvoiceService {
       <div style="font-size: 13px; color: #64748b; margin-top: 4px;">Conversational AI Telephony Platform</div>
     </div>
     <div class="meta">
-      <div class="invoice-title">TAX INVOICE</div>
-      <div><strong>Invoice #:</strong> ${invoice.invoiceNumber}</div>
+      <div class="invoice-title">${title}</div>
+      <div><strong>${isTaxInvoice ? 'Invoice' : 'Receipt'} #:</strong> ${e(invoice.invoiceNumber)}</div>
       <div><strong>Date:</strong> ${new Date(invoice.createdAt).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</div>
       <div><strong>Status:</strong> <span style="color: #16a34a; font-weight: 600;">PAID</span></div>
     </div>
@@ -153,14 +184,14 @@ export class InvoiceService {
     <div class="section">
       <h3>Supplier Details</h3>
       <div><strong>Claritiy Voice Telephony Services</strong></div>
-      <div>GSTIN: ${invoice.sellerGstin || 'Pending Registration'}</div>
+      <div>GSTIN: ${isTaxInvoice ? e(invoice.sellerGstin) : 'Not registered (receipt only)'}</div>
       <div>India</div>
     </div>
     <div class="section">
       <h3>Customer Details</h3>
-      <div><strong>${invoice.buyerName}</strong></div>
-      <div>${invoice.buyerEmail}</div>
-      ${invoice.buyerGstin ? `<div>GSTIN: <strong>${invoice.buyerGstin}</strong></div>` : '<div>Unregistered Consumer (B2C)</div>'}
+      <div><strong>${e(invoice.buyerName)}</strong></div>
+      <div>${e(invoice.buyerEmail)}</div>
+      ${invoice.buyerGstin ? `<div>GSTIN: <strong>${e(invoice.buyerGstin)}</strong></div>` : '<div>Unregistered Consumer (B2C)</div>'}
     </div>
   </div>
 
@@ -177,7 +208,7 @@ export class InvoiceService {
     <tbody>
       <tr>
         <td>
-          <strong>${invoice.planName} Plan</strong><br />
+          <strong>${e(invoice.planName)} Plan</strong><br />
           <span style="font-size: 12px; color: #64748b;">SAC Code: 998413 (Telecommunications Services)</span>
         </td>
         <td class="text-right">${invoice.minutesCredited} mins</td>
@@ -193,10 +224,7 @@ export class InvoiceService {
       <span>Subtotal (Net):</span>
       <span>₹${invoice.subtotalInr.toFixed(2)}</span>
     </div>
-    <div class="total-row">
-      <span>IGST / CGST+SGST (${invoice.gstRate}%):</span>
-      <span>₹${invoice.gstAmountInr.toFixed(2)}</span>
-    </div>
+    ${taxRows}
     <div class="total-row grand">
       <span>Total Paid:</span>
       <span>₹${invoice.amountInr.toFixed(2)}</span>
@@ -204,7 +232,7 @@ export class InvoiceService {
   </div>
 
   <div class="footer">
-    This is a computer-generated tax invoice and requires no physical signature. Claritiy Voice Platform.
+    This is a computer-generated ${isTaxInvoice ? 'tax invoice' : 'payment receipt'} and requires no physical signature. Claritiy Voice Platform.
   </div>
 </body>
 </html>`;
