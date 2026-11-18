@@ -72,6 +72,28 @@ async function main() {
     assert.deepStrictEqual(resolveRetryPolicy('not json'), { maxAttempts: 3, retryIntervalMs: 30 * 60 * 1000 });
   });
 
+  await test('contact lists: Indian mobiles only, duplicates dropped, opted-out numbers removed in any format', async () => {
+    const { prepareBatchRecipients } = require('../dist/services/BatchService');
+    const p = prepareBatchRecipients(
+      ['98123 45678', '+91 9812345678', '09812345678', { phoneNumber: '7012345678', name: 'Asha' }, '+1 415 555 0100', '12345', '+44 20 7946 0958', '9000000001', { phone: '8000000002', note: 'x'.repeat(3000) }],
+      ['+919000000001'] // stored with +91; uploaded without — used to slip through
+    );
+    assert.deepStrictEqual(p.accepted.map((r) => r.phoneNumber), ['+919812345678', '+917012345678']);
+    assert.strictEqual(p.accepted[1].name, 'Asha', 'per-contact data kept');
+    assert.strictEqual(p.duplicates, 2);
+    assert.strictEqual(p.optedOut, 1);
+    assert.strictEqual(p.invalid, 4, 'US, short, UK numbers and oversized contact data refused');
+  });
+
+  await test('campaign creation: size cap, account-scoped idempotency, prepared list is what gets stored', async () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '../src/routes/calendar.ts'), 'utf8');
+    const route = src.slice(src.indexOf("router.post('/batches'"), src.indexOf("router.post('/batches'") + 12000);
+    assert.ok(route.includes('where: { idempotencyKey, userId }'), 'idempotency lookup must be scoped to the account');
+    assert.ok(route.includes('recipients.length > MAX_BATCH_RECIPIENTS'));
+    assert.ok(route.includes('prepareBatchRecipients(recipients'));
+    assert.ok(!/optedOutDigitsSet/.test(route), 'old raw-digit opt-out matching removed');
+  });
+
   // Fixture for recovery tests.
   const userId = crypto.randomUUID();
   await prisma.user.create({ data: { id: userId, email: `${userId}@example.org`, fullName: 'Batch Test', passwordHash: 'x', accountType: 'starter' } });

@@ -44,6 +44,51 @@ export const MAX_ATTEMPTS_CAP = 3;
 export const MIN_RETRY_INTERVAL_MS = 10 * 60 * 1000;
 const ACTIVE_CALL_STATUSES = ['queued', 'ringing', 'in_progress', 'initiated', 'answered'];
 
+/** Largest contact list one campaign may hold (one database write; split bigger lists). */
+export const MAX_BATCH_RECIPIENTS = 5000;
+const MAX_RECIPIENT_DATA_BYTES = 2048;
+
+export interface PreparedRecipients {
+  accepted: Array<Record<string, unknown> & { phoneNumber: string }>;
+  invalid: number;
+  duplicates: number;
+  optedOut: number;
+}
+
+/**
+ * Turns an uploaded contact list into callable recipients: every number normalised to E.164 and
+ * restricted to Indian mobiles (destination allow-list: no international or premium numbers),
+ * duplicates dropped, opted-out (DNC) numbers removed by their NORMALISED form (raw digits used to
+ * miss "+9198…" vs "98…"), and oversized per-contact data refused.
+ */
+export function prepareBatchRecipients(recipients: unknown[], optedOutNumbers: Iterable<string>): PreparedRecipients {
+  const { normalizePhoneNumber } = require('../utils/phoneValidator');
+  const optedOut = new Set<string>();
+  for (const raw of optedOutNumbers) {
+    const n = normalizePhoneNumber(String(raw));
+    if (n.ok) optedOut.add(n.e164);
+  }
+  const seen = new Set<string>();
+  const out: PreparedRecipients = { accepted: [], invalid: 0, duplicates: 0, optedOut: 0 };
+  for (const r of recipients) {
+    const obj = r && typeof r === 'object' ? (r as Record<string, unknown>) : null;
+    const raw = typeof r === 'string' ? r : String(obj?.phoneNumber ?? obj?.phone ?? '');
+    const n = normalizePhoneNumber(raw);
+    // Destination allow-list: Indian mobiles only (the sign-up validator also accepts international).
+    if (!n.ok || !/^\+91[6-9]\d{9}$/.test(n.e164)) { out.invalid++; continue; }
+    if (obj) {
+      let size = Infinity;
+      try { size = Buffer.byteLength(JSON.stringify(obj), 'utf8'); } catch { /* circular */ }
+      if (size > MAX_RECIPIENT_DATA_BYTES) { out.invalid++; continue; }
+    }
+    if (seen.has(n.e164)) { out.duplicates++; continue; }
+    seen.add(n.e164);
+    if (optedOut.has(n.e164)) { out.optedOut++; continue; }
+    out.accepted.push({ ...(obj || {}), phoneNumber: n.e164 });
+  }
+  return out;
+}
+
 export function resolveRetryPolicy(raw: unknown): { maxAttempts: number; retryIntervalMs: number } {
   let cfg: any = {};
   try { cfg = typeof raw === 'string' ? JSON.parse(raw || '{}') : (raw || {}); } catch { cfg = {}; }
