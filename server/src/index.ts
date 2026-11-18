@@ -65,7 +65,6 @@ import contactsRoutes from './routes/contacts';
 import analyticsRoutes from './routes/analytics';
 import qaRoutes from './routes/qa';
 import alertingRoutes from './routes/alerting';
-import integrationsRoutes from './routes/integrations';
 import auditLogRoutes from './routes/auditLog';
 import reportsRoutes from './routes/reports';
 import { AlertEvaluator } from './services/AlertEvaluator';
