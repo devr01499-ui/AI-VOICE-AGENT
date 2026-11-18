@@ -22,7 +22,7 @@ Things that look unused but should be finished, because customers would benefit:
 
 Defects found during this search (not dead code, but broken):
 - **Data retention does nothing.** Customers can save a retention period, but the clean-up job is never started, so no data is ever deleted. Compliance risk (DPDP). Phase 10.
-- **KYC page calls three routes that do not exist** (`/kyc/initiate-session`, `/kyc/digilocker/initiate`, `/kyc/digilocker/verify`), so those buttons fail with "not found". Phase 7.
+- ~~KYC page calls three routes that do not exist~~ **Corrected in Phase 7:** all three exist (declared as path arrays, which the first static scan missed). `test:number-entitlement` now checks every KYC route the page calls.
 - **Prompt editor "MCPs" are used only in the browser test call, never on real calls.** Phase 4.
 - **Test Lab does not call an AI model**; it pattern-matches. Phase 3.
 
@@ -46,7 +46,7 @@ Defects found during this search (not dead code, but broken):
 | `GET /numbers/mine` | nobody | REMOVE | Duplicate of `GET /numbers` |
 | `GET /numbers/pending-activations`, `POST /numbers/:id/mark-funded-and-activate`, `PATCH /numbers/:id/activate` | test scripts only | TEST-ONLY | Admin console uses `/admin/numbers`; decide in Phase 7 |
 | `POST /numbers/plivo/purchase` | nobody | REMOVE | Screen uses onboard/search/claim; also has the payment flaw in PRELAUNCH_NOTES §1 (Phase 6/7) |
-| `GET /telephony/inventory`, `GET/POST /telephony/sub-accounts`, `POST /telephony/purchase`, `controllers/telephony.controller.ts`, `services/vobiz.service.ts` | auth test script only | REMOVE | Old duplicate path for numbers and sub-accounts (Phase 7) |
+| `GET /telephony/inventory`, `GET/POST /telephony/sub-accounts`, `POST /telephony/purchase`, `controllers/telephony.controller.ts`, `services/vobiz.service.ts` | auth test script only | **REMOVED (Phase 7)** | `/purchase` bought carrier numbers with company money: no payment, no KYC, no one-number limit, no DB record. Carrier webhook `/api/v2/telephony/webhook` kept. |
 | `POST /agents/optimize` | nobody | REMOVE | Helper never called |
 | `POST /agents/:agentId/test-lab` + `TestLabService.ts` | prompt editor | KEEP | Live, but heuristic only — rebuilt in Phase 3 |
 | `McpService.ts` | browser test call only | KEEP | Must also be wired into real calls or removed (Phase 4) |
