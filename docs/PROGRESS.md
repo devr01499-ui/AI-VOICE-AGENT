@@ -14,20 +14,19 @@
 | 11 | B15 latency/voice, P11 fixed | DONE, merged to `main` 2026-11-18 |
 | 12 | S7 security/traffic hardening, P5/P9/P10/P12 (docs/SECURITY_AUDIT.md) | DONE, merged to `main` 2026-11-18 |
 | 13 | D9 dead code (BACKEND_UNUSED_REPORT §5), docs README/SYSTEM_CHARTER/TECH_DEBT | DONE, merged to `main` 2026-11-18 |
-| 14 | See CLAUDE.md §13 | not started |
+| 14 | Q8 CI + smoke E2E, T0, M0 baseline (offline part), marketing accuracy, final report (docs/FINAL_REPORT.md) | DONE, merged to `main` 2026-11-18 |
 
 ## PRODUCTION — UNTOUCHABLE (nothing relaxed)
 - `DATABASE_URL` in `server/.env` is production. Never connect; never copy it or any key anywhere. Tests use `TEST_DATABASE_URL` only (RUNBOOK.md); the guard blanks live service keys.
 - Prisma CLI only with BOTH `DATABASE_URL` and `DIRECT_URL` set inline to the test URL. Offline SQL: `prisma migrate diff --from-schema <old> --to-schema prisma/schema.prisma --script`.
-- No command text inside double quotes/unquoted backticks; write files with Write/Edit or `<<'EOF'`. Every push to `main` auto-deploys Render and runs `prisma db push` on production (P1).
+- No command text inside double quotes/unquoted backticks; write files with Write/Edit or `<<'EOF'`. Every push to `main` auto-deploys Render and runs `prisma db push` on production until owner step 25.
 
-## Status of checks (2026-11-18, after Phase 12)
-- Typecheck: server 0, frontend 0.
-- test:security 25 suites all pass on PGlite (DB_POOL_MAX=1) incl. security-hardening 13; caller-id 5/5 (now wired); kb-race 2/2 (native PG); owasp, payment-security, batch a–f, m1, m2, street-smart + regression, plivo-webhook, audiostream-isolation, live-transcript-auth, prompt-injection, rate-limiting 7/7, audio/codec/drain/turn/persona/normalizers/speaker/evidence pass; playout passes 3/3 (one load-jitter failure under a busy machine: watch in CI); build OK. npm audit: 6 left, explained in SECURITY_AUDIT A1/A2.
+## Status of checks (2026-11-18, end of Phase 14)
+- Typecheck 0/0; build OK. test:security 28 suites 100% on PGlite, without server/.env, and on a DB built from the committed migrations; all other suites pass; kb-race 2/2; Playwright 117 passed / 1 skipped (incl. smoke journey); migrations: empty DB, zero drift. playout timing test is local-only (CI runners too noisy).
 
 ## Pre-launch items
 - P0 OWNER: rotate the production DB password (was public in git history); confirm the Google key literal in GeminiLiveProvider.ts is revoked.
-- P1 Migrations/Render (PRELAUNCH_NOTES §4, Option A recommended, owner choice pending). New additive migrations `20261117120000_add_notification_receipts`, `20261117130000_add_test_lab_runs`; under the current `db push` deploy the tables are created automatically. Phase 5 adds `20261117140000_kb_chunks_fulltext_index` (expression index: only `migrate deploy` creates it).
+- P1/M0: baseline `20261118000000_baseline` committed and proven (CI checks it); Render still runs `db push` until owner step 25 is done.
 - P9/P12 (Phase 12): boot now prints CRITICAL when `ENCRYPTION_KEY` / `VOBIZ_WEBHOOK_SECRET` are unset; owner steps 20–21. Accepted: zod 4 upgrade (A1), Redis limiter store before 2+ instances (A3) — SECURITY_AUDIT §3.
 
 ## Needs owner verification (exact steps)
@@ -44,6 +43,7 @@
 18. Recording live: switch "Record calls" on for a test agent, call it, hear the notice, then play the recording from Call History (seek, 1.5x, download). Ask Claude to check the Render log for the recording callback if nothing appears. Confirm notice wording/retention with a lawyer (COMPLIANCE_NOTES).
 19. Latency live: after 20 real calls, ask Claude to read the `latency_summary` call events (p50/p95). Only then publish a latency number. Existing agents saved with 600 ms "Responsiveness": lower to 300 ms in Speech Settings. Review pricing/competitor copy (COMPLIANCE_NOTES "Marketing claims").
 20–24. Security settings (SECURITY_AUDIT §4): set `ENCRYPTION_KEY`, a dedicated `VOBIZ_WEBHOOK_SECRET`, check/enable Supabase RLS (read-only query first), `OUTBOUND_ALLOWED_COUNTRY_CODES` only for countries you sell to.
+25. M0 Option A (after this release is live): in `server/`, run `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` (read-only). Expected: `-- This is an empty migration.` Then run `npx prisma migrate resolve --applied 20261118000000_baseline`. Any other output or error: send it to Claude and stop. Then Claude switches render.yaml (and you the Render Build Command) to `migrate deploy`. 26. GitHub → Actions: "CI" green on `main`; add secret `RENDER_DEPLOY_HOOK_URL`; optionally Render Auto-Deploy Off so CI gates deploys. 27. Lawyer: Terms §6 (cites US FTC), Privacy processors, site business figures, MSME/DPDP badges (COMPLIANCE_NOTES).
 
 ## Decisions
 - Checklist = 17 issues + S7, Q8, D9, D10, T0, M0, K0. Zero-open-defects gate in Phase 14. `npm run build` rewrites `Frontend/public/sitemap.xml` dates — `git restore` it.
@@ -53,7 +53,7 @@
 - On PGlite run suites with `DB_POOL_MAX=1` (it serialises connections; parallel pools break it). `test:kb-race` needs a real Postgres (native DB on 54329). Playwright runs 2 workers locally (memory-bound machine); measure layout with offsetWidth, not boundingBox, when animations exist. Bell: customers see own rows + `ANNOUNCEMENT` rows only. Sign-up "Account Type" saved but unused by the server (decide in Phase 13).
 
 ## Open questions (owner)
-1. Gemini model policy (CLAUDE.md §3). 2. `devr0144@gmail.com` address (§11). 3. Migration Option A or B. 4. When an account loses its paid plan (cancel/downgrade): keep its number working, pause calls on it, or release it after N days? STANDING RULE (§0.6/§12a): merge each verified phase to `main`, push, never ask between phases.
+1. Gemini model policy (CLAUDE.md §3). 2. `devr0144@gmail.com` address (§11). 3. Migration: Option A prepared (step 25). 4. When an account loses its paid plan (cancel/downgrade): keep its number working, pause calls on it, or release it after N days? STANDING RULE (§0.6/§12a): merge each verified phase to `main`, push, never ask between phases.
 
 ## Next exact step
-Phase 14 (branch `chore/ci-e2e-final`): CI workflow on PRs (typecheck, build, test:security on a CI Postgres, e2e); fix `deploy-render.yml` (`npm ci` at root + unguarded test_auth_protection.js); wire passing root scripts/test_* (TD-07); E2E smoke (signup → agent → plan test mode → number simulated → call → history → logout); Solutions page fictional API endpoints/metrics (`/crm/leads/qualify`, `execution_ms 172`, "SRTP zero-copy") → marketing pass; playout timing test flakes under load; M0 plan; zero-defect gate; final Verified / Not-verifiable table.
+All 15 phases done (docs/FINAL_REPORT.md). Remaining work needs the owner: steps 1–27 above. After step 25: switch render.yaml buildCommand to `npm install --include=dev && npx prisma generate && npx prisma migrate deploy && npm run build`.
