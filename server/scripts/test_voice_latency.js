@@ -111,6 +111,22 @@ async function main() {
     assert.deepStrictEqual(offenders, []);
   });
 
+  await test('marketing pages make no unmeasured latency or WebRTC claims', async () => {
+    const root = path.join(__dirname, '../../Frontend');
+    const files = [path.join(root, 'scripts/prerender-seo.js'), path.join(root, 'index.html')];
+    const walk = (dir) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, e.name);
+        if (e.isDirectory()) walk(p);
+        else if (/\.(tsx?|jsx?)$/.test(e.name) && !p.includes('flowCompiler')) files.push(p);
+      }
+    };
+    walk(path.join(root, 'src'));
+    const claim = /sub-?\d{3}\s?ms|(?:<|&lt;)\s?\d{3}\s?ms|\b1\d{2}\s?ms\b|webrtc|\d{3}\s?milliseconds/i;
+    const offenders = files.filter((f) => fs.existsSync(f) && claim.test(fs.readFileSync(f, 'utf8'))).map((f) => path.relative(root, f));
+    assert.deepStrictEqual(offenders, [], 'publish numbers only once measured (owner step 19)');
+  });
+
   console.log(`\nVOICE LATENCY: ${passed === total ? 'PASS' : 'FAIL'} — ${passed}/${total} tests passed\n`);
   await prisma.$disconnect().catch(() => {});
   process.exit(passed === total ? 0 : 1);
