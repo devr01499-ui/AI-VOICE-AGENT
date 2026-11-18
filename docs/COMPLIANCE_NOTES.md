@@ -21,3 +21,11 @@ Conservative choices made in code, and items a qualified professional (CA / lawy
   - Each refund is now recorded once; the old webhook counted every refund twice.
   - Partial refunds show as `partially_refunded`.
   - Credit notes are not generated yet. **CA to confirm** whether refunded invoices need credit notes; this is logged for a later phase.
+
+## Batch calling (Phase 8, B10)
+- **Calling hours.** Commercial calls only 09:00–21:00 IST. A campaign may narrow this window but cannot switch it off or widen it (the old code let a campaign setting `ignoreCallingHours` or hours like 00–24 bypass it). The developer switch `ALLOW_OFFHOURS_BATCH_CALLS` is ignored in production. Paused campaigns resume automatically when hours reopen.
+- **Retries.** At most 3 attempts per person per campaign, at least 10 minutes apart.
+- **Opt-outs.** Contacts marked opted out are removed from every new campaign and skipped again before each dial; matching is on the normalised number (the old raw-digit match missed `+91…` vs 10-digit forms).
+- **Destinations.** Campaigns accept Indian mobile numbers only (no international, landline or premium-rate numbers) — conservative toll-fraud protection. **Owner to decide** whether Indian landlines should be allowed.
+- **National DND registry (TRAI NCPR / DLT).** NOT checked by this software. Commercial calling in India generally requires registration as a telemarketer on the DLT platform, a registered 140/160-series or permitted number, and scrubbing against the national preference register. **Owner/lawyer to confirm** the obligations for Claritiy Voice and for its customers before launch, and whether to integrate a DND scrubbing API.
+- **Consent.** The customer must confirm consent for every campaign; who confirmed, when, and a hash of the list are stored.

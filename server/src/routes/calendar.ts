@@ -12,6 +12,7 @@ import { scheduleCall, cancelBooking, rescheduleBooking } from '../lib/calendar/
 import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
 import { requireCallingMinutes } from '../middleware/planValidation';
 import { CallService } from '../services/CallService';
+import { prepareBatchRecipients, MAX_BATCH_RECIPIENTS } from '../services/BatchService';
 import { ADMIN_EMAIL } from '../config/constants';
 import { EncryptionService } from '../utils/EncryptionService';
 import { CalendarService, SchedulingRuleConfig } from '../core/orchestrator/CalendarService';
@@ -1106,8 +1107,9 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
     }
 
     // Double-submit protection: check for existing batch with this idempotency key
+    // Scoped to this account: another account's key must never reveal its campaign.
     const existingBatch = await prisma.batch.findFirst({
-      where: { idempotencyKey }
+      where: { idempotencyKey, userId }
     });
     if (existingBatch) {
       res.status(409).json({
@@ -1123,8 +1125,12 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
       return;
     }
 
-    if (!name || !agentId || !Array.isArray(recipients) || recipients.length === 0) {
-      res.status(400).json({ success: false, error: 'Name, agentId, and non-empty recipients array are required.' });
+    if (!name || typeof name !== 'string' || !name.trim() || name.length > 120 || !agentId || !Array.isArray(recipients) || recipients.length === 0) {
+      res.status(400).json({ success: false, error: 'Name (up to 120 characters), agentId, and non-empty recipients array are required.' });
+      return;
+    }
+    if (recipients.length > MAX_BATCH_RECIPIENTS) {
+      res.status(413).json({ success: false, error: `A campaign can have up to ${MAX_BATCH_RECIPIENTS.toLocaleString()} contacts. Split your list into smaller campaigns.` });
       return;
     }
 
@@ -1185,31 +1191,30 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
       },
       select: { phoneNumber: true }
     });
-    const optedOutDigitsSet = new Set(
-      optedOutContacts.map(c => c.phoneNumber.replace(/\D/g, '')).filter(Boolean)
-    );
-
-    const eligibleRecipients = recipients.filter((r: any) => {
-      const raw = typeof r === 'string' ? r : (r.phoneNumber || r.phone || '');
-      const digits = String(raw).replace(/\D/g, '');
-      return !optedOutDigitsSet.has(digits);
-    });
+    // Valid Indian mobiles only, de-duplicated, opted-out numbers removed (normalised match).
+    const prepared = prepareBatchRecipients(recipients, optedOutContacts.map(c => c.phoneNumber));
+    const eligibleRecipients = prepared.accepted;
 
     if (eligibleRecipients.length === 0) {
       res.status(400).json({
         success: false,
-        error: 'All recipients in this batch have opted out of communications (Do Not Call list).'
+        error: prepared.optedOut > 0 && prepared.invalid === 0
+          ? 'All recipients in this batch have opted out of communications (Do Not Call list).'
+          : `No callable numbers in this list: ${prepared.invalid} invalid (Indian mobile numbers only), ${prepared.duplicates} duplicates, ${prepared.optedOut} opted out.`,
+        skipped: { invalid: prepared.invalid, duplicates: prepared.duplicates, optedOut: prepared.optedOut },
       });
       return;
     }
 
     const excludedCount = recipients.length - eligibleRecipients.length;
     if (excludedCount > 0) {
-      logger.info('Calendar batches: Excluded opted-out contacts from batch', {
+      logger.info('Calendar batches: Excluded contacts from batch', {
         userId,
         totalSubmitted: recipients.length,
         eligible: eligibleRecipients.length,
-        excludedCount
+        invalid: prepared.invalid,
+        duplicates: prepared.duplicates,
+        optedOut: prepared.optedOut,
       });
     }
 
@@ -1333,6 +1338,7 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
         interCallDelaySeconds: batch.interCallDelaySeconds,
         total: batch.totalRecipients,
         totalContacts: batch.totalRecipients,
+        skipped: { invalid: prepared.invalid, duplicates: prepared.duplicates, optedOut: prepared.optedOut },
         called: 0,
         connected: 0,
         estimatedMinutes: batch.estimatedMinutes,

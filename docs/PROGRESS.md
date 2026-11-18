@@ -10,18 +10,17 @@
 | 5 | B8 knowledge base / RAG inspector | DONE, merged to `main` 2026-11-17 |
 | 6 | B13 billing / payment verification | DONE, merged to `main` 2026-11-18 |
 | 7 | B9 numbers / KYC / carrier activation | DONE, merged to `main` 2026-11-18 |
-| 8–14 | See CLAUDE.md §13 | not started |
+| 8 | B10 batch calling | DONE, merged to `main` 2026-11-18 |
+| 9–14 | See CLAUDE.md §13 | not started |
 
 ## PRODUCTION — UNTOUCHABLE (nothing relaxed)
 - `DATABASE_URL` in `server/.env` is production. Never connect; never copy it or any key anywhere. Tests use `TEST_DATABASE_URL` only (RUNBOOK.md); the guard blanks live service keys.
 - Prisma CLI only with BOTH `DATABASE_URL` and `DIRECT_URL` set inline to the test URL. Offline SQL: `prisma migrate diff --from-schema <old> --to-schema prisma/schema.prisma --script`.
-- No command text inside double quotes/unquoted backticks; write files with Write/Edit or `<<'EOF'`.
-- Every push to `main` auto-deploys Render and runs `prisma db push` on production (P1).
+- No command text inside double quotes/unquoted backticks; write files with Write/Edit or `<<'EOF'`. Every push to `main` auto-deploys Render and runs `prisma db push` on production (P1).
 
-## Status of checks (2026-11-17, after Phase 5)
-- Typecheck: server 0; frontend 33 (App.tsx 21, SinglePromptStudio.tsx 12). Must be 0 by Phase 14.
-- test:security 17 suites all pass (incl. kb-rag 20, flow-agent 8); kb-race 2/2 (native PG); owasp 23/23; payment 16/16; street-smart 32/32 + regression 41/41; m2 37/37; batch b–f pass; browser 106 pass, 1 skipped (live login).
-- TS2367 "can never be true" in App.tsx settings tabs (`"audit"`, `"billing"`) — dead tab code, check when Settings is touched (Phase 9).
+## Status of checks (2026-11-18, after Phase 8)
+- Typecheck: server 0; frontend 33 (App.tsx 21, SinglePromptStudio.tsx 12; TS2367 dead settings tabs "audit"/"billing" → Phase 9). Must be 0 by Phase 14.
+- test:security 21 suites all pass on PGlite (DB_POOL_MAX=1) incl. billing 21, number-entitlement 9, batch-compliance 8, kb-rag 20; kb-race 2/2 (native PG); owasp 23/23; payment 16/16; street-smart 32/32 + regression 41/41; m2 37/37; batch b–f pass; browser 110 pass, 1 skipped (live login; run with --workers=1 when RAM is low).
 
 ## Pre-launch items
 - P0 OWNER: rotate the production DB password (was public in git history); confirm the Google key literal in GeminiLiveProvider.ts is revoked.
@@ -44,6 +43,7 @@
 13. Knowledge base with real AI key: upload a real PDF, wait for Ready, ask 5 questions in the Retrieval Inspector (2 in Hinglish). Expected: right section on top; if right answers sit under "Close but not used on calls", tell Claude the similarity numbers (gate tuning). Also confirms the embedding model name works.
 14. Razorpay test mode on a staging deploy (test keys, `RAZORPAY_WEBHOOK_SECRET`, webhook per RUNBOOK): buy Starter; on a second try close the tab right after paying. Expected: both activate once; Render log shows webhook 200. Set `COMPANY_GSTIN`; have a CA review COMPLIANCE_NOTES.
 15. Numbers live (after keys): with a paid test account, complete KYC, claim one number; a second claim must be refused; a free account must see "needs an active paid plan".
+16. Batch live: run a 3-contact campaign at 20:55 IST; it pauses at 21:00 and resumes at 09:00 by itself; an opted-out contact is skipped; get legal advice on TRAI DLT/NCPR (COMPLIANCE_NOTES).
 
 ## Decisions
 - Checklist = 17 issues + S7, Q8, D9, D10, T0, M0, K0. Zero-open-defects gate in Phase 14. `npm run build` rewrites `Frontend/public/sitemap.xml` dates — `git restore` it.
@@ -56,4 +56,4 @@
 1. Gemini model policy (CLAUDE.md §3). 2. `devr0144@gmail.com` address (§11). 3. Migration Option A or B. 4. When an account loses its paid plan (cancel/downgrade): keep its number working, pause calls on it, or release it after N days? STANDING RULE (§0.6/§12a): merge each verified phase to `main`, push, never ask between phases.
 
 ## Next exact step
-Phase 8 (branch `fix/batch-calling`, CLAUDE.md B10): BatchService lifecycle, India calling hours (9am–9pm IST, `ALLOW_OFFHOURS_BATCH_CALLS` bypass), DND/opt-out, dedupe, CSV validation, no double-dial after restart, minute-balance guard, accurate counts; existing test:batch-a..f.
+Phase 9 (branch `fix/data-pages`, CLAUDE.md B11 + B12): Calling Configuration speed (DashCallingConfig.tsx loadData/handleUpdate, numbers.ts calling-config L945+), then Call History, Contacts, Analytics, Live Monitoring, AI QA, Call Reports, Alerting audits; TS2367 settings tabs; dead BillingGateway tab.
