@@ -59,7 +59,7 @@ function TestimonialsSection() {
       author: "- Sky (Rajesh K.)"
     },
     {
-      title: "Sub-180ms makes all the difference",
+      title: "Real-time conversation makes all the difference",
       body: "Callers actually think they're speaking with a real receptionist. Interruption handling works flawlessly mid-sentence without lag or awkward pauses.",
       author: "- Jacob (Ananya M.)"
     },
@@ -130,7 +130,7 @@ function TestimonialsSection() {
 function BentoCapabilitySection({ setPage }: { setPage: (p: Page) => void }) {
   const items = [
     {
-      title: "Sub-180ms Real-Time Voice AI",
+      title: "Real-Time Voice AI",
       desc: "Native multimodal pipeline — no stacked APIs. ASR + LLM + TTS vertically integrated for human-like phone conversations with zero lag.",
       icon: Zap,
     },
@@ -146,7 +146,7 @@ function BentoCapabilitySection({ setPage }: { setPage: (p: Page) => void }) {
     },
     {
       title: "Zero-Latency Real-Time Telephony",
-      desc: "Direct PSTN carrier trunking and WebRTC audio streaming. Dedicated virtual phone numbers with sub-second call setup and zero queue latency.",
+      desc: "Direct PSTN carrier trunking and real-time audio streaming. Dedicated virtual phone numbers with sub-second call setup and zero queue latency.",
       icon: Phone,
     },
     {
@@ -270,7 +270,6 @@ function UseCaseSection({ setPage }: { setPage: (p: Page) => void }) {
 // ── Comparison Table ──────────────────────────────────────────────────────────
 function ComparisonSection({ setPage }: { setPage: (p: Page) => void }) {
   const rows = [
-    { feature: "Response Latency", claritiy: "< 180ms", vapi: "800ms–1.5s", legacy: "45+ min queue", highlight: true },
     { feature: "Native Audio Pipeline", claritiy: "✅ Vertically Integrated", vapi: "❌ Stacked STT+LLM+TTS", legacy: "❌ Human only" },
     { feature: "Multilingual Support", claritiy: "✅ 70+ Languages", vapi: "✅ Limited", legacy: "⚠️ Per hire" },
     { feature: "Concurrent Calls", claritiy: "✅ Unlimited", vapi: "⚠️ Rate limited", legacy: "❌ Team capacity" },
@@ -306,7 +305,7 @@ function ComparisonSection({ setPage }: { setPage: (p: Page) => void }) {
         {rows.map((row, i) => (
           <div
             key={i}
-            className={`grid grid-cols-4 border-t border-[#CBC8BE] ${row.highlight ? "bg-[#DFDCD4]" : i % 2 === 0 ? "bg-[#EBE9E2]" : "bg-[#E5E3DC]"} transition-colors hover:bg-[#DFDCD4]`}
+            className={`grid grid-cols-4 border-t border-[#CBC8BE] ${i % 2 === 0 ? "bg-[#EBE9E2]" : "bg-[#E5E3DC]"} transition-colors hover:bg-[#DFDCD4]`}
           >
             <div className="p-3.5 text-xs font-medium text-[#121212]">{row.feature}</div>
             <div className="p-3.5 text-xs font-semibold text-[#121212] border-l border-[#CBC8BE]">{row.claritiy}</div>
@@ -412,7 +411,7 @@ export default function Home({ setPage }: HomeProps) {
         <div className="text-center max-w-3xl mx-auto mb-12 space-y-4">
           <SectionLabel text="Interactive Voice Simulator" />
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-normal sm:font-medium text-[#121212] tracking-tight leading-[1.1] font-sans">
-            Experience Sub-180ms Neural Voice AI in Real Time
+            Experience Real-Time Voice AI
           </h2>
           <p className="text-[#262523] text-sm sm:text-base leading-relaxed font-sans">
             Watch our 60 FPS neural audio engine react on loop. Switch between live conversational scenarios, toggle playback speed, and test how our agents handle interruptions with native human cadence.
@@ -521,14 +520,14 @@ export default function Home({ setPage }: HomeProps) {
                 Built Different — Not Just Another Stacked Voice API
               </h2>
               <p className="text-[#262523] text-sm sm:text-base leading-relaxed font-sans">
-                Most AI voice calling software chains third-party STT → LLM → TTS providers, adding 800ms–1.5s of pipeline latency. Claritiy Voice runs a vertically integrated audio model — direct WebRTC streaming with sub-180ms response. That's the difference between a voice bot and a real AI phone agent.
+                Most AI voice calling software chains third-party STT → LLM → TTS providers, adding 800ms–1.5s of pipeline latency. Claritiy Voice runs a single speech-to-speech model — direct carrier audio streaming with real-time response. That's the difference between a voice bot and a real AI phone agent.
               </p>
             </div>
 
             {/* Right: 4 Wireframe Cards */}
             <div className="space-y-3">
               {[
-                { icon: Zap, title: "Sub-180ms End-to-End Latency", desc: "No REST overhead — direct audio streaming" },
+                { icon: Zap, title: "Real-Time Replies", desc: "No REST overhead — direct audio streaming" },
                 { icon: Globe2, title: "70+ Regional Dialects, Zero Translation", desc: "Native speech models, no lossy intermediate API" },
                 { icon: ShieldCheck, title: "Edge-Level PII Redaction", desc: "MSME Certified, DPDP Act & TLS 1.3 encryption" },
                 { icon: Network, title: "Function Calling & Tool Calling", desc: "Real-time API execution while live on the call" },

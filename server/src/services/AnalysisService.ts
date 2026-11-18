@@ -263,7 +263,8 @@ export class AnalysisService {
     const hasCallerConversation = callerSegments.length > 0 && callerSegments.some(s => s.content && s.content.trim().length > 3);
 
     if (!hasCallerConversation) {
-      if (['busy', 'no_answer', 'timeout_no_answer', 'telephony_no_answer'].includes(endReason) || call.status === 'no-answer') {
+      // ('busy' used to be listed here, so busy calls were reported as No Answer.)
+      if (['no_answer', 'timeout_no_answer', 'telephony_no_answer'].includes(endReason) || call.status === 'no-answer' || call.status === 'no_answer') {
         return await this.persistResult(call, blueprint, {
           resultLabel: 'No Answer',
           status: 'completed',
@@ -278,7 +279,7 @@ export class AnalysisService {
         });
       }
 
-      if (['call_rejected', 'carrier_rejected', 'user_busy'].includes(endReason) || call.status === 'busy') {
+      if (['busy', 'user_busy', 'call_rejected', 'carrier_rejected'].includes(endReason) || call.status === 'busy') {
         return await this.persistResult(call, blueprint, {
           resultLabel: 'Busy',
           status: 'completed',

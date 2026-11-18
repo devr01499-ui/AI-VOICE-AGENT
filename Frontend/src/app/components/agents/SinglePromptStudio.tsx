@@ -119,6 +119,12 @@ export const LANGUAGE_OPTIONS = [
   { code: 'ta', label: 'Tamil' },
 ];
 
+/**
+ * How long the caller must be silent before the agent answers. Every millisecond here is added to
+ * each reply; 600 ms (the old default) used most of the 1-second reply budget before the AI even started.
+ */
+export const DEFAULT_RESPONSIVENESS_MS = 300;
+
 export const HANDBOOK_PRESETS = [
   {
     id: 'ai_disclosure',
@@ -941,7 +947,7 @@ export default function SinglePromptStudio({
   })();
 
   const [speechSpeed, setSpeechSpeed] = useState<number>(initialSpeech.speed ?? 1.0);
-  const [responsivenessMs, setResponsivenessMs] = useState<number>(initialSpeech.responsivenessMs ?? 600);
+  const [responsivenessMs, setResponsivenessMs] = useState<number>(initialSpeech.responsivenessMs ?? DEFAULT_RESPONSIVENESS_MS);
   const [interruptionSensitivity, setInterruptionSensitivity] = useState<'HIGH' | 'LOW'>(initialSpeech.interruptionSensitivity ?? 'HIGH');
   const [backchannelingEnabled, setBackchannelingEnabled] = useState<boolean>(initialSpeech.backchanneling ?? false);
   const [speechVolume, setSpeechVolume] = useState<number>(initialSpeech.volume ?? 1.0);
@@ -2927,7 +2933,7 @@ export default function SinglePromptStudio({
                 <div className="p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center justify-between">
                   <div>
                     <span className="font-semibold block text-slate-800 dark:text-slate-200">Gemini Native Audio ASR</span>
-                    <span className="text-[10px] text-slate-400">Bi-directional Streaming (Sub-200ms latency)</span>
+                    <span className="text-[10px] text-slate-400">Bi-directional streaming (real-time)</span>
                   </div>
                   <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded text-[10px] font-medium">
                     Active

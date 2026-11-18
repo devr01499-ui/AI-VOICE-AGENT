@@ -23,8 +23,8 @@ function ArchitecturePipelineCanvas() {
       id: "carrier",
       stepNum: "01",
       badge: "TELEPHONY GATEWAY",
-      name: "Carrier Audio Ingestion & WebRTC Ingress",
-      humanizedSummary: "When a customer dials or receives an outbound call, our edge telephony servers establish a direct WebRTC zero-copy bidirectional audio pipe.",
+      name: "Carrier Audio Ingestion",
+      humanizedSummary: "When a customer dials or receives an outbound call, the carrier opens a direct bidirectional audio stream to our servers.",
       techSummary: "SRTP 16kHz 16-bit PCM streaming over UDP zero-copy buffers. Sub-25ms packetization bypassing legacy PBX transcoding delay.",
       businessHighlights: [
         "Instant call pickup without IVR waiting",
@@ -32,7 +32,7 @@ function ArchitecturePipelineCanvas() {
         "Enterprise SIP trunking compatibility"
       ],
       outcomeSnippet: "Call connected. Bi-directional SRTP audio pipe established under 30ms.",
-      protocolSpec: "SIP INVITE -> SRTP WebRTC -> AudioStreamSession(16kHz, PCM-L16)"
+      protocolSpec: "Carrier call -> bidirectional audio stream -> AudioStreamSession(16kHz, PCM-L16)"
     },
     {
       id: "vad",
@@ -70,13 +70,13 @@ function ArchitecturePipelineCanvas() {
       badge: "NEURAL SYNTHESIS",
       name: "Neural Voice Delivery & Egress",
       humanizedSummary: "Synthesized response audio streams back into the caller's ear with natural human breath pauses, pitch inflection, and flawless pronunciation of regional languages.",
-      techSummary: "Low-latency streaming neural TTS pipeline delivering first chunk audio packets in 65ms over WebRTC egress to the cellular network carrier.",
+      techSummary: "Streaming speech output: audio is sent to the caller as it is generated, without waiting for the full reply.",
       businessHighlights: [
         "Indistinguishable from polite human agent",
         "70+ regional dialects and native accents",
         "Consistent brand persona and voice clarity"
       ],
-      outcomeSnippet: "Audio chunk 0 streamed to caller at 168ms total turnaround latency.",
+      outcomeSnippet: "First audio chunk streamed to the caller as soon as it is generated.",
       protocolSpec: "NeuralTTS.Stream(model='claritiy-v2-fast', chunk_size=1024, latency=64ms)"
     }
   ];
@@ -241,7 +241,7 @@ export default function HowItWorks({ setPage }: HowItWorksProps) {
     {
       step: "01",
       title: "Call Initiated or Answered",
-      desc: "Inbound call rings or outbound campaign dials. Call connected over high-fidelity WebRTC carrier trunk in 28ms with zero IVR delay.",
+      desc: "Inbound call rings or outbound campaign dials. Call connected over the carrier with no IVR menus.",
       icon: PhoneCall
     },
     {
@@ -259,7 +259,7 @@ export default function HowItWorks({ setPage }: HowItWorksProps) {
   ];
 
   const latencyBreakdown = [
-    { phase: "Audio Ingestion & WebRTC Frame Egress", target: "24ms", tech: "Zero-copy UDP SRTP buffer packaging" },
+    { phase: "Audio Ingestion & Egress", target: "Streaming", tech: "Bidirectional carrier audio stream" },
     { phase: "VAD Speech Boundary Interception", target: "18ms", tech: "High-precision 20ms audio frame energy analysis" },
     { phase: "Streaming First-Token Reasoning", target: "72ms", tech: "High-speed quantized inference with tool calling" },
     { phase: "Streaming Neural Speech Synthesis", target: "60ms", tech: "Direct chunked neural PCM audio packetization" }
@@ -281,7 +281,7 @@ export default function HowItWorks({ setPage }: HowItWorksProps) {
           animate={{ opacity: 1, y: 0 }}
           className="text-4xl md:text-5xl lg:text-6xl font-normal md:font-medium text-[#121212] tracking-tight leading-[1.08] font-sans"
         >
-          How Claritiy Voice Achieves Sub-180ms Conversational Latency
+          How Claritiy Voice Keeps Conversations Real-Time
         </motion.h1>
 
         <motion.p 
@@ -290,7 +290,7 @@ export default function HowItWorks({ setPage }: HowItWorksProps) {
           transition={{ delay: 0.1 }}
           className="text-[#262523] text-base md:text-lg max-w-3xl mx-auto font-sans leading-relaxed"
         >
-          Experience how our unified zero-copy WebRTC pipeline eliminates legacy phone trees and transforms complex business phone calls into fluid, human conversations.
+          Experience how our unified real-time voice pipeline eliminates legacy phone trees and transforms complex business phone calls into fluid, human conversations.
         </motion.p>
       </section>
 
@@ -346,7 +346,7 @@ export default function HowItWorks({ setPage }: HowItWorksProps) {
               | TELEMETRY BENCHMARK AUDIT
             </span>
             <h2 className="text-3xl font-medium text-[#121212] font-sans tracking-tight">
-              Sub-180ms Latency Budget & Audio Pipeline Specs
+              Real-Time Audio Pipeline Specs
             </h2>
             <p className="text-[#262523] text-sm font-sans">
               Total roundtrip latency budget measured from caller utterance to synthesized audio playback.
@@ -370,7 +370,7 @@ export default function HowItWorks({ setPage }: HowItWorksProps) {
           </div>
 
           <div className="p-3.5 bg-[#DFDCD4] border border-[#CBC8BE] rounded-[2px] max-w-4xl mx-auto text-center font-mono text-xs text-[#121212]">
-            TOTAL COMBINED BUDGET: 174ms (Bypasses traditional 1,200ms chained REST API lag)
+            SINGLE SPEECH-TO-SPEECH MODEL: no chained REST API hops
           </div>
         </div>
       </section>
@@ -391,8 +391,8 @@ export default function HowItWorks({ setPage }: HowItWorksProps) {
             {
               icon: Cpu,
               num: "01",
-              title: "Sub-180ms Latency Engine",
-              desc: "Zero-copy UDP WebRTC audio streaming bypasses chained REST API bottlenecks to match natural human response speeds."
+              title: "Real-Time Speech Engine",
+              desc: "Direct carrier audio streaming to one speech-to-speech model avoids chained REST API bottlenecks for natural response speeds."
             },
             {
               icon: Terminal,
@@ -441,7 +441,7 @@ export default function HowItWorks({ setPage }: HowItWorksProps) {
       <section className="px-6 max-w-5xl mx-auto relative z-10">
         <div className="bg-[#EBE9E2] text-[#121212] rounded-[2px] p-8 md:p-12 text-center space-y-6 border border-[#CBC8BE]">
           <h2 className="text-3xl md:text-4xl font-medium font-sans tracking-tight text-[#121212]">
-            Experience Sub-180ms Voice in Action
+            Experience Real-Time Voice in Action
           </h2>
           <p className="text-[#262523] max-w-2xl mx-auto text-sm sm:text-base font-sans leading-relaxed">
             Launch our interactive sandbox in your browser and test voice barge-in with your microphone now.

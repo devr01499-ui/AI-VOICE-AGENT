@@ -33,7 +33,7 @@ const corePages = [
     title: 'Claritiy Voice — Automated AI Voice Calling Platform for Enterprise',
     description: 'Confirm cash-on-delivery (COD) orders before dispatch to reduce RTO and failed deliveries using automated, human-sounding AI voice calls.',
     h1: 'Autonomous Conversational Voice AI for Enterprise Telephony',
-    summary: 'Claritiy Voice replaces manual calling queues with sub-180ms conversational AI voice agents across 70+ languages, verifying orders, booking appointments, and recovering revenues automatically.'
+    summary: 'Claritiy Voice replaces manual calling queues with real-time conversational AI voice agents across 70+ languages, verifying orders, booking appointments, and recovering revenues automatically.'
   },
   {
     path: 'pricing',
@@ -44,10 +44,10 @@ const corePages = [
   },
   {
     path: 'how-it-works',
-    title: 'How Claritiy Voice Works — Real-Time Sub-180ms Audio Telephony Architecture',
+    title: 'How Claritiy Voice Works — Real-Time Voice Telephony Architecture',
     description: 'Explore the full audio pipeline: Automatic Speech Recognition (ASR), LLM orchestration, and zero-latency Text-to-Speech (TTS) SIP streaming.',
     h1: 'Inside the Claritiy Voice Telephony & Speech Synthesis Engine',
-    summary: 'Our vertically integrated stack connects SIP trunks directly to ultra-low latency WebRTC media relays, eliminating conversational pause loops.'
+    summary: 'Our vertically integrated stack streams call audio straight from the phone network to a single speech-to-speech model, so replies start quickly without stitched-together speech services.'
   },
   {
     path: 'solutions',
@@ -150,7 +150,7 @@ const corePages = [
   {
     path: 'ai-voice-agent-software',
     title: 'AI Voice Agent Software — Deploy Human-Sounding Phone Agents | Claritiy Voice',
-    description: 'Deploy autonomous conversational AI voice agent software with sub-180ms latency, native regional accents, and seamless CRM integrations. Flat ₹3.99/min.',
+    description: 'Deploy autonomous conversational AI voice agent software with natural, real-time conversation, native regional accents, and seamless CRM integrations. Flat ₹3.99/min.',
     h1: 'Enterprise AI Voice Agent Software Engineered for Real Conversations',
     summary: 'Claritiy Voice delivers production-grade conversational telephony agents that answer inbound calls, verify outbound cash-on-delivery orders, book clinic appointments, and collect payments with zero conversational lag.',
     customBody: `
@@ -169,7 +169,7 @@ const corePages = [
             Enterprise AI Voice Agent Software Engineered for Real Conversations
           </h1>
           <p style="font-size: 1.2rem; color: #4B5563; line-height: 1.7; max-width: 900px;">
-            Replace outdated interactive voice response (IVR) phone trees and high-turnover manual call centers with autonomous conversational voice agents. Claritiy Voice delivers verified sub-180ms turn-taking latency, native regional dialect support across 70+ languages, and deterministic bi-directional CRM execution—at a predictable, transparent flat rate of ₹3.99 per minute.
+            Replace outdated interactive voice response (IVR) phone trees and high-turnover manual call centers with autonomous conversational voice agents. Claritiy Voice delivers natural, real-time turn-taking, native regional dialect support across 70+ languages, and deterministic bi-directional CRM execution—at a predictable, transparent flat rate of ₹3.99 per minute.
           </p>
           <div style="display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap;">
             <a href="/dashboard" style="background: #059669; color: white; padding: 0.875rem 1.75rem; border-radius: 0.75rem; text-decoration: none; font-weight: 700; font-size: 1rem;">Launch Free Sandbox</a>
@@ -183,7 +183,7 @@ const corePages = [
             <strong>AI Voice Agent Software</strong> is an enterprise software platform that enables computers to engage in natural, bi-directional spoken telephone conversations with human callers. Unlike legacy automated dialing tools or pre-recorded IVR phone trees ("Press 1 for Support, Press 2 for Billing"), an AI voice agent listens actively, comprehends spoken intent in real time, respects interruptions (barge-in), and retrieves or updates database records mid-call.
           </p>
           <p>
-            By combining real-time Automatic Speech Recognition (ASR), multi-turn reasoning with Large Language Models (LLM), and low-latency Text-to-Speech (TTS) synthesis over WebRTC and SIP networks, organizations automate high-volume phone operations without recruiting, onboarding, or managing massive call center teams.
+            By combining real-time Automatic Speech Recognition (ASR), multi-turn reasoning with Large Language Models (LLM), and low-latency speech synthesis over telephone networks, organizations automate high-volume phone operations without recruiting, onboarding, or managing massive call center teams.
           </p>
         </section>
 
@@ -209,15 +209,14 @@ const corePages = [
         </section>
 
         <section style="margin-bottom: 3.5rem;">
-          <h2 style="font-size: 2rem; font-weight: 800; color: #111827; margin-bottom: 1.25rem;">The Claritiy Voice Architectural Engine: Sub-180ms Latency</h2>
+          <h2 style="font-size: 2rem; font-weight: 800; color: #111827; margin-bottom: 1.25rem;">The Claritiy Voice Architectural Engine: Real-Time Turn-Taking</h2>
           <p style="margin-bottom: 1.25rem;">
-            Claritiy Voice eliminates the conversational delay problem through a vertically integrated speech-to-speech pipeline. By streaming zero-copy 16kHz audio directly over UDP WebRTC relays rather than HTTP REST hops, our system achieves turn-taking in under 180 milliseconds—matching native human conversational cadence.
+            Claritiy Voice eliminates the conversational delay problem through a vertically integrated speech-to-speech pipeline. Call audio streams directly between the phone network and a single speech-to-speech model, without separate speech-to-text and text-to-speech hops, so replies start quickly and conversations feel natural.
           </p>
-          <pre style="background: #111827; color: #E5E7EB; padding: 1.5rem; border-radius: 0.75rem; overflow-x: auto; font-family: monospace; font-size: 0.875rem;"><code>// Claritiy Voice Sub-180ms WebRTC Session Configuration
+          <pre style="background: #111827; color: #E5E7EB; padding: 1.5rem; border-radius: 0.75rem; overflow-x: auto; font-family: monospace; font-size: 0.875rem;"><code>// Claritiy Voice session settings (illustrative)
 {
-  "telephony_transport": "WebRTC_SRTP_UDP",
+  "telephony_transport": "carrier_media_stream",
   "codec": "audio/x-l16; rate=16000",
-  "turn_taking_latency_ms": 174,
   "barge_in_detection_window_ms": 20,
   "edge_pii_redaction": ["credit_card", "aadhaar_uid", "phi_records"],
   "pricing": {
@@ -310,7 +309,7 @@ const corePages = [
         <footer style="background: #0D1117; color: white; padding: 2.5rem; border-radius: 1rem; text-align: center;">
           <h2 style="font-size: 1.75rem; font-weight: 800; margin-bottom: 1rem;">Experience Autonomous Telephony in Our Free Sandbox</h2>
           <p style="color: #9CA3AF; margin-bottom: 1.5rem; max-width: 600px; margin-left: auto; margin-right: auto;">
-            Test phone calls with sub-180ms latency today. No credit card required.
+            Test live phone calls today. No credit card required.
           </p>
           <a href="/dashboard" style="background: #10B981; color: #0D1117; padding: 0.875rem 2rem; border-radius: 0.75rem; text-decoration: none; font-weight: 800; font-size: 1rem;">
             Start Free in Sandbox &rarr;
@@ -494,11 +493,11 @@ for (let i = 0; i < topics.length; i++) {
       <section style="margin-bottom: 2rem;">
         <h2 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin-bottom: 0.75rem;">Technical Implementation & Flow Architecture</h2>
         <p style="line-height: 1.7; margin-bottom: 1rem; color: #374151;">
-          From an engineering perspective, building an elite voice infrastructure for "${cleanTitle}" requires a vertically integrated pipeline. The voice stack is split into three core layers: Automatic Speech Recognition (ASR), Large Language Model orchestration (LLM), and Text-to-Speech synthesis (TTS). Claritiy Voice achieves sub-180ms latency by streaming audio packets over WebRTC directly connected to our agent workflow engine.
+          From an engineering perspective, building an elite voice infrastructure for "${cleanTitle}" requires a vertically integrated pipeline. The voice stack is split into three core layers: Automatic Speech Recognition (ASR), Large Language Model orchestration (LLM), and Text-to-Speech synthesis (TTS). Claritiy Voice keeps replies fast by streaming call audio directly to a single speech-to-speech model connected to the agent workflow engine.
         </p>
         <pre style="background: #111827; color: #E5E7EB; padding: 1.25rem; border-radius: 0.75rem; overflow-x: auto; font-size: 0.875rem;"><code>{
   "agent_id": "agent_claritiy_voice_${topic.id}",
-  "capabilities": ["sub_180ms_latency", "webrtc_media_relay", "pii_protection"],
+  "capabilities": ["real_time_turn_taking", "carrier_media_streaming", "pii_protection"],
   "telephony_pipeline": {
     "asr": "native_multilingual",
     "llm": "gemini_2_5_flash_audio",

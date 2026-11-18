@@ -23,7 +23,7 @@ export default function LottieVoiceOrb({ className = "", onExploreClick }: Lotti
     {
       id: "cod",
       title: "COD Confirmation",
-      tag: "E-COMMERCE · 174ms",
+      tag: "E-COMMERCE",
       caller: "Rohan (Customer)",
       agent: "Claritiy Voice Agent",
       dialogue: [
@@ -31,12 +31,12 @@ export default function LottieVoiceOrb({ className = "", onExploreClick }: Lotti
         { speaker: "caller", text: "Haan confirm hai! But please Thursday ko deliver karna." },
         { speaker: "agent", text: "Done! Thursday delivery mark kar di hai. Tracking SMS bhej diya hai!" }
       ],
-      metrics: { latency: "168ms", accuracy: "99.8%", vad: "18ms" }
+      metrics: { latency: "Real-time", accuracy: "99.8%", vad: "Adaptive" }
     },
     {
       id: "clinic",
       title: "Clinic Receptionist",
-      tag: "HEALTHCARE · 178ms",
+      tag: "HEALTHCARE",
       caller: "Dr. Sharma's Patient",
       agent: "Clinic Intake AI",
       dialogue: [
@@ -44,12 +44,12 @@ export default function LottieVoiceOrb({ className = "", onExploreClick }: Lotti
         { speaker: "agent", text: "Yes! Dr. Sharma has a 4:15 PM slot available. Shall I reserve that for you?" },
         { speaker: "caller", text: "Perfect, please book it under Ananya." }
       ],
-      metrics: { latency: "178ms", accuracy: "99.9%", vad: "20ms" }
+      metrics: { latency: "Real-time", accuracy: "99.9%", vad: "Adaptive" }
     },
     {
       id: "bfsi",
       title: "EMI Pre-Due Reminder",
-      tag: "BFSI & FINTECH · 172ms",
+      tag: "BFSI & FINTECH",
       caller: "Priya (Borrower)",
       agent: "Recovery Specialist",
       dialogue: [
@@ -57,7 +57,7 @@ export default function LottieVoiceOrb({ className = "", onExploreClick }: Lotti
         { speaker: "caller", text: "Main kal pay kar dungi. Can you send the UPI link on WhatsApp?" },
         { speaker: "agent", text: "Bilkul! Link abhi aapke WhatsApp par send kar diya hai. Thank you!" }
       ],
-      metrics: { latency: "172ms", accuracy: "100%", vad: "15ms" }
+      metrics: { latency: "Real-time", accuracy: "100%", vad: "Adaptive" }
     }
   ];
 
@@ -107,7 +107,7 @@ export default function LottieVoiceOrb({ className = "", onExploreClick }: Lotti
               </span>
             </div>
             <p className="text-xs text-[#262523] font-sans mt-0.5">
-              Live neural audio synthesis running on loop · Real-time sub-180ms WebRTC
+              Live neural audio synthesis running on loop · Real-time voice
             </p>
           </div>
         </div>

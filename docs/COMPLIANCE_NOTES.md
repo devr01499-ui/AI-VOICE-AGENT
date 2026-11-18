@@ -36,3 +36,10 @@ Conservative choices made in code, and items a qualified professional (CA / lawy
 - **Access.** Recordings are played only by the account owner through 5-minute signed links to our server; the carrier link is never shown. Downloads are possible for the owner.
 - **Retention.** Recordings are deleted after 90 days by default (`RECORDING_RETENTION_DAYS`), and with the call when a workspace retention period (`dataRetentionDays`) expires. Deletion happens at the carrier first; if the carrier does not confirm, the call is kept and an `[ADMIN_ALERT][DPDP]` log line is written. **Owner/lawyer to confirm** the retention period and add it to the Privacy Policy.
 - **Plans.** No plan currently lists recording as a feature, so it is not plan-gated. **Owner to decide** whether recording is a paid feature.
+
+## Marketing claims (Phase 11, launch gate §8)
+- **Fixed:** all numeric latency claims ("sub-180ms", "verified 174ms", per-stage 45/65/90 ms timings, competitor latency figures) and "WebRTC" architecture claims were removed from the site, blog, FAQ and SEO pre-render; a test now blocks them. Publish a latency number only after measuring it on live calls (owner step 19).
+- **Owner/lawyer to review (not changed by Claude — business or legal decisions):**
+  - Pricing copy: "₹3.99/min pay-as-you-go", "from ₹1,799 per month", "750 Bundled Call Minutes (₹3.99/min after)" appear on Home, Pricing SEO, AiVoiceAgentSoftware, BlogIndex, FAQ and App.tsx structured data, but the product sells minute packs (₹1 / ₹800 / ₹3,799 / ₹10,799 / ₹30,799) with no pay-as-you-go or overage billing.
+  - Competitor comparison pages naming Vapi and Retell with negative claims (Home comparison table, App.tsx comparison page, FAQ): comparative advertising needs evidence for every claim.
+  - Unverified numbers: "99.8% / 99.9% accuracy" (LottieVoiceOrb), "70+ languages", "MSME registered", "TLS 1.3", "Delhivery / Shiprocket sync", "SIP-REFER human handover" (call transfer is marked "coming soon" in the product).

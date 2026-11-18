@@ -41,25 +41,25 @@ const ARTICLES = [
     featured: true,
     excerpt: "Selecting an enterprise AI voice agent platform requires evaluating total cost of ownership, speech recognition accuracy across regional accents, response latency parameters, and telephony reliability.",
     nonTechSummary: "For business executives, choosing a voice AI platform comes down to 3 things: Will it sound human? Will it integrate with our CRM? How much money will it save compared to a manual call center?",
-    techSummary: "For technical architects, the evaluation focuses on zero-copy WebRTC audio transport, BCP-47 phoneme alignment, full-duplex DSP barge-in latency (<180ms), and REST/SIP payload security.",
+    techSummary: "For technical architects, the evaluation focuses on direct carrier audio streaming, BCP-47 language handling, full-duplex barge-in, and REST/SIP payload security.",
     content: `Selecting an enterprise AI voice agent platform requires evaluating total cost of ownership, speech recognition accuracy across regional accents, response latency parameters, and telephony reliability.
 
-This comprehensive guide evaluates enterprise voice AI architectures, comparing native WebRTC zero-copy audio streaming against multi-vendor chained API pipelines across latency, cost transparency, and regional dialect comprehension.
+This comprehensive guide evaluates enterprise voice AI architectures, comparing a single speech-to-speech model against multi-vendor chained API pipelines across latency, cost transparency, and regional dialect comprehension.
 
 ### Executive Buyer Checklist for 2026
 
-1. **Response Latency**: Human speech flow breaks down when system delay exceeds 300ms. Platforms utilizing native WebRTC multimodal streaming achieve sub-180ms responses, outperforming chained API architectures.
+1. **Response Latency**: Human speech flow breaks down when system delay exceeds 300ms. Platforms that stream audio to a single speech-to-speech model avoid the extra hops of chained speech-to-text, LLM and text-to-speech services.
 2. **Pricing Transparency**: Look out for hidden vendor fees. Platforms charging separate line items for ASR, LLM tokens, and neural TTS increase total cost per minute significantly compared to flat-rate bundled plans.
 3. **Regional Dialect Support**: For global and Indian markets, native speech models comprehension across 70+ dialects (such as Hindi, Marathi, Gujarati, Bengali, and Kannada) is critical for high conversion.
 4. **Barge-In & Interruption DSP**: Real-world phone calls involve frequent interruptions. Full-duplex DSP audio stack allows immediate cancellation of agent audio when callers speak.
 
 ### Technical Architecture Comparison
 
-| Feature | Chained Multi-Vendor Stack | Claritiy Voice Native WebRTC |
+| Feature | Chained Multi-Vendor Stack | Claritiy Voice (single speech-to-speech model) |
 | :--- | :--- | :--- |
-| **Response Latency** | 1,200ms - 2,500ms (HTTP hops) | **Sub-175ms (Zero-copy UDP)** |
+| **Response Path** | Several separate services per reply | **One speech-to-speech model per reply** |
 | **Pricing Model** | Stacked STT + LLM + TTS tokens | **Flat ₹3.99 / min (Bundled)** |
-| **Audio Transport** | Chained HTTP REST endpoints | **Full-Duplex WebRTC / SRTP** |
+| **Audio Transport** | Chained HTTP REST endpoints | **Full-duplex carrier audio stream** |
 | **Voice Cloning** | High setup cost & manual training | **5-Second Zero-Shot Diffusion** |`
   },
   {
@@ -96,7 +96,7 @@ Deploying automated AI voice confirmation calls within 60 seconds of checkout al
     techSummary: "Deep engineering breakdown of zero-copy memory buffers, UDP SRTP audio frame streaming, 20ms VAD energy thresholding, and HNSW vector index search.",
     content: `Chaining Speech-to-Text (STT) to large language models (LLM) and Text-to-Speech (TTS) introduces significant HTTP latency.
 
-This deep technical guide explains how native WebRTC zero-copy audio pipelines eliminate intermediary text translations to deliver fluid sub-180ms conversational speech.
+This deep technical guide explains how a single speech-to-speech model removes intermediary text translations to deliver fluid, real-time conversational speech.
 
 ### Telephony Latency Budget
 
@@ -105,7 +105,7 @@ This deep technical guide explains how native WebRTC zero-copy audio pipelines e
 - **Multimodal Neural Inference**: 85ms
 - **RAG Lookup & Tool Exec**: 14ms
 - **Audio Packet Egress**: 28ms
-- **Total Latency**: **174ms**`
+- **Total Latency**: depends on the network and model; measured per call in your dashboard`
   },
   {
     id: "clinic-patient-intake",

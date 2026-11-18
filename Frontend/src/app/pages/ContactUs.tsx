@@ -274,7 +274,7 @@ export default function ContactUs() {
             <div className="space-y-3 text-xs text-[#262523]">
               <div className="flex items-start gap-2.5">
                 <CheckCircle2 className="w-4 h-4 text-[#121212] flex-shrink-0 mt-0.5" />
-                <span>Zero-copy WebRTC audio with strict PII edge redaction</span>
+                <span>Direct carrier audio streaming with PII redaction</span>
               </div>
               <div className="flex items-start gap-2.5">
                 <CheckCircle2 className="w-4 h-4 text-[#121212] flex-shrink-0 mt-0.5" />

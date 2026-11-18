@@ -449,15 +449,8 @@ export class AudioStreamHandler {
             startCallId,
             rejectionReason,
           });
-          if (startCallId) {
-            import('../repositories/CallRepository').then(({ CallRepository }) => {
-              CallRepository.updateStatus(startCallId, 'failed', {
-                endReason: 'handshake_failed',
-                endDetail: rejectionReason,
-                endedBy: 'system',
-              }).catch(() => {});
-            }).catch(() => {});
-          }
+          // Never change a call from an UNVERIFIED handshake: anyone could name a live call's id here
+          // and end it. The real call finishes through its own verified stream or carrier hangup.
           try {
             ws.close(1008, `Unauthorized: ${rejectionReason}`);
           } catch {}

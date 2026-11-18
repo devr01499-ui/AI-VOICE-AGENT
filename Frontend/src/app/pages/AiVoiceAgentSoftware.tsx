@@ -46,7 +46,7 @@ function AudioDemoPlayer() {
           <span className="text-xs font-mono font-medium text-[#121212]">LIVE AUDIO SIMULATOR</span>
         </div>
         <span className="text-[11px] font-mono font-medium text-[#121212] bg-[#DFDCD4] px-2 py-0.5 rounded-[1px] border border-[#CBC8BE]">
-          174ms WebRTC
+          Real-time voice
         </span>
       </div>
 
@@ -211,7 +211,7 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
             </h1>
 
             <p className="text-base sm:text-lg text-[#262523] leading-relaxed max-w-2xl font-sans">
-              Replace outdated IVR phone trees and high-turnover calling centers with autonomous conversational voice agents. Claritiy Voice delivers sub-180ms latency, native regional languages, and bidirectional CRM synchronization—at a predictable flat rate of ₹3.99 per minute.
+              Replace outdated IVR phone trees and high-turnover calling centers with autonomous conversational voice agents. Claritiy Voice delivers natural, real-time conversation, native regional languages, and bidirectional CRM synchronization—at a predictable flat rate of ₹3.99 per minute.
             </p>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
@@ -239,7 +239,7 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
               </div>
               <div className="flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-[#121212]" />
-                <span>Sub-180ms Turn-Taking Latency</span>
+                <span>Real-Time Turn-Taking</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-[#121212]" />
@@ -289,9 +289,9 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
             <div className="w-9 h-9 rounded-[2px] bg-[#DFDCD4] text-[#121212] border border-[#CBC8BE] flex items-center justify-center font-bold">
               <Zap className="w-4 h-4" />
             </div>
-            <h3 className="text-base font-medium text-[#121212] font-sans">Sub-180ms Latency Engine</h3>
+            <h3 className="text-base font-medium text-[#121212] font-sans">Real-Time Speech Engine</h3>
             <p className="text-xs text-[#262523] leading-relaxed font-sans">
-              We bypass HTTP REST proxies by connecting SIP telephony trunks directly to WebRTC media relays. Turn-taking is instantaneous, eliminating awkward pauses.
+              Call audio streams directly between the phone network and a single speech-to-speech model, so replies start quickly and pauses stay natural.
             </p>
           </div>
 
@@ -573,7 +573,7 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
             Ready to Automate Your Voice Operations?
           </h2>
           <p className="text-[#262523] text-sm md:text-base max-w-2xl mx-auto leading-relaxed font-sans">
-            Test real-time conversational phone calls in our free interactive sandbox. No credit card required. Experience sub-180ms voice AI in minutes.
+            Test real-time conversational phone calls in our free interactive sandbox. No credit card required. Experience real-time voice AI in minutes.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">

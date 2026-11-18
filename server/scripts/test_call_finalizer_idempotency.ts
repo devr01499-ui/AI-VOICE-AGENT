@@ -225,11 +225,11 @@ async function runM1Suite() {
     });
     await CallFinalizer.onCallFinalized(staleCallId);
 
-    // Simulate worker crashing mid-job leaving a stale lock older than 5 minutes
+    // Simulate a worker crashing mid-job: the lock is older than the worker's 15-minute stale window (AnalysisWorker E2)
     await prisma.$executeRawUnsafe(
       `UPDATE "analysis_jobs"
        SET status = 'processing',
-           locked_at = CURRENT_TIMESTAMP - INTERVAL '6 minutes',
+           locked_at = CURRENT_TIMESTAMP - INTERVAL '16 minutes',
            locked_by = 'crashed-worker-pid-9999'
        WHERE call_id = $1`,
       staleCallId

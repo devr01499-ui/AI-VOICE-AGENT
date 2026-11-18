@@ -296,7 +296,7 @@ export default function VisualFlowCanvas({
 
   // Speech settings state
   const [speechSpeed, setSpeechSpeed] = useState<number>(typeof savedSpeech.speed === 'number' ? savedSpeech.speed : 1.0);
-  const [responsivenessMs, setResponsivenessMs] = useState<number>(typeof savedSpeech.responsivenessMs === 'number' ? savedSpeech.responsivenessMs : 600);
+  const [responsivenessMs, setResponsivenessMs] = useState<number>(typeof savedSpeech.responsivenessMs === 'number' ? savedSpeech.responsivenessMs : 300);
   const [interruptionSensitivity, setInterruptionSensitivity] = useState<'HIGH' | 'LOW'>(savedSpeech.interruptionSensitivity === 'LOW' ? 'LOW' : 'HIGH');
   const [backchannelingEnabled, setBackchannelingEnabled] = useState<boolean>(savedSpeech.backchanneling === true);
   const [speechVolume, setSpeechVolume] = useState<number>(typeof savedSpeech.volume === 'number' ? savedSpeech.volume : 1.0);

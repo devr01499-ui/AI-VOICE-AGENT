@@ -342,6 +342,35 @@ class CallTimingTrackerClass {
     };
   }
 
+  /**
+   * Latency summary for one call (reply = caller stops speaking -> first agent audio sent to the
+   * carrier; ttft = caller stops -> model's first output). Null when no turn was measured.
+   */
+  summarizeCall(callId: string): {
+    turns: number; reply_p50_ms: number; reply_p95_ms: number; reply_max_ms: number; ttft_p50_ms: number | null; over_1000ms: number;
+  } | null {
+    const turns = this.getTurnRecords(callId).filter((r) => typeof r.reply_latency_ms === 'number');
+    if (turns.length === 0) return null;
+    const pick = (sorted: number[], q: number) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * q))];
+    const reply = turns.map((r) => r.reply_latency_ms!).sort((a, b) => a - b);
+    const ttft = turns.map((r) => r.ttft_ms).filter((v): v is number => typeof v === 'number').sort((a, b) => a - b);
+    return {
+      turns: reply.length,
+      reply_p50_ms: pick(reply, 0.5),
+      reply_p95_ms: pick(reply, 0.95),
+      reply_max_ms: reply[reply.length - 1],
+      ttft_p50_ms: ttft.length ? pick(ttft, 0.5) : null,
+      over_1000ms: reply.filter((v) => v > 1000).length,
+    };
+  }
+
+  /** Summary for the call, then forget it (turn records used to stay in memory forever). */
+  summarizeAndClear(callId: string) {
+    const summary = this.summarizeCall(callId);
+    this.clear(callId);
+    return summary;
+  }
+
   clear(callId: string): void {
     this.timings.delete(callId);
     this.activeTurns.delete(callId);

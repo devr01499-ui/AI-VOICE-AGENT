@@ -14,8 +14,8 @@ interface FAQItem {
 const FAQS: FAQItem[] = [
   {
     category: "Audio & Latency",
-    q: "How does Claritiy Voice achieve sub-180ms turn-taking latency?",
-    a: "Unlike legacy multi-vendor pipelines that serialize HTTP REST calls between separate STT, LLM, and TTS vendors (causing 1,200ms+ lag), Claritiy Voice streams raw uncompressed 16kHz PCM audio buffers over full-duplex WebRTC directly to native neural multimodal engines. With 20ms Voice Activity Detection (VAD) hardware interrupts, the AI pauses speaking the instant a customer barges in, creating fluid human turn-taking.",
+    q: "How does Claritiy Voice keep replies fast?",
+    a: "Unlike legacy multi-vendor pipelines that serialize HTTP REST calls between separate STT, LLM, and TTS vendors (causing 1,200ms+ lag), Claritiy Voice streams raw uncompressed 16kHz PCM audio over a full-duplex carrier audio stream directly to native neural multimodal engines. With 20ms Voice Activity Detection (VAD) hardware interrupts, the AI pauses speaking the instant a customer barges in, creating fluid human turn-taking.",
   },
   {
     category: "Audio & Latency",
