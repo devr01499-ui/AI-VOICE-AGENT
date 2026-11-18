@@ -26,7 +26,7 @@ Launch gate (Phase 14): every item below is either DONE with proof or listed in 
 - [x] **B15** Latency < 1 s p50 / < 1.5 s p95 (measured) + humanized voice — Phase 11 — Proof: FIX_LOG B15; `npm run test:voice-latency` 5/5 (1/5 on old code): platform audio work p95 0.013 ms in / 0.027 ms out per 20 ms frame, per-call latency summary saved, 300 ms end-of-speech default, no unmeasured latency claims. End-to-end < 1 s p50 NOT claimed: needs live calls — PROGRESS owner step 19
 
 ## Cross-cutting
-- [ ] **S7** Security / firewall / traffic hardening pass, `docs/SECURITY_AUDIT.md` (CLAUDE.md §7) — Phase 12 — Proof:
+- [x] **S7** Security / firewall / traffic hardening pass, `docs/SECURITY_AUDIT.md` (CLAUDE.md §7) — Phase 12 — Proof: docs/SECURITY_AUDIT.md (S1–S15 fixed, A1–A5 accepted with reasons); `npm run test:security-hardening` 13/13 (5 fail on old code); FIX_LOG S7. Owner steps 20–24 (secrets, RLS) in PROGRESS
 - [ ] **Q8** CI workflow + Playwright end-to-end smoke test + quality gates (CLAUDE.md §8) — Phase 14 — Proof:
 - [ ] **D9** Dead-code removal + `docs/BACKEND_UNUSED_REPORT.md` (CLAUDE.md §9) — Phase 13 — Proof:
 - [ ] **T0** Typecheck at 0 errors for frontend and server (frontend starts at 41) — all phases, closed in Phase 14 — Proof:
