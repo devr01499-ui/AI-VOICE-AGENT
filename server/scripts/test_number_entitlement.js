@@ -123,6 +123,30 @@ async function main() {
     assert.ok(index.includes("'/api/v2/telephony/webhook'"), 'the carrier webhook must stay');
   });
 
+  await test('every KYC route the KYC page calls exists on the server', async () => {
+    const kycRouter = require('../dist/routes/kyc').default;
+    const paths = new Set();
+    for (const l of kycRouter.stack) if (l.route) [].concat(l.route.path).forEach((p) => paths.add(`${Object.keys(l.route.methods)[0]} ${p}`));
+    const page = fs.readFileSync(path.join(__dirname, '../../Frontend/src/app/components/kyc/KycComplianceSettings.tsx'), 'utf8');
+    const called = [...new Set((page.match(/kyc\/[a-zA-Z0-9/_-]+/g) || []).map((m) => m.slice(3)))];
+    assert.ok(called.length >= 5, `found ${called.length} calls`);
+    for (const p of called) {
+      assert.ok([...paths].some((x) => x.endsWith(` ${p}`)), `KYC page calls ${p} but the server has no such route`);
+    }
+  });
+
+  await test('P6: no carrier names in user-facing error messages (white-label)', async () => {
+    const files = ['src/routes/numbers.ts', 'src/routes/kyc.ts', 'src/routes/billing.ts', 'src/services/CallService.ts', 'src/services/KycVerificationService.ts', 'src/services/VobizIntegrationService.ts'];
+    const offenders = [];
+    for (const f of files) {
+      fs.readFileSync(path.join(__dirname, '..', f), 'utf8').split('\n').forEach((line, i) => {
+        if (/logger\./.test(line)) return;
+        if (/(error|message)['"]?:\s*[`'"][^`'"]*\b(Vobiz|Plivo)\b/i.test(line)) offenders.push(`${f}:${i + 1}`);
+      });
+    }
+    assert.deepStrictEqual(offenders, []);
+  });
+
   console.log(`\nNUMBER ENTITLEMENT: ${passed === total ? 'PASS' : 'FAIL'} — ${passed}/${total} tests passed\n`);
   await prisma.$disconnect().catch(() => {});
   process.exit(passed === total ? 0 : 1);

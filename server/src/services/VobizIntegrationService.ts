@@ -61,7 +61,7 @@ export class VobizIntegrationService {
         userId: options.userId,
         organizationId: options.organizationId
       });
-      return { success: false, error: 'Network Error reaching Vobiz' };
+      return { success: false, error: 'Network error reaching the carrier' };
     }
 
     const providerRequestId = response.headers.get('x-request-id') || 'unknown';

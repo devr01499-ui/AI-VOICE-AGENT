@@ -249,7 +249,7 @@ export async function checkAndApplyFullKycApproval(
       approved: false,
       businessType: result.businessType,
       missing: [],
-      error: 'Cannot approve KYC on a mock sub-account. Live Vobiz credentials required.',
+      error: 'KYC cannot be approved on a test account. Live carrier credentials are required.',
     };
   }
 
@@ -260,7 +260,7 @@ export async function checkAndApplyFullKycApproval(
       approved: false,
       businessType: result.businessType,
       missing: [],
-      error: 'Vobiz sub-account not found.',
+      error: 'Calling account not found for this user.',
     };
   }
 

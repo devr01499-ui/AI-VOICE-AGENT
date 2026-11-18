@@ -541,7 +541,7 @@ router.post('/claim', requireAuth, requireEditor, requirePaidPlan, sensitiveOper
   const { vobizNumberId, agentId } = req.body;
 
   if (!vobizNumberId) {
-    res.status(400).json({ success: false, error: 'vobizNumberId is required.' });
+    res.status(400).json({ success: false, error: 'Choose a number first.' });
     return;
   }
 
