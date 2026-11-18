@@ -105,6 +105,25 @@ async function main() {
     assert.ok(csvLib.includes("/^[=+\\-@\\t\\r]/"), 'browser helper uses the same rule');
   });
 
+  await test('alerting: a rule without a secret gets ONE stored secret, so its webhooks can be verified', async () => {
+    const { AlertEvaluator } = require('../dist/services/AlertEvaluator');
+    const { WebhookDispatcher } = require('../dist/utils/WebhookDispatcher');
+    const sent = [];
+    const real = WebhookDispatcher.sendSignedWebhook;
+    WebhookDispatcher.sendSignedWebhook = async (url, secret, event, payload) => { sent.push({ secret, ruleId: payload && payload.ruleId }); };
+    const rule = await prisma.alertRule.create({ data: { userId: A, name: 'Any call', metric: 'call_volume', comparator: 'greater_than', thresholdValue: -1, evaluationWindowMins: 60 * 24 * 365, checkFrequencyMins: 1, notificationWebhookUrl: 'https://example.org/hook', enabled: true } });
+    try {
+      await prisma.alertRule.update({ where: { id: rule.id }, data: { webhookSecret: null } });
+      await AlertEvaluator.evaluateAllRules();
+    } finally {
+      WebhookDispatcher.sendSignedWebhook = real;
+    }
+    const stored = (await prisma.alertRule.findUnique({ where: { id: rule.id } })).webhookSecret;
+    assert.ok(stored && stored.startsWith('whsec_'), 'secret stored on the rule');
+    const mine = sent.filter((x) => x.ruleId === rule.id);
+    assert.ok(mine.length >= 1 && mine.every((x) => x.secret === stored), 'the webhook is signed with the stored secret: ' + JSON.stringify(mine));
+  });
+
   console.log(`\nDATA PAGES: ${passed === total ? 'PASS' : 'FAIL'} — ${passed}/${total} tests passed\n`);
   await prisma.$disconnect().catch(() => {});
   process.exit(passed === total ? 0 : 1);
