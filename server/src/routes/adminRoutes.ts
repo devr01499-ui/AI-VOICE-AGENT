@@ -1,3 +1,4 @@
+import { csvLine } from '../utils/csv';
 import { Router, Response } from 'express';
 import { requireStaff, StaffAuthenticatedRequest } from '../middleware/requireStaff';
 import { getPermissionsForRole, StaffRole } from '../admin/permissions';
@@ -1918,7 +1919,7 @@ adminRouter.get('/exports/:type', requireStaff('exports:csv'), async (req: Staff
         select: { id: true, email: true, fullName: true, accountStatus: true, callingBalanceMinutes: true, createdAt: true },
       });
       csvData = 'ID,Email,FullName,AccountStatus,BalanceMinutes,CreatedAt\n' +
-        users.map((u) => `"${u.id}","${u.email}","${u.fullName || ''}","${u.accountStatus}",${u.callingBalanceMinutes},"${u.createdAt.toISOString()}"`).join('\n');
+        users.map((u) => csvLine([u.id, u.email, u.fullName || '', u.accountStatus, u.callingBalanceMinutes, u.createdAt.toISOString()])).join('\n');
     } else if (exportType === 'calls') {
       const calls = await prisma.call.findMany({
         take: 2000,
@@ -1926,7 +1927,7 @@ adminRouter.get('/exports/:type', requireStaff('exports:csv'), async (req: Staff
         select: { id: true, recipientPhoneNumber: true, status: true, durationSeconds: true, createdAt: true, userId: true },
       });
       csvData = 'ID,RecipientNumber,Status,DurationSeconds,UserId,CreatedAt\n' +
-        calls.map((c) => `"${c.id}","${c.recipientPhoneNumber}","${c.status}",${c.durationSeconds || 0},"${c.userId}","${c.createdAt.toISOString()}"`).join('\n');
+        calls.map((c) => csvLine([c.id, c.recipientPhoneNumber, c.status, c.durationSeconds || 0, c.userId, c.createdAt.toISOString()])).join('\n');
     } else if (exportType === 'payments') {
       const payments = await prisma.paymentTransaction.findMany({
         take: 2000,
@@ -1934,7 +1935,7 @@ adminRouter.get('/exports/:type', requireStaff('exports:csv'), async (req: Staff
         select: { id: true, paymentId: true, planName: true, amount: true, status: true, userId: true, createdAt: true },
       });
       csvData = 'ID,PaymentId,PlanName,AmountINR,Status,UserId,CreatedAt\n' +
-        payments.map((p) => `"${p.id}","${p.paymentId}","${p.planName}",${p.amount || 0},"${p.status}","${p.userId}","${p.createdAt.toISOString()}"`).join('\n');
+        payments.map((p) => csvLine([p.id, p.paymentId, p.planName, p.amount || 0, p.status, p.userId, p.createdAt.toISOString()])).join('\n');
     } else {
       res.status(400).json({ error: 'Invalid export type. Must be customers, calls, or payments.' });
       return;

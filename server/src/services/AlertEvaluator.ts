@@ -60,7 +60,15 @@ export class AlertEvaluator {
           if (!activeIncident) {
             // New incident breached!
             triggeredCount++;
-            const secretKey = rule.webhookSecret || `whsec_${crypto.randomBytes(16).toString('hex')}`;
+            // One secret per rule, kept: a fresh random secret on every alert made the
+            // signature impossible for the receiver to verify.
+            let secretKey = rule.webhookSecret;
+            if (!secretKey) {
+              secretKey = `whsec_${crypto.randomBytes(16).toString('hex')}`;
+              await prisma.alertRule.updateMany({ where: { id: rule.id, userId: rule.userId, webhookSecret: null }, data: { webhookSecret: secretKey } });
+              const stored = await prisma.alertRule.findFirst({ where: { id: rule.id, userId: rule.userId }, select: { webhookSecret: true } });
+              secretKey = stored?.webhookSecret || secretKey;
+            }
 
             const newIncident = await prisma.alertIncident.create({
               data: {
@@ -107,10 +115,8 @@ export class AlertEvaluator {
         // Update lastEvaluatedAt timestamp
         await prisma.alertRule.update({
           where: { id: rule.id },
-          data: {
-            lastEvaluatedAt: now,
-            webhookSecret: rule.webhookSecret || `whsec_${crypto.randomBytes(16).toString('hex')}`,
-          },
+          // (The webhook secret is created once, when first needed — never overwritten here.)
+          data: { lastEvaluatedAt: now },
         });
       }
     } finally {

@@ -10,6 +10,7 @@
  * - Unified response contract aligning frontend and backend.
  */
 
+import { sanitizeCsvCell as sharedSanitizeCsvCell } from '../utils/csv';
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
@@ -27,14 +28,8 @@ const router = Router();
  * Neutralizes spreadsheet formula injection by prepending a single quote
  * if a string cell starts with =, +, -, @, tab, or carriage return.
  */
-function sanitizeCsvCell(val: any): string {
-  if (val === null || val === undefined) return '""';
-  let s = String(val);
-  if (/^[=+\-@\t\r]/.test(s)) {
-    s = "'" + s;
-  }
-  return `"${s.replace(/"/g, '""')}"`;
-}
+// Shared, formula-safe CSV cell (also used by the admin export).
+const sanitizeCsvCell = sharedSanitizeCsvCell;
 
 // ─────────────────────────────────────────────────────────────
 // 1. GET /api/v2/reports — Filterable list with cursor pagination

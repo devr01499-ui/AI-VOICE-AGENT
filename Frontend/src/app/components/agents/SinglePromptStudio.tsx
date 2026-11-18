@@ -607,8 +607,9 @@ export default function SinglePromptStudio({
   useEffect(() => {
     if (currentAgentId) {
       apiClient.get(`/api/v2/calendar/rules/${currentAgentId}`).then((res) => {
-        if (res.data?.rule) {
-          const r = res.data.rule;
+        // apiClient wraps the body as { success, data: body } and the body is { rule }.
+        const r = (res.data?.data as any)?.rule;
+        if (r) {
           setSchedulingRule({
             timeZone: r.timeZone || 'Asia/Kolkata',
             workingDays: Array.isArray(r.workingDays) ? r.workingDays : [1, 2, 3, 4, 5],
@@ -646,10 +647,11 @@ export default function SinglePromptStudio({
       const res = await apiClient.post(`/api/v2/calendar/rules/${currentAgentId}/parse-instructions`, {
         instructions: schedulingRule.instructions,
       });
-      if (res.data?.parsed) {
+      const parsed = (res.data?.data as any)?.parsed;
+      if (parsed) {
         setSchedulingRule((prev) => ({
           ...prev,
-          ...res.data.parsed,
+          ...parsed,
         }));
       }
     } catch {
@@ -665,8 +667,9 @@ export default function SinglePromptStudio({
       const res = await apiClient.post('/api/v2/calendar/slots', {
         agentId: currentAgentId,
       });
-      if (res.data?.slots && Array.isArray(res.data.slots)) {
-        setSchedulingPreviewSlots(res.data.slots);
+      const slots = (res.data?.data as any)?.slots;
+      if (Array.isArray(slots)) {
+        setSchedulingPreviewSlots(slots);
       } else {
         setSchedulingPreviewSlots([]);
       }
@@ -2507,6 +2510,7 @@ export default function SinglePromptStudio({
                     </label>
                     <input
                       type="number"
+                      data-testid="scheduling-duration"
                       value={schedulingRule.appointmentMinutes}
                       onChange={(e) =>
                         setSchedulingRule((prev) => ({
