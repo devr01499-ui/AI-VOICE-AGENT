@@ -930,25 +930,6 @@ export async function inviteTeamMember(email: string, role: string = 'viewer'): 
 export async function updateTeamMemberRole(memberId: string, role: string): Promise<ApiTeamMember> { return await apiFetch('/api/v2/team/' + memberId + '/role', { method: 'PUT', body: JSON.stringify({ role }) }); }
 export async function removeTeamMember(memberId: string): Promise<void> { await apiFetch('/api/v2/team/' + memberId, { method: 'DELETE' }); }
 
-export interface ApiAuditLog {
-  id: string;
-  workspaceOwnerId: string;
-  actorUserId: string;
-  action: string;
-  targetId: string | null;
-  metadata: any;
-  createdAt: string;
-}
-
-export async function fetchAuditLogs(filters?: { action?: string; startDate?: string; endDate?: string }): Promise<{ data: ApiAuditLog[]; pagination?: any }> {
-  const params = new URLSearchParams();
-  if (filters?.action) params.append('action', filters.action);
-  if (filters?.startDate) params.append('startDate', filters.startDate);
-  if (filters?.endDate) params.append('endDate', filters.endDate);
-  const query = params.toString() ? `?${params.toString()}` : '';
-  return await apiFetch(`/api/v2/audit-logs${query}`);
-}
-
 export async function fetchDataRetention(): Promise<{ dataRetentionDays: number | null }> {
   return await apiFetch('/api/v2/user/retention');
 }
