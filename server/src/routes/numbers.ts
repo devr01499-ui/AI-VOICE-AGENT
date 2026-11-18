@@ -978,6 +978,23 @@ router.post('/:id/mark-funded-and-activate', requireAuth, async (req, res, next)
  * GET /api/v2/numbers/calling-config
  * Returns inbound and outbound calling configuration for all numbers owned by user.
  */
+const KYC_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+const lastKycSync = new Map<string, number>();
+/** Starts a carrier KYC refresh without waiting for it; throttled per account. */
+export function syncKycInBackground(userId: string): boolean {
+  const now = Date.now();
+  if (now - (lastKycSync.get(userId) || 0) < KYC_SYNC_INTERVAL_MS) return false;
+  if (lastKycSync.size > 10_000) lastKycSync.clear();
+  lastKycSync.set(userId, now);
+  setImmediate(() => {
+    const { VobizSubAccountService } = require('../services/VobizSubAccountService');
+    new VobizSubAccountService().syncKycStatus(userId).catch((err: any) => {
+      logger.warn('Numbers: background KYC sync failed', { userId, error: String(err?.message || err) });
+    });
+  });
+  return true;
+}
+
 router.get('/calling-config', requireAuth, async (req, res, next) => {
   try {
     const userId = (req as any).userId;
@@ -986,17 +1003,16 @@ router.get('/calling-config', requireAuth, async (req, res, next) => {
       return;
     }
 
-    // Live sync KYC status with Vobiz
-    const { VobizSubAccountService } = require('../services/VobizSubAccountService');
-    const subService = new VobizSubAccountService();
-    await subService.syncKycStatus(userId).catch(() => {});
+    // KYC status is refreshed from the carrier in the BACKGROUND (at most every 5 minutes per
+    // account). The page used to wait for that live carrier call (no timeout) on every load.
+    syncKycInBackground(userId);
 
     const numbers = await prisma.phoneNumber.findMany({
       where: { userId },
       include: {
-        agent: true,
+        agent: { select: { id: true, name: true } },
         inboundConfigs: {
-          include: { agent: true }
+          include: { agent: { select: { id: true, name: true } } }
         }
       },
       orderBy: { purchasedAt: 'desc' }

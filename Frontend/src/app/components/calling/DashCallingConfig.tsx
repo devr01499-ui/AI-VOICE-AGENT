@@ -31,8 +31,8 @@ export function DashCallingConfig({ onNavigateToKyc }: { onNavigateToKyc?: () =>
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [realCallModal, setRealCallModal] = useState<{ open: boolean; agentId?: string; fromNumber?: string }>({ open: false });
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (quiet = false) => {
+    if (!quiet) setLoading(true);
     try {
       const [numRes, agRes] = await Promise.all([
         apiClient.get('/api/v2/numbers/calling-config'),
@@ -63,15 +63,21 @@ export function DashCallingConfig({ onNavigateToKyc }: { onNavigateToKyc?: () =>
     businessHours?: string;
   }) => {
     setSavingId(numberId);
+    // Show the change at once; put it back if the server refuses it.
+    const before = numbers;
+    setNumbers((list) => list.map((n) => (n.id === numberId ? { ...n, ...updates } : n)));
     try {
       const res = await apiClient.post(`/api/v2/numbers/${numberId}/calling-config`, updates);
       if (res.data?.success) {
         setSuccessMsg('Calling configuration updated successfully!');
         setTimeout(() => setSuccessMsg(null), 3000);
-        // Refresh local state
-        await loadData();
+        // Quiet refresh (agent names etc.) without blanking the page.
+        loadData(true);
+      } else {
+        setNumbers(before);
       }
     } catch (err) {
+      setNumbers(before);
       alert('Failed to update calling configuration: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setSavingId(null);
