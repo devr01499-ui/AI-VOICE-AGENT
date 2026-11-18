@@ -6,11 +6,12 @@ import rateLimit from 'express-rate-limit';
  * Falls back to req.ip behind trust proxy.
  */
 export const getRateLimitKey = (req: any): string => {
+  // Only identities set by the auth middleware count. The client-sent `x-user-id` header used to be
+  // accepted here, so a caller could send a new value per request and never be rate limited.
   const userId =
     req.userId ||
     req.user?.id ||
-    req.auth?.userId ||
-    (req.headers && req.headers['x-user-id']);
+    req.auth?.userId;
 
   if (userId && typeof userId === 'string' && userId.trim() !== '') {
     return `user:${userId.trim()}`;
@@ -69,6 +70,21 @@ export const notificationActionLimiter = rateLimit({
   keyGenerator: getRateLimitKey,
   validate: false,
   message: { success: false, error: 'Too many notification actions. Please wait a moment and try again.' },
+});
+
+/**
+ * Everyday actions on calls and reports (end a call, open a live transcript, delete a call, correct
+ * or accept a report): 120 per user per 15 minutes. Stops scripted flooding without getting in the
+ * way of someone working through their call list.
+ */
+export const callActionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getRateLimitKey,
+  validate: false,
+  message: { success: false, error: 'Too many actions in a short time. Please wait a moment and try again.' },
 });
 
 /**

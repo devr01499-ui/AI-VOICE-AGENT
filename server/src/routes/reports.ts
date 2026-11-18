@@ -16,6 +16,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { requireEditor } from '../middleware/auth';
+import { callActionLimiter, aiFeatureLimiter } from '../middleware/rateLimiter';
 import { logAuditEvent } from '../utils/auditLogger';
 import { REPORT_BLUEPRINTS, ReportBlueprint } from '../config/reportBlueprints';
 import { calculateRubricScore } from '../utils/rubricScorer';
@@ -760,13 +761,13 @@ const handleCorrection = async (req: Request, res: Response, next: NextFunction)
   }
 };
 
-router.post('/:callId/correct', requireEditor, handleCorrection);
-router.post('/:callId/correction', requireEditor, handleCorrection);
+router.post('/:callId/correct', requireEditor, callActionLimiter, handleCorrection);
+router.post('/:callId/correction', requireEditor, callActionLimiter, handleCorrection);
 
 // ─────────────────────────────────────────────────────────────
 // 7. POST /:callId/accept — Accept Report into Verified State
 // ─────────────────────────────────────────────────────────────
-router.post('/:callId/accept', requireEditor, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/:callId/accept', requireEditor, callActionLimiter, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId;
     const actorUserId = (req as any).userId;
@@ -811,7 +812,7 @@ router.post('/:callId/accept', requireEditor, async (req: Request, res: Response
 // ─────────────────────────────────────────────────────────────
 // 8. POST /:callId/reanalyze — Trigger Re-analysis
 // ─────────────────────────────────────────────────────────────
-router.post('/:callId/reanalyze', requireEditor, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/:callId/reanalyze', requireEditor, aiFeatureLimiter, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId;
     const actorUserId = (req as any).userId;

@@ -338,7 +338,7 @@ router.get('/subscription-status', requireAuth, async (req: AuthenticatedRequest
  * POST /api/v2/billing/sync-entitlements
  * Re-validates server-side entitlements and touches session freshness for client token refresh.
  */
-router.post('/sync-entitlements', requireAuth, async (req: AuthenticatedRequest, res) => {
+router.post('/sync-entitlements', requireAuth, sensitiveOperationsLimiter, async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.effectiveWorkspaceId || req.userId;
     if (!userId) {
