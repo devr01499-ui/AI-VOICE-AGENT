@@ -233,7 +233,11 @@ export function DashCallingConfig({ onNavigateToKyc }: { onNavigateToKyc?: () =>
                         <PhoneOutgoing className="w-4 h-4 text-emerald-600" />
                         <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider" style={{ fontFamily: "'Outfit', sans-serif" }}>Outbound Settings</h4>
                       </div>
-                      <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200">Active</span>
+                      {item.status === 'active' ? (
+                        <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200">Active</span>
+                      ) : (
+                        <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-200">Awaiting activation</span>
+                      )}
                     </div>
 
                     <div className="space-y-2">

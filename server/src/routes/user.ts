@@ -9,6 +9,7 @@ import { normalizeEmail, isDisposableEmail, isValidEmail } from '../utils/emailN
 import { signupLimiter, authIpThrottleDelay, sensitiveOperationsLimiter, notificationActionLimiter } from '../middleware/rateLimiter';
 import { ADMIN_EMAIL } from '../config/constants';
 import { EncryptionService } from '../utils/EncryptionService';
+import { getPlanConcurrency } from '../config/plans';
 import { supabaseClient } from '../utils/supabase';
 import { getTrustedClientIp } from '../utils/ipChecker';
 
@@ -425,7 +426,7 @@ router.get('/concurrency', requireAuth, async (req: AuthenticatedRequest, res) =
 
     const user = await prisma.user.findUnique({
       where: { id: ownerId },
-      select: { maxConcurrentCalls: true },
+      select: { maxConcurrentCalls: true, accountType: true },
     });
 
     const inMemoryCount = CallOrchestrator.instance.getActiveCallCountForUser(ownerId);
@@ -437,12 +438,16 @@ router.get('/concurrency', requireAuth, async (req: AuthenticatedRequest, res) =
     });
 
     const activeCallCount = Math.max(inMemoryCount, dbCount);
-    const softLimit = user?.maxConcurrentCalls ?? 10;
+    // The plan sets the ceiling; the stored value can only lower it (audit #6).
+    const planLimit = getPlanConcurrency(user?.accountType);
+    const softLimit = getPlanConcurrency(user?.accountType, user?.maxConcurrentCalls);
 
     res.json({
       success: true,
       activeCallCount,
       softLimit,
+      planLimit,
+      data: { activeCallCount, softLimit, planLimit },
     });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to fetch concurrency telemetry' });
@@ -463,6 +468,12 @@ router.post('/concurrency', requireAuth, requireRole(['admin']), sensitiveOperat
 
     if (isNaN(parsedLimit) || parsedLimit <= 0) {
       res.status(400).json({ success: false, error: 'maxConcurrentCalls must be a positive integer' });
+      return;
+    }
+    const owner = await prisma.user.findUnique({ where: { id: ownerId }, select: { accountType: true } });
+    const planLimit = getPlanConcurrency(owner?.accountType);
+    if (parsedLimit > planLimit) {
+      res.status(400).json({ success: false, error: `Your plan allows up to ${planLimit} simultaneous call(s). Upgrade your plan for more.`, code: 'ABOVE_PLAN_LIMIT', planLimit });
       return;
     }
 

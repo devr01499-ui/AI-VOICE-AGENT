@@ -26,6 +26,7 @@ import { countActiveCalls, countGlobalActiveCalls, GLOBAL_TELEPHONY_CAP, withUse
 import { hasCallableBalance, getCallableSecondsRemaining } from '../utils/balanceUtils';
 import { EncryptionService } from '../utils/EncryptionService';
 import { checkOutboundDestination } from '../utils/destinationPolicy';
+import { getPlanConcurrency } from '../config/plans';
 
 // ─── Input Shapes ─────────────────────────────────
 
@@ -100,14 +101,11 @@ export class CallService {
       }
 
       // ── Enforce Tenant Concurrency Cap ────────────────────
-      let maxConcurrency = user.maxConcurrentCalls ?? 1;
-      if (user.maxConcurrentCalls === null || user.maxConcurrentCalls === undefined) {
-        if (user.accountType === 'developer' || user.accountType === 'professional') {
-          maxConcurrency = 5; // Growth
-        } else if (user.accountType === 'enterprise') {
-          maxConcurrency = 15; // Scale
-        }
-      }
+      // The plan decides the limit; the stored value can only lower it (audit #6: the column's
+      // default of 10 used to apply to every plan, the ₹1 trial included).
+      const maxConcurrency = user.email === ADMIN_EMAIL
+        ? Number.MAX_SAFE_INTEGER
+        : getPlanConcurrency(user.accountType, user.maxConcurrentCalls);
 
       const activeCallCount = await countActiveCalls(userId);
 

@@ -706,6 +706,16 @@ async function bootstrap(): Promise<void> {
       logger.warn('Knowledge base: could not resume pending indexing jobs', { error: err instanceof Error ? err.message : String(err) });
     });
 
+    // One-time repair: verified accounts were left with calls blocked (audit #2).
+    import('./utils/kycStatus')
+      .then(async ({ repairVerifiedCallBlocks, repairInactiveInboundNumbers }) => {
+        const restored = await repairInactiveInboundNumbers(); // audit #79
+        if (restored > 0) logger.info('Numbers: restored outbound on numbers switched to inbound-off', { count: restored });
+        return repairVerifiedCallBlocks();
+      })
+      .then((n) => { if (n > 0) logger.info('KYC: unblocked calls for verified accounts', { count: n }); })
+      .catch((err) => logger.warn('KYC: call-block repair skipped', { error: err instanceof Error ? err.message : String(err) }));
+
     // Initialize providers (non-fatal if they fail)
     try {
       await initializeProviders();

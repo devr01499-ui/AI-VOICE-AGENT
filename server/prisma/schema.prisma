@@ -253,6 +253,9 @@ model PhoneNumber {
   phoneNumber           String    @unique @map("phone_number") // E.164 format
   userId                String    @map("user_id")
   assignedAgentId       String?   @map("assigned_agent_id")
+  /// Inbound calls accepted on this number (audit #79: the inbound switch used to set status
+  /// "inactive", which also blocked outbound calls).
+  inboundEnabled        Boolean   @default(true) @map("inbound_enabled")
   countryCode           String    @map("country_code")
   region                String?   // e.g. "California" or area code
   type                  String    @default("local") // local | toll_free

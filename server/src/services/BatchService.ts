@@ -6,6 +6,7 @@ import { logger } from '../utils/logger';
 import { ADMIN_EMAIL } from '../config/constants';
 import { countActiveCalls, countGlobalActiveCalls, GLOBAL_TELEPHONY_CAP } from '../utils/concurrency';
 import { getCallableSecondsRemaining } from '../utils/balanceUtils';
+import { getPlanConcurrency } from '../config/plans';
 
 const ACCOUNT_TELEPHONY_CAP = GLOBAL_TELEPHONY_CAP; // Centralized telephony cap
 const LOCK_TIMEOUT_MS = 60000; // 60s stale worker lock threshold
@@ -451,14 +452,8 @@ export class BatchService {
       }
 
       // Concurrency limits configuration
-      let userMaxConcurrency = user.maxConcurrentCalls ?? 1;
-      if (user.maxConcurrentCalls === null || user.maxConcurrentCalls === undefined) {
-        if (user.accountType === 'developer' || user.accountType === 'professional') {
-          userMaxConcurrency = 5;
-        } else if (user.accountType === 'enterprise') {
-          userMaxConcurrency = 15;
-        }
-      }
+      // Plan-based limit; the stored value can only lower it (audit #6).
+      const userMaxConcurrency = getPlanConcurrency(user.accountType, user.maxConcurrentCalls);
 
       const isSequential = batch.dialMode !== 'parallel';
       const interCallDelaySeconds = Math.max(5, Math.min(300, batch.interCallDelaySeconds ?? 10));
