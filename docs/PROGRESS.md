@@ -8,7 +8,8 @@
 | 3 | B3 Prompt Coach, B5 Test Lab | DONE, merged to `main` 2026-11-17 |
 | 4 | B6 agent editor sections, B7 conversational builder | DONE, merged to `main` 2026-11-17 |
 | 5 | B8 knowledge base / RAG inspector | DONE, merged to `main` 2026-11-17 |
-| 6–14 | See CLAUDE.md §13 | not started |
+| 6 | B13 billing / payment verification | DONE, merged to `main` 2026-11-18 |
+| 7–14 | See CLAUDE.md §13 | not started |
 
 ## PRODUCTION — UNTOUCHABLE (nothing relaxed)
 - `DATABASE_URL` in `server/.env` is production. Never connect; never copy it or any key anywhere. Tests use `TEST_DATABASE_URL` only (RUNBOOK.md); the guard blanks live service keys.
@@ -24,7 +25,6 @@
 ## Pre-launch items
 - P0 OWNER: rotate the production DB password (was public in git history); confirm the Google key literal in GeminiLiveProvider.ts is revoked.
 - P1 Migrations/Render (PRELAUNCH_NOTES §4, Option A recommended, owner choice pending). New additive migrations `20261117120000_add_notification_receipts`, `20261117130000_add_test_lab_runs`; under the current `db push` deploy the tables are created automatically. Phase 5 adds `20261117140000_kb_chunks_fulltext_index` (expression index: only `migrate deploy` creates it).
-- P2 Payments (Phase 6): plan check fails open if the gateway API errors; plan payment re-usable on paid number routes.
 - P3 One-number lock (Phase 7): DB-level unique constraint or locked transaction + parallel test.
 - P4 `requireActivePlan` passes free accounts with leftover minutes (Phase 7).
 - P5 Security (Phase 12): rate-limit key trusts client `x-user-id` header on public routes.
@@ -44,6 +44,7 @@
 11. Prompt Coach + Test Lab live smoke (after key rotation): open an agent → Prompt Coach → Enhance; then Test Lab → Run. Expected: a rewritten prompt with placeholders; Test Lab shows 5 callers with transcripts. Judge the quality of the AI answers.
 12. Flow + prompt agents live call (after key rotation): call a test number with a flow agent that has a global prompt, inbound direction and two named branches; the agent follows the branches and never reads the instructions aloud; max duration / end-on-silence end the call.
 13. Knowledge base with real AI key: upload a real PDF, wait for Ready, ask 5 questions in the Retrieval Inspector (2 in Hinglish). Expected: right section on top; if right answers sit under "Close but not used on calls", tell Claude the similarity numbers (gate tuning). Also confirms the embedding model name works.
+14. Razorpay test mode on a staging deploy (test keys, `RAZORPAY_WEBHOOK_SECRET`, webhook per RUNBOOK): buy Starter; on a second try close the tab right after paying. Expected: both activate once; Render log shows webhook 200. Set `COMPANY_GSTIN`; have a CA review COMPLIANCE_NOTES.
 
 ## Decisions
 - Checklist = 17 issues + S7, Q8, D9, D10, T0, M0, K0. Zero-open-defects gate in Phase 14. `npm run build` rewrites `Frontend/public/sitemap.xml` dates — `git restore` it.
@@ -56,4 +57,4 @@
 1. Gemini model policy (CLAUDE.md §3). 2. `devr0144@gmail.com` address (§11). 3. Migration Option A or B. STANDING RULE (§0.6/§12a): merge each verified phase to `main`, push, never ask between phases.
 
 ## Next exact step
-Phase 6 (branch `fix/billing-security`, PHASED_PROMPTS.md + CLAUDE.md B13, P2): BillingService.ts, routes/billing.ts, razorpayWebhook.ts, number purchase (`completeNumberPurchase` ignores client price). Tests: forged signature, replay, amount tampering, wrong user, double submit, webhook-before-verify race.
+Phase 7 (branch `fix/numbers-kyc`, CLAUDE.md B9, P3/P4/P8): one-number lock with a DB constraint + parallel test; `requireActivePlan` = active paid plan only; the 3 missing KYC routes; duplicate Vobiz service files; sub-account idempotency; downgrade/expiry policy.

@@ -273,9 +273,16 @@ async function runAudit() {
   await asyncTest('Mismatched plan price order is rejected by processPlanPurchase', async () => {
     let errorThrown = false;
     // Order was generated for trial (cheaper), but user attempts to claim enterprise
-    const cheapMockOrder = `order_mock_plan_trial_${auditUser1Id}_${Date.now()}`;
+    // (Phase 6: real server-created order + matching mock payment; the plan comes from the order.)
+    const cheapOrder = await billingService.createPlanPurchaseOrder('trial', auditUser1Id);
     try {
-      await billingService.processPlanPurchase(auditUser1Id, 'enterprise', `pay_mock_${Date.now()}`, cheapMockOrder);
+      await billingService.processPlanPurchase({
+        userId: auditUser1Id,
+        orderId: cheapOrder.id,
+        paymentId: cheapOrder.mockPayment.paymentId,
+        signature: cheapOrder.mockPayment.signature,
+        clientPlan: 'enterprise',
+      });
     } catch (err) {
       errorThrown = true;
       assert.ok(err.message.includes('Payment order amount does not match'));

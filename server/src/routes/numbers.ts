@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireEditor } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
-import { BillingService } from '../services/BillingService';
+import { BillingService, PaymentVerificationError } from '../services/BillingService';
 import { UsageSyncService } from '../services/UsageSyncService';
 import { VobizInventoryService } from '../services/VobizInventoryService';
 import { VobizPhoneNumberService } from '../services/VobizPhoneNumberService';
@@ -266,37 +266,33 @@ router.post('/create-order', requireAuth, requireEditor, requireActivePlan, sens
       return;
     }
 
-    const { baseCost = 0, setupFee = 0, currency = 'INR' } = req.body;
+    // The price is the carrier inventory price for the chosen number, looked up here. Any price
+    // fields sent by the browser are ignored.
+    const { vobizNumberId } = req.body || {};
+    if (!vobizNumberId || typeof vobizNumberId !== 'string') {
+      res.status(400).json({ success: false, error: 'Choose a number first.' });
+      return;
+    }
+    let amountInr: number;
+    try {
+      const details = await new VobizInventoryService().getNumberDetails(userId, vobizNumberId);
+      amountInr = Number(details?.monthly_fee || 0) + Number(details?.setup_fee || 0);
+    } catch (lookupErr: any) {
+      logger.error('[NUMBERS_CREATE_ORDER] price lookup failed', { userId, vobizNumberId, error: String(lookupErr?.message || lookupErr) });
+      res.status(502).json({ success: false, error: 'We could not get the price of this number. Please refresh and try again.' });
+      return;
+    }
 
-    logger.info('[NUMBERS_CREATE_ORDER] Creating Razorpay order', { userId, baseCost, setupFee, currency });
-
-    const billingService = new BillingService();
-    const order = await billingService.createNumberPurchaseOrder(userId, baseCost, setupFee, currency);
-    const keyId = order.keyId || order.key || process.env.RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy';
-    const orderId = order.orderId || order.id;
-
-    res.json({
-      success: true,
-      data: {
-        ...order,
-        id: orderId,
-        orderId,
-        keyId,
-        key: keyId,
-      }
-    });
+    const order = await new BillingService().createNumberPurchaseOrder(userId, amountInr, { provider: 'vobiz', numberRef: vobizNumberId });
+    logger.info('[NUMBERS_CREATE_ORDER] order created', { userId, vobizNumberId, amountInr });
+    res.json({ success: true, data: { ...order, amountInr } });
   } catch (err: any) {
-    const errorMsg = err?.message || String(err);
-    logger.error('[NUMBERS_CREATE_ORDER_ERROR] Failed to create Razorpay order', {
-      userId,
-      error: errorMsg,
-      stack: err?.stack,
-    });
-    
-    res.status(500).json({
-      success: false,
-      error: errorMsg || 'Payment initialization failed. Please check Razorpay keys or configuration.',
-    });
+    if (err instanceof PaymentVerificationError) {
+      res.status(err.status).json({ success: false, error: err.message, code: err.code });
+      return;
+    }
+    logger.error('[NUMBERS_CREATE_ORDER_ERROR] Failed to create order', { userId, error: String(err?.message || err) });
+    res.status(500).json({ success: false, error: 'Payment initialization failed. Please try again.' });
   }
 });
 
@@ -314,7 +310,8 @@ router.post('/create-order', requireAuth, requireEditor, requireActivePlan, sens
  */
 router.post('/purchase', requireAuth, requireEditor, requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
   const userId = (req as any).userId;
-  const { vobizNumberId, expectedPrice, orderId, paymentId, signature, agentId } = req.body;
+  // expectedPrice from the browser is ignored: the price is the one Razorpay confirms was paid.
+  const { vobizNumberId, orderId, paymentId, signature, agentId } = req.body || {};
 
   // Server-side number lock guard enforcement
   const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -344,7 +341,7 @@ router.post('/purchase', requireAuth, requireEditor, requireActivePlan, sensitiv
     return;
   }
 
-  if (!vobizNumberId || expectedPrice === undefined || !orderId || !paymentId || !signature) {
+  if (!vobizNumberId || !orderId || !paymentId || !signature) {
     res.status(400).json({ success: false, error: 'Missing required purchase fields.' });
     return;
   }
@@ -371,13 +368,22 @@ router.post('/purchase', requireAuth, requireEditor, requireActivePlan, sensitiv
     return;
   }
 
-  // Step 1: Server-side payment signature verification
+  // Step 1: Payment confirmed with Razorpay (signature, order, amount, user, purpose, captured)
+  // and recorded once, so this payment can never be redeemed for anything else.
   const billingService = new BillingService();
-  const isValid = billingService.verifyPayment(orderId, paymentId, signature);
-  if (!isValid) {
-    res.status(400).json({ success: false, error: 'Payment verification failed. No charge was made.' });
+  let paid: { amountInr: number; amountPaise: number };
+  try {
+    paid = await billingService.redeemNumberPayment({ userId, orderId, paymentId, signature, numberRef: vobizNumberId });
+  } catch (payErr: any) {
+    if (payErr instanceof PaymentVerificationError) {
+      res.status(payErr.status).json({ success: false, error: payErr.message, code: payErr.code });
+      return;
+    }
+    logger.error('[NUMBERS_PURCHASE] payment verification error', { userId, orderId, error: String(payErr?.message || payErr) });
+    res.status(500).json({ success: false, error: 'We could not confirm your payment. Please contact support if money was deducted.' });
     return;
   }
+  const expectedPrice = paid.amountInr;
 
   // Step 2: Ensure Vobiz sub-account exists BEFORE number purchase (blocks on failure)
   try {
@@ -451,9 +457,15 @@ router.post('/purchase', requireAuth, requireEditor, requireActivePlan, sensitiv
         errorMessage,
       });
 
-      // Attempt automatic refund for exact expected total amount
-      const amountInPaise = Math.round(expectedPrice * 100);
+      // Refund exactly what Razorpay confirmed was paid.
+      const amountInPaise = paid.amountPaise;
       const refundResult = await billingService.refundOrder(paymentId, amountInPaise);
+      if (refundResult.success) {
+        await prisma.paymentTransaction.updateMany({
+          where: { paymentId, userId },
+          data: { status: 'refunded', refundedAmount: paid.amountInr },
+        }).catch(() => {});
+      }
 
       if (refundResult.success) {
         res.status(503).json({
@@ -1197,7 +1209,8 @@ router.post('/plivo/claim', requireAuth, requireEditor, requireActivePlan, sensi
  */
 router.post('/plivo/purchase', requireAuth, requireEditor, requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
   const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
-  const { number, region, expectedPrice, orderId, paymentId, signature, agentId } = req.body;
+  // expectedPrice from the browser is ignored (see /purchase).
+  const { number, region, orderId, paymentId, signature, agentId } = req.body || {};
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
@@ -1226,16 +1239,24 @@ router.post('/plivo/purchase', requireAuth, requireEditor, requireActivePlan, se
     return;
   }
 
-  if (!number || expectedPrice === undefined || !orderId || !paymentId || !signature) {
+  if (!number || !orderId || !paymentId || !signature) {
     res.status(400).json({ success: false, error: 'Missing required purchase fields.' });
     return;
   }
 
-  // Verify Razorpay payment signature
+  // Payment confirmed with Razorpay and recorded once (same rules as /purchase).
   const billingService = new BillingService();
-  const isValid = billingService.verifyPayment(orderId, paymentId, signature);
-  if (!isValid) {
-    res.status(400).json({ success: false, error: 'Payment verification failed. No charge was made.' });
+  let expectedPrice: number;
+  try {
+    const paid = await billingService.redeemNumberPayment({ userId, orderId, paymentId, signature, numberRef: String(number) });
+    expectedPrice = paid.amountInr;
+  } catch (payErr: any) {
+    if (payErr instanceof PaymentVerificationError) {
+      res.status(payErr.status).json({ success: false, error: payErr.message, code: payErr.code });
+      return;
+    }
+    logger.error('[PLIVO_PURCHASE] payment verification error', { userId, orderId, error: String(payErr?.message || payErr) });
+    res.status(500).json({ success: false, error: 'We could not confirm your payment. Please contact support if money was deducted.' });
     return;
   }
 
@@ -1274,8 +1295,8 @@ router.post('/plivo/purchase', requireAuth, requireEditor, requireActivePlan, se
       },
     });
   } catch (err: any) {
-    logger.error('[PLIVO_PURCHASE_ERROR]', { error: err.message });
-    res.status(500).json({ success: false, error: err.message || 'Failed to complete number purchase' });
+    logger.error('[PLIVO_PURCHASE_ERROR] REFUND REVIEW NEEDED: paid number could not be provisioned', { userId, orderId, paymentId, error: err.message });
+    res.status(500).json({ success: false, error: 'Your payment was received but the number could not be set up. Our team has been alerted and will assign a number or refund you.' });
   }
 });
 

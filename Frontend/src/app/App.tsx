@@ -4297,31 +4297,23 @@ function DashNumbers({ profile, onNavigateToBilling, onNavigateToKyc }: { profil
   const handlePurchase = async (num: any) => {
     setPurchaseLoading(num.e164);
     try {
-      // 1. Create Order
-      const baseCost = num.monthly_fee || 0;
-      const setupFee = num.setup_fee || 0;
-      const expectedPrice = baseCost + setupFee;
+      // 1. Create Order — the server prices the number from the carrier inventory.
       const orderRes = await apiClient.post('/api/v2/numbers/create-order', {
-        baseCost,
-        setupFee,
-        currency: num.currency || 'INR',
+        vobizNumberId: num.number_id,
       });
       if (!orderRes.data?.success) throw new Error((orderRes.data as any)?.error || 'Order creation failed');
       
       const order = orderRes.data.data;
 
-      if (order.mock) {
-        // Fast-path mock flow
-        await completeNumberPurchase(num.number_id, expectedPrice, order.id, `pay_${Date.now()}`, 'mock_sig');
+      if (order.mock && order.mockPayment) {
+        // Local development/test only (the server never issues mock orders in production).
+        await completeNumberPurchase(num.number_id, order.id, order.mockPayment.paymentId, order.mockPayment.signature);
       } else {
         // Real Razorpay Flow
         if (!window.Razorpay) throw new Error('Payment system not loaded. Please disable adblockers and refresh.');
         
-        const razorpayKey =
-          order.keyId ||
-          order.key ||
-          import.meta.env.VITE_RAZORPAY_KEY_ID ||
-          'rzp_test_TO7mXkVkl4AFCy';
+        const razorpayKey = order.keyId || order.key || import.meta.env.VITE_RAZORPAY_KEY_ID;
+        if (!razorpayKey) throw new Error('Payments are not available right now. Please try again later.');
         const razorpayOrderId = order.orderId || order.id;
 
         const options = {
@@ -4335,8 +4327,7 @@ function DashNumbers({ profile, onNavigateToBilling, onNavigateToKyc }: { profil
           handler: async function (response: any) {
             try {
               await completeNumberPurchase(
-                num.number_id, 
-                expectedPrice, 
+                num.number_id,
                 response.razorpay_order_id, 
                 response.razorpay_payment_id, 
                 response.razorpay_signature
@@ -4363,11 +4354,11 @@ function DashNumbers({ profile, onNavigateToBilling, onNavigateToKyc }: { profil
     }
   };
 
-  const completeNumberPurchase = async (vobizNumberId: string, expectedPrice: number, orderId: string, paymentId: string, signature: string) => {
+  // The paid amount is confirmed by the server with the payment gateway; no price is sent from here.
+  const completeNumberPurchase = async (vobizNumberId: string, orderId: string, paymentId: string, signature: string) => {
     try {
       const purchaseRes = await apiClient.post('/api/v2/numbers/purchase', {
         vobizNumberId,
-        expectedPrice,
         orderId,
         paymentId,
         signature,

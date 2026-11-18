@@ -61,7 +61,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('token') : ''}`,
         },
-        body: JSON.stringify({ planName, price })
+        body: JSON.stringify({ planName })
       });
       const orderData = await orderRes.json();
       
@@ -95,8 +95,8 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
       const razorpayKey =
         orderData.data?.keyId ||
         orderData.data?.key ||
-        (import.meta as any).env?.VITE_RAZORPAY_KEY_ID ||
-        'rzp_test_TO7mXkVkl4AFCy';
+        (import.meta as any).env?.VITE_RAZORPAY_KEY_ID;
+      if (!razorpayKey) throw new Error('Payments are not available right now. Please try again later.');
 
       const razorpayOrderId =
         orderData.data?.orderId ||
@@ -136,11 +136,16 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
               },
               body: JSON.stringify(verifyPayload)
             });
-            const verifyData = await verifyRes.json();
-            if (verifyData.success) {
-              alert(`Success! Your account has been upgraded to the ${planName} Plan.`);
+            const verifyData = await verifyRes.json().catch(() => ({}));
+            // Success is shown ONLY after the server confirmed the payment with the gateway.
+            if (verifyRes.ok && verifyData.success) {
+              alert(verifyData.data?.alreadyActive
+                ? `Your ${verifyData.data?.planName || planName} Plan is already active.`
+                : `Success! Your account has been upgraded to the ${verifyData.data?.planName || planName} Plan.`);
               if (setPage) setPage('dashboard');
               else window.location.reload();
+            } else if (verifyData.pending) {
+              alert(verifyData.error || 'Your payment is being processed. Your plan will be activated automatically within a few minutes.');
             } else {
               alert('Payment verification failed: ' + (verifyData.error || 'Unknown error'));
             }

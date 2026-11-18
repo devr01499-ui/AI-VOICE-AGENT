@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { BillingService } from '../services/BillingService';
+import { BillingService, PaymentVerificationError } from '../services/BillingService';
 import { logger } from '../utils/logger';
 import { AuthenticatedRequest, requireAuth } from '../middleware/auth';
 import { env } from '../config/env';
@@ -13,139 +13,105 @@ const router = Router();
 
 router.post('/create-plan-order', requireAuth, sensitiveOperationsLimiter, async (req: AuthenticatedRequest, res) => {
   try {
-    const { planName, plan, price } = req.body;
-    const targetPlan = planName || plan || price;
-    
-    if (!targetPlan) {
+    const { planName, plan } = req.body || {};
+    const targetPlan = planName || plan;
+    if (!targetPlan || typeof targetPlan !== 'string') {
       res.status(400).json({ success: false, error: 'Plan name is required' });
       return;
     }
-
-    const billingService = new BillingService();
-    const order = await billingService.createPlanPurchaseOrder(targetPlan, req.userId);
-    const keyId = order.keyId || order.key || env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy';
-    const orderId = order.orderId || order.id;
-
-    res.json({
-      success: true,
-      data: {
-        ...order,
-        id: orderId,
-        orderId,
-        keyId,
-        key: keyId,
-      }
-    });
-  } catch (err: any) {
-    logger.error('Billing: failed to create plan order', { error: String(err) });
-    if (err.message === 'Invalid or unknown plan name' || err.message === 'Minimum amount must be at least 100 paise') {
-      res.status(400).json({ success: false, error: err.message });
+    if (!req.userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
       return;
     }
+    const order = await new BillingService().createPlanPurchaseOrder(targetPlan, req.userId);
+    res.json({ success: true, data: order });
+  } catch (err: any) {
+    if (err instanceof PaymentVerificationError) {
+      res.status(err.status).json({ success: false, error: err.message, code: err.code });
+      return;
+    }
+    logger.error('Billing: failed to create plan order', { error: String(err) });
     res.status(500).json({ success: false, error: 'Payment initialization failed' });
   }
 });
 
 /**
- * Shared verification handler supporting both /verify-plan and /verify-plan-payment.
+ * POST /api/v2/billing/verify-plan — called by the checkout after payment. Success is returned
+ * only after Razorpay's API confirms the payment (see BillingService). The plan activated is the
+ * one on the server's order. A repeat of the same confirmation (or one that loses the race with
+ * the webhook) returns success without adding minutes twice.
  */
-async function handlePlanVerification(req: any, res: any) {
+router.post('/verify-plan', requireAuth, sensitiveOperationsLimiter, async (req: AuthenticatedRequest, res) => {
   try {
-    const plan = req.body.plan || req.body.planName;
-    const orderId = req.body.orderId || req.body.razorpay_order_id;
-    const paymentId = req.body.paymentId || req.body.razorpay_payment_id;
-    const signature = req.body.signature || req.body.razorpay_signature;
-
-    if (!plan || !orderId || !paymentId || !signature) {
-      res.status(400).json({ success: false, error: 'Missing required payment verification fields' });
-      return;
-    }
-
-    const billingService = new BillingService();
-    const isValid = billingService.verifyPayment(orderId, paymentId, signature);
-
-    if (!isValid) {
-      res.status(400).json({ success: false, error: 'Invalid payment signature' });
-      return;
-    }
-
     if (!req.userId) {
       res.status(401).json({ success: false, error: 'Unauthorized' });
       return;
     }
+    const body = req.body || {};
+    const orderId = body.orderId || body.razorpay_order_id;
+    const paymentId = body.paymentId || body.razorpay_payment_id;
+    const signature = body.signature || body.razorpay_signature;
+    const clientPlan = body.plan || body.planName;
 
     const { prisma } = await import('../lib/prisma');
-    const userBefore = await prisma.user.findUnique({
-      where: { id: req.userId },
-      select: { accountType: true }
+    const userBefore = await prisma.user.findUnique({ where: { id: req.userId }, select: { accountType: true } });
+
+    const result = await new BillingService().processPlanPurchase({
+      userId: req.userId,
+      orderId,
+      paymentId,
+      signature,
+      clientPlan: typeof clientPlan === 'string' ? clientPlan : undefined,
     });
 
-    await billingService.processPlanPurchase(req.userId, plan, paymentId, orderId);
-
-    const isPlanChange = !!userBefore?.accountType && userBefore.accountType !== 'free';
-
-    await logAuditEvent({
-      workspaceOwnerId: req.effectiveWorkspaceId || req.userId,
-      actorUserId: req.userId,
-      action: 'billing.plan.purchased',
-      targetId: orderId,
-      metadata: { plan, paymentId, orderId, previousPlan: userBefore?.accountType || 'none' },
-    });
-
-    if (isPlanChange) {
+    if (!result.alreadyActive) {
       await logAuditEvent({
         workspaceOwnerId: req.effectiveWorkspaceId || req.userId,
         actorUserId: req.userId,
-        action: 'billing.plan.changed',
+        action: 'billing.plan.purchased',
         targetId: orderId,
-        metadata: { plan, paymentId, orderId, previousPlan: userBefore?.accountType },
+        metadata: { plan: result.planKey, paymentId, orderId, previousPlan: userBefore?.accountType || 'none' },
       });
+      if (userBefore?.accountType && userBefore.accountType !== 'free') {
+        await logAuditEvent({
+          workspaceOwnerId: req.effectiveWorkspaceId || req.userId,
+          actorUserId: req.userId,
+          action: 'billing.plan.changed',
+          targetId: orderId,
+          metadata: { plan: result.planKey, paymentId, orderId, previousPlan: userBefore.accountType },
+        });
+      }
     }
-
-    logger.info(`Plan purchased: ${plan}, OrderId: ${orderId}, UserId: ${req.userId}`);
 
     res.json({
       success: true,
       data: {
-        message: 'Plan purchased successfully.',
-      }
+        message: result.alreadyActive ? 'Your plan is already active.' : 'Plan purchased successfully.',
+        plan: result.planKey,
+        planName: result.planName,
+        alreadyActive: result.alreadyActive,
+      },
     });
   } catch (err: any) {
-    logger.error('Billing: failed to verify plan', { error: String(err) });
-    if (err.message === 'Payment has already been redeemed.') {
-      res.status(400).json({ success: false, error: 'Payment has already been redeemed.' });
+    if (err instanceof PaymentVerificationError) {
+      res.status(err.status).json({ success: false, error: err.message, code: err.code, pending: err.status === 202 || err.code === 'PAYMENT_UNCONFIRMED' });
       return;
     }
-    if (err.message.includes('Unauthorized') || err.message.includes('belongs to another')) {
-      res.status(403).json({ success: false, error: err.message });
+    const message = String(err?.message || '');
+    if (message === 'Payment has already been redeemed.' || message.includes('already redeemed')) {
+      res.status(409).json({ success: false, error: 'Payment has already been redeemed.', code: 'PAYMENT_ALREADY_REDEEMED' });
       return;
     }
-    if (err.message.includes('Payment order amount does not match') || err.message.includes('does not match')) {
-      res.status(400).json({ success: false, error: err.message });
-      return;
-    }
-    if (err.message.includes('Payment verification failed')) {
-      res.status(402).json({ success: false, error: err.message });
-      return;
-    }
-    res.status(500).json({ success: false, error: err.message || 'Verification failed' });
+    logger.error('Billing: failed to verify plan', { error: message });
+    res.status(500).json({ success: false, error: 'We could not activate your plan. If money was deducted, it will be activated automatically or refunded; contact support if it is not active within 30 minutes.' });
   }
-}
-
-router.post('/verify-plan', requireAuth, sensitiveOperationsLimiter, handlePlanVerification);
-router.post('/verify-plan-payment', requireAuth, sensitiveOperationsLimiter, handlePlanVerification);
+});
 
 /**
- * GET /api/v2/billing/config
- * Exposes active public payment gateway key for client-side checkout hydration.
+ * GET /api/v2/billing/config — the PUBLIC Razorpay key id for the checkout widget only.
  */
 router.get('/config', (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      razorpayKeyId: env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy',
-    },
-  });
+  res.json({ success: true, data: { razorpayKeyId: BillingService.publicKeyId() } });
 });
 
 /**
@@ -271,7 +237,7 @@ router.get('/invoices/:id/download', requireAuth, async (req: AuthenticatedReque
  * POST /api/v2/billing/gstin
  * Updates user company GSTIN to be included on future invoices.
  */
-router.post('/gstin', requireAuth, async (req: AuthenticatedRequest, res) => {
+router.post('/gstin', requireAuth, sensitiveOperationsLimiter, async (req: AuthenticatedRequest, res) => {
   try {
     const { gstin } = req.body;
     if (!gstin || typeof gstin !== 'string' || !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(gstin.trim().toUpperCase())) {

@@ -49,6 +49,7 @@ import { requireAuth } from './middleware/auth';
 import { WebhookController } from './controllers/WebhookController';
 import kbRoutes, { KB_UPLOAD_PATH } from './routes/knowledgeBase';
 import { KnowledgeBaseService } from './services/KnowledgeBaseService';
+import { startPaymentReconciliation } from './services/PaymentReconciliationService';
 import { mountUserRoutes } from './routes/user';
 import contactRoutes from './routes/contact';
 import teamRoutes from './routes/team';
@@ -735,6 +736,9 @@ async function bootstrap(): Promise<void> {
 
     // Start background analysis queue worker (5s evaluation cycle)
     AnalysisWorker.startBackgroundWorker(5000);
+
+    // Payments: every 15 min, make sure every captured payment was fulfilled (no-op without keys).
+    startPaymentReconciliation();
 
     // Boot recovery & 60s background cycle for batch campaigns & stuck calls
     Promise.all([

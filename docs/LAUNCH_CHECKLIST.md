@@ -21,7 +21,7 @@ Launch gate (Phase 14): every item below is either DONE with proof or listed in 
 - [ ] **B10** Batch calling lifecycle, caps, DND/calling hours, restart-safe — Phase 8 — Proof:
 - [ ] **B11** Calling Configuration page: load < 1 s p95, save < 500 ms — Phase 9 — Proof:
 - [ ] **B12** Data pages audit: Call History, Contacts, Analytics, Live Monitoring, AI QA, Call Reports, Alerting — Phase 9 — Proof:
-- [ ] **B13** Billing gateway fraud prevention (CRITICAL) — Phase 6 — Proof:
+- [x] **B13** Billing gateway fraud prevention (CRITICAL) — Phase 6 — Proof: FIX_LOG B13; `npm run test:billing` 21/21 on real Postgres (forged signature, replay, amount tampering, wrong user, double submit, webhook-first and webhook-race, outage fail-closed, spoofed notes, refunds once, plan/number cross-use, reconciliation, invoices; invoice tests fail on old code); `test:payment-security` 16/16; `Frontend/e2e/billing-checkout.spec.ts` 3/3 (2 fail on old code). Live Razorpay: PROGRESS owner step 14
 - [ ] **B14** Call recording playback: signed URLs, player, retention, consent — Phase 10 — Proof:
 - [ ] **B15** Latency < 1 s p50 / < 1.5 s p95 (measured) + humanized voice — Phase 11 — Proof:
 

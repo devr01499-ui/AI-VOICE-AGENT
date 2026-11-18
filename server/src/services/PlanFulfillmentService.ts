@@ -59,8 +59,25 @@ export async function fulfillPlanPurchase(params: FulfillPlanPurchaseParams) {
     throw new Error(`USER_NOT_FOUND: User '${userId}' does not exist.`);
   }
 
-  // 3. Atomic Transaction: Record payment, credit minutes ledger, and generate sequential GST invoice
-  const result = await prisma.$transaction(async (tx) => {
+  // 3. Atomic Transaction: Record payment, credit minutes ledger, and generate sequential GST invoice.
+  // The browser confirmation and the Razorpay webhook can arrive at the same moment; the loser of
+  // that race hits the unique orderId/paymentId constraint and is answered idempotently below.
+  try {
+    return await runFulfillment();
+  } catch (err: any) {
+    if (err?.code !== 'P2002') throw err;
+    const existing = await prisma.paymentTransaction.findFirst({ where: { OR: [{ orderId }, { paymentId }] } });
+    if (!existing) throw err;
+    if (existing.userId !== userId || existing.orderId !== orderId || existing.paymentId !== paymentId) {
+      logger.error('[PLAN_FULFILLMENT] Payment already redeemed for a different purchase', { userId, orderId, paymentId, existingUserId: existing.userId });
+      throw new Error('Unauthorized: This payment was already redeemed by another user.');
+    }
+    logger.info('[PLAN_FULFILLMENT] Concurrent fulfilment resolved idempotently', { orderId, paymentId });
+    return { success: true, paymentTransaction: existing, isIdempotent: true };
+  }
+
+  async function runFulfillment() {
+  return prisma.$transaction(async (tx) => {
     // Check if payment transaction already exists
     const existingPayment = await tx.paymentTransaction.findFirst({
       where: {
@@ -69,6 +86,11 @@ export async function fulfillPlanPurchase(params: FulfillPlanPurchaseParams) {
     });
 
     if (existingPayment) {
+      const samePurchase = existingPayment.orderId === orderId && existingPayment.paymentId === paymentId && existingPayment.planName === planName;
+      if (existingPayment.userId === userId && !samePurchase) {
+        logger.error('[PLAN_FULFILLMENT] Payment already used for a different purchase', { userId, orderId, paymentId, existingPlan: existingPayment.planName });
+        throw new Error('Payment has already been redeemed.');
+      }
       if (existingPayment.userId !== userId) {
         logger.error('[PLAN_FULFILLMENT] Cross-user payment replay attack detected!', {
           attemptingUserId: userId,
@@ -155,6 +177,5 @@ export async function fulfillPlanPurchase(params: FulfillPlanPurchaseParams) {
       isIdempotent: false,
     };
   });
-
-  return result;
+  }
 }
