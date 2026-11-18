@@ -1090,6 +1090,7 @@ export class CallOrchestrator extends EventEmitter {
     endedBy?: string
   ): Promise<void> {
     this.clearCallTimers(callId);
+    this.recordLatencySummary(callId);
     const rawReason = (reason || '').toLowerCase().trim();
     let normalizedReason = 'unknown';
     let defaultEndedBy = 'system';
@@ -1368,6 +1369,19 @@ export class CallOrchestrator extends EventEmitter {
       return;
     }
     this.callTimers.set(callId, entry);
+  }
+
+  /**
+   * Saves the call's measured reply latency (p50/p95 etc.) as a call event, logs it, and frees the
+   * per-turn timing records (they used to accumulate forever). Never blocks the end of the call.
+   */
+  recordLatencySummary(callId: string): void {
+    const summary = callTimingTracker.summarizeAndClear(callId);
+    if (!summary) return;
+    logger.info('[LATENCY_SUMMARY]', { callId, ...summary });
+    prisma.callEvent.create({
+      data: { callId, eventType: 'latency_summary', payload: JSON.stringify(summary) },
+    }).catch((err: any) => logger.warn('Latency summary not saved', { callId, error: err?.message }));
   }
 
   clearCallTimers(callId: string): void {

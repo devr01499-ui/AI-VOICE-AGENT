@@ -119,6 +119,12 @@ export const LANGUAGE_OPTIONS = [
   { code: 'ta', label: 'Tamil' },
 ];
 
+/**
+ * How long the caller must be silent before the agent answers. Every millisecond here is added to
+ * each reply; 600 ms (the old default) used most of the 1-second reply budget before the AI even started.
+ */
+export const DEFAULT_RESPONSIVENESS_MS = 300;
+
 export const HANDBOOK_PRESETS = [
   {
     id: 'ai_disclosure',
@@ -941,7 +947,7 @@ export default function SinglePromptStudio({
   })();
 
   const [speechSpeed, setSpeechSpeed] = useState<number>(initialSpeech.speed ?? 1.0);
-  const [responsivenessMs, setResponsivenessMs] = useState<number>(initialSpeech.responsivenessMs ?? 600);
+  const [responsivenessMs, setResponsivenessMs] = useState<number>(initialSpeech.responsivenessMs ?? DEFAULT_RESPONSIVENESS_MS);
   const [interruptionSensitivity, setInterruptionSensitivity] = useState<'HIGH' | 'LOW'>(initialSpeech.interruptionSensitivity ?? 'HIGH');
   const [backchannelingEnabled, setBackchannelingEnabled] = useState<boolean>(initialSpeech.backchanneling ?? false);
   const [speechVolume, setSpeechVolume] = useState<number>(initialSpeech.volume ?? 1.0);

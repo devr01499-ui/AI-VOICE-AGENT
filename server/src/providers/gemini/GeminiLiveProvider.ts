@@ -222,7 +222,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     logger.info('[BOOT_SELF_TEST] Initiating Gemini Live startup validation...');
     try {
       const apiKey = process.env.GEMINI_API_KEY || '';
-      if (!apiKey || apiKey === 'AIzaSyAQ-x2GqymD5KvQ1tC9H78Z4E9uGGqIExQ') {
+      if (!apiKey) {
         logger.warn('[BOOT_SELF_TEST] Default or empty GEMINI_API_KEY detected. Startup test passed in sandbox mode.');
         return true;
       }
