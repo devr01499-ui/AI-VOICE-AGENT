@@ -11,7 +11,8 @@ import { env } from '../config/env';
 import { logAuditEvent } from '../utils/auditLogger';
 import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
 
-import { requireActivePlan } from '../middleware/planValidation';
+import { requirePaidPlan } from '../middleware/planValidation';
+import { reserveNumberSlot, releaseNumberSlot, NUMBER_SLOT_TAKEN_MESSAGE } from '../services/NumberEntitlementService';
 import { checkRequiredKycDocumentsVerified } from '../services/KycVerificationService';
 import { PlivoService } from '../core/telephony/PlivoService';
 import { NotificationService } from '../services/NotificationService';
@@ -250,7 +251,7 @@ router.get('/search', requireAuth, async (req, res, next) => {
  * Creates a Razorpay order for purchasing a number.
  * Body: { baseCost, setupFee?, currency? }
  */
-router.post('/create-order', requireAuth, requireEditor, requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
+router.post('/create-order', requireAuth, requireEditor, requirePaidPlan, sensitiveOperationsLimiter, async (req, res, next) => {
   const userId = (req as any).userId;
   try {
     // Gate on KYC: check every required KycDocument is status: 'verified' before allowing order creation
@@ -308,7 +309,7 @@ router.post('/create-order', requireAuth, requireEditor, requireActivePlan, sens
  *     and log a [VOBIZ_PURCHASE_FAILURE] alert for ops.
  *   - Raw error strings from Vobiz are never returned to the client.
  */
-router.post('/purchase', requireAuth, requireEditor, requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
+router.post('/purchase', requireAuth, requireEditor, requirePaidPlan, sensitiveOperationsLimiter, async (req, res, next) => {
   const userId = (req as any).userId;
   // expectedPrice from the browser is ignored: the price is the one Razorpay confirms was paid.
   const { vobizNumberId, orderId, paymentId, signature, agentId } = req.body || {};
@@ -371,7 +372,7 @@ router.post('/purchase', requireAuth, requireEditor, requireActivePlan, sensitiv
   // Step 1: Payment confirmed with Razorpay (signature, order, amount, user, purpose, captured)
   // and recorded once, so this payment can never be redeemed for anything else.
   const billingService = new BillingService();
-  let paid: { amountInr: number; amountPaise: number };
+  let paid: { amountInr: number; amountPaise: number; alreadyRedeemed?: boolean };
   try {
     paid = await billingService.redeemNumberPayment({ userId, orderId, paymentId, signature, numberRef: vobizNumberId });
   } catch (payErr: any) {
@@ -384,6 +385,24 @@ router.post('/purchase', requireAuth, requireEditor, requireActivePlan, sensitiv
     return;
   }
   const expectedPrice = paid.amountInr;
+  // Take the account's single number slot atomically: two purchases at the same moment cannot
+  // both win. A repeat of the same paid request continues to the idempotent provisioning below.
+  if (!paid.alreadyRedeemed && !(await reserveNumberSlot(userId))) {
+    const refund = await billingService.refundOrder(paymentId, paid.amountPaise);
+    if (refund.success) {
+      await prisma.paymentTransaction.updateMany({ where: { paymentId, userId }, data: { status: 'refunded', refundedAmount: paid.amountInr } }).catch(() => {});
+    } else {
+      logger.error('[ADMIN_ALERT][NUMBERS] number slot already taken and automatic refund failed — refund manually', { userId, paymentId });
+    }
+    res.status(409).json({
+      success: false,
+      code: 'NUMBER_SLOT_TAKEN',
+      error: `${NUMBER_SLOT_TAKEN_MESSAGE} ${refund.success ? 'Your payment has been refunded.' : 'Our team will refund your payment.'}`,
+      refunded: refund.success,
+      numberLocked: true,
+    });
+    return;
+  }
 
   // Step 2: Ensure Vobiz sub-account exists BEFORE number purchase (blocks on failure)
   try {
@@ -398,6 +417,8 @@ router.post('/purchase', requireAuth, requireEditor, requireActivePlan, sensitiv
       userId,
       error: String(subErr?.message || subErr),
     });
+    // The payment stays recorded: retrying the same purchase continues from here.
+    await releaseNumberSlot(userId, 'sub_account_failed');
     res.status(502).json({
       success: false,
       error: 'Telephony sub-account provisioning failed prior to number purchase. Please contact support.',
@@ -416,11 +437,7 @@ router.post('/purchase', requireAuth, requireEditor, requireActivePlan, sensitiv
       agentId,
     });
 
-    // Step 4: Lock number selection for user permanently
-    await prisma.user.update({
-      where: { id: userId },
-      data: { numberLocked: true },
-    });
+    // (The number slot was taken atomically before provisioning.)
 
     await logAuditEvent({
       workspaceOwnerId: (req as any).effectiveWorkspaceId || userId,
@@ -457,6 +474,7 @@ router.post('/purchase', requireAuth, requireEditor, requireActivePlan, sensitiv
         errorMessage,
       });
 
+      await releaseNumberSlot(userId, 'carrier_purchase_failed');
       // Refund exactly what Razorpay confirmed was paid.
       const amountInPaise = paid.amountPaise;
       const refundResult = await billingService.refundOrder(paymentId, amountInPaise);
@@ -493,6 +511,7 @@ router.post('/purchase', requireAuth, requireEditor, requireActivePlan, sensitiv
 
     // Price changed or idempotency conflict — safe user-facing messages
     if (errorMessage.includes('Price changed')) {
+      await releaseNumberSlot(userId, 'price_changed');
       res.status(409).json({ success: false, error: errorMessage });
       return;
     }
@@ -505,6 +524,7 @@ router.post('/purchase', requireAuth, requireEditor, requireActivePlan, sensitiv
       return;
     }
 
+    await releaseNumberSlot(userId, 'purchase_failed');
     logger.error('Numbers: purchase failed', { userId, error: errorMessage });
     res.status(500).json({ success: false, error: 'Purchase processing failed. Please contact support.' });
   }
@@ -516,7 +536,7 @@ router.post('/purchase', requireAuth, requireEditor, requireActivePlan, sensitiv
  * No second Razorpay charge required — billed against master account balance.
  * Body: { vobizNumberId, agentId? }
  */
-router.post('/claim', requireAuth, requireEditor, requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
+router.post('/claim', requireAuth, requireEditor, requirePaidPlan, sensitiveOperationsLimiter, async (req, res, next) => {
   const userId = (req as any).userId;
   const { vobizNumberId, agentId } = req.body;
 
@@ -574,6 +594,12 @@ router.post('/claim', requireAuth, requireEditor, requireActivePlan, sensitiveOp
     return;
   }
 
+  // Take the account's single number slot atomically (two claims at once cannot both win).
+  if (!(await reserveNumberSlot(userId))) {
+    res.status(403).json({ success: false, code: 'NUMBER_SLOT_TAKEN', error: NUMBER_SLOT_TAKEN_MESSAGE, numberLocked: true });
+    return;
+  }
+
   // Move Vobiz sub-account creation to happen BEFORE number claim (blocks on failure)
   try {
     const { VobizSubAccountService } = require('../services/VobizSubAccountService');
@@ -587,6 +613,7 @@ router.post('/claim', requireAuth, requireEditor, requireActivePlan, sensitiveOp
       userId,
       error: String(subErr?.message || subErr),
     });
+    await releaseNumberSlot(userId, 'sub_account_failed');
     res.status(502).json({
       success: false,
       error: 'Telephony sub-account provisioning failed prior to number claim. Please contact support.',
@@ -604,11 +631,7 @@ router.post('/claim', requireAuth, requireEditor, requireActivePlan, sensitiveOp
       agentId,
     });
 
-    // Flip numberLocked to true server-side
-    await prisma.user.update({
-      where: { id: userId },
-      data: { numberLocked: true },
-    });
+    // (The number slot was taken atomically before provisioning.)
 
     await logAuditEvent({
       workspaceOwnerId: (req as any).effectiveWorkspaceId || userId,
@@ -632,6 +655,7 @@ router.post('/claim', requireAuth, requireEditor, requireActivePlan, sensitiveOp
     const rawError = err?.message || String(err);
     const orderId = err?.orderId || null;
     logger.error('[NUMBERS_CLAIM_ERROR] Failed to claim bundled number', { userId, vobizNumberId, error: rawError, orderId });
+    await releaseNumberSlot(userId, 'claim_failed');
 
     let code = 'PROVIDER_ERROR';
     let message = 'Unable to complete phone number provisioning. Please try again.';
@@ -1123,7 +1147,7 @@ router.get('/plivo/search', requireAuth, async (req, res, next) => {
  * Claims an Indian local Plivo number as the 1 free bundled number included with plan.
  * Body: { number, region?, agentId? }
  */
-router.post('/plivo/claim', requireAuth, requireEditor, requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
+router.post('/plivo/claim', requireAuth, requireEditor, requirePaidPlan, sensitiveOperationsLimiter, async (req, res, next) => {
   const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
   const { number, region, agentId } = req.body;
 
@@ -1157,6 +1181,12 @@ router.post('/plivo/claim', requireAuth, requireEditor, requireActivePlan, sensi
       missing: kycCheck.missing,
       actionUrl: '/settings',
     });
+    return;
+  }
+
+  // Take the account's single number slot atomically (two claims at once cannot both win).
+  if (!(await reserveNumberSlot(userId))) {
+    res.status(403).json({ success: false, code: 'NUMBER_SLOT_TAKEN', error: NUMBER_SLOT_TAKEN_MESSAGE, numberLocked: true });
     return;
   }
 
@@ -1198,7 +1228,8 @@ router.post('/plivo/claim', requireAuth, requireEditor, requireActivePlan, sensi
     });
   } catch (err: any) {
     logger.error('[PLIVO_CLAIM_ERROR]', { error: err.message, stack: err.stack });
-    res.status(500).json({ success: false, error: err.message || 'Failed to claim number' });
+    await releaseNumberSlot(userId, 'claim_failed');
+    res.status(500).json({ success: false, error: 'The number could not be set up. Please try again or choose another number.' });
   }
 });
 
@@ -1207,7 +1238,7 @@ router.post('/plivo/claim', requireAuth, requireEditor, requireActivePlan, sensi
  * Paid purchase with Razorpay verified payment.
  * Body: { number, region?, expectedPrice, orderId, paymentId, signature, agentId? }
  */
-router.post('/plivo/purchase', requireAuth, requireEditor, requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
+router.post('/plivo/purchase', requireAuth, requireEditor, requirePaidPlan, sensitiveOperationsLimiter, async (req, res, next) => {
   const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
   // expectedPrice from the browser is ignored (see /purchase).
   const { number, region, orderId, paymentId, signature, agentId } = req.body || {};
@@ -1246,10 +1277,9 @@ router.post('/plivo/purchase', requireAuth, requireEditor, requireActivePlan, se
 
   // Payment confirmed with Razorpay and recorded once (same rules as /purchase).
   const billingService = new BillingService();
-  let expectedPrice: number;
+  let paid: { amountInr: number; amountPaise: number; alreadyRedeemed?: boolean };
   try {
-    const paid = await billingService.redeemNumberPayment({ userId, orderId, paymentId, signature, numberRef: String(number) });
-    expectedPrice = paid.amountInr;
+    paid = await billingService.redeemNumberPayment({ userId, orderId, paymentId, signature, numberRef: String(number) });
   } catch (payErr: any) {
     if (payErr instanceof PaymentVerificationError) {
       res.status(payErr.status).json({ success: false, error: payErr.message, code: payErr.code });
@@ -1257,6 +1287,25 @@ router.post('/plivo/purchase', requireAuth, requireEditor, requireActivePlan, se
     }
     logger.error('[PLIVO_PURCHASE] payment verification error', { userId, orderId, error: String(payErr?.message || payErr) });
     res.status(500).json({ success: false, error: 'We could not confirm your payment. Please contact support if money was deducted.' });
+    return;
+  }
+  const expectedPrice = paid.amountInr;
+  // Take the account's single number slot atomically: two purchases at the same moment cannot
+  // both win. A repeat of the same paid request continues to the idempotent provisioning below.
+  if (!paid.alreadyRedeemed && !(await reserveNumberSlot(userId))) {
+    const refund = await billingService.refundOrder(paymentId, paid.amountPaise);
+    if (refund.success) {
+      await prisma.paymentTransaction.updateMany({ where: { paymentId, userId }, data: { status: 'refunded', refundedAmount: paid.amountInr } }).catch(() => {});
+    } else {
+      logger.error('[ADMIN_ALERT][NUMBERS] number slot already taken and automatic refund failed — refund manually', { userId, paymentId });
+    }
+    res.status(409).json({
+      success: false,
+      code: 'NUMBER_SLOT_TAKEN',
+      error: `${NUMBER_SLOT_TAKEN_MESSAGE} ${refund.success ? 'Your payment has been refunded.' : 'Our team will refund your payment.'}`,
+      refunded: refund.success,
+      numberLocked: true,
+    });
     return;
   }
 
@@ -1296,6 +1345,7 @@ router.post('/plivo/purchase', requireAuth, requireEditor, requireActivePlan, se
     });
   } catch (err: any) {
     logger.error('[PLIVO_PURCHASE_ERROR] REFUND REVIEW NEEDED: paid number could not be provisioned', { userId, orderId, paymentId, error: err.message });
+    await releaseNumberSlot(userId, 'purchase_failed');
     res.status(500).json({ success: false, error: 'Your payment was received but the number could not be set up. Our team has been alerted and will assign a number or refund you.' });
   }
 });

@@ -3,7 +3,14 @@ import { AuthenticatedRequest } from './auth';
 import { prisma } from '../lib/prisma';
 import { ADMIN_EMAIL } from '../config/constants';
 
+/**
+ * Account types that come from a paid purchase (plans.ts: trial ₹1, starter, startup=developer,
+ * growth=professional, enterprise; growth/scale are legacy names). "trial" and "starter" were
+ * missing, so paying Starter customers were treated as free (e.g. capped at 2 agents).
+ */
 export const PAID_ACCOUNT_TYPES = [
+  'trial',
+  'starter',
   'developer',
   'professional',
   'enterprise',
@@ -50,6 +57,44 @@ export function isUserEntitled(user: {
   }
 
   return getEffectiveRemainingSeconds(user) > 0;
+}
+
+/**
+ * True only for an account that bought a plan (or an admin) and is not suspended. Unlike
+ * isUserEntitled, leftover free minutes do NOT count: phone numbers cost real carrier money.
+ */
+export function hasActivePaidPlan(user: { accountType?: string | null; email?: string | null; accountStatus?: string | null }): boolean {
+  if (!user || user.accountStatus === 'suspended') return false;
+  if (user.email === ADMIN_EMAIL) return true;
+  const type = user.accountType?.toLowerCase() || '';
+  return type !== 'free' && PAID_ACCOUNT_TYPES.includes(type);
+}
+
+/** Phone numbers (claim, purchase, carrier purchase): active PAID plan required. */
+export async function requirePaidPlan(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.effectiveWorkspaceId || req.userId || req.user?.id;
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: Missing user authentication context' });
+      return;
+    }
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { accountType: true, email: true, accountStatus: true } });
+    if (!user) {
+      res.status(401).json({ success: false, error: 'User not found' });
+      return;
+    }
+    if (!hasActivePaidPlan(user)) {
+      res.status(403).json({
+        success: false,
+        code: 'PAID_PLAN_REQUIRED',
+        error: 'A phone number needs an active paid plan. Please buy a plan first.',
+      });
+      return;
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
 }
 
 /**

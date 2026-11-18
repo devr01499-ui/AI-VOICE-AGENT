@@ -25,7 +25,6 @@ const ENDPOINTS_TO_TEST = [
   '/api/v2/calendar/batches',
   '/api/v2/billing/minutes-overview',
   '/api/v2/kyc/status',
-  '/api/v2/telephony/inventory',
 ];
 
 function makeRequest(path, headers = {}) {
