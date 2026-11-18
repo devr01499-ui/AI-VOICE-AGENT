@@ -37,6 +37,7 @@ import { DashCompanionCall } from "./DashCompanionCall";
 import { NumberSearchAndPurchase } from "./components/numbers/NumberSearchAndPurchase";
 import { DashCallingConfig } from "./components/calling/DashCallingConfig";
 import { csvRow } from "./lib/csv";
+import { RecordingPlayer } from "./components/calls/RecordingPlayer";
 import { DashChatHistory } from "./components/chat/DashChatHistory";
 import { DashContacts } from "./components/contacts/DashContacts";
 import { DashAnalytics } from "./components/analytics/DashAnalytics";
@@ -4204,9 +4205,9 @@ function DashCallLogs() {
             </div>
           )}
 
-          {selectedCallRow?.recordingUrl && (
+          {selectedCallRow?.rec && (
             <div className="nm-raised rounded-2xl p-4">
-              <audio controls src={selectedCallRow.recordingUrl} className="w-full h-10" />
+              <RecordingPlayer callId={selectedCallRow.id} durationLabel={selectedCallRow.durDisplay} />
             </div>
           )}
 
