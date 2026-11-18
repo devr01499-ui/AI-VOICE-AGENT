@@ -311,8 +311,8 @@ async function main() {
     const purchase = src.slice(src.indexOf("router.post('/purchase'"), src.indexOf("router.post('/claim'"));
     assert.ok(purchase.includes('redeemNumberPayment') && !/req\.body[^;]*expectedPrice/.test(purchase));
     assert.ok(purchase.includes('const amountInPaise = paid.amountPaise'), 'refunds use the verified amount');
-    const plivo = src.slice(src.indexOf("router.post('/plivo/purchase'"));
-    assert.ok(plivo.includes('redeemNumberPayment') && !plivo.includes('verifyPayment('));
+    // Phase 13: the only other paid number route (/plivo/purchase) was unused and removed.
+    assert.ok(!src.includes("router.post('/plivo/purchase'") && !src.includes('verifyPayment('));
   });
 
   await test('reconciliation activates a paid plan nobody confirmed and reports an unprovisioned paid number', async () => {
@@ -380,14 +380,14 @@ async function main() {
     assert.ok(!/process\.env\.COMPANY_GSTIN\s*\|\|\s*'[0-9]{2}[A-Z]/.test(src), 'no hard-coded seller GSTIN fallback');
   });
 
-  await test('routes: duplicate verify route removed, GSTIN rate limited, config exposes only the public key id', async () => {
+  await test('routes: duplicate verify route removed, GSTIN rate limited, no unused key/config routes', async () => {
     const paths = billingRouter.stack.filter((l) => l.route).map((l) => l.route.path);
     assert.ok(!paths.includes('/verify-plan-payment'));
     const gst = billingRouter.stack.find((l) => l.route && l.route.path === '/gstin').route.stack.map((s) => s.handle);
     assert.ok(gst.includes(limiters.sensitiveOperationsLimiter));
-    const cfg = await invoke(routeHandler(billingRouter, 'get', '/config'), { headers: {} });
-    assert.deepStrictEqual(Object.keys(cfg.body.data), ['razorpayKeyId']);
-    assert.ok(!JSON.stringify(cfg.body).includes(process.env.RAZORPAY_KEY_SECRET));
+    // Phase 13: /config, /subscription-status and /sync-entitlements had no caller and were removed;
+    // checkout receives the public key id in the create-order response.
+    for (const gone of ['/config', '/subscription-status', '/sync-entitlements']) assert.ok(!paths.includes(gone), `${gone} removed`);
     for (const f of ['src/services/BillingService.ts', 'src/routes/billing.ts', 'src/routes/numbers.ts']) {
       assert.ok(!fs.readFileSync(path.join(__dirname, '..', f), 'utf8').includes('rzp_test_TO7mXkVkl4AFCy'), `${f} still has a hard-coded key`);
     }
