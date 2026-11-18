@@ -52,12 +52,19 @@ export function isUserEntitled(user: {
   if (user.email === ADMIN_EMAIL || user.accountType?.toLowerCase() === 'admin') return true;
 
   const type = user.accountType?.toLowerCase() || '';
-  if (PAID_ACCOUNT_TYPES.includes(type) && type !== 'free') {
+  if (ENTITLED_WITHOUT_MINUTES_TYPES.includes(type)) {
     return true;
   }
 
+  // Minute-pack plans (trial, starter) and free accounts need minutes left.
   return getEffectiveRemainingSeconds(user) > 0;
 }
+
+/**
+ * Tiers this gate has always treated as entitled without checking minutes (unchanged). Trial and
+ * Starter are minute packs: they count as PAID plans (PAID_ACCOUNT_TYPES) but stop at 0 minutes.
+ */
+const ENTITLED_WITHOUT_MINUTES_TYPES = ['developer', 'professional', 'enterprise', 'growth', 'scale', 'admin'];
 
 /**
  * True only for an account that bought a plan (or an admin) and is not suspended. Unlike

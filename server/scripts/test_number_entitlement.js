@@ -64,6 +64,11 @@ async function main() {
 
   await test('P8: trial and starter are paid plans (Starter is no longer capped at 2 agents)', async () => {
     assert.ok(PAID_ACCOUNT_TYPES.includes('trial') && PAID_ACCOUNT_TYPES.includes('starter'));
+    // ...but they are minute packs: with 0 minutes they still cannot place calls.
+    const { isUserEntitled } = require('../dist/middleware/planValidation');
+    assert.strictEqual(isUserEntitled({ accountType: 'trial', minutesRemainingSeconds: 0 }), false);
+    assert.strictEqual(isUserEntitled({ accountType: 'starter', minutesRemainingSeconds: 0 }), false);
+    assert.strictEqual(isUserEntitled({ accountType: 'starter', minutesRemainingSeconds: 60 }), true);
     const starter = await makeUser({ accountType: 'starter' });
     for (let i = 0; i < 3; i++) await prisma.agent.create({ data: { userId: starter, name: `A${i}` } });
     assert.strictEqual((await runMiddleware(requireAgentQuota, starter)).status, 'next');
