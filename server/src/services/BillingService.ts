@@ -1,341 +1,348 @@
 import Razorpay from 'razorpay';
+import crypto from 'crypto';
 import { env } from '../config/env';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { getPlanConfig, PLAN_CONFIG } from '../config/plans';
 
+/**
+ * Payments (Razorpay). Every decision about money is made here, on the server:
+ *  - prices come from the plan catalogue / carrier inventory, never from the browser;
+ *  - every order carries notes { userId, purpose, ... } set by the server;
+ *  - a payment counts only when its signature is valid AND Razorpay's own API confirms the order
+ *    and payment (same order, same amount, INR, captured, same user, same purpose);
+ *  - if Razorpay cannot be reached, nothing is granted (fail closed) — the webhook fulfils later;
+ *  - a payment id / order id can be redeemed once (unique PaymentTransaction rows).
+ */
+
+export type PaymentPurpose = 'plan' | 'number';
+
+export class PaymentVerificationError extends Error {
+  constructor(public status: number, message: string, public code: string) {
+    super(message);
+    this.name = 'PaymentVerificationError';
+  }
+}
+
+interface RazorpayLike {
+  orders: { create(o: any): Promise<any>; fetch(id: string): Promise<any> };
+  payments: { fetch(id: string): Promise<any>; refund(id: string, o: any): Promise<any>; all?(q: any): Promise<any> };
+}
+
+/** Razorpay returns empty notes as [] — normalise to a plain object. */
+export function normaliseNotes(notes: unknown): Record<string, string> {
+  if (!notes || Array.isArray(notes) || typeof notes !== 'object') return {};
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(notes as Record<string, unknown>)) {
+    if (v !== undefined && v !== null) out[k] = String(v);
+  }
+  return out;
+}
+
+export interface VerifiedPayment {
+  orderId: string;
+  paymentId: string;
+  amountPaise: number;
+  notes: Record<string, string>;
+}
+
+const MOCK_SIGNATURE = 'mock_sig_test_only';
+/** Mock orders exist only in development/test, in memory, so they cannot be forged from outside. */
+const mockOrders = new Map<string, { amount: number; currency: string; notes: Record<string, string> }>();
+
 export class BillingService {
-  private razorpay: any;
+  private static clientOverride: RazorpayLike | null | undefined;
+  private razorpay: RazorpayLike | null;
+
+  /** Tests only: replace the Razorpay client (null = no gateway; undefined = real client). */
+  static setRazorpayClientForTests(client: RazorpayLike | null | undefined): void {
+    BillingService.clientOverride = client;
+  }
+
+  /** Mock payments are allowed only without gateway keys AND in an explicit dev/test environment. */
+  static isMockAllowed(): boolean {
+    return env.NODE_ENV === 'development' || env.NODE_ENV === 'test';
+  }
+
+  static mockSignatureFor(orderId: string, paymentId: string): string {
+    return `${MOCK_SIGNATURE}:${crypto.createHash('sha256').update(`${orderId}|${paymentId}`).digest('hex').slice(0, 16)}`;
+  }
 
   constructor() {
-    if (env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET) {
-      this.razorpay = new Razorpay({
-        key_id: env.RAZORPAY_KEY_ID,
-        key_secret: env.RAZORPAY_KEY_SECRET,
-      });
+    if (BillingService.clientOverride !== undefined) {
+      this.razorpay = BillingService.clientOverride;
+    } else if (env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET) {
+      this.razorpay = new Razorpay({ key_id: env.RAZORPAY_KEY_ID, key_secret: env.RAZORPAY_KEY_SECRET }) as any;
     } else {
-      logger.warn('BillingService: Razorpay keys not found, running in mock mode');
       this.razorpay = null;
     }
   }
 
-  /**
-   * Creates a Razorpay order for purchasing a phone number.
-   * Calculates total price based on base cost + setup fee.
-   */
-  async createNumberPurchaseOrder(
-    userId: string,
-    baseMonthlyCost: number,
-    setupFee: number = 0,
-    currency: string = 'INR'
-  ) {
-    const totalCost = (baseMonthlyCost || 0) + (setupFee || 0);
-    const finalAmount = Math.max(totalCost, 1);
-    const amountInPaise = Math.round(finalAmount * 100);
+  /** Public key id for the checkout widget (never a secret, never a hard-coded fallback). */
+  static publicKeyId(): string {
+    return env.RAZORPAY_KEY_ID || '';
+  }
 
-    if (amountInPaise < 100) {
-      throw new Error('Minimum amount must be at least 100 paise (₹1)');
+  private get mockMode(): boolean {
+    return !this.razorpay && BillingService.isMockAllowed();
+  }
+
+  private requireGateway(): RazorpayLike {
+    if (this.razorpay) return this.razorpay;
+    logger.error('BillingService: payment gateway is not configured');
+    throw new PaymentVerificationError(503, 'Payments are not available right now. Please try again later.', 'PAYMENT_GATEWAY_UNAVAILABLE');
+  }
+
+  private async createOrder(amountPaise: number, receipt: string, notes: Record<string, string>) {
+    if (!Number.isInteger(amountPaise) || amountPaise < 100) {
+      throw new PaymentVerificationError(400, 'Minimum amount must be at least 100 paise (₹1)', 'PAYMENT_AMOUNT_INVALID');
     }
-
-    if (!this.razorpay) {
-      if (env.NODE_ENV === 'production') {
-        logger.error('BillingService: Attempted mock order creation in production environment without Razorpay keys');
-        throw new Error('Payment Gateway Error: Razorpay production credentials missing. Purchase cannot proceed.');
-      }
-      logger.warn('BillingService: Razorpay keys not found, running in development mock mode');
-      return {
-        id: `order_mock_${Date.now()}`,
-        amount: amountInPaise,
-        currency: 'INR',
-        mock: true,
-      };
+    if (this.mockMode) {
+      const id = `order_mock_${crypto.randomUUID().replace(/-/g, '')}`;
+      mockOrders.set(id, { amount: amountPaise, currency: 'INR', notes });
+      // Dev/test only: a ready-made "paid" result so local flows can finish without a gateway.
+      const paymentId = `pay_mock_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
+      const mockPayment = { paymentId, signature: BillingService.mockSignatureFor(id, paymentId) };
+      return { id, orderId: id, amount: amountPaise, currency: 'INR', mock: true, mockPayment, keyId: '', key: '' };
     }
-
+    const gateway = this.requireGateway();
     try {
-      const order = await this.razorpay.orders.create({
-        amount: amountInPaise,
-        currency: 'INR', // Razorpay India account requires INR
-        receipt: `num_${userId.slice(0, 8)}_${Date.now()}`,
-      });
-      return {
-        ...order,
-        id: order.id,
-        orderId: order.id,
-        keyId: env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy',
-        key: env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy',
-      };
+      // payment_capture: 1 = auto-capture, so a paid order reaches "captured" without manual action.
+      const order = await gateway.orders.create({ amount: amountPaise, currency: 'INR', receipt: receipt.slice(0, 40), notes, payment_capture: 1 });
+      const keyId = BillingService.publicKeyId();
+      return { ...order, id: order.id, orderId: order.id, keyId, key: keyId };
     } catch (err: any) {
-      const errorMsg = err?.description || err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err));
-      logger.error('BillingService: Failed to create order in Razorpay', {
-        error: errorMsg,
-        amountInPaise,
-        currency: 'INR',
-        userId,
-        rawError: err,
-      });
-      throw new Error(`Razorpay Order Error: ${errorMsg}`);
+      logger.error('BillingService: failed to create order', { error: err?.description || err?.message || String(err), amountPaise });
+      throw new PaymentVerificationError(502, 'Payment initialization failed. Please try again.', 'PAYMENT_INIT_FAILED');
     }
   }
 
+  /** Order for a subscription plan. Price and plan come from the server catalogue. */
+  async createPlanPurchaseOrder(planInput: string, userId: string) {
+    if (!userId) throw new PaymentVerificationError(401, 'Unauthorized', 'UNAUTHORIZED');
+    const planConfig = typeof planInput === 'string' ? getPlanConfig(planInput) : null;
+    if (!planConfig) throw new PaymentVerificationError(400, 'Invalid or unknown plan name', 'PLAN_UNKNOWN');
+    const planKey = Object.keys(PLAN_CONFIG).find((k) => PLAN_CONFIG[k] === planConfig) || planConfig.name.toLowerCase();
+    return this.createOrder(
+      Math.round(planConfig.price * 100),
+      `plan_${planKey}_${userId.slice(0, 8)}_${Date.now()}`,
+      { userId, purpose: 'plan', planKey }
+    );
+  }
+
+  /** Order for a paid phone number. The amount is the server's inventory price (never the browser's). */
+  async createNumberPurchaseOrder(userId: string, amountInr: number, ref: { provider: 'vobiz' | 'plivo'; numberRef: string }) {
+    if (!userId) throw new PaymentVerificationError(401, 'Unauthorized', 'UNAUTHORIZED');
+    if (!Number.isFinite(amountInr) || amountInr <= 0) {
+      throw new PaymentVerificationError(400, 'This number has no valid price. Please choose another number.', 'PAYMENT_AMOUNT_INVALID');
+    }
+    return this.createOrder(
+      Math.round(amountInr * 100),
+      `num_${userId.slice(0, 8)}_${Date.now()}`,
+      { userId, purpose: 'number', provider: ref.provider, numberRef: ref.numberRef }
+    );
+  }
+
+  /** Razorpay checkout signature (HMAC of "orderId|paymentId"), compared in constant time. */
+  verifyPayment(orderId: string, paymentId: string, signature: string): boolean {
+    if (!orderId || !paymentId || !signature || typeof signature !== 'string') return false;
+    const secret = env.RAZORPAY_KEY_SECRET;
+    if (!secret) {
+      if (!this.mockMode || !orderId.startsWith('order_mock_')) return false;
+      const expected = BillingService.mockSignatureFor(orderId, paymentId);
+      return signature.length === expected.length && crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+    }
+    const generated = crypto.createHmac('sha256', secret).update(`${orderId}|${paymentId}`).digest('hex');
+    const sigBuf = Buffer.from(signature, 'utf8');
+    const genBuf = Buffer.from(generated, 'utf8');
+    return sigBuf.length === genBuf.length && crypto.timingSafeEqual(sigBuf, genBuf);
+  }
+
   /**
-   * Creates a Razorpay order for purchasing a subscription plan.
-   * Validates plan name server-side against single source of truth (PLAN_CONFIG).
-   * Attaches authentic userId in notes for strict Object-Level Authorization.
+   * Confirms a payment with Razorpay's API (or the dev/test mock registry). Throws
+   * PaymentVerificationError with a user-safe message on any mismatch or if Razorpay cannot be
+   * reached — never grants anything on doubt.
    */
-  async createPlanPurchaseOrder(planInput: string | number, userId?: string) {
-    let planConfig = null;
-
-    if (typeof planInput === 'string') {
-      planConfig = getPlanConfig(planInput);
-    } else if (typeof planInput === 'number') {
-      planConfig = Object.values(PLAN_CONFIG).find((p) => p.price === planInput) || null;
+  async verifyCapturedPayment(params: { userId: string; orderId: string; paymentId: string; signature: string; purpose: PaymentPurpose }): Promise<VerifiedPayment> {
+    const { userId, orderId, paymentId, signature, purpose } = params;
+    if (!userId) throw new PaymentVerificationError(401, 'Unauthorized', 'UNAUTHORIZED');
+    if (typeof orderId !== 'string' || typeof paymentId !== 'string' || typeof signature !== 'string' || !orderId || !paymentId || !signature) {
+      throw new PaymentVerificationError(400, 'Missing required payment verification fields', 'PAYMENT_FIELDS_MISSING');
+    }
+    if (!this.verifyPayment(orderId, paymentId, signature)) {
+      throw new PaymentVerificationError(400, 'Invalid payment signature', 'PAYMENT_SIGNATURE_INVALID');
     }
 
-    if (!planConfig) {
-      throw new Error('Invalid or unknown plan name');
-    }
-
-    const amountInPaise = Math.round(planConfig.price * 100);
-
-    if (amountInPaise < 100) {
-      throw new Error('Minimum amount must be at least 100 paise');
-    }
-
-    const planKey = planConfig.name.toLowerCase();
-
-    if (!this.razorpay) {
-      if (env.NODE_ENV === 'production') {
-        logger.error('BillingService: Attempted mock plan order creation in production environment without Razorpay keys');
-        throw new Error('Payment Gateway Error: Razorpay production credentials missing. Plan purchase cannot proceed.');
+    let order: { amount: number; currency: string; notes: Record<string, string> };
+    let payment: { order_id: string; amount: number; currency: string; status: string };
+    if (this.mockMode && orderId.startsWith('order_mock_')) {
+      const mock = mockOrders.get(orderId);
+      if (!mock) throw new PaymentVerificationError(400, 'Unknown payment order', 'PAYMENT_ORDER_UNKNOWN');
+      order = mock;
+      payment = { order_id: orderId, amount: mock.amount, currency: mock.currency, status: 'captured' };
+    } else {
+      const gateway = this.requireGateway();
+      try {
+        const [o, p] = await Promise.all([gateway.orders.fetch(orderId), gateway.payments.fetch(paymentId)]);
+        order = { amount: Number(o?.amount), currency: String(o?.currency || ''), notes: normaliseNotes(o?.notes) };
+        payment = { order_id: String(p?.order_id || ''), amount: Number(p?.amount), currency: String(p?.currency || ''), status: String(p?.status || '') };
+      } catch (err: any) {
+        logger.error('BillingService: could not confirm payment with the gateway', { orderId, paymentId, error: err?.description || err?.message || String(err) });
+        throw new PaymentVerificationError(503,
+          'We could not confirm your payment yet. If money was deducted, your purchase will be activated automatically within a few minutes.',
+          'PAYMENT_UNCONFIRMED');
       }
-      // Mock order with embedded plan key and user ID for tamper-evident verification
-      const mockOrderId = `order_mock_plan_${planKey}_${userId || 'usr'}_${Date.now()}`;
-      return {
-        id: mockOrderId,
-        orderId: mockOrderId,
-        amount: amountInPaise,
-        currency: 'INR',
-        keyId: env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy',
-        key: env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy',
-        mock: true,
-      };
     }
 
+    const fail = (status: number, message: string, code: string, detail: Record<string, unknown>) => {
+      logger.error(`BillingService: payment rejected (${code})`, { userId, orderId, paymentId, ...detail });
+      return new PaymentVerificationError(status, message, code);
+    };
+    if (order.notes.userId !== userId) {
+      throw fail(403, 'Unauthorized: This payment belongs to another account.', 'PAYMENT_WRONG_USER', { orderUser: order.notes.userId || 'none' });
+    }
+    const orderPurpose = order.notes.purpose || (order.notes.planKey ? 'plan' : '');
+    if (orderPurpose !== purpose) {
+      throw fail(400, 'This payment was made for a different purchase.', 'PAYMENT_WRONG_PURPOSE', { orderPurpose, purpose });
+    }
+    if (payment.order_id !== orderId) {
+      throw fail(400, 'Payment order ID does not match specified order.', 'PAYMENT_ORDER_MISMATCH', { paymentOrder: payment.order_id });
+    }
+    if (order.currency !== 'INR' || payment.currency !== 'INR') {
+      throw fail(400, 'Payment currency does not match.', 'PAYMENT_CURRENCY_MISMATCH', { orderCurrency: order.currency, paymentCurrency: payment.currency });
+    }
+    if (!Number.isInteger(order.amount) || order.amount !== payment.amount) {
+      throw fail(400, 'Paid amount does not match the order amount.', 'PAYMENT_AMOUNT_MISMATCH', { orderAmount: order.amount, paidAmount: payment.amount });
+    }
+    if (payment.status === 'authorized') {
+      throw new PaymentVerificationError(202,
+        'Your payment is being processed by the bank. Your purchase will be activated automatically once it completes.',
+        'PAYMENT_PENDING');
+    }
+    if (payment.status !== 'captured') {
+      throw fail(402, `Payment verification failed: payment status is '${payment.status}'.`, 'PAYMENT_NOT_CAPTURED', { status: payment.status });
+    }
+    return { orderId, paymentId, amountPaise: order.amount, notes: order.notes };
+  }
+
+  hasGateway(): boolean {
+    return Boolean(this.razorpay);
+  }
+
+  /** Captured payments in [fromSec, toSec] (Unix seconds), paged, at most 1,000. */
+  async listCapturedPayments(fromSec: number, toSec: number): Promise<any[]> {
+    const gateway = this.requireGateway();
+    if (!gateway.payments.all) return [];
+    const out: any[] = [];
+    for (let skip = 0; skip < 1000; skip += 100) {
+      const page = await gateway.payments.all({ from: fromSec, to: toSec, count: 100, skip });
+      const items: any[] = Array.isArray(page?.items) ? page.items : [];
+      out.push(...items.filter((p) => p?.status === 'captured'));
+      if (items.length < 100) break;
+    }
+    return out;
+  }
+
+  /** Order as Razorpay (or the dev/test mock registry) has it — used by the webhook for notes. */
+  async fetchOrder(orderId: string): Promise<{ amount: number; currency: string; notes: Record<string, string> }> {
+    if (this.mockMode && orderId.startsWith('order_mock_')) {
+      const mock = mockOrders.get(orderId);
+      if (!mock) throw new PaymentVerificationError(400, 'Unknown payment order', 'PAYMENT_ORDER_UNKNOWN');
+      return mock;
+    }
+    const o = await this.requireGateway().orders.fetch(orderId);
+    return { amount: Number(o?.amount), currency: String(o?.currency || ''), notes: normaliseNotes(o?.notes) };
+  }
+
+  /**
+   * Plan purchase after checkout. The plan is the one recorded on the server's order (a plan name
+   * sent by the browser is only compared, never trusted). Idempotent: the same payment confirmed
+   * again (or already fulfilled by the webhook) returns success without adding minutes twice.
+   */
+  async processPlanPurchase(params: { userId: string; orderId: string; paymentId: string; signature: string; clientPlan?: string }) {
+    const verified = await this.verifyCapturedPayment({ ...params, purpose: 'plan' });
+    const planKey = (verified.notes.planKey || '').toLowerCase();
+    const planConfig = getPlanConfig(planKey);
+    if (!planConfig) {
+      throw new PaymentVerificationError(400, 'This payment is not linked to a known plan.', 'PLAN_UNKNOWN');
+    }
+    if (params.clientPlan) {
+      const claimed = getPlanConfig(String(params.clientPlan));
+      if (!claimed || claimed !== planConfig) {
+        logger.error('BillingService: plan in request does not match the paid order', { userId: params.userId, orderId: params.orderId, clientPlan: params.clientPlan, orderPlan: planKey });
+        throw new PaymentVerificationError(400, 'Payment order amount does not match requested plan price.', 'PLAN_MISMATCH');
+      }
+    }
+    if (verified.amountPaise !== Math.round(planConfig.price * 100)) {
+      throw new PaymentVerificationError(400, 'Payment order amount does not match requested plan price.', 'PAYMENT_AMOUNT_MISMATCH');
+    }
+
+    const { fulfillPlanPurchase } = await import('./PlanFulfillmentService');
+    const result = await fulfillPlanPurchase({
+      userId: params.userId,
+      orderId: params.orderId,
+      paymentId: params.paymentId,
+      planKey,
+      source: 'self_serve',
+    });
+    return { planKey, planName: planConfig.name, alreadyActive: result.isIdempotent === true };
+  }
+
+  /**
+   * Records a verified number payment so the same payment can never be redeemed again (for a plan
+   * or another number). Idempotent for a retry of the same number purchase.
+   */
+  async redeemNumberPayment(params: { userId: string; orderId: string; paymentId: string; signature: string; numberRef: string }) {
+    const verified = await this.verifyCapturedPayment({ ...params, purpose: 'number' });
+    if (verified.notes.numberRef && verified.notes.numberRef !== String(params.numberRef)) {
+      throw new PaymentVerificationError(400, 'This payment was made for a different number.', 'PAYMENT_WRONG_NUMBER');
+    }
+    const amountInr = verified.amountPaise / 100;
     try {
-      const receipt = `rcpt_plan_${planKey}_${userId ? userId.slice(0, 8) : 'usr'}_${Date.now()}`;
-      const order = await this.razorpay.orders.create({
-        amount: amountInPaise,
-        currency: 'INR',
-        receipt,
-        notes: {
-          userId: userId || '',
-          planKey,
+      await prisma.paymentTransaction.create({
+        data: {
+          userId: params.userId,
+          orderId: params.orderId,
+          paymentId: params.paymentId,
+          planName: 'phone_number',
+          amount: amountInr,
+          currency: 'INR',
+          status: 'completed',
+          source: 'self_serve',
         },
       });
-      return {
-        ...order,
-        id: order.id,
-        orderId: order.id,
-        keyId: env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy',
-        key: env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || 'rzp_test_TO7mXkVkl4AFCy',
-      };
+      return { amountInr, amountPaise: verified.amountPaise, alreadyRedeemed: false };
     } catch (err: any) {
-      logger.error('BillingService: Failed to create plan order', { error: String(err) });
-      throw new Error('Payment initialization failed');
-    }
-  }
-
-  /**
-   * Verifies the Razorpay payment signature using timingSafeEqual to prevent side-channel timing attacks.
-   */
-  verifyPayment(orderId: string, paymentId: string, signature: string): boolean {
-    if (!orderId || !paymentId || !signature || typeof signature !== 'string') {
-      return false;
-    }
-
-    const crypto = require('crypto');
-    const secret = env.RAZORPAY_KEY_SECRET;
-
-    if (!secret) {
-      if (env.NODE_ENV === 'production') {
-        logger.error('BillingService: Mock payment verification rejected in production');
-        return false;
+      if (err?.code !== 'P2002') throw err;
+      const existing = await prisma.paymentTransaction.findFirst({ where: { OR: [{ orderId: params.orderId }, { paymentId: params.paymentId }] } });
+      if (existing && existing.userId === params.userId && existing.orderId === params.orderId && existing.paymentId === params.paymentId && existing.planName === 'phone_number') {
+        return { amountInr, amountPaise: verified.amountPaise, alreadyRedeemed: true };
       }
-      // In development / testing without secret, reject arbitrary forged signatures
-      return signature.startsWith('mock_sig_') || signature === 'test_valid_signature';
+      throw new PaymentVerificationError(409, 'Payment has already been redeemed.', 'PAYMENT_ALREADY_REDEEMED');
     }
-
-    const generatedSignature = crypto
-      .createHmac('sha256', secret)
-      .update(orderId + '|' + paymentId)
-      .digest('hex');
-
-    const sigBuf = Buffer.from(signature, 'utf8');
-    const genBuf = Buffer.from(generatedSignature, 'utf8');
-
-    if (sigBuf.length !== genBuf.length) {
-      return false;
-    }
-
-    return crypto.timingSafeEqual(sigBuf, genBuf);
   }
 
-  /**
-   * Refunds a Razorpay payment fully.
-   * Called when a post-payment Vobiz purchase failure occurs.
-   * The user must NEVER be left charged without a number.
-   */
+  /** Full or partial refund (used when a paid number cannot be provisioned). */
   async refundOrder(paymentId: string, amountInPaise: number): Promise<{ success: boolean; refundId?: string }> {
     if (!this.razorpay) {
-      logger.warn('BillingService.refundOrder: Mock mode — refund not executed', { paymentId });
-      return { success: true, refundId: `refund_mock_${Date.now()}` };
+      if (this.mockMode) {
+        logger.warn('BillingService.refundOrder: mock mode — refund not executed', { paymentId });
+        return { success: true, refundId: `refund_mock_${Date.now()}` };
+      }
+      logger.error('BillingService.refundOrder: gateway not configured — MANUAL REFUND REQUIRED', { paymentId, amountInPaise });
+      return { success: false };
     }
-
     try {
       const refund = await this.razorpay.payments.refund(paymentId, {
         amount: amountInPaise,
         speed: 'optimum',
-        notes: { reason: 'VOBIZ_PURCHASE_FAILURE - number could not be provisioned' },
+        notes: { reason: 'Number could not be provisioned' },
       });
-      logger.info('BillingService.refundOrder: Refund issued', { paymentId, refundId: refund.id });
+      logger.info('BillingService.refundOrder: refund issued', { paymentId, refundId: refund.id });
       return { success: true, refundId: refund.id };
     } catch (err) {
-      logger.error('BillingService.refundOrder: REFUND FAILED — MANUAL ACTION REQUIRED', {
-        paymentId,
-        error: String(err),
-      });
+      logger.error('BillingService.refundOrder: REFUND FAILED — MANUAL ACTION REQUIRED', { paymentId, error: String(err) });
       return { success: false };
-    }
-  }
-
-
-  /**
-   * Provisions a user's account after a successful plan purchase.
-   * Enforces server-side order price cross-check, Object-Level Authorization,
-   * Gateway API status verification, and atomic DB payment replay protection.
-   */
-  async processPlanPurchase(userId: string, planName: string, paymentId?: string, orderId?: string) {
-    const planConfig = getPlanConfig(planName);
-    if (!planConfig) {
-      throw new Error(`Unknown plan: ${planName}`);
-    }
-
-    const accountType = planConfig.accountType;
-    const addedMinutes = planConfig.minutes;
-    const expectedAmountInPaise = Math.round(planConfig.price * 100);
-
-    // SECURITY CHECK: Validate that the payment order matches the requested plan price & belongs to userId
-    if (orderId) {
-      if (this.razorpay && !orderId.startsWith('order_mock_')) {
-        try {
-          const razorpayOrder = await this.razorpay.orders.fetch(orderId);
-          if (razorpayOrder) {
-            if (razorpayOrder.amount !== expectedAmountInPaise) {
-              logger.error('BillingService: Security Alert — Payment order amount does not match requested plan price!', {
-                userId,
-                planName,
-                orderId,
-                paidAmountPaise: razorpayOrder.amount,
-                expectedAmountPaise: expectedAmountInPaise,
-              });
-              throw new Error('Payment order amount does not match requested plan price.');
-            }
-
-            // Object-Level Authorization (IDOR Defense): Check if order was created for another user
-            const orderUserId = razorpayOrder.notes?.userId || razorpayOrder.notes?.user_id;
-            if (orderUserId && orderUserId !== userId) {
-              logger.error('BillingService: Security Alert — Cross-tenant order redemption attempt blocked!', {
-                requestingUserId: userId,
-                orderOwnerUserId: orderUserId,
-                orderId,
-              });
-              throw new Error('Unauthorized: This payment order belongs to another account.');
-            }
-          }
-        } catch (err: any) {
-          if (err.message === 'Payment order amount does not match requested plan price.' || err.message.includes('Unauthorized')) throw err;
-          logger.warn('BillingService: Could not fetch Razorpay order for validation', { orderId, error: String(err) });
-        }
-
-        // Server-Side Payment Verification: Verify payment status directly with Gateway API
-        if (paymentId && !paymentId.startsWith('pay_mock_')) {
-          try {
-            const payment = await this.razorpay.payments.fetch(paymentId);
-            if (payment) {
-              if (payment.status !== 'captured' && payment.status !== 'authorized') {
-                logger.error('BillingService: Security Alert — Payment status is not captured/paid!', {
-                  paymentId,
-                  status: payment.status,
-                });
-                throw new Error(`Payment verification failed: Payment status is '${payment.status}'. Expected 'captured'.`);
-              }
-              if (payment.amount !== expectedAmountInPaise) {
-                throw new Error('Captured payment amount does not match plan price.');
-              }
-              if (payment.order_id && payment.order_id !== orderId) {
-                throw new Error('Payment order ID does not match specified order.');
-              }
-              const payUserId = payment.notes?.userId || payment.notes?.user_id;
-              if (payUserId && payUserId !== userId) {
-                throw new Error('Unauthorized: This payment belongs to another account.');
-              }
-            }
-          } catch (payErr: any) {
-            if (payErr.message.includes('Payment verification failed') || payErr.message.includes('does not match') || payErr.message.includes('Unauthorized')) {
-              throw payErr;
-            }
-            logger.warn('BillingService: Could not fetch Razorpay payment for validation', { paymentId, error: String(payErr) });
-          }
-        }
-      } else if (orderId.startsWith('order_mock_')) {
-        const planKey = planConfig.name.toLowerCase();
-        if (!orderId.includes(`_plan_${planKey}_`)) {
-          logger.error('BillingService: Security Alert — Mock order plan tag mismatch!', {
-            userId,
-            planName,
-            orderId,
-            expectedPlanKey: planKey,
-          });
-          throw new Error('Payment order amount does not match requested plan price.');
-        }
-
-        // Object-Level Authorization on mock order
-        const parts = orderId.split('_');
-        // Format: order_mock_plan_<planKey>_<userId>_<timestamp>
-        if (parts.length >= 6 && parts[4] !== 'usr' && parts[4] !== 'anon' && parts[4] !== userId) {
-          logger.error('BillingService: Security Alert — Mock order belongs to different user!', {
-            requestingUserId: userId,
-            orderUserId: parts[4],
-          });
-          throw new Error('Unauthorized: This payment order belongs to another account.');
-        }
-      }
-    }
-
-    try {
-      const { fulfillPlanPurchase } = await import('./PlanFulfillmentService');
-      const effectiveOrderId = orderId || paymentId!;
-      const effectivePaymentId = paymentId || orderId!;
-
-      const result = await fulfillPlanPurchase({
-        userId,
-        orderId: effectiveOrderId,
-        paymentId: effectivePaymentId,
-        planKey: planName.toLowerCase(),
-        source: 'self_serve',
-      });
-
-      if (result.isIdempotent) {
-        logger.warn('BillingService: Duplicate payment transaction blocked by DB unique constraint', { paymentId, orderId, userId });
-        throw new Error('Payment has already been redeemed.');
-      }
-
-      logger.info(`BillingService: Provisioned ${planName} for user ${userId}. Added ${addedMinutes} mins (${addedMinutes * 60} seconds).`);
-      return true;
-    } catch (err: any) {
-      if (err.message === 'Payment has already been redeemed.') throw err;
-      logger.error('BillingService: Failed to process plan purchase in DB', { error: String(err) });
-      throw new Error('Failed to provision account');
     }
   }
 }

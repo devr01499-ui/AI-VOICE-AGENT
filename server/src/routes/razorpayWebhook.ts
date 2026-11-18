@@ -6,11 +6,13 @@ import { prisma } from '../lib/prisma';
 import { revokeUserSessions } from '../utils/sessionManager';
 import { logAuditEvent } from '../utils/auditLogger';
 import { webhookRateLimiter } from '../middleware/rateLimiter';
-import { PLAN_CONFIG } from '../config/plans';
+import { getPlanConfig } from '../config/plans';
+import { BillingService, normaliseNotes } from '../services/BillingService';
+import { fulfilCapturedPlanPayment } from '../services/PaymentReconciliationService';
 
 export const razorpayWebhookRouter = Router();
 
-// In-flight concurrency claim set and sliding window replay cache
+// In-flight concurrency claim set and sliding window replay cache (only for events that succeeded)
 const inFlightWebhookEvents = new Set<string>();
 const razorpayReplayCache = new Map<string, number>();
 const REPLAY_TTL_MS = 15 * 60 * 1000; // 15 minutes
@@ -18,400 +20,268 @@ const REPLAY_TTL_MS = 15 * 60 * 1000; // 15 minutes
 function cleanupExpiredRazorpayEvents(): void {
   const now = Date.now();
   for (const [key, expiresAt] of razorpayReplayCache.entries()) {
-    if (now >= expiresAt) {
-      razorpayReplayCache.delete(key);
-    }
+    if (now >= expiresAt) razorpayReplayCache.delete(key);
   }
 }
 
-/**
- * Clears the in-memory cache for automated testing.
- */
+/** Clears the in-memory caches for automated testing. */
 export function clearRazorpayReplayCacheForTesting(): void {
   inFlightWebhookEvents.clear();
   razorpayReplayCache.clear();
 }
 
+/** A failure Razorpay should retry (we answer 5xx so it re-sends the event later). */
+class RetryableWebhookError extends Error {}
+
+/** The webhook secret. A built-in test secret exists ONLY when NODE_ENV is "test". */
+function webhookSecret(): string | undefined {
+  if (process.env.RAZORPAY_WEBHOOK_SECRET) return process.env.RAZORPAY_WEBHOOK_SECRET;
+  return process.env.NODE_ENV === 'test' ? 'test_webhook_secret' : undefined;
+}
+
+function sameAmount(paise: unknown, inr: number): boolean {
+  return Number.isInteger(Number(paise)) && Number(paise) === Math.round(inr * 100);
+}
+
 /**
- * Razorpay Webhook Handler
- * Verifies HMAC-SHA256 signature using raw body, processes payment/subscription events idempotently,
- * and maintains synchronized entitlement and session states.
+ * Plan payment captured (payment.captured / order.paid). The user, plan and purpose come from the
+ * order notes the server set when it created the order (Razorpay sends empty notes as [], and
+ * payment.captured carries no order notes, so the order is fetched when needed). The paid amount
+ * must equal the plan price, in INR, captured. Number payments are provisioned by the purchase
+ * route, not here.
+ */
+async function handlePaymentCaptured(event: string, payload: any, eventId: string | null): Promise<void> {
+  const paymentEntity = payload?.payment?.entity || {};
+  const orderEntity = payload?.order?.entity || {};
+  const paymentId: string | undefined = paymentEntity.id;
+  const orderId: string | undefined = paymentEntity.order_id || orderEntity.id;
+  if (!paymentId || !orderId) {
+    logger.warn('[RAZORPAY_WEBHOOK] captured payment without payment/order id; ignored', { event });
+    return;
+  }
+
+  // Only the ORDER's notes count: the server wrote them. Payment notes can be set by the browser's
+  // checkout script and are never trusted.
+  let notes = orderEntity.id === orderId ? normaliseNotes(orderEntity.notes) : {};
+  if (!notes.userId || !(notes.planKey || notes.purpose)) {
+    try {
+      notes = (await new BillingService().fetchOrder(orderId)).notes;
+    } catch (err: any) {
+      throw new RetryableWebhookError(`could not fetch order ${orderId}: ${err?.message || err}`);
+    }
+  }
+
+  await fulfilCapturedPlanPayment({
+    paymentId,
+    orderId,
+    amountPaise: Number(paymentEntity.amount),
+    currency: String(paymentEntity.currency || 'INR'),
+    status: paymentEntity.status,
+    notes,
+    via: 'webhook',
+  });
+}
+
+async function handlePaymentLinkPaid(payload: any): Promise<void> {
+  const linkEntity = payload?.payment_link?.entity || {};
+  const paymentEntity = payload?.payment?.entity || {};
+  const razorpayLinkId: string | undefined = linkEntity.id;
+  if (!razorpayLinkId || !paymentEntity.id) return;
+  // The staff-created link row is the source of truth for who pays what.
+  const link = await prisma.paymentLink.findFirst({ where: { razorpayLinkId } });
+  if (!link || !link.planKey) {
+    logger.error('[RAZORPAY_WEBHOOK] payment_link.paid for an unknown link or link without plan; NOT fulfilled', { razorpayLinkId });
+    return;
+  }
+  if ((paymentEntity.currency || 'INR') !== 'INR' || !sameAmount(paymentEntity.amount, Number(link.amountInr))) {
+    logger.error('[RAZORPAY_WEBHOOK] Security alert: payment link amount mismatch; NOT fulfilled', { razorpayLinkId, paidPaise: paymentEntity.amount, linkInr: link.amountInr });
+    return;
+  }
+  await fulfillPlanPurchase({
+    userId: link.userId,
+    orderId: paymentEntity.order_id || `plink_ord_${razorpayLinkId}`,
+    paymentId: paymentEntity.id,
+    planKey: link.planKey,
+    source: 'admin',
+    staffId: link.createdByStaffId || undefined,
+    razorpayLinkId,
+    amountOverrideInr: Number(link.amountInr),
+  });
+  await prisma.paymentLink.updateMany({ where: { razorpayLinkId }, data: { status: 'paid' } });
+  await logAuditEvent({
+    workspaceOwnerId: link.userId,
+    actorUserId: link.createdByStaffId || link.userId,
+    action: 'billing.payment_link.paid',
+    targetId: paymentEntity.id,
+    metadata: { razorpayLinkId, planKey: link.planKey },
+  });
+}
+
+async function handleSubscriptionCharged(payload: any): Promise<void> {
+  const subscriptionEntity = payload?.subscription?.entity || {};
+  const paymentEntity = payload?.payment?.entity || {};
+  const notes = normaliseNotes(subscriptionEntity.notes); // server-side subscription notes only
+  const userId = notes.userId || notes.user_id;
+  const planConfig = getPlanConfig(notes.planKey || notes.plan_key || '');
+  if (!userId || !planConfig || !paymentEntity.id) {
+    logger.error('[RAZORPAY_WEBHOOK] subscription.charged without user/plan/payment; NOT credited', { subId: subscriptionEntity.id });
+    return;
+  }
+  if ((paymentEntity.currency || 'INR') !== 'INR' || !sameAmount(paymentEntity.amount, planConfig.price)) {
+    logger.error('[RAZORPAY_WEBHOOK] Security alert: subscription charge amount mismatch; NOT credited', { subId: subscriptionEntity.id, paidPaise: paymentEntity.amount });
+    return;
+  }
+  const planKey = String(notes.planKey || notes.plan_key).toLowerCase();
+  await fulfillPlanPurchase({
+    userId,
+    orderId: paymentEntity.order_id || `sub_ord_${subscriptionEntity.id}_${paymentEntity.id}`,
+    paymentId: paymentEntity.id,
+    planKey,
+    source: 'self_serve',
+  });
+  await logAuditEvent({
+    workspaceOwnerId: userId,
+    actorUserId: userId,
+    action: 'billing.subscription.charged',
+    targetId: subscriptionEntity.id || paymentEntity.id,
+    metadata: { paymentId: paymentEntity.id, planKey },
+  });
+}
+
+async function handleSubscriptionEnded(event: string, payload: any): Promise<void> {
+  const subscriptionEntity = payload?.subscription?.entity || {};
+  const subId = subscriptionEntity.id;
+  const userId = normaliseNotes(subscriptionEntity.notes).userId;
+  if (!userId) {
+    logger.warn(`[RAZORPAY_WEBHOOK] ${event} without userId in notes; ignored`, { subId });
+    return;
+  }
+  await prisma.user.update({ where: { id: userId }, data: { accountType: 'free' } });
+  await revokeUserSessions(userId);
+  await logAuditEvent({
+    workspaceOwnerId: userId,
+    actorUserId: userId,
+    action: event === 'subscription.cancelled' ? 'billing.subscription.cancelled' : `billing.${event}`,
+    targetId: subId || 'unknown',
+    metadata: { subId, status: subscriptionEntity.status, reason: subscriptionEntity.cancel_reason },
+  });
+  logger.warn(`[RAZORPAY_WEBHOOK] ${event}: account downgraded and sessions revoked`, { subId, userId });
+}
+
+async function handlePaymentFailed(payload: any): Promise<void> {
+  const paymentEntity = payload?.payment?.entity || {};
+  logger.warn('[RAZORPAY_WEBHOOK] payment failed', {
+    paymentId: paymentEntity.id,
+    orderId: paymentEntity.order_id,
+    errorCode: paymentEntity.error_code,
+    errorDesc: paymentEntity.error_description,
+  });
+}
+
+/** refund.processed only (refund.created for the same refund would count it twice). */
+async function handleRefundProcessed(payload: any): Promise<void> {
+  const refundEntity = payload?.refund?.entity || {};
+  const paymentId: string | undefined = refundEntity.payment_id;
+  if (!paymentId) return;
+  const tx = await prisma.paymentTransaction.findFirst({ where: { paymentId } });
+  if (!tx) {
+    logger.warn('[RAZORPAY_WEBHOOK] refund for a payment we have no record of', { paymentId });
+    return;
+  }
+  const refundedAmount = Number(tx.refundedAmount || 0) + Number(refundEntity.amount || 0) / 100;
+  const fully = tx.amount != null && refundedAmount + 0.001 >= Number(tx.amount);
+  await prisma.paymentTransaction.update({
+    where: { id: tx.id },
+    data: { refundedAmount, status: fully ? 'refunded' : 'partially_refunded' },
+  });
+  logger.info('[RAZORPAY_WEBHOOK] refund recorded', { paymentId, refundedAmount });
+}
+
+/**
+ * Razorpay webhook. Signature (HMAC-SHA256 of the raw body, constant-time compare) is checked
+ * first and fails closed. Each event is processed BEFORE answering: 200 when done (or ignored on
+ * purpose), 500 when a retry may help, so Razorpay re-sends it. Processed events are recorded and
+ * never applied twice.
  */
 razorpayWebhookRouter.post('/razorpay', webhookRateLimiter, async (req: Request, res: Response): Promise<void> => {
-  const signature = req.headers['x-razorpay-signature'] as string;
-  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || (process.env.NODE_ENV !== 'production' ? 'test_webhook_secret' : undefined);
-
-  const rawBodyBuffer = (req as any).rawBody || Buffer.from(JSON.stringify(req.body));
-
-  // 1. Signature Verification with timingSafeEqual
-  if (!webhookSecret) {
-    logger.error('[RAZORPAY_WEBHOOK] RAZORPAY_WEBHOOK_SECRET missing in production. Rejecting webhook.');
+  const signature = req.headers['x-razorpay-signature'];
+  const secret = webhookSecret();
+  if (!secret) {
+    logger.error('[RAZORPAY_WEBHOOK] RAZORPAY_WEBHOOK_SECRET is not configured. Rejecting webhook.');
     res.status(500).json({ error: 'Webhook secret not configured' });
     return;
   }
-
   if (!signature || typeof signature !== 'string') {
-    logger.warn('[RAZORPAY_WEBHOOK] Missing or invalid X-Razorpay-Signature header');
     res.status(400).json({ error: 'Missing signature header' });
     return;
   }
-
-  const expectedSignature = crypto
-    .createHmac('sha256', webhookSecret)
-    .update(rawBodyBuffer)
-    .digest('hex');
-
+  const rawBody: Buffer | undefined = (req as any).rawBody;
+  if (!rawBody) {
+    res.status(400).json({ error: 'Missing body' });
+    return;
+  }
+  const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
   const sigBuf = Buffer.from(signature, 'utf8');
-  const expBuf = Buffer.from(expectedSignature, 'utf8');
-
+  const expBuf = Buffer.from(expected, 'utf8');
   if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
-    logger.warn('[RAZORPAY_WEBHOOK] Invalid signature verification failed');
+    logger.warn('[RAZORPAY_WEBHOOK] Invalid signature');
     res.status(400).json({ error: 'Invalid webhook signature' });
     return;
   }
 
-  // Deduplication / Idempotency Key check on event ID
-  const event = req.body?.event;
+  const event: string = req.body?.event;
   const payload = req.body?.payload;
-  const eventId =
-    (req.headers['x-razorpay-event-id'] as string) ||
+  const headerId = req.headers['x-razorpay-event-id'];
+  const eventId: string | null =
+    (typeof headerId === 'string' && headerId) ||
     req.body?.id ||
-    (payload?.payment?.entity?.id ? `evt_pay_${payload.payment.entity.id}` : null) ||
-    (payload?.order?.entity?.id ? `evt_ord_${payload.order.entity.id}` : null);
+    (payload?.payment?.entity?.id ? `evt_${event}_${payload.payment.entity.id}` : null) ||
+    (payload?.refund?.entity?.id ? `evt_${event}_${payload.refund.entity.id}` : null);
 
   cleanupExpiredRazorpayEvents();
-
-  if (eventId) {
-    if (razorpayReplayCache.has(eventId)) {
-      logger.info('[RAZORPAY_WEBHOOK] Duplicate webhook event detected in sliding memory cache, idempotent bypass', { eventId, event });
-      res.status(200).json({ status: 'ok', idempotent: true });
-      return;
-    }
-
-    if (inFlightWebhookEvents.has(eventId)) {
-      logger.info('[RAZORPAY_WEBHOOK] Concurrent in-flight webhook event detected, idempotent bypass', { eventId, event });
-      res.status(200).json({ status: 'ok', idempotent: true });
-      return;
-    }
-
-    inFlightWebhookEvents.add(eventId);
+  if (eventId && (razorpayReplayCache.has(eventId) || inFlightWebhookEvents.has(eventId))) {
+    res.status(200).json({ status: 'ok', idempotent: true });
+    return;
   }
+  if (eventId) inFlightWebhookEvents.add(eventId);
 
-  // 2. Respond 200 immediately to acknowledge receipt to Razorpay
-  res.status(200).json({ status: 'ok' });
-
-  // 3. Process event asynchronously
   try {
-    logger.info('[RAZORPAY_WEBHOOK] Received event', { event, eventId });
+    if (eventId) {
+      const already = await prisma.auditLog.findFirst({ where: { action: 'billing.webhook.event_processed', targetId: eventId }, select: { id: true } });
+      if (already) {
+        razorpayReplayCache.set(eventId, Date.now() + REPLAY_TTL_MS);
+        res.status(200).json({ status: 'ok', idempotent: true });
+        return;
+      }
+    }
+
+    if (event === 'payment.captured' || event === 'order.paid') await handlePaymentCaptured(event, payload, eventId);
+    else if (event === 'payment_link.paid') await handlePaymentLinkPaid(payload);
+    else if (event === 'subscription.charged') await handleSubscriptionCharged(payload);
+    else if (event === 'subscription.cancelled' || event === 'subscription.paused' || event === 'subscription.halted') await handleSubscriptionEnded(event, payload);
+    else if (event === 'payment.failed') await handlePaymentFailed(payload);
+    else if (event === 'refund.processed') await handleRefundProcessed(payload);
+    else logger.info('[RAZORPAY_WEBHOOK] event ignored', { event });
 
     if (eventId) {
-      const existingEvent = await prisma.auditLog.findFirst({
-        where: {
+      await prisma.auditLog.create({
+        data: {
+          workspaceOwnerId: 'system',
+          actorUserId: 'razorpay',
           action: 'billing.webhook.event_processed',
           targetId: eventId,
+          metadata: { event },
         },
-      });
-      if (existingEvent) {
-        logger.info('[RAZORPAY_WEBHOOK] Duplicate webhook event detected in audit log, idempotent bypass', { eventId, event });
-        return;
-      }
-    }
-
-    if (event === 'payment.captured' || event === 'order.paid') {
-      const paymentEntity = payload?.payment?.entity;
-      const orderEntity = payload?.order?.entity;
-
-      const paymentId = paymentEntity?.id || payload?.payment?.id;
-      const orderId = paymentEntity?.order_id || orderEntity?.id || paymentId;
-      const notes = paymentEntity?.notes || orderEntity?.notes || {};
-
-      let userId = notes.userId || notes.user_id;
-      const planKey = notes.planKey || notes.plan_key || notes.plan;
-      const source = notes.source || 'self_serve';
-      const staffId = notes.staffId || notes.staff_id;
-
-      // Fallback: If userId not directly in notes, look up by customer email
-      if (!userId && paymentEntity?.email) {
-        const matchedUser = await prisma.user.findUnique({
-          where: { email: paymentEntity.email.toLowerCase().trim() },
-          select: { id: true },
-        });
-        if (matchedUser) {
-          userId = matchedUser.id;
-          logger.info('[RAZORPAY_WEBHOOK] Resolved userId from payment customer email', { userId, email: paymentEntity.email });
-        }
-      }
-
-      if (!userId || !planKey) {
-        logger.warn('[RAZORPAY_WEBHOOK] Payment captured but missing userId or planKey in notes', {
-          paymentId,
-          orderId,
-          notes,
-        });
-        return;
-      }
-
-      // Check payment amount against plan configuration
-      const planConfig = (PLAN_CONFIG as any)[planKey.toLowerCase()];
-      if (planConfig && paymentEntity?.amount !== undefined) {
-        const expectedPaise = Math.round(planConfig.price * 100);
-        if (paymentEntity.amount !== expectedPaise) {
-          logger.error('[RAZORPAY_WEBHOOK] Security Alert: Webhook payment amount mismatch!', {
-            paymentId,
-            receivedPaise: paymentEntity.amount,
-            expectedPaise,
-            planKey,
-          });
-          return;
-        }
-      }
-
-      await fulfillPlanPurchase({
-        userId,
-        orderId,
-        paymentId,
-        planKey,
-        source: source === 'admin' ? 'admin' : 'self_serve',
-        staffId,
-      });
-
-      if (eventId) {
-        try {
-          await prisma.auditLog.create({
-            data: {
-              workspaceOwnerId: userId,
-              actorUserId: staffId || userId,
-              action: 'billing.webhook.event_processed',
-              targetId: eventId,
-              metadata: { event, orderId, paymentId, planKey },
-            },
-          });
-        } catch {}
-      }
-
-      await logAuditEvent({
-        workspaceOwnerId: userId,
-        actorUserId: staffId || userId,
-        action: 'billing.payment.captured',
-        targetId: paymentId,
-        metadata: { orderId, planKey, source },
-      });
-    } else if (event === 'payment_link.paid') {
-      const linkEntity = payload?.payment_link?.entity;
-      const paymentEntity = payload?.payment?.entity;
-
-      const razorpayLinkId = linkEntity?.id;
-      const paymentId = paymentEntity?.id || `plink_pay_${razorpayLinkId}`;
-      const orderId = paymentEntity?.order_id || `plink_ord_${razorpayLinkId}`;
-      const notes = linkEntity?.notes || {};
-
-      let userId = notes.userId || notes.user_id;
-      const planKey = notes.planKey || notes.plan_key;
-      const staffId = notes.staffId || notes.staff_id;
-
-      if (!userId && linkEntity?.customer?.email) {
-        const matchedUser = await prisma.user.findUnique({
-          where: { email: linkEntity.customer.email.toLowerCase().trim() },
-          select: { id: true },
-        });
-        if (matchedUser) {
-          userId = matchedUser.id;
-        }
-      }
-
-      if (userId && planKey) {
-        await fulfillPlanPurchase({
-          userId,
-          orderId,
-          paymentId,
-          planKey,
-          source: 'admin',
-          staffId,
-          razorpayLinkId,
-        });
-
-        // Update PaymentLink status to paid
-        if (razorpayLinkId) {
-          await (prisma as any).paymentLink?.updateMany({
-            where: { razorpayLinkId },
-            data: { status: 'paid' },
-          });
-        }
-
-        await logAuditEvent({
-          workspaceOwnerId: userId,
-          actorUserId: staffId || userId,
-          action: 'billing.payment_link.paid',
-          targetId: paymentId,
-          metadata: { razorpayLinkId, planKey },
-        });
-      }
-    } else if (event === 'subscription.charged') {
-      // Recurring subscription period renewed and charged
-      const subscriptionEntity = payload?.subscription?.entity;
-      const paymentEntity = payload?.payment?.entity;
-
-      const subId = subscriptionEntity?.id;
-      const paymentId = paymentEntity?.id || `sub_charge_${subId}_${Date.now()}`;
-      const orderId = paymentEntity?.order_id || `sub_ord_${subId}_${Date.now()}`;
-      const notes = subscriptionEntity?.notes || paymentEntity?.notes || {};
-
-      let userId = notes.userId || notes.user_id;
-      const planKey = notes.planKey || notes.plan_key || 'developer';
-
-      if (!userId && (subscriptionEntity?.customer_email || paymentEntity?.email)) {
-        const email = (subscriptionEntity?.customer_email || paymentEntity?.email).toLowerCase().trim();
-        const matchedUser = await prisma.user.findUnique({
-          where: { email },
-          select: { id: true },
-        });
-        if (matchedUser) {
-          userId = matchedUser.id;
-        }
-      }
-
-      if (userId) {
-        await fulfillPlanPurchase({
-          userId,
-          orderId,
-          paymentId,
-          planKey,
-          source: 'self_serve',
-        });
-
-        await logAuditEvent({
-          workspaceOwnerId: userId,
-          actorUserId: userId,
-          action: 'billing.subscription.charged',
-          targetId: subId || paymentId,
-          metadata: { paymentId, orderId, planKey },
-        });
-
-        logger.info('[RAZORPAY_WEBHOOK] Subscription renewed and credited successfully', { subId, userId, planKey });
-      } else {
-        logger.warn('[RAZORPAY_WEBHOOK] subscription.charged received but could not resolve user identity', { subId });
-      }
-    } else if (event === 'subscription.cancelled') {
-      // Subscription cancelled by customer or admin
-      const subscriptionEntity = payload?.subscription?.entity;
-      const subId = subscriptionEntity?.id;
-      const notes = subscriptionEntity?.notes || {};
-      let userId = notes.userId || notes.user_id;
-
-      if (!userId && subscriptionEntity?.customer_email) {
-        const matched = await prisma.user.findUnique({
-          where: { email: subscriptionEntity.customer_email.toLowerCase().trim() },
-          select: { id: true },
-        });
-        if (matched) userId = matched.id;
-      }
-
-      if (userId) {
-        // Downgrade account to free tier
-        await prisma.user.update({
-          where: { id: userId },
-          data: { accountType: 'free' },
-        });
-
-        // Revoke active sessions so client permissions immediately update
-        await revokeUserSessions(userId);
-
-        await logAuditEvent({
-          workspaceOwnerId: userId,
-          actorUserId: userId,
-          action: 'billing.subscription.cancelled',
-          targetId: subId || 'unknown',
-          metadata: { subId, reason: subscriptionEntity?.cancel_reason || 'user_or_admin_cancelled' },
-        });
-
-        logger.info('[RAZORPAY_WEBHOOK] Subscription cancelled and account downgraded to free', { subId, userId });
-      }
-    } else if (event === 'subscription.paused' || event === 'subscription.halted') {
-      // Subscription paused or halted due to payment failures
-      const subscriptionEntity = payload?.subscription?.entity;
-      const subId = subscriptionEntity?.id;
-      const notes = subscriptionEntity?.notes || {};
-      let userId = notes.userId || notes.user_id;
-
-      if (!userId && subscriptionEntity?.customer_email) {
-        const matched = await prisma.user.findUnique({
-          where: { email: subscriptionEntity.customer_email.toLowerCase().trim() },
-          select: { id: true },
-        });
-        if (matched) userId = matched.id;
-      }
-
-      if (userId) {
-        await prisma.user.update({
-          where: { id: userId },
-          data: { accountType: 'free' },
-        });
-
-        await revokeUserSessions(userId);
-
-        await logAuditEvent({
-          workspaceOwnerId: userId,
-          actorUserId: userId,
-          action: `billing.${event}`,
-          targetId: subId || 'unknown',
-          metadata: { subId, status: subscriptionEntity?.status },
-        });
-
-        logger.warn(`[RAZORPAY_WEBHOOK] Subscription ${event}: Account downgraded and sessions revoked`, { subId, userId });
-      }
-    } else if (event === 'payment.failed') {
-      const paymentEntity = payload?.payment?.entity;
-      const paymentId = paymentEntity?.id || 'unknown';
-      const orderId = paymentEntity?.order_id || 'unknown';
-      const notes = paymentEntity?.notes || {};
-      const userId = notes.userId || notes.user_id;
-
-      logger.warn('[RAZORPAY_WEBHOOK] Payment marked as failed by carrier', {
-        paymentId,
-        errorCode: paymentEntity?.error_code,
-        errorDesc: paymentEntity?.error_description,
-      });
-
-      if (userId) {
-        try {
-          await prisma.paymentTransaction.create({
-            data: {
-              userId,
-              orderId: `${orderId}_failed_${Date.now()}`,
-              paymentId: `${paymentId}_failed_${Date.now()}`,
-              planName: notes.planKey || notes.plan_key || 'unknown',
-              amount: ((paymentEntity?.amount || 0) / 100),
-              currency: paymentEntity?.currency || 'INR',
-              status: 'failed',
-              source: 'self_serve',
-            },
-          });
-        } catch (dbErr: any) {
-          logger.warn('[RAZORPAY_WEBHOOK] Could not record failed payment transaction', { error: dbErr.message });
-        }
-      }
-    } else if (event === 'refund.processed' || event === 'refund.created') {
-      const refundEntity = payload?.refund?.entity;
-      const paymentId = refundEntity?.payment_id;
-      const refundedAmount = (refundEntity?.amount || 0) / 100; // Razorpay amounts in paise
-
-      if (paymentId) {
-        await prisma.paymentTransaction.updateMany({
-          where: { paymentId },
-          data: {
-            status: 'refunded',
-            refundedAmount: { increment: refundedAmount },
-          },
-        });
-        logger.info('[RAZORPAY_WEBHOOK] Refund processed and recorded', { paymentId, refundedAmount });
-      }
-    }
-  } catch (err: any) {
-    logger.error('[RAZORPAY_WEBHOOK_ERROR] Failed processing webhook payload', { error: err.message });
-  } finally {
-    if (eventId) {
-      inFlightWebhookEvents.delete(eventId);
+      }).catch((err: any) => logger.warn('[RAZORPAY_WEBHOOK] could not record processed event', { eventId, error: err?.message }));
       razorpayReplayCache.set(eventId, Date.now() + REPLAY_TTL_MS);
     }
+    res.status(200).json({ status: 'ok' });
+  } catch (err: any) {
+    const retryable = err instanceof RetryableWebhookError || !(err instanceof Error && /INVALID_PLAN|USER_NOT_FOUND|Unauthorized|already been redeemed/.test(err.message));
+    logger.error('[RAZORPAY_WEBHOOK_ERROR] failed processing event', { event, eventId, retryable, error: err?.message });
+    if (retryable) res.status(500).json({ error: 'Temporary processing error' });
+    else res.status(200).json({ status: 'ignored' });
+  } finally {
+    if (eventId) inFlightWebhookEvents.delete(eventId);
   }
 });
