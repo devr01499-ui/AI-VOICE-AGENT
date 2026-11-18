@@ -28,7 +28,7 @@ Launch gate (Phase 14): every item below is either DONE with proof or listed in 
 ## Cross-cutting
 - [x] **S7** Security / firewall / traffic hardening pass, `docs/SECURITY_AUDIT.md` (CLAUDE.md §7) — Phase 12 — Proof: docs/SECURITY_AUDIT.md (S1–S15 fixed, A1–A5 accepted with reasons); `npm run test:security-hardening` 13/13 (5 fail on old code); FIX_LOG S7. Owner steps 20–24 (secrets, RLS) in PROGRESS
 - [ ] **Q8** CI workflow + Playwright end-to-end smoke test + quality gates (CLAUDE.md §8) — Phase 14 — Proof:
-- [ ] **D9** Dead-code removal + `docs/BACKEND_UNUSED_REPORT.md` (CLAUDE.md §9) — Phase 13 — Proof:
+- [x] **D9** Dead-code removal + `docs/BACKEND_UNUSED_REPORT.md` (CLAUDE.md §9) — Phase 13 — Proof: docs/BACKEND_UNUSED_REPORT.md §5 (removed / kept-with-reason / owner list); FIX_LOG D9; typecheck, build, test:security 27 suites, audit_reports 28/28, Playwright e2e 116 passed / 1 skipped (--workers=1)
 - [ ] **T0** Typecheck at 0 errors for frontend and server (frontend starts at 41) — all phases, closed in Phase 14 — Proof:
 - [ ] **M0** Migrations rebuilt from an offline baseline; Render uses `prisma migrate deploy`; CI builds an empty database from migrations (PRELAUNCH_NOTES.md §4) — owner choice pending — Proof:
 - [ ] **K0** Production database password rotated after public exposure; Google key literal confirmed revoked — owner — Proof:

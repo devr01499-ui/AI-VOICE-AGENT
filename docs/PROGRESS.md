@@ -5,9 +5,7 @@
 | 0 | Setup, code map, test-DB guard, test-secret isolation | DONE, on `main` |
 | 1 | F1 first-load flash, F2 auth | DONE, merged to `main` 2026-11-17 (owner said "yes to main directly") |
 | 2 | B1 templates, B2 bell, B4 remove Review QA/Auto-detect (+ calendar status fix) | DONE, merged to `main` 2026-11-17 |
-| 3 | B3 Prompt Coach, B5 Test Lab | DONE, merged to `main` 2026-11-17 |
-| 4 | B6 agent editor sections, B7 conversational builder | DONE, merged to `main` 2026-11-17 |
-| 5 | B8 knowledge base / RAG inspector | DONE, merged to `main` 2026-11-17 |
+| 3–5 | B3 Prompt Coach, B5 Test Lab · B6 agent editor, B7 conversational builder · B8 knowledge base / RAG | DONE, merged to `main` 2026-11-17 |
 | 6 | B13 billing / payment verification | DONE, merged to `main` 2026-11-18 |
 | 7 | B9 numbers / KYC / carrier activation | DONE, merged to `main` 2026-11-18 |
 | 8 | B10 batch calling | DONE, merged to `main` 2026-11-18 |
@@ -15,7 +13,8 @@
 | 10 | B14 recording + P7 data retention | DONE, merged to `main` 2026-11-18 |
 | 11 | B15 latency/voice, P11 fixed | DONE, merged to `main` 2026-11-18 |
 | 12 | S7 security/traffic hardening, P5/P9/P10/P12 (docs/SECURITY_AUDIT.md) | DONE, merged to `main` 2026-11-18 |
-| 13–14 | See CLAUDE.md §13 | not started |
+| 13 | D9 dead code (BACKEND_UNUSED_REPORT §5), docs README/SYSTEM_CHARTER/TECH_DEBT | DONE, merged to `main` 2026-11-18 |
+| 14 | See CLAUDE.md §13 | not started |
 
 ## PRODUCTION — UNTOUCHABLE (nothing relaxed)
 - `DATABASE_URL` in `server/.env` is production. Never connect; never copy it or any key anywhere. Tests use `TEST_DATABASE_URL` only (RUNBOOK.md); the guard blanks live service keys.
@@ -57,4 +56,4 @@
 1. Gemini model policy (CLAUDE.md §3). 2. `devr0144@gmail.com` address (§11). 3. Migration Option A or B. 4. When an account loses its paid plan (cancel/downgrade): keep its number working, pause calls on it, or release it after N days? STANDING RULE (§0.6/§12a): merge each verified phase to `main`, push, never ask between phases.
 
 ## Next exact step
-Phase 13 (branch `chore/dead-code`, CLAUDE.md §9): remove per docs/BACKEND_UNUSED_REPORT.md (unmounted routes/integrations.ts + IntegrationsController, stale root scripts/test_plan_security.ts, unused App.tsx audit-log state, stale SYSTEM_CHARTER.md/TECH_DEBT.md), run knip/depcheck, one revertable commit per area, `/live` 200 after each.
+Phase 14 (branch `chore/ci-e2e-final`): CI workflow on PRs (typecheck, build, test:security on a CI Postgres, e2e); fix `deploy-render.yml` (`npm ci` at root + unguarded test_auth_protection.js); wire passing root scripts/test_* (TD-07); E2E smoke (signup → agent → plan test mode → number simulated → call → history → logout); Solutions page fictional API endpoints/metrics (`/crm/leads/qualify`, `execution_ms 172`, "SRTP zero-copy") → marketing pass; playout timing test flakes under load; M0 plan; zero-defect gate; final Verified / Not-verifiable table.

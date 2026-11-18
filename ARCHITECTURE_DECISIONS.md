@@ -1,5 +1,7 @@
 # ARCHITECTURE_DECISIONS
 
+> **Superseded note (2026-11-18):** ADR-001 (Next.js) was never implemented. The product is a Vite + React SPA (Frontend/) with an Express + Prisma API (server/); see SYSTEM_CHARTER.md and AGENTS.md. The ADRs below are kept as history.
+
 ## ADR-001: Next.js 14 App Router Framework Selection
 - **Status**: Proposed
 - **Context**: The Voice AI Agent Dashboard requires highly interactive pages, visual canvas editing, search capabilities, and API route endpoints.
