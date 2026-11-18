@@ -3021,7 +3021,7 @@ function DashBatch({ onNavigate }: DashBatchProps) {
   const [parsedRecipients, setParsedRecipients] = useState<{ phoneNumber: string; name: string }[]>([]);
   const [creating, setCreating] = useState(false);
   const [batchError, setBatchError] = useState<string | null>(null);
-  const [lastLaunchedBatch, setLastLaunchedBatch] = useState<{ id: string; count: number; name: string } | null>(null);
+  const [lastLaunchedBatch, setLastLaunchedBatch] = useState<{ id: string; count: number; name: string; skipped?: { invalid: number; duplicates: number; optedOut: number } } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     name: "",
@@ -3203,7 +3203,9 @@ function DashBatch({ onNavigate }: DashBatchProps) {
         setConsentChecked(false);
         setLastLaunchedBatch({
           id: batchData.id,
-          count: parsedRecipients.length,
+          // What the server accepted (invalid, duplicate and opted-out numbers are skipped there).
+          count: typeof batchData.total === "number" ? batchData.total : parsedRecipients.length,
+          skipped: batchData.skipped,
           name: form.name.trim() || "Batch Campaign",
         });
         setForm({
@@ -3291,7 +3293,7 @@ function DashBatch({ onNavigate }: DashBatchProps) {
         <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-sm font-semibold flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-            <span>Batch started: {lastLaunchedBatch.count} contacts. First call starting now.</span>
+            <span data-testid="batch-launched">Batch started: {lastLaunchedBatch.count} contacts. First call starting now.{lastLaunchedBatch.skipped && (lastLaunchedBatch.skipped.invalid + lastLaunchedBatch.skipped.duplicates + lastLaunchedBatch.skipped.optedOut) > 0 ? ` Skipped: ${lastLaunchedBatch.skipped.invalid} invalid (Indian mobiles only), ${lastLaunchedBatch.skipped.duplicates} duplicates, ${lastLaunchedBatch.skipped.optedOut} opted out.` : ""}</span>
           </div>
           <div className="flex items-center gap-2">
             <DBtn size="sm" variant="secondary" onClick={() => handleNavigateLive(lastLaunchedBatch.id)}>
