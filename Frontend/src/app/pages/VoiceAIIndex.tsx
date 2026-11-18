@@ -29,7 +29,7 @@ function generateArticleContent(topicId: string, title: string, category: string
     {
       subtitle: "Technical Implementation & Flow Architecture",
       paragraphs: [
-        `From an engineering perspective, building an elite voice infrastructure for "${cleanTitle}" requires a vertically integrated pipeline. The voice stack is split into three core layers: Automatic Speech Recognition (ASR), Large Language Model orchestration (LLM), and Text-to-Speech synthesis (TTS). Chaining distinct API providers introduces a latency overhead of 800ms to 1.5s, which ruins conversational flow. Claritiy Voice solves this by running a unified WebRTC audio pipeline directly connected to our agent workflow engine.`,
+        `From an engineering perspective, building an elite voice infrastructure for "${cleanTitle}" requires a vertically integrated pipeline. The voice stack is split into three core layers: Automatic Speech Recognition (ASR), Large Language Model orchestration (LLM), and Text-to-Speech synthesis (TTS). Chaining distinct API providers introduces a latency overhead of 800ms to 1.5s, which ruins conversational flow. Claritiy Voice solves this by streaming call audio to a single speech-to-speech model directly connected to our agent workflow engine.`,
         `Below is a representative JSON configuration mapping the telephony API workflow parameters for deploying a custom voice AI agent:`
       ],
       code: `{

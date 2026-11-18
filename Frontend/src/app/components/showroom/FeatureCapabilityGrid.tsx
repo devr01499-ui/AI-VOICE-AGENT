@@ -18,7 +18,7 @@ function LatencyVisual() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-mono text-[#34D399] uppercase tracking-wider font-bold">Latency Benchmark</span>
-        <span className="text-[11px] font-mono text-white/55">Direct WebRTC Audio Stream</span>
+        <span className="text-[11px] font-mono text-white/55">Direct Carrier Audio Stream</span>
       </div>
       <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4">
         <div className="flex justify-between items-end h-20 px-2">
@@ -39,21 +39,21 @@ function LatencyVisual() {
         <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-white/10">
           <div>
             <p className="text-[10px] text-white/40">Speech-To-Text</p>
-            <p className="text-sm font-bold text-white font-mono">45ms</p>
+            <p className="text-sm font-bold text-white font-mono">Streaming</p>
           </div>
           <div>
             <p className="text-[10px] text-white/40">LLM Generation</p>
-            <p className="text-sm font-bold text-white font-mono">90ms</p>
+            <p className="text-sm font-bold text-white font-mono">Streaming</p>
           </div>
           <div>
             <p className="text-[10px] text-white/40">Text-To-Speech</p>
-            <p className="text-sm font-bold text-white font-mono">45ms</p>
+            <p className="text-sm font-bold text-white font-mono">Streaming</p>
           </div>
         </div>
       </div>
       <div className="bg-[#34D399]/10 border border-[#34D399]/20 rounded-xl p-3 flex items-center justify-between">
-        <span className="text-xs text-white/80 font-medium">Total Pipeline Latency</span>
-        <span className="text-sm font-extrabold text-[#34D399] font-mono">180ms (Sub-second)</span>
+        <span className="text-xs text-white/80 font-medium">Single speech-to-speech model</span>
+        <span className="text-sm font-extrabold text-[#34D399] font-mono">Real-time</span>
       </div>
     </div>
   );
@@ -219,7 +219,7 @@ const PILLARS = [
   {
     id: "low-latency",
     title: "Low-Latency Engine",
-    subtitle: "Under 180ms Response Latency",
+    subtitle: "Real-Time Responses",
     desc: "Achieve genuine sub-second latency and real-time conversation. Features natural-sounding voices, custom accent support, and advanced interruption handling or barge-in support.",
     icon: Clock,
     accent: "#059669",

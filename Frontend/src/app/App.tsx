@@ -7772,12 +7772,6 @@ function ComparePage({ setPage }: { setPage: (p: Page) => void }) {
       retell: "❌ Build custom prompt maps manually"
     },
     {
-      feature: "Duplex Barge-In Latency",
-      claritiy: "✅ Sub-second response speed",
-      vapi: "⚠️ ~240ms to 320ms latency",
-      retell: "⚠️ ~200ms to 280ms latency"
-    },
-    {
       feature: "Compliance Standards",
       claritiy: "✅ MSME Registered, DPDP Act, TLS 1.3",
       vapi: "⚠️ Standard US compliance",
@@ -7943,7 +7937,7 @@ export default function App() {
       terms: "Terms of service for using the Claritiy Voice platform.",
       security: "Learn about our enterprise-grade security and compliance measures.",
       "voice-ai-index": "The complete index of voice AI capabilities and benchmarks.",
-      "ai-voice-agent-software": "Deploy autonomous AI voice agent software with sub-180ms latency, native regional accents, and seamless CRM integrations. Flat ₹3.99/min.",
+      "ai-voice-agent-software": "Deploy autonomous AI voice agent software with natural, real-time conversation, native regional accents, and seamless CRM integrations. Flat ₹3.99/min.",
       compare: "Compare Claritiy Voice against other platforms.",
       numbers_buy: "Purchase phone numbers for your AI voice agents.",
     };

@@ -309,7 +309,7 @@ POST /api/v2/integrations/shopify/cod-verify
   "execution_ms": 172
 }`,
       metricsData: {
-        latency: "174ms roundtrip",
+        latency: "Real-time",
         concurrency: "5,000+ calls/hr",
         successRate: "94.2% completed verification",
         format: "SRTP 16kHz PCM zero-copy"
@@ -341,7 +341,7 @@ POST /fhir/r4/Appointment
   "phi_redacted": true
 }`,
       metricsData: {
-        latency: "168ms roundtrip",
+        latency: "Real-time",
         concurrency: "1,200+ clinics active",
         successRate: "91.8% first-call booking",
         format: "Edge PII Scrubbed • FHIR R4"
@@ -372,7 +372,7 @@ POST /api/v2/finance/emi-reminder
   "call_disposition": "PROMISE_TO_PAY"
 }`,
       metricsData: {
-        latency: "162ms roundtrip",
+        latency: "Real-time",
         concurrency: "10,000+ concurrent channels",
         successRate: "88.4% promise to pay",
         format: "RBI Fair Practices • TLS 1.3"
@@ -403,7 +403,7 @@ POST /api/v2/crm/leads/qualify
   "status": "QUALIFIED"
 }`,
       metricsData: {
-        latency: "171ms roundtrip",
+        latency: "Real-time",
         concurrency: "Instant sub-3s trigger",
         successRate: "68% tour schedule rate",
         format: "Bidirectional CRM Webhooks"
@@ -433,7 +433,7 @@ POST /tms/v1/driver/note
   "latency_ms": 145
 }`,
       metricsData: {
-        latency: "145ms roundtrip",
+        latency: "Real-time",
         concurrency: "High-volume batch routing",
         successRate: "98.5% first-attempt delivery",
         format: "REST Event Stream"
@@ -463,7 +463,7 @@ POST /api/v2/insurance/fnol
   "status": "CLAIM_FILE_INITIATED"
 }`,
       metricsData: {
-        latency: "179ms roundtrip",
+        latency: "Real-time",
         concurrency: "24/7 disaster surge ready",
         successRate: "3.5× faster claims triage",
         format: "Zero Audio Retention Policy"
@@ -492,7 +492,7 @@ POST /api/v2/edu/admissions/nurture
   "counselor_slot_booked": "2026-08-25T11:00:00Z"
 }`,
       metricsData: {
-        latency: "170ms roundtrip",
+        latency: "Real-time",
         concurrency: "Scalable admissions queues",
         successRate: "41% enrollment acceleration",
         format: "LeadSquared & LMS APIs"
@@ -522,7 +522,7 @@ POST /dms/v2/service/book
   "loaner_vehicle_assigned": true
 }`,
       metricsData: {
-        latency: "165ms roundtrip",
+        latency: "Real-time",
         concurrency: "Multi-dealership bay sync",
         successRate: "92% booking completion",
         format: "DMS Direct Bay Connector"
@@ -567,7 +567,7 @@ POST /dms/v2/service/book
             <span className="text-xs text-[#262523] font-mono">COD RTO Reduction</span>
           </div>
           <div className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-4 text-center">
-            <span className="text-2xl font-bold text-[#121212] font-mono block">&lt;180ms</span>
+            <span className="text-2xl font-bold text-[#121212] font-mono block">Real-time</span>
             <span className="text-xs text-[#262523] font-mono">Sub-Human Latency</span>
           </div>
           <div className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-4 text-center">
@@ -712,7 +712,7 @@ POST /dms/v2/service/book
                   <MessageSquare className="w-3.5 h-3.5 text-[#121212]" /> LIVE DIALOGUE SIMULATION:
                 </h4>
                 <span className="text-[10px] font-mono text-[#121212] font-medium bg-[#DFDCD4] px-2 py-0.5 rounded-[1px] border border-[#CBC8BE]">
-                  LATENCY &lt; 180MS
+                  REAL-TIME VOICE
                 </span>
               </div>
 
@@ -930,7 +930,7 @@ POST /dms/v2/service/book
                 <div className="bg-[#EBE9E2] p-3.5 rounded-[2px] border border-[#CBC8BE] space-y-1">
                   <span className="text-[10px] text-[#262523] uppercase block">AUDIO PROTOCOL</span>
                   <span className="text-[#121212] font-bold text-sm block">{currentSolution.metricsData.format}</span>
-                  <span className="text-[10px] text-[#262523] block">Full duplex WebRTC</span>
+                  <span className="text-[10px] text-[#262523] block">Full-duplex audio</span>
                 </div>
               </div>
             )}

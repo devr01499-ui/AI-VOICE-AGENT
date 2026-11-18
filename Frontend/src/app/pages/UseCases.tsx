@@ -74,11 +74,11 @@ const USE_CASE_TOPICS: IndustryTopic[] = [
       { value: "100%", label: "Zero-Retention PII Masking" }
     ],
     wiremap: [
-      { id: "h1", stage: "STAGE 1", label: "EHR / Portal Trigger", desc: "Appointment request or inbound clinic call lands on telephony gateway.", latency: "12ms", protocol: "REST Webhook / SIP Trunk", accent: "#059669" },
-      { id: "h2", stage: "STAGE 2", label: "16kHz Audio Codec Egress", desc: "Raw uncompressed PCM audio streaming with -42dB full-duplex VAD.", latency: "18ms", protocol: "WebRTC / SRTP Protocol", accent: "#10B981" },
-      { id: "h3", stage: "STAGE 3", label: "Edge DPDP / HIPAA Sanitizer", desc: "Aadhaar, contact, and diagnostic details masked before audio ingestion.", latency: "15ms", protocol: "Zero-Retention DLP Filter", accent: "#34D399" },
-      { id: "h4", stage: "STAGE 4", label: "Clinical Conversational Core", desc: "Contextual speech agent converses with doctor calendar constraints.", latency: "185ms", protocol: "Claritiy Multimodal Voice", accent: "#059669" },
-      { id: "h5", stage: "STAGE 5", label: "EHR Slot Mutation & WhatsApp", desc: "Locks slot in Practo/EHR database and dispatches clinic prep guidelines.", latency: "75ms", protocol: "Authenticated JSON Relay", accent: "#10B981" }
+      { id: "h1", stage: "STAGE 1", label: "EHR / Portal Trigger", desc: "Appointment request or inbound clinic call lands on telephony gateway.", latency: "Real-time", protocol: "REST Webhook / SIP Trunk", accent: "#059669" },
+      { id: "h2", stage: "STAGE 2", label: "16kHz Audio Codec Egress", desc: "Raw uncompressed PCM audio streaming with -42dB full-duplex VAD.", latency: "Real-time", protocol: "Carrier audio stream", accent: "#10B981" },
+      { id: "h3", stage: "STAGE 3", label: "Edge DPDP / HIPAA Sanitizer", desc: "Aadhaar, contact, and diagnostic details masked before audio ingestion.", latency: "Real-time", protocol: "Zero-Retention DLP Filter", accent: "#34D399" },
+      { id: "h4", stage: "STAGE 4", label: "Clinical Conversational Core", desc: "Contextual speech agent converses with doctor calendar constraints.", latency: "Real-time", protocol: "Claritiy Multimodal Voice", accent: "#059669" },
+      { id: "h5", stage: "STAGE 5", label: "EHR Slot Mutation & WhatsApp", desc: "Locks slot in Practo/EHR database and dispatches clinic prep guidelines.", latency: "Real-time", protocol: "Authenticated JSON Relay", accent: "#10B981" }
     ],
     subTopics: [
       {
@@ -181,11 +181,11 @@ const USE_CASE_TOPICS: IndustryTopic[] = [
       { value: "₹6.50", label: "Cost Per Qualified Lead" }
     ],
     wiremap: [
-      { id: "f1", stage: "STAGE 1", label: "Core Banking / LMS Export", desc: "Tranche of upcoming due loans received via secure banking API.", latency: "10ms", protocol: "Finacle / Mambu REST", accent: "#E8630A" },
-      { id: "f2", stage: "STAGE 2", label: "RBI Regulatory Guardrail", desc: "Enforces 8 AM – 7 PM calling window and DNC number validation.", latency: "14ms", protocol: "Policy Rule Engine", accent: "#F59E0B" },
-      { id: "f3", stage: "STAGE 3", label: "Ethical NLU Voice Agent", desc: "Speaks regional language, understands borrower hardship, and negotiates dates.", latency: "185ms", protocol: "Claritiy Voice Core", accent: "#E8630A" },
-      { id: "f4", stage: "STAGE 4", label: "UPI Dynamic Deep-link", desc: "Generates personalized UPI QR and payment link via SMS/WhatsApp.", latency: "85ms", protocol: "Razorpay / Cashfree API", accent: "#F59E0B" },
-      { id: "f5", stage: "STAGE 5", label: "Core Ledger Reconciliation", desc: "Reconciles promissory note or settlement status in core loan ledger.", latency: "30ms", protocol: "Real-time Banking Hook", accent: "#E8630A" }
+      { id: "f1", stage: "STAGE 1", label: "Core Banking / LMS Export", desc: "Tranche of upcoming due loans received via secure banking API.", latency: "Real-time", protocol: "Finacle / Mambu REST", accent: "#E8630A" },
+      { id: "f2", stage: "STAGE 2", label: "RBI Regulatory Guardrail", desc: "Enforces 8 AM – 7 PM calling window and DNC number validation.", latency: "Real-time", protocol: "Policy Rule Engine", accent: "#F59E0B" },
+      { id: "f3", stage: "STAGE 3", label: "Ethical NLU Voice Agent", desc: "Speaks regional language, understands borrower hardship, and negotiates dates.", latency: "Real-time", protocol: "Claritiy Voice Core", accent: "#E8630A" },
+      { id: "f4", stage: "STAGE 4", label: "UPI Dynamic Deep-link", desc: "Generates personalized UPI QR and payment link via SMS/WhatsApp.", latency: "Real-time", protocol: "Razorpay / Cashfree API", accent: "#F59E0B" },
+      { id: "f5", stage: "STAGE 5", label: "Core Ledger Reconciliation", desc: "Reconciles promissory note or settlement status in core loan ledger.", latency: "Real-time", protocol: "Real-time Banking Hook", accent: "#E8630A" }
     ],
     subTopics: [
       {
@@ -285,11 +285,11 @@ const USE_CASE_TOPICS: IndustryTopic[] = [
       { value: "18%", label: "Prepaid Conversion Rate" }
     ],
     wiremap: [
-      { id: "e1", stage: "STAGE 1", label: "Shopify / WooCommerce Hook", desc: "Webhook fires upon new Cash-On-Delivery checkout completion.", latency: "8ms", protocol: "REST Webhook", accent: "#059669" },
-      { id: "e2", stage: "STAGE 2", label: "30s Speed-to-Call Queue", desc: "Enqueues outbound telephony before buyer leaves order page.", latency: "14ms", protocol: "Redis BullMQ Queue", accent: "#10B981" },
-      { id: "e3", stage: "STAGE 3", label: "Colloquial Hinglish Caller", desc: "Verifies address, confirms buyer intent, and captures missing landmarks.", latency: "195ms", protocol: "Claritiy Neural Voice", accent: "#34D399" },
-      { id: "e4", stage: "STAGE 4", label: "Delhivery / Shiprocket Sync", desc: "Updates order tags as Confirmed, attaches delivery note, or cancels fake orders.", latency: "110ms", protocol: "Carrier Aggregator API", accent: "#059669" },
-      { id: "e5", stage: "STAGE 5", label: "Prepaid Discount Incentive", desc: "Offers instant ₹50-₹100 discount to convert COD to instant UPI payment.", latency: "30ms", protocol: "Dynamic UPI Payment Link", accent: "#10B981" }
+      { id: "e1", stage: "STAGE 1", label: "Shopify / WooCommerce Hook", desc: "Webhook fires upon new Cash-On-Delivery checkout completion.", latency: "Real-time", protocol: "REST Webhook", accent: "#059669" },
+      { id: "e2", stage: "STAGE 2", label: "30s Speed-to-Call Queue", desc: "Enqueues outbound telephony before buyer leaves order page.", latency: "Real-time", protocol: "Redis BullMQ Queue", accent: "#10B981" },
+      { id: "e3", stage: "STAGE 3", label: "Colloquial Hinglish Caller", desc: "Verifies address, confirms buyer intent, and captures missing landmarks.", latency: "Real-time", protocol: "Claritiy Neural Voice", accent: "#34D399" },
+      { id: "e4", stage: "STAGE 4", label: "Delhivery / Shiprocket Sync", desc: "Updates order tags as Confirmed, attaches delivery note, or cancels fake orders.", latency: "Real-time", protocol: "Carrier Aggregator API", accent: "#059669" },
+      { id: "e5", stage: "STAGE 5", label: "Prepaid Discount Incentive", desc: "Offers instant ₹50-₹100 discount to convert COD to instant UPI payment.", latency: "Real-time", protocol: "Dynamic UPI Payment Link", accent: "#10B981" }
     ],
     subTopics: [
       {
@@ -389,11 +389,11 @@ const USE_CASE_TOPICS: IndustryTopic[] = [
       { value: "78%", label: "Site Visit Attendance" }
     ],
     wiremap: [
-      { id: "r1", stage: "STAGE 1", label: "Meta / Google Lead Hook", desc: "Lead form submission lands on marketing ingestion webhook.", latency: "6ms", protocol: "Graph API / Webhook", accent: "#E8630A" },
-      { id: "r2", stage: "STAGE 2", label: "Sub-3s Telephony Dial", desc: "Outbound agent dials lead while intent is maximum.", latency: "12ms", protocol: "Claritiy Telephony Relay", accent: "#F59E0B" },
-      { id: "r3", stage: "STAGE 3", label: "High-Ticket SDR Persona", desc: "Qualifies 2BHK/3BHK configuration, budget floor, and timeline.", latency: "180ms", protocol: "Multimodal Agent", accent: "#E8630A" },
-      { id: "r4", stage: "STAGE 4", label: "Site Visit Slot Scheduler", desc: "Reserves tour slot with senior broker and books cab voucher.", latency: "90ms", protocol: "Salesforce / HubSpot API", accent: "#F59E0B" },
-      { id: "r5", stage: "STAGE 5", label: "Senior Broker Dossier", desc: "Dispatches WhatsApp qualification dossier to sales director.", latency: "35ms", protocol: "CRM Webhook & SMS", accent: "#E8630A" }
+      { id: "r1", stage: "STAGE 1", label: "Meta / Google Lead Hook", desc: "Lead form submission lands on marketing ingestion webhook.", latency: "Real-time", protocol: "Graph API / Webhook", accent: "#E8630A" },
+      { id: "r2", stage: "STAGE 2", label: "Sub-3s Telephony Dial", desc: "Outbound agent dials lead while intent is maximum.", latency: "Real-time", protocol: "Claritiy Telephony Relay", accent: "#F59E0B" },
+      { id: "r3", stage: "STAGE 3", label: "High-Ticket SDR Persona", desc: "Qualifies 2BHK/3BHK configuration, budget floor, and timeline.", latency: "Real-time", protocol: "Multimodal Agent", accent: "#E8630A" },
+      { id: "r4", stage: "STAGE 4", label: "Site Visit Slot Scheduler", desc: "Reserves tour slot with senior broker and books cab voucher.", latency: "Real-time", protocol: "Salesforce / HubSpot API", accent: "#F59E0B" },
+      { id: "r5", stage: "STAGE 5", label: "Senior Broker Dossier", desc: "Dispatches WhatsApp qualification dossier to sales director.", latency: "Real-time", protocol: "CRM Webhook & SMS", accent: "#E8630A" }
     ],
     subTopics: [
       {
@@ -494,11 +494,11 @@ const USE_CASE_TOPICS: IndustryTopic[] = [
       { value: "100%", label: "IRDAI Compliance Logging" }
     ],
     wiremap: [
-      { id: "i1", stage: "STAGE 1", label: "Emergency Toll-Free Call", desc: "Policyholder dials toll-free line during breakdown or medical intake.", latency: "10ms", protocol: "SIP Inbound Trunk", accent: "#059669" },
-      { id: "i2", stage: "STAGE 2", label: "First Notice of Loss (FNOL)", desc: "Assesses accident severity, confirms safety, and logs claim number.", latency: "160ms", protocol: "Claritiy Voice DSP", accent: "#10B981" },
-      { id: "i3", stage: "STAGE 3", label: "Policy & Coverage Match", desc: "Validates active policy number, IDV, and zero-depreciation coverage clauses.", latency: "60ms", protocol: "Core Insurance API", accent: "#34D399" },
-      { id: "i4", stage: "STAGE 4", label: "Tow Truck / Surveyor Dispatch", desc: "Transfers GPS coordinates to road assistance provider via real-time API.", latency: "80ms", protocol: "Roadside Fleet Hook", accent: "#059669" },
-      { id: "i5", stage: "STAGE 5", label: "Regulated Audit Vault", desc: "Archives verbatim recording with cryptographic signature for IRDAI compliance.", latency: "25ms", protocol: "S3 Vault + SHA-256", accent: "#10B981" }
+      { id: "i1", stage: "STAGE 1", label: "Emergency Toll-Free Call", desc: "Policyholder dials toll-free line during breakdown or medical intake.", latency: "Real-time", protocol: "SIP Inbound Trunk", accent: "#059669" },
+      { id: "i2", stage: "STAGE 2", label: "First Notice of Loss (FNOL)", desc: "Assesses accident severity, confirms safety, and logs claim number.", latency: "Real-time", protocol: "Claritiy Voice DSP", accent: "#10B981" },
+      { id: "i3", stage: "STAGE 3", label: "Policy & Coverage Match", desc: "Validates active policy number, IDV, and zero-depreciation coverage clauses.", latency: "Real-time", protocol: "Core Insurance API", accent: "#34D399" },
+      { id: "i4", stage: "STAGE 4", label: "Tow Truck / Surveyor Dispatch", desc: "Transfers GPS coordinates to road assistance provider via real-time API.", latency: "Real-time", protocol: "Roadside Fleet Hook", accent: "#059669" },
+      { id: "i5", stage: "STAGE 5", label: "Regulated Audit Vault", desc: "Archives verbatim recording with cryptographic signature for IRDAI compliance.", latency: "Real-time", protocol: "S3 Vault + SHA-256", accent: "#10B981" }
     ],
     subTopics: [
       {
@@ -599,11 +599,11 @@ const USE_CASE_TOPICS: IndustryTopic[] = [
       { value: "0", label: "Gate Turnaround Delays" }
     ],
     wiremap: [
-      { id: "l1", stage: "STAGE 1", label: "Warehouse Dispatch Queue", desc: "Batch of 5,000 packages assigned to local delivery hubs.", latency: "10ms", protocol: "WMS / Courier Core", accent: "#E8630A" },
-      { id: "l2", stage: "STAGE 2", label: "Consignee Time-Window Call", desc: "Calls receiver 1 hour prior to confirm presence and Gate security instructions.", latency: "175ms", protocol: "Claritiy Voice DSP", accent: "#F59E0B" },
-      { id: "l3", stage: "STAGE 3", label: "Security Gate OTP / Passcode", desc: "Captures building visitor PIN or asks for leave-with-security authorization.", latency: "65ms", protocol: "Speech-to-Digit Extraction", accent: "#E8630A" },
-      { id: "l4", stage: "STAGE 4", label: "TMS Driver Handset Sync", desc: "Pushes optimized delivery sequence and gate passcodes to delivery app.", latency: "80ms", protocol: "Driver App WebSocket", accent: "#F59E0B" },
-      { id: "l5", stage: "STAGE 5", label: "Failed Attempt Recovery", desc: "If receiver is away, instantly books neighbor drop or shifts slot to next day.", latency: "35ms", protocol: "Real-time Rescheduler", accent: "#E8630A" }
+      { id: "l1", stage: "STAGE 1", label: "Warehouse Dispatch Queue", desc: "Batch of 5,000 packages assigned to local delivery hubs.", latency: "Real-time", protocol: "WMS / Courier Core", accent: "#E8630A" },
+      { id: "l2", stage: "STAGE 2", label: "Consignee Time-Window Call", desc: "Calls receiver 1 hour prior to confirm presence and Gate security instructions.", latency: "Real-time", protocol: "Claritiy Voice DSP", accent: "#F59E0B" },
+      { id: "l3", stage: "STAGE 3", label: "Security Gate OTP / Passcode", desc: "Captures building visitor PIN or asks for leave-with-security authorization.", latency: "Real-time", protocol: "Speech-to-Digit Extraction", accent: "#E8630A" },
+      { id: "l4", stage: "STAGE 4", label: "TMS Driver Handset Sync", desc: "Pushes optimized delivery sequence and gate passcodes to delivery app.", latency: "Real-time", protocol: "Driver App WebSocket", accent: "#F59E0B" },
+      { id: "l5", stage: "STAGE 5", label: "Failed Attempt Recovery", desc: "If receiver is away, instantly books neighbor drop or shifts slot to next day.", latency: "Real-time", protocol: "Real-time Rescheduler", accent: "#E8630A" }
     ],
     subTopics: [
       {
@@ -700,11 +700,11 @@ const USE_CASE_TOPICS: IndustryTopic[] = [
       { value: "45s", label: "AHT Reduction on Warm Transfer" }
     ],
     wiremap: [
-      { id: "b1", stage: "STAGE 1", label: "SIP PBX Overflow Routing", desc: "Inbound queues exceeding 30s automatically divert to Claritiy Voice.", latency: "15ms", protocol: "FreeSWITCH / Asterisk SIP", accent: "#059669" },
-      { id: "b2", stage: "STAGE 2", label: "Tier-1 Autonomous Deflection", desc: "Resolves FAQs, order lookups, and account resets without human intervention.", latency: "165ms", protocol: "Claritiy Core LLM", accent: "#10B981" },
-      { id: "b3", stage: "STAGE 3", label: "Sentiment & Escalation Monitor", desc: "Detects caller frustration, urgent keywords, or VIP customer status.", latency: "25ms", protocol: "VAD + Sentiment Pipeline", accent: "#34D399" },
-      { id: "b4", stage: "STAGE 4", label: "SIP-REFER Human Handover", desc: "Transfers audio stream to available human agent along with live screenpop notes.", latency: "120ms", protocol: "SIP REFER / WebRTC Bridge", accent: "#059669" },
-      { id: "b5", stage: "STAGE 5", label: "100% Automated Call Auditing", desc: "Evaluates compliance, empathy, and accuracy scores across 10,000+ daily calls.", latency: "45ms", protocol: "Audit Vector Embeddings", accent: "#10B981" }
+      { id: "b1", stage: "STAGE 1", label: "SIP PBX Overflow Routing", desc: "Inbound queues exceeding 30s automatically divert to Claritiy Voice.", latency: "Real-time", protocol: "FreeSWITCH / Asterisk SIP", accent: "#059669" },
+      { id: "b2", stage: "STAGE 2", label: "Tier-1 Autonomous Deflection", desc: "Resolves FAQs, order lookups, and account resets without human intervention.", latency: "Real-time", protocol: "Claritiy Core LLM", accent: "#10B981" },
+      { id: "b3", stage: "STAGE 3", label: "Sentiment & Escalation Monitor", desc: "Detects caller frustration, urgent keywords, or VIP customer status.", latency: "Real-time", protocol: "VAD + Sentiment Pipeline", accent: "#34D399" },
+      { id: "b4", stage: "STAGE 4", label: "SIP-REFER Human Handover", desc: "Transfers audio stream to available human agent along with live screenpop notes.", latency: "Real-time", protocol: "SIP REFER", accent: "#059669" },
+      { id: "b5", stage: "STAGE 5", label: "100% Automated Call Auditing", desc: "Evaluates compliance, empathy, and accuracy scores across 10,000+ daily calls.", latency: "Real-time", protocol: "Audit Vector Embeddings", accent: "#10B981" }
     ],
     subTopics: [
       {
@@ -801,11 +801,11 @@ const USE_CASE_TOPICS: IndustryTopic[] = [
       { value: "28%", label: "Churn Reduction" }
     ],
     wiremap: [
-      { id: "s1", stage: "STAGE 1", label: "Product Signup Hook", desc: "User signs up for software trial or triggers high-value upgrade intent.", latency: "8ms", protocol: "PostHog / Segment Hook", accent: "#E8630A" },
-      { id: "s2", stage: "STAGE 2", label: "Firmographic Enrichment", desc: "Enriches company size, LinkedIn tech stack, and ICP tier within 2 seconds.", latency: "45ms", protocol: "Clearbit / Apollo API", accent: "#F59E0B" },
-      { id: "s3", stage: "STAGE 3", label: "White-Label Outbound SDR", desc: "Calls buyer representing the SaaS brand, answers setup doubts, qualifies demo.", latency: "180ms", protocol: "Custom Domain SIP Gateway", accent: "#E8630A" },
-      { id: "s4", stage: "STAGE 4", label: "Executive Demo Slot Booking", desc: "Integrates with Calendly/ChiliPiper to schedule video walkthrough with AE.", latency: "90ms", protocol: "OAuth Calendar API", accent: "#F59E0B" },
-      { id: "s5", stage: "STAGE 5", label: "CRM Deal Stage Advance", desc: "Updates HubSpot/Salesforce deal stage to 'Demo Scheduled' with call transcript.", latency: "35ms", protocol: "CRM REST API", accent: "#E8630A" }
+      { id: "s1", stage: "STAGE 1", label: "Product Signup Hook", desc: "User signs up for software trial or triggers high-value upgrade intent.", latency: "Real-time", protocol: "PostHog / Segment Hook", accent: "#E8630A" },
+      { id: "s2", stage: "STAGE 2", label: "Firmographic Enrichment", desc: "Enriches company size, LinkedIn tech stack, and ICP tier within 2 seconds.", latency: "Real-time", protocol: "Clearbit / Apollo API", accent: "#F59E0B" },
+      { id: "s3", stage: "STAGE 3", label: "White-Label Outbound SDR", desc: "Calls buyer representing the SaaS brand, answers setup doubts, qualifies demo.", latency: "Real-time", protocol: "Custom Domain SIP Gateway", accent: "#E8630A" },
+      { id: "s4", stage: "STAGE 4", label: "Executive Demo Slot Booking", desc: "Integrates with Calendly/ChiliPiper to schedule video walkthrough with AE.", latency: "Real-time", protocol: "OAuth Calendar API", accent: "#F59E0B" },
+      { id: "s5", stage: "STAGE 5", label: "CRM Deal Stage Advance", desc: "Updates HubSpot/Salesforce deal stage to 'Demo Scheduled' with call transcript.", latency: "Real-time", protocol: "CRM REST API", accent: "#E8630A" }
     ],
     subTopics: [
       {
@@ -1052,7 +1052,7 @@ export default function UseCases({ setPage, initialIndustryId }: UseCasesProps) 
 
           <div className="flex items-center gap-2 text-xs font-mono text-[#121212] bg-[#DFDCD4] px-3.5 py-1.5 rounded-[2px] border border-[#CBC8BE]">
             <span className="w-2 h-2 rounded-full bg-[#121212] animate-pulse" />
-            <span>End-to-End Target: &lt; 200ms</span>
+            <span>Real-time replies</span>
           </div>
         </div>
 

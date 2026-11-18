@@ -84,7 +84,7 @@ export default function Footer({ setPage }: FooterProps) {
           </button>
           
           <p className="text-sm text-[#262523] leading-relaxed max-w-sm">
-            Autonomous conversational voice AI infrastructure designed for high-scale enterprise telephony. Sub-180ms latency, native regional accents, and deep bi-directional CRM execution.
+            Autonomous conversational voice AI infrastructure designed for high-scale enterprise telephony. Real-time conversation, native regional accents, and deep bi-directional CRM execution.
           </p>
 
           {/* Live System Operational Status */}
@@ -94,10 +94,10 @@ export default function Footer({ setPage }: FooterProps) {
                 <span className="w-2 h-2 rounded-full bg-[#121212]" />
                 <span className="text-xs font-bold text-[#121212] font-mono">ALL SYSTEMS OPERATIONAL</span>
               </div>
-              <span className="text-[10px] font-mono text-[#121212] bg-[#DFDCD4] border border-[#CBC8BE] px-2 py-0.5 rounded-[2px] font-bold">174ms Latency</span>
+              <span className="text-[10px] font-mono text-[#121212] bg-[#DFDCD4] border border-[#CBC8BE] px-2 py-0.5 rounded-[2px] font-bold">Real-time</span>
             </div>
             <p className="text-[11px] text-[#5E5D57] leading-tight">
-              Edge ingress controllers, WebRTC media relays, and SIP gateways functioning normally across all clusters.
+              Voice streaming, telephony and dashboard services.
             </p>
           </div>
 
@@ -196,7 +196,7 @@ export default function Footer({ setPage }: FooterProps) {
           <ul className="space-y-2.5 text-sm">
             <li>
               <button onClick={() => navigate("how-it-works")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
-                Sub-180ms WebRTC Engine
+                Real-Time Voice Engine
               </button>
             </li>
             <li>

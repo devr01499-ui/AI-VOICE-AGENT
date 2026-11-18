@@ -68,12 +68,12 @@ function HdGeometricalArchitectureDiagram() {
   const nodes = [
     {
       id: 0,
-      title: "Sub-180ms Latency Engine",
-      badge: "< 180ms Latency",
+      title: "Real-Time Speech Engine",
+      badge: "Real-Time Replies",
       category: "CORE NATIVE ENGINE",
-      desc: "Vertically integrated ASR + LLM + TTS speech pipeline streaming over WebRTC zero-copy buffers to eliminate REST API latency for instant human-like response.",
+      desc: "Call audio streams straight to a single speech-to-speech model, without separate speech-to-text and text-to-speech hops, for quick, natural replies.",
       icon: Zap,
-      stats: { primary: "168ms", label: "End-to-End Latency", detail: "0% REST API Lag" }
+      stats: { primary: "Real-time", label: "Replies", detail: "Single speech-to-speech model" }
     },
     {
       id: 1,
@@ -116,7 +116,7 @@ function HdGeometricalArchitectureDiagram() {
       title: "MSME Security Blueprint",
       badge: "Enterprise Guardrails",
       category: "COMPLIANCE",
-      desc: "Edge-level PII redaction, TLS 1.3 encrypted WebRTC streams, DPDP privacy compliance, and automated call audit trails.",
+      desc: "Edge-level PII redaction, TLS-encrypted media streams, DPDP privacy compliance, and automated call audit trails.",
       icon: Lock,
       stats: { primary: "MSME", label: "Registered Enterprise", detail: "DPDP Act Aligned" }
     }
@@ -275,7 +275,7 @@ function HdGeometricalArchitectureDiagram() {
                   Claritiy Voice AI
                 </h4>
                 <p className="text-[10px] font-mono mt-0.5 text-[#262523]">
-                  Sub-180ms Native Stream
+                  Real-Time Native Stream
                 </p>
 
                 {/* Animated Equalizer Waveform inside Core Hub */}
@@ -450,7 +450,7 @@ export default function Hero({ setPage }: HeroProps) {
 
             {/* Clear Explanation of What We Do */}
             <p className="text-[#262523] text-base sm:text-lg leading-relaxed font-normal">
-              Claritiy Voice builds sub-second (<span className="text-[#121212] font-semibold">180ms</span>) conversational AI phone agents that place outbound sales calls, handle inbound customer support, qualify leads, and automate payment reminders across <span className="text-[#121212] font-semibold">70+ languages</span> with zero setup overhead.
+              Claritiy Voice builds real-time conversational AI phone agents that place outbound sales calls, handle inbound customer support, qualify leads, and automate payment reminders across <span className="text-[#121212] font-semibold">70+ languages</span> with zero setup overhead.
             </p>
 
             {/* Primary & Secondary CTAs */}
@@ -475,7 +475,7 @@ export default function Hero({ setPage }: HeroProps) {
             {/* Platform Proof Metrics Bar */}
             <div className="pt-6 border-t border-[#CBC8BE] grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: "Response Latency", value: "< 500ms" },
+                { label: "Response", value: "Real-time" },
                 { label: "Supported Languages", value: "70+ Dialects" },
                 { label: "Human Voice Parity", value: "99.9%" },
                 { label: "Security & Privacy", value: "256-Bit TLS" }

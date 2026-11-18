@@ -2933,7 +2933,7 @@ export default function SinglePromptStudio({
                 <div className="p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center justify-between">
                   <div>
                     <span className="font-semibold block text-slate-800 dark:text-slate-200">Gemini Native Audio ASR</span>
-                    <span className="text-[10px] text-slate-400">Bi-directional Streaming (Sub-200ms latency)</span>
+                    <span className="text-[10px] text-slate-400">Bi-directional streaming (real-time)</span>
                   </div>
                   <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded text-[10px] font-medium">
                     Active
