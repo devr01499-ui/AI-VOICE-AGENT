@@ -11,7 +11,7 @@
     "prisma:check-drift": "prisma migrate status",
     "prisma:studio": "prisma studio",
     "typecheck": "node --max-old-space-size=4096 node_modules/typescript/bin/tsc --noEmit",
-    "test:security": "node scripts/test_db_guard.js && node scripts/test_signup_public_routes.js && node scripts/test_agent_industry_rules.js && node scripts/test_notifications.js && node scripts/test_calendar_status_contract.js && node scripts/test_prompt_coach.js && node scripts/test_test_lab.js && node scripts/test_calendar_bookings.js && node scripts/test_agent_tools.js && node scripts/test_agent_config_integrity.js && node scripts/test_post_call_fields.js && node scripts/test_pii_redaction_settings.js && node scripts/test_mcp_live.js && node scripts/test_call_limits.js && node scripts/test_flow_agent_instructions.js && node scripts/test_kb_rag.js && node scripts/test_billing_verification.js && node scripts/test_number_entitlement.js && node scripts/test_batch_compliance.js && node scripts/test_calling_config_speed.js && node scripts/test_data_pages.js && node scripts/test_recording.js && node scripts/test_voice_latency.js && node scripts/test_security_hardening.js && node scripts/test_caller_id_fallback.js && node scripts/test_phase5_security_suite.js",
+    "test:security": "node scripts/test_db_guard.js && node scripts/test_signup_public_routes.js && node scripts/test_agent_industry_rules.js && node scripts/test_notifications.js && node scripts/test_calendar_status_contract.js && node scripts/test_prompt_coach.js && node scripts/test_test_lab.js && node scripts/test_calendar_bookings.js && node scripts/test_agent_tools.js && node scripts/test_agent_config_integrity.js && node scripts/test_post_call_fields.js && node scripts/test_pii_redaction_settings.js && node scripts/test_mcp_live.js && node scripts/test_call_limits.js && node scripts/test_flow_agent_instructions.js && node scripts/test_kb_rag.js && node scripts/test_billing_verification.js && node scripts/test_number_entitlement.js && node scripts/test_batch_compliance.js && node scripts/test_calling_config_speed.js && node scripts/test_data_pages.js && node scripts/test_recording.js && node scripts/test_voice_latency.js && node scripts/test_security_hardening.js && node scripts/test_caller_id_fallback.js && npm run test:timezone && node scripts/test_phase5_security_suite.js",
     "test:call-limits": "node scripts/test_call_limits.js",
     "test:mcp-live": "node scripts/test_mcp_live.js",
     "test:pii-settings": "node scripts/test_pii_redaction_settings.js",
@@ -65,7 +65,8 @@
     "test:recording": "node scripts/test_recording.js",
     "test:voice-latency": "node scripts/test_voice_latency.js",
     "test:security-hardening": "node scripts/test_security_hardening.js",
-    "test:caller-id": "node scripts/test_caller_id_fallback.js"
+    "test:caller-id": "node scripts/test_caller_id_fallback.js",
+    "test:timezone": "node -r ./scripts/lib/testDbGuard.cjs dist/lib/calendar/timezone.test.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
