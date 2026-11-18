@@ -11,7 +11,7 @@ import {
   fetchAgents, fetchAgent, fetchCalls, fetchProfile, createAgent, updateAgent, deleteAgent, chatWithAgent,
   exportAgentAsJson, importAgentFromJson,
   initiateCall, getCallTranscript, getLiveTranscriptWsUrl, requestTranscriptTicket,
-  fetchKBList, fetchKBLimits, uploadKBDocument, scrapeKBUrl, deleteKBDocument, reindexKBDocument, testKBQuery, fetchCalendarBatches, fetchCalendarBatchDetail, createBatchCampaign, pauseBatchCampaign, resumeBatchCampaign, cancelBatchCampaign,
+  fetchKBList, fetchKBLimits, uploadKBDocument, scrapeKBUrl, deleteKBDocument, reindexKBDocument, testKBQuery, fetchCalendarBatches, createBatchCampaign, pauseBatchCampaign, resumeBatchCampaign, cancelBatchCampaign,
   fetchAuditLogs, fetchDataRetention, updateDataRetention, fetchIpAllowlist, updateIpAllowlist, fetchConcurrencyTelemetry, updateConcurrencyLimit,
   DEV_USER_ID, DEFAULT_AGENT_ID, API_BASE, apiClient,
   type ApiAgent, type ApiCall, type ApiProfile, type ApiKnowledgeBase, type ApiAuditLog, type KBTestQueryResult,

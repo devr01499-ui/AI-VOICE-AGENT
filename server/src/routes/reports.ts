@@ -18,7 +18,7 @@ import { logger } from '../utils/logger';
 import { requireEditor } from '../middleware/auth';
 import { callActionLimiter, aiFeatureLimiter } from '../middleware/rateLimiter';
 import { logAuditEvent } from '../utils/auditLogger';
-import { REPORT_BLUEPRINTS, ReportBlueprint } from '../config/reportBlueprints';
+import { REPORT_BLUEPRINTS } from '../config/reportBlueprints';
 import { calculateRubricScore } from '../utils/rubricScorer';
 import { AnalysisService } from '../services/AnalysisService';
 import { getWorkspaceDayBounds, formatDateInTimezone, sanitizeTimezone } from '../lib/calendar/timezone';
@@ -372,20 +372,6 @@ router.get('/blueprints', async (_req: Request, res: Response): Promise<void> =>
     success: true,
     data: blueprintList,
     blueprints: blueprintList,
-  });
-});
-
-router.get('/blueprints/:templateId', async (req: Request, res: Response): Promise<void> => {
-  const templateId = String(req.params.templateId);
-  const bp = REPORT_BLUEPRINTS[templateId];
-  if (!bp) {
-    res.status(404).json({ success: false, error: 'Blueprint not found' });
-    return;
-  }
-  res.json({
-    success: true,
-    data: bp,
-    blueprint: bp,
   });
 });
 

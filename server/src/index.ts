@@ -44,7 +44,7 @@ let isShuttingDown = false;
 import callRoutes from './routes/calls';
 import agentRoutes from './routes/agents';
 import numbersRoutes from './routes/numbers';
-import { getUserIdFromRequest, verifySupabaseToken } from './utils/auth';
+import { verifySupabaseToken } from './utils/auth';
 import webhookRoutes, { recordingStreamRouter } from './routes/webhooks';
 import { DataRetentionJob } from './services/DataRetentionJob';
 import { SandboxStreamHandler } from './websockets/SandboxStreamHandler';

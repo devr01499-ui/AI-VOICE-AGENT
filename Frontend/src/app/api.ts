@@ -374,19 +374,6 @@ export async function updateAgent(
   });
 }
 
-/** POST /api/v2/agents/optimize — AI-powered system prompt optimizer */
-export async function optimizePrompt(description: string): Promise<{
-  prompt: string;
-  model: string;
-  voiceName: string;
-  temperature: number;
-}> {
-  return apiFetch("/api/v2/agents/optimize", {
-    method: "POST",
-    body: JSON.stringify({ description }),
-  });
-}
-
 /** POST /api/v2/agents/conversational-builder — Chat with AI to build agent config */
 export async function buildAgentConversation(
   message: string,
@@ -841,11 +828,6 @@ export async function fetchCalendarBatches(): Promise<any> {
   return res?.success && Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
 }
 
-export async function fetchCalendarBatchDetail(id: string): Promise<any> {
-  const res = await apiFetch<any>(`/api/v2/calendar/batches/${id}`);
-  return res?.success && res.data ? res.data : null;
-}
-
 export async function createBatchCampaign(data: {
   name: string;
   agentId: string;
@@ -1172,13 +1154,4 @@ export const reportsApi = {
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
   },
-  getExportCsvUrl: (params?: { dateFrom?: string; dateTo?: string; label?: string; reviewNeeded?: boolean }) => {
-    const qs = new URLSearchParams();
-    if (params?.dateFrom) qs.append('dateFrom', params.dateFrom);
-    if (params?.dateTo) qs.append('dateTo', params.dateTo);
-    if (params?.label) qs.append('label', params.label);
-    if (params?.reviewNeeded !== undefined) qs.append('reviewNeeded', String(params.reviewNeeded));
-    const query = qs.toString() ? `?${qs.toString()}` : '';
-    return `${API_BASE}/api/v2/reports/export.csv${query}`;
-  }
 };

@@ -8,12 +8,10 @@ import { getUserIdFromRequest } from '../utils/auth';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { getWebhookSigningSecret } from '../utils/security';
-import { scheduleCall, cancelBooking, rescheduleBooking } from '../lib/calendar/scheduler';
 import { sensitiveOperationsLimiter, agentWriteLimiter } from '../middleware/rateLimiter';
 import { requireCallingMinutes } from '../middleware/planValidation';
 import { CallService } from '../services/CallService';
 import { prepareBatchRecipients, MAX_BATCH_RECIPIENTS } from '../services/BatchService';
-import { ADMIN_EMAIL } from '../config/constants';
 import { EncryptionService } from '../utils/EncryptionService';
 import { CalendarService, SchedulingRuleConfig } from '../core/orchestrator/CalendarService';
 
@@ -510,65 +508,6 @@ router.delete('/disconnect', requireAuth, sensitiveOperationsLimiter, async (req
 });
 
 /**
- * DELETE /api/v2/calendar
- * Root path alias for disconnect.
- */
-router.delete('/', requireAuth, sensitiveOperationsLimiter, async (req, res) => {
-  try {
-    const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId || getUserIdFromRequest(req);
-    const role = (req as any).workspaceRole || 'admin';
-
-    if (role === 'viewer' || role === 'analyst') {
-      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to disconnect calendar.' });
-    }
-
-    if (!workspaceId) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const conn = await prisma.calendarConnection.findUnique({
-      where: { workspaceId }
-    });
-    const user = await prisma.user.findUnique({
-      where: { id: workspaceId },
-      select: { googleCalendarTokens: true },
-    });
-
-    const rawTokens = conn?.encryptedTokens || user?.googleCalendarTokens;
-    if (rawTokens) {
-      const tokens = CalendarService.getDecryptedTokens(rawTokens);
-      const tokenToRevoke = tokens?.refresh_token || tokens?.access_token;
-      if (tokenToRevoke && tokenToRevoke !== 'revoked') {
-        try {
-          const oauth2Client = getOauth2Client();
-          await oauth2Client.revokeToken(tokenToRevoke);
-        } catch (revokeErr: any) {
-          logger.warn('Best-effort Google token revoke failed', { error: revokeErr.message });
-        }
-      }
-    }
-
-    if (conn) {
-      await prisma.calendarConnection.update({
-        where: { workspaceId },
-        data: { status: 'revoked', lastErrorCode: 'MANUAL_DISCONNECT' }
-      });
-    }
-
-    await prisma.user.update({
-      where: { id: workspaceId },
-      data: { googleCalendarTokens: null },
-    }).catch(() => {});
-
-    CalendarService.clearCache();
-    res.json({ success: true });
-  } catch (error: any) {
-    logger.error('Failed to disconnect Google Calendar', { error: error.message });
-    res.status(500).json({ error: 'Failed to disconnect calendar' });
-  }
-});
-
-/**
  * Tenant isolation for per-agent calendar settings: the agent must belong to the caller's workspace
  * (or to the caller). Before this check any signed-in user could read or overwrite another
  * customer's scheduling rule, including the free-text instructions the agent follows on calls.
@@ -991,107 +930,6 @@ router.get('/batches', requireAuth, async (req, res) => {
   } catch (error) {
     logger.error('Failed to get batches', { error: String(error) });
     res.status(500).json({ success: false, error: 'Failed to get batches' });
-  }
-});
-
-/**
- * GET /api/v2/calendar/batches/:id
- * Get single batch with recipient summary, true outcome derivations, and caller ID.
- */
-router.get('/batches/:id', requireAuth, async (req, res) => {
-  try {
-    const userId = (req as any).effectiveWorkspaceId || getUserIdFromRequest(req);
-    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
-
-    const batchId = Array.isArray(req.params.id) ? req.params.id[0] : (req.params.id as string);
-    const batch = await prisma.batch.findFirst({
-      where: { id: batchId, userId },
-      include: {
-        agent: { select: { name: true } },
-        fromPhoneNumber: { select: { id: true, phoneNumber: true } },
-        recipients: {
-          orderBy: { position: 'asc' },
-          include: {
-            call: {
-              select: {
-                id: true,
-                fromPhoneNumber: true,
-                durationSeconds: true,
-                callDirection: true,
-                status: true,
-                startTime: true
-              }
-            }
-          }
-        }
-      }
-    });
-
-    if (!batch) {
-      return res.status(404).json({ success: false, error: 'Batch not found.' });
-    }
-
-    const { BatchService } = await import('../services/BatchService');
-    const counters = await BatchService.computeBatchCounters(batch.id);
-
-    res.json({
-      success: true,
-      data: {
-        id: batch.id,
-        name: batch.name,
-        agentId: batch.agentId,
-        agentName: batch.agent?.name || 'Default Agent',
-        fromPhoneNumberId: batch.fromPhoneNumberId,
-        fromPhoneNumber: batch.fromPhoneNumber?.phoneNumber || null,
-        status: batch.status,
-        statusReason: batch.statusReason,
-        dialMode: batch.dialMode,
-        interCallDelaySeconds: batch.interCallDelaySeconds,
-        nextDispatchAt: batch.nextDispatchAt?.toISOString() || null,
-        idempotencyKey: batch.idempotencyKey,
-        consentConfirmed: batch.consentConfirmed,
-        consentConfirmedBy: batch.consentConfirmedBy,
-        consentConfirmedAt: batch.consentConfirmedAt?.toISOString() || null,
-        consentListHash: batch.consentListHash,
-        estimatedMinutes: batch.estimatedMinutes,
-        total: counters.total,
-        totalContacts: counters.total,
-        attempted: counters.attempted,
-        completedCount: counters.attempted,
-        completed: counters.attempted,
-        called: counters.attempted,
-        answered: counters.answered,
-        connected: counters.answered,
-        notAnswered: counters.notAnswered,
-        busy: counters.busy,
-        failed: counters.failed,
-        skipped: counters.skipped,
-        cancelled: counters.cancelled,
-        remaining: counters.remaining,
-        progressPercent: counters.progressPercent,
-        totalDurationSeconds: counters.totalDurationSeconds,
-        totalBilledMinutes: counters.totalBilledMinutes,
-        created: batch.createdAt.toISOString().slice(0, 10),
-        recipients: batch.recipients.map((r, index) => ({
-          id: r.id,
-          position: r.position ?? index,
-          rowOrder: (r.position ?? index) + 1,
-          phoneNumber: r.phoneNumber,
-          callerPhoneNumber: r.callerPhoneNumber || r.call?.fromPhoneNumber || batch.fromPhoneNumber?.phoneNumber || '—',
-          status: r.status,
-          attempts: r.attempts,
-          lastAttemptAt: r.lastAttemptAt?.toISOString() || null,
-          lastError: r.lastError,
-          lastErrorCode: r.lastErrorCode,
-          callId: r.callId || r.call?.id || null,
-          direction: r.call?.callDirection || 'outbound',
-          durationSeconds: r.call?.durationSeconds != null ? r.call.durationSeconds : null
-        }))
-      }
-    });
-  } catch (error) {
-    logger.error('Failed to get batch detail', { error: String(error) });
-    res.status(500).json({ success: false, error: 'Failed to get batch detail' });
   }
 });
 
