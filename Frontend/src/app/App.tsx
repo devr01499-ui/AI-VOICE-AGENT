@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspens
 import { supabase } from "./lib/supabaseClient";
 import AuthGateway from "./components/auth/AuthGateway";
 import { Session } from "@supabase/supabase-js";
-import BillingGateway from './components/settings/BillingGateway';
 import { ApiKeyManagement } from './components/settings/ApiKeyManagement';
 import AgentConfigPanel from "./components/agents/AgentConfigPanel";
 import VisualFlowCanvas from "./components/agents/VisualFlowCanvas";
@@ -608,6 +607,11 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 type DashSection = "agents"|"calling"|"batch"|"calls"|"numbers"|"knowledge"|"voices"|"calendar"|"settings"|"billing"|"companion"|"chat_history"|"contacts"|"analytics"|"live_monitoring"|"qa"|"alerting"|"integrations"|"reports";
+const DASH_SECTIONS: readonly DashSection[] = ["agents","calling","batch","calls","numbers","knowledge","voices","calendar","settings","billing","companion","chat_history","contacts","analytics","live_monitoring","qa","alerting","integrations","reports"];
+/** Notification/batch links pass plain strings: only known sections are opened (unknown -> agents). */
+function toDashSection(value: string): DashSection {
+  return (DASH_SECTIONS as readonly string[]).includes(value) ? (value as DashSection) : "agents";
+}
 
 const FEATURE_FLAGS = {
   chatHistory: false, // hidden until feature is complete
@@ -615,8 +619,9 @@ const FEATURE_FLAGS = {
 
 
 // Shared tiny helpers
-function DBadge({ children, v="neutral" }: { children: React.ReactNode; v?: "neutral"|"success"|"warning"|"error"|"info"|"dark" }) {
-  const cls = { neutral:"bg-muted text-muted-foreground border border-border", success:"bg-emerald-50 text-emerald-700 border border-emerald-100", warning:"bg-amber-50 text-amber-700 border border-amber-100", error:"bg-red-50 text-red-600 border border-red-100", info:"bg-blue-50 text-blue-700 border border-blue-100", dark:"bg-foreground text-white" }[v];
+function DBadge({ children, v="neutral" }: { children: React.ReactNode; v?: "neutral"|"success"|"warning"|"error"|"danger"|"info"|"dark" }) {
+  // "danger" is accepted as an alias of "error" (it used to render with no style at all).
+  const cls = { danger:"bg-red-50 text-red-600 border border-red-100", neutral:"bg-muted text-muted-foreground border border-border", success:"bg-emerald-50 text-emerald-700 border border-emerald-100", warning:"bg-amber-50 text-amber-700 border border-amber-100", error:"bg-red-50 text-red-600 border border-red-100", info:"bg-blue-50 text-blue-700 border border-blue-100", dark:"bg-foreground text-white" }[v];
   return <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${cls}`} style={{fontFamily:"'Outfit', sans-serif"}}>{children}</span>;
 }
 function SDot({ status }: { status: string }) {
@@ -647,10 +652,10 @@ function DSelect({ className="", children, ...p }: React.SelectHTMLAttributes<HT
 function DTextarea({ className="", ...p }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea className={`w-full bg-surface-white border border-border-soft rounded-3xl px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-mint-primary shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] transition-all resize-none ${className}`} style={{fontFamily:"'Plus Jakarta Sans',sans-serif"}} {...p}/>;
 }
-function DBtn({ children, variant="primary", size="md", onClick, disabled, className="" }: { children:React.ReactNode; variant?:"primary"|"secondary"|"ghost"|"danger"; size?:"sm"|"md"; onClick?:()=>void; disabled?:boolean; className?:string }) {
+function DBtn({ children, variant="primary", size="md", onClick, disabled, className="", title }: { children:React.ReactNode; variant?:"primary"|"secondary"|"ghost"|"danger"; size?:"sm"|"md"; onClick?:(e: React.MouseEvent<HTMLButtonElement>)=>void; disabled?:boolean; className?:string; title?:string }) {
   const s = size==="sm" ? "text-xs px-4 py-2" : "text-sm px-6 py-3";
   const v = { primary:"bg-mint-primary text-forest-deep shadow-level-1 hover:bg-[#8fdcbb] hover:-translate-y-0.5 hover:shadow-level-2", secondary:"border border-border-soft text-ink hover:bg-cream-bg shadow-sm", ghost:"text-ink-muted hover:text-ink hover:bg-cream-bg", danger:"bg-error text-surface-white hover:bg-red-400" }[variant];
-  return <button onClick={onClick} disabled={disabled} className={`inline-flex items-center justify-center gap-2 font-semibold rounded-pill transition-all active:translate-y-0 disabled:opacity-50 disabled:shadow-none ${s} ${v} ${className}`} style={{fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{children}</button>;
+  return <button onClick={onClick} disabled={disabled} title={title} className={`inline-flex items-center justify-center gap-2 font-semibold rounded-pill transition-all active:translate-y-0 disabled:opacity-50 disabled:shadow-none ${s} ${v} ${className}`} style={{fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{children}</button>;
 }
 function DField({ label, children, hint }: { label:string; children:React.ReactNode; hint?:string }) {
   return (
@@ -1522,7 +1527,7 @@ function base64ToFloat32(base64: string): Float32Array {
 
 // ── Agents ──
 type AgentView = "list"|"create"|"detail";
-function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSinglePromptStudioAgent }: { session: Session | null; profile: ApiProfile | null; setApiAgents?: React.Dispatch<React.SetStateAction<ApiAgent[]>>; setStudioAgent: React.Dispatch<React.SetStateAction<{ id?: string; name: string; systemPrompt?: string; flowGraph?: any; agent?: any } | null>>; setSinglePromptStudioAgent?: React.Dispatch<React.SetStateAction<{ id?: string; name: string; systemPrompt?: string; model?: string; voiceName?: string } | null>> }) {
+function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSinglePromptStudioAgent }: { session: Session | null; profile: ApiProfile | null; setApiAgents?: React.Dispatch<React.SetStateAction<ApiAgent[]>>; setStudioAgent: React.Dispatch<React.SetStateAction<{ id?: string; name: string; systemPrompt?: string; flowGraph?: any; agent?: any } | null>>; setSinglePromptStudioAgent?: React.Dispatch<React.SetStateAction<any>> }) {
   const [agents, setAgents] = useState<AgentRow[]>(() => {
     try {
       const cached = localStorage.getItem('cache_agent_rows');
@@ -5581,12 +5586,6 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
     });
   }, [auditActionFilter, auditStartDate, auditEndDate]);
 
-  useEffect(() => {
-    if (stab === "audit") {
-      loadAuditLogs();
-    }
-  }, [stab, loadAuditLogs]);
-
   // Workspace Settings State (Hydrated from localStorage)
   const [wsName, setWsName] = useState(() => {
     try {
@@ -6286,11 +6285,6 @@ const isValid = hash === req.headers['x-claritiy-signature'];`}</pre>
         </div>
       )}
 
-      {/* ── TAB 4: BILLING ── */}
-      {stab === "billing" && (
-        <BillingGateway />
-      )}
-
       {/* ── TAB 5: TEAM ── */}
       {stab === "team" && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -6435,100 +6429,6 @@ const isValid = hash === req.headers['x-claritiy-signature'];`}</pre>
                 <li>• <strong>Analyst:</strong> View call recordings, live transcripts & analytics.</li>
                 <li>• <strong>Viewer:</strong> Read-only monitoring with zero mutation access.</li>
               </ul>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── TAB 6: AUDIT TRAIL ── */}
-      {stab === "audit" && (
-        <div className="space-y-6">
-          <div className="nm-card p-6 rounded-3xl border border-border-soft/60 flex flex-wrap gap-4 items-center justify-between">
-            <div className="flex-1 min-w-[240px]">
-              <label className="text-[10px] font-bold text-ink-muted uppercase tracking-wider block mb-1">Filter by Action</label>
-              <input
-                type="text"
-                placeholder="e.g. agent.created, api_key.generated..."
-                value={auditActionFilter}
-                onChange={e => setAuditActionFilter(e.target.value)}
-                className="w-full bg-surface-white text-[var(--nm-text)] text-xs font-bold rounded-xl px-3.5 py-2.5 border border-border-soft focus:outline-none focus:ring-2 focus:ring-mint-primary"
-              />
-            </div>
-            <div className="flex gap-2.5 items-end flex-wrap sm:flex-nowrap">
-              <div>
-                <label className="text-[10px] font-bold text-ink-muted uppercase tracking-wider block mb-1">Start Date</label>
-                <input
-                  type="date"
-                  value={auditStartDate}
-                  onChange={e => setAuditStartDate(e.target.value)}
-                  className="bg-surface-white text-[var(--nm-text)] text-xs font-bold rounded-xl px-3 py-2 border border-border-soft"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-ink-muted uppercase tracking-wider block mb-1">End Date</label>
-                <input
-                  type="date"
-                  value={auditEndDate}
-                  onChange={e => setAuditEndDate(e.target.value)}
-                  className="bg-surface-white text-[var(--nm-text)] text-xs font-bold rounded-xl px-3 py-2 border border-border-soft"
-                />
-              </div>
-              <DBtn size="sm" onClick={loadAuditLogs} className="h-10">
-                <RefreshCw className={`w-3.5 h-3.5 ${loadingAudit ? 'animate-spin' : ''}`} /> Refresh
-              </DBtn>
-            </div>
-          </div>
-
-          <div className="nm-card p-6 rounded-3xl border border-border-soft/60 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-border-soft/40 text-ink-muted text-xs font-bold uppercase tracking-wider" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
-                    <th className="px-4 py-3">Timestamp</th>
-                    <th className="px-4 py-3">Action</th>
-                    <th className="px-4 py-3">Actor / User</th>
-                    <th className="px-4 py-3">Target ID</th>
-                    <th className="px-4 py-3">Metadata Context</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border-soft/20 text-xs">
-                  {auditLogs.map(log => (
-                    <tr key={log.id} className="hover:bg-surface-white/60 transition-all">
-                      <td className="px-4 py-3.5 font-mono text-ink-muted whitespace-nowrap">
-                        {new Date(log.createdAt).toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <span className="inline-block px-2.5 py-1 rounded-md font-mono text-[11px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                          {log.action}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5 font-mono text-[var(--nm-text)] font-semibold">
-                        {log.actorUserId.slice(0, 8)}...
-                      </td>
-                      <td className="px-4 py-3.5 font-mono text-ink-muted">
-                        {log.targetId ? log.targetId.slice(0, 12) : '-'}
-                      </td>
-                      <td className="px-4 py-3.5 font-mono text-slate-600 max-w-xs truncate">
-                        {log.metadata ? JSON.stringify(log.metadata) : '-'}
-                      </td>
-                    </tr>
-                  ))}
-                  {auditLogs.length === 0 && !loadingAudit && (
-                    <tr>
-                      <td colSpan={5} className="text-center p-8 text-ink-muted text-xs">
-                        No audit log entries recorded matching current filters.
-                      </td>
-                    </tr>
-                  )}
-                  {loadingAudit && (
-                    <tr>
-                      <td colSpan={5} className="text-center p-8 text-ink-muted text-xs">
-                        Loading workspace audit trail...
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
             </div>
           </div>
         </div>
@@ -7094,7 +6994,7 @@ function DashboardPage({ session }: { session: Session }) {
             ...agentData,
             agentType: 'prompt',
           } as any);
-          setSinglePromptStudioAgent(prev => prev ? { ...prev, id: created.id } : prev);
+          setSinglePromptStudioAgent((prev: any) => prev ? { ...prev, id: created.id } : prev);
           fetchAgents().then(setApiAgents).catch(() => {});
           return created.id;
         }}
@@ -7369,7 +7269,7 @@ function DashboardPage({ session }: { session: Session }) {
             </p>
           </div>
           <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
-            <NotificationBellDropdown onNavigate={(sec) => setSection(sec)} />
+            <NotificationBellDropdown onNavigate={(sec) => setSection(toDashSection(sec))} />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-3 sm:p-5">
@@ -7377,7 +7277,7 @@ function DashboardPage({ session }: { session: Session }) {
             <motion.div key={section} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0}} transition={{duration:0.18}} className="max-w-[1600px] mx-auto w-full">
               {section==="agents"&&<DashAgents session={session} profile={profile} setApiAgents={setApiAgents} setStudioAgent={setStudioAgent} setSinglePromptStudioAgent={setSinglePromptStudioAgent} />}
               {section==="calling"&&<DashCallingConfig onNavigateToKyc={() => { localStorage.setItem('open_settings_tab', 'kyc'); setSection("settings"); }} />}
-              {section==="batch"&&<DashBatch onNavigate={(sec) => setSection(sec)}/>}
+              {section==="batch"&&<DashBatch onNavigate={(sec) => setSection(toDashSection(sec))}/>}
               {section==="calls"&&<DashCallLogs/>}
               {section==="numbers"&&<DashNumbers profile={profile} onNavigateToKyc={() => { localStorage.setItem('open_settings_tab', 'kyc'); setSection("settings"); }} />}
               {section==="knowledge"&&<DashKnowledge apiAgents={apiAgents}/>}

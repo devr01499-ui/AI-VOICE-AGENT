@@ -60,6 +60,8 @@ export interface ApiAgent {
   systemVoice?: string | null;
   languageMode?: string | null;
   direction?: string | null;
+  industry?: string | null;
+  firstMessage?: string | null;
   tags?: string[];
   qaEvaluation?: {
     overallScore: number;
@@ -101,6 +103,8 @@ export interface ApiCall {
   batchName?: string | null;
   lastError?: string | null;
   lastErrorCode?: string | null;
+  endReason?: string | null;
+  endDetail?: string | null;
   createdAt: string;
   updatedAt?: string;
 }
