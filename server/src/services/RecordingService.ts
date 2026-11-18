@@ -60,8 +60,10 @@ function escapeXml(s: string): string {
 export function agentRecordingSettings(agentConfig: unknown): { enabled: boolean; notice: string } {
   let cfg: any = {};
   try { cfg = typeof agentConfig === 'string' ? JSON.parse(agentConfig || '{}') : (agentConfig || {}); } catch { cfg = {}; }
-  const enabled = Boolean(cfg.isRecordingEnabled ?? cfg.settings?.isRecordingEnabled ?? false);
-  const custom = typeof (cfg.recordingNotice ?? cfg.settings?.recordingNotice) === 'string' ? String(cfg.recordingNotice ?? cfg.settings?.recordingNotice).trim() : '';
+  // The editor saves callSettings.recordingEnabled / recordingNotice; older keys are still honoured.
+  const enabled = Boolean(cfg.callSettings?.recordingEnabled ?? cfg.isRecordingEnabled ?? cfg.settings?.isRecordingEnabled ?? false);
+  const rawNotice = cfg.callSettings?.recordingNotice ?? cfg.recordingNotice ?? cfg.settings?.recordingNotice;
+  const custom = typeof rawNotice === 'string' ? rawNotice.trim() : '';
   // The notice cannot be switched off while recording is on; a custom text must still mention recording.
   const notice = custom && /record/i.test(custom) && custom.length <= MAX_NOTICE_CHARS ? custom : DEFAULT_RECORDING_NOTICE;
   return { enabled, notice };

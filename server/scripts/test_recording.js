@@ -67,6 +67,9 @@ async function main() {
     assert.ok(sneaky.includes(Rec.DEFAULT_RECORDING_NOTICE));
     const custom = Rec.recordingXml('c1', 'https://api.example.org', { isRecordingEnabled: true, recordingNotice: 'Yeh call record ki ja rahi hai <b>' });
     assert.ok(custom.includes('Yeh call record ki ja rahi hai &lt;b&gt;'), 'notice is XML-escaped');
+    // The agent editor's own keys (callSettings) switch recording on.
+    assert.ok(Rec.recordingXml('c1', 'https://api.example.org', JSON.stringify({ callSettings: { recordingEnabled: true } })).includes('<Record'));
+    assert.strictEqual(Rec.recordingXml('c1', 'https://api.example.org', JSON.stringify({ callSettings: { recordingEnabled: false } })), '');
   });
 
   await test('both answer handlers put the recording XML before the audio stream', async () => {
