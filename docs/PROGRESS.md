@@ -16,8 +16,7 @@
 ## PRODUCTION — UNTOUCHABLE (nothing relaxed)
 - `DATABASE_URL` in `server/.env` is production. Never connect; never copy it or any key anywhere. Tests use `TEST_DATABASE_URL` only (RUNBOOK.md); the guard blanks live service keys.
 - Prisma CLI only with BOTH `DATABASE_URL` and `DIRECT_URL` set inline to the test URL. Offline SQL: `prisma migrate diff --from-schema <old> --to-schema prisma/schema.prisma --script`.
-- No command text inside double quotes/unquoted backticks; write files with Write/Edit or `<<'EOF'`.
-- Every push to `main` auto-deploys Render and runs `prisma db push` on production (P1).
+- No command text inside double quotes/unquoted backticks; write files with Write/Edit or `<<'EOF'`. Every push to `main` auto-deploys Render and runs `prisma db push` on production (P1).
 
 ## Status of checks (2026-11-18, after Phase 8)
 - Typecheck: server 0; frontend 33 (App.tsx 21, SinglePromptStudio.tsx 12; TS2367 dead settings tabs "audit"/"billing" → Phase 9). Must be 0 by Phase 14.
