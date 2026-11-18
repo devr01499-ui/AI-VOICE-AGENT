@@ -35,6 +35,28 @@ export interface BatchCounters {
   totalBilledMinutes: number;
 }
 
+/** Commercial calls in India: 09:00–21:00 IST (TRAI). Campaigns can narrow, never widen this. */
+export const LEGAL_CALLING_START_HOUR = 9;
+export const LEGAL_CALLING_END_HOUR = 21;
+export const CALLING_WINDOW_PAUSE_PREFIX = 'Outside permitted calling window';
+/** Never ring the same person more than 3 times per campaign, at least 10 minutes apart. */
+export const MAX_ATTEMPTS_CAP = 3;
+export const MIN_RETRY_INTERVAL_MS = 10 * 60 * 1000;
+const ACTIVE_CALL_STATUSES = ['queued', 'ringing', 'in_progress', 'initiated', 'answered'];
+
+export function resolveRetryPolicy(raw: unknown): { maxAttempts: number; retryIntervalMs: number } {
+  let cfg: any = {};
+  try { cfg = typeof raw === 'string' ? JSON.parse(raw || '{}') : (raw || {}); } catch { cfg = {}; }
+  const attempts = typeof cfg.maxAttempts === 'number' && Number.isFinite(cfg.maxAttempts) ? Math.floor(cfg.maxAttempts) : MAX_ATTEMPTS_CAP;
+  const intervalMs = typeof cfg.intervalMinutes === 'number' && Number.isFinite(cfg.intervalMinutes)
+    ? cfg.intervalMinutes * 60 * 1000
+    : (typeof cfg.intervalMs === 'number' && Number.isFinite(cfg.intervalMs) ? cfg.intervalMs : 30 * 60 * 1000);
+  return {
+    maxAttempts: Math.min(MAX_ATTEMPTS_CAP, Math.max(1, attempts)),
+    retryIntervalMs: Math.max(MIN_RETRY_INTERVAL_MS, intervalMs),
+  };
+}
+
 export class BatchService {
   /**
    * Universal Single Source of Truth Counter Function.
@@ -208,29 +230,29 @@ export class BatchService {
    * Checks if current time is within permitted calling hours.
    * Default: 09:00 - 21:00 IST (UTC+5:30).
    */
-  static isWithinCallingWindow(scheduleConfigRaw?: string | null): { allowed: boolean; reason?: string } {
-    if (process.env.ALLOW_OFFHOURS_BATCH_CALLS === 'true') {
+  static isWithinCallingWindow(scheduleConfigRaw?: string | null, nowOverride?: Date): { allowed: boolean; reason?: string } {
+    // Developer-only switch for local testing. It is ignored in production: TRAI calling hours
+    // (09:00–21:00 IST for commercial calls) can never be switched off on the live service.
+    if (process.env.ALLOW_OFFHOURS_BATCH_CALLS === 'true' && process.env.NODE_ENV !== 'production') {
       return { allowed: true };
     }
 
-    let startHour = 9;
-    let endHour = 21;
-    let ignoreHours = false;
-
+    // A campaign may only NARROW the legal window. "ignoreCallingHours" and hours outside
+    // 09:00–21:00 sent by a customer used to switch the protection off; they are now ignored.
+    let startHour = LEGAL_CALLING_START_HOUR;
+    let endHour = LEGAL_CALLING_END_HOUR;
     if (scheduleConfigRaw) {
       try {
         const config = typeof scheduleConfigRaw === 'string' ? JSON.parse(scheduleConfigRaw) : scheduleConfigRaw;
-        if (config.ignoreCallingHours) ignoreHours = true;
-        if (typeof config.startHour === 'number') startHour = config.startHour;
-        if (typeof config.endHour === 'number') endHour = config.endHour;
+        if (typeof config.startHour === 'number' && Number.isFinite(config.startHour)) startHour = Math.max(LEGAL_CALLING_START_HOUR, config.startHour);
+        if (typeof config.endHour === 'number' && Number.isFinite(config.endHour)) endHour = Math.min(LEGAL_CALLING_END_HOUR, config.endHour);
       } catch {}
     }
-
-    if (ignoreHours) {
-      return { allowed: true };
+    if (endHour <= startHour) {
+      return { allowed: false, reason: 'The campaign calling hours are empty. Choose hours between 09:00 and 21:00 IST.' };
     }
 
-    const now = new Date();
+    const now = nowOverride || new Date();
     // Convert UTC to IST (+5:30)
     const istOffsetMs = 5.5 * 60 * 60 * 1000;
     const istDate = new Date(now.getTime() + istOffsetMs);
@@ -242,7 +264,7 @@ export class BatchService {
       const pad = (n: number) => n.toString().padStart(2, '0');
       return {
         allowed: false,
-        reason: `Outside permitted calling window (${pad(startHour)}:00 - ${pad(endHour)}:00 IST). Resumes at 09:00 IST.`
+        reason: `${CALLING_WINDOW_PAUSE_PREFIX} (${pad(Math.floor(startHour))}:${pad(Math.round((startHour % 1) * 60))} - ${pad(Math.floor(endHour))}:${pad(Math.round((endHour % 1) * 60))} IST). Resumes automatically when calling hours open.`
       };
     }
 
@@ -396,11 +418,7 @@ export class BatchService {
       const isSequential = batch.dialMode !== 'parallel';
       const interCallDelaySeconds = Math.max(5, Math.min(300, batch.interCallDelaySeconds ?? 10));
 
-      const retryConfig = typeof batch.retryConfig === 'string' ? JSON.parse(batch.retryConfig || '{}') : (batch.retryConfig || {});
-      const maxAttempts = typeof retryConfig.maxAttempts === 'number' ? retryConfig.maxAttempts : 3;
-      const retryIntervalMs = typeof retryConfig.intervalMinutes === 'number'
-        ? retryConfig.intervalMinutes * 60 * 1000
-        : (typeof retryConfig.intervalMs === 'number' ? retryConfig.intervalMs : 30 * 60 * 1000);
+      const { maxAttempts, retryIntervalMs } = resolveRetryPolicy(batch.retryConfig);
 
       // Check if resuming from an inter-call delay
       if (batch.nextDispatchAt && batch.nextDispatchAt.getTime() > Date.now()) {
@@ -725,22 +743,57 @@ export class BatchService {
    * Resets recipients stuck in_progress for >10 mins back to pending.
    * Finds running batches with stale or missing locks and resumes them.
    */
-  static async recoverStaleBatches(): Promise<void> {
+  static async recoverStaleBatches(opts: { now?: Date; dispatch?: boolean } = {}): Promise<void> {
+    const now = opts.now || new Date();
     try {
-      // 1. Reset stuck recipients
+      // 1. Recipients left "in_progress" (e.g. by a restart). Look at the real call first: a call
+      // still going on must never be dialled again; an ended call decides the outcome; only a
+      // recipient whose call was never placed goes back to pending.
       const stuckThreshold = new Date(Date.now() - STUCK_RECIPIENT_TIMEOUT_MS);
-      const resetResult = await prisma.batchRecipient.updateMany({
-        where: {
-          status: 'in_progress',
-          lastAttemptAt: { lt: stuckThreshold }
-        },
-        data: {
-          status: 'pending'
-        }
+      const stuck = await prisma.batchRecipient.findMany({
+        where: { status: 'in_progress', lastAttemptAt: { lt: stuckThreshold } },
+        select: { id: true, callId: true, batchId: true, phoneNumber: true, lastAttemptAt: true },
+        take: 500,
       });
+      let requeued = 0;
+      for (const r of stuck) {
+        const call = r.callId
+          ? await prisma.call.findUnique({ where: { id: r.callId }, select: { id: true, status: true } })
+          : await prisma.call.findFirst({
+              where: {
+                batchId: r.batchId,
+                recipientPhoneNumber: r.phoneNumber,
+                createdAt: { gte: new Date((r.lastAttemptAt?.getTime() || Date.now()) - 60_000) },
+              },
+              orderBy: { createdAt: 'desc' },
+              select: { id: true, status: true },
+            });
+        if (call && ACTIVE_CALL_STATUSES.includes(call.status)) continue; // still on the phone
+        if (call) {
+          if (!r.callId) await prisma.batchRecipient.update({ where: { id: r.id }, data: { callId: call.id } });
+          await BatchService.resolveRecipientOutcome(call.id, 'recovered');
+          continue;
+        }
+        const reset = await prisma.batchRecipient.updateMany({ where: { id: r.id, status: 'in_progress' }, data: { status: 'pending' } });
+        requeued += reset.count;
+      }
+      if (requeued > 0) {
+        logger.warn(`BatchService: ${requeued} recipients whose call was never placed went back to pending.`);
+      }
 
-      if (resetResult.count > 0) {
-        logger.warn(`BatchService: Reset ${resetResult.count} stuck in_progress recipients back to pending.`);
+      // 1b. Campaigns paused only because calling hours had closed resume when they reopen.
+      const windowPaused = await prisma.batch.findMany({
+        where: { status: 'paused', statusReason: { startsWith: CALLING_WINDOW_PAUSE_PREFIX } },
+        select: { id: true, scheduleConfig: true },
+        take: 500,
+      });
+      for (const b of windowPaused) {
+        if (!BatchService.isWithinCallingWindow(b.scheduleConfig, now).allowed) continue;
+        const resumed = await prisma.batch.updateMany({
+          where: { id: b.id, status: 'paused', statusReason: { startsWith: CALLING_WINDOW_PAUSE_PREFIX } },
+          data: { status: 'running', statusReason: null, lockedBy: null, lockedAt: null },
+        });
+        if (resumed.count) logger.info(`BatchService: calling hours open — resumed campaign ${b.id}`);
       }
 
       // 2. Find running batches with stale lock
@@ -759,6 +812,7 @@ export class BatchService {
       if (staleBatches.length > 0) {
         logger.info(`BatchService: Found ${staleBatches.length} running batches with stale/missing locks. Resuming.`);
         for (const b of staleBatches) {
+          if (opts.dispatch === false) continue; // tests: recovery bookkeeping only
           BatchService.processBatch(b.id, b.userId).catch(err => {
             logger.error(`BatchService: Error resuming recovered batch ${b.id}`, { error: String(err) });
           });
