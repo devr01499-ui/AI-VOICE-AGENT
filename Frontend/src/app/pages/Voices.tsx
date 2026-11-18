@@ -14,7 +14,7 @@ interface VoicesProps {
 
 export default function Voices({ setPage }: VoicesProps) {
   const acousticSpecs = [
-    { label: "AUDIO FORMAT & CODEC", value: "audio/x-l16 (16kHz 16-bit PCM)", tech: "Uncompressed raw PCM buffer egress over SRTP zero-copy transport." },
+    { label: "AUDIO FORMAT & CODEC", value: "audio/x-l16 (16kHz 16-bit PCM)", tech: "Uncompressed PCM streamed to the carrier over a secure WebSocket." },
     { label: "REGIONAL BCP-47 MATRICES", value: "70+ Dialects & Accents", tech: "Native phoneme alignment across hi-IN, bn-IN, gu-IN, kn-IN, ta-IN, mr-IN, en-US/IN." },
     { label: "VOICE CLONING SPEED", value: "5 Seconds (Zero-Shot Diffusion)", tech: "Encoder vector embedding mapping acoustic timbre & prosody from 5s sample." },
     { label: "BARGE-IN DSP DURATION", value: "20ms Speech Interception Window", tech: "Full-duplex VAD window with adaptive energy thresholding at -42dB." }

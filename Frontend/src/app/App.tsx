@@ -144,7 +144,7 @@ function IndustriesPage({ setPage }: { setPage: (p: Page) => void }) {
       name: "Healthcare",
       tagline: "Patient-first voice AI, built for compliance.",
       description:
-        "From appointment scheduling and medication reminders to post-discharge follow-ups and prior authorization calls — Claritiy Voice handles the full patient communication cycle while remaining HIPAA-compliant on every call.",
+        "From appointment scheduling and medication reminders to post-discharge follow-ups and prior authorization calls — Claritiy Voice handles the full patient communication cycle, with patient data encrypted in transit and at rest and personal details redacted in transcripts.",
       useCases: ["Appointment reminders", "Prescription refill requests", "Insurance verification", "Discharge follow-up", "Chronic care check-ins"],
       stat: "89%",
       statLabel: "reduction in no-shows",
@@ -3556,7 +3556,7 @@ function DashBatch({ onNavigate }: DashBatchProps) {
                   Mode: {form.dialMode === 'sequential' ? `Sequential Pacing (${form.interCallDelaySeconds}s delay between calls)` : 'Concurrent Dialing'}
                 </p>
                 <p className="text-muted-foreground">
-                  Statutory calling hours (09:00 - 21:00 IST) and DNC registry filters are enforced automatically.
+                  Statutory calling hours (09:00 - 21:00 IST) and your opt-out list are enforced automatically. Scrubbing against the national DND/NCPR registry is your responsibility.
                 </p>
               </div>
 
@@ -7750,7 +7750,7 @@ function ComparePage({ setPage }: { setPage: (p: Page) => void }) {
     },
     {
       feature: "Compliance Standards",
-      claritiy: "✅ MSME Registered, DPDP Act, TLS 1.3",
+      claritiy: "✅ MSME Registered, DPDP Act, TLS encryption",
       vapi: "⚠️ Standard US compliance",
       retell: "⚠️ Standard US compliance"
     }

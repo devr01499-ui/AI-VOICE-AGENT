@@ -47,7 +47,7 @@ Facts: `prisma migrate deploy` on an empty database fails at `20260904170500_add
 
 Required end state for both options: Render deploys with `prisma migrate deploy`, never `db push`, and CI builds a clean empty database from the committed migrations.
 
-Shared preparation (done by Claude in a later phase, fully offline):
+Shared preparation — **DONE in Phase 14 (2026-11-18)**: baseline `20261118000000_baseline` committed, 17 old folders in `server/prisma/migrations_archive/`, proven on an empty database (62 tables, both GIN indexes, 13 RLS policies, `migrate diff` empty) and checked by CI on every run. `schema.prisma` now declares `call_results_fields_gin_idx` so the schema and the migration agree. Remaining: the owner steps of Option A (PROGRESS step 25). Original plan:
 1. Generate one baseline SQL file from the schema with no database connection: `prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script`.
 2. Prepend `CREATE EXTENSION IF NOT EXISTS vector;` and append the Row Level Security statements from the existing `20260803000001_enable_rls` migration (`db push` and `migrate diff` do not carry RLS policies).
 3. Move the 14 old migration folders to an archive folder outside `prisma/migrations`, and commit the baseline as the only migration.

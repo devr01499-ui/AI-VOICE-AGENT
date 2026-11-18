@@ -79,7 +79,7 @@ export const CATEGORIES = [
       { id: "rag-voice-agents", title: "Secure RAG for voice agents" },
       { id: "knowledge-base-calling", title: "Smart knowledge base calling" },
       { id: "crm-webhook-automation", title: "Direct CRM sync & webhook automation" },
-      { id: "sip-twilio-integration", title: "Modern SIP trunking & Twilio integration" },
+      { id: "sip-twilio-integration", title: "SIP trunking & cloud telephony explained" },
       { id: "contact-center-integration", title: "Secure contact center integration" },
       { id: "omnichannel-voice-stack", title: "Unified omnichannel voice stack" }
     ]

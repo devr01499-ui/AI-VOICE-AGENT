@@ -73,7 +73,7 @@ const corePages = [
   {
     path: 'docs',
     title: 'Developer Documentation & API Reference — Claritiy Voice',
-    description: 'REST API, Webhooks, SIP trunking, and SDK reference for dispatching calls, extracting live transcripts, and configuring AI voice agents.',
+    description: 'REST API and webhook reference with code samples for dispatching calls, reading transcripts, and configuring AI voice agents.',
     h1: 'Developer API, Webhooks & Telephony Integration Guides',
     summary: 'Integrate Claritiy Voice agents into your tech stack via robust REST APIs, real-time WebSocket transcript streams, and secure HMAC webhooks.'
   },
@@ -96,7 +96,7 @@ const corePages = [
     title: 'Privacy Policy — Claritiy Voice Data Protection & DPDP Compliance',
     description: 'Understand how Claritiy Voice protects personal identifiable information (PII), encrypts call audio, and adheres to DPDP and GDPR standards.',
     h1: 'Claritiy Voice Data Privacy, Security & Compliance Policy',
-    summary: 'We maintain bank-grade data security with edge PII redaction, TLS 1.3 in-transit encryption, and strict zero-audio-retention options.'
+    summary: 'We protect data with PII redaction in transcripts, TLS-encrypted transport, AES-256 encryption at rest, and call recording only when you switch it on (with a spoken notice and a retention period).'
   },
   {
     path: 'terms',
@@ -131,7 +131,7 @@ const corePages = [
     title: 'Automating Clinic Appointments & Patient Intake with AI Voice Agents',
     description: 'How outpatient medical centers and dental practices use conversational AI agents to reduce appointment no-shows and handle intake.',
     h1: 'Transforming Healthcare Clinic Intake with Conversational Voice AI',
-    summary: 'Deploy HIPAA-aligned voice agents to confirm appointments, handle rescheduling requests, and streamline after-hours patient inquiries.'
+    summary: 'Deploy privacy-first voice agents to confirm appointments, handle rescheduling requests, and streamline after-hours patient inquiries.'
   },
   {
     path: 'blog/fintech-collections-ai',

@@ -98,7 +98,7 @@ function HdGeometricalArchitectureDiagram() {
       title: "Enterprise Carrier SIP & PSTN",
       badge: "Carrier Telephony Gateway",
       category: "TELEPHONY GATEWAY",
-      desc: "Provision PSTN local & toll-free virtual lines in 1 click or connect existing enterprise SIP trunk infrastructure with SRTP encryption.",
+      desc: "Get a local business number with your plan in a few clicks and start answering and placing calls on our integrated carrier network.",
       icon: Phone,
       stats: { primary: "1-Click", label: "Line Provisioning", detail: "Global Carrier Trunking" }
     },

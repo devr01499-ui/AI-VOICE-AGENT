@@ -1,31 +1,24 @@
 name: Trigger Render Deployment
 
+# Calls the Render deploy hook only after the CI workflow has passed on main (typecheck, build,
+# server test chain, browser tests). The previous version ran `npm ci` at the repo root and an
+# unguarded test that needs a live API and a test database, so it failed on every push.
+# Note: if Render's own "auto-deploy on push" is also switched on, Render deploys without waiting
+# for CI. To make CI a hard gate, turn auto-deploy off in Render and keep this hook (RUNBOOK).
+
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
   deploy:
     name: Trigger Render Deploy Hook
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run Backend Security & Auth Audit
-        run: node scripts/test_auth_protection.js
-
       - name: Trigger Render Webhook
         env:
           RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
@@ -36,5 +29,5 @@ jobs:
             echo "Render Deploy Hook HTTP Status: ${HTTP_STATUS}"
           else
             echo "::notice::RENDER_DEPLOY_HOOK_URL secret not set in GitHub repository settings."
-            echo "To enable instant automated deployments on push, add RENDER_DEPLOY_HOOK_URL to GitHub Secrets."
+            echo "To enable deployments from CI, add RENDER_DEPLOY_HOOK_URL to GitHub Secrets."
           fi

@@ -163,7 +163,7 @@ export default function ContactUs() {
                 >
                   <option value="ecommerce">E-Commerce COD Verification & RTO Defense (Shopify/Shiprocket)</option>
                   <option value="bfsi">BFSI & Lending (EMI Pre-Due, 1–30 DPD Collections, KYC)</option>
-                  <option value="healthcare">Healthcare & Dental Intake (24/7 Receptionist, FHIR EHR)</option>
+                  <option value="healthcare">Healthcare & Dental Intake (24/7 Receptionist)</option>
                   <option value="realestate">Real Estate Speed-to-Lead (3-second qualification & site visits)</option>
                   <option value="frontdesk">Front Desk & Incident Response (Alex & P1 Outage Triage)</option>
                   <option value="custom">Custom Enterprise Telephony & White-Label API</option>
@@ -286,7 +286,7 @@ export default function ContactUs() {
               </div>
               <div className="flex items-start gap-2.5">
                 <CheckCircle2 className="w-4 h-4 text-[#121212] flex-shrink-0 mt-0.5" />
-                <span>Dedicated SIP trunking & 99.9% uptime SLA for high-volume accounts</span>
+                <span>Custom volume pricing and SLA discussions for high-volume accounts</span>
               </div>
             </div>
           </div>

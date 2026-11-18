@@ -156,7 +156,7 @@ function BentoCapabilitySection({ setPage }: { setPage: (p: Page) => void }) {
     },
     {
       title: "CRM & Webhook Automation",
-      desc: "Bi-directional sync with Salesforce, HubSpot, Shopify, and custom REST webhooks. Automated call disposition, lead scoring, and pipeline updates in real-time.",
+      desc: "Signed post-call webhooks deliver call outcomes, extracted fields and transcripts to your CRM or backend; custom API tools let the agent look up and update your systems during the call.",
       icon: Webhook,
     },
     {
@@ -486,7 +486,7 @@ export default function Home({ setPage }: HomeProps) {
               </p>
             </div>
             <ul className="space-y-2 border-t border-[#CBC8BE]/60 pt-4">
-              {["3-second speed-to-lead response time", "Smart retry for busy / unanswered lines", "Dynamic call disposition & sentiment scoring", "Batch campaign with 10,000+ concurrent calls", "COD verification & RTO reduction", "AI-powered collections calls"].map((f, i) => (
+              {["3-second speed-to-lead response time", "Smart retry for busy / unanswered lines", "Dynamic call disposition & sentiment scoring", "Batch campaigns of up to 5,000 contacts", "COD verification & RTO reduction", "AI-powered collections calls"].map((f, i) => (
                 <li key={i} className="flex items-center gap-2.5 text-xs font-mono text-[#262523]">
                   <CheckCircle2 className="w-3.5 h-3.5 text-[#121212] flex-shrink-0" /> {f}
                 </li>
@@ -529,7 +529,7 @@ export default function Home({ setPage }: HomeProps) {
               {[
                 { icon: Zap, title: "Real-Time Replies", desc: "No REST overhead — direct audio streaming" },
                 { icon: Globe2, title: "70+ Regional Dialects, Zero Translation", desc: "Native speech models, no lossy intermediate API" },
-                { icon: ShieldCheck, title: "Edge-Level PII Redaction", desc: "MSME Certified, DPDP Act & TLS 1.3 encryption" },
+                { icon: ShieldCheck, title: "PII Redaction", desc: "MSME Certified, DPDP Act & TLS encryption" },
                 { icon: Network, title: "Function Calling & Tool Calling", desc: "Real-time API execution while live on the call" },
               ].map(({ icon: Icon, title, desc }, i) => (
                 <div
@@ -568,7 +568,7 @@ export default function Home({ setPage }: HomeProps) {
               Claritiy Voice is an officially registered MSME enterprise. Edge-level PII redaction, consent-based calling, audit logs, and escalation logic — built for performance and compliance.
             </p>
             <div className="flex flex-wrap justify-center gap-2 pt-2">
-              {["📜 MSME REGISTERED", "🔒 256-BIT TLS 1.3", "🛡️ AES-256 ENCRYPTION", "⚖️ DPDP ACT ALIGNED", "📋 CONSENT-BASED CALLS"].map((b, i) => (
+              {["📜 MSME REGISTERED", "🔒 TLS ENCRYPTED", "🛡️ AES-256 ENCRYPTION", "⚖️ DPDP ACT ALIGNED", "📋 CONSENT-BASED CALLS"].map((b, i) => (
                 <span key={i} className="text-[11px] font-mono text-[#121212] bg-[#DFDCD4] border border-[#CBC8BE] rounded-[2px] px-3 py-1.5 uppercase font-medium">
                   {b}
                 </span>
@@ -589,7 +589,7 @@ function GridSteps() {
   const steps = [
     { n: "01", title: "Configure Your AI Agent", desc: "Name your agent, pick a voice persona, set language mode, and define the conversation goal.", icon: Bot },
     { n: "02", title: "Upload Knowledge Base", desc: "Paste FAQs, connect Shopify/CRM, or upload PDFs. Your AI phone assistant learns your business instantly via RAG.", icon: Database },
-    { n: "03", title: "Connect Phone Number", desc: "Get a dedicated PSTN number or bring your SIP trunk. Inbound and outbound routing configured in one click.", icon: Phone },
+    { n: "03", title: "Connect Phone Number", desc: "Get a dedicated local number with your plan. Inbound and outbound routing configured in one click.", icon: Phone },
     { n: "04", title: "Launch & Monitor", desc: "Go live. Monitor calls in real-time, read transcripts, view AI call analytics, and iterate from the dashboard.", icon: BarChart3 },
   ];
 

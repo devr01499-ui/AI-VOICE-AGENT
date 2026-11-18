@@ -62,7 +62,7 @@ const USE_CASE_TOPICS: IndustryTopic[] = [
     label: "Healthcare & Clinics",
     icon: Building2,
     visual: "🏥",
-    badge: "DPDP & HIPAA Aligned",
+    badge: "DPDP-Aligned Controls",
     accent: "#059669",
     bgLight: "#D1FAE5",
     headline: "Autonomous Clinical Reception, Triage & Post-Op Recovery Telephony",
@@ -71,12 +71,12 @@ const USE_CASE_TOPICS: IndustryTopic[] = [
     stats: [
       { value: "0s", label: "Patient Queue Wait Time" },
       { value: "99.2%", label: "Appointment Slot Accuracy" },
-      { value: "100%", label: "Zero-Retention PII Masking" }
+      { value: "Auto", label: "PII Redaction in Transcripts" }
     ],
     wiremap: [
-      { id: "h1", stage: "STAGE 1", label: "EHR / Portal Trigger", desc: "Appointment request or inbound clinic call lands on telephony gateway.", latency: "Real-time", protocol: "REST Webhook / SIP Trunk", accent: "#059669" },
+      { id: "h1", stage: "STAGE 1", label: "EHR / Portal Trigger", desc: "Appointment request or inbound clinic call lands on telephony gateway.", latency: "Real-time", protocol: "REST Webhook / Carrier Call", accent: "#059669" },
       { id: "h2", stage: "STAGE 2", label: "16kHz Audio Codec Egress", desc: "Raw uncompressed PCM audio streaming with -42dB full-duplex VAD.", latency: "Real-time", protocol: "Carrier audio stream", accent: "#10B981" },
-      { id: "h3", stage: "STAGE 3", label: "Edge DPDP / HIPAA Sanitizer", desc: "Aadhaar, contact, and diagnostic details masked before audio ingestion.", latency: "Real-time", protocol: "Zero-Retention DLP Filter", accent: "#34D399" },
+      { id: "h3", stage: "STAGE 3", label: "DPDP PII Redaction", desc: "Aadhaar, contact and similar details are redacted in stored transcripts.", latency: "After each call", protocol: "Transcript PII Redaction", accent: "#34D399" },
       { id: "h4", stage: "STAGE 4", label: "Clinical Conversational Core", desc: "Contextual speech agent converses with doctor calendar constraints.", latency: "Real-time", protocol: "Claritiy Multimodal Voice", accent: "#059669" },
       { id: "h5", stage: "STAGE 5", label: "EHR Slot Mutation & WhatsApp", desc: "Locks slot in Practo/EHR database and dispatches clinic prep guidelines.", latency: "Real-time", protocol: "Authenticated JSON Relay", accent: "#10B981" }
     ],
@@ -182,7 +182,7 @@ const USE_CASE_TOPICS: IndustryTopic[] = [
     ],
     wiremap: [
       { id: "f1", stage: "STAGE 1", label: "Core Banking / LMS Export", desc: "Tranche of upcoming due loans received via secure banking API.", latency: "Real-time", protocol: "Finacle / Mambu REST", accent: "#E8630A" },
-      { id: "f2", stage: "STAGE 2", label: "RBI Regulatory Guardrail", desc: "Enforces 8 AM – 7 PM calling window and DNC number validation.", latency: "Real-time", protocol: "Policy Rule Engine", accent: "#F59E0B" },
+      { id: "f2", stage: "STAGE 2", label: "RBI Regulatory Guardrail", desc: "Enforces a 9 AM – 7 PM calling window (configurable within 9 AM – 9 PM) and the opt-out list.", latency: "Real-time", protocol: "Policy Rule Engine", accent: "#F59E0B" },
       { id: "f3", stage: "STAGE 3", label: "Ethical NLU Voice Agent", desc: "Speaks regional language, understands borrower hardship, and negotiates dates.", latency: "Real-time", protocol: "Claritiy Voice Core", accent: "#E8630A" },
       { id: "f4", stage: "STAGE 4", label: "UPI Dynamic Deep-link", desc: "Generates personalized UPI QR and payment link via SMS/WhatsApp.", latency: "Real-time", protocol: "Razorpay / Cashfree API", accent: "#F59E0B" },
       { id: "f5", stage: "STAGE 5", label: "Core Ledger Reconciliation", desc: "Reconciles promissory note or settlement status in core loan ledger.", latency: "Real-time", protocol: "Real-time Banking Hook", accent: "#E8630A" }
@@ -691,7 +691,7 @@ const USE_CASE_TOPICS: IndustryTopic[] = [
     badge: "Infinite Scale Engine",
     accent: "#059669",
     bgLight: "#D1FAE5",
-    headline: "10,000+ Concurrent Call Queue Deflection & Warm Transfer",
+    headline: "High-Volume Call Queue Deflection & Warm Transfer",
     subhead: "Handle high-traffic surge events without queue hold times. Deflect repetitive Tier-1 volume autonomously and transfer complex issues with live context.",
     heroStat: { value: "10K+", label: "Concurrent Call Capacity" },
     stats: [
@@ -709,13 +709,13 @@ const USE_CASE_TOPICS: IndustryTopic[] = [
     subTopics: [
       {
         id: "surge-queue-deflection",
-        title: "Sub-Topic 01: 10,000+ Concurrent Call Queue Deflection",
+        title: "Sub-Topic 01: High-Volume Call Queue Deflection",
         badge: "Infinite Scalability",
         problem: "Surge events (outages, flash sales) create 45-minute wait times and sky-high abandonment rates.",
         solution: "Spins up thousands of concurrent AI agents in 20 milliseconds, providing instant answers with zero hold time.",
         metrics: "0-second wait times • 60% operational cost reduction",
         templateId: "tpl-15",
-        templateName: "10,000+ Concurrent Call Queue Deflection",
+        templateName: "High-Volume Call Queue Deflection",
         templateCategory: "Customer Support",
         dialogue: [
           { speaker: "Claritiy AI", text: "Thank you for calling Skyward Support. I am your AI assistant. How may I help you today?", time: "00:03" },
@@ -748,7 +748,7 @@ const USE_CASE_TOPICS: IndustryTopic[] = [
         solution: "Transcribes and scores 100% of calls for regulatory compliance, script adherence, and sentiment trends.",
         metrics: "100% audit coverage • Zero compliance penalties",
         templateId: "tpl-15",
-        templateName: "10,000+ Concurrent Call Queue Deflection",
+        templateName: "High-Volume Call Queue Deflection",
         templateCategory: "Customer Support",
         dialogue: [
           { speaker: "Claritiy QA Engine", text: "Call ID #CL-9921 analyzed. Agent adherence: 98%. Mandatory disclaimer stated: YES. Customer sentiment trend: Neutral -> Positive. QA Score: 9.6/10.", time: "00:05" }

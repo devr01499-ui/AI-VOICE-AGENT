@@ -299,20 +299,20 @@ export default function Solutions({ setPage }: SolutionsProps) {
         { speaker: "customer", text: "Yes, I placed it! But can you ask the courier to deliver near the Blue Dart office in Bandra West?" },
         { speaker: "agent", text: "Absolutely! I have noted 'Near Blue Dart office, Bandra West' in the delivery instructions. Your package will ship today!" }
       ],
-      techSchema: `// Webhook Response Schema
-POST /api/v2/integrations/shopify/cod-verify
+      techSchema: `// Example: post-call data sent to YOUR webhook (fields are defined per agent
+// in Post-Call Data Extraction; payloads are HMAC-signed)
+POST https://your-system.example.com/claritiy-webhook
 {
   "order_id": "ORD-8941",
   "verification_status": "VERIFIED",
   "landmark_added": "Near Blue Dart office, Bandra West",
-  "confidence_score": 0.98,
-  "execution_ms": 172
+  "confidence_score": 0.98
 }`,
       metricsData: {
         latency: "Real-time",
         concurrency: "5,000+ calls/hr",
         successRate: "94.2% completed verification",
-        format: "SRTP 16kHz PCM zero-copy"
+        format: "16 kHz PCM carrier audio stream"
       }
     },
     {
@@ -330,8 +330,9 @@ POST /api/v2/integrations/shopify/cod-verify
         { speaker: "customer", text: "Hi, I need to see Dr. Sharma for a root canal checkup this Thursday afternoon." },
         { speaker: "agent", text: "Dr. Sharma has open slots at 2:30 PM and 4:15 PM this Thursday. Which time works best for you?" }
       ],
-      techSchema: `// FHIR EHR Appointment Slot Write
-POST /fhir/r4/Appointment
+      techSchema: `// Example: post-call data sent to YOUR webhook (fields are defined per agent
+// in Post-Call Data Extraction; payloads are HMAC-signed)
+POST https://your-system.example.com/claritiy-webhook
 {
   "resourceType": "Appointment",
   "status": "booked",
@@ -344,7 +345,7 @@ POST /fhir/r4/Appointment
         latency: "Real-time",
         concurrency: "1,200+ clinics active",
         successRate: "91.8% first-call booking",
-        format: "Edge PII Scrubbed • FHIR R4"
+        format: "PII redaction in transcripts"
       }
     },
     {
@@ -362,8 +363,9 @@ POST /fhir/r4/Appointment
         { speaker: "customer", text: "Yes please, send it on WhatsApp or SMS." },
         { speaker: "agent", text: "Done! I have sent the secure payment link to your registered mobile number. Have a great day!" }
       ],
-      techSchema: `// Core Banking Payment Dispatch Payload
-POST /api/v2/finance/emi-reminder
+      techSchema: `// Example: post-call data sent to YOUR webhook (fields are defined per agent
+// in Post-Call Data Extraction; payloads are HMAC-signed)
+POST https://your-system.example.com/claritiy-webhook
 {
   "loan_account_id": "LN-481920",
   "due_amount": 4200,
@@ -373,9 +375,9 @@ POST /api/v2/finance/emi-reminder
 }`,
       metricsData: {
         latency: "Real-time",
-        concurrency: "10,000+ concurrent channels",
+        concurrency: "Plan-based concurrent calls",
         successRate: "88.4% promise to pay",
-        format: "RBI Fair Practices • TLS 1.3"
+        format: "Calling-hours & opt-out controls • HTTPS"
       }
     },
     {
@@ -393,8 +395,9 @@ POST /api/v2/finance/emi-reminder
         { speaker: "customer", text: "Yes, looking for a 3BHK around Whitefield under 1.5 Crores." },
         { speaker: "agent", text: "Great! We have 2 corner units matching your budget in Whitefield. Can I book a site visit with our manager for Saturday morning?" }
       ],
-      techSchema: `// Lead Qualification CRM Schema
-POST /api/v2/crm/leads/qualify
+      techSchema: `// Example: post-call data sent to YOUR webhook (fields are defined per agent
+// in Post-Call Data Extraction; payloads are HMAC-signed)
+POST https://your-system.example.com/claritiy-webhook
 {
   "lead_id": "ld_8841",
   "budget": "1.5_CR",
@@ -424,13 +427,13 @@ POST /api/v2/crm/leads/qualify
         { speaker: "customer", text: "I am out right now, please leave it with the security guard at Gate 1." },
         { speaker: "agent", text: "Understood! I have notified the delivery agent to drop the package with Security Guard at Gate 1." }
       ],
-      techSchema: `// Logistics Driver Dispatch Dispatch
-POST /tms/v1/driver/note
+      techSchema: `// Example: post-call data sent to YOUR webhook (fields are defined per agent
+// in Post-Call Data Extraction; payloads are HMAC-signed)
+POST https://your-system.example.com/claritiy-webhook
 {
   "waybill": "WB-9012481",
   "driver_instruction": "Leave package with Gate 1 Security",
-  "recipient_confirmed": true,
-  "latency_ms": 145
+  "recipient_confirmed": true
 }`,
       metricsData: {
         latency: "Real-time",
@@ -454,8 +457,9 @@ POST /tms/v1/driver/note
         { speaker: "customer", text: "Yes, please confirm if my No Claim Bonus is applied." },
         { speaker: "agent", text: "Confirmed! Your 20% NCB discount brings your premium to ₹8,450. I have sent the payment link to your email now." }
       ],
-      techSchema: `// FNOL Claims Intake Schema
-POST /api/v2/insurance/fnol
+      techSchema: `// Example: post-call data sent to YOUR webhook (fields are defined per agent
+// in Post-Call Data Extraction; payloads are HMAC-signed)
+POST https://your-system.example.com/claritiy-webhook
 {
   "policy_number": "POL-992140",
   "incident_type": "MOTOR_ACCIDENT",
@@ -466,7 +470,7 @@ POST /api/v2/insurance/fnol
         latency: "Real-time",
         concurrency: "24/7 disaster surge ready",
         successRate: "3.5× faster claims triage",
-        format: "Zero Audio Retention Policy"
+        format: "Configurable recording & retention"
       }
     },
     {
@@ -484,8 +488,9 @@ POST /api/v2/insurance/fnol
         { speaker: "customer", text: "Yes, I wanted to know if weekend lab sessions are mandatory?" },
         { speaker: "agent", text: "Great question! Weekend labs are recorded and optional for working professionals. Would you like to schedule a 10-minute call with our Academic Dean?" }
       ],
-      techSchema: `// Education Counseling Event Payload
-POST /api/v2/edu/admissions/nurture
+      techSchema: `// Example: post-call data sent to YOUR webhook (fields are defined per agent
+// in Post-Call Data Extraction; payloads are HMAC-signed)
+POST https://your-system.example.com/claritiy-webhook
 {
   "applicant_id": "app_5541",
   "course": "M.Sc Data Science",
@@ -513,8 +518,9 @@ POST /api/v2/edu/admissions/nurture
         { speaker: "customer", text: "Yes, Saturday 9 AM works. Will a loaner car be available?" },
         { speaker: "agent", text: "Yes! A complimentary sedan loaner car is reserved for you. See you Saturday at 9 AM!" }
       ],
-      techSchema: `// DMS Service Bay Booking Schema
-POST /dms/v2/service/book
+      techSchema: `// Example: post-call data sent to YOUR webhook (fields are defined per agent
+// in Post-Call Data Extraction; payloads are HMAC-signed)
+POST https://your-system.example.com/claritiy-webhook
 {
   "vin": "MA1XY9821...",
   "service_type": "20K_PERIODIC",
@@ -904,7 +910,7 @@ POST /dms/v2/service/book
                   {currentSolution.techSchema}
                 </pre>
                 <p className="text-[11px] text-[#262523] font-mono">
-                  Post-back webhook delivered via TLS 1.3 with HMAC cryptographic signature.
+                  Post-call webhook delivered over HTTPS with an HMAC signature you can verify.
                 </p>
               </div>
             )}
@@ -920,7 +926,7 @@ POST /dms/v2/service/book
                 <div className="bg-[#EBE9E2] p-3.5 rounded-[2px] border border-[#CBC8BE] space-y-1">
                   <span className="text-[10px] text-[#262523] uppercase block">CONCURRENCY BUDGET</span>
                   <span className="text-[#121212] font-bold text-sm block">{currentSolution.metricsData.concurrency}</span>
-                  <span className="text-[10px] text-[#262523] block">Auto-scaling SIP trunks</span>
+                  <span className="text-[10px] text-[#262523] block">Plan-based concurrency</span>
                 </div>
                 <div className="bg-[#EBE9E2] p-3.5 rounded-[2px] border border-[#CBC8BE] space-y-1">
                   <span className="text-[10px] text-[#262523] uppercase block">RESOLUTION RATE</span>

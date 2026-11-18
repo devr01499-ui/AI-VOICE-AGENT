@@ -25,13 +25,13 @@ function ArchitecturePipelineCanvas() {
       badge: "TELEPHONY GATEWAY",
       name: "Carrier Audio Ingestion",
       humanizedSummary: "When a customer dials or receives an outbound call, the carrier opens a direct bidirectional audio stream to our servers.",
-      techSummary: "SRTP 16kHz 16-bit PCM streaming over UDP zero-copy buffers. Sub-25ms packetization bypassing legacy PBX transcoding delay.",
+      techSummary: "16 kHz 16-bit PCM streamed over a secure WebSocket in 20 ms frames, with no transcoding hops.",
       businessHighlights: [
         "Instant call pickup without IVR waiting",
         "Clear wideband voice transmission",
-        "Enterprise SIP trunking compatibility"
+        "Integrated carrier network (no SIP setup needed)"
       ],
-      outcomeSnippet: "Call connected. Bi-directional SRTP audio pipe established under 30ms.",
+      outcomeSnippet: "Call connected. Bi-directional audio stream established.",
       protocolSpec: "Carrier call -> bidirectional audio stream -> AudioStreamSession(16kHz, PCM-L16)"
     },
     {

@@ -311,7 +311,7 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
             </div>
             <h3 className="text-base font-medium text-[#121212] font-sans">Dynamic CRM Function Calling</h3>
             <p className="text-xs text-[#262523] leading-relaxed font-sans">
-              The agent doesn't just talk—it executes. Connect Shopify, HubSpot, Zoho, or custom endpoints to verify orders, cancel items, and log call records.
+              The agent doesn't just talk—it executes. Connect your own REST endpoints as agent tools to verify orders, cancel items and log call records, and receive every call outcome on your webhook.
             </p>
           </div>
 
@@ -550,7 +550,7 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
               Can Claritiy Voice integrate with our existing CRM and phone numbers?
             </h3>
             <p className="text-sm text-[#262523] leading-relaxed font-sans">
-              Yes. Claritiy Voice connects bi-directionally with HubSpot, Salesforce, Zoho, Shopify, and custom REST API backends. You can either purchase dedicated virtual 10-digit phone numbers and toll-free lines directly inside our dashboard or route your existing SIP trunks to our platform.
+              Yes. Claritiy Voice sends signed post-call webhooks to your CRM or backend and can call your own REST APIs during a call through custom tools; Google Calendar booking is built in. Your plan includes a dedicated local Indian number that you set up inside the dashboard.
             </p>
           </div>
 
@@ -560,7 +560,7 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
               Is AI voice calling software compliant with Indian telecom and DPDP rules?
             </h3>
             <p className="text-sm text-[#262523] leading-relaxed font-sans">
-              Yes. Claritiy Voice is fully aligned with India's Digital Personal Data Protection (DPDP) Act and TRAI guidelines. All call recordings can be set to zero-persistence, personal health identifiers and payment data are masked at the edge, and the software honors National Do Not Call (NDNC) registers.
+              Yes. Claritiy Voice is fully aligned with India's Digital Personal Data Protection (DPDP) Act and TRAI guidelines. Call recording is off unless you switch it on (with a spoken notice and automatic deletion after the retention period), personal data is redacted in transcripts, and campaigns respect TRAI calling hours and your opt-out list. Scrubbing lists against the national DND/NCPR registry remains your responsibility.
             </p>
           </div>
         </div>
