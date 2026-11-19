@@ -28,6 +28,8 @@ model User {
   minutesRemainingSeconds Float   @default(0.0) @map("minutes_remaining_seconds")
   totalMinutesConsumed  Float    @default(0.0) @map("total_minutes_consumed")
   numberLocked          Boolean  @default(false) @map("number_locked")
+  /// End of the current plan's validity (purchase + 30 days). Null = bought before validity existed (expires only when minutes run out).
+  planExpiresAt         DateTime? @map("plan_expires_at")
   dataRetentionDays     Int?     @map("data_retention_days")
   allowedIpRanges       String[] @default([]) @map("allowed_ip_ranges")
   maxConcurrentCalls    Int?     @default(10) @map("max_concurrent_calls")
@@ -45,6 +47,7 @@ model User {
   agents               Agent[]
   calls                Call[]
   phoneNumbers         PhoneNumber[]
+  plivoCompliance      PlivoComplianceApplication?
   knowledgeBases       KnowledgeBase[]
   batches              Batch[]
   subAccounts          SubAccount[]
@@ -1457,4 +1460,23 @@ model TestLabRun {
 
   @@index([agentId, userId, createdAt])
   @@map("test_lab_runs")
+}
+
+/// India business KYC filed with Plivo for the customer's own subaccount. Plivo rents +91 numbers
+/// only against an ACCEPTED application (Regulatory Compliance docs).
+model PlivoComplianceApplication {
+  id               String   @id @default(uuid())
+  userId           String   @unique @map("user_id")
+  complianceId     String   @unique @map("compliance_id")
+  subaccountAuthId String   @map("subaccount_auth_id")
+  businessName     String   @map("business_name")
+  status           String   @default("submitted") // submitted | accepted | rejected | suspended | expired
+  rejectionReason  String?  @map("rejection_reason")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("plivo_compliance_applications")
 }

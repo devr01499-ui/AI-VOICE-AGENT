@@ -4,6 +4,7 @@ import { logger } from '../utils/logger';
 
 export type MinutesLedgerReason =
   | 'plan_purchase'
+  | 'plan_expired' // 30-day plan validity ended: unused minutes lapse
   | 'admin_grant'
   | 'admin_deduct'
   | 'call_usage'

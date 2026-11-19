@@ -2,7 +2,7 @@ import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { MinutesService } from './MinutesService';
 import { InvoiceService } from './InvoiceService';
-import { PLAN_CONFIG } from '../config/plans';
+import { PLAN_CONFIG, PLAN_VALIDITY_DAYS } from '../config/plans';
 
 export interface FulfillPlanPurchaseParams {
   userId: string;
@@ -156,6 +156,8 @@ export async function fulfillPlanPurchase(params: FulfillPlanPurchaseParams) {
       where: { id: userId },
       data: {
         accountType: higherAccountTier(current?.accountType, accountType),
+        // A new plan starts a fresh validity window (any older window is replaced).
+        planExpiresAt: new Date(Date.now() + PLAN_VALIDITY_DAYS * 24 * 60 * 60 * 1000),
         ...(heldNumbers === 0 ? { numberLocked: false } : {}),
       },
     });

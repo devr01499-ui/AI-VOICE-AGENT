@@ -47,4 +47,8 @@ export const effectiveRate = (p: Pick<PublicPlan, 'price' | 'minutes'>) => (Math
 export const LOWEST_PLAN = PUBLIC_PLANS[0];
 
 /** One-line pricing statement for SEO / FAQ text. */
-export const PRICING_SUMMARY = `Plans from ${formatInr(LOWEST_PLAN.price)} for ${LOWEST_PLAN.minutes.toLocaleString('en-IN')} calling minutes (one-time payment, no auto-renewal), with a local +91 number included after KYC.`;
+/** Mirrors the server's PLAN_VALIDITY_DAYS / NUMBER_RELEASE_GRACE_DAYS (config/plans.ts). */
+export const PLAN_VALIDITY_DAYS = 30;
+export const NUMBER_RELEASE_GRACE_DAYS = 5;
+
+export const PRICING_SUMMARY = `Plans from ${formatInr(LOWEST_PLAN.price)} for ${LOWEST_PLAN.minutes.toLocaleString('en-IN')} calling minutes valid ${PLAN_VALIDITY_DAYS} days (one-time payment, no auto-renewal), with a local +91 number included after KYC.`;

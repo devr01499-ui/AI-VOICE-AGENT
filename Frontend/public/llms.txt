@@ -3,7 +3,7 @@
 > Claritiy Voice is an enterprise AI voice platform that automates customer support, sales qualification, appointment scheduling, and order verification in English, Hindi, Bengali, Kannada, Malayalam, Gujarati and Tamil, plus automatic language detection.
 
 ## Key Facts
-- Pricing (one-time minute plans, INR, no auto-renewal): Startup ₹3,799 for 750 minutes, Growth ₹10,799 for 2,865 minutes, Enterprise ₹30,799 for 10,000 minutes. Each includes a local +91 number after KYC. There is no pay-as-you-go or overage billing.
+- Pricing (one-time minute plans valid 30 days, INR, no auto-renewal): Startup ₹3,799 for 750 minutes, Growth ₹10,799 for 2,865 minutes, Enterprise ₹30,799 for 10,000 minutes. Each includes a local +91 number after KYC. A plan ends when its minutes are used up or after 30 days, whichever comes first; the number is released 5 days after the plan ends unless a new plan is bought. There is no pay-as-you-go or overage billing.
 - Contact: support@claritiy.com | WhatsApp: +91 9707337259
 - Voice: a single speech-to-speech model with real-time, interruptible replies.
 - Languages: English, Hindi, Bengali, Kannada, Malayalam, Gujarati and Tamil, plus automatic language detection.

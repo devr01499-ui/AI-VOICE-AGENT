@@ -55,6 +55,99 @@ export class PlivoService {
   }
 
   /**
+   * India business KYC (Plivo "Regulatory Compliance"). Indian numbers can only be rented and used
+   * with an ACCEPTED compliance application, filed for the customer's own subaccount (main-account
+   * credentials, `subaccount` in the data JSON). Plivo documents India requirements for businesses
+   * only: a Registration Certificate (Certificate of Incorporation or Udyam, field business_name) and
+   * a GST Registration Certificate, PDF/JPEG/PNG up to 5 MB each.
+   */
+  async getIndiaBusinessRequirements(): Promise<{ requirementId: string; registrationDocTypeId: string; gstDocTypeId: string; registrationFields: string[] }> {
+    if (!this.hasValidCredentials()) throw new Error('Carrier credentials not configured');
+    const res = await fetch(`${this.baseUrl}/Account/${this.parentAuthId}/PhoneNumber/Compliance/Requirements?country_iso=IN&number_type=local&user_type=business`, { headers: this.getParentHeaders() });
+    const data: any = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(`Compliance requirements unavailable (${res.status})`);
+    const types: any[] = Array.isArray(data.document_types) ? data.document_types : [];
+    const reg = types.find((t) => /registration|incorporation|udyam/i.test(String(t.name || '')) && !/gst/i.test(String(t.name || '')));
+    const gst = types.find((t) => /gst/i.test(String(t.name || '')));
+    if (!reg || !gst) throw new Error('Compliance requirements changed: registration or GST document type not found');
+    return {
+      requirementId: String(data.requirement_id || ''),
+      registrationDocTypeId: String(reg.document_type_id),
+      gstDocTypeId: String(gst.document_type_id),
+      registrationFields: (Array.isArray(reg.required_fields) ? reg.required_fields : []).map((f: any) => String(f.field_name)),
+    };
+  }
+
+  async submitIndiaBusinessCompliance(p: {
+    subaccountAuthId: string;
+    alias: string;
+    endUser: { name: string; email: string; address_line1: string; address_line2?: string; city: string; state: string; postal_code: string; registration_number?: string };
+    businessName: string;
+    registrationFile: { name: string; mimeType: string; buffer: Buffer };
+    gstFile: { name: string; mimeType: string; buffer: Buffer };
+    callbackUrl?: string;
+  }): Promise<{ complianceId: string }> {
+    const req = await this.getIndiaBusinessRequirements();
+    const data = {
+      country_iso: 'IN',
+      number_type: 'local',
+      alias: p.alias.slice(0, 120),
+      end_user: { type: 'business', ...p.endUser, country: 'IN' },
+      documents: [
+        { document_type_id: req.registrationDocTypeId, data_fields: { business_name: p.businessName } },
+        { document_type_id: req.gstDocTypeId },
+      ],
+      subaccount: p.subaccountAuthId,
+      ...(p.callbackUrl ? { callback_url: p.callbackUrl, callback_method: 'POST' } : {}),
+    };
+    const form = new FormData();
+    form.append('data', JSON.stringify(data));
+    form.append('documents[0].file', new Blob([new Uint8Array(p.registrationFile.buffer)], { type: p.registrationFile.mimeType }), p.registrationFile.name);
+    form.append('documents[1].file', new Blob([new Uint8Array(p.gstFile.buffer)], { type: p.gstFile.mimeType }), p.gstFile.name);
+    const headers: Record<string, string> = { ...this.getParentHeaders() };
+    delete headers['Content-Type']; // fetch sets the multipart boundary
+    const res = await fetch(`${this.baseUrl}/Account/${this.parentAuthId}/PhoneNumber/Compliance/`, { method: 'POST', headers, body: form });
+    const body: any = await res.json().catch(() => ({}));
+    if (!res.ok || !body.compliance_id) {
+      throw new Error(`Compliance application refused (${res.status}): ${String(body.error || body.message || '').slice(0, 200)}`);
+    }
+    return { complianceId: String(body.compliance_id) };
+  }
+
+  /** Current review state of a compliance application. */
+  async getComplianceApplication(complianceId: string, subaccountAuthId?: string): Promise<{ status: string; rejectionReason: string | null } | null> {
+    if (!this.hasValidCredentials()) return null;
+    const q = subaccountAuthId ? `?subaccount=${encodeURIComponent(subaccountAuthId)}` : '';
+    const res = await fetch(`${this.baseUrl}/Account/${this.parentAuthId}/PhoneNumber/Compliance/${encodeURIComponent(complianceId)}${q}`, { headers: this.getParentHeaders() });
+    if (!res.ok) return null;
+    const body: any = await res.json().catch(() => ({}));
+    const c = body.compliance || body;
+    return { status: String(c.status || 'submitted').toLowerCase(), rejectionReason: c.rejection_reason ?? null };
+  }
+
+  /**
+   * Unrents a number (Plivo "Unrent a number": DELETE /Account/{auth_id}/Number/{number}/), so the
+   * main account stops paying its monthly rental. 404 = already gone.
+   */
+  async unrentNumber(number: string): Promise<'released' | 'already_gone' | 'failed' | 'no_credentials'> {
+    if (!this.hasValidCredentials()) return 'no_credentials';
+    const digits = String(number || '').replace(/\D/g, '');
+    try {
+      const res = await fetch(`${this.baseUrl}/Account/${this.parentAuthId}/Number/${digits}/`, {
+        method: 'DELETE',
+        headers: this.getParentHeaders(),
+      });
+      if (res.status === 204 || res.ok) return 'released';
+      if (res.status === 404) return 'already_gone';
+      logger.error('[PLIVO] unrent number failed', { number: `***${digits.slice(-4)}`, status: res.status, body: (await res.text().catch(() => '')).slice(0, 200) });
+      return 'failed';
+    } catch (err) {
+      logger.error('[PLIVO] unrent number error', { error: String(err) });
+      return 'failed';
+    }
+  }
+
+  /**
    * Idempotent Subaccount Provisioning:
    * 1. Checks local database for existing PlivoSubAccount.
    * 2. If not found locally, queries Plivo Subaccount list to verify if a subaccount with that name exists.
@@ -294,14 +387,18 @@ export class PlivoService {
     expectedPrice?: number;
     setupFee?: number;
     region?: string;
+    /** Accepted India compliance application filed for this subaccount (required for +91 numbers). */
+    complianceApplicationId?: string;
   }) {
-    const { userId, number, subaccountAuthId, agentId, expectedPrice = 450, setupFee = 0, region = 'India Local' } = params;
+    const { userId, number, subaccountAuthId, agentId, expectedPrice = 450, setupFee = 0, region = 'India Local', complianceApplicationId } = params;
 
     // If live credentials are valid, execute real Plivo number buy
+    let carrierPending = false;
     if (this.hasValidCredentials()) {
       const buyUrl = `${this.baseUrl}/Account/${this.parentAuthId}/PhoneNumber/${number}/`;
       const bodyPayload: Record<string, any> = {
         subaccount: subaccountAuthId,
+        ...(complianceApplicationId ? { compliance_application_id: complianceApplicationId } : {}),
       };
       const configuredAppId = process.env.PLIVO_APP_ID || env.PLIVO_APP_ID;
       if (configuredAppId && configuredAppId.trim()) {
@@ -315,6 +412,8 @@ export class PlivoService {
       });
 
       const buyData: any = await buyRes.json();
+      // "pending" = Plivo still checking documents for this number (it cannot call yet).
+      carrierPending = String(buyData?.status || "").toLowerCase() === "pending" || (Array.isArray(buyData?.numbers) && buyData.numbers.some((n: any) => String(n?.status || "").toLowerCase() === "pending"));
       if (!buyRes.ok || (buyData.status && buyData.status !== 'fulfilled' && buyData.message !== 'created')) {
         const errorMsg = buyData.message || JSON.stringify(buyData);
         throw new Error(`Plivo number purchase error: ${errorMsg}`);
@@ -344,8 +443,9 @@ export class PlivoService {
         type: 'local',
         telephonyProvider: 'plivo',
         capabilities: JSON.stringify(['voice']),
-        status: 'active',
-        kycStatus: 'verified',
+        status: carrierPending ? 'activation_pending' : 'active',
+        kycStatus: carrierPending ? 'pending' : 'verified',
+        aadhaarRequired: carrierPending,
         monthlyCost: expectedPrice,
         setupFee,
         currency: 'INR',

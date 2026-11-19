@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { Check, ArrowRight, ShieldCheck, Zap, Loader2, Sparkles, Lock, HelpCircle, PhoneCall } from "lucide-react";
 import { API_BASE } from "../api";
-import { PUBLIC_PLANS, formatInr, effectiveRate } from '../lib/plans';
+import { PUBLIC_PLANS, formatInr, effectiveRate, PLAN_VALIDITY_DAYS, NUMBER_RELEASE_GRACE_DAYS } from '../lib/plans';
 import { supabase } from "../lib/supabaseClient";
 
 declare global {
@@ -232,7 +232,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
           {PUBLIC_PLANS.map((plan) => {
             const featured = plan.key === 'growth';
             const features = [
-              `${plan.minutes.toLocaleString('en-IN')} calling minutes (one-time, no auto-renewal)`,
+              `${plan.minutes.toLocaleString('en-IN')} calling minutes, valid ${PLAN_VALIDITY_DAYS} days (one-time, no auto-renewal)`,
               '1 local +91 phone number included (after KYC)',
               `Up to ${plan.maxConcurrentCalls} simultaneous call${plan.maxConcurrentCalls === 1 ? '' : 's'}`,
               `${plan.kbDocuments.toLocaleString('en-IN')} knowledge-base documents`,
@@ -287,7 +287,9 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
         </div>
 
         <p className="mt-6 text-center text-xs text-[#262523] font-sans">
-          Prices in INR. Each plan is a one-time minute pack; when the minutes are used up, buy any plan again to top up.
+          Prices in INR. Each plan is a one-time minute pack valid for {PLAN_VALIDITY_DAYS} days from purchase; unused minutes lapse at the end.
+          Your plan ends when its minutes are used up or after {PLAN_VALIDITY_DAYS} days, whichever comes first. Buy any plan again to continue.
+          Your phone number is released {NUMBER_RELEASE_GRACE_DAYS} days after your plan ends unless you buy a new plan.
           GST is shown on your invoice.
         </p>
 

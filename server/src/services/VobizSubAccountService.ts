@@ -1,5 +1,5 @@
 import { prisma } from '../lib/prisma';
-import { nextKycState } from '../utils/kycStatus';
+import { nextKycState, vobizKycVerdict } from '../utils/kycStatus';
 import { env } from '../config/env';
 import { EncryptionService } from '../utils/EncryptionService';
 import { logger } from '../utils/logger';
@@ -84,10 +84,7 @@ export class VobizSubAccountService {
 
     let cleanBaseUrl = this.baseUrl.replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
     const url = `${cleanBaseUrl}/api/v1/accounts/${this.masterAuthId}/sub-accounts/`;
-    const body = {
-      name: effectiveName,
-      enabled: true,
-    };
+    const body = VobizSubAccountService.createBody(effectiveName);
 
     const headers = {
       'Content-Type': 'application/json',
@@ -122,7 +119,9 @@ export class VobizSubAccountService {
       data: {
         authId: subAuthId,
         authToken: encryptedToken,
+        kycMode: 'customer_use',
         kycStatus: 'pending',
+        kycCallsBlocked: true,
         kycVerifiedAt: null,
       },
     });
@@ -170,10 +169,7 @@ export class VobizSubAccountService {
     } else {
       let cleanBaseUrl = this.baseUrl.replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
       const url = `${cleanBaseUrl}/api/v1/accounts/${this.masterAuthId}/sub-accounts/`;
-      const body = {
-        name: effectiveName,
-        enabled: true,
-      };
+      const body = VobizSubAccountService.createBody(effectiveName);
 
       const headers = {
         'Content-Type': 'application/json',
@@ -245,6 +241,8 @@ export class VobizSubAccountService {
           authId: subAuthId,
           authToken: encryptedToken,
           kycMode: 'customer_use',
+          kycStatus: 'pending',
+          kycCallsBlocked: true,
         },
       });
 
@@ -277,6 +275,92 @@ export class VobizSubAccountService {
   }
 
   /**
+   * Body for creating a user's sub-account. kyc_mode customer_use makes Vobiz require THIS user's own
+   * KYC (PAN + Aadhaar, or PAN + GST/CIN) and block their calls until it is verified. Without it the
+   * sub-account defaults to personal_use and inherits the master account's KYC (Vobiz docs: Create a
+   * Subaccount). customer_use requires an email: Vobiz sends the KYC link there.
+   */
+  static createBody(email: string | undefined): Record<string, unknown> {
+    const clean = String(email || '').trim();
+    if (!clean || !clean.includes('@')) {
+      throw new ProviderError('vobiz', 'A sub-account needs the customer email address for KYC.');
+    }
+    return { name: clean, email: clean, enabled: true, kyc_mode: 'customer_use' };
+  }
+
+  private apiBase(): string {
+    return `${this.baseUrl.replace(/\/+$/, '').replace(/\/api\/v1$/i, '')}/api/v1`;
+  }
+
+  private masterHeaders(): Record<string, string> {
+    return { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Auth-ID': this.masterAuthId, 'X-Auth-Token': this.masterAuthToken };
+  }
+
+  /** Vobiz's aggregated KYC state for one sub-account (documented: GET /sub-accounts/{SA}/kyc/status). */
+  async fetchKycStatus(subAuthId: string): Promise<any | null> {
+    if (this.isMock) return null;
+    const res = await fetch(`${this.apiBase()}/sub-accounts/${encodeURIComponent(subAuthId)}/kyc/status`, { headers: this.masterHeaders() });
+    if (!res.ok) {
+      logger.warn('VobizSubAccountService: KYC status request failed', { subAuthId, status: res.status });
+      return null;
+    }
+    return res.json();
+  }
+
+  /**
+   * Switches an existing sub-account to customer_use so Vobiz verifies this user's own KYC
+   * (documented: PUT /accounts/{MA}/sub-accounts/{SA} with email + kyc_mode). Vobiz re-derives
+   * kyc_calls_blocked: an account whose own KYC is not complete is blocked until it is.
+   * Returns true when Vobiz accepted the change.
+   */
+  async promoteToCustomerUse(subAccount: { id: string; userId: string; authId: string }, email: string): Promise<boolean> {
+    if (this.isMock || subAccount.authId.startsWith('SA_MOCK_')) return false;
+    const clean = String(email || '').trim();
+    if (!clean.includes('@')) {
+      logger.error('[ADMIN_ALERT][VOBIZ_KYC_MODE] cannot switch sub-account to customer_use: user has no email', { userId: subAccount.userId, subAuthId: subAccount.authId });
+      return false;
+    }
+    const res = await fetch(`${this.apiBase()}/accounts/${this.masterAuthId}/sub-accounts/${encodeURIComponent(subAccount.authId)}`, {
+      method: 'PUT',
+      headers: this.masterHeaders(),
+      body: JSON.stringify({ email: clean, kyc_mode: 'customer_use' }),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      logger.error('[ADMIN_ALERT][VOBIZ_KYC_MODE] Vobiz refused switching sub-account to customer_use', { userId: subAccount.userId, subAuthId: subAccount.authId, status: res.status, body: text.slice(0, 300) });
+      return false;
+    }
+    await prisma.vobizSubAccount.update({ where: { id: subAccount.id }, data: { kycMode: 'customer_use' } });
+    await this.applyKycStatus(subAccount.userId, subAccount.authId, { allowDowngrade: true });
+    return true;
+  }
+
+  /**
+   * Reads Vobiz's KYC status for the user's sub-account and stores it. allowDowngrade is used right
+   * after switching from personal_use, where an earlier "verified" was only the inherited master KYC.
+   */
+  async applyKycStatus(userId: string, subAuthId: string, opts: { allowDowngrade?: boolean } = {}): Promise<{ kycStatus: string; kycCallsBlocked: boolean; customerUse: boolean } | null> {
+    const data = await this.fetchKycStatus(subAuthId);
+    if (!data) return null;
+    const verdict = vobizKycVerdict(data);
+    const prev = await prisma.vobizSubAccount.findUnique({ where: { userId }, select: { kycStatus: true } });
+    const next = (opts.allowDowngrade || !verdict.customerUse)
+      ? { kycStatus: verdict.kycStatus, kycCallsBlocked: verdict.kycCallsBlocked }
+      : nextKycState(prev?.kycStatus, verdict.kycStatus, verdict.kycCallsBlocked);
+    await prisma.vobizSubAccount.updateMany({
+      where: { userId },
+      data: {
+        kycStatus: next.kycStatus,
+        kycCallsBlocked: next.kycCallsBlocked,
+        ...(verdict.kycMode ? { kycMode: verdict.kycMode } : {}),
+        ...(typeof data.business_type === 'string' && data.business_type ? { businessType: data.business_type } : {}),
+        ...(prev?.kycStatus === next.kycStatus ? {} : { kycVerifiedAt: next.kycStatus === 'verified' ? new Date() : null }),
+      },
+    });
+    return { kycStatus: next.kycStatus, kycCallsBlocked: next.kycCallsBlocked, customerUse: verdict.customerUse };
+  }
+
+  /**
    * Explicitly assigns a purchased phone number to a specific user sub-account on Vobiz.
    */
   async assignNumberToSubAccount(subAuthId: string, e164: string, numberId?: string) {
@@ -287,8 +371,10 @@ export class VobizSubAccountService {
     }
 
     let cleanBaseUrl = this.baseUrl.replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
-    const assignUrl = `${cleanBaseUrl}/api/v1/accounts/${this.masterAuthId}/sub-accounts/${subAuthId}/numbers/assign`;
-    const fallbackUrl = `${cleanBaseUrl}/api/v1/Account/${this.masterAuthId}/Number/${e164}/`;
+    // Documented (Vobiz "Assign DID to Sub-Account"): lowercase /account/, the number URL-encoded
+    // (+ as %2B), body { sub_account_id }. 200/204 = assigned.
+    const documentedUrl = `${cleanBaseUrl}/api/v1/account/${this.masterAuthId}/numbers/${encodeURIComponent(e164)}/assign-subaccount`;
+    const legacyUrl = `${cleanBaseUrl}/api/v1/accounts/${this.masterAuthId}/sub-accounts/${subAuthId}/numbers/assign`;
 
     const headers = {
       'Content-Type': 'application/json',
@@ -297,19 +383,19 @@ export class VobizSubAccountService {
     };
 
     try {
-      // Attempt primary assignment endpoint
-      let response = await fetch(assignUrl, {
+      let response = await fetch(documentedUrl, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ number: e164, number_id: numberId, sub_account_auth_id: subAuthId }),
+        body: JSON.stringify({ sub_account_id: subAuthId }),
       });
 
-      if (!response.ok && response.status === 404) {
-        // Fallback assignment attempt
-        response = await fetch(fallbackUrl, {
+      if (response.status === 405) {
+        // Route used before the documented one; kept only as a logged fallback.
+        logger.warn('VobizSubAccountService: documented assign-subaccount route refused (405); trying legacy route', { subAuthId, e164 });
+        response = await fetch(legacyUrl, {
           method: 'POST',
           headers,
-          body: JSON.stringify({ subaccount: subAuthId }),
+          body: JSON.stringify({ number: e164, number_id: numberId, sub_account_auth_id: subAuthId }),
         });
       }
 
@@ -441,36 +527,25 @@ export class VobizSubAccountService {
         }
       } else {
         // 2. For non-admin users, query THEIR OWN sub-account KYC status from Vobiz
+        // The user's OWN KYC as Vobiz reports it. "Calls not blocked" alone is not proof: a
+        // personal_use sub-account inherits the master KYC and is never blocked.
         const subAccount = await this.getOrCreateSubAccount(userId, user.email);
-        const subUrl = `${cleanBaseUrl}/api/v1/accounts/${this.masterAuthId}/sub-accounts/${subAccount.authId}`;
-        const subRes = await fetch(subUrl, { headers });
-
-        if (subRes.ok) {
-          const subData = (await subRes.json()) as any;
-          const liveStatus = (subData?.kyc_status || '').toLowerCase();
-          const callsBlocked = subData?.kyc_calls_blocked;
-
-          if (callsBlocked === false || liveStatus === 'verified') {
-            subKycStatus = 'verified';
-            isVerified = true;
-          } else if (liveStatus === 'failed' || liveStatus === 'rejected') {
-            subKycStatus = 'failed';
-            isVerified = false;
-          } else {
-            subKycStatus = 'pending';
-            isVerified = false;
-          }
-        } else {
-          // If Vobiz returned non-ok status, fail closed
-          subKycStatus = 'pending';
-          isVerified = false;
+        let applied = await this.applyKycStatus(userId, subAccount.authId);
+        if (applied && !applied.customerUse && user.email) {
+          await this.promoteToCustomerUse(subAccount, user.email);
+          applied = await this.applyKycStatus(userId, subAccount.authId, { allowDowngrade: true });
         }
+        subKycStatus = applied?.kycStatus || 'pending';
+        isVerified = Boolean(applied && applied.customerUse && applied.kycStatus === 'verified' && !applied.kycCallsBlocked);
+        if (!isVerified && subKycStatus === 'verified') subKycStatus = 'pending';
       }
 
       const prevSub = await prisma.vobizSubAccount.findUnique({ where: { userId }, select: { kycStatus: true, authId: true } });
-      // Never downgrade a verified account on a transient carrier error, and keep kycCallsBlocked in
-      // step with the status (audit #2 / #17).
-      const next = nextKycState(prevSub?.kycStatus, subKycStatus);
+      // Admin: never downgrade on a transient carrier error (audit #2 / #17). Customers: the state
+      // read from Vobiz above is authoritative (it may correct an inherited "verified").
+      const next = user.accountType === 'admin'
+        ? nextKycState(prevSub?.kycStatus, subKycStatus)
+        : { kycStatus: subKycStatus as 'verified' | 'failed' | 'pending', kycCallsBlocked: !isVerified };
       subKycStatus = next.kycStatus;
       isVerified = next.kycStatus === 'verified';
 

@@ -6,6 +6,7 @@ import { BillingService, PaymentVerificationError } from '../services/BillingSer
 import { UsageSyncService } from '../services/UsageSyncService';
 import { VobizInventoryService } from '../services/VobizInventoryService';
 import { VobizPhoneNumberService } from '../services/VobizPhoneNumberService';
+import { PlivoComplianceService, ComplianceInputError } from '../services/PlivoComplianceService';
 import { ADMIN_EMAIL } from '../config/constants';
 import { env } from '../config/env';
 import { logAuditEvent } from '../utils/auditLogger';
@@ -665,16 +666,25 @@ router.delete('/:id', requireAuth, requireEditor, sensitiveOperationsLimiter, as
       return;
     }
 
-    await UsageSyncService.releaseNumber(id, userId);
+    const result = await UsageSyncService.releaseNumber(id, userId);
 
     await logAuditEvent({
       workspaceOwnerId: (req as any).effectiveWorkspaceId || userId,
       actorUserId: userId,
-      action: 'number.released',
+      action: result.released ? 'number.released' : 'number.release_pending',
       targetId: id,
+      metadata: result.released ? undefined : { reason: result.reason, retryAfter: result.retryAfter },
     });
 
-    res.json({ success: true, message: 'Number released successfully' });
+    if (!result.released) {
+      res.status(202).json({
+        success: true,
+        data: { released: false, pending: true, retryAfter: result.retryAfter },
+        message: 'The number is being released. It stops working now and is removed as soon as the carrier allows (up to 15 days after its last call).',
+      });
+      return;
+    }
+    res.json({ success: true, data: { released: true }, message: 'Number released successfully' });
   } catch (err) {
     logger.error('Numbers: failed to release number', { error: String(err) });
     next(err);
@@ -994,12 +1004,52 @@ router.post('/:id/calling-config', requireAuth, requireEditor, sensitiveOperatio
 // ─────────────────────────────────────────────
 
 /**
+ * GET /api/v2/numbers/plivo/compliance
+ * The customer's business verification for business numbers (refreshed from the carrier).
+ */
+router.get('/plivo/compliance', requireAuth, async (req, res, next) => {
+  try {
+    const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
+    const app = await new PlivoComplianceService().refresh(userId);
+    res.json({
+      success: true,
+      data: app
+        ? { status: app.status, businessName: app.businessName, rejectionReason: app.rejectionReason, submittedAt: app.createdAt, updatedAt: app.updatedAt }
+        : { status: 'not_started' },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /api/v2/numbers/plivo/compliance
+ * Submits business KYC (GST certificate + Certificate of Incorporation or Udyam, as base64 PDF/PNG/JPEG
+ * up to 3 MB each) for review by the carrier. Paid plan required.
+ */
+router.post('/plivo/compliance', requireAuth, requireEditor, requirePaidPlan, sensitiveOperationsLimiter, async (req, res, next) => {
+  try {
+    const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
+    const app = await new PlivoComplianceService().submit(userId, req.body || {});
+    await logAuditEvent({ workspaceOwnerId: userId, actorUserId: (req as any).userId, action: 'kyc.business_submitted', targetId: app.complianceId, metadata: { provider: 'plivo' } });
+    res.status(201).json({ success: true, data: { status: app.status, businessName: app.businessName } });
+  } catch (err: any) {
+    if (err instanceof ComplianceInputError) {
+      res.status(400).json({ success: false, error: err.message });
+      return;
+    }
+    logger.error('[PLIVO_COMPLIANCE] submission failed', { error: String(err?.message || err) });
+    res.status(502).json({ success: false, error: 'The business documents could not be submitted right now. Please try again shortly.' });
+  }
+});
+
+/**
  * POST /api/v2/numbers/plivo/onboard
  * Automatically creates and maps a Plivo subaccount for the workspace when the customer
  * first initiates Plivo onboarding. Retry-safe & idempotent.
  * Never exposes tokens to the browser.
  */
-router.post('/plivo/onboard', requireAuth, sensitiveOperationsLimiter, async (req, res, next) => {
+router.post('/plivo/onboard', requireAuth, requirePaidPlan, sensitiveOperationsLimiter, async (req, res, next) => {
   try {
     const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
     const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -1091,15 +1141,15 @@ router.post('/plivo/claim', requireAuth, requireEditor, requirePaidPlan, sensiti
     return;
   }
 
-  // 2. KYC verification gate
-  const kycCheck = await checkRequiredKycDocumentsVerified(userId);
-  if (!kycCheck.verified) {
+  // 2. Plivo rents +91 numbers only against an ACCEPTED business compliance application filed for
+  // this customer's own subaccount (Plivo docs). Business customers only; individuals use the other carrier.
+  const compliance = await new PlivoComplianceService().acceptedApplication(userId);
+  if (!compliance) {
     res.status(403).json({
       success: false,
-      error: kycCheck.error,
-      kycRequired: true,
-      missing: kycCheck.missing,
-      actionUrl: '/settings',
+      code: 'BUSINESS_VERIFICATION_REQUIRED',
+      error: 'Business numbers need verified business documents (GST certificate and Certificate of Incorporation or Udyam). Submit them in the business verification panel first.',
+      complianceRequired: true,
     });
     return;
   }
@@ -1123,6 +1173,7 @@ router.post('/plivo/claim', requireAuth, requireEditor, requirePaidPlan, sensiti
       agentId,
       region: region || 'India Local',
       expectedPrice: 450,
+      complianceApplicationId: compliance.complianceId,
     });
 
     await logAuditEvent({

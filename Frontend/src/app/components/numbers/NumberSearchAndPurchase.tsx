@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '../../../lib/formatCurrency';
 import { API_BASE } from '../../api';
+import BusinessVerificationPanel, { type BusinessVerificationStatus } from './BusinessVerificationPanel';
 
 const COUNTRIES = [
   { code: 'IN', name: 'India', flag: '🇮🇳' },
@@ -73,6 +74,8 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
   const [provider, setProvider] = useState<'vobiz' | 'plivo'>('vobiz');
   const [plivoRegion, setPlivoRegion] = useState('');
   const [plivoSubaccountMapped, setPlivoSubaccountMapped] = useState(false);
+  // Business numbers need the carrier's own business verification (accepted) before a claim.
+  const [businessStatus, setBusinessStatus] = useState<BusinessVerificationStatus>('loading');
 
   // Filters
   const [selectedCountry, setSelectedCountry] = useState('IN');
@@ -332,6 +335,10 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
 
   const handleExecuteClaim = async () => {
     if (!selectedNumber || !confirmedWarning) return;
+    if ((selectedNumber.provider === 'plivo' || provider === 'plivo') && businessStatus !== 'accepted') {
+      setError('Verify your business first (GST certificate and Certificate of Incorporation or Udyam) to claim a business number.');
+      return;
+    }
 
     setError(null);
     setIsKycBlocked(false);
@@ -709,7 +716,7 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
             <button
               id="confirm-claim-btn"
               onClick={handleExecuteClaim}
-              disabled={purchasing || !confirmedWarning}
+              disabled={purchasing || !confirmedWarning || ((selectedNumber?.provider === 'plivo' || provider === 'plivo') && businessStatus !== 'accepted')}
               className="flex-1 py-4 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm transition-all shadow-lg shadow-emerald-600/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {purchasing ? (
@@ -795,9 +802,9 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
                     : 'text-gray-500 hover:text-gray-900'
                 }`}
               >
-                <span>Direct Carrier</span>
+                <span>Business Carrier</span>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${provider === 'plivo' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'}`}>
-                  India Local Only
+                  GST businesses
                 </span>
               </button>
             </div>
@@ -807,14 +814,16 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
             <Info className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>
               {provider === 'plivo'
-                ? 'Direct carrier integration provisions Indian local (+91) numbers into dedicated, customer-isolated accounts with centralized parent billing.'
+                ? 'For GST-registered businesses: Indian local (+91) numbers in your own isolated account, after the carrier verifies your business documents.'
                 : 'Indian local (+91) numbers on our integrated carrier network, set up in your own isolated account.'}
             </span>
           </div>
         </div>
 
-        {/* KYC Account Verification Prompt Banner */}
-        {!isKycVerified && (
+        {provider === 'plivo' && <BusinessVerificationPanel onStatus={setBusinessStatus} />}
+
+        {/* KYC Account Verification Prompt Banner (standard network; business numbers use the panel above) */}
+        {!isKycVerified && provider !== 'plivo' && (
           <div className="bg-amber-50 border border-amber-200 rounded-3xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold shrink-0">

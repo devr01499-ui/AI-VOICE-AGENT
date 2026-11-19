@@ -742,6 +742,23 @@ async function bootstrap(): Promise<void> {
     // Payments: every 15 min, make sure every captured payment was fulfilled (no-op without keys).
     startPaymentReconciliation();
 
+    // KYC: switch every customer's Vobiz sub-account to customer_use so Vobiz verifies each user's
+    // own KYC (older ones inherited Claritiy's master KYC). Retries every 30 min until done.
+    import('./services/VobizKycModeService')
+      .then(({ startKycModeMigration }) => startKycModeMigration())
+      .catch((err) => logger.warn('KYC: customer_use migration not started', { error: err instanceof Error ? err.message : String(err) }));
+
+    // Plans: hourly, lapse minutes at the 30-day end, warn, and release numbers 5 days after a plan
+    // ends (minutes used up or 30 days, whichever first) so carriers stop billing unused numbers.
+    import('./services/PlanLifecycleService')
+      .then(({ startPlanLifecycle }) => startPlanLifecycle())
+      .catch((err) => logger.warn('Plans: lifecycle job not started', { error: err instanceof Error ? err.message : String(err) }));
+
+    // Business numbers: every 15 min, pick up carrier review results for business KYC.
+    import('./services/PlivoComplianceService')
+      .then(({ startPlivoCompliancePoll }) => startPlivoCompliancePoll())
+      .catch((err) => logger.warn('Business KYC: poll not started', { error: err instanceof Error ? err.message : String(err) }));
+
     // Data retention (DPDP): purge expired calls and recordings every hour. It was never started before.
     DataRetentionJob.startBackgroundWorker();
 

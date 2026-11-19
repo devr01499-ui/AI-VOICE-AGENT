@@ -70,9 +70,11 @@ const ENTITLED_WITHOUT_MINUTES_TYPES = ['developer', 'professional', 'enterprise
  * True only for an account that bought a plan (or an admin) and is not suspended. Unlike
  * isUserEntitled, leftover free minutes do NOT count: phone numbers cost real carrier money.
  */
-export function hasActivePaidPlan(user: { accountType?: string | null; email?: string | null; accountStatus?: string | null }): boolean {
+export function hasActivePaidPlan(user: { accountType?: string | null; email?: string | null; accountStatus?: string | null; planExpiresAt?: Date | null }, now: Date = new Date()): boolean {
   if (!user || user.accountStatus === 'suspended') return false;
   if (user.email === ADMIN_EMAIL) return true;
+  // A plan past its 30-day validity is no longer active (plans bought earlier have no end date).
+  if (user.planExpiresAt && user.planExpiresAt.getTime() <= now.getTime()) return false;
   const type = user.accountType?.toLowerCase() || '';
   return type !== 'free' && PAID_ACCOUNT_TYPES.includes(type);
 }
@@ -85,7 +87,7 @@ export async function requirePaidPlan(req: AuthenticatedRequest, res: Response, 
       res.status(401).json({ success: false, error: 'Unauthorized: Missing user authentication context' });
       return;
     }
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { accountType: true, email: true, accountStatus: true } });
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { accountType: true, email: true, accountStatus: true, planExpiresAt: true } });
     if (!user) {
       res.status(401).json({ success: false, error: 'User not found' });
       return;
