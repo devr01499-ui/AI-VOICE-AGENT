@@ -199,7 +199,8 @@ export class CallService {
           effectiveFromNumber,
           maxDuration ?? 1800,
           input.record,
-          input.batchId
+          input.batchId,
+          userData && typeof userData === 'object' ? (userData as Record<string, unknown>) : undefined
         );
 
         const call = await CallRepository.findById(callId);

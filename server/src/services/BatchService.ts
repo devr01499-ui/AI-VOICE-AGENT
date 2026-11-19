@@ -370,7 +370,17 @@ export class BatchService {
 
     logger.info(`BatchService: Worker ${workerId} claimed batch ${batchId} for user ${userId}.`);
 
+    // Keep the lock fresh for the whole run, including the long waits for a call to end and the
+    // inter-call pause (audit #26: the heartbeat only ran at the top of the loop, so any call longer
+    // than the 60 s lock timeout let another worker claim the batch and dial in parallel).
+    const heartbeat = setInterval(() => {
+      prisma.batch.updateMany({ where: { id: batchId, lockedBy: workerId }, data: { lockedAt: new Date() } })
+        .catch((err) => logger.warn(`BatchService: lock heartbeat failed for batch ${batchId}`, { error: String(err) }));
+    }, Math.floor(LOCK_TIMEOUT_MS / 3));
+    if (typeof heartbeat.unref === 'function') heartbeat.unref();
+
     const releaseLock = async (extraData: Record<string, any> = {}) => {
+      clearInterval(heartbeat);
       try {
         await prisma.batch.updateMany({
           where: { id: batchId, lockedBy: workerId },
@@ -741,12 +751,20 @@ export class BatchService {
       const counters = await BatchService.computeBatchCounters(batchId);
       const inProgressCount = await prisma.batchRecipient.count({ where: { batchId, status: 'in_progress' } });
       const pendingCount = await prisma.batchRecipient.count({ where: { batchId, status: 'pending' } });
+      // Busy / no-answer contacts still due a retry keep the campaign running (audit #27). The 60 s
+      // recovery job re-enters this loop and dials them once their retry interval has passed.
+      const awaitingRetry = await prisma.batchRecipient.count({
+        where: { batchId, status: 'failed', attempts: { lt: maxAttempts }, lastErrorCode: { in: Array.from(TRANSIENT_CALL_ERROR_CODES) } },
+      });
 
       let finalStatus: string;
       let finalReason: string | null = null;
 
       if (inProgressCount > 0 || pendingCount > 0) {
         finalStatus = 'running';
+      } else if (awaitingRetry > 0) {
+        finalStatus = 'running';
+        finalReason = `Waiting to retry ${awaitingRetry} unanswered or busy contact(s)`;
       } else if (counters.answered > 0) {
         finalStatus = 'completed';
       } else {

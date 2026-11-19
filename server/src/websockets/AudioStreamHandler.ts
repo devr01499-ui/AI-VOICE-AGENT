@@ -12,7 +12,7 @@ import { env } from '../config/env';
 import { getWebhookSigningSecret } from '../utils/security';
 import { callOrchestrator } from '../core/orchestrator/CallOrchestrator';
 import { providerManagerSDK } from '../core/provider-sdk/provider.manager';
-import { eventBus, PROVIDER_EVENTS } from '../core/provider-sdk/provider.events';
+import { eventBus, PROVIDER_EVENTS, type ProviderEventType } from '../core/provider-sdk/provider.events';
 import type { VobizStreamEvent } from '../types';
 import { callTimingTracker } from '../utils/CallTimingTracker';
 import { buildGreetingText, getGreetingTextForLanguage, resolveGreeting } from '../utils/greetingUtils';
@@ -173,7 +173,28 @@ export class AudioStreamHandler {
         // Ignore close errors during shutdown
       }
       this.connections.delete(callId);
+      this.releaseCallResources(callId);
     }
+  }
+
+  private readonly callEventHandlers = new Map<string, Array<[ProviderEventType, (payload: any) => void]>>();
+  private readonly recoveringCalls = new Set<string>();
+
+  /** Subscribes a handler that belongs to one call, so it can be removed when the call ends (audit #25). */
+  private subscribeForCall(callId: string, event: ProviderEventType, handler: (payload: any) => void): void {
+    eventBus.subscribe(event, handler);
+    const list = this.callEventHandlers.get(callId) || [];
+    list.push([event, handler]);
+    this.callEventHandlers.set(callId, list);
+  }
+
+  /** Removes a call's event-bus handlers and per-call bookkeeping (audit #25, #42). Idempotent. */
+  private releaseCallResources(callId: string): void {
+    for (const [event, handler] of this.callEventHandlers.get(callId) || []) {
+      eventBus.unsubscribe(event, handler);
+    }
+    this.callEventHandlers.delete(callId);
+    this.reconnectAttempts.delete(callId);
   }
 
   // ─── Private: Connection Handling ───────────────
@@ -629,14 +650,14 @@ export class AudioStreamHandler {
           logger.info('AudioStreamHandler: audio response callback registered via startVoiceSession', { callId, sessionId });
 
           // Register speech-started interruption clearance
-          eventBus.subscribe(PROVIDER_EVENTS.AI_STARTED_SPEAKING, (payload) => {
+          this.subscribeForCall(callId, PROVIDER_EVENTS.AI_STARTED_SPEAKING, (payload) => {
             if (payload.callId === callId) {
               this.clearAudio(callId);
             }
           });
 
           // Register AI-stopped / interrupted speech (definitive barge-in trigger confirmed by Gemini or error fallback)
-          eventBus.subscribe(PROVIDER_EVENTS.AI_STOPPED_SPEAKING, (payload) => {
+          this.subscribeForCall(callId, PROVIDER_EVENTS.AI_STOPPED_SPEAKING, (payload) => {
             if (payload.callId === callId && (payload as any).interrupted) {
               logger.info('AudioStreamHandler: Gemini confirmed speech interruption (barge-in), clearing outbound audio queue', { callId });
               this.clearAudio(callId);
@@ -647,7 +668,7 @@ export class AudioStreamHandler {
           });
 
           // Register explicit engine error event for instant fallback on transport disconnect
-          eventBus.subscribe(PROVIDER_EVENTS.ERROR_OCCURRED, (payload) => {
+          this.subscribeForCall(callId, PROVIDER_EVENTS.ERROR_OCCURRED, (payload) => {
             if (payload.callId === callId) {
               this.handleProviderRuntimeError(callId, (payload as any).reason || 'Provider error');
             }
@@ -737,6 +758,7 @@ export class AudioStreamHandler {
 
           // ✅ Clean up connection reference
           this.connections.delete(callId);
+          this.releaseCallResources(callId);
 
           // ✅ Terminate carrier call to prevent stranded PSTN leg
           import('../services/CallService').then(({ CallService }) => {
@@ -1014,6 +1036,19 @@ export class AudioStreamHandler {
    * Synthesizes and plays a brief soft fallback tone over outbound audio before gracefully closing the call on mid-call runtime error.
    */
   private async handleProviderRuntimeError(callId: string, errorReason: string): Promise<void> {
+    // One recovery at a time per call, and none after the call has closed (audit #22: the same error
+    // arrived as AI_STOPPED_SPEAKING{error} and ERROR_OCCURRED, plus ws 'error' and 'close', so up to
+    // four recoveries ran at once and a late reconnect revived a call that had already ended).
+    if (this.recoveringCalls.has(callId) || !this.connections.has(callId)) return;
+    this.recoveringCalls.add(callId);
+    try {
+      await this.recoverFromProviderError(callId, errorReason);
+    } finally {
+      this.recoveringCalls.delete(callId);
+    }
+  }
+
+  private async recoverFromProviderError(callId: string, errorReason: string): Promise<void> {
     const classification = classifyProviderError(errorReason);
     const retries = this.reconnectAttempts.get(callId) || 0;
     const MAX_RETRIES = 2;
@@ -1132,6 +1167,7 @@ export class AudioStreamHandler {
 
 
     this.connections.delete(callId);
+    this.releaseCallResources(callId);
 
     callOrchestrator.endCallSession(callId, 'ws_closed', `ws close code=${code}`).catch((err) => {
       logger.error('AudioStreamHandler: cleanup on close failed', {

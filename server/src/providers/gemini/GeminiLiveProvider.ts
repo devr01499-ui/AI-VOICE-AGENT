@@ -651,6 +651,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
       const systemInstructionString = buildFinalSystemInstruction(agentObj, {
         callId: config.callId,
+        contactDetails: callData?.userData,
         languageMode: languageModeVal,
         inlinedKbFacts,
         hasKbDocs,

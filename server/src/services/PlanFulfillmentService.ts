@@ -19,6 +19,13 @@ export interface FulfillPlanPurchaseParams {
  * Authoritative single code path for fulfilling plan purchases.
  * Shared by Razorpay Webhooks and the client POST /api/v2/billing/verify-plan route.
  */
+/** Tier order used so a purchase never downgrades an account. Unknown/custom tiers keep the higher known one. */
+const ACCOUNT_TIER_ORDER = ['free', 'trial', 'starter', 'developer', 'professional', 'growth', 'enterprise', 'scale', 'admin'];
+export function higherAccountTier(current: string | null | undefined, purchased: string): string {
+  const rank = (t: string | null | undefined) => ACCOUNT_TIER_ORDER.indexOf(String(t || '').toLowerCase());
+  return rank(current) > rank(purchased) ? String(current) : purchased;
+}
+
 export async function fulfillPlanPurchase(params: FulfillPlanPurchaseParams) {
   const { userId, orderId, paymentId, planKey, source, staffId, razorpayLinkId, amountOverrideInr } = params;
 
@@ -140,10 +147,17 @@ export async function fulfillPlanPurchase(params: FulfillPlanPurchaseParams) {
       tx
     );
 
-    // Update User Account Type
+    // Account tier: a purchase never lowers it (audit #12: an Enterprise customer buying the Rs 1 trial
+    // was downgraded to 'trial'). One phone number per plan purchase (audit #5): a new plan grants a
+    // fresh number slot only when the account holds no number.
+    const current = await tx.user.findUnique({ where: { id: userId }, select: { accountType: true } });
+    const heldNumbers = await tx.phoneNumber.count({ where: { userId } });
     await tx.user.update({
       where: { id: userId },
-      data: { accountType },
+      data: {
+        accountType: higherAccountTier(current?.accountType, accountType),
+        ...(heldNumbers === 0 ? { numberLocked: false } : {}),
+      },
     });
 
     // Generate GST Invoice

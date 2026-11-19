@@ -253,7 +253,8 @@ export class CallOrchestrator extends EventEmitter {
     fromPhoneNumber: string,
     maxDuration: number,
     isRecordingEnabled?: boolean,
-    batchId?: string
+    batchId?: string,
+    userData?: Record<string, unknown>
   ): Promise<string> {
     // 1. Create Call database records
     const call = await CallRepository.create({
@@ -262,7 +263,8 @@ export class CallOrchestrator extends EventEmitter {
       batchId,
       recipientPhoneNumber: phoneNumber,
       fromPhoneNumber,
-      userData: '{}',
+      // Per-call details (campaign contact fields) are stored and given to the agent (audit #144).
+      userData: JSON.stringify(userData && typeof userData === 'object' && !Array.isArray(userData) ? userData : {}),
       maxDuration,
     });
 
@@ -358,9 +360,12 @@ export class CallOrchestrator extends EventEmitter {
     callId: string,
     agentId: string,
     phoneNumber: string,
-    onAudioDelta?: (audioBase64: string) => void
+    onAudioDelta?: (audioBase64: string) => void,
+    opts: { isReconnect?: boolean } = {}
   ): Promise<string> {
-    logger.info('CallOrchestrator: startVoiceSession', { callId, agentId });
+    logger.info('CallOrchestrator: startVoiceSession', { callId, agentId, isReconnect: Boolean(opts.isReconnect) });
+    // On a reconnect the call is already live: keep its state (audit #24).
+    const previousSession = opts.isReconnect ? this.activeCalls.get(callId) : undefined;
 
     let agentConfig: AgentConfig;
     let activeAgent: any = null;
@@ -618,7 +623,14 @@ export class CallOrchestrator extends EventEmitter {
     }
     const callSession = new CallSession(callId, agentId, phoneNumber, activeAgent);
     callSession.isRecordingEnabled = agentConfig.settings?.isRecordingEnabled || false;
-    callSession.conversationState = new ConversationState();
+    callSession.conversationState = previousSession?.conversationState || new ConversationState();
+    if (previousSession) {
+      // The caller is mid-conversation: keep listening (the greeting gate only applies to a new call),
+      // and keep the original start (the balance monitor measures elapsed time from it).
+      callSession.inboundAudioAllowed = true;
+      callSession.startedAt = previousSession.startedAt;
+      callSession.status = previousSession.status;
+    }
     this.activeCalls.set(callId, callSession);
 
     const parsedAgentConfig = typeof (activeAgent as any)?.agentConfig === 'string'
@@ -827,6 +839,14 @@ export class CallOrchestrator extends EventEmitter {
     logger.info('CallOrchestrator: starting pipeline execution and awaiting connection setup', { callId });
     await pipecatRunner.start();
     logger.info('CallOrchestrator: pipeline execution started successfully', { callId });
+
+    const sessionIdForReconnect = `pipecat-sess-${Date.now()}`;
+    if (opts.isReconnect) {
+      // Same call continues: keep the original start time (billing), the running max-duration and
+      // silence timers, and do not send call_started again.
+      logger.info('CallOrchestrator: voice session resumed on the existing call', { callId });
+      return sessionIdForReconnect;
+    }
 
     const startedAt = new Date();
     await CallRepository.updateStatus(callId, 'in_progress', { startTime: startedAt });
@@ -1039,15 +1059,19 @@ export class CallOrchestrator extends EventEmitter {
       session.agentId,
       session.recipientPhoneNumber,
       (audioBase64: string) => {
+        // One delivery path only (audit #23: the sink AND the 'outboundAudio' event both sent every
+        // frame to the caller, so audio played twice after a reconnect).
         if (onAudioChunk) {
           try {
             onAudioChunk(audioBase64);
           } catch (sinkErr) {
             logger.error('CallOrchestrator: onAudioChunk sink error during reconnect', { callId, error: sinkErr });
           }
+          return;
         }
         this.emit('outboundAudio', { callId, audio: audioBase64 });
-      }
+      },
+      { isReconnect: true }
     );
 
     session.providerSessionId = sessionId;

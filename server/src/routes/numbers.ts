@@ -431,10 +431,25 @@ router.post('/purchase', requireAuth, requireEditor, requirePaidPlan, sensitiveO
       return;
     }
 
-    // Price changed or idempotency conflict — safe user-facing messages
+    // Payment taken but no number: refund automatically, or alert a person (audit #4).
+    const refundPaidButUnprovisioned = async (reason: string) => {
+      await releaseNumberSlot(userId, reason);
+      const refund = await billingService.refundOrder(paymentId, paid.amountPaise);
+      if (refund.success) {
+        await prisma.paymentTransaction.updateMany({ where: { paymentId, userId }, data: { status: 'refunded', refundedAmount: paid.amountInr } }).catch(() => {});
+      } else {
+        logger.error('[ADMIN_ALERT][NUMBERS] paid number purchase failed and the automatic refund failed — refund manually', { userId, paymentId, orderId, reason });
+      }
+      return refund.success;
+    };
+
     if (errorMessage.includes('Price changed')) {
-      await releaseNumberSlot(userId, 'price_changed');
-      res.status(409).json({ success: false, error: errorMessage });
+      const refunded = await refundPaidButUnprovisioned('price_changed');
+      res.status(409).json({
+        success: false,
+        error: `${errorMessage} ${refunded ? 'Your payment has been refunded.' : 'Our team will refund your payment.'}`,
+        refunded,
+      });
       return;
     }
     if (errorMessage.includes('already in progress')) {
@@ -446,9 +461,15 @@ router.post('/purchase', requireAuth, requireEditor, requirePaidPlan, sensitiveO
       return;
     }
 
-    await releaseNumberSlot(userId, 'purchase_failed');
-    logger.error('Numbers: purchase failed', { userId, error: errorMessage });
-    res.status(500).json({ success: false, error: 'Purchase processing failed. Please contact support.' });
+    logger.error('Numbers: purchase failed after payment', { userId, orderId, error: errorMessage });
+    const refunded = await refundPaidButUnprovisioned('purchase_failed');
+    res.status(500).json({
+      success: false,
+      error: refunded
+        ? 'The number could not be set up. Your payment has been refunded automatically. Please try another number.'
+        : 'The number could not be set up. Our team has been alerted and will refund your payment.',
+      refunded,
+    });
   }
 });
 
