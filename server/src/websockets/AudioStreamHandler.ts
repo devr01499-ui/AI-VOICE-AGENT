@@ -659,10 +659,15 @@ export class AudioStreamHandler {
             where: { id: call.agentId },
             select: { name: true, languageMode: true, firstMessage: true, agentConfig: true, direction: true }
           });
+          // The OTHER party: on inbound calls recipientPhoneNumber is our own number (audit #39: an
+          // opt-out then never reached the caller's DNC entry).
+          const otherParty = String(call.callDirection || '').toLowerCase() === 'inbound'
+            ? (call.fromPhoneNumber || call.recipientPhoneNumber)
+            : call.recipientPhoneNumber;
           const sessionId = await orchestrator.attachPrewarmedVoiceSession(
             callId,
             call.agentId,
-            call.recipientPhoneNumber,
+            otherParty,
             (audioBase64: string) => {
               this.sendAudioToVobiz(callId, audioBase64);
             }

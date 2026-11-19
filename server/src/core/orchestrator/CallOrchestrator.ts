@@ -720,16 +720,22 @@ export class CallOrchestrator extends EventEmitter {
               try {
                 const cleanDigits = phoneNumber.replace(/\D/g, '');
                 const variants = Array.from(new Set([phoneNumber, `+${cleanDigits}`, cleanDigits]));
-                await prisma.contact.updateMany({
+                const optOutReason = parsedArgs.reason ? String(parsedArgs.reason) : 'Opt-out requested during call';
+                const marked = await prisma.contact.updateMany({
                   where: {
                     userId: activeAgent.userId,
                     phoneNumber: { in: variants }
                   },
-                  data: {
-                    optedOutAt: new Date(),
-                    optOutReason: parsedArgs.reason ? String(parsedArgs.reason) : 'Opt-out requested during call'
-                  }
+                  data: { optedOutAt: new Date(), optOutReason }
                 });
+                // Not yet a contact: add one on the do-not-call list, so the opt-out is never lost.
+                if (marked.count === 0) {
+                  await prisma.contact.upsert({
+                    where: { userId_phoneNumber: { userId: activeAgent.userId, phoneNumber } },
+                    create: { userId: activeAgent.userId, phoneNumber, optedOutAt: new Date(), optOutReason },
+                    update: { optedOutAt: new Date(), optOutReason },
+                  });
+                }
                 logger.info('Flow Engine: Successfully marked contact optedOutAt in compliance with UCC regulations', { callId, phoneNumber });
               } catch (optErr) {
                 logger.error('Flow Engine: Error updating contact opt-out state', { callId, phoneNumber, error: String(optErr) });
@@ -860,7 +866,16 @@ export class CallOrchestrator extends EventEmitter {
 
     // Start pipeline execution and await connection setup to complete
     logger.info('CallOrchestrator: starting pipeline execution and awaiting connection setup', { callId });
-    await pipecatRunner.start();
+    try {
+      await pipecatRunner.start();
+    } catch (startErr) {
+      // Never leave a dead session behind (audit #33: a later attach reused it and the caller heard
+      // silence). Only remove the entry if it is still this attempt's session.
+      if (this.activeCalls.get(callId) === callSession) this.activeCalls.delete(callId);
+      this.disposeFarewellWatchdog(callId);
+      pipecatRunner.stop().catch(() => {});
+      throw startErr;
+    }
     logger.info('CallOrchestrator: pipeline execution started successfully', { callId });
 
     const sessionIdForReconnect = `pipecat-sess-${Date.now()}`;
@@ -918,6 +933,14 @@ export class CallOrchestrator extends EventEmitter {
         logger.info('CallOrchestrator: prewarmed session expired TTL, cleaning up', { callId });
         this.prewarmedSessions.delete(callId);
         pw.pipecatRunner?.stop().catch(() => {});
+        // The session the prewarm created must go too, with its timers (audit #34).
+        const live = this.activeCalls.get(callId);
+        if (live && (!pw.pipecatRunner || live.pipecatRunner === pw.pipecatRunner)) {
+          live.pipecatRunner?.stop().catch(() => {}); // still starting: do not leak the model session
+          this.activeCalls.delete(callId);
+          this.disposeFarewellWatchdog(callId);
+          this.clearCallTimers(callId);
+        }
       }
     }, 15000);
 
