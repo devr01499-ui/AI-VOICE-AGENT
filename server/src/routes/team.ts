@@ -10,7 +10,8 @@ import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
 const router = Router();
 
 const inviteSchema = z.object({
-  email: z.string().email(),
+  // Trimmed and lower-cased before validation (audit #50).
+  email: z.preprocess((v) => (typeof v === 'string' ? v.trim().toLowerCase() : v), z.string().email()),
   role: z.enum(['admin', 'developer', 'analyst', 'viewer']).optional().default('viewer'),
 });
 
@@ -50,9 +51,27 @@ router.post('/invite', requireAuth, sensitiveOperationsLimiter, validateBody(inv
     if (!ownerId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
     if (!canManageTeam(req)) { res.status(403).json({ success: false, error: 'Only workspace admins can invite members' }); return; }
 
-    const userToInvite = await prisma.user.findUnique({ where: { email } });
+    // Emails are matched trimmed and case-insensitively (audit #50: 'Asha@Example.com' was 'not found').
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    const userToInvite = await prisma.user.findFirst({ where: { email: { equals: cleanEmail, mode: 'insensitive' } } });
     if (!userToInvite) { res.status(404).json({ success: false, error: 'User not found. They must sign up to Claritiy Voice first.' }); return; }
     if (userToInvite.id === ownerId) { res.status(400).json({ success: false, error: 'You cannot invite yourself' }); return; }
+
+    // One workspace per person (audit #49): joining a team switches the person's dashboard to that
+    // workspace, so someone who already belongs to another team, or runs their own workspace (a paid
+    // plan, their own agents, numbers or members), cannot be pulled in and lose access to their own.
+    const otherTeam = await prisma.teamMember.findFirst({ where: { memberId: userToInvite.id, NOT: { ownerId } }, select: { id: true } });
+    if (otherTeam) { res.status(409).json({ success: false, code: 'ALREADY_IN_TEAM', error: 'This person already belongs to another workspace.' }); return; }
+    const [ownAgents, ownNumbers, ownMembers] = await Promise.all([
+      prisma.agent.count({ where: { userId: userToInvite.id } }),
+      prisma.phoneNumber.count({ where: { userId: userToInvite.id } }),
+      prisma.teamMember.count({ where: { ownerId: userToInvite.id } }),
+    ]);
+    const ownsPaidPlan = !['free', '', 'trial'].includes(String(userToInvite.accountType || 'free').toLowerCase());
+    if (ownAgents > 0 || ownNumbers > 0 || ownMembers > 0 || ownsPaidPlan) {
+      res.status(409).json({ success: false, code: 'HAS_OWN_WORKSPACE', error: 'This person already runs their own workspace, so they cannot join yours. Ask them to use a different email for your team.' });
+      return;
+    }
 
     const existing = await prisma.teamMember.findUnique({ where: { ownerId_memberId: { ownerId, memberId: userToInvite.id } } });
     if (existing) { res.status(400).json({ success: false, error: 'User is already a member of this workspace' }); return; }
@@ -69,7 +88,7 @@ router.post('/invite', requireAuth, sensitiveOperationsLimiter, validateBody(inv
       actorUserId: req.userId!,
       action: 'team.member.invited',
       targetId: userToInvite.id,
-      metadata: { email, role: assignedRole }
+      metadata: { email: cleanEmail, role: assignedRole }
     });
 
     res.status(201).json({ success: true, data: newMember });

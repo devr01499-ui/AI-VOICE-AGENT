@@ -115,7 +115,7 @@ router.get('/status', requireAuth, async (req, res, next) => {
  */
 router.get('/search', requireAuth, async (req, res, next) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).effectiveWorkspaceId || (req as any).userId; // numbers belong to the workspace (audit #11, #89)
 
     const { country = 'IN', type = 'local', region, page = '1', per_page = '20' } = req.query;
 
@@ -175,7 +175,7 @@ router.get('/search', requireAuth, async (req, res, next) => {
  * Body: { baseCost, setupFee?, currency? }
  */
 router.post('/create-order', requireAuth, requireEditor, requirePaidPlan, sensitiveOperationsLimiter, async (req, res, next) => {
-  const userId = (req as any).userId;
+  const userId = (req as any).effectiveWorkspaceId || (req as any).userId; // numbers belong to the workspace (audit #11, #89)
   try {
     // Gate on KYC: check every required KycDocument is status: 'verified' before allowing order creation
     const kycCheck = await checkRequiredKycDocumentsVerified(userId);
@@ -233,7 +233,7 @@ router.post('/create-order', requireAuth, requireEditor, requirePaidPlan, sensit
  *   - Raw error strings from Vobiz are never returned to the client.
  */
 router.post('/purchase', requireAuth, requireEditor, requirePaidPlan, sensitiveOperationsLimiter, async (req, res, next) => {
-  const userId = (req as any).userId;
+  const userId = (req as any).effectiveWorkspaceId || (req as any).userId; // numbers belong to the workspace (audit #11, #89)
   // expectedPrice from the browser is ignored: the price is the one Razorpay confirms was paid.
   const { vobizNumberId, orderId, paymentId, signature, agentId } = req.body || {};
 
@@ -243,6 +243,29 @@ router.post('/purchase', requireAuth, requireEditor, requirePaidPlan, sensitiveO
     res.status(401).json({ success: false, error: 'User not found' });
     return;
   }
+  // Idempotency first (audit #15): a repeat of a purchase that already succeeded answers with that
+  // number, instead of the "already claimed" lock message the first purchase itself set.
+  const existingNumber = vobizNumberId ? await prisma.phoneNumber.findFirst({
+    where: { userId, vobizNumberId: String(vobizNumberId) },
+  }) : null;
+  if (existingNumber) {
+    logger.info('[NUMBERS_PURCHASE] Idempotent request — number already provisioned', { userId, vobizNumberId, phoneNumber: existingNumber.phoneNumber });
+    res.json({
+      success: true,
+      data: {
+        message: 'Number already purchased and assigned.',
+        phoneNumberId: existingNumber.id,
+        number: existingNumber.phoneNumber,
+        status: existingNumber.aadhaarRequired ? 'KYC Required' : 'Active',
+        nextBillingDate: existingNumber.nextBillingDate,
+        monthlyCost: existingNumber.monthlyCost,
+        currency: existingNumber.currency,
+        numberLocked: true,
+      }
+    });
+    return;
+  }
+
   if (user.numberLocked) {
     res.status(403).json({
       success: false,
@@ -267,28 +290,6 @@ router.post('/purchase', requireAuth, requireEditor, requirePaidPlan, sensitiveO
 
   if (!vobizNumberId || !orderId || !paymentId || !signature) {
     res.status(400).json({ success: false, error: 'Missing required purchase fields.' });
-    return;
-  }
-
-  // Idempotency check: Return existing record if this vobiz number was already provisioned for this user
-  const existingNumber = await prisma.phoneNumber.findFirst({
-    where: { userId, vobizNumberId },
-  });
-  if (existingNumber) {
-    logger.info('[NUMBERS_PURCHASE] Idempotent request — number already provisioned', { userId, vobizNumberId, phoneNumber: existingNumber.phoneNumber });
-    res.json({
-      success: true,
-      data: {
-        message: 'Number already purchased and assigned.',
-        phoneNumberId: existingNumber.id,
-        number: existingNumber.phoneNumber,
-        status: existingNumber.aadhaarRequired ? 'KYC Required' : 'Active',
-        nextBillingDate: existingNumber.nextBillingDate,
-        monthlyCost: existingNumber.monthlyCost,
-        currency: existingNumber.currency,
-        numberLocked: true,
-      }
-    });
     return;
   }
 
@@ -481,7 +482,7 @@ router.post('/purchase', requireAuth, requireEditor, requirePaidPlan, sensitiveO
  * Body: { vobizNumberId, agentId? }
  */
 router.post('/claim', requireAuth, requireEditor, requirePaidPlan, sensitiveOperationsLimiter, async (req, res, next) => {
-  const userId = (req as any).userId;
+  const userId = (req as any).effectiveWorkspaceId || (req as any).userId; // numbers belong to the workspace (audit #11, #89)
   const { vobizNumberId, agentId } = req.body;
 
   if (!vobizNumberId) {
@@ -658,7 +659,7 @@ router.post('/claim', requireAuth, requireEditor, requirePaidPlan, sensitiveOper
  */
 router.delete('/:id', requireAuth, requireEditor, sensitiveOperationsLimiter, async (req, res, next) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).effectiveWorkspaceId || (req as any).userId; // numbers belong to the workspace (audit #11, #89)
     const id = req.params.id as string;
 
     if (!id) {
@@ -911,7 +912,7 @@ export function syncKycInBackground(userId: string): boolean {
 
 router.get('/calling-config', requireAuth, async (req, res, next) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).effectiveWorkspaceId || (req as any).userId; // numbers belong to the workspace (audit #11, #89)
     if (!userId) {
       res.status(401).json({ success: false, error: 'Unauthorized' });
       return;
@@ -966,7 +967,7 @@ router.get('/calling-config', requireAuth, async (req, res, next) => {
  */
 router.post('/:id/calling-config', requireAuth, requireEditor, sensitiveOperationsLimiter, async (req, res, next) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).effectiveWorkspaceId || (req as any).userId; // numbers belong to the workspace (audit #11, #89)
     const id = req.params.id as string;
     const { assignedAgentId, inboundAgentId, inboundEnabled, businessHours } = req.body;
 

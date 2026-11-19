@@ -118,8 +118,18 @@ export class BillingService {
   }
 
   /** Order for a subscription plan. Price and plan come from the server catalogue. */
+  /** A suspended or restricted account cannot start a new purchase (audit #21). */
+  private async assertAccountCanBuy(userId: string): Promise<void> {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { accountStatus: true } });
+    if (!user) throw new PaymentVerificationError(401, 'Unauthorized', 'UNAUTHORIZED');
+    if (user.accountStatus === 'suspended' || user.accountStatus === 'restricted') {
+      throw new PaymentVerificationError(403, 'Your account is restricted, so new purchases are paused. Please contact support.', 'ACCOUNT_RESTRICTED');
+    }
+  }
+
   async createPlanPurchaseOrder(planInput: string, userId: string) {
     if (!userId) throw new PaymentVerificationError(401, 'Unauthorized', 'UNAUTHORIZED');
+    await this.assertAccountCanBuy(userId);
     const planConfig = typeof planInput === 'string' ? getPlanConfig(planInput) : null;
     if (!planConfig) throw new PaymentVerificationError(400, 'Invalid or unknown plan name', 'PLAN_UNKNOWN');
     const planKey = Object.keys(PLAN_CONFIG).find((k) => PLAN_CONFIG[k] === planConfig) || planConfig.name.toLowerCase();
@@ -143,6 +153,7 @@ export class BillingService {
   /** Order for a paid phone number. The amount is the server's inventory price (never the browser's). */
   async createNumberPurchaseOrder(userId: string, amountInr: number, ref: { provider: 'vobiz' | 'plivo'; numberRef: string }) {
     if (!userId) throw new PaymentVerificationError(401, 'Unauthorized', 'UNAUTHORIZED');
+    await this.assertAccountCanBuy(userId);
     if (!Number.isFinite(amountInr) || amountInr <= 0) {
       throw new PaymentVerificationError(400, 'This number has no valid price. Please choose another number.', 'PAYMENT_AMOUNT_INVALID');
     }
@@ -280,7 +291,7 @@ export class BillingService {
       const claimed = getPlanConfig(String(params.clientPlan));
       if (!claimed || claimed !== planConfig) {
         logger.error('BillingService: plan in request does not match the paid order', { userId: params.userId, orderId: params.orderId, clientPlan: params.clientPlan, orderPlan: planKey });
-        throw new PaymentVerificationError(400, 'Payment order amount does not match requested plan price.', 'PLAN_MISMATCH');
+        throw new PaymentVerificationError(400, 'This payment was made for a different plan. Please contact support if money was deducted.', 'PLAN_MISMATCH');
       }
     }
     if (verified.amountPaise !== Math.round(planConfig.price * 100)) {

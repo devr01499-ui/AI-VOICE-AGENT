@@ -56,9 +56,11 @@ export function mountUserRoutes(app: { use: (...args: any[]) => unknown }, authM
  * 
  * Saves the user's custom Gemini Live API key (BYOK mode) in the User table.
  */
-router.post('/billing-config', requireAuth, sensitiveOperationsLimiter, async (req: AuthenticatedRequest, res, next) => {
+router.post('/billing-config', requireAuth, requireRole(['admin']), sensitiveOperationsLimiter, async (req: AuthenticatedRequest, res, next) => {
   try {
-    const userId = req.userId;
+    // The key belongs to the WORKSPACE, which is where calls look for it (audit #61: a member's key
+    // was saved on their own row and never used). Workspace owners and admins only.
+    const userId = req.effectiveWorkspaceId || req.userId;
     if (!userId) {
       res.status(401).json({ success: false, error: 'Unauthorized' });
       return;
@@ -97,7 +99,7 @@ router.post('/billing-config', requireAuth, sensitiveOperationsLimiter, async (r
  */
 router.post('/verify-gemini-key', requireAuth, sensitiveOperationsLimiter, async (req: AuthenticatedRequest, res, next) => {
   try {
-    const userId = req.userId;
+    const userId = req.effectiveWorkspaceId || req.userId;
     if (!userId) {
       res.status(401).json({ success: false, error: 'Unauthorized' });
       return;

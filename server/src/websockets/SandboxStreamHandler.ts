@@ -65,6 +65,23 @@ export class SandboxStreamHandler {
     };
     this.connections.set(connectionId, session);
 
+    // Close handling is registered BEFORE the async setup (audit #37: closing the tab during setup
+    // happened before the listener existed, so the model session kept running). A session that
+    // finishes setting up after the tab closed is closed straight away below.
+    let clientClosed = false;
+    ws.on('close', async () => {
+      clientClosed = true;
+      logger.info('SandboxStreamHandler: Client connection closed', { connectionId });
+      if (session.providerSessionId) {
+        try {
+          await this.provider.closeSession(session.providerSessionId);
+        } catch (err: any) {
+          logger.error('SandboxStreamHandler: Error closing provider session during cleanup', { connectionId, error: err.message });
+        }
+      }
+      this.connections.delete(connectionId);
+    });
+
     // ── Register message handler IMMEDIATELY (before any async await) ──────
     // This prevents audio chunks sent during the setup latency window from being lost.
     ws.on('message', (message: WebSocket.RawData) => {
@@ -384,6 +401,11 @@ export class SandboxStreamHandler {
       logger.info('SandboxStreamHandler: Creating live provider session', { connectionId, agentId, voice: config.voice });
       const result = await this.provider.createSession(config, callbacks);
       session.providerSessionId = result.sessionId;
+      if (clientClosed || ws.readyState !== WebSocket.OPEN) {
+        await this.provider.closeSession(result.sessionId).catch(() => {});
+        this.connections.delete(connectionId);
+        return;
+      }
 
       logger.info('SandboxStreamHandler: Session handshake confirmed. Sending greeting.', { connectionId });
       
@@ -417,22 +439,13 @@ export class SandboxStreamHandler {
 
     } catch (err: any) {
       logger.error('SandboxStreamHandler: Failed to initialize session', { connectionId, error: err.message });
-      ws.send(JSON.stringify({ event: 'error', message: err.message }));
-      ws.close(1011, 'Initialization failed');
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ event: 'error', message: err.message }));
+        ws.close(1011, 'Initialization failed');
+      }
       this.connections.delete(connectionId);
       return;
     }
 
-    ws.on('close', async () => {
-      logger.info('SandboxStreamHandler: Client connection closed', { connectionId });
-      if (session.providerSessionId) {
-        try {
-          await this.provider.closeSession(session.providerSessionId);
-        } catch (err: any) {
-          logger.error('SandboxStreamHandler: Error closing provider session during cleanup', { connectionId, error: err.message });
-        }
-      }
-      this.connections.delete(connectionId);
-    });
   }
 }

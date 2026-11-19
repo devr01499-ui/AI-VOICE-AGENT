@@ -399,6 +399,25 @@ ${recXml}  <Stream streamTimeout="1800" keepCallAlive="true" bidirectional="true
   }
 
   /**
+   * Stores the carrier's talk time while the call is still open, which is what billing uses. Once the
+   * call is finalised and billed, a late hangup webhook no longer rewrites the duration (audit #40:
+   * the shown duration then differed from the billed minutes); a different minute count is logged
+   * for reconciliation instead.
+   */
+  static async recordCarrierDuration(callId: string, duration: number): Promise<void> {
+    if (!(duration > 0)) return;
+    const FINAL = ['completed', 'failed', 'no_answer', 'busy', 'cancelled', 'canceled', 'timeout'];
+    const res = await prisma.call.updateMany({ where: { id: callId, status: { notIn: FINAL } }, data: { durationSeconds: duration } }).catch(() => ({ count: 0 }));
+    if (res.count > 0) return;
+    const row = await prisma.call.findUnique({ where: { id: callId }, select: { durationSeconds: true } }).catch(() => null);
+    const billedMinutes = Math.ceil((row?.durationSeconds || 0) / 60);
+    const carrierMinutes = Math.ceil(duration / 60);
+    if (row && billedMinutes !== carrierMinutes) {
+      logger.warn('[BILLING_RECONCILE] carrier duration differs from the billed duration of a finished call', { callId, billedSeconds: row.durationSeconds, carrierSeconds: duration });
+    }
+  }
+
+  /**
    * Which call a Plivo webhook refers to. A request authenticated by the per-call URL token is bound
    * to that call only (audit #28); otherwise (Plivo header signature) any of the carrier's ids match.
    */
@@ -581,12 +600,7 @@ ${recXml}  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/
 
       if (callSession) {
         const callId = callSession.id;
-        if (duration > 0) {
-          await prisma.call.update({
-            where: { id: callId },
-            data: { durationSeconds: duration },
-          }).catch(() => {});
-        }
+        await CallController.recordCarrierDuration(callId, duration);
 
         // Cause before source (audit #30): busy / no-answer / rejected must stay retryable.
         const { reason: mappedReason, endedBy } = mapCarrierHangup(hangupCause, hangupSource, duration);
@@ -681,12 +695,7 @@ ${recXml}  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/
 
       logger.info('CallController: Vobiz hangup webhook', { callId, duration, hangupCause, hangupSource, body: req.body });
 
-      if (duration > 0) {
-        await prisma.call.update({
-          where: { id: callId },
-          data: { durationSeconds: duration }
-        });
-      }
+      await CallController.recordCarrierDuration(callId, duration);
 
       // Cause before source (audit #30): busy / no-answer / rejected must stay retryable.
       const { reason: mappedReason, endedBy } = mapCarrierHangup(hangupCause, hangupSource, duration);

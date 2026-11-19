@@ -15,6 +15,23 @@ import { AnalysisWorker } from '../src/workers/AnalysisWorker';
 import { AnalysisService } from '../src/services/AnalysisService';
 import { randomUUID } from 'crypto';
 
+/**
+ * The worker takes the oldest pending jobs across the WHOLE queue, and other suites share this test
+ * database, so one batch may not reach this suite's jobs. Run batches until the condition holds
+ * (or the queue has nothing more to give).
+ */
+async function drainUntil(check: () => Promise<boolean>, maxRounds = 25): Promise<number> {
+  let processed = 0;
+  for (let i = 0; i < maxRounds; i++) {
+    if (await check()) break;
+    const n = await AnalysisWorker.processNextBatch(5);
+    processed += n;
+    if (n === 0) break;
+  }
+  return processed;
+}
+const jobStatus = async (callId: string) => (await prisma.analysisJob.findUnique({ where: { callId } }))?.status;
+
 interface TestStats {
   passed: number;
   failed: number;
@@ -149,7 +166,7 @@ async function runM1Suite() {
     await CallFinalizer.onCallFinalized(shortCallId);
 
     // Run a worker batch cycle to process the queued jobs
-    const processedCount = await AnalysisWorker.processNextBatch(5);
+    const processedCount = await drainUntil(async () => (await Promise.all([plivoCallId, vobizCallId, shortCallId].map(jobStatus))).every((st) => st === 'completed'));
     assert(processedCount >= 3, `Worker claimed and processed at least 3 jobs (actual: ${processedCount})`);
 
     // Verify CallResult rows were generated
@@ -186,7 +203,7 @@ async function runM1Suite() {
     };
 
     // Process batch with forced failure
-    await AnalysisWorker.processNextBatch(5);
+    await drainUntil(async () => ((await prisma.analysisJob.findUnique({ where: { callId: failingCallId } }))?.attempts ?? 0) >= 1);
 
     const failingJob = await prisma.analysisJob.findUnique({ where: { callId: failingCallId } });
     assert(failingJob !== null && failingJob.status === 'pending', 'Failed job transitioned back to pending status for retry');
@@ -202,7 +219,7 @@ async function runM1Suite() {
     );
 
     // Process batch again (recovery)
-    const recoveredBatch = await AnalysisWorker.processNextBatch(5);
+    const recoveredBatch = await drainUntil(async () => (await jobStatus(failingCallId)) === 'completed');
     assert(recoveredBatch >= 1, 'Worker successfully claimed and recovered the previously failed job');
 
     const recoveredJob = await prisma.analysisJob.findUnique({ where: { callId: failingCallId } });
@@ -236,7 +253,7 @@ async function runM1Suite() {
     );
 
     // Trigger batch on a new worker cycle
-    const staleClaimed = await AnalysisWorker.processNextBatch(5);
+    const staleClaimed = await drainUntil(async () => (await jobStatus(staleCallId)) === 'completed');
     assert(staleClaimed >= 1, 'New worker cycle successfully re-claimed and processed the stale-locked job');
 
     const finalizedStaleJob = await prisma.analysisJob.findUnique({ where: { callId: staleCallId } });

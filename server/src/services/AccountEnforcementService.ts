@@ -80,9 +80,11 @@ export class AccountEnforcementService {
           data: { status: 'paused' },
         });
 
-        // 3. Deactivate API Keys
+        // 3. Deactivate API Keys, remembering which ones were on, so a restore turns back on only
+        //    those (audit #13: keys the customer had revoked themselves came back on).
+        const activeKeys = await tx.apiKey.findMany({ where: { userId, isActive: true }, select: { id: true } });
         await tx.apiKey.updateMany({
-          where: { userId, isActive: true },
+          where: { userId, id: { in: activeKeys.map((k) => k.id) } },
           data: { isActive: false },
         });
 
@@ -91,6 +93,7 @@ export class AccountEnforcementService {
           suspendedAt: updatedUser.suspendedAt,
           suspendedReason: updatedUser.suspendedReason,
           suspendedByStaffId: updatedUser.suspendedByStaffId,
+          deactivatedApiKeyIds: activeKeys.map((k) => k.id),
         };
 
         logger.info('[ACCOUNT_ENFORCEMENT] Account suspended successfully', {
@@ -190,11 +193,19 @@ export class AccountEnforcementService {
           },
         });
 
-        // Reactivate API keys
-        await tx.apiKey.updateMany({
-          where: { userId },
-          data: { isActive: true },
+        // Reactivate only the API keys the last suspension switched off (not keys the customer revoked).
+        const lastSuspend = await tx.adminAuditLog.findFirst({
+          where: { action: 'customer:suspend', targetId: userId },
+          orderBy: { createdAt: 'desc' },
+          select: { after: true },
         });
+        const keyIds: string[] = Array.isArray((lastSuspend?.after as any)?.deactivatedApiKeyIds) ? (lastSuspend!.after as any).deactivatedApiKeyIds : [];
+        if (keyIds.length) {
+          await tx.apiKey.updateMany({
+            where: { userId, id: { in: keyIds } },
+            data: { isActive: true },
+          });
+        }
 
         const after = {
           accountStatus: updatedUser.accountStatus,

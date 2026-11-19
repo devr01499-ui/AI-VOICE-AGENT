@@ -29,10 +29,17 @@ export function higherAccountTier(current: string | null | undefined, purchased:
 export async function fulfillPlanPurchase(params: FulfillPlanPurchaseParams) {
   const { userId, orderId, paymentId, planKey, source, staffId, razorpayLinkId, amountOverrideInr } = params;
 
-  // 1. Resolve Plan from PlanCatalog, falling back to PLAN_CONFIG
-  const catalogPlan = await prisma.planCatalog.findUnique({
-    where: { key: planKey.toLowerCase() },
-  });
+  // 1. Resolve the plan. Built-in plans always come from PLAN_CONFIG (the server's price list). A
+  // staff catalog row applies only when it is active, uses its own key, and, when it is made for one
+  // customer, only to that customer (audit #8: a row keyed like a built-in plan, or another
+  // customer's custom plan, changed what every buyer received).
+  const key = planKey.toLowerCase();
+  const builtInPlan = (PLAN_CONFIG as any)[key];
+  const catalogRow = await prisma.planCatalog.findUnique({ where: { key } });
+  const catalogPlan = catalogRow && catalogRow.active && !builtInPlan
+    && (!catalogRow.customerUserId || catalogRow.customerUserId === userId)
+    ? catalogRow
+    : null;
 
   let planName = '';
   let priceInr = 0;
@@ -46,7 +53,7 @@ export async function fulfillPlanPurchase(params: FulfillPlanPurchaseParams) {
     accountType = catalogPlan.accountType;
   } else {
     // Fallback to existing PLAN_CONFIG constant
-    const staticPlan = (PLAN_CONFIG as any)[planKey.toLowerCase()] || (PLAN_CONFIG as any)[planKey.toUpperCase()];
+    const staticPlan = builtInPlan;
     if (!staticPlan) {
       throw new Error(`INVALID_PLAN: Plan key '${planKey}' not recognized.`);
     }
@@ -157,7 +164,7 @@ export async function fulfillPlanPurchase(params: FulfillPlanPurchaseParams) {
       data: {
         accountType: higherAccountTier(current?.accountType, accountType),
         // A new plan starts a fresh validity window (any older window is replaced).
-        planExpiresAt: new Date(Date.now() + PLAN_VALIDITY_DAYS * 24 * 60 * 60 * 1000),
+        planExpiresAt: new Date(Date.now() + (catalogPlan?.validityDays && catalogPlan.validityDays > 0 ? catalogPlan.validityDays : PLAN_VALIDITY_DAYS) * 24 * 60 * 60 * 1000),
         ...(heldNumbers === 0 ? { numberLocked: false } : {}),
       },
     });

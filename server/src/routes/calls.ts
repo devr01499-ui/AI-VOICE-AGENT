@@ -7,7 +7,7 @@ import { getUserIdFromRequest } from '../utils/auth';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { sensitiveOperationsLimiter, callActionLimiter } from '../middleware/rateLimiter';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, requireEditor } from '../middleware/auth';
 import { requireCallingMinutes } from '../middleware/planValidation';
 import { getWebhookSigningSecret } from '../utils/security';
 import { ADMIN_EMAIL } from '../config/constants';
@@ -15,6 +15,9 @@ import { isAllowedRecordingUrl } from '../services/RecordingService';
 import { getWorkspaceDayBounds } from '../lib/calendar/timezone';
 
 const router = Router();
+
+/** Calls belong to the workspace, so team members see and act on its calls (audit #88). */
+const workspaceOf = (req: any): string | null => req.effectiveWorkspaceId || getUserIdFromRequest(req);
 
 // ─── Validation Schemas ──────────────────────────
 
@@ -274,10 +277,11 @@ router.get('/live', async (req, res) => {
 /** POST /api/v2/calls — Initiate a new outbound call. */
 router.post(
   '/',
+  requireEditor,
   sensitiveOperationsLimiter,
   validateBody(initiateCallSchema),
   async (req, res, next) => {
-    const userId = getUserIdFromRequest(req);
+    const userId = workspaceOf(req);
     if (!userId) {
       res.status(401).json({ success: false, error: 'Unauthorized' });
       return;
@@ -297,7 +301,7 @@ router.get(
   '/:callId',
   validateParams(callIdParamSchema),
   async (req, res, next) => {
-    const userId = getUserIdFromRequest(req);
+    const userId = workspaceOf(req);
     if (!userId) {
       res.status(401).json({ success: false, error: 'Unauthorized' });
       return;
@@ -318,10 +322,11 @@ router.get(
 /** POST /api/v2/calls/:callId/terminate — End an active call. */
 router.post(
   '/:callId/terminate',
+  requireEditor,
   callActionLimiter,
   validateParams(callIdParamSchema),
   async (req, res, next) => {
-    const userId = getUserIdFromRequest(req);
+    const userId = workspaceOf(req);
     if (!userId) {
       res.status(401).json({ success: false, error: 'Unauthorized' });
       return;
@@ -344,7 +349,7 @@ router.get(
   '/:callId/transcript',
   validateParams(callIdParamSchema),
   async (req, res, next) => {
-    const userId = getUserIdFromRequest(req);
+    const userId = workspaceOf(req);
     if (!userId) {
       res.status(401).json({ success: false, error: 'Unauthorized' });
       return;
@@ -415,11 +420,12 @@ router.post(
 /** DELETE /api/v2/calls/:callId — Permanently delete a call log and its child executions. */
 router.delete(
   '/:callId',
+  requireEditor,
   callActionLimiter,
   validateParams(callIdParamSchema),
   async (req, res, next) => {
     try {
-      const userId = getUserIdFromRequest(req);
+      const userId = workspaceOf(req);
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' });
         return;

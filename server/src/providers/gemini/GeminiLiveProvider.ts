@@ -38,6 +38,8 @@ import type {
 
 interface GeminiServerEvent {
   setupComplete?: Record<string, unknown>;
+  /** Session-resumption handle updates (enabled with setup.sessionResumption). */
+  sessionResumptionUpdate?: { newHandle?: string; resumable?: boolean };
   serverContent?: {
     modelTurn?: {
       parts?: Array<{
@@ -71,9 +73,34 @@ interface GeminiServerEvent {
     status?: string;
   };
   goAway?: {
+    /** Google sends a Duration, e.g. "9.5s" (or { seconds, nanos }). */
+    timeLeft?: string | { seconds?: number | string; nanos?: number };
     timeLeftMs?: number;
     resumptionHandle?: string;
   };
+}
+
+/** goAway.timeLeft as milliseconds ("9.5s", { seconds, nanos }, or the older timeLeftMs). */
+export function parseGoAwayMs(goAway: { timeLeft?: unknown; timeLeftMs?: number } | undefined): number | null {
+  if (!goAway) return null;
+  if (typeof goAway.timeLeftMs === 'number') return goAway.timeLeftMs;
+  const t: any = goAway.timeLeft;
+  if (typeof t === 'string') {
+    const m = t.trim().match(/^([0-9]+(?:\.[0-9]+)?)s$/);
+    return m ? Math.round(parseFloat(m[1]) * 1000) : null;
+  }
+  if (t && typeof t === 'object') {
+    const sec = Number(t.seconds || 0);
+    const nanos = Number(t.nanos || 0);
+    if (Number.isFinite(sec)) return Math.round(sec * 1000 + nanos / 1e6);
+  }
+  return null;
+}
+
+/** Setup for resuming: the original setup with the latest resumption handle. */
+export function buildResumptionSetup(original: any, model: string, handle: string): { setup: any } {
+  const base = original?.setup ? { ...original.setup } : { model };
+  return { setup: { ...base, model: base.model || model, sessionResumption: { handle } } };
 }
 
 interface ActiveSession {
@@ -84,6 +111,10 @@ interface ActiveSession {
   agentId?: string;
   userId?: string;
   resumptionHandle?: string;
+  /** The exact setup sent at start, reused (plus the handle) to resume on a new connection. */
+  setupMessage?: any;
+  /** The key the session was opened with (a customer's own key when they use one). */
+  apiKey?: string;
   targetModel?: string;
   config?: RealtimeSessionConfig;
   cleanup?: () => Promise<void>;
@@ -346,6 +377,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     logger.info('[LATENCY_TEST] setup: finished combined db lookup', { timestamp: Date.now(), durationMs: Date.now() - tStartDb });
 
     let selectedApiKey: string = '';
+    let sentSetupMessage: any = null;
     let accountsAgainstPlatformBalance = false;
 
     const callableSeconds = getCallableSecondsRemaining(userProfile);
@@ -696,6 +728,12 @@ export class GeminiLiveProvider implements IRealtimeProvider {
               ...(proactiveAudioVal && !isLive38 ? { proactivity: { proactiveAudio: true } } : {})
             }
           }),
+          // Long calls (audit #146): without compression an audio session ends at ~15 min, and a
+          // connection lasts ~10 min; resumption handles let the call continue on a new connection.
+          ...(!isSafeTier && {
+            contextWindowCompression: { slidingWindow: {} },
+            sessionResumption: {},
+          }),
           ...(functionDeclarations && functionDeclarations.length > 0 && {
             tools: [
               {
@@ -734,6 +772,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         selectedVoice: geminiVoice
       });
 
+      sentSetupMessage = setupMessage;
       ws.send(JSON.stringify(setupMessage));
     });
 
@@ -782,6 +821,8 @@ export class GeminiLiveProvider implements IRealtimeProvider {
             userId,
             targetModel,
             config,
+            setupMessage: sentSetupMessage,
+            apiKey: selectedApiKey,
             turnIndex: 0,
             ...(sessionBalanceIntervalId && { balanceInterval: sessionBalanceIntervalId }),
             cleanup: async () => {
@@ -1223,8 +1264,15 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       callbacks.onError?.(sessionId, new Error(event.error.message));
     }
 
+    // 5b. New resumption handle (only usable when resumable)
+    if (event.sessionResumptionUpdate?.resumable && event.sessionResumptionUpdate.newHandle) {
+      session.resumptionHandle = event.sessionResumptionUpdate.newHandle;
+    }
+
     // 6. Server GoAway Event (Session expiration warning)
     if (event.goAway) {
+      const timeLeftMsParsed = parseGoAwayMs(event.goAway);
+      if (timeLeftMsParsed !== null) event.goAway.timeLeftMs = timeLeftMsParsed;
       const timeLeftSeconds = event.goAway.timeLeftMs ? Math.round(event.goAway.timeLeftMs / 1000) : 10;
       if (event.goAway.resumptionHandle) {
         session.resumptionHandle = event.goAway.resumptionHandle;
@@ -1274,7 +1322,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
     try {
       const wsBase = (env.GEMINI_WS_BASE || process.env.GEMINI_WS_BASE || 'wss://generativelanguage.googleapis.com').replace(/\/+$/, '');
-      const wsUrl = `${wsBase}/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${encodeURIComponent(this.apiKey)}`;
+      const wsUrl = `${wsBase}/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${encodeURIComponent(session.apiKey || this.apiKey)}`;
       const newWs = new WebSocket(wsUrl);
 
       return await new Promise<boolean>((resolve) => {
@@ -1285,12 +1333,9 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         }, 8000);
 
         newWs.on('open', () => {
-          const resumptionPayload = {
-            setup: {
-              model: session.targetModel || DEFAULT_LIVE_MODEL,
-              resumptionHandle: session.resumptionHandle,
-            },
-          };
+          // Same model and configuration as the original session, plus the latest handle (Google
+          // docs: resume = new connection, same config, sessionResumption.handle).
+          const resumptionPayload = buildResumptionSetup(session.setupMessage, session.targetModel || DEFAULT_LIVE_MODEL, session.resumptionHandle!);
           newWs.send(JSON.stringify(resumptionPayload));
         });
 
