@@ -151,8 +151,11 @@ router.get('/', async (req: Request, res: Response, next: NextFunction): Promise
 
     let nextCursor: string | null = null;
     if (items.length > query.limit) {
-      const nextItem = items.pop();
-      nextCursor = nextItem ? nextItem.id : null;
+      // The extra row only signals that another page exists. The cursor is the LAST row returned:
+      // the next query skips the cursor row itself (skip: 1), so using the extra row's id lost one
+      // report per page (audit #44).
+      items.pop();
+      nextCursor = items.length > 0 ? items[items.length - 1].id : null;
     }
 
     const formattedItems = items.map((r: any) => {

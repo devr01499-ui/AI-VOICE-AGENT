@@ -781,21 +781,13 @@ ${recXml}  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/
         return;
       }
 
-      const existingData = call.userData ? JSON.parse(call.userData) : {};
-      await prisma.call.update({
-        where: { id: callId },
-        data: {
-          userData: JSON.stringify({
-            ...existingData,
-            transferredTo: targetNumber || 'human_operator',
-            transferredAt: new Date().toISOString(),
-          }),
-        },
-      });
-
-      res.json({
-        success: true,
-        message: `Call transfer to ${targetNumber || 'human operator'} initiated`,
+      // Audit #78/#141: this used to write 'transferredTo' on the call and answer "transfer initiated"
+      // without ever asking the carrier to move the call. Live transfer is not built yet, so say so.
+      void targetNumber;
+      res.status(501).json({
+        success: false,
+        error: 'Live call transfer is not available yet. The call stays with the AI agent.',
+        code: 'TRANSFER_NOT_AVAILABLE',
       });
     } catch (err: any) {
       logger.error('CallController: Error transferring call', { error: err.message });

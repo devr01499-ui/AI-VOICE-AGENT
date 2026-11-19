@@ -12,6 +12,7 @@ import { requireCallingMinutes } from '../middleware/planValidation';
 import { getWebhookSigningSecret } from '../utils/security';
 import { ADMIN_EMAIL } from '../config/constants';
 import { isAllowedRecordingUrl } from '../services/RecordingService';
+import { getWorkspaceDayBounds } from '../lib/calendar/timezone';
 
 const router = Router();
 
@@ -100,7 +101,10 @@ router.get(
         const now = new Date();
         const start = new Date();
         if (dateRange === 'today') {
-          start.setHours(0, 0, 0, 0);
+          // Start of today in India, not in the server's UTC clock (audit #92: calls between 00:00 and
+          // 05:30 IST were missing from Today).
+          const istDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
+          start.setTime(getWorkspaceDayBounds(istDate, 'Asia/Kolkata').startUtc.getTime());
         } else if (dateRange === '7d') {
           start.setDate(now.getDate() - 7);
         } else if (dateRange === '30d') {
@@ -152,7 +156,12 @@ router.get(
 
       const normalizedCalls = calls.map((c) => {
         const durationSec = c.durationSeconds ?? 0;
-        const billedMins = Math.ceil(durationSec / 60);
+        // Billing rule: every started minute of a connected call, at least 1 (0 when it never connected).
+        const billedMins = durationSec > 0 ? Math.max(1, Math.ceil(durationSec / 60)) : 0;
+        const inbound = c.callDirection === 'inbound';
+        // Inbound rows store the caller in fromPhoneNumber and our number in recipientPhoneNumber.
+        const contact = (inbound ? c.fromPhoneNumber : c.recipientPhoneNumber) || null;
+        const business = (inbound ? c.recipientPhoneNumber : c.fromPhoneNumber) || null;
         const hasTrans = (c.transcriptSegments && c.transcriptSegments.length > 0) ||
           Boolean(c.execution && c.execution.transcript && c.execution.transcript !== '[]' && c.execution.transcript !== '');
         const recUrl = c.recordingUrl || c.execution?.recordingUrl || null;
@@ -162,14 +171,23 @@ router.get(
           id: c.id,
           batchId: c.batchId || null,
           batchName: c.batch?.name || null,
-          direction: (c.callDirection === 'inbound' ? 'inbound' : 'outbound') as 'inbound' | 'outbound',
-          contactNumber: c.recipientPhoneNumber || '—',
-          businessNumber: c.fromPhoneNumber || '—',
+          direction: (inbound ? 'inbound' : 'outbound') as 'inbound' | 'outbound',
+          callDirection: inbound ? 'inbound' : 'outbound',
+          contactNumber: contact || '—',
+          businessNumber: business || '—',
+          // Fields the dashboard filters on (audit #76: agent call counts, contact history and the
+          // inbound test-call radar read these, and the list never sent them).
+          agentId: c.agentId,
+          agent: { name: c.agent?.name || 'Voice Agent' },
+          phoneNumber: contact,
+          recipientPhoneNumber: c.recipientPhoneNumber || null,
+          fromPhoneNumber: c.fromPhoneNumber || null,
           agentName: c.agent?.name || 'Voice Agent',
           status: c.status,
           startedAt: c.startTime ? c.startTime.toISOString() : (c.createdAt ? c.createdAt.toISOString() : null),
           endedAt: c.endTime ? c.endTime.toISOString() : null,
           durationSeconds: durationSec,
+          duration: durationSec,
           billedMinutes: billedMins,
           hasTranscript: hasTrans,
           // The carrier link never leaves the server: play via GET /calls/:id/recording-link.

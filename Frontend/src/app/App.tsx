@@ -2860,8 +2860,8 @@ function DashBatch({ onNavigate }: DashBatchProps) {
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-6">
         {[
           { label: "Total contacts", value: campaigns.reduce((s, c) => s + (c.total || c.totalContacts || 0), 0).toLocaleString(), icon: Users },
-          { label: "Connected", value: campaigns.reduce((s, c) => s + (c.connected || c.completedCount || 0), 0).toLocaleString(), icon: CheckCircle2 },
-          { label: "Failed", value: campaigns.reduce((s, c) => s + (c.failedCount || 0), 0).toLocaleString(), icon: AlertCircle },
+          { label: "Connected", value: campaigns.reduce((s, c) => s + (c.connected ?? 0), 0).toLocaleString(), icon: CheckCircle2 },
+          { label: "Failed", value: campaigns.reduce((s, c) => s + (c.failed ?? c.failedCount ?? 0), 0).toLocaleString(), icon: AlertCircle },
           { label: "Running now", value: campaigns.filter(c => c.status === "running").length, icon: Activity }
         ].map(s => {
           const Icon = s.icon;
@@ -2898,8 +2898,9 @@ function DashBatch({ onNavigate }: DashBatchProps) {
               {campaigns.map(c => {
                 const total = c.total || c.totalContacts || 0;
                 const called = c.called || c.completedCount || 0;
-                const connected = c.connected || c.completedCount || 0;
-                const failed = c.failedCount || 0;
+                // Answered calls only: "connected" must not fall back to the attempted count (audit #84).
+                const connected = c.connected ?? 0;
+                const failed = c.failed ?? c.failedCount ?? 0; // server sends "failed" (audit #83)
                 const pct = total > 0 ? Math.round((called / total) * 100) : 0;
                 return (
                   <tr key={c.id} className="hover:nm-pressed transition-all">
@@ -5056,7 +5057,6 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
         const t = params.get('tab');
         if (t === 'kyc') return 'kyc';
         if (t === 'api') return 'api';
-        if (t === 'webhooks') return 'webhooks';
         if (t === 'team') return 'team';
         if (window.location.pathname.includes('/compliance')) return 'kyc';
       }
@@ -5336,14 +5336,9 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
 
   const handleSaveWorkspace = () => {
     try {
-      localStorage.setItem('workspace_settings', JSON.stringify({
-        wsName,
-        billingEmail,
-        timezone,
-        defaultNumberId,
-        toggles
-      }));
-      setSaveStatus("Workspace settings saved successfully!");
+      // Only the display timezone is stored, and only in this browser (lib/dateFormat reads it).
+      localStorage.setItem('workspace_settings', JSON.stringify({ timezone }));
+      setSaveStatus("Display timezone saved for this browser.");
       setTimeout(() => setSaveStatus(null), 3000);
     } catch (e) {
       setSaveStatus("Failed to save settings.");
@@ -5384,7 +5379,6 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
       )
     },
     { id: "api", label: "API & Keys", icon: Key },
-    { id: "webhooks", label: "Webhooks", icon: Radio },
     { id: "team", label: `Team (${team.length})`, icon: Users },
   ];
 
@@ -5427,9 +5421,9 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                    Workspace Identity & Routing
+                    Display Preferences
                   </h3>
-                  <p className="text-xs text-ink-muted">General metadata and default outbound caller identity</p>
+                  <p className="text-xs text-ink-muted">How dates are shown in this browser</p>
                 </div>
               </div>
 
@@ -5440,17 +5434,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <DField label="Workspace name">
-                  <DInput value={wsName} onChange={e => setWsName(e.target.value)} placeholder="Workspace name" />
-                </DField>
-                <DField label="Billing email">
-                  <DInput type="email" value={billingEmail} onChange={e => setBillingEmail(e.target.value)} placeholder="billing@domain.com" />
-                </DField>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <DField label="Timezone">
+              <DField label="Display timezone (this browser)" hint="Dates and times in the dashboard are shown in this timezone on this device. Calling hours always follow India time (TRAI).">
                   <DSelect value={timezone} onChange={e => setTimezone(e.target.value)}>
                     <option value="Asia/Kolkata">Asia/Kolkata (UTC+5:30) — India Standard Time (Default)</option>
                     <option value="America/New_York">America/New_York (UTC-5 / UTC-4) — Eastern Time</option>
@@ -5460,22 +5444,11 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
                     <option value="Europe/London">Europe/London (UTC+0 / UTC+1) — Greenwich / British Time</option>
                     <option value="Asia/Singapore">Asia/Singapore (UTC+8:00) — Singapore Standard Time</option>
                   </DSelect>
-                </DField>
-                <DField label="Default outbound number">
-                  <DSelect value={defaultNumberId} onChange={e => setDefaultNumberId(e.target.value)}>
-                    {numbersList.map(n => (
-                      <option key={n.id} value={n.id}>
-                        {n.phoneNumber} — {n.label || 'Provisioned'}
-                      </option>
-                    ))}
-                    {numbersList.length === 0 && <option value="">No numbers provisioned</option>}
-                  </DSelect>
-                </DField>
-              </div>
+              </DField>
 
               <div className="pt-2">
                 <DBtn onClick={handleSaveWorkspace} className="w-full sm:w-auto">
-                  <Check className="w-4 h-4" /> Save Workspace Profile
+                  <Check className="w-4 h-4" /> Save display timezone
                 </DBtn>
               </div>
             </div>
@@ -5488,53 +5461,16 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                    Live Call Processing & Speech Intelligence
+                    Recording, Transcripts & Webhooks
                   </h3>
-                  <p className="text-xs text-ink-muted">Automated processing pipelines executed on voice sessions</p>
+                  <p className="text-xs text-ink-muted">Where these settings live</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {[
-                  { key: "recording", l: "Call Recording", d: "Record inbound and outbound audio streams for compliance", icon: Volume2 },
-                  { key: "transcription", l: "Live Transcription", d: "Stream real-time STT transcripts to dashboard sockets", icon: FileText },
-                  { key: "sentiment", l: "Sentiment Analysis", d: "Evaluate caller emotion, tone, and CSAT predictions", icon: Activity },
-                  { key: "summary", l: "Auto-Summary", d: "Synthesize post-call key takeaways and action items", icon: Sparkles }
-                ].map(s => {
-                  const SIcon = s.icon;
-                  const isChecked = Boolean(toggles[s.key]);
-                  return (
-                    <div
-                      key={s.key}
-                      onClick={() => setToggles((t: Record<string, boolean>) => ({ ...t, [s.key]: !isChecked }))}
-                      className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between gap-3 ${
-                        isChecked
-                          ? "bg-emerald-500/5 border-emerald-500/30"
-                          : "bg-surface-white/60 border-border-soft/60 opacity-80"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2.5">
-                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isChecked ? "bg-emerald-500/20 text-emerald-600" : "bg-zinc-100 text-zinc-500"}`}>
-                            <SIcon className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Outfit', sans-serif" }}>{s.l}</p>
-                          </div>
-                        </div>
-                        <DToggle on={isChecked} set={(val) => setToggles((t: Record<string, boolean>) => ({ ...t, [s.key]: val }))} />
-                      </div>
-                      <p className="text-[11px] text-ink-muted leading-relaxed" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{s.d}</p>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="pt-1">
-                <DBtn onClick={handleSaveWorkspace} variant="secondary" size="sm">
-                  <Check className="w-3.5 h-3.5" /> Update Pipeline Preferences
-                </DBtn>
-              </div>
+              <ul className="space-y-2 text-xs text-[var(--nm-text)]" data-testid="per-agent-settings-note">
+                <li><strong>Call recording</strong> (with the spoken notice), <strong>transcription</strong> and <strong>webhooks</strong> are set per agent: open an agent → Call Settings / Webhook Settings.</li>
+                <li><strong>Call summaries and sentiment</strong> are produced for every analysed call and appear in Call History and Reports.</li>
+              </ul>
             </div>
           </div>
 
@@ -5696,96 +5632,6 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
       )}
 
       {/* ── TAB 3: WEBHOOKS ── */}
-      {stab === "webhooks" && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          <div className="lg:col-span-7 space-y-6">
-            <div className="nm-card p-6 md:p-8 space-y-5 rounded-3xl border border-border-soft/60">
-              <div className="flex items-center gap-3 pb-3 border-b border-border-soft/40">
-                <div className="w-10 h-10 rounded-2xl bg-mint-primary/20 text-forest-deep flex items-center justify-center font-bold">
-                  <Radio className="w-5 h-5 text-emerald-600" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                    Webhook Destination & Events
-                  </h3>
-                  <p className="text-xs text-ink-muted">Receive real-time HTTP POST notifications on voice lifecycle events</p>
-                </div>
-              </div>
-
-              {webhookStatus && (
-                <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>{webhookStatus}</span>
-                </div>
-              )}
-
-              <DField label="Webhook Endpoint URL" hint="We deliver JSON payloads with POST requests. Target must return HTTP 200 within 5 seconds.">
-                <DInput value={webhook} onChange={e => setWebhook(e.target.value)} placeholder="https://api.yourdomain.com/webhooks/voice" />
-              </DField>
-
-              <DField label="Subscribed Lifecycle Events">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  {Object.keys(events).map(ev => (
-                    <label key={ev} className={`p-3 rounded-2xl border cursor-pointer flex items-center gap-3 transition-all ${events[ev] ? "bg-emerald-500/5 border-emerald-500/30" : "bg-surface-white/60 border-border-soft/60"}`}>
-                      <input
-                        type="checkbox"
-                        checked={events[ev]}
-                        onChange={e => setEvents(evs => ({ ...evs, [ev]: e.target.checked }))}
-                        className="accent-emerald-600 w-4 h-4 rounded"
-                      />
-                      <span className="text-xs font-bold text-[var(--nm-text)] font-mono">{ev}</span>
-                    </label>
-                  ))}
-                </div>
-              </DField>
-
-              <div className="pt-2">
-                <DBtn onClick={handleSaveWebhook}>
-                  <Check className="w-4 h-4" /> Save &amp; Test Webhook Endpoint
-                </DBtn>
-              </div>
-            </div>
-          </div>
-
-          <div className="lg:col-span-5 space-y-6">
-            <div className="nm-card p-6 md:p-8 space-y-4 rounded-3xl border border-border-soft/60">
-              <div className="flex items-center gap-3 pb-3 border-b border-border-soft/40">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
-                  <ShieldCheck className="w-5 h-5 text-amber-600" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-[var(--nm-text)]" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                    Cryptographic Signature
-                  </h3>
-                  <p className="text-xs text-ink-muted">HMAC-SHA256 verification secret</p>
-                </div>
-              </div>
-
-              <DField label="Signing Secret" hint="Every webhook request includes an X-Claritiy-Signature header calculated with this secret.">
-                <div className="flex gap-2">
-                  <DInput type="password" value={signingSecret} onChange={e => setSigningSecret(e.target.value)} />
-                  <button
-                    onClick={handleCopySecret}
-                    className="px-4 py-2.5 nm-raised rounded-pill hover:nm-pressed text-[var(--nm-text)] transition-all flex items-center gap-1.5 text-xs font-bold shrink-0"
-                  >
-                    <Copy className="w-3.5 h-3.5" /> {copiedSecret ? "Copied!" : "Copy"}
-                  </button>
-                </div>
-              </DField>
-
-              <div className="nm-pressed rounded-2xl p-4 bg-slate-950 text-slate-300 font-mono text-[11px] leading-relaxed border border-slate-800 space-y-2">
-                <p className="text-emerald-400 font-bold">// Node.js Verification Example</p>
-                <pre className="text-slate-300">{`const hash = crypto
-  .createHmac('sha256', secret)
-  .update(rawBody)
-  .digest('hex');
-const isValid = hash === req.headers['x-claritiy-signature'];`}</pre>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ── TAB 5: TEAM ── */}
       {stab === "team" && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">

@@ -353,6 +353,21 @@ router.get(
   }
 );
 
+// Declared before GET /:agentId: otherwise Express routes /playbooks to the agent handler, whose
+// UUID check answers 400 and the playbook list is always empty (audit #43).
+/** GET /api/v2/agents/playbooks — List all tested production playbooks */
+router.get(
+  '/playbooks',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const { PLAYBOOKS } = await import('../utils/playbooks');
+    res.json({
+      success: true,
+      data: Object.values(PLAYBOOKS),
+    });
+  }
+);
+
 /** GET /api/v2/agents/:agentId — Get a single agent by ID. */
 router.get(
   '/:agentId',
@@ -1070,19 +1085,6 @@ router.post(
       res.status(500).json({ success: false, error: 'Failed to generate test LLM response' });
       return;
     }
-  }
-);
-
-/** GET /api/v2/agents/playbooks — List all tested production playbooks */
-router.get(
-  '/playbooks',
-  requireAuth,
-  async (req: Request, res: Response): Promise<void> => {
-    const { PLAYBOOKS } = await import('../utils/playbooks');
-    res.json({
-      success: true,
-      data: Object.values(PLAYBOOKS),
-    });
   }
 );
 
