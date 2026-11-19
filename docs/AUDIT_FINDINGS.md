@@ -15,8 +15,15 @@ Severity: H high, M medium, L low.
 | pricing | 6432e82 | #111 #112 #113 #115 #116 #117 #118 #119 #132 #133 (test:marketing-claims) |
 | 2 | 64f9086 | #43 #44 #45 #51 #76 #78 #81 #82 #83 #84 #91 #92 #97 #141 (test:audit-batch2, e2e audit-dashboard) |
 | 3 | 12aea83 | #46 #47 #48 #54 #57 #63 #64 #77 #80 #86 (test:audit-batch3, e2e audit-dashboard) |
+| 4 | 3ab90e6 | #4 #5 #12 #22 #23 #24 #25 #26 #27 #42 #144 (test:audit-batch4) |
+| 5 | 9bd8c13 | #28 #29 #30 #31 #35 #36 #38 #114 #145 (test:audit-batch5, e2e audit-pending-plan) |
+| models | cde3afd | Gemini 3.8 Live + removed models dropped (owner request; test:gemini-models) |
 
-Everything not listed above is still OPEN. New finding while fixing: **#144** `CallOrchestrator.initiateOutboundCall` always stores `userData: '{}'`, so per-call variables (e.g. a batch contact's name) are lost.
+Everything not listed above is still OPEN. New findings while fixing:
+- **#144** (fixed, batch 4) `CallOrchestrator.initiateOutboundCall` always stored `userData: '{}'`, so per-call variables (e.g. a batch contact's name) were lost.
+- **#145** (fixed, batch 5) H `SV/websockets/AudioStreamHandler.ts`: an unauthenticated audio-stream connection naming a call id marked that call failed (no token needed).
+- **#146** OPEN H `SV/providers/gemini/GeminiLiveProvider.ts`: Google caps an audio Live session at about 15 minutes unless session resumption / context-window compression is used. Neither is enabled, and the resumption payload uses a wrong field (`setup.resumptionHandle` instead of `setup.sessionResumption.handle`), so calls longer than ~15 min (max duration is 30 min) can drop to a fresh session. Needs a live test against Google before changing.
+- **#147** L the legacy `scripts/test_batch_calling_suite.js` was unwired and stale (it hung for 30 min); fixed and exposed as `test:batch-calling` (about 10 min, not in CI).
 
 ## 1. Billing, plans, minutes, numbers, KYC
 1. H **V** `SV/services/MinutesService.ts:59-96,143-193`: the balance is read and then written back as an absolute value, with no row lock. Two calls ending at the same moment lose one debit, and a plan credit racing a debit can wipe paid minutes. Fix: atomic increment/decrement.

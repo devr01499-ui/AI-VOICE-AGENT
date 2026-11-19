@@ -14,6 +14,7 @@ import { logger } from '../utils/logger';
 import { WebhookDispatcher } from '../utils/WebhookDispatcher';
 import { EncryptionService } from '../utils/EncryptionService';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { configuredTextModel } from '../config/geminiModels';
 import { env } from '../config/env';
 import { REPORT_BLUEPRINTS, ReportBlueprint } from '../config/reportBlueprints';
 import {
@@ -476,7 +477,7 @@ export class AnalysisService {
       });
     }
 
-    const reportModelName = process.env.REPORT_ANALYSIS_MODEL || 'gemini-2.0-flash';
+    const reportModelName = configuredTextModel(process.env.REPORT_ANALYSIS_MODEL);
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
       model: reportModelName,

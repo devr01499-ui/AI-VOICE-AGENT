@@ -234,7 +234,7 @@ export default function VisualFlowCanvas({
   // Global Settings state
   const [language, setLanguage] = useState<string>(initialAgent?.languageMode || 'auto');
   const [voice, setVoice] = useState<string>(initialAgent?.voiceName || initialAgent?.systemVoice || 'Puck');
-  const [model] = useState('gemini-2.5-flash-native-audio-latest');
+  const [model] = useState('gemini-3.8-live');
   const [direction, setDirection] = useState<'outbound' | 'inbound' | 'both'>(
     savedDirection === 'inbound' || savedDirection === 'both' || savedDirection === 'outbound' ? savedDirection : 'outbound'
   );

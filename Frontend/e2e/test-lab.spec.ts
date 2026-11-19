@@ -35,7 +35,7 @@ const RUN = {
   agentName: AGENT.name,
   passed: false,
   averageScore: 72,
-  model: 'gemini-2.5-flash',
+  model: 'gemini-3.6-flash',
   createdAt: new Date().toISOString(),
   results: [
     {

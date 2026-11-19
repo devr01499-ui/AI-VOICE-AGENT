@@ -17,7 +17,7 @@ const ENHANCED = {
   ],
   scoreBefore: 41,
   scoreAfter: 88,
-  model: 'gemini-2.5-flash',
+  model: 'gemini-3.6-flash',
 };
 
 async function openCoach(page: Page, enhance: (route: any, req: any) => unknown) {

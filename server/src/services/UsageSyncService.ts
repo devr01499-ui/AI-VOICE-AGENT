@@ -116,19 +116,15 @@ export class UsageSyncService {
       where: { id: phoneNumber.id }
     });
 
-    // Check if the user has any other numbers. If none left, unlock number selection
+    // The plan's one number has been used: releasing it does NOT give back a free slot (audit #5:
+    // claim -> release -> claim bought a new number on the master account every time). Buying a plan
+    // grants a new slot (PlanFulfillmentService).
     const remainingCount = await prisma.phoneNumber.count({
       where: { userId }
     });
 
     if (remainingCount === 0) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { numberLocked: false }
-      }).catch(err => {
-        logger.warn('UsageSyncService: Failed to unlock number selection for user', { userId, error: String(err) });
-      });
-      logger.info('UsageSyncService: Unlocked number selection for user as all numbers released', { userId });
+      logger.info('UsageSyncService: last number released; the bundled-number slot stays used until the next plan purchase', { userId });
     }
 
     logger.info('UsageSyncService: Successfully released number from DB', { phoneNumberId, userId });

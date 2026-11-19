@@ -114,9 +114,9 @@ async function main() {
     const s = scripted([busy, busy, JSON.stringify(GOOD_OUTPUT)]);
     setTextModelTransportForTests(s.transport);
     const r = await enhancePrompt(workspaceId, { prompt: USER_PROMPT });
-    assert.deepStrictEqual(s.calls.map((c) => c.model), ['model-primary', 'model-primary', 'gemini-2.0-flash']);
-    assert.strictEqual(r.model, 'gemini-2.0-flash');
-    assert.deepStrictEqual(textModelCandidates(), ['model-primary', 'gemini-2.0-flash']);
+    assert.deepStrictEqual(s.calls.map((c) => c.model), ['model-primary', 'model-primary', 'gemini-3.5-flash-lite']);
+    assert.strictEqual(r.model, 'gemini-3.5-flash-lite');
+    assert.deepStrictEqual(textModelCandidates(), ['model-primary', 'gemini-3.5-flash-lite']);
   });
 
   await test('when every model fails, the error says the service is unavailable (no provider text leaks)', async () => {

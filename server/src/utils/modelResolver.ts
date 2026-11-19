@@ -1,31 +1,22 @@
 /**
- * resolveLiveModel — single source of truth for Gemini Live model name normalisation.
+ * resolveLiveModel — single source of truth for the Gemini Live model a call uses.
  *
- * Rules (in priority order):
- * 1. If the value contains "native-audio", use it — but add a "models/" prefix when
- *    it is missing (e.g. "gemini-2.5-flash-native-audio-latest" → OK,
- *    "models/gemini-2.5-flash-native-audio-latest" → kept as-is).
- * 2. Everything else (empty, null, undefined, "gemini-2.5-flash", "gpt-4o", …)
- *    falls through to the safe default Live audio model.
- *
- * This ensures that agents saved before the model-name fix was deployed still work
- * without a data migration.
+ * An agent's stored model is used only when it is a Live model Google still offers
+ * (SUPPORTED_LIVE_MODELS in config/geminiModels.ts). Everything else — empty, a text model
+ * ("gemini-2.5-flash"), another vendor's name, or a Live model Google has removed
+ * ("gemini-2.0-flash-exp", "gemini-2.5-flash-native-audio-latest", ...) — resolves to the current
+ * primary model, so agents saved earlier keep working without a data migration.
+ * The result always carries the "models/" prefix the Live API setup message expects.
  */
+import { LIVE_MODEL_FALLBACK, LIVE_MODEL_PRIMARY, SUPPORTED_LIVE_MODELS } from '../config/geminiModels';
 
-export const UNIVERSAL_FALLBACK_LIVE_MODEL = 'models/gemini-2.0-flash-exp';
-export const DEFAULT_LIVE_MODEL = 'models/gemini-2.5-flash-native-audio-latest';
+export const DEFAULT_LIVE_MODEL = `models/${LIVE_MODEL_PRIMARY}`;
+/** Used once when the primary model refuses the session (logged as [LIVE_MODEL_FALLBACK]). */
+export const UNIVERSAL_FALLBACK_LIVE_MODEL = `models/${LIVE_MODEL_FALLBACK}`;
 
 export function resolveLiveModel(value: string | null | undefined): string {
   if (!value || typeof value !== 'string') return DEFAULT_LIVE_MODEL;
-
-  const trimmed = value.trim();
-  if (!trimmed) return DEFAULT_LIVE_MODEL;
-
-  // If the value contains "native-audio" or live designation it's a valid Live model name
-  if (trimmed.includes('native-audio') || trimmed.includes('live') || trimmed.includes('flash-exp')) {
-    return trimmed.startsWith('models/') ? trimmed : `models/${trimmed}`;
-  }
-
-  // Anything else (text models, empty strings, wrong model names, etc.)
+  const id = value.trim().replace(/^models\//, '');
+  if (SUPPORTED_LIVE_MODELS.includes(id)) return `models/${id}`;
   return DEFAULT_LIVE_MODEL;
 }

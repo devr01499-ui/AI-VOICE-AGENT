@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import { supabase } from "./lib/supabaseClient";
 import AuthGateway from "./components/auth/AuthGateway";
+import { readPendingPlan, clearPendingPlan } from "./lib/pendingPlan";
 import { Session } from "@supabase/supabase-js";
 import { ApiKeyManagement } from './components/settings/ApiKeyManagement';
 import AgentConfigPanel from "./components/agents/AgentConfigPanel";
@@ -1100,7 +1101,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
               csat: null,
               lang: 'EN',
               voice: a.systemVoice || a.voiceName || 'Puck',
-              model: a.model ?? 'gemini-2.5-flash',
+              model: a.model ?? 'gemini-3.8-live',
               kb: assignedKbIds,
               numbers: agentNumbers,
               isRecordingEnabled: a.isRecordingEnabled ?? false,
@@ -1132,7 +1133,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
   const [createType, setCreateType] = useState<"prompt"|"conversational">("prompt");
   const [detailTab, setDetailTab] = useState<"config"|"prompt"|"knowledge"|"calls">("config");
   const [realCallModal, setRealCallModal] = useState<{ open: boolean; agentId?: string; fromNumber?: string }>({ open: false });
-  const [form, setForm] = useState({name:"",lang:"EN",voice:"Aoede",model:"gemini-2.5-flash",systemPrompt:"",welcomeMsg:"",endPhrase:"goodbye",temperature:"0.7",maxTurns:"20",kb:[] as string[],steps:[{id:"s1",label:"Greet caller",cond:""},{id:"s2",label:"Verify identity",cond:"if account found"},{id:"s3",label:"Handle intent",cond:""}]});
+  const [form, setForm] = useState({name:"",lang:"EN",voice:"Aoede",model:"gemini-3.8-live",systemPrompt:"",welcomeMsg:"",endPhrase:"goodbye",temperature:"0.7",maxTurns:"20",kb:[] as string[],steps:[{id:"s1",label:"Greet caller",cond:""},{id:"s2",label:"Verify identity",cond:"if account found"},{id:"s3",label:"Handle intent",cond:""}]});
   const [testCallStatus, setTestCallStatus] = useState<'idle'|'calling'|'done'|'error'>('idle');
   const [saveStatus, setSaveStatus] = useState<'idle'|'saving'|'done'|'error'>('idle');
 
@@ -1252,7 +1253,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
         csat: null,
         lang: 'EN',
         voice: newAgent.systemVoice || newAgent.voiceName || 'Puck',
-        model: newAgent.model ?? 'gemini-2.5-flash',
+        model: newAgent.model ?? 'gemini-3.8-live',
         kb: [],
         numbers: [],
         created: newAgent.createdAt?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
@@ -6275,7 +6276,7 @@ function DashboardPage({ session }: { session: Session }) {
     languageMode: extraConfig?.languageMode || extraConfig?.language || 'auto',
     systemVoice: extraConfig?.systemVoice || extraConfig?.voiceName || 'Puck',
     voiceName: extraConfig?.voiceName || extraConfig?.systemVoice || 'Puck',
-    model: extraConfig?.model || 'gemini-2.5-flash-native-audio-latest',
+    model: extraConfig?.model || 'gemini-3.8-live',
     agentConfig: extraConfig ? {
       ...(extraConfig.flowSettings ? { flowSettings: extraConfig.flowSettings } : {}),
       ...(extraConfig.handbookPresets ? { handbookPresets: extraConfig.handbookPresets } : {}),
@@ -6367,7 +6368,7 @@ function DashboardPage({ session }: { session: Session }) {
             description: source?.description || null,
             agentType: source?.agentType || 'prompt',
             status: source?.status || 'draft',
-            model: source?.model || 'gemini-2.5-flash',
+            model: source?.model || 'gemini-3.8-live',
             voiceName: source?.voiceName || source?.systemVoice || 'Puck',
             systemVoice: source?.systemVoice || source?.voiceName || 'Puck',
             languageMode: source?.languageMode || 'auto',
@@ -6981,13 +6982,15 @@ export default function App() {
             console.warn('[Calendar Auto-Link] Notice:', err?.response?.data?.error || err.message);
           });
         }
-        const pendingPlan = localStorage.getItem('pending_plan_purchase');
-        if (pendingPlan) {
+        // A plan chosen while signed out opens checkout right at sign-in, never later on a token
+        // refresh (audit #114).
+        if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && readPendingPlan()) {
           handleNavigate("pricing");
         }
       } else {
         localStorage.removeItem('token');
         if (event === 'SIGNED_OUT') {
+          clearPendingPlan();
           handleNavigate("home");
         }
       }
@@ -7015,7 +7018,7 @@ export default function App() {
         <ProtectedRoute
           session={session}
           authLoading={authLoading}
-          onSuccessRedirect={() => handleNavigate("dashboard")}
+          onSuccessRedirect={() => handleNavigate(readPendingPlan() ? "pricing" : "dashboard")}
         >
           <DashboardErrorBoundary>
             <DashboardPage session={session!} />

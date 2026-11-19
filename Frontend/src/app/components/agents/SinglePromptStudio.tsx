@@ -279,7 +279,7 @@ export default function SinglePromptStudio({
     }
   }, [initialAgent?.id]);
   const [agentName, setAgentName] = useState(initialAgent?.name || initialAgentName);
-  const [model] = useState('gemini-2.5-flash');
+  const [model] = useState('gemini-3.8-live');
   const [voice, setVoice] = useState(initialAgent?.voiceName || initialAgent?.systemVoice || 'Puck');
   const [language, setLanguage] = useState(normalizeLangCode(initialAgent?.languageMode || undefined));
   const [direction, setDirection] = useState<'outbound' | 'inbound' | 'both'>(

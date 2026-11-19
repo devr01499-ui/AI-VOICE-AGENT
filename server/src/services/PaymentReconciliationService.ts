@@ -83,8 +83,26 @@ export async function runPaymentReconciliation(opts: { lookbackHours?: number; n
   for (const pay of payments) {
     report.checked++;
     try {
-      const recorded = await prisma.paymentTransaction.findFirst({ where: { OR: [{ paymentId: pay.id }, { orderId: pay.order_id || '__none__' }] }, select: { id: true } });
-      if (recorded) { report.alreadyRecorded++; continue; }
+      const recorded = await prisma.paymentTransaction.findFirst({
+        where: { OR: [{ paymentId: pay.id }, { orderId: pay.order_id || '__none__' }] },
+        select: { id: true, planName: true, status: true, userId: true, orderId: true },
+      });
+      if (recorded) {
+        // A recorded NUMBER payment is only done when its order provisioned a number (or it was
+        // refunded). Number orders use the payment's order id as their idempotency key (audit #4).
+        if (recorded.planName === 'phone_number' && recorded.status !== 'refunded') {
+          const createdMs = Number(pay.created_at || 0) * 1000;
+          const orderRow = await prisma.phoneNumberOrder.findUnique({ where: { idempotencyKey: recorded.orderId }, select: { orderStatus: true } });
+          if (orderRow?.orderStatus !== 'success' && !(createdMs && now - createdMs < NUMBER_GRACE_MS)) {
+            const entry = { paymentId: pay.id, orderId: recorded.orderId, userId: recorded.userId, amountInr: Number(pay.amount) / 100 };
+            report.unprovisionedNumberPayments.push(entry);
+            logger.error('[ADMIN_ALERT][PAYMENTS] paid phone number was never provisioned — assign a number or refund', entry);
+            continue;
+          }
+        }
+        report.alreadyRecorded++;
+        continue;
+      }
       if (!pay.order_id) { report.rejected++; continue; }
       const order = await billing.fetchOrder(pay.order_id);
       const outcome = await fulfilCapturedPlanPayment({

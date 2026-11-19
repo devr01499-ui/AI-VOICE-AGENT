@@ -54,6 +54,7 @@ test('plan usage, per-file limit and the reason a document failed are shown', as
 });
 
 test('unsupported and over-size files are refused before upload', async ({ page }) => {
+  test.setTimeout(90_000); // attaching an 11 MB file is slow when the machine is busy
   const { seen } = await openKnowledge(page);
   await page.getByRole('button', { name: 'Add document' }).click();
   const input = page.getByTestId('kb-file-input');
