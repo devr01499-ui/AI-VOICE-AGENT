@@ -861,5 +861,40 @@ export class BatchService {
     } catch (err) {
       logger.error('BatchService: Error during stale batch recovery cycle', { error: String(err) });
     }
+    // Runs on the same 60 s cycle: start campaigns whose scheduled time has come (audit #80).
+    await BatchService.startDueScheduledBatches(opts);
+  }
+
+  /**
+   * Starts 'scheduled' campaigns whose scheduledAt has passed. The status change is a conditional
+   * claim (scheduled -> running), so two servers never start the same campaign. Calling-hours rules
+   * still apply inside processBatch (outside 09:00–21:00 IST the batch pauses and resumes itself).
+   */
+  static async startDueScheduledBatches(opts: { now?: Date; dispatch?: boolean } = {}): Promise<number> {
+    const now = opts.now || new Date();
+    let started = 0;
+    try {
+      const due = await prisma.batch.findMany({
+        where: { status: 'scheduled', scheduledAt: { not: null, lte: now } },
+        select: { id: true, userId: true },
+        take: 50,
+      });
+      for (const b of due) {
+        const claim = await prisma.batch.updateMany({
+          where: { id: b.id, status: 'scheduled' },
+          data: { status: 'running', statusReason: null },
+        });
+        if (claim.count === 0) continue;
+        started++;
+        logger.info('BatchService: starting scheduled campaign', { batchId: b.id });
+        if (opts.dispatch === false) continue;
+        BatchService.processBatch(b.id, b.userId).catch((err) => {
+          logger.error(`BatchService: Error starting scheduled batch ${b.id}`, { error: String(err) });
+        });
+      }
+    } catch (err) {
+      logger.error('BatchService: Error starting scheduled batches', { error: String(err) });
+    }
+    return started;
   }
 }

@@ -185,7 +185,10 @@ export class AlertingController {
 
   static async triggerEvaluation(req: Request, res: Response): Promise<void> {
     try {
-      const result = await AlertEvaluator.evaluateAllRules();
+      // Only the caller's own rules (audit #57: this evaluated every tenant's rules and reset their timers).
+      const ownerId = (req as any).effectiveWorkspaceId || (req as any).userId;
+      if (!ownerId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+      const result = await AlertEvaluator.evaluateAllRules(ownerId);
       res.json({ success: true, result });
     } catch (err: any) {
       logger.error('AlertingController: Error running manual evaluation pass', { error: err.message });

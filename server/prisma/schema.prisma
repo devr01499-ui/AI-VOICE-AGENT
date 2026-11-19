@@ -348,6 +348,8 @@ model Batch {
   name              String
   status            String    @default("scheduled") // scheduled | running | paused | completed | cancelled | failed
   statusReason      String?   @map("status_reason")
+  /// When a "schedule for later" campaign starts (audit #80). Null = start immediately.
+  scheduledAt       DateTime? @map("scheduled_at")
   lockedBy          String?   @map("locked_by")
   lockedAt          DateTime? @map("locked_at")
   idempotencyKey    String?   @map("idempotency_key")

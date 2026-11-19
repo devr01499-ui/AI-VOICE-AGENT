@@ -22,6 +22,7 @@ import {
   terminateCall, 
   fetchCalls, 
   fetchAgents, 
+  getCallStatus, 
   getLiveTranscriptWsUrl, 
   requestTranscriptTicket, 
   type ApiCall, 
@@ -39,9 +40,25 @@ interface RealCallModalProps {
 }
 
 interface TranscriptItem {
+  key?: string;
   speaker: string;
   text: string;
   timestamp: string;
+}
+
+const LIVE_STATUSES = new Set(['initiated', 'queued', 'ringing', 'in_progress']);
+const FINAL_LABELS: Record<string, string> = {
+  completed: 'Call ended', no_answer: 'No answer', busy: 'Line busy', failed: 'Call failed',
+  canceled: 'Cancelled', cancelled: 'Cancelled', timeout: 'Timed out',
+};
+function statusLabel(status: string): string { return FINAL_LABELS[status] || status; }
+
+/** True when the agent's saved call settings have "Record calls" on (same keys the server reads). */
+function agentRecordsCalls(agent: any): boolean {
+  if (!agent) return false;
+  let cfg: any = agent.agentConfig;
+  try { if (typeof cfg === 'string') cfg = JSON.parse(cfg || '{}'); } catch { cfg = {}; }
+  return Boolean(cfg?.callSettings?.recordingEnabled ?? cfg?.isRecordingEnabled ?? cfg?.settings?.isRecordingEnabled ?? false);
 }
 
 export function RealCallModal({
@@ -58,11 +75,12 @@ export function RealCallModal({
   const [toPhoneNumber, setToPhoneNumber] = useState('');
   const [selectedFromNumber, setSelectedFromNumber] = useState(initialFromNumber || '');
   const [selectedAgentId, setSelectedAgentId] = useState(initialAgentId || '');
-  const [recordCall, setRecordCall] = useState(true);
 
   // Data
   const [availableNumbers, setAvailableNumbers] = useState<any[]>([]);
   const [availableAgents, setAvailableAgents] = useState<ApiAgent[]>([]);
+  // Recording is decided by the agent's "Record calls" setting, which also plays the recording notice.
+  const recordCall = agentRecordsCalls(availableAgents.find((a) => a.id === selectedAgentId));
   const [loadingInitial, setLoadingInitial] = useState(false);
 
   // Active Call State
@@ -169,14 +187,20 @@ export function RealCallModal({
           try {
             const data = JSON.parse(event.data);
             if (data.event === 'transcript' && data.text) {
-              setTranscripts((prev) => [
-                ...prev,
-                {
-                  speaker: data.speaker || 'agent',
-                  text: data.text,
-                  timestamp: formatTime(new Date()),
-                },
-              ]);
+              const speaker = data.speaker || 'agent';
+              const key = data.turnId != null ? `${speaker}:${data.turnId}` : null;
+              setTranscripts((prev) => {
+                // Partial results for the same turn replace the previous partial line.
+                if (key) {
+                  const idx = prev.findIndex((t) => t.key === key);
+                  if (idx >= 0) {
+                    const next = prev.slice();
+                    next[idx] = { ...next[idx], text: data.text };
+                    return next;
+                  }
+                }
+                return [...prev, { key: key || undefined, speaker, text: data.text, timestamp: formatTime(new Date()) }];
+              });
             }
           } catch {}
         };
@@ -192,6 +216,20 @@ export function RealCallModal({
     };
   }, [activeCallId, inCall]);
 
+  // Follow the call's real status until it ends (audit #77: the modal stayed "Ringing" forever).
+  useEffect(() => {
+    if (!activeCallId || !inCall || !LIVE_STATUSES.has(callStatus)) return;
+    let stopped = false;
+    const timer = setInterval(async () => {
+      try {
+        const c: any = await getCallStatus(activeCallId);
+        if (stopped || !c?.status) return;
+        setCallStatus(String(c.status));
+      } catch {}
+    }, 3000);
+    return () => { stopped = true; clearInterval(timer); };
+  }, [activeCallId, inCall, callStatus]);
+
   // Inbound Call Radar: Poll for incoming calls on selected number
   useEffect(() => {
     if (!open || inCall || activeTab !== 'inbound') {
@@ -206,8 +244,9 @@ export function RealCallModal({
     radarRef.current = setInterval(async () => {
       try {
         const calls = await fetchCalls({ limit: 10 });
-        const matchingIncoming = calls.find((c) => {
-          const toDigits = (c.phoneNumber || c.recipientPhoneNumber || '').replace(/\D/g, '');
+        const matchingIncoming = calls.find((c: any) => {
+          if ((c.direction || c.callDirection) !== 'inbound') return false;
+          const toDigits = (c.recipientPhoneNumber || c.businessNumber || '').replace(/\D/g, '');
           const isTargetNumber = targetDigits ? toDigits.includes(targetDigits) : true;
           return isTargetNumber && (c.status === 'in_progress' || c.status === 'ringing');
         });
@@ -250,7 +289,6 @@ export function RealCallModal({
         phoneNumber: cleanTo.startsWith('+') ? cleanTo : `+${cleanTo}`,
         agentId: selectedAgentId,
         fromPhoneNumber: selectedFromNumber || undefined,
-        record: recordCall,
       });
 
       const returnedCallId = (res as any)?.callId || (res as any)?.id || (res as any)?.data?.callId || (res as any)?.data?.id;
@@ -390,7 +428,7 @@ export function RealCallModal({
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Status:</span>
                       <span className="text-sm font-extrabold capitalize text-emerald-400">
-                        {callStatus === 'in_progress' ? 'Live Connected' : callStatus === 'ringing' ? 'Ringing Phone...' : callStatus}
+                        {callStatus === 'in_progress' ? 'Live Connected' : callStatus === 'ringing' ? 'Ringing Phone...' : statusLabel(callStatus)}
                       </span>
                     </div>
                     <p className="text-xs text-slate-400 mt-0.5 font-mono">
@@ -575,21 +613,13 @@ export function RealCallModal({
                 </select>
               </div>
 
-              {/* Recording Toggle */}
-              <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800">
-                <div className="flex items-center gap-2.5">
-                  <Disc className={`w-4 h-4 ${recordCall ? 'text-rose-600' : 'text-slate-400'}`} />
-                  <div>
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">Record Call Audio</span>
-                    <span className="text-[10px] text-slate-500">Record conversation audio and save full transcript for live review.</span>
-                  </div>
+              {/* Recording follows the agent's setting (read-only here). */}
+              <div data-testid="recording-follows-agent" className="flex items-center gap-2.5 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800">
+                <Disc className={`w-4 h-4 ${recordCall ? 'text-rose-600' : 'text-slate-400'}`} />
+                <div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">{recordCall ? 'This call will be recorded' : 'This call will not be recorded'}</span>
+                  <span className="text-[10px] text-slate-500">Recording follows the agent's "Record calls" setting, with a spoken notice to the caller.</span>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={recordCall}
-                  onChange={(e) => setRecordCall(e.target.checked)}
-                  className="w-4 h-4 accent-emerald-600 cursor-pointer"
-                />
               </div>
 
               {/* Submit Button */}

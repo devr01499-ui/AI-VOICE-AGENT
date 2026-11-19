@@ -8,6 +8,24 @@ import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 
+/** E.164-style normalisation shared by create, update and import (audit #63/#64). Null if invalid. */
+export function normalizeContactPhone(raw: unknown): string | null {
+  const text = String(raw ?? '').trim();
+  const digits = text.replace(/\D/g, '');
+  if (digits.length < 7 || digits.length > 15) return null;
+  return text.startsWith('+') ? `+${digits}` : (digits.length === 10 ? `+91${digits}` : `+${digits}`);
+}
+
+/**
+ * Consent date from the request. Missing or unparseable -> null (audit #48: it used to be stored as
+ * "now", so contacts with no recorded consent looked freshly consented and were dialled).
+ */
+export function parseConsentDate(raw: unknown): Date | null {
+  if (raw === undefined || raw === null || raw === '') return null;
+  const d = new Date(raw as any);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 export class ContactsController {
   /**
    * Helper utility to auto-upsert contacts whenever a call starts or ends.
@@ -136,7 +154,7 @@ export class ContactsController {
       const normalizedPhone = rawPhone.startsWith('+') ? `+${cleanDigits}` : (cleanDigits.length === 10 ? `+91${cleanDigits}` : `+${cleanDigits}`);
 
       const formattedTags = Array.isArray(tags) ? JSON.stringify(tags) : (typeof tags === 'string' ? tags : '[]');
-      const parsedConsentDate = consentDate ? new Date(consentDate) : new Date();
+      const parsedConsentDate = parseConsentDate(consentDate);
 
       const contact = await prisma.contact.upsert({
         where: {
@@ -210,14 +228,27 @@ export class ContactsController {
         ? (Array.isArray(tags) ? JSON.stringify(tags) : (typeof tags === 'string' ? tags : '[]'))
         : undefined;
 
+      const normalizedUpdatePhone = phoneNumber !== undefined ? normalizeContactPhone(phoneNumber) : undefined;
+      if (phoneNumber !== undefined && !normalizedUpdatePhone) {
+        res.status(400).json({ success: false, error: 'Invalid phone number format. Must contain 7-15 digits.' });
+        return;
+      }
+      if (normalizedUpdatePhone && normalizedUpdatePhone !== existing.phoneNumber) {
+        const clash = await prisma.contact.findFirst({ where: { userId: userIdStr, phoneNumber: normalizedUpdatePhone }, select: { id: true } });
+        if (clash) {
+          res.status(409).json({ success: false, error: 'Another contact already uses this phone number.' });
+          return;
+        }
+      }
+
       const updated = await prisma.contact.update({
         where: { id: contactId },
         data: {
           ...(name !== undefined && { name: String(name) }),
-          ...(phoneNumber !== undefined && { phoneNumber: String(phoneNumber) }),
+          ...(phoneNumber !== undefined && { phoneNumber: normalizedUpdatePhone as string }),
           ...(formattedTags !== undefined && { tags: formattedTags }),
           ...(notes !== undefined && { notes: String(notes) }),
-          ...(consentDate !== undefined && { consentDate: consentDate ? new Date(consentDate) : null }),
+          ...(consentDate !== undefined && { consentDate: parseConsentDate(consentDate) }),
           ...(consentChannel !== undefined && { consentChannel: String(consentChannel) }),
           ...(consentWording !== undefined && { consentWording: String(consentWording) }),
           ...(optedOut !== undefined && {
@@ -254,15 +285,13 @@ export class ContactsController {
       const now = Date.now();
 
       for (const item of contacts) {
-        const rawPhone = (item.phoneNumber || item.phone || item.mobile || item.contact || '').trim();
-        if (!rawPhone) continue;
+        // String(...) first: spreadsheet imports often send numbers (audit #63: .trim() on a number threw
+        // after earlier rows were already saved).
+        const phone = normalizeContactPhone(item.phoneNumber ?? item.phone ?? item.mobile ?? item.contact);
+        if (!phone) continue;
 
-        const cleanDigits = rawPhone.replace(/\D/g, '');
-        if (cleanDigits.length < 7 || cleanDigits.length > 15) continue;
-        const phone = rawPhone.startsWith('+') ? `+${cleanDigits}` : (cleanDigits.length === 10 ? `+91${cleanDigits}` : `+${cleanDigits}`);
-
-        const consentDate = item.consentDate ? new Date(item.consentDate) : new Date();
-        const isExpired = !item.consentDate || (now - consentDate.getTime() > SIX_MONTHS_MS);
+        const consentDate = parseConsentDate(item.consentDate);
+        const isExpired = !consentDate || (now - consentDate.getTime() > SIX_MONTHS_MS);
         if (isExpired) {
           flaggedForReconsent++;
         }
