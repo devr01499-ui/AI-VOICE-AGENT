@@ -20,8 +20,8 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       models: [
-        { name: 'models/gemini-2.0-flash-exp', displayName: 'Gemini 2.0 Flash' },
-        { name: 'models/gemini-2.5-flash-native-audio-latest', displayName: 'Gemini 2.5 Flash Native Audio' },
+        { name: 'models/gemini-3.8-live', displayName: 'Gemini 3.8 Live' },
+        { name: 'models/gemini-2.5-flash-native-audio-preview-12-2025', displayName: 'Gemini 2.5 Flash Native Audio (preview 12-2025)' },
       ],
     }));
     return;

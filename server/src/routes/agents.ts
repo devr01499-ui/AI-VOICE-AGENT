@@ -18,6 +18,7 @@ import { logAuditEvent } from '../utils/auditLogger';
 import { ADMIN_EMAIL } from '../config/constants';
 import { QaController } from '../controllers/QaController';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { configuredTextModel, textModelCandidates, TEXT_MODEL_FALLBACK } from '../config/geminiModels';
 import { detectIndustry, normalizeIndustryInput } from '../utils/systemInstructionBuilder';
 import { EncryptionService } from '../utils/EncryptionService';
 import { aiFeatureLimiter, agentWriteLimiter } from '../middleware/rateLimiter';
@@ -155,8 +156,7 @@ router.post(
       }
 
       const genAI = new GoogleGenerativeAI(apiKey);
-      const primaryModel = process.env.GEMINI_BUILDER_MODEL || process.env.GEMINI_REALTIME_MODEL || 'gemini-2.5-flash';
-      const fallbackModel = 'gemini-2.0-flash';
+      const [primaryModel, fallbackModel = TEXT_MODEL_FALLBACK] = textModelCandidates(process.env.GEMINI_BUILDER_MODEL);
 
       let responseText = '';
 
@@ -996,7 +996,8 @@ router.post(
       // 3. Setup Gemini API
       const genAI = new GoogleGenerativeAI(geminiApiKey);
       const model = genAI.getGenerativeModel({ 
-        model: agent.model || 'gemini-2.5-flash',
+        // agent.model is the agent's VOICE (Live) model, which cannot answer text chat; use the text model.
+        model: configuredTextModel(process.env.GEMINI_BUILDER_MODEL),
         systemInstruction: agent.systemPrompt || "You are a helpful AI assistant."
       });
 
@@ -1063,7 +1064,7 @@ router.post(
 
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({
-        model: 'gemini-2.5-flash',
+        model: configuredTextModel(process.env.GEMINI_BUILDER_MODEL),
         systemInstruction: combinedSystemInstruction,
       });
 

@@ -21,6 +21,7 @@ import { getWebhookSigningSecret } from '../utils/security';
 import { callTimingTracker } from '../utils/CallTimingTracker';
 import { escapeXml } from '../utils/xmlUtils';
 import { mapCarrierHangup } from '../core/telephony/hangupCause';
+import { DEFAULT_LIVE_MODEL } from '../utils/modelResolver';
 import { hasCallableBalance } from '../utils/balanceUtils';
 
 /**
@@ -112,7 +113,7 @@ export class CallController {
               name: "Claritiy Voice Assistant",
               systemPrompt: "You are Claritiy Voice Assistant, a professional, warm, and helpful AI voice agent. Speak in a friendly, conversational tone. Answer caller questions concisely and assist them with their inquiries. Pause naturally and wait for caller responses. Never output markdown formatting or bullet points. Be polite, listen actively, and assist the caller with clarity.",
               voiceName: "Puck",
-              model: "models/gemini-2.5-flash-native-audio-latest",
+              model: DEFAULT_LIVE_MODEL,
               userId: "1e69187e-82d5-4166-929f-4bbba90e5304",
               status: "active"
             }

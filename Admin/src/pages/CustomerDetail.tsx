@@ -647,7 +647,7 @@ export const CustomerDetail: React.FC<CustomerDetailProps> = ({ customerId, onBa
                           {a.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 font-mono text-zinc-300">{a.model || 'gemini-2.0-flash'}</td>
+                      <td className="px-4 py-3.5 font-mono text-zinc-300">{a.model || 'gemini-3.8-live'}</td>
                       <td className="px-4 py-3.5 text-zinc-300">{a.voiceName || 'Default'}</td>
                       <td className="px-4 py-3.5 capitalize font-mono text-zinc-400">{a.direction || 'outbound'}</td>
                       <td className="px-4 py-3.5 font-mono text-white font-semibold">{a.callsCount || 0}</td>

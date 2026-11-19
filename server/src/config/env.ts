@@ -85,7 +85,7 @@ const envSchema = z.object({
   GEMINI_REALTIME_MODEL: z
     .string()
     .trim()
-    .default('gemini-2.0-flash'),
+    .default('gemini-3.8-live'), // informational; the Live model is decided in config/geminiModels.ts
 
   // ✅ FIXED: Changed from 'v1beta' to 'v1alpha'
   // Reason: v1beta endpoint is deprecated/rate-limited for WebSocket Live API

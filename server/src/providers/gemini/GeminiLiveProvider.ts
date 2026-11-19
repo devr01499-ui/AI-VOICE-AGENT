@@ -18,7 +18,8 @@ import { ProviderError } from '../../types/errors';
 import { CallError } from '../../utils/CallError';
 import { env } from '../../config/env';
 import { ADMIN_EMAIL } from '../../config/constants';
-import { resolveLiveModel, UNIVERSAL_FALLBACK_LIVE_MODEL } from '../../utils/modelResolver';
+import { resolveLiveModel, DEFAULT_LIVE_MODEL, UNIVERSAL_FALLBACK_LIVE_MODEL } from '../../utils/modelResolver';
+import { isGemini38Live } from '../../config/geminiModels';
 import { callTimingTracker } from '../../utils/CallTimingTracker';
 import { injectVoicePersonaDirective } from '../../utils/personaPrompt';
 import { deduplicateSystemPrompt } from '../../utils/promptOptimizer';
@@ -229,7 +230,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
       const testPayload = {
         setup: {
-          model: resolveLiveModel('gemini-2.0-flash-exp'),
+          model: DEFAULT_LIVE_MODEL,
           generationConfig: {
             responseModalities: ["AUDIO"],
             speechConfig: {
@@ -403,8 +404,10 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       ? UNIVERSAL_FALLBACK_LIVE_MODEL
       : resolveLiveModel(config.model);
     if (isSafeTier) {
-      logger.info('GeminiLiveProvider: Initializing session with SAFE setup tier and universal model fallback', { callId, sessionId, targetModel });
+      // Alertable: the primary model refused the session and the call runs on the fallback model.
+      logger.warn('[LIVE_MODEL_FALLBACK] GeminiLiveProvider: primary Live model refused the session; using the fallback model', { callId, sessionId, targetModel });
     }
+    const isLive38 = isGemini38Live(targetModel);
     const ws = new WebSocket(wsUrl);
 
     // ── Per-session closure state (no shared mutable instance fields) ──────
@@ -558,7 +561,10 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       }
 
       // Map tools cleanly to Gemini wire function_declarations format
-      const functionDeclarations = config.tools?.map((t) => ({
+      // Gemini 3.8 Live runs function calls in the background (NON_BLOCKING) by default; the agent's
+      // tools (end call, booking, knowledge lookup) need the answer before the agent speaks on, so
+      // they are declared BLOCKING — the behaviour every earlier Live model had.
+      const functionDeclarations: any[] = config.tools?.map((t) => ({
         name: t.name,
         description: t.description,
         parameters: t.parameters, // JSON Schema parameters can remain camelCase/nested as standard
@@ -686,13 +692,16 @@ export class GeminiLiveProvider implements IRealtimeProvider {
               },
               activityHandling: "START_OF_ACTIVITY_INTERRUPTS",
               turnCoverage: "TURN_INCLUDES_ALL_INPUT",
-              ...(proactiveAudioVal ? { proactivity: { proactiveAudio: true } } : {})
+              // Gemini 3.8 Live: proactive audio is always on and the field is not accepted.
+              ...(proactiveAudioVal && !isLive38 ? { proactivity: { proactiveAudio: true } } : {})
             }
           }),
           ...(functionDeclarations && functionDeclarations.length > 0 && {
             tools: [
               {
-                functionDeclarations: functionDeclarations,
+                functionDeclarations: isLive38
+                  ? functionDeclarations.map((fn) => ({ ...fn, behavior: 'BLOCKING' }))
+                  : functionDeclarations,
               },
             ],
           }),
@@ -1278,7 +1287,7 @@ export class GeminiLiveProvider implements IRealtimeProvider {
         newWs.on('open', () => {
           const resumptionPayload = {
             setup: {
-              model: session.targetModel || 'models/gemini-2.0-flash-exp',
+              model: session.targetModel || DEFAULT_LIVE_MODEL,
               resumptionHandle: session.resumptionHandle,
             },
           };

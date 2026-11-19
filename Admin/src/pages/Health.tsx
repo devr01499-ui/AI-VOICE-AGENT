@@ -130,7 +130,7 @@ export const Health: React.FC = () => {
           <div className="text-xs text-slate-400 space-y-1">
             <div className="flex justify-between py-1 border-b border-slate-800/60">
               <span>Model Pinned</span>
-              <span className="font-mono text-white text-[11px]">gemini-2.5-flash-native-audio</span>
+              <span className="font-mono text-white text-[11px]">gemini-3.8-live</span>
             </div>
             <div className="flex justify-between py-1">
               <span>Audio Format</span>

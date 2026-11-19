@@ -8,6 +8,7 @@
  * Never log prompts or keys from here; log only model names, durations and error kinds.
  */
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { textModelCandidates as geminiTextModelCandidates } from '../../config/geminiModels';
 import { prisma } from '../../lib/prisma';
 import { logger } from '../../utils/logger';
 import { EncryptionService } from '../../utils/EncryptionService';
@@ -67,11 +68,9 @@ export function setTextModelTransportForTests(transport: TextModelTransport | nu
   activeTransport = transport ?? geminiTransport;
 }
 
-/** Ordered model list: configured builder model first, then a stable fallback. */
+/** Ordered model list: configured builder model first (unless Google removed it), then a stable fallback. */
 export function textModelCandidates(): string[] {
-  const primary = (process.env.GEMINI_BUILDER_MODEL || 'gemini-2.5-flash').trim();
-  const fallback = 'gemini-2.0-flash';
-  return primary === fallback ? [primary] : [primary, fallback];
+  return geminiTextModelCandidates(process.env.GEMINI_BUILDER_MODEL);
 }
 
 /** The workspace's own Gemini key if saved, else the platform key, else null. */

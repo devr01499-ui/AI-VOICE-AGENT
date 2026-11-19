@@ -48,7 +48,7 @@ async function runLiveMultiTurn(apiKey: string, runIndex: number): Promise<Trans
   const systemInstruction = buildFinalSystemInstruction(hrAgent, { direction: 'outbound' });
 
   const model = genAI.getGenerativeModel({
-    model: 'gemini-1.5-flash',
+    model: 'gemini-3.6-flash',
     systemInstruction,
     generationConfig: {
       temperature: 0.7,

@@ -24,7 +24,7 @@ const AGENT = {
   status: 'active',
   version: 1,
   workspaceId: null,
-  model: 'gemini-2.5-flash-native-audio-latest',
+  model: 'gemini-3.8-live',
   voiceName: 'Kore',
   systemVoice: 'Kore',
   temperature: 0.7,

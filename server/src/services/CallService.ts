@@ -17,6 +17,7 @@ import { env } from '../config/env';
 import type { CallStatus, CallResponse, TranscriptSegmentResponse, Speaker } from '../types';
 import { Call, Execution, TranscriptSegment } from '@prisma/client';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { configuredTextModel } from '../config/geminiModels';
 import { prisma } from '../lib/prisma';
 import { ADMIN_EMAIL } from '../config/constants';
 import { WebhookDispatcher } from '../utils/WebhookDispatcher';
@@ -534,7 +535,7 @@ Transcript:
 ${transcriptText}`;
 
       const genAI = new GoogleGenerativeAI(apiKey);
-      const reportModelName = process.env.REPORT_ANALYSIS_MODEL || 'gemini-2.0-flash';
+      const reportModelName = configuredTextModel(process.env.REPORT_ANALYSIS_MODEL);
       const model = genAI.getGenerativeModel({ model: reportModelName });
 
       const result = await model.generateContent(prompt);
