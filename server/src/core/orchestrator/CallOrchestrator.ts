@@ -1256,6 +1256,11 @@ export class CallOrchestrator extends EventEmitter {
       return;
     }
 
+    // A call that was answered (it has a start time) and then ended on an error still connected and
+    // used carrier minutes: it is billed, so it is recorded as completed with the error kept as the
+    // end reason (audit #9: it was stored as 'failed' AND billed). A call that never connected stays
+    // 'failed' and is never billed (no start time = 0 seconds).
+    const wasAnswered = Boolean(call?.startTime);
     const mappedStatus: CallStatus = (
       normalizedReason === 'completed' ||
       normalizedReason === 'caller_hangup' ||
@@ -1265,7 +1270,9 @@ export class CallOrchestrator extends EventEmitter {
       normalizedReason === 'max_duration'
     )
       ? 'completed'
-      : (normalizedReason === 'no_answer' ? 'no_answer' : (normalizedReason === 'busy' ? 'busy' : 'failed'));
+      : (normalizedReason === 'no_answer' ? 'no_answer'
+        : (normalizedReason === 'busy' ? 'busy'
+          : (wasAnswered ? 'completed' : 'failed')));
 
     const stateMachine = this.stateMachines.get(callId);
     if (stateMachine) {

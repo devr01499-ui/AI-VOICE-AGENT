@@ -153,7 +153,11 @@ export class WebhookController {
           duration = 0;
         }
 
-        const terminalStatus: CallStatus = normalizedStatus === 'completed' ? 'completed' : 'failed';
+        // Keep the carrier's outcome (audit #16): busy / no-answer are retryable, not plain failures.
+        const terminalStatus: CallStatus = normalizedStatus === 'completed' ? 'completed'
+          : normalizedStatus === 'busy' ? 'busy'
+            : (normalizedStatus === 'no-answer' || normalizedStatus === 'no_answer') ? 'no_answer'
+              : 'failed';
         await CallRepository.updateStatus(logEntry.id, terminalStatus, {
           endTime,
           durationSeconds: duration,

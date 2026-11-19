@@ -9,6 +9,7 @@ import { webhookRateLimiter } from '../middleware/rateLimiter';
 import { getPlanConfig } from '../config/plans';
 import { BillingService, normaliseNotes } from '../services/BillingService';
 import { fulfilCapturedPlanPayment } from '../services/PaymentReconciliationService';
+import { MinutesService } from '../services/MinutesService';
 
 export const razorpayWebhookRouter = Router();
 
@@ -195,6 +196,37 @@ async function handleRefundProcessed(payload: any): Promise<void> {
     data: { refundedAmount, status: fully ? 'refunded' : 'partially_refunded' },
   });
   logger.info('[RAZORPAY_WEBHOOK] refund recorded', { paymentId, refundedAmount });
+
+  // A refunded PLAN takes back its minutes (audit #19: the minutes stayed). The share follows the
+  // refunded amount; never more than the customer still has (used minutes are flagged instead).
+  // A full refund also ends the plan, so the number is released after the usual grace period.
+  if (tx.planName === 'phone_number') return;
+  const credit = await prisma.minutesLedger.findUnique({ where: { idempotencyKey: `plan_purchase_${paymentId}` } });
+  const thisRefundInr = Number(refundEntity.amount || 0) / 100;
+  if (credit && credit.deltaSeconds > 0 && tx.amount && thisRefundInr > 0) {
+    const share = Math.min(1, thisRefundInr / Number(tx.amount));
+    const target = Math.round(credit.deltaSeconds * share);
+    const owner = await prisma.user.findUnique({ where: { id: tx.userId }, select: { minutesRemainingSeconds: true } });
+    const take = Math.min(target, Math.max(0, Math.floor(Number(owner?.minutesRemainingSeconds) || 0)));
+    if (take > 0) {
+      await MinutesService.debit({
+        userId: tx.userId,
+        deltaSeconds: take,
+        reason: 'refund',
+        refType: 'payment_refund',
+        refId: String(refundEntity.id || paymentId),
+        note: `Plan payment refunded (Rs ${thisRefundInr}); minutes taken back`,
+        actorType: 'system',
+        idempotencyKey: `plan_refund_${refundEntity.id || `${paymentId}_${refundedAmount}`}`,
+      });
+    }
+    if (take < target) {
+      logger.error('[ADMIN_ALERT][PAYMENTS] plan refunded after its minutes were used; review the refund', { paymentId, userId: tx.userId, minutesToReverse: target / 60, minutesReversed: take / 60 });
+    }
+  }
+  if (fully) {
+    await prisma.user.update({ where: { id: tx.userId }, data: { planExpiresAt: new Date() } }).catch(() => {});
+  }
 }
 
 /**

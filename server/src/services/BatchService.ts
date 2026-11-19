@@ -137,6 +137,9 @@ export class BatchService {
     let cancelled = 0;
     let remaining = 0;
     let totalDurationSeconds = 0;
+    // Billed the way calls are billed (audit #18): every started minute of each connected call,
+    // at least 1; calls that never connected add nothing.
+    let totalBilledMinutes = 0;
     let finalStateCount = 0;
 
     for (const r of recipients) {
@@ -159,6 +162,7 @@ export class BatchService {
 
         const dur = r.call?.durationSeconds || 0;
         totalDurationSeconds += dur;
+        if (dur > 0) totalBilledMinutes += Math.max(1, Math.ceil(dur / 60));
 
         const isAnswered = (r.call?.startTime && dur > 0) || (r.status === 'completed' && dur > 0);
         const isBusy = r.lastErrorCode === 'BUSY' || r.call?.status === 'busy';
@@ -184,7 +188,6 @@ export class BatchService {
     }
 
     const progressPercent = total > 0 ? Math.round((finalStateCount / total) * 100) : 0;
-    const totalBilledMinutes = Math.ceil(totalDurationSeconds / 60);
 
     return {
       total,

@@ -45,6 +45,17 @@ export class PlivoService {
     );
   }
 
+  /**
+   * Without carrier keys the service simulates results for local development. In production that
+   * would hand customers fake numbers and fake calls (audit #14), so it refuses instead.
+   */
+  private refuseSimulationInProduction(action: string): void {
+    if ((process.env.NODE_ENV || env.NODE_ENV) === 'production') {
+      logger.error('[ADMIN_ALERT][PLIVO_CONFIG] carrier credentials missing in production; refusing to simulate', { action });
+      throw new Error('This carrier is not available right now. Please try again later or contact support.');
+    }
+  }
+
   private getParentHeaders() {
     const creds = Buffer.from(`${this.parentAuthId}:${this.parentAuthToken}`).toString('base64');
     return {
@@ -169,6 +180,7 @@ export class PlivoService {
 
     // If no credentials configured, generate a simulated subaccount in dev/test
     if (!this.hasValidCredentials()) {
+      this.refuseSimulationInProduction('subaccount');
       logger.info('[PLIVO_SUBACCOUNT] Operating in dev fallback mode (no parent credentials configured).');
       const mockAuthId = `SA_${userId.substring(0, 8).toUpperCase()}_MOCK`;
       const mockToken = Buffer.from(`mock_token_${Date.now()}`).toString('base64');
@@ -272,6 +284,7 @@ export class PlivoService {
 
     // Fallback if credentials are not yet configured in Render env
     if (!this.hasValidCredentials()) {
+      this.refuseSimulationInProduction('search');
       logger.info('[PLIVO_SEARCH] Returning Indian local catalog preview (mock mode).');
       const previewRegions = [
         { city: 'Mumbai', code: '+9122', prefix: '22' },
@@ -425,6 +438,7 @@ export class PlivoService {
         subaccountAuthId,
       });
     } else {
+      this.refuseSimulationInProduction('purchase');
       logger.info('[PLIVO_PURCHASE_MOCK] Simulating Plivo number purchase in dev mode', {
         userId,
         number,
@@ -481,6 +495,7 @@ export class PlivoService {
     const { to, from, answerUrl, hangupUrl, ringUrl } = params;
 
     if (!this.hasValidCredentials()) {
+      this.refuseSimulationInProduction('call');
       logger.info('[PLIVO_OUTBOUND_MOCK] Simulating Plivo outbound call in dev mode', { to, from });
       return { requestUuid: `plivo_mock_${Date.now()}` };
     }

@@ -285,7 +285,9 @@ async function runAudit() {
       });
     } catch (err) {
       errorThrown = true;
-      assert.ok(err.message.includes('Payment order amount does not match'));
+      // audit #20: a plan mismatch says so (it used to reuse the "amount does not match" text)
+      assert.strictEqual(err.code, 'PLAN_MISMATCH');
+      assert.ok(err.message.includes('different plan'));
     }
     assert.strictEqual(errorThrown, true, 'Mismatched order plan tag must be rejected');
   });

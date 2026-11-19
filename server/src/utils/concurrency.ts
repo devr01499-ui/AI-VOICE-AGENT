@@ -134,18 +134,42 @@ export async function reapStuckCalls(): Promise<{ reapedCalls: number; reapedSes
   const staleThreshold = new Date(Date.now() - MAX_ACTIVE_CALL_AGE_MS);
 
   try {
-    const reapedCalls = await prisma.call.updateMany({
+    // Calls orphaned by a restart (audit #10): close them, hang up the carrier leg (keepCallAlive
+    // would keep the line open and billing), and bill the talk time the CARRIER reported. Never a
+    // guess from timestamps (that could overcharge by up to an hour); unknown duration = alert.
+    const stuck = await prisma.call.findMany({
       where: {
         status: {
           in: ['queued', 'ringing', 'progressing', 'connected', 'in_progress', 'IN_PROGRESS', 'active', 'ACTIVE']
         },
         createdAt: { lt: staleThreshold }
       },
-      data: {
-        status: 'timeout',
-        endTime: new Date()
-      }
+      select: { id: true, startTime: true, durationSeconds: true },
+      take: 200,
     });
+    const reapedCalls = { count: 0 };
+    for (const c of stuck) {
+      const closed = await prisma.call.updateMany({
+        where: { id: c.id, status: { in: ['queued', 'ringing', 'progressing', 'connected', 'in_progress', 'IN_PROGRESS', 'active', 'ACTIVE'] } },
+        data: { status: 'timeout', endTime: new Date(), endReason: 'safety_timeout', endedBy: 'system' },
+      });
+      if (closed.count !== 1) continue;
+      reapedCalls.count++;
+      try {
+        const { hangupCarrierLeg } = await import('../core/telephony/carrierHangup');
+        await hangupCarrierLeg(c.id, { reason: 'safety_timeout' });
+      } catch (err) {
+        logger.warn('[Concurrency] carrier hangup for a reaped call failed', { callId: c.id, error: String(err) });
+      }
+      const carrierSeconds = Number(c.durationSeconds) || 0;
+      if (c.startTime && carrierSeconds > 0) {
+        const { CallService } = await import('../services/CallService');
+        await CallService.deductCallMinutes(c.id, carrierSeconds).catch((err: any) =>
+          logger.error('[Concurrency] billing a reaped call failed', { callId: c.id, error: String(err) }));
+      } else if (c.startTime) {
+        logger.error('[ADMIN_ALERT][CALL_BILLING] answered call reaped without a carrier duration; not billed, check the carrier CDR', { callId: c.id });
+      }
+    }
 
     const reapedSessions = await prisma.callSession.updateMany({
       where: {

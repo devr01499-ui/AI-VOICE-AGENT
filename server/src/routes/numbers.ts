@@ -243,6 +243,29 @@ router.post('/purchase', requireAuth, requireEditor, requirePaidPlan, sensitiveO
     res.status(401).json({ success: false, error: 'User not found' });
     return;
   }
+  // Idempotency first (audit #15): a repeat of a purchase that already succeeded answers with that
+  // number, instead of the "already claimed" lock message the first purchase itself set.
+  const existingNumber = vobizNumberId ? await prisma.phoneNumber.findFirst({
+    where: { userId, vobizNumberId: String(vobizNumberId) },
+  }) : null;
+  if (existingNumber) {
+    logger.info('[NUMBERS_PURCHASE] Idempotent request — number already provisioned', { userId, vobizNumberId, phoneNumber: existingNumber.phoneNumber });
+    res.json({
+      success: true,
+      data: {
+        message: 'Number already purchased and assigned.',
+        phoneNumberId: existingNumber.id,
+        number: existingNumber.phoneNumber,
+        status: existingNumber.aadhaarRequired ? 'KYC Required' : 'Active',
+        nextBillingDate: existingNumber.nextBillingDate,
+        monthlyCost: existingNumber.monthlyCost,
+        currency: existingNumber.currency,
+        numberLocked: true,
+      }
+    });
+    return;
+  }
+
   if (user.numberLocked) {
     res.status(403).json({
       success: false,
@@ -267,28 +290,6 @@ router.post('/purchase', requireAuth, requireEditor, requirePaidPlan, sensitiveO
 
   if (!vobizNumberId || !orderId || !paymentId || !signature) {
     res.status(400).json({ success: false, error: 'Missing required purchase fields.' });
-    return;
-  }
-
-  // Idempotency check: Return existing record if this vobiz number was already provisioned for this user
-  const existingNumber = await prisma.phoneNumber.findFirst({
-    where: { userId, vobizNumberId },
-  });
-  if (existingNumber) {
-    logger.info('[NUMBERS_PURCHASE] Idempotent request — number already provisioned', { userId, vobizNumberId, phoneNumber: existingNumber.phoneNumber });
-    res.json({
-      success: true,
-      data: {
-        message: 'Number already purchased and assigned.',
-        phoneNumberId: existingNumber.id,
-        number: existingNumber.phoneNumber,
-        status: existingNumber.aadhaarRequired ? 'KYC Required' : 'Active',
-        nextBillingDate: existingNumber.nextBillingDate,
-        monthlyCost: existingNumber.monthlyCost,
-        currency: existingNumber.currency,
-        numberLocked: true,
-      }
-    });
     return;
   }
 
