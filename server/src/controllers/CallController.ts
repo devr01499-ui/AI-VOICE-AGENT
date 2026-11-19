@@ -9,6 +9,7 @@
 import { recordingXml } from '../services/RecordingService';
 import crypto from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
+import type { Prisma } from '@prisma/client';
 import { logger } from '../utils/logger';
 import { CallService } from '../services/CallService';
 import { InboundCallService } from '../services/InboundCallService';
@@ -19,6 +20,7 @@ import { ADMIN_EMAIL } from '../config/constants';
 import { getWebhookSigningSecret } from '../utils/security';
 import { callTimingTracker } from '../utils/CallTimingTracker';
 import { escapeXml } from '../utils/xmlUtils';
+import { mapCarrierHangup } from '../core/telephony/hangupCause';
 import { hasCallableBalance } from '../utils/balanceUtils';
 
 /**
@@ -314,6 +316,11 @@ export class CallController {
           return;
         }
 
+        // Keep the live call's id (CallUUID): hanging up needs it, not the dial request id (audit #29).
+        if (callUuid && callSession.telemetryId !== callUuid) {
+          await prisma.call.update({ where: { id: callId }, data: { telemetryId: callUuid } }).catch(() => {});
+        }
+
         // Update status to connected
         await CallService.handleStatusUpdate(callId, 'answered');
       }
@@ -391,6 +398,23 @@ ${recXml}  <Stream streamTimeout="1800" keepCallAlive="true" bidirectional="true
   }
 
   /**
+   * Which call a Plivo webhook refers to. A request authenticated by the per-call URL token is bound
+   * to that call only (audit #28); otherwise (Plivo header signature) any of the carrier's ids match.
+   */
+  static plivoCallWhere(req: Request, norm: ReturnType<typeof CallController.normalizePlivoPayload>): Prisma.CallWhereInput {
+    const signedCallId = (req as any).plivoSignedCallId as string | undefined;
+    if (signedCallId) return { id: signedCallId };
+    const or: Prisma.CallWhereInput[] = [
+      ...(norm.callId ? [{ id: norm.callId }] : []),
+      ...(norm.requestUuid ? [{ telemetryId: norm.requestUuid }] : []),
+      ...(norm.callUuid ? [{ telemetryId: norm.callUuid }] : []),
+      ...(norm.alegUuid ? [{ telemetryId: norm.alegUuid }] : []),
+    ];
+    // No identifier at all: match nothing.
+    return or.length ? { OR: or } : { id: '__no_call__' };
+  }
+
+  /**
    * POST/GET /api/v2/webhooks/plivo/answer
    *
    * Dedicated Plivo answer webhook handler. Supports both inbound and outbound calls.
@@ -414,14 +438,7 @@ ${recXml}  <Stream streamTimeout="1800" keepCallAlive="true" bidirectional="true
       // 1. If not explicitly inbound, attempt to find an existing outbound call session
       if (norm.direction !== 'inbound') {
         callSession = await prisma.call.findFirst({
-          where: {
-            OR: [
-              ...(norm.callId ? [{ id: norm.callId }] : []),
-              ...(norm.requestUuid ? [{ telemetryId: norm.requestUuid }] : []),
-              ...(norm.callUuid ? [{ telemetryId: norm.callUuid }] : []),
-              ...(norm.alegUuid ? [{ telemetryId: norm.alegUuid }] : []),
-            ],
-          },
+          where: CallController.plivoCallWhere(req, norm),
         });
       }
 
@@ -526,14 +543,7 @@ ${recXml}  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/
       });
 
       const callSession = await prisma.call.findFirst({
-        where: {
-          OR: [
-            ...(norm.callId ? [{ id: norm.callId }] : []),
-            ...(norm.requestUuid ? [{ telemetryId: norm.requestUuid }] : []),
-            ...(norm.callUuid ? [{ telemetryId: norm.callUuid }] : []),
-            ...(norm.alegUuid ? [{ telemetryId: norm.alegUuid }] : []),
-          ],
-        },
+        where: CallController.plivoCallWhere(req, norm),
       });
 
       if (callSession) {
@@ -565,14 +575,7 @@ ${recXml}  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/
       });
 
       const callSession = await prisma.call.findFirst({
-        where: {
-          OR: [
-            ...(norm.callId ? [{ id: norm.callId }] : []),
-            ...(norm.requestUuid ? [{ telemetryId: norm.requestUuid }] : []),
-            ...(norm.callUuid ? [{ telemetryId: norm.callUuid }] : []),
-            ...(norm.alegUuid ? [{ telemetryId: norm.alegUuid }] : []),
-          ],
-        },
+        where: CallController.plivoCallWhere(req, norm),
       });
 
       if (callSession) {
@@ -584,22 +587,8 @@ ${recXml}  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/
           }).catch(() => {});
         }
 
-        let mappedReason = 'caller_hangup';
-        let endedBy = 'caller';
-
-        if (hangupSource === 'agent' || hangupSource === 'plivo') {
-          mappedReason = 'agent_hangup';
-          endedBy = 'agent';
-        } else if (hangupCause === 'NO_ANSWER' || hangupCause === 'TIMEOUT') {
-          mappedReason = 'no_answer';
-          endedBy = 'provider';
-        } else if (hangupCause === 'BUSY' || hangupCause === 'REJECTED') {
-          mappedReason = 'busy';
-          endedBy = 'provider';
-        } else if (hangupCause === 'FAILED' || hangupCause === 'USER_BUSY') {
-          mappedReason = 'provider_error';
-          endedBy = 'provider';
-        }
+        // Cause before source (audit #30): busy / no-answer / rejected must stay retryable.
+        const { reason: mappedReason, endedBy } = mapCarrierHangup(hangupCause, hangupSource, duration);
 
         await callOrchestrator.endCallSession(
           callId,
@@ -698,19 +687,8 @@ ${recXml}  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/
         });
       }
 
-      let mappedReason = 'caller_hangup';
-      let endedBy = 'caller';
-
-      if (hangupSource === 'agent' || hangupSource === 'platform' || hangupSource === 'vobiz') {
-        mappedReason = 'agent_hangup';
-        endedBy = 'agent';
-      } else if (hangupCause === 'NO_ANSWER' || hangupCause === 'TIMEOUT') {
-        mappedReason = 'no_answer';
-        endedBy = 'provider';
-      } else if (hangupCause === 'BUSY' || hangupCause === 'REJECTED') {
-        mappedReason = 'busy';
-        endedBy = 'provider';
-      }
+      // Cause before source (audit #30): busy / no-answer / rejected must stay retryable.
+      const { reason: mappedReason, endedBy } = mapCarrierHangup(hangupCause, hangupSource, duration);
 
       // End the runtime session with detailed hangup cause and attribution
       await callOrchestrator.endCallSession(

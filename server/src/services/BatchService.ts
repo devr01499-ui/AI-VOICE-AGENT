@@ -321,6 +321,12 @@ export class BatchService {
    * Determines whether an error is a batch-level error (affects all contacts)
    * vs contact-specific error.
    */
+  /** The call was refused only because no line was free (account or platform limit): retry later. */
+  static isCapacityRefusal(errorMessage: string): boolean {
+    const lower = String(errorMessage || '').toLowerCase();
+    return lower.includes('concurrency limit') || lower.includes('telephony capacity');
+  }
+
   static isBatchLevelError(errorMessage: string): boolean {
     const lower = errorMessage.toLowerCase();
     return (
@@ -663,8 +669,10 @@ export class BatchService {
             return;
           }
 
-          if (errMsg.includes('Concurrency limit')) {
-            // Concurrency refusal is NOT a failure: requeue as pending, do not consume attempt, short sleep
+          if (BatchService.isCapacityRefusal(errMsg)) {
+            // A capacity refusal (the account's or the platform's) is NOT a failure: requeue as pending,
+            // do not consume an attempt, short sleep (audit #38: the platform-wide refusal was recorded
+            // as a permanent failure, so the contact was never called).
             logger.info(`BatchService: Concurrency refusal for recipient ${nextRecipient.id}. Requeueing without consuming attempt.`);
             await prisma.batchRecipient.update({
               where: { id: nextRecipient.id },

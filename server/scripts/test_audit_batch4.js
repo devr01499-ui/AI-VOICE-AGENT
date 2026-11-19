@@ -32,8 +32,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const uid = () => crypto.randomUUID();
 const phone = () => `+9198${Math.floor(10000000 + Math.random() * 89999999)}`;
 
+const createdUsers = [];
 async function newUser(accountType, extra = {}) {
   const id = uid();
+  createdUsers.push(id);
   await prisma.user.create({
     data: { id, email: `b4-${id.slice(0, 8)}@claritiy-test.co.in`, fullName: 'Batch Four', passwordHash: 'x', accountType, accountStatus: 'active', callingBalanceMinutes: 100, minutesRemainingSeconds: 6000, ...extra },
   });
@@ -330,6 +332,10 @@ async function main() {
   });
 
   console.log(`\nAudit batch 4: ${passed}/${total} passed`);
+  // Post-call analysis jobs queued by the calls ended here would crowd the shared test queue
+  // (the M1 suite processes the oldest pending jobs); remove them.
+  await sleep(500);
+  await prisma.analysisJob.deleteMany({ where: { workspaceId: { in: createdUsers } } }).catch(() => {});
   await prisma.$disconnect().catch(() => {});
   process.exit(passed === total ? 0 : 1);
 }

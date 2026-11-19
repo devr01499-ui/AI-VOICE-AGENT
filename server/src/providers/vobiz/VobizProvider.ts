@@ -305,6 +305,21 @@ export class VobizProvider implements ITelephonyProvider {
         );
       }
 
+      if (response.status === 404) {
+        // The id may be the dial REQUEST uuid (call not answered yet, or the CallUUID was never
+        // stored): cancel the request too, so the line never stays up (audit #29). 404 = nothing to end.
+        const reqResponse = await fetch(`${this.baseUrl}/Account/${authId}/Request/${callUuid}/`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Auth-ID': authId, 'X-Auth-Token': authToken },
+        });
+        if (!reqResponse.ok && reqResponse.status !== 404) {
+          const text = await reqResponse.text();
+          throw new ProviderError('vobiz', `Cancel call request failed (${reqResponse.status}): ${text}`);
+        }
+        logger.info('VobizProvider: call already ended or request cancelled', { callUuid, requestStatus: reqResponse.status });
+        return;
+      }
+
       logger.info('VobizProvider: call terminated', { callUuid });
     } catch (err) {
       if (err instanceof ProviderError) throw err;

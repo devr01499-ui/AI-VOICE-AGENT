@@ -28,6 +28,9 @@ import { buildFinalSystemInstruction } from '../../utils/systemInstructionBuilde
 import { buildCapabilitiesBlock, filterActiveTools } from '../../utils/capabilities';
 import { getCallableSecondsRemaining } from '../../utils/balanceUtils';
 
+/** Call statuses after which nothing more happens on the call. */
+const TERMINAL_CALL_STATUSES = new Set(['completed', 'failed', 'no_answer', 'busy', 'cancelled', 'canceled', 'timeout']);
+
 export function extractToolsFromFlowGraph(flowGraphInput: string | object | null | undefined): any[] {
   if (!flowGraphInput) return [];
   let graphObj: any = null;
@@ -187,24 +190,44 @@ export class CallOrchestrator extends EventEmitter {
     this.startMidCallEnforcementMonitor();
   }
 
-  waitForCallEnd(callId: string, timeoutMs: number): Promise<{ reason: string; durationSeconds?: number }> {
+  /**
+   * Resolves when the call ends: on its 'callEnded' event, or when its row is already final. The row
+   * is checked as soon as the listener is attached (audit #36: a call rejected instantly had ended
+   * before anyone listened, and the batch worker waited 30 minutes) and then every 15 s, so an end
+   * recorded without an event (another process, a carrier webhook) never blocks the caller either.
+   */
+  waitForCallEnd(callId: string, timeoutMs: number, recheckMs: number = 15000): Promise<{ reason: string; durationSeconds?: number }> {
     return new Promise((resolve) => {
+      let settled = false;
       let timer: NodeJS.Timeout | null = null;
+      let recheck: NodeJS.Timeout | null = null;
 
+      const finish = (result: { reason: string; durationSeconds?: number }) => {
+        if (settled) return;
+        settled = true;
+        if (timer) clearTimeout(timer);
+        if (recheck) clearInterval(recheck);
+        this.off('callEnded', handler);
+        resolve(result);
+      };
       const handler = (event: { callId: string; reason: string; durationSeconds?: number }) => {
-        if (event.callId === callId) {
-          if (timer) clearTimeout(timer);
-          this.off('callEnded', handler);
-          resolve(event);
-        }
+        if (event.callId === callId) finish(event);
+      };
+      const checkRow = () => {
+        prisma.call.findUnique({ where: { id: callId }, select: { status: true, endReason: true, durationSeconds: true } })
+          .then((row) => {
+            if (row && TERMINAL_CALL_STATUSES.has(String(row.status).toLowerCase())) {
+              finish({ reason: String(row.endReason || row.status), durationSeconds: row.durationSeconds ?? undefined });
+            }
+          })
+          .catch(() => {});
       };
 
       this.on('callEnded', handler);
-
-      timer = setTimeout(() => {
-        this.off('callEnded', handler);
-        resolve({ reason: 'timeout' });
-      }, timeoutMs);
+      timer = setTimeout(() => finish({ reason: 'timeout' }), timeoutMs);
+      recheck = setInterval(checkRow, Math.max(1000, recheckMs));
+      if (typeof recheck.unref === 'function') recheck.unref();
+      checkRow();
     });
   }
 
@@ -1175,8 +1198,7 @@ export class CallOrchestrator extends EventEmitter {
 
     // ── Load the call row once; everything below decides from it ─────────────────────────
     const call = await prisma.call.findUnique({ where: { id: callId } });
-    const TERMINAL = new Set(['completed', 'failed', 'no_answer', 'busy', 'cancelled', 'canceled', 'timeout']);
-    const alreadyFinalized = Boolean(call && TERMINAL.has(String(call.status).toLowerCase()));
+    const alreadyFinalized = Boolean(call && TERMINAL_CALL_STATUSES.has(String(call.status).toLowerCase()));
 
     // ── A carrier-side stream end during a live conversation is the CALLER hanging up. ─────
     // It used to be recorded as status "failed / stream_closed" for every normal call.
@@ -1228,6 +1250,8 @@ export class CallOrchestrator extends EventEmitter {
         callId, existingStatus: call?.status, existingReason: (call as any)?.endReason, ignoredReason: normalizedReason,
       });
       this.stateMachines.delete(callId);
+      // Anyone still waiting for this call (a batch worker) is released with the recorded outcome (#35).
+      this.emit('callEnded', { callId, reason: String((call as any)?.endReason || call?.status || normalizedReason) });
       await hangupCarrierLeg(callId, { reason: normalizedReason });
       return;
     }

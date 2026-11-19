@@ -212,8 +212,9 @@ async function runAcceptanceSuite() {
       for (const c of activeCalls) {
         await prisma.call.update({
           where: { id: c.id },
-          data: { status: 'completed' }
+          data: { status: 'completed', startTime: new Date(Date.now() - 30000), durationSeconds: 30 }
         });
+        callOrchestrator.emit('callEnded', { callId: c.id, reason: 'completed' });
       }
     }, 200);
 
@@ -331,7 +332,7 @@ async function runAcceptanceSuite() {
     const completeIntervalD = setInterval(async () => {
       await prisma.call.updateMany({
         where: { recipientPhoneNumber: '+919876500030', status: 'in_progress' },
-        data: { status: 'completed' }
+        data: { status: 'completed', startTime: new Date(Date.now() - 30000), durationSeconds: 30 }
       });
     }, 200);
 
@@ -360,7 +361,7 @@ async function runAcceptanceSuite() {
         status: 'running',
         totalRecipients: 1,
         scheduleConfig: JSON.stringify({ ignoreCallingHours: true }),
-        retryConfig: JSON.stringify({ intervalMs: 200, maxAttempts: 2 }), // 200ms fast retry for testing
+        retryConfig: JSON.stringify({ intervalMinutes: 10, maxAttempts: 2 }), // 10 min is the minimum allowed
         recipients: {
           create: [{ phoneNumber: '+919876500040', status: 'pending' }]
         }
@@ -369,12 +370,19 @@ async function runAcceptanceSuite() {
 
     // Make call resolve as busy on each attempt
     const busyIntervalF = setInterval(async () => {
-      await prisma.call.updateMany({
-        where: { recipientPhoneNumber: '+919876500040', status: 'in_progress' },
-        data: { status: 'busy' }
-      });
+      const ringing = await prisma.call.findMany({ where: { recipientPhoneNumber: '+919876500040', status: 'in_progress' } });
+      for (const c of ringing) {
+        await prisma.call.update({ where: { id: c.id }, data: { status: 'busy' } });
+        callOrchestrator.emit('callEnded', { callId: c.id, reason: 'busy' });
+      }
     }, 100);
 
+    await BatchService.processBatch(batchF.id, testUser.id);
+    const afterFirstF = await prisma.batch.findUnique({ where: { id: batchF.id }, include: { recipients: true } });
+    assert.strictEqual(afterFirstF.recipients[0].attempts, 1);
+    assert.strictEqual(afterFirstF.status, 'running', 'campaign waits for the retry of the busy contact');
+    // The retry interval passes (simulated), and the recovery job re-enters the loop.
+    await prisma.batchRecipient.updateMany({ where: { batchId: batchF.id }, data: { lastAttemptAt: new Date(Date.now() - 11 * 60 * 1000) } });
     await BatchService.processBatch(batchF.id, testUser.id);
     clearInterval(busyIntervalF);
 

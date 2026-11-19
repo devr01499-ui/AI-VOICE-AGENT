@@ -42,6 +42,8 @@ interface ActiveConnection {
   inboundAudioBuffer: string[]; // Buffer audio packets arriving before session is ready
   hasSentFirstAudio?: boolean;
   silenceTimer?: NodeJS.Timeout;
+  /** Milliseconds of speech-level caller audio heard while the silent-caller greeting timer runs. */
+  callerVoiceMs?: number;
   greetingResolved?: boolean;
   isFallingBack?: boolean;
   /** Epoch ms at which everything we have sent to the carrier will have finished playing. */
@@ -67,6 +69,43 @@ const MAX_PLAYBACK_QUEUE_CHUNKS = 50;  // Max ~1.5 seconds of outbound playback 
 
 
 // ─── Provider Error Classifier ────────────────────────
+/** Caller speech needed (ms of speech-level frames) before the silent-caller greeting is cancelled. */
+export const CALLER_SPEECH_CANCEL_MS = 160;
+/** RMS (16-bit scale) above which a telephony frame is treated as speech rather than line noise. */
+export const SPEECH_RMS_THRESHOLD = 500;
+
+function mulawToLinear(byte: number): number {
+  const u = ~byte & 0xff;
+  const sign = u & 0x80;
+  const exponent = (u >> 4) & 0x07;
+  const mantissa = u & 0x0f;
+  const magnitude = (((mantissa << 3) + 0x84) << exponent) - 0x84;
+  return sign ? -magnitude : magnitude;
+}
+
+/**
+ * Duration (ms) of a caller audio frame if it carries speech-level energy, else 0.
+ * L16 frames are 16 kHz 16-bit mono (32 bytes per ms); mu-law frames are 8 kHz (8 bytes per ms).
+ */
+export function speechFrameMs(payloadBase64: string, format?: 'audio/x-l16' | 'audio/x-mulaw'): number {
+  if (!payloadBase64) return 0;
+  const raw = Buffer.from(payloadBase64, 'base64');
+  let sum = 0;
+  let count = 0;
+  let ms = 0;
+  if (format === 'audio/x-mulaw') {
+    for (let i = 0; i < raw.length; i++) { const v = mulawToLinear(raw[i]); sum += v * v; }
+    count = raw.length;
+    ms = raw.length / 8;
+  } else {
+    count = Math.floor(raw.length / 2);
+    for (let i = 0; i < count; i++) { const v = raw.readInt16LE(i * 2); sum += v * v; }
+    ms = raw.length / 32;
+  }
+  if (count === 0) return 0;
+  return Math.sqrt(sum / count) >= SPEECH_RMS_THRESHOLD ? ms : 0;
+}
+
 export function classifyProviderError(errorStr: string): 'transient' | 'fatal' {
   const err = (errorStr || '').toLowerCase();
   if (
@@ -350,14 +389,9 @@ export class AudioStreamHandler {
         const rejectionReason = (!token || !tsStr)
           ? 'Missing token or ts in query params'
           : 'Invalid or expired stream token HMAC signature';
+        // An unauthenticated connection must not change the call it names (audit #145: anyone who
+        // knew a call id could mark a live call failed). The real stream can still connect.
         logger.warn('AudioStreamHandler: unauthorized stream connection attempt via URL parameters', { callId, rejectionReason });
-        import('../repositories/CallRepository').then(({ CallRepository }) => {
-          CallRepository.updateStatus(callId, 'failed', {
-            endReason: 'handshake_failed',
-            endDetail: rejectionReason,
-            endedBy: 'system',
-          }).catch(() => {});
-        }).catch(() => {});
         try {
           ws.close(1008, `Unauthorized: ${rejectionReason}`);
         } catch {}
@@ -744,14 +778,15 @@ export class AudioStreamHandler {
             conn.ws.close(1011, 'Session initialization failed');
           }
 
-          // ✅ Update DB asynchronously
-          CallRepository.updateStatus(callId, 'failed')
-            .then(() => {
-              return CallRepository.updateExecution(callId, {
-                outcome: 'unsuccessful',
-                metadata: JSON.stringify({ error: err instanceof Error ? err.message : String(err) }),
-              });
-            })
+          // End the call through the one end path (audit #35): it marks the call failed, hangs up the
+          // carrier leg (keepCallAlive would otherwise keep the line open) and emits 'callEnded' so a
+          // waiting batch worker moves on instead of waiting 30 minutes.
+          const errorText = err instanceof Error ? err.message : String(err);
+          callOrchestrator.endCallSession(callId, 'gemini_setup_failed', `Session initialization failed: ${errorText}`, 'system')
+            .then(() => CallRepository.updateExecution(callId, {
+              outcome: 'unsuccessful',
+              metadata: JSON.stringify({ error: errorText }),
+            }))
             .catch((dbErr) => {
               logger.error('AudioStreamHandler: cleanup on error failed', { callId, error: dbErr });
             });
@@ -790,12 +825,17 @@ export class AudioStreamHandler {
       conn.audioStats.packetsReceived++;
       conn.audioStats.bytesReceived += audioPayload.length;
 
-      // If user sends audio before silence timer fires, cancel timer and let conversation flow
+      // Cancel the "greet a silent caller" timer only when the caller actually speaks (audit #31: the
+      // carrier streams frames continuously, silence included, so the first frame always cancelled it
+      // and a silent caller was never greeted).
       if (conn.silenceTimer) {
-        clearTimeout(conn.silenceTimer);
-        conn.silenceTimer = undefined;
-        conn.greetingResolved = true;
-        logger.info('[SILENCE_START] Caller activity detected before timeout, silence timer cancelled', { callId });
+        conn.callerVoiceMs = (conn.callerVoiceMs || 0) + speechFrameMs(audioPayload, conn.inboundFormat);
+        if (conn.callerVoiceMs >= CALLER_SPEECH_CANCEL_MS) {
+          clearTimeout(conn.silenceTimer);
+          conn.silenceTimer = undefined;
+          conn.greetingResolved = true;
+          logger.info('[SILENCE_START] Caller speech detected before timeout, silence timer cancelled', { callId, voicedMs: conn.callerVoiceMs });
+        }
       }
 
       // If session not ready yet, buffer the audio with boundary cap against OOM/jitter

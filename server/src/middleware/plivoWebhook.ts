@@ -215,6 +215,16 @@ function getCandidateTargetUrls(req: Request): string[] {
   return urls;
 }
 
+function query(req: Request, key: string): string {
+  const v = (req.query || ({} as any))[key];
+  return typeof v === 'string' ? v : '';
+}
+
+function bodyField(req: Request, key: string): string {
+  const v = req.body && typeof req.body === 'object' ? (req.body as Record<string, unknown>)[key] : undefined;
+  return typeof v === 'string' ? v : '';
+}
+
 function extractWebhookCallId(req: Request): string | null {
   const query = (req.query || {}) as Record<string, any>;
   const body = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, any>;
@@ -249,7 +259,7 @@ export async function verifyPlivoWebhook(req: Request, res: Response, next: Next
   const nonceV2 = (req.header('X-Plivo-Signature-V2-Nonce') || req.header('x-plivo-signature-v2-nonce') || '').trim();
 
   const querySig = ((req.query.sig || (req.body && req.body.sig) || '') as string).trim();
-  const callId = ((req.query.callId || (req.body && req.body.callId) || '') as string).trim();
+  const callId = (query(req, 'callId') || bodyField(req, 'callId')).trim();
   const webhookCallId = extractWebhookCallId(req);
 
   // In development/test mode without credentials configured, allow simulated pass-through with log
@@ -265,6 +275,18 @@ export async function verifyPlivoWebhook(req: Request, res: Response, next: Next
     const secret = getWebhookSigningSecret();
     const expectedSig = crypto.createHmac('sha256', secret).update(callId).digest('hex');
     if (timingSafeCompare(expectedSig, querySig)) {
+      // The token proves only this one call (audit #28: the token was checked on query.callId while
+      // the handler used body.callId, so one valid token could act on any other call). Every call id
+      // the request names must be the signed one, and handlers look the call up by that id only.
+      const named = [query(req, 'callId'), bodyField(req, 'callId'), query(req, 'CallId'), bodyField(req, 'CallId'), String(req.params?.callId || '')]
+        .map((v) => v.trim())
+        .filter(Boolean);
+      if (named.some((v) => v !== callId)) {
+        logger.warn('Plivo Webhook: call token does not match the call named in the request', { callId, ip: req.ip, path: req.path });
+        res.status(403).json({ success: false, error: 'Forbidden: call token mismatch' });
+        return;
+      }
+      (req as any).plivoSignedCallId = callId;
       logger.info('Plivo Webhook: Request authenticated via cryptographic call token', { callId });
       return next();
     }

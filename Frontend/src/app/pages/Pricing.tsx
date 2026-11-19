@@ -1,3 +1,4 @@
+import { savePendingPlan, readPendingPlan, clearPendingPlan } from "../lib/pendingPlan";
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { Check, ArrowRight, ShieldCheck, Zap, Loader2, Sparkles, Lock, HelpCircle, PhoneCall } from "lucide-react";
@@ -44,7 +45,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
     if (!token) {
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('selected_plan_tier', planName);
-        localStorage.setItem('pending_plan_purchase', JSON.stringify({ planName, price }));
+        savePendingPlan(planName, price);
       }
       alert(`Please sign in or create an account to complete your ${planName} Plan purchase. We'll return you straight to checkout.`);
       if (setPage) setPage('dashboard');
@@ -176,16 +177,11 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
   };
 
   useEffect(() => {
-    const pending = typeof window !== 'undefined' ? localStorage.getItem('pending_plan_purchase') : null;
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    if (pending && token) {
-      try {
-        const { planName, price } = JSON.parse(pending);
-        localStorage.removeItem('pending_plan_purchase');
-        handlePurchase(planName, price);
-      } catch (err) {
-        localStorage.removeItem('pending_plan_purchase');
-      }
+    const pending = token ? readPendingPlan() : null;
+    if (pending) {
+      clearPendingPlan();
+      handlePurchase(pending.planName, pending.price);
     }
   }, []);
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import { supabase } from "./lib/supabaseClient";
 import AuthGateway from "./components/auth/AuthGateway";
+import { readPendingPlan, clearPendingPlan } from "./lib/pendingPlan";
 import { Session } from "@supabase/supabase-js";
 import { ApiKeyManagement } from './components/settings/ApiKeyManagement';
 import AgentConfigPanel from "./components/agents/AgentConfigPanel";
@@ -6981,13 +6982,15 @@ export default function App() {
             console.warn('[Calendar Auto-Link] Notice:', err?.response?.data?.error || err.message);
           });
         }
-        const pendingPlan = localStorage.getItem('pending_plan_purchase');
-        if (pendingPlan) {
+        // A plan chosen while signed out opens checkout right at sign-in, never later on a token
+        // refresh (audit #114).
+        if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && readPendingPlan()) {
           handleNavigate("pricing");
         }
       } else {
         localStorage.removeItem('token');
         if (event === 'SIGNED_OUT') {
+          clearPendingPlan();
           handleNavigate("home");
         }
       }
@@ -7015,7 +7018,7 @@ export default function App() {
         <ProtectedRoute
           session={session}
           authLoading={authLoading}
-          onSuccessRedirect={() => handleNavigate("dashboard")}
+          onSuccessRedirect={() => handleNavigate(readPendingPlan() ? "pricing" : "dashboard")}
         >
           <DashboardErrorBoundary>
             <DashboardPage session={session!} />
