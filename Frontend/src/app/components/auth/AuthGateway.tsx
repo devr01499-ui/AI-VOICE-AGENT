@@ -99,7 +99,7 @@ function PulsingCore() {
 const FEATURES = [
   'Sub-Second AI Response',
   'Enterprise Grade Security',
-  '70+ Languages Supported',
+  '7 Languages Supported',
   'Aadhaar Act Compliant',
   'Real-Time Transcription',
   'Inbound + Outbound Voice',
@@ -116,7 +116,7 @@ function LeftPanel() {
 
   const pills = [
     { icon: Zap, label: 'Sub-Second Latency', angle: -70 },
-    { icon: Globe, label: '70+ Languages', angle: -10 },
+    { icon: Globe, label: '7 Languages', angle: -10 },
     { icon: Shield, label: '256-Bit TLS', angle: 50 },
     { icon: Phone, label: 'Inbound + Outbound', angle: 115 },
     { icon: Cpu, label: 'Native Multimodal', angle: 175 },

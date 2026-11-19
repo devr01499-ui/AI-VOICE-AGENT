@@ -15,7 +15,7 @@ interface VoicesProps {
 export default function Voices({ setPage }: VoicesProps) {
   const acousticSpecs = [
     { label: "AUDIO FORMAT & CODEC", value: "audio/x-l16 (16kHz 16-bit PCM)", tech: "Uncompressed PCM streamed to the carrier over a secure WebSocket." },
-    { label: "REGIONAL BCP-47 MATRICES", value: "70+ Dialects & Accents", tech: "Native phoneme alignment across hi-IN, bn-IN, gu-IN, kn-IN, ta-IN, mr-IN, en-US/IN." },
+    { label: "REGIONAL BCP-47 MATRICES", value: "7 Languages & Accents", tech: "Native phoneme alignment across hi-IN, bn-IN, gu-IN, kn-IN, ta-IN, mr-IN, en-US/IN." },
     { label: "VOICE CLONING SPEED", value: "5 Seconds (Zero-Shot Diffusion)", tech: "Encoder vector embedding mapping acoustic timbre & prosody from 5s sample." },
     { label: "BARGE-IN DSP DURATION", value: "20ms Speech Interception Window", tech: "Full-duplex VAD window with adaptive energy thresholding at -42dB." }
   ];
@@ -74,7 +74,7 @@ export default function Voices({ setPage }: VoicesProps) {
           animate={{ opacity: 1, y: 0 }}
           className="text-4xl md:text-5xl lg:text-6xl font-normal md:font-medium text-[#121212] tracking-tight leading-[1.08] font-sans"
         >
-          26+ HD Voice Personas & 70+ Regional Dialects
+          26+ HD Voice Personas & 7 Languages
         </motion.h1>
 
         <motion.p 

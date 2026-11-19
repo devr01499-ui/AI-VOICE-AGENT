@@ -201,12 +201,12 @@ export default function Footer({ setPage }: FooterProps) {
             </li>
             <li>
               <button onClick={() => navigate("voices")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
-                HD Voices & 70+ Dialects
+                HD Voices & 7 Languages
               </button>
             </li>
             <li>
               <button onClick={() => navigate("pricing")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
-                Flat Rate Pricing (₹3.99/min)
+                Pricing (plans from ₹3,799)
               </button>
             </li>
             <li>
@@ -292,7 +292,7 @@ export default function Footer({ setPage }: FooterProps) {
 
         <div className="flex items-center gap-3">
           <span className="font-mono text-[#121212] font-bold bg-[#DFDCD4] px-2.5 py-1 rounded-[2px] border border-[#CBC8BE]">
-            Pay-As-You-Go from ₹3.99/min
+            Plans from ₹3,799 · 750 minutes
           </span>
         </div>
       </div>

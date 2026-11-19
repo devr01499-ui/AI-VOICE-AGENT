@@ -73,7 +73,7 @@ function ArchitecturePipelineCanvas() {
       techSummary: "Streaming speech output: audio is sent to the caller as it is generated, without waiting for the full reply.",
       businessHighlights: [
         "Indistinguishable from polite human agent",
-        "70+ regional dialects and native accents",
+        "7 languages with natural accents",
         "Consistent brand persona and voice clarity"
       ],
       outcomeSnippet: "First audio chunk streamed to the caller as soon as it is generated.",

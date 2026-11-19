@@ -77,12 +77,12 @@ function HdGeometricalArchitectureDiagram() {
     },
     {
       id: 1,
-      title: "70+ Languages & Dialects",
+      title: "7 Languages + Auto-Detect",
       badge: "Native Speech Models",
       category: "MULTILINGUAL",
       desc: "Direct neural speech recognition for Hindi, English, Spanish, Arabic, Bengali, Kannada & regional dialects without translation loss.",
       icon: Globe,
-      stats: { primary: "70+", label: "Languages & Accents", detail: "Zero Translation Lag" }
+      stats: { primary: "7", label: "Languages & Accents", detail: "Zero Translation Lag" }
     },
     {
       id: 2,
@@ -450,7 +450,7 @@ export default function Hero({ setPage }: HeroProps) {
 
             {/* Clear Explanation of What We Do */}
             <p className="text-[#262523] text-base sm:text-lg leading-relaxed font-normal">
-              Claritiy Voice builds real-time conversational AI phone agents that place outbound sales calls, handle inbound customer support, qualify leads, and automate payment reminders across <span className="text-[#121212] font-semibold">70+ languages</span> with zero setup overhead.
+              Claritiy Voice builds real-time conversational AI phone agents that place outbound sales calls, handle inbound customer support, qualify leads, and automate payment reminders across <span className="text-[#121212] font-semibold">7 languages</span> with zero setup overhead.
             </p>
 
             {/* Primary & Secondary CTAs */}
@@ -476,7 +476,7 @@ export default function Hero({ setPage }: HeroProps) {
             <div className="pt-6 border-t border-[#CBC8BE] grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { label: "Response", value: "Real-time" },
-                { label: "Supported Languages", value: "70+ Dialects" },
+                { label: "Supported Languages", value: "7 Languages" },
                 { label: "Human Voice Parity", value: "99.9%" },
                 { label: "Security & Privacy", value: "256-Bit TLS" }
               ].map((stat, idx) => (

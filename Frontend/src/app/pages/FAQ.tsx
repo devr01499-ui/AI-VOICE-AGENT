@@ -20,7 +20,7 @@ const FAQS: FAQItem[] = [
   {
     category: "Audio & Latency",
     q: "How does the agent handle background noise and regional Indian accents?",
-    a: "Our speech models are trained natively across 70+ regional Indian and global dialects—including Hindi, Hinglish, Bengali, Kannada, Malayalam, Gujarati, Marathi, and Tamil. The acoustic DSP engine applies real-time noise suppression and echo cancellation directly to incoming telephony packets, accurately recognizing numbers, addresses, and pincodes even from noisy outdoor phone lines.",
+    a: "Our speech models are able to speak English, Hindi (including Hinglish), Bengali, Kannada, Malayalam, Gujarati and Tamil, and to detect the caller's language automatically. The acoustic DSP engine applies real-time noise suppression and echo cancellation directly to incoming telephony packets, accurately recognizing numbers, addresses, and pincodes even from noisy outdoor phone lines.",
   },
   {
     category: "BFSI & Compliance",
@@ -45,12 +45,12 @@ const FAQS: FAQItem[] = [
   {
     category: "Pricing & Scale",
     q: "How is Claritiy Voice priced compared to building an in-house voice AI stack?",
-    a: "Building an in-house stack requires paying separate per-minute or per-token fees to STT providers (Deepgram/Whisper), LLM providers (OpenAI/Anthropic), TTS providers (ElevenLabs/Cartesia), and telephony carriers (Twilio), often totaling ₹8–₹12/minute with unpredictable token surges. Claritiy Voice unifies the entire stack into a flat, predictable rate starting at ₹3.99/minute with zero hidden markups.",
+    a: "Building an in-house stack requires paying separate per-minute or per-token fees to STT providers (Deepgram/Whisper), LLM providers (OpenAI/Anthropic), TTS providers (ElevenLabs/Cartesia), and telephony carriers (Twilio), often totaling ₹8–₹12/minute with unpredictable token surges. Claritiy Voice bundles the entire stack into one-time minute plans (Startup ₹3,799 for 750 minutes, Growth ₹10,799 for 2,865 minutes, Enterprise ₹30,799 for 10,000 minutes) with no separate per-service fees.",
   },
   {
     category: "Pricing & Scale",
-    q: "Can Claritiy Voice launch 10,000+ simultaneous outbound calls?",
-    a: "Yes. Our distributed edge infrastructure auto-scales telephony workers across concurrent SIP channels. You can upload contact CSV batches or trigger automated API campaigns to dial 10,000+ contacts simultaneously, complete with intelligent retry algorithms for unanswered or busy lines.",
+    q: "How many calls can Claritiy Voice place at the same time?",
+    a: "Each plan sets how many calls run at the same time: up to 5 on Startup and Growth, and up to 15 on Enterprise. Batch campaigns of up to 5,000 contacts dial through that capacity within TRAI calling hours, with automatic retries for unanswered or busy lines.",
   },
   {
     category: "Integrations & Setup",

@@ -192,7 +192,7 @@ const PRODUCTION_TEMPLATES: ShowcaseTemplate[] = [
     sampleDialogue: [
       { speaker: "Morgan (AI)", text: "Claritiy Voice Billing Support, Morgan speaking. How can I assist with your invoice today?" },
       { speaker: "Customer", text: "I have a question about the extra usage minutes billed on last month's statement." },
-      { speaker: "Morgan (AI)", text: "I'd be glad to explain that. Your base tier includes 2,000 minutes; your team utilized 2,420 minutes, billed at our flat rate of ₹3.99 per minute." }
+      { speaker: "Morgan (AI)", text: "I'd be glad to explain that. Your base tier includes 2,000 minutes; your team used 2,420 minutes, so the extra 420 minutes were charged at your plan's agreed rate." }
     ],
     impactMetric: "100% PCI Compliance"
   },
@@ -577,8 +577,8 @@ POST https://your-system.example.com/claritiy-webhook
             <span className="text-xs text-[#262523] font-mono">Sub-Human Latency</span>
           </div>
           <div className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-4 text-center">
-            <span className="text-2xl font-bold text-[#121212] font-mono block">70+</span>
-            <span className="text-xs text-[#262523] font-mono">Regional Dialects</span>
+            <span className="text-2xl font-bold text-[#121212] font-mono block">7</span>
+            <span className="text-xs text-[#262523] font-mono">Languages</span>
           </div>
           <div className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-4 text-center">
             <span className="text-2xl font-bold text-[#121212] font-mono block">15</span>

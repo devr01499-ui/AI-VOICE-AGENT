@@ -16,7 +16,7 @@ const PLATFORM_ITEMS = [
   { icon: Zap, label: "How Claritiy Works", desc: "Real-time audio engine", id: "how-it-works" as Page },
   { icon: Layers, label: "Enterprise Solutions", desc: "COD confirmation & clinic intake", id: "solutions" as Page },
   { icon: Workflow, label: "Use Case Blueprints", desc: "Industry diagrams & wiremaps", id: "use-cases" as Page },
-  { icon: Globe2, label: "HD Voice Gallery", desc: "70+ languages & regional accents", id: "voices" as Page },
+  { icon: Globe2, label: "HD Voice Gallery", desc: "7 languages incl. Hindi & Tamil", id: "voices" as Page },
 ];
 
 const RESOURCE_ITEMS = [
