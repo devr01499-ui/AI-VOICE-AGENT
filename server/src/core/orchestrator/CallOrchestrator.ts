@@ -277,15 +277,12 @@ export class CallOrchestrator extends EventEmitter {
       }
 
       const agent = await AgentRepository.findById(agentId);
-      let record = isRecordingEnabled !== undefined ? isRecordingEnabled : true;
-      if (isRecordingEnabled === undefined && agent && agent.agentConfig) {
-        try {
-          const parsedConfig = JSON.parse(agent.agentConfig);
-          if (typeof parsedConfig.isRecordingEnabled === 'boolean') {
-            record = parsedConfig.isRecordingEnabled;
-          }
-        } catch {}
-      }
+      // Never ask the carrier to record at the call-request level (audit #32): it defaulted to ON,
+      // ignored the agent's "Record calls" setting and played no notice. Recording happens only
+      // through the answer XML (<Speak> notice, then <Record>) when the agent has recording on
+      // (RecordingService.recordingXml).
+      void isRecordingEnabled;
+      const record = false;
 
       // Determine provider from caller ID (Plivo vs Vobiz)
       const cleanFromDigits = fromPhoneNumber.replace(/\D/g, '');

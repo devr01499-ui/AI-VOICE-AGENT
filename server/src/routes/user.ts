@@ -9,6 +9,7 @@ import { normalizeEmail, isDisposableEmail, isValidEmail } from '../utils/emailN
 import { signupLimiter, authIpThrottleDelay, sensitiveOperationsLimiter, notificationActionLimiter } from '../middleware/rateLimiter';
 import { ADMIN_EMAIL } from '../config/constants';
 import { EncryptionService } from '../utils/EncryptionService';
+import { getPlanConcurrency } from '../config/plans';
 import { supabaseClient } from '../utils/supabase';
 import { getTrustedClientIp } from '../utils/ipChecker';
 
@@ -117,45 +118,31 @@ router.post('/verify-gemini-key', requireAuth, sensitiveOperationsLimiter, async
       }
     }
 
+    // Only the customer's own key is tested (the platform key used to be tested instead, so the
+    // answer said nothing about the customer's key). Envelope fixed: audit #45.
     if (!keyToTest) {
-      keyToTest = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENAI_API_KEY || null;
-    }
-
-    if (!keyToTest) {
-      res.json({
-        valid: false,
-        error: 'No Gemini or Google API key found to test. Please provide a key in the request or configure one in Settings.'
-      });
+      res.json({ success: true, data: { valid: false, error: 'No Gemini API key to test. Enter a key or save one in Settings first.' } });
       return;
     }
 
     const httpBase = (process.env.GEMINI_HTTP_BASE || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
-    const checkRes = await fetch(`${httpBase}/v1alpha/models?key=${encodeURIComponent(keyToTest)}`);
+    // Key in a header, not the URL (URLs end up in proxy and server logs).
+    const checkRes = await fetch(`${httpBase}/v1alpha/models`, { headers: { 'x-goog-api-key': keyToTest }, signal: AbortSignal.timeout(8000) });
 
     if (!checkRes.ok) {
       const errorData = await checkRes.json().catch(() => ({})) as any;
       const errorMsg = errorData?.error?.message || `HTTP ${checkRes.status}: ${checkRes.statusText}`;
-      res.json({
-        valid: false,
-        error: errorMsg
-      });
+      res.json({ success: true, data: { valid: false, error: errorMsg } });
       return;
     }
 
     const data = await checkRes.json().catch(() => ({})) as any;
     const models = Array.isArray(data?.models) ? data.models.map((m: any) => m.name) : [];
 
-    res.json({
-      valid: true,
-      message: 'Gemini API key is verified and active.',
-      availableModelsCount: models.length
-    });
+    res.json({ success: true, data: { valid: true, message: 'Gemini API key is verified and active.', availableModelsCount: models.length } });
   } catch (err: any) {
     logger.error('User verify-gemini-key error', { error: err.message || String(err) });
-    res.json({
-      valid: false,
-      error: `Network error connecting to Google API: ${err.message || String(err)}`
-    });
+    res.status(502).json({ success: false, error: 'Could not reach Google to check the key. Please try again.' });
   }
 });
 
@@ -425,7 +412,7 @@ router.get('/concurrency', requireAuth, async (req: AuthenticatedRequest, res) =
 
     const user = await prisma.user.findUnique({
       where: { id: ownerId },
-      select: { maxConcurrentCalls: true },
+      select: { maxConcurrentCalls: true, accountType: true },
     });
 
     const inMemoryCount = CallOrchestrator.instance.getActiveCallCountForUser(ownerId);
@@ -437,12 +424,16 @@ router.get('/concurrency', requireAuth, async (req: AuthenticatedRequest, res) =
     });
 
     const activeCallCount = Math.max(inMemoryCount, dbCount);
-    const softLimit = user?.maxConcurrentCalls ?? 10;
+    // The plan sets the ceiling; the stored value can only lower it (audit #6).
+    const planLimit = getPlanConcurrency(user?.accountType);
+    const softLimit = getPlanConcurrency(user?.accountType, user?.maxConcurrentCalls);
 
     res.json({
       success: true,
       activeCallCount,
       softLimit,
+      planLimit,
+      data: { activeCallCount, softLimit, planLimit },
     });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to fetch concurrency telemetry' });
@@ -463,6 +454,12 @@ router.post('/concurrency', requireAuth, requireRole(['admin']), sensitiveOperat
 
     if (isNaN(parsedLimit) || parsedLimit <= 0) {
       res.status(400).json({ success: false, error: 'maxConcurrentCalls must be a positive integer' });
+      return;
+    }
+    const owner = await prisma.user.findUnique({ where: { id: ownerId }, select: { accountType: true } });
+    const planLimit = getPlanConcurrency(owner?.accountType);
+    if (parsedLimit > planLimit) {
+      res.status(400).json({ success: false, error: `Your plan allows up to ${planLimit} simultaneous call(s). Upgrade your plan for more.`, code: 'ABOVE_PLAN_LIMIT', planLimit });
       return;
     }
 

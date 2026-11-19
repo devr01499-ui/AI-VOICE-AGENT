@@ -110,13 +110,11 @@ export function localTimeToUtc(
     const min = Number(parts.find(p => p.type === 'minute')?.value);
     const sec = Number(parts.find(p => p.type === 'second')?.value);
 
+    // Compare as real timestamps (audit #51): the old arithmetic treated every month as 30 days and
+    // every year as 365, so a day that overflows its month (e.g. Oct 31 + 1 = "Oct 32") landed a day
+    // late and end-of-month date filters included the next day.
     const diffSeconds =
-      ((y - year) * 31536000) +
-      ((m - month) * 2592000) +
-      ((d - day) * 86400) +
-      ((h - hour) * 3600) +
-      ((min - minute) * 60) +
-      (sec - second);
+      (Date.UTC(y, m - 1, d, h, min, sec) - Date.UTC(year, month - 1, day, hour, minute, second)) / 1000;
 
     if (diffSeconds === 0) break;
     guess = new Date(guess.getTime() - diffSeconds * 1000);

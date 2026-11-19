@@ -33,14 +33,14 @@ const corePages = [
     title: 'Claritiy Voice — Automated AI Voice Calling Platform for Enterprise',
     description: 'Confirm cash-on-delivery (COD) orders before dispatch to reduce RTO and failed deliveries using automated, human-sounding AI voice calls.',
     h1: 'Autonomous Conversational Voice AI for Enterprise Telephony',
-    summary: 'Claritiy Voice replaces manual calling queues with real-time conversational AI voice agents across 70+ languages, verifying orders, booking appointments, and recovering revenues automatically.'
+    summary: 'Claritiy Voice replaces manual calling queues with real-time conversational AI voice agents across 7 languages, verifying orders, booking appointments, and recovering revenues automatically.'
   },
   {
     path: 'pricing',
-    title: 'Claritiy Voice Pricing — Transparent ₹3.99/min AI Voice Telephony',
+    title: 'Claritiy Voice Pricing — Plans from ₹3,799',
     description: 'Predictable, all-inclusive AI voice agent pricing. No hidden fees or separate billing for STT, LLM, or TTS audio pipelines.',
-    h1: 'Transparent Pay-As-You-Go & Enterprise Voice AI Pricing',
-    summary: 'Deploy production AI voice agents with zero lock-in starting at ₹3.99 per minute. Volume-tiered subscriptions available for high-throughput contact centers.'
+    h1: 'Simple Plans With Everything Included',
+    summary: 'One-time minute plans: Startup ₹3,799 for 750 minutes, Growth ₹10,799 for 2,865 minutes, Enterprise ₹30,799 for 10,000 minutes. Each includes a local +91 number after KYC; no auto-renewal and no separate per-service fees.'
   },
   {
     path: 'how-it-works',
@@ -65,7 +65,7 @@ const corePages = [
   },
   {
     path: 'voices',
-    title: 'HD AI Voice Gallery — 70+ Dialects & Regional Accents | Claritiy Voice',
+    title: 'HD AI Voice Gallery — 7 Languages & Natural Accents | Claritiy Voice',
     description: 'Sample natural, human-grade conversational voices in English, Hindi, and regional dialects with native conversational cadence and emotional tone.',
     h1: 'Hyper-Realistic Conversational AI Voices for Global Telephony',
     summary: 'Explore our studio-grade voice library engineered for real-time phone calls with native regional accents, low latency, and interruption handling.'
@@ -87,7 +87,7 @@ const corePages = [
   {
     path: 'contact',
     title: 'Contact Claritiy Voice — Speak with an Enterprise Telephony Architect',
-    description: 'Schedule a discovery call or test our custom sandbox for enterprise voice automation with 10,000+ monthly calls.',
+    description: 'Schedule a discovery call or talk to us about high-volume enterprise voice automation.',
     h1: 'Connect with Claritiy Voice Engineering & Solutions Team',
     summary: 'Speak directly with our voice architects to plan your enterprise rollout, custom telephony integrations, or sandbox trials.'
   },
@@ -150,7 +150,7 @@ const corePages = [
   {
     path: 'ai-voice-agent-software',
     title: 'AI Voice Agent Software — Deploy Human-Sounding Phone Agents | Claritiy Voice',
-    description: 'Deploy autonomous conversational AI voice agent software with natural, real-time conversation, native regional accents, and seamless CRM integrations. Flat ₹3.99/min.',
+    description: 'Deploy autonomous conversational AI voice agent software with natural, real-time conversation, native regional accents, and seamless CRM integrations. Plans from ₹3,799 for 750 minutes.',
     h1: 'Enterprise AI Voice Agent Software Engineered for Real Conversations',
     summary: 'Claritiy Voice delivers production-grade conversational telephony agents that answer inbound calls, verify outbound cash-on-delivery orders, book clinic appointments, and collect payments with zero conversational lag.',
     customBody: `
@@ -169,11 +169,11 @@ const corePages = [
             Enterprise AI Voice Agent Software Engineered for Real Conversations
           </h1>
           <p style="font-size: 1.2rem; color: #4B5563; line-height: 1.7; max-width: 900px;">
-            Replace outdated interactive voice response (IVR) phone trees and high-turnover manual call centers with autonomous conversational voice agents. Claritiy Voice delivers natural, real-time turn-taking, native regional dialect support across 70+ languages, and deterministic bi-directional CRM execution—at a predictable, transparent flat rate of ₹3.99 per minute.
+            Replace outdated interactive voice response (IVR) phone trees and high-turnover manual call centers with autonomous conversational voice agents. Claritiy Voice delivers natural, real-time turn-taking, native regional language support (English, Hindi, Bengali, Kannada, Malayalam, Gujarati and Tamil, plus automatic language detection), and deterministic bi-directional CRM execution, on simple one-time minute plans from ₹3,799.
           </p>
           <div style="display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap;">
             <a href="/dashboard" style="background: #059669; color: white; padding: 0.875rem 1.75rem; border-radius: 0.75rem; text-decoration: none; font-weight: 700; font-size: 1rem;">Launch Free Sandbox</a>
-            <a href="/pricing" style="background: white; color: #0D1117; border: 1px solid #D1D5DB; padding: 0.875rem 1.75rem; border-radius: 0.75rem; text-decoration: none; font-weight: 600; font-size: 1rem;">View Flat ₹3.99/min Pricing</a>
+            <a href="/pricing" style="background: white; color: #0D1117; border: 1px solid #D1D5DB; padding: 0.875rem 1.75rem; border-radius: 0.75rem; text-decoration: none; font-weight: 600; font-size: 1rem;">View Plans & Pricing</a>
           </div>
         </header>
 
@@ -221,8 +221,8 @@ const corePages = [
   "edge_pii_redaction": ["credit_card", "aadhaar_uid", "phi_records"],
   "pricing": {
     "currency": "INR",
-    "rate_per_minute": 3.99,
-    "model": "all_inclusive_no_token_markup"
+    "plans_from_inr": 3799,
+    "model": "one_time_minute_packs_all_inclusive"
   }
 }</code></pre>
         </section>
@@ -268,12 +268,12 @@ const corePages = [
             <tbody>
               <tr style="border-bottom: 1px solid #E5E7EB;">
                 <td style="padding: 0.75rem 0.5rem; font-weight: 600;">Cost per Minute</td>
-                <td style="padding: 0.75rem 0.5rem; color: #059669; font-weight: 700;">₹3.99 flat</td>
+                <td style="padding: 0.75rem 0.5rem; color: #059669; font-weight: 700;">₹3.08 – ₹5.07 effective (by plan)</td>
                 <td style="padding: 0.75rem 0.5rem;">₹18.00 – ₹25.00</td>
               </tr>
               <tr style="border-bottom: 1px solid #E5E7EB;">
                 <td style="padding: 0.75rem 0.5rem; font-weight: 600;">Concurrency Scale</td>
-                <td style="padding: 0.75rem 0.5rem; color: #059669; font-weight: 700;">1,000+ simultaneous calls</td>
+                <td style="padding: 0.75rem 0.5rem; color: #059669; font-weight: 700;">Up to 15 simultaneous calls per plan</td>
                 <td style="padding: 0.75rem 0.5rem;">1 call per physical seat</td>
               </tr>
               <tr style="border-bottom: 1px solid #E5E7EB;">

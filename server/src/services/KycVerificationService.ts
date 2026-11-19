@@ -275,6 +275,7 @@ export async function checkAndApplyFullKycApproval(
     data: {
       kycStatus: 'verified',
       kycVerifiedAt: new Date(),
+      kycCallsBlocked: false, // audit #2: verified accounts must be able to call
     },
   });
 

@@ -123,6 +123,16 @@ export class BillingService {
     const planConfig = typeof planInput === 'string' ? getPlanConfig(planInput) : null;
     if (!planConfig) throw new PaymentVerificationError(400, 'Invalid or unknown plan name', 'PLAN_UNKNOWN');
     const planKey = Object.keys(PLAN_CONFIG).find((k) => PLAN_CONFIG[k] === planConfig) || planConfig.name.toLowerCase();
+    // The ₹1 trial is once per account (audit #3: it could be bought repeatedly, 25 × ₹1 = 500 minutes).
+    if (planKey === 'trial') {
+      const usedTrial = await prisma.paymentTransaction.findFirst({
+        where: { userId, planName: { equals: planConfig.name, mode: 'insensitive' } },
+        select: { id: true },
+      });
+      if (usedTrial) {
+        throw new PaymentVerificationError(409, 'The trial can be used once per account. Please choose a plan.', 'TRIAL_ALREADY_USED');
+      }
+    }
     return this.createOrder(
       Math.round(planConfig.price * 100),
       `plan_${planKey}_${userId.slice(0, 8)}_${Date.now()}`,

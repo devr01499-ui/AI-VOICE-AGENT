@@ -7,6 +7,7 @@ import {
   Bot, Clock, TrendingUp, Users, HeartPulse, ShoppingBag, Landmark, 
   Building2, MessageSquare, AlertCircle, HelpCircle, Code2, Globe2
 } from "lucide-react";
+import { PUBLIC_PLANS, effectiveRate } from '../lib/plans';
 
 type Page = any;
 
@@ -110,7 +111,8 @@ function SavingsCalculator() {
   const [monthlyCalls, setMonthlyCalls] = useState(5000);
   const avgDurationMins = 2.5;
 
-  const claritiyCostPerMin = 3.99;
+  // Effective rate of the largest plan (price ÷ minutes), from lib/plans.ts.
+  const claritiyCostPerMin = Number(effectiveRate(PUBLIC_PLANS[PUBLIC_PLANS.length - 1]));
   const claritiyMonthlyCost = Math.round(monthlyCalls * avgDurationMins * claritiyCostPerMin);
 
   const humanCostPerMin = 18.5;
@@ -170,7 +172,7 @@ function SavingsCalculator() {
           <div className="text-xl md:text-2xl font-mono font-bold text-[#121212]">
             ₹{claritiyMonthlyCost.toLocaleString()}
           </div>
-          <span className="text-[11px] text-[#121212] block font-mono">₹3.99/min flat rate</span>
+          <span className="text-[11px] text-[#121212] block font-mono">from ₹{effectiveRate(PUBLIC_PLANS[PUBLIC_PLANS.length - 1])}/min effective</span>
         </div>
 
         <div className="space-y-1 bg-[#EBE9E2] border border-[#CBC8BE] p-3 rounded-[2px]">
@@ -211,7 +213,7 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
             </h1>
 
             <p className="text-base sm:text-lg text-[#262523] leading-relaxed max-w-2xl font-sans">
-              Replace outdated IVR phone trees and high-turnover calling centers with autonomous conversational voice agents. Claritiy Voice delivers natural, real-time conversation, native regional languages, and bidirectional CRM synchronization—at a predictable flat rate of ₹3.99 per minute.
+              Replace outdated IVR phone trees and high-turnover calling centers with autonomous conversational voice agents. Claritiy Voice delivers natural, real-time conversation, native regional languages, and CRM updates through signed webhooks, on simple one-time minute plans from ₹3,799.
             </p>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
@@ -243,7 +245,7 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
               </div>
               <div className="flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-[#121212]" />
-                <span>70+ Languages & Regional Accents</span>
+                <span>7 Languages incl. Hindi & English</span>
               </div>
             </div>
           </div>
@@ -540,7 +542,7 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
               How much does AI voice agent software cost compared to human agents?
             </h3>
             <p className="text-sm text-[#262523] leading-relaxed font-sans">
-              Claritiy Voice charges a transparent flat fee of ₹3.99 per minute with no hidden setup or provider fees. By contrast, a traditional call center agent in India costs between ₹18.00 and ₹25.00 per productive minute once you account for base salary, training attrition, workstation licensing, and management overhead.
+              Claritiy Voice is sold as one-time minute plans with no setup or per-service fees; the effective rate is about ₹3.08 to ₹5.07 per minute depending on the plan. By contrast, a traditional call center agent in India costs between ₹18.00 and ₹25.00 per productive minute once you account for base salary, training attrition, workstation licensing, and management overhead.
             </p>
           </div>
 
@@ -589,7 +591,7 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
               onClick={() => setPage("pricing")}
               className="w-full sm:w-auto px-6 py-3.5 bg-[#DFDCD4] hover:bg-[#D5D1C7] text-[#121212] font-mono text-xs uppercase tracking-wider rounded-[2px] border border-[#CBC8BE] transition-colors font-medium cursor-pointer"
             >
-              View Transparent ₹3.99/min Pricing
+              View Plans & Pricing
             </button>
           </div>
         </div>

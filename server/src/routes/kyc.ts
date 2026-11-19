@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { requireActivePlan } from '../middleware/planValidation';
 import { prisma } from '../lib/prisma';
+import { nextKycState } from '../utils/kycStatus';
 import { logger } from '../utils/logger';
 import { checkRequiredKycDocumentsVerified, checkAndApplyFullKycApproval, derivePanCategory } from '../services/KycVerificationService';
 import { VobizSubAccountService } from '../services/VobizSubAccountService';
@@ -1236,6 +1237,7 @@ router.post('/webhook/vobiz', verifyVobizWebhook, async (req, res, next) => {
             where: { id: subAccount.id },
             data: {
               kycStatus: normalizedStatus,
+              kycCallsBlocked: normalizedStatus !== 'verified', // audit #2
               kycVerifiedAt: normalizedStatus === 'verified' ? new Date() : (normalizedStatus === 'failed' ? null : subAccount.kycVerifiedAt),
             }
           });
@@ -1269,6 +1271,7 @@ router.post('/webhook/vobiz', verifyVobizWebhook, async (req, res, next) => {
             where: { userId: phoneRec.userId },
             data: {
               kycStatus: normalizedStatus,
+              kycCallsBlocked: normalizedStatus !== 'verified', // audit #2
               kycVerifiedAt: normalizedStatus === 'verified' ? new Date() : null,
             }
           });
@@ -1362,8 +1365,11 @@ router.get('/status', requireAuth, requireActivePlan, async (req, res, next) => 
     }
 
     const data = (await vobizRes.json()) as any;
-    const overallStatus = (data.overall_status || data.kyc_status || 'pending').toLowerCase();
-    const kycCallsBlocked = data.kyc_calls_blocked !== undefined ? Boolean(data.kyc_calls_blocked) : (overallStatus !== 'verified');
+    // audit #17: normalise ("approved" -> "verified") and never downgrade a verified account;
+    // audit #2: store kycCallsBlocked so a verified account can actually place calls.
+    const next = nextKycState(subAccount.kycStatus, data.overall_status || data.kyc_status || 'pending', data.kyc_calls_blocked);
+    const overallStatus = next.kycStatus;
+    const kycCallsBlocked = next.kycCallsBlocked;
     const liveBusinessType = data.business_type || subAccount.businessType || 'individual';
 
     // Normalize per-document verifications:
@@ -1376,13 +1382,14 @@ router.get('/status', requireAuth, requireActivePlan, async (req, res, next) => 
       cin: (data.verifications?.cin || data.cin_status || 'not_started').toLowerCase(),
     };
 
-    if (subAccount.businessType !== liveBusinessType || subAccount.kycStatus !== overallStatus) {
+    if (subAccount.businessType !== liveBusinessType || subAccount.kycStatus !== overallStatus || subAccount.kycCallsBlocked !== kycCallsBlocked) {
       await prisma.vobizSubAccount.update({
         where: { id: subAccount.id },
         data: {
           businessType: liveBusinessType,
           kycStatus: overallStatus,
-          kycVerifiedAt: overallStatus === 'verified' ? new Date() : (overallStatus === 'failed' ? null : subAccount.kycVerifiedAt),
+          kycCallsBlocked,
+          kycVerifiedAt: subAccount.kycStatus === overallStatus ? subAccount.kycVerifiedAt : (overallStatus === 'verified' ? new Date() : (overallStatus === 'failed' ? null : subAccount.kycVerifiedAt)),
         },
       });
     }

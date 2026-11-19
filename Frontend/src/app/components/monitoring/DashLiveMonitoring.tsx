@@ -382,12 +382,14 @@ export function DashLiveMonitoring() {
 
                 {/* Supervisor Intervention Action Buttons */}
                 <div className="flex items-center gap-2 w-full sm:w-auto">
+                  {/* Live transfer is not built yet (audit #78): shown disabled, never a fake success. */}
                   <button
-                    onClick={() => setShowTransferModal(true)}
-                    disabled={submittingAction}
-                    className="flex-1 sm:flex-none px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center justify-center gap-1.5"
+                    disabled
+                    title="Live call transfer is coming soon"
+                    data-testid="force-transfer-disabled"
+                    className="flex-1 sm:flex-none px-3 py-2 bg-slate-200 text-slate-500 rounded-xl text-xs font-bold cursor-not-allowed flex items-center justify-center gap-1.5"
                   >
-                    <PhoneForwarded className="w-3.5 h-3.5" /> Force Transfer
+                    <PhoneForwarded className="w-3.5 h-3.5" /> Transfer (coming soon)
                   </button>
                   <button
                     onClick={handleTerminateCall}

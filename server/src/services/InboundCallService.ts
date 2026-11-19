@@ -186,6 +186,21 @@ export class InboundCallService {
         };
       }
 
+      // 1c. Inbound switched off for this number in Calling Configuration (outbound is unaffected).
+      if (numberRecord.inboundEnabled === false) {
+        logger.info('InboundCallService: Inbound call declined - inbound disabled for this number', { rawTo });
+        const internalErr = 'Inbound calls are switched off for this number in Calling Configuration.';
+        const callId = await recordBlockedCall('provider_error', internalErr);
+        return {
+          success: false,
+          callId: callId || undefined,
+          errorMessage: internalErr,
+          spokenMessage: 'This number is not taking calls right now. Please try again later.',
+          endReason: 'provider_error',
+          statusCode: 403
+        };
+      }
+
       if (numberRecord.kycStatus !== 'verified') {
         logger.warn('InboundCallService: Inbound call blocked due to unverified KYC', { rawTo, kycStatus: numberRecord.kycStatus });
         const internalErr = 'Inbound calls blocked. KYC verification is pending or incomplete for this phone number.';
@@ -487,8 +502,9 @@ export class InboundCallService {
     const updatedNumber = await prisma.phoneNumber.update({
       where: { id: phoneNumberId },
       data: {
-        ...(assignedAgentId !== undefined && { assignedAgentId }),
-        ...(inboundEnabled !== undefined && { status: inboundEnabled ? 'active' : 'inactive' })
+        // "None (Unassigned)" arrives as '' (audit #90): store null, not an invalid foreign key.
+        ...(assignedAgentId !== undefined && { assignedAgentId: assignedAgentId ? assignedAgentId : null }),
+        ...(inboundEnabled !== undefined && { inboundEnabled: Boolean(inboundEnabled) })
       }
     });
 

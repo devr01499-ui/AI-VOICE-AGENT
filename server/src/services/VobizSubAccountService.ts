@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma';
+import { nextKycState } from '../utils/kycStatus';
 import { env } from '../config/env';
 import { EncryptionService } from '../utils/EncryptionService';
 import { logger } from '../utils/logger';
@@ -467,6 +468,11 @@ export class VobizSubAccountService {
       }
 
       const prevSub = await prisma.vobizSubAccount.findUnique({ where: { userId }, select: { kycStatus: true, authId: true } });
+      // Never downgrade a verified account on a transient carrier error, and keep kycCallsBlocked in
+      // step with the status (audit #2 / #17).
+      const next = nextKycState(prevSub?.kycStatus, subKycStatus);
+      subKycStatus = next.kycStatus;
+      isVerified = next.kycStatus === 'verified';
 
       await prisma.phoneNumber.updateMany({
         where: { userId, aadhaarRequired: true },
@@ -477,7 +483,8 @@ export class VobizSubAccountService {
         where: { userId },
         data: {
           kycStatus: subKycStatus,
-          kycVerifiedAt: isVerified ? new Date() : null,
+          kycCallsBlocked: next.kycCallsBlocked,
+          ...(prevSub?.kycStatus === subKycStatus ? {} : { kycVerifiedAt: isVerified ? new Date() : null }),
         }
       });
 

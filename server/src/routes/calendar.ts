@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { Router } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import { calendar as getCalendar } from 'googleapis/build/src/apis/calendar';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, requireEditor } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
 import { getUserIdFromRequest } from '../utils/auth';
 import { logger } from '../utils/logger';
@@ -94,7 +94,7 @@ function validateAndConsumeState(stateBase64: string): {
  * POST /api/v2/calendar/link-from-signin
  * Links Google Calendar from OAuth provider refresh token received during 1-click Google Sign-in.
  */
-router.post('/link-from-signin', requireAuth, sensitiveOperationsLimiter, async (req, res) => {
+router.post('/link-from-signin', requireAuth, requireEditor, sensitiveOperationsLimiter, async (req, res) => {
   try {
     const userId = (req as any).userId || getUserIdFromRequest(req);
     const workspaceId = (req as any).effectiveWorkspaceId || userId;
@@ -823,7 +823,7 @@ function sendBookingFailure(res: any, code?: string) {
   return res.status(status).json({ success: false, error: message, code: code || 'FAILED' });
 }
 
-router.post('/bookings/:id/cancel', requireAuth, sensitiveOperationsLimiter, async (req, res) => {
+router.post('/bookings/:id/cancel', requireAuth, requireEditor, sensitiveOperationsLimiter, async (req, res) => {
   try {
     const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId || getUserIdFromRequest(req);
     const bookingId = String(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id);
@@ -845,7 +845,7 @@ router.post('/bookings/:id/cancel', requireAuth, sensitiveOperationsLimiter, asy
  * POST /api/v2/calendar/bookings/:id/reschedule
  * Reschedules a booking in Google Calendar and updates database record.
  */
-router.post('/bookings/:id/reschedule', requireAuth, sensitiveOperationsLimiter, async (req, res) => {
+router.post('/bookings/:id/reschedule', requireAuth, requireEditor, sensitiveOperationsLimiter, async (req, res) => {
   try {
     const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId || getUserIdFromRequest(req);
     const bookingId = String(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id);
@@ -937,7 +937,7 @@ router.get('/batches', requireAuth, async (req, res) => {
  * POST /api/v2/calendar/batches
  * Create a new batch campaign with recipient list, idempotency, caller ID truth, and explicit consent.
  */
-router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingMinutes, async (req, res) => {
+router.post('/batches', requireAuth, requireEditor, sensitiveOperationsLimiter, requireCallingMinutes, async (req, res) => {
   try {
     const userId = (req as any).effectiveWorkspaceId || getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
@@ -948,6 +948,7 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
       numberId,
       recipients,
       scheduleNow,
+      scheduledAt: scheduledAtRaw,
       scheduleConfig,
       dialMode = 'sequential',
       interCallDelaySeconds = 10,
@@ -1042,6 +1043,17 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
     }
 
     const initialStatus = scheduleNow !== false ? 'running' : 'scheduled';
+    // A scheduled campaign needs a valid start time between 1 minute and 30 days from now (audit #80:
+    // the time was ignored and nothing ever started 'scheduled' batches).
+    let scheduledAt: Date | null = null;
+    if (initialStatus === 'scheduled') {
+      const when = scheduledAtRaw ? new Date(scheduledAtRaw) : null;
+      const nowMs = Date.now();
+      if (!when || Number.isNaN(when.getTime()) || when.getTime() < nowMs + 60_000 || when.getTime() > nowMs + 30 * 24 * 3600_000) {
+        return res.status(400).json({ success: false, error: 'Choose a start time between 1 minute and 30 days from now.', code: 'INVALID_SCHEDULE_TIME' });
+      }
+      scheduledAt = when;
+    }
 
     // Exclude opted-out (DNC) contacts for this workspace owner
     const optedOutContacts = await prisma.contact.findMany({
@@ -1124,6 +1136,7 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
         fromPhoneNumberId: validatedNumberRecord?.id || null,
         name: name.trim(),
         status: initialStatus,
+        scheduledAt,
         idempotencyKey,
         consentConfirmed: true,
         consentConfirmedBy: consentConfirmedBy || user.email || user.id,
@@ -1217,7 +1230,7 @@ router.post('/batches', requireAuth, sensitiveOperationsLimiter, requireCallingM
  * POST /api/v2/calendar/batches/:id/pause
  * Pause an active batch campaign. Finishes current call, dials nothing new.
  */
-router.post('/batches/:id/pause', requireAuth, sensitiveOperationsLimiter, async (req, res) => {
+router.post('/batches/:id/pause', requireAuth, requireEditor, sensitiveOperationsLimiter, async (req, res) => {
   try {
     const userId = (req as any).effectiveWorkspaceId || getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
@@ -1264,7 +1277,7 @@ router.post('/batches/:id/pause', requireAuth, sensitiveOperationsLimiter, async
  * POST /api/v2/calendar/batches/:id/resume
  * Resume a paused batch campaign. Allowed only from paused; cancelled is final.
  */
-router.post('/batches/:id/resume', requireAuth, sensitiveOperationsLimiter, requireCallingMinutes, async (req, res) => {
+router.post('/batches/:id/resume', requireAuth, requireEditor, sensitiveOperationsLimiter, requireCallingMinutes, async (req, res) => {
   try {
     const userId = (req as any).effectiveWorkspaceId || getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
@@ -1322,7 +1335,7 @@ router.post('/batches/:id/resume', requireAuth, sensitiveOperationsLimiter, requ
  * Cancel/stop a batch campaign. Marks all pending recipients as cancelled.
  * Optionally ends current live call via provider if endCurrentCall is true.
  */
-router.post('/batches/:id/cancel', requireAuth, sensitiveOperationsLimiter, async (req, res) => {
+router.post('/batches/:id/cancel', requireAuth, requireEditor, sensitiveOperationsLimiter, async (req, res) => {
   try {
     const userId = (req as any).effectiveWorkspaceId || getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });

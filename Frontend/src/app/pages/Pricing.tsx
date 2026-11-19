@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { Check, ArrowRight, ShieldCheck, Zap, Loader2, Sparkles, Lock, HelpCircle, PhoneCall } from "lucide-react";
 import { API_BASE } from "../api";
+import { PUBLIC_PLANS, formatInr, effectiveRate } from '../lib/plans';
 import { supabase } from "../lib/supabaseClient";
 
 declare global {
@@ -197,7 +198,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
           
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-[2px] bg-[#DFDCD4] border border-[#CBC8BE] text-[#121212] text-xs font-mono uppercase tracking-wider">
             <span>|</span>
-            <span>Transparent Flat-Rate Economics</span>
+            <span>Bundled Minute Plans</span>
           </div>
 
           <motion.h1 
@@ -205,7 +206,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
             animate={{ opacity: 1, y: 0 }}
             className="text-4xl md:text-5xl lg:text-6xl font-normal md:font-medium text-[#121212] tracking-tight leading-[1.08] font-sans"
           >
-            Predictable Bundled Plans & Flat-Rate Economics
+            Simple Plans With Everything Included
           </motion.h1>
 
           <motion.p 
@@ -214,7 +215,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
             transition={{ delay: 0.1 }}
             className="text-[#262523] text-base md:text-lg max-w-3xl mx-auto font-sans leading-relaxed"
           >
-            One unified price per minute. No stacked line-item fees for speech recognition, LLM reasoning, or neural voice synthesis.
+            One price per plan covers speech recognition, AI reasoning and natural voices. No separate per-service fees.
           </motion.p>
         </section>
       )}
@@ -230,128 +231,69 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
           </h2>
         </div>
 
+        {/* Plan cards: every number comes from lib/plans.ts, which mirrors the server's PLAN_CONFIG. */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Startup Plan */}
-          <div className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-8 flex flex-col justify-between hover:border-[#9C998F] transition-colors">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-medium text-xl text-[#121212] font-sans">Startup Plan</h3>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-[#262523] bg-[#DFDCD4] border border-[#CBC8BE] px-2 py-0.5 rounded-[1px]">Entry</span>
+          {PUBLIC_PLANS.map((plan) => {
+            const featured = plan.key === 'growth';
+            const features = [
+              `${plan.minutes.toLocaleString('en-IN')} calling minutes (one-time, no auto-renewal)`,
+              '1 local +91 phone number included (after KYC)',
+              `Up to ${plan.maxConcurrentCalls} simultaneous call${plan.maxConcurrentCalls === 1 ? '' : 's'}`,
+              `${plan.kbDocuments.toLocaleString('en-IN')} knowledge-base documents`,
+              `${plan.calendars} connected calendar${plan.calendars === 1 ? '' : 's'} · ${plan.bookingsPerMonth.toLocaleString('en-IN')} bookings / month`,
+              'Prompt studio, visual flow builder & templates',
+              'Batch campaigns, call recording & analytics',
+            ];
+            return (
+              <div
+                key={plan.key}
+                data-testid={`plan-card-${plan.key}`}
+                className={featured
+                  ? 'bg-[#DFDCD4] border-2 border-[#121212] rounded-[2px] p-8 flex flex-col justify-between relative shadow-sm'
+                  : 'bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-8 flex flex-col justify-between hover:border-[#9C998F] transition-colors'}
+              >
+                {featured && (
+                  <div className="absolute -top-3 right-6 bg-[#121212] text-white text-[10px] font-mono font-bold px-3 py-1 rounded-[1px] uppercase tracking-wider">
+                    Recommended
+                  </div>
+                )}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-medium text-xl text-[#121212] font-sans">{plan.name} Plan</h3>
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-[#262523] bg-[#DFDCD4] border border-[#CBC8BE] px-2 py-0.5 rounded-[1px]">{plan.tag}</span>
+                  </div>
+                  <p className="text-xs text-[#262523] mb-6 font-sans">{plan.description}</p>
+                  <div className="mb-6">
+                    <span className="text-4xl font-bold text-[#121212] font-mono">{formatInr(plan.price)}</span>
+                    <span className="text-xs text-[#262523] font-mono"> one-time</span>
+                    <p className="text-xs font-mono font-medium text-[#121212] mt-1">
+                      {plan.minutes.toLocaleString('en-IN')} minutes · ₹{effectiveRate(plan)}/min effective
+                    </p>
+                  </div>
+                  <ul className="space-y-3 mb-8 text-xs text-[#121212] font-sans">
+                    {features.map((feat) => (
+                      <li key={feat} className="flex items-center gap-2.5">
+                        <Check className="w-4 h-4 text-[#121212] flex-shrink-0" /> <span>{feat}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <button
+                  onClick={() => handlePurchase(plan.name, plan.price)}
+                  disabled={purchasingPlan === plan.name}
+                  className="py-3 px-4 bg-[#121212] hover:bg-black text-white font-mono uppercase tracking-wider text-xs rounded-[2px] transition-colors w-full flex items-center justify-center gap-2 cursor-pointer font-medium"
+                >
+                  {purchasingPlan === plan.name ? <Loader2 className="w-4 h-4 animate-spin" /> : `Purchase ${plan.name} Plan`}
+                </button>
               </div>
-              <p className="text-xs text-[#262523] mb-6 font-sans">For growing businesses testing AI voice automation.</p>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-[#121212] font-mono">₹3,799</span>
-                <span className="text-xs text-[#262523] font-mono"> / month</span>
-                <p className="text-xs font-mono font-medium text-[#121212] mt-1">1,000 Bundled Mins (₹3.79/min effective)</p>
-              </div>
-              <ul className="space-y-3 mb-8 text-xs text-[#121212] font-sans">
-                {[
-                  '1,000 Bundled Calling Minutes (₹3.79/min overage)',
-                  'Access to All 15 Pre-Built Templates',
-                  'Visual Flow Builder & Single Prompt Studio',
-                  'Standard Bidirectional Webhooks',
-                  '10 Concurrent Call Channels',
-                  'Email & Community Support'
-                ].map(f => (
-                  <li key={f} className="flex items-center gap-2.5">
-                    <Check className="w-4 h-4 text-[#121212] flex-shrink-0" /> <span>{f}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <button 
-              onClick={() => handlePurchase("Startup", 3799)} 
-              disabled={purchasingPlan === "Startup"}
-              className="py-3 px-4 bg-[#121212] hover:bg-black text-white font-mono uppercase tracking-wider text-xs rounded-[2px] transition-colors w-full flex items-center justify-center gap-2 cursor-pointer font-medium"
-            >
-              {purchasingPlan === "Startup" ? <Loader2 className="w-4 h-4 animate-spin" /> : "Purchase Startup Plan"}
-            </button>
-          </div>
-
-          {/* Growth Plan */}
-          <div className="bg-[#DFDCD4] border-2 border-[#121212] rounded-[2px] p-8 flex flex-col justify-between relative shadow-sm">
-            <div className="absolute -top-3 right-6 bg-[#121212] text-white text-[10px] font-mono font-bold px-3 py-1 rounded-[1px] uppercase tracking-wider">
-              MOST POPULAR
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-medium text-xl text-[#121212] font-sans">Growth Plan</h3>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-[#121212] bg-[#EBE9E2] border border-[#CBC8BE] px-2 py-0.5 rounded-[1px]">Recommended</span>
-              </div>
-              <p className="text-xs text-[#262523] mb-6 font-sans">For high-volume operations scaling phone queues.</p>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-[#121212] font-mono">₹10,799</span>
-                <span className="text-xs text-[#262523] font-mono"> / month</span>
-                <p className="text-xs font-mono font-medium text-[#121212] mt-1">2,865 Mins + 1 Free Phone Number Included</p>
-              </div>
-              <ul className="space-y-3 mb-8 text-xs text-[#121212] font-sans">
-                {[
-                  '2,865 Bundled Mins (₹3.49/min overage)',
-                  '1 Free Local / National Phone Number',
-                  '50 Concurrent Call Channels',
-                  '1 Custom Brand Voice Clone (Zero-Shot 5s)',
-                  'Priority SIP Carrier Routing',
-                  'Edge PII Pattern Redaction Pipeline',
-                  'Priority WhatsApp & Engineering Support'
-                ].map(f => (
-                  <li key={f} className="flex items-center gap-2.5">
-                    <Check className="w-4 h-4 text-[#121212] flex-shrink-0" /> <span>{f}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <button 
-              onClick={() => handlePurchase("Growth", 10799)} 
-              disabled={purchasingPlan === "Growth"}
-              className="py-3.5 px-4 bg-[#121212] hover:bg-black text-white font-mono uppercase tracking-wider text-xs rounded-[2px] transition-colors w-full flex items-center justify-center gap-2 cursor-pointer font-medium"
-            >
-              {purchasingPlan === "Growth" ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <>
-                  Purchase Growth Plan <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Enterprise Plan */}
-          <div className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-8 flex flex-col justify-between hover:border-[#9C998F] transition-colors">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-medium text-xl text-[#121212] font-sans">Enterprise Plan</h3>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-[#262523] bg-[#DFDCD4] border border-[#CBC8BE] px-2 py-0.5 rounded-[1px]">Scale</span>
-              </div>
-              <p className="text-xs text-[#262523] mb-6 font-sans">For regulated enterprise centers requiring SLAs.</p>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-[#121212] font-mono">₹30,799</span>
-                <span className="text-xs text-[#262523] font-mono"> / month</span>
-                <p className="text-xs font-mono font-medium text-[#121212] mt-1">10,000 Mins + 1 Free Phone Number Included</p>
-              </div>
-              <ul className="space-y-3 mb-8 text-xs text-[#121212] font-sans">
-                {[
-                  '10,000 Bundled Mins (₹2.99/min overage)',
-                  '200+ Unlimited Concurrent Channels',
-                  'Dedicated SIP IP Trunking & IP Whitelisting',
-                  'MSME Registered Enterprise Verification',
-                  'Custom On-Prem / VPC Proxy Egress',
-                  'Dedicated Solutions Architect & 99.99% SLA'
-                ].map(f => (
-                  <li key={f} className="flex items-center gap-2.5">
-                    <Check className="w-4 h-4 text-[#121212] flex-shrink-0" /> <span>{f}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <button 
-              onClick={() => handlePurchase("Enterprise", 30799)} 
-              disabled={purchasingPlan === "Enterprise"}
-              className="py-3 px-4 bg-[#121212] hover:bg-black text-white font-mono uppercase tracking-wider text-xs rounded-[2px] transition-colors w-full flex items-center justify-center gap-2 cursor-pointer font-medium"
-            >
-              {purchasingPlan === "Enterprise" ? <Loader2 className="w-4 h-4 animate-spin" /> : "Purchase Enterprise Plan"}
-            </button>
-          </div>
+            );
+          })}
         </div>
+
+        <p className="mt-6 text-center text-xs text-[#262523] font-sans">
+          Prices in INR. Each plan is a one-time minute pack; when the minutes are used up, buy any plan again to top up.
+          GST is shown on your invoice.
+        </p>
 
         {/* Custom Enterprise Banner */}
         <div className="mt-12 bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-8 md:p-12 flex flex-col md:flex-row items-center justify-between text-[#121212]">

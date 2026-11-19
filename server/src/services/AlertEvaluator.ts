@@ -24,7 +24,8 @@ export class AlertEvaluator {
     }, intervalMs);
   }
 
-  static async evaluateAllRules(): Promise<{ evaluated: number; triggered: number; resolved: number }> {
+  /** All enabled rules (background worker), or only one workspace's rules (manual evaluate-now). */
+  static async evaluateAllRules(onlyUserId?: string): Promise<{ evaluated: number; triggered: number; resolved: number }> {
     if (this.isRunning) return { evaluated: 0, triggered: 0, resolved: 0 };
     this.isRunning = true;
 
@@ -35,7 +36,7 @@ export class AlertEvaluator {
     try {
       const now = new Date();
       const rules = await prisma.alertRule.findMany({
-        where: { enabled: true },
+        where: { enabled: true, ...(onlyUserId ? { userId: onlyUserId } : {}) },
         include: {
           incidents: {
             where: { status: { in: ['triggered', 'active'] } },

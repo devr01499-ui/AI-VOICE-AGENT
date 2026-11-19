@@ -50,7 +50,7 @@ This comprehensive guide evaluates enterprise voice AI architectures, comparing 
 
 1. **Response Latency**: Human speech flow breaks down when system delay exceeds 300ms. Platforms that stream audio to a single speech-to-speech model avoid the extra hops of chained speech-to-text, LLM and text-to-speech services.
 2. **Pricing Transparency**: Look out for hidden vendor fees. Platforms charging separate line items for ASR, LLM tokens, and neural TTS increase total cost per minute significantly compared to flat-rate bundled plans.
-3. **Regional Dialect Support**: For global and Indian markets, native speech models comprehension across 70+ dialects (such as Hindi, Marathi, Gujarati, Bengali, and Kannada) is critical for high conversion.
+3. **Regional Dialect Support**: For global and Indian markets, native speech models comprehension across Hindi, Bengali, Gujarati, Kannada, Malayalam and Tamil is critical for high conversion.
 4. **Barge-In & Interruption DSP**: Real-world phone calls involve frequent interruptions. Full-duplex DSP audio stack allows immediate cancellation of agent audio when callers speak.
 
 ### Technical Architecture Comparison
@@ -58,7 +58,7 @@ This comprehensive guide evaluates enterprise voice AI architectures, comparing 
 | Feature | Chained Multi-Vendor Stack | Claritiy Voice (single speech-to-speech model) |
 | :--- | :--- | :--- |
 | **Response Path** | Several separate services per reply | **One speech-to-speech model per reply** |
-| **Pricing Model** | Stacked STT + LLM + TTS tokens | **Flat ₹3.99 / min (Bundled)** |
+| **Pricing Model** | Stacked STT + LLM + TTS tokens | **All-inclusive minute plans** |
 | **Audio Transport** | Chained HTTP REST endpoints | **Full-duplex carrier audio stream** |
 | **Voice Cloning** | High setup cost & manual training | **5-Second Zero-Shot Diffusion** |`
   },

@@ -102,9 +102,11 @@ jobs:
       - name: test:security (main chain, must be 100%)
         working-directory: server
         run: npm run test:security
-      - name: Knowledge-base plan-limit race (real Postgres concurrency)
+      - name: Real-Postgres concurrency races (KB plan limits, minute ledger)
         working-directory: server
-        run: npm run test:kb-race
+        run: |
+          npm run test:kb-race
+          npm run test:minutes-race
       - name: OWASP + payment security
         working-directory: server
         run: |

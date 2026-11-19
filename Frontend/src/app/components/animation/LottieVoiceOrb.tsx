@@ -6,6 +6,7 @@ import {
   MessageSquare, RefreshCw, Activity, ArrowRight, Mic, Check
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { PUBLIC_PLANS, effectiveRate } from '../../lib/plans';
 
 interface LottieVoiceOrbProps {
   className?: string;
@@ -248,7 +249,7 @@ export default function LottieVoiceOrb({ className = "", onExploreClick }: Lotti
 
             <div className="bg-[#DFDCD4] p-3 rounded-[2px] border border-[#CBC8BE]">
               <span className="text-[10px] font-mono text-[#262523] block uppercase tracking-wider">TELEPHONY COST</span>
-              <span className="text-sm font-mono font-bold text-[#121212]">₹3.99/min</span>
+              <span className="text-sm font-mono font-bold text-[#121212]">from ₹{effectiveRate(PUBLIC_PLANS[PUBLIC_PLANS.length - 1])}/min</span>
             </div>
           </div>
 

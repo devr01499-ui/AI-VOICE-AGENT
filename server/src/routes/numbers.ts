@@ -913,7 +913,7 @@ router.get('/calling-config', requireAuth, async (req, res, next) => {
         kycStatus: n.kycStatus,
         assignedAgentId: n.assignedAgentId,
         outboundAgentName: n.agent?.name || 'Unassigned',
-        inboundEnabled: n.status === 'active',
+        inboundEnabled: n.inboundEnabled !== false, // separate from activation status (audit #79)
         inboundAgentId,
         inboundAgentName,
         businessHours: inboundCfg?.businessHours || '{}',

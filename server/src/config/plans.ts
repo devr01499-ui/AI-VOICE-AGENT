@@ -20,6 +20,8 @@ export interface PlanDetails {
   name: string;
   price: number; // Price in INR (₹)
   minutes: number;
+  /** Calls this plan may have live at the same time (server-enforced; see getPlanConcurrency). */
+  maxConcurrentCalls: number;
   accountType: string;
   kbLimits: KbPlanLimits;
   calendarLimits: CalendarPlanLimits;
@@ -27,6 +29,7 @@ export interface PlanDetails {
 
 export const PLAN_CONFIG: Record<string, PlanDetails> = {
   trial: {
+    maxConcurrentCalls: 1,
     name: 'Trial',
     price: 1,
     minutes: 20,
@@ -45,6 +48,7 @@ export const PLAN_CONFIG: Record<string, PlanDetails> = {
     },
   },
   starter: {
+    maxConcurrentCalls: 1,
     name: 'Starter',
     price: 800,
     minutes: 500,
@@ -63,6 +67,7 @@ export const PLAN_CONFIG: Record<string, PlanDetails> = {
     },
   },
   startup: {
+    maxConcurrentCalls: 5,
     name: 'Startup',
     price: 3799,
     minutes: 750,
@@ -81,6 +86,7 @@ export const PLAN_CONFIG: Record<string, PlanDetails> = {
     },
   },
   growth: {
+    maxConcurrentCalls: 5,
     name: 'Growth',
     price: 10799,
     minutes: 2865,
@@ -99,6 +105,7 @@ export const PLAN_CONFIG: Record<string, PlanDetails> = {
     },
   },
   enterprise: {
+    maxConcurrentCalls: 15,
     name: 'Enterprise',
     price: 30799,
     minutes: 10000,
@@ -139,4 +146,20 @@ export function getKbPlanLimits(planNameOrAccountType?: string | null): KbPlanLi
   // Match by accountType
   const match = Object.values(PLAN_CONFIG).find(p => p.accountType.toLowerCase() === key);
   return match?.kbLimits || PLAN_CONFIG.trial.kbLimits;
+}
+
+/**
+ * Concurrent-call limit for an account (audit #6). The plan decides it; a customer may only LOWER it
+ * (users.max_concurrent_calls acts as a soft cap below the plan limit). Platform admins are not capped
+ * here (the global telephony cap still applies). Accounts without a plan get 1.
+ */
+export function getPlanConcurrency(accountType?: string | null, userSoftLimit?: number | null): number {
+  const key = String(accountType || '').trim().toLowerCase();
+  if (key === 'admin') return Number.MAX_SAFE_INTEGER;
+  const plan = PLAN_CONFIG[key] || Object.values(PLAN_CONFIG).find((p) => p.accountType.toLowerCase() === key);
+  const planLimit = plan ? plan.maxConcurrentCalls : 1;
+  if (typeof userSoftLimit === 'number' && Number.isFinite(userSoftLimit) && userSoftLimit >= 1) {
+    return Math.min(planLimit, Math.floor(userSoftLimit));
+  }
+  return planLimit;
 }

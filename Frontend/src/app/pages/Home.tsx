@@ -140,8 +140,8 @@ function BentoCapabilitySection({ setPage }: { setPage: (p: Page) => void }) {
       icon: MessageSquare,
     },
     {
-      title: "70+ Languages & Regional Dialects",
-      desc: "Native conversational AI support for Hindi, Indian English, Hinglish, Spanish, Arabic, Bengali, Marathi, and 60+ regional dialects without translation loss.",
+      title: "7 Languages incl. Hindi & English",
+      desc: "Native conversational AI in Hindi, Indian English, Hinglish, Bengali, Kannada, Malayalam, Gujarati and Tamil, with automatic language detection and no translation step.",
       icon: Languages,
     },
     {
@@ -271,11 +271,11 @@ function UseCaseSection({ setPage }: { setPage: (p: Page) => void }) {
 function ComparisonSection({ setPage }: { setPage: (p: Page) => void }) {
   const rows = [
     { feature: "Native Audio Pipeline", claritiy: "✅ Vertically Integrated", vapi: "❌ Stacked STT+LLM+TTS", legacy: "❌ Human only" },
-    { feature: "Multilingual Support", claritiy: "✅ 70+ Languages", vapi: "✅ Limited", legacy: "⚠️ Per hire" },
-    { feature: "Concurrent Calls", claritiy: "✅ Unlimited", vapi: "⚠️ Rate limited", legacy: "❌ Team capacity" },
+    { feature: "Multilingual Support", claritiy: "✅ 7 Languages + Auto-Detect", vapi: "✅ Limited", legacy: "⚠️ Per hire" },
+    { feature: "Concurrent Calls", claritiy: "✅ Up to 15 per plan", vapi: "⚠️ Rate limited", legacy: "❌ Team capacity" },
     { feature: "RAG Knowledge Base", claritiy: "✅ Built-in", vapi: "⚠️ Manual setup", legacy: "❌ Scripts only" },
     { feature: "MSME Registered", claritiy: "✅ Ministry Registered", vapi: "❌ N/A (US Only)", legacy: "⚠️ N/A" },
-    { feature: "Pricing Model", claritiy: "✅ Flat ₹3.99/min", vapi: "❌ STT+LLM+TTS billed separately", legacy: "❌ ₹25K+/agent/mo" },
+    { feature: "Pricing Model", claritiy: "✅ All-inclusive minute plans", vapi: "❌ STT+LLM+TTS billed separately", legacy: "❌ ₹25K+/agent/mo" },
     { feature: "Setup Time", claritiy: "✅ < 10 minutes", vapi: "⚠️ Days of engineering", legacy: "❌ Weeks of hiring" },
   ];
 
@@ -528,7 +528,7 @@ export default function Home({ setPage }: HomeProps) {
             <div className="space-y-3">
               {[
                 { icon: Zap, title: "Real-Time Replies", desc: "No REST overhead — direct audio streaming" },
-                { icon: Globe2, title: "70+ Regional Dialects, Zero Translation", desc: "Native speech models, no lossy intermediate API" },
+                { icon: Globe2, title: "7 Languages, Zero Translation", desc: "Native speech models, no lossy intermediate API" },
                 { icon: ShieldCheck, title: "PII Redaction", desc: "MSME Certified, DPDP Act & TLS encryption" },
                 { icon: Network, title: "Function Calling & Tool Calling", desc: "Real-time API execution while live on the call" },
               ].map(({ icon: Icon, title, desc }, i) => (

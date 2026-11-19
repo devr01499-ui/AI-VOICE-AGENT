@@ -29,6 +29,11 @@ export interface DebitOperationParams extends MinutesOperationParams {
   allowNegative?: boolean; // Only owner can force negative balance
 }
 
+/** Row lock on the user for the rest of the transaction (READ COMMITTED + FOR UPDATE). */
+async function lockUserRow(tx: Prisma.TransactionClient, userId: string): Promise<void> {
+  await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
+}
+
 export class MinutesService {
   /**
    * Credits seconds to a user's calling balance atomically inside a database transaction.
@@ -42,6 +47,10 @@ export class MinutesService {
     }
 
     const run = async (prismaTx: Prisma.TransactionClient) => {
+      // 0. Lock the user row so concurrent credits/debits apply one after another (audit #1: two calls
+      //    ending together used to read the same balance and one deduction was lost).
+      await lockUserRow(prismaTx, userId);
+
       // 1. Idempotency Check
       const existing = await prismaTx.minutesLedger.findUnique({
         where: { idempotencyKey },
@@ -126,6 +135,10 @@ export class MinutesService {
     }
 
     const run = async (prismaTx: Prisma.TransactionClient) => {
+      // 0. Lock the user row so concurrent credits/debits apply one after another (audit #1: two calls
+      //    ending together used to read the same balance and one deduction was lost).
+      await lockUserRow(prismaTx, userId);
+
       // 1. Idempotency Check
       const existing = await prismaTx.minutesLedger.findUnique({
         where: { idempotencyKey },
