@@ -80,7 +80,7 @@ async function main() {
     const svc = new BillingService();
     const first = await svc.createPlanPurchaseOrder('trial', u);
     assert.ok(first && created.length === 1, 'first trial order is created');
-    await prisma.paymentTransaction.create({ data: { userId: u, orderId: 'order_t1', paymentId: 'pay_t1', amount: 1, planName: 'Trial', status: 'completed' } }).catch(async (e) => {
+    await prisma.paymentTransaction.create({ data: { userId: u, orderId: `order_t1_${u.slice(0, 8)}`, paymentId: `pay_t1_${u.slice(0, 8)}`, amount: 1, planName: 'Trial', status: 'completed' } }).catch(async (e) => {
       // Minimal row if the schema requires fewer/more fields.
       throw e;
     });

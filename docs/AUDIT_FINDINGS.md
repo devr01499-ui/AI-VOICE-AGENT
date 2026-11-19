@@ -6,7 +6,17 @@ Paths: `SV` = `server/src`, `FE` = `Frontend/src/app`.
 
 **V** = re-checked by hand against the code (17 of 17 checks confirmed). The rest are reported with exact file:line and a concrete failure scenario, but have not been hand-checked yet. Re-verify each one before fixing it (CLAUDE.md §5).
 
-Severity: H high, M medium, L low. Status: all OPEN.
+Severity: H high, M medium, L low.
+
+## Fix status (updated as each batch lands; each fix has a test that fails on the old code)
+| Batch | Commit | Fixed |
+|---|---|---|
+| 1 | c622170 | #1 #2 #3 #6 #17 #32 #79 #90 (tests: test:audit-batch1, test:minutes-race) |
+| pricing | 6432e82 | #111 #112 #113 #115 #116 #117 #118 #119 #132 #133 (test:marketing-claims) |
+| 2 | 64f9086 | #43 #44 #45 #51 #76 #78 #81 #82 #83 #84 #91 #92 #97 #141 (test:audit-batch2, e2e audit-dashboard) |
+| 3 | 12aea83 | #46 #47 #48 #54 #57 #63 #64 #77 #80 #86 (test:audit-batch3, e2e audit-dashboard) |
+
+Everything not listed above is still OPEN. New finding while fixing: **#144** `CallOrchestrator.initiateOutboundCall` always stores `userData: '{}'`, so per-call variables (e.g. a batch contact's name) are lost.
 
 ## 1. Billing, plans, minutes, numbers, KYC
 1. H **V** `SV/services/MinutesService.ts:59-96,143-193`: the balance is read and then written back as an absolute value, with no row lock. Two calls ending at the same moment lose one debit, and a plan credit racing a debit can wipe paid minutes. Fix: atomic increment/decrement.
