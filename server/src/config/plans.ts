@@ -27,6 +27,15 @@ export interface PlanDetails {
   calendarLimits: CalendarPlanLimits;
 }
 
+/**
+ * Plan validity (owner decision 2026-11-19): a plan ends 30 days after purchase or when its minutes
+ * run out, whichever comes first. Unused minutes lapse at the end. The phone number is released
+ * NUMBER_RELEASE_GRACE_DAYS after the plan ends unless a new plan is bought, so Claritiy never keeps
+ * paying the carrier for a number nobody uses.
+ */
+export const PLAN_VALIDITY_DAYS = 30;
+export const NUMBER_RELEASE_GRACE_DAYS = 5;
+
 export const PLAN_CONFIG: Record<string, PlanDetails> = {
   trial: {
     maxConcurrentCalls: 1,

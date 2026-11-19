@@ -63,3 +63,9 @@ Conservative choices made in code, and items a qualified professional (CA / lawy
   - Scenario stories that mention toll-free lines or CRM deal-stage updates.
   - **Terms of Service §6** cites the US FTC Do Not Call Registry and US law. For an India-first service it should cite TRAI's TCCCPR 2018 / NCPR (DND), DLT registration and Indian law.
   - **Privacy Policy** lists "Twilio" as an example provider. The actual processors are Supabase (database/auth), Google (Gemini AI, Calendar), the two carriers, Razorpay, Render, Vercel and Resend (email).
+
+## Plan validity and number release (owner decision 2026-11-19) — needs lawyer review
+- New rule: a plan is valid 30 days from purchase; it ends when its minutes are used up or after 30 days, whichever comes first, and unused minutes lapse at the 30-day end. The included phone number is released 5 days after the plan ends unless a new plan is bought. The user is warned in the app when the plan ends.
+- Conservative choice: plans bought **before 19 November 2026** were sold as "one-time, no expiry". They get no 30-day limit (their `planExpiresAt` stays empty) and end only when their minutes run out. Changing the terms of packs already sold would be risky under consumer law. Ask the lawyer before extending the rule to them.
+- Terms §2.1 rewritten: it described monthly card billing, which the product never had. It now describes one-time packs, the validity, the number release and the refund sentence. Pricing page and llms.txt updated to match. Please have the lawyer confirm §2.1 and the refund wording (owner step 27).
+- Vobiz charges the master account a monthly fee per number. A number in Vobiz's 15-day cool-off after its last call cannot be released until the cool-off ends; it is blocked meanwhile and retried hourly.

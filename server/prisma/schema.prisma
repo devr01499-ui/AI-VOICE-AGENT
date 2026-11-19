@@ -28,6 +28,8 @@ model User {
   minutesRemainingSeconds Float   @default(0.0) @map("minutes_remaining_seconds")
   totalMinutesConsumed  Float    @default(0.0) @map("total_minutes_consumed")
   numberLocked          Boolean  @default(false) @map("number_locked")
+  /// End of the current plan's validity (purchase + 30 days). Null = bought before validity existed (expires only when minutes run out).
+  planExpiresAt         DateTime? @map("plan_expires_at")
   dataRetentionDays     Int?     @map("data_retention_days")
   allowedIpRanges       String[] @default([]) @map("allowed_ip_ranges")
   maxConcurrentCalls    Int?     @default(10) @map("max_concurrent_calls")

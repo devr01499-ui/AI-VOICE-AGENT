@@ -748,6 +748,12 @@ async function bootstrap(): Promise<void> {
       .then(({ startKycModeMigration }) => startKycModeMigration())
       .catch((err) => logger.warn('KYC: customer_use migration not started', { error: err instanceof Error ? err.message : String(err) }));
 
+    // Plans: hourly, lapse minutes at the 30-day end, warn, and release numbers 5 days after a plan
+    // ends (minutes used up or 30 days, whichever first) so carriers stop billing unused numbers.
+    import('./services/PlanLifecycleService')
+      .then(({ startPlanLifecycle }) => startPlanLifecycle())
+      .catch((err) => logger.warn('Plans: lifecycle job not started', { error: err instanceof Error ? err.message : String(err) }));
+
     // Data retention (DPDP): purge expired calls and recordings every hour. It was never started before.
     DataRetentionJob.startBackgroundWorker();
 
