@@ -754,6 +754,11 @@ async function bootstrap(): Promise<void> {
       .then(({ startPlanLifecycle }) => startPlanLifecycle())
       .catch((err) => logger.warn('Plans: lifecycle job not started', { error: err instanceof Error ? err.message : String(err) }));
 
+    // Follow-up calls the agent booked: every minute, dial the ones that are due (audit #148).
+    import('./services/ScheduledCallService')
+      .then(({ startScheduledCallExecutor }) => startScheduledCallExecutor())
+      .catch((err) => logger.warn('Scheduled calls: executor not started', { error: err instanceof Error ? err.message : String(err) }));
+
     // Business numbers: every 15 min, pick up carrier review results for business KYC.
     import('./services/PlivoComplianceService')
       .then(({ startPlivoCompliancePoll }) => startPlivoCompliancePoll())

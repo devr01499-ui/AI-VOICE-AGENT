@@ -379,7 +379,7 @@ export class CallService {
 
     if (numberRecord.status !== 'active') {
       throw new ValidationError('Your number is awaiting activation', [
-        { field: 'fromPhoneNumber', message: 'Your number is awaiting activation. It will become active once KYC is verified and wallet funding is confirmed.' }
+        { field: 'fromPhoneNumber', message: 'Your number is awaiting activation. It becomes active once its KYC is verified.' }
       ]);
     }
 
