@@ -23,6 +23,7 @@ Everything not listed above is still OPEN. New findings while fixing:
 - **#144** (fixed, batch 4) `CallOrchestrator.initiateOutboundCall` always stored `userData: '{}'`, so per-call variables (e.g. a batch contact's name) were lost.
 - **#145** (fixed, batch 5) H `SV/websockets/AudioStreamHandler.ts`: an unauthenticated audio-stream connection naming a call id marked that call failed (no token needed).
 - **#146** OPEN H `SV/providers/gemini/GeminiLiveProvider.ts`: Google caps an audio Live session at about 15 minutes unless session resumption / context-window compression is used. Neither is enabled, and the resumption payload uses a wrong field (`setup.resumptionHandle` instead of `setup.sessionResumption.handle`), so calls longer than ~15 min (max duration is 30 min) can drop to a fresh session. Needs a live test against Google before changing.
+- **#148** OPEN H `server/scripts/calendar/execute-scheduled-calls.ts`: scheduled follow-up calls (booked by the agent through the follow-up tool, rows in `scheduled_calls`) are never dialled. The only code that executes them is this script, and no cron, Render job or in-server timer runs it. The daily report email (`send-daily-report.ts`) is in the same state. Fix: run the executor inside the server on a timer (with a lock), or add a Render cron job.
 - **#147** L the legacy `scripts/test_batch_calling_suite.js` was unwired and stale (it hung for 30 min); fixed and exposed as `test:batch-calling` (about 10 min, not in CI).
 
 ## 1. Billing, plans, minutes, numbers, KYC

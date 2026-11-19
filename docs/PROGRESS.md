@@ -21,8 +21,7 @@
 - Prisma CLI only with BOTH `DATABASE_URL` and `DIRECT_URL` set inline to the test URL. Offline SQL: `prisma migrate diff --from-schema <old> --to-schema prisma/schema.prisma --script`.
 - No command text inside double quotes/unquoted backticks; write files with Write/Edit or `<<'EOF'`. Every push to `main` auto-deploys Render and runs `prisma db push` on production until owner step 25.
 
-## Status of checks (2026-11-18, end of Phase 14)
-- Typecheck 0/0; build OK. test:security 28 suites 100% on PGlite, without server/.env, and on a DB built from the committed migrations; all other suites pass; kb-race 2/2; Playwright 117 passed / 1 skipped (incl. smoke journey); migrations: empty DB, zero drift. playout timing test is local-only (CI runners too noisy).
+## Status of checks (2026-11-19, merge of audit batches 4-5): typecheck 0/0; build OK; test:security 100% on PGlite; all CI suites pass; kb-race 2/2, minutes-race 3/3 (native PG); Playwright 122 passed / 1 skipped (--workers=1).
 
 ## Pre-launch items
 - P0 OWNER: rotate the production DB password (was public in git history); confirm the Google key literal in GeminiLiveProvider.ts is revoked.
@@ -57,4 +56,4 @@
 1. (resolved 2026-11-19) Gemini model policy: newest Live model, removed ones dropped — config/geminiModels.ts. 2. `devr0144@gmail.com` address (§11). 3. Migration: Option A prepared (step 25). 4. When an account loses its paid plan (cancel/downgrade): keep its number working, pause calls on it, or release it after N days? STANDING RULE (§0.6/§12a): merge each verified phase to `main`, push, never ask between phases.
 
 ## Next exact step
-AUDIT FIXES (owner: fix all in docs/AUDIT_FINDINGS.md one by one). Done and merged to main (merge 92053a6, 2026-11-19): batches 1-5 + pricing + Gemini 3.8 Live (fix-status table). All H items fixed except #146 (Live 15-min session cap; needs a live Google test). NEXT: the M items in order (#7 onward, skipping fixed ones), then L.
+AUDIT FIXES (owner: fix all in docs/AUDIT_FINDINGS.md one by one). Done and merged to main (merge 92053a6, 2026-11-19): batches 1-5 + pricing + Gemini 3.8 Live (fix-status table). All H items fixed except #146 (Live 15-min session cap; needs a live Google test) and #148 (scheduled follow-up calls never dialled). Dead-code sweep 2 (2026-11-19, branch chore/dead-code-2): 56 files removed, 27 legacy suites wired as test:legacy (BACKEND_UNUSED_REPORT §6). NEXT: the M items in order (#7 onward, skipping fixed ones), then L.
