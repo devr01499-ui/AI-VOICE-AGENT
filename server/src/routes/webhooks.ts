@@ -71,6 +71,26 @@ router.all('/plivo/hangup', verifyPlivoWebhook, CallController.handlePlivoHangup
 router.all('/plivo/fallback', verifyPlivoWebhook, CallController.handlePlivoAnswer);
 
 /**
+ * POST /api/v2/webhooks/plivo/compliance
+ * Plivo business-KYC review result (submitted -> accepted / rejected). The payload format is not
+ * documented, so it is only a trigger: the state is read back from Plivo's Compliance API.
+ */
+router.post('/plivo/compliance', webhookRateLimiter, verifyPlivoWebhook, async (req, res) => {
+  try {
+    const { PlivoComplianceService } = await import('../services/PlivoComplianceService');
+    const svc = new PlivoComplianceService();
+    const complianceId = String((req.body && (req.body.compliance_id || req.body.ComplianceId)) || '');
+    const { prisma } = await import('../lib/prisma');
+    const app = complianceId ? await prisma.plivoComplianceApplication.findUnique({ where: { complianceId }, select: { userId: true } }) : null;
+    if (app) await svc.refresh(app.userId);
+    else await svc.refreshPending();
+    res.status(200).json({ success: true });
+  } catch (err) {
+    res.status(200).json({ success: false });
+  }
+});
+
+/**
  * POST /api/v2/webhooks/recording — carrier posts the finished recording link. Authorised by the
  * per-call HMAC token in the callback URL (see RecordingService).
  */

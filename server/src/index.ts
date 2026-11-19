@@ -754,6 +754,11 @@ async function bootstrap(): Promise<void> {
       .then(({ startPlanLifecycle }) => startPlanLifecycle())
       .catch((err) => logger.warn('Plans: lifecycle job not started', { error: err instanceof Error ? err.message : String(err) }));
 
+    // Business numbers: every 15 min, pick up carrier review results for business KYC.
+    import('./services/PlivoComplianceService')
+      .then(({ startPlivoCompliancePoll }) => startPlivoCompliancePoll())
+      .catch((err) => logger.warn('Business KYC: poll not started', { error: err instanceof Error ? err.message : String(err) }));
+
     // Data retention (DPDP): purge expired calls and recordings every hour. It was never started before.
     DataRetentionJob.startBackgroundWorker();
 
