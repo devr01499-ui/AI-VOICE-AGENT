@@ -329,3 +329,26 @@ One entry per fix, newest at the bottom. Template:
   - test:plivo-business 5/5.
   - e2e business-verification 4/4, screenshots in docs/proof.
 - **Not verified here:** the live Vobiz and Plivo APIs (keys treated as compromised); see PROGRESS owner step 15a.
+
+## Defect audit — batches 6–8 (2026-11-19, branch fix/audit-batch-6)
+- **Batch 6 (d8171bb), money and call outcomes:** #8 #9 #10 #13 #14 #15 #16 #18 #19 #20 #21 #40.
+  - Built-in plan keys always use the server plan config; catalog rows only for their own customer.
+  - Answered calls that end on an error are recorded as completed; reaped stuck calls are billed only on a real carrier duration.
+  - Restoring a suspended account re-enables only the API keys the suspension switched off.
+  - No simulated carrier results in production; a repeat purchase of an owned number is idempotent.
+  - Busy and no-answer outcomes are kept; batch billed minutes use the per-started-minute rule.
+  - Refunds take back minutes in proportion (never below zero, admin alert on any shortfall); a full refund ends the plan.
+  - Restricted or suspended accounts cannot buy; a late hangup webhook cannot change a billed call's duration.
+  - Test: test:audit-batch6 11/11.
+- **Batch 7 (a07d7ed), teams:** #11 #49 #50 #60 #61 #88 #89.
+  - One workspace per person: invites are case-insensitive, and are refused for someone already in another team or with their own workspace.
+  - API keys, the Gemini key, calls, numbers and plan purchases belong to the workspace, with role checks.
+  - Test: test:audit-batch7 6/6.
+- **Batch 8 (dccab7a), live calls:** #33 #34 #37 #39 #146.
+  - Inbound calls give the AI the caller's number; an opt-out from an unknown caller creates a DNC contact.
+  - A failed AI start or an expired pre-warmed session leaves no session or timers behind.
+  - Closing the test tab during setup closes the model session.
+  - Long calls: context-window compression and session resumption are on; handles are captured; a resume reuses the full setup and the same key.
+  - Test: test:audit-batch8 5/5, and 0/5 on the old code.
+- **Test hygiene (ca4e38d):** m1-pipeline drains only its own analysis jobs, and batch 6 deletes the jobs it queues. This fixed an intermittent 5/13 m1 result.
+- **Not verified here:** a live call longer than 15 minutes against Google (#146), because the keys are treated as compromised. See PROGRESS owner step 11a.
