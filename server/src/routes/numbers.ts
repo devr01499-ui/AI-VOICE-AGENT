@@ -665,16 +665,25 @@ router.delete('/:id', requireAuth, requireEditor, sensitiveOperationsLimiter, as
       return;
     }
 
-    await UsageSyncService.releaseNumber(id, userId);
+    const result = await UsageSyncService.releaseNumber(id, userId);
 
     await logAuditEvent({
       workspaceOwnerId: (req as any).effectiveWorkspaceId || userId,
       actorUserId: userId,
-      action: 'number.released',
+      action: result.released ? 'number.released' : 'number.release_pending',
       targetId: id,
+      metadata: result.released ? undefined : { reason: result.reason, retryAfter: result.retryAfter },
     });
 
-    res.json({ success: true, message: 'Number released successfully' });
+    if (!result.released) {
+      res.status(202).json({
+        success: true,
+        data: { released: false, pending: true, retryAfter: result.retryAfter },
+        message: 'The number is being released. It stops working now and is removed as soon as the carrier allows (up to 15 days after its last call).',
+      });
+      return;
+    }
+    res.json({ success: true, data: { released: true }, message: 'Number released successfully' });
   } catch (err) {
     logger.error('Numbers: failed to release number', { error: String(err) });
     next(err);

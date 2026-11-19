@@ -69,3 +69,21 @@ export function nextKycState(
   const kycCallsBlocked = kycStatus !== 'verified' || blockedByCarrier === true;
   return { kycStatus, kycCallsBlocked, changed: kycStatus !== current };
 }
+
+/**
+ * Reads Vobiz's KYC status response (GET /api/v1/sub-accounts/{SA}/kyc/status) for ONE user.
+ * A user is verified only when Vobiz itself verified that user's own documents: the sub-account must
+ * be `customer_use` (a `personal_use` sub-account inherits the master account's KYC, so it reports
+ * "not blocked" without the user ever being checked), its overall status must be verified, and
+ * Vobiz must not be blocking its calls.
+ */
+export function vobizKycVerdict(data: any): { kycStatus: KycState; kycCallsBlocked: boolean; customerUse: boolean; kycMode: string | null } {
+  const kycMode = typeof data?.kyc_mode === 'string' ? data.kyc_mode : null;
+  const customerUse = kycMode === 'customer_use';
+  if (!customerUse) {
+    return { kycStatus: 'pending', kycCallsBlocked: true, customerUse: false, kycMode };
+  }
+  const kycStatus = normalizeKycStatus(data?.overall_status ?? data?.kyc_status);
+  const kycCallsBlocked = kycStatus !== 'verified' || data?.kyc_calls_blocked !== false;
+  return { kycStatus: kycCallsBlocked && kycStatus === 'verified' ? 'pending' : kycStatus, kycCallsBlocked, customerUse: true, kycMode };
+}

@@ -742,6 +742,12 @@ async function bootstrap(): Promise<void> {
     // Payments: every 15 min, make sure every captured payment was fulfilled (no-op without keys).
     startPaymentReconciliation();
 
+    // KYC: switch every customer's Vobiz sub-account to customer_use so Vobiz verifies each user's
+    // own KYC (older ones inherited Claritiy's master KYC). Retries every 30 min until done.
+    import('./services/VobizKycModeService')
+      .then(({ startKycModeMigration }) => startKycModeMigration())
+      .catch((err) => logger.warn('KYC: customer_use migration not started', { error: err instanceof Error ? err.message : String(err) }));
+
     // Data retention (DPDP): purge expired calls and recordings every hour. It was never started before.
     DataRetentionJob.startBackgroundWorker();
 

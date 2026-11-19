@@ -1,74 +1,23 @@
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
-import { VobizSubAccountService } from './VobizSubAccountService';
 import { env } from '../config/env';
-import { ProviderError } from '../types/errors';
+import { releaseCarrierNumber, type ReleaseOutcome } from './CarrierNumberReleaseService';
+
+export type NumberReleaseResult =
+  | { released: true }
+  | { released: false; pending: true; retryAfter: Date | null; reason: string };
 
 export class UsageSyncService {
   /**
-   * Syncs usage from Vobiz CDRs for a specific user and deducts from their billing balance.
-   * Vobiz confirmed rate is ₹0.45/min for base usage, but we mark it up based on plan (e.g. ₹3.99/min).
+   * Releases a user's phone number back to its carrier, then removes it from Claritiy.
+   *
+   * The local record is deleted ONLY after the carrier confirms (or says the number is already
+   * gone). Before, the row was deleted even when the carrier refused, so Claritiy's master account
+   * kept paying the monthly fee for a number nobody could see. When the carrier cannot release yet
+   * (Vobiz 15-day cool-off after the last call, or an error), the number is kept as
+   * 'release_pending' (no calls) and the release job retries it.
    */
-  static async syncUsageForUser(userId: string) {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new Error('User not found');
-
-    const subAccount = await prisma.vobizSubAccount.findUnique({ where: { userId } });
-    if (!subAccount) {
-      logger.info('UsageSyncService: User has no sub-account. Skipping.', { userId });
-      return;
-    }
-
-    // Rate based on plan
-    let perMinuteRate = 3.99; // Starter
-    if (user.accountType === 'professional' || user.accountType === 'developer') {
-      perMinuteRate = 2.99;
-    } else if (user.accountType === 'enterprise') {
-      perMinuteRate = 1.99;
-    }
-
-    logger.info(`UsageSyncService: Syncing usage for ${userId} at ₹${perMinuteRate}/min`);
-
-    // In a real implementation, we would query the Vobiz CDR API using the subAccount authId/authToken
-    // URL: `${env.VOBIZ_API_URL}/Account/${subAccount.authId}/Call/` 
-    // And filter by `end_time` > lastSyncTime
-
-    // For now, we mock the sync by finding completed calls that haven't been billed
-    const unbilledCalls = await prisma.call.findMany({
-      where: {
-        userId,
-        status: 'completed',
-        // In a real DB, we'd have an `isBilled` flag, but we'll use a heuristic for the mock
-        durationSeconds: { gt: 0 }
-      },
-      take: 50,
-    });
-
-    let totalDurationMinutes = 0;
-    for (const call of unbilledCalls) {
-      const minutes = Math.ceil((call.durationSeconds || 0) / 60);
-      totalDurationMinutes += minutes;
-    }
-
-    if (totalDurationMinutes > 0) {
-      const totalCost = totalDurationMinutes * perMinuteRate;
-
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          billingBalance: { decrement: totalCost },
-          totalMinutesConsumed: { increment: totalDurationMinutes }
-        }
-      });
-
-      logger.info(`UsageSyncService: Billed ₹${totalCost} for ${totalDurationMinutes} mins`, { userId });
-    }
-  }
-
-  /**
-   * Releases a phone number from the user's sub-account back to Vobiz.
-   */
-  static async releaseNumber(phoneNumberId: string, userId: string) {
+  static async releaseNumber(phoneNumberId: string, userId: string): Promise<NumberReleaseResult> {
     const phoneNumber = await prisma.phoneNumber.findFirst({
       where: { id: phoneNumberId, userId }
     });
@@ -77,33 +26,21 @@ export class UsageSyncService {
       throw new Error('Phone number not found or not owned by user');
     }
 
-    const subAccount = await prisma.vobizSubAccount.findUnique({ where: { userId } });
-    if (!subAccount) {
-      throw new Error('Sub-account not found');
+    let outcome: ReleaseOutcome = await releaseCarrierNumber(phoneNumber);
+    // Local development and tests run without carrier keys: nothing is rented there to release.
+    if (outcome.result === 'failed' && /not configured|no_credentials/.test(outcome.detail) && env.NODE_ENV !== 'production') {
+      outcome = { result: 'already_gone' };
     }
 
-    // Mock mode or real API call
-    if (env.VOBIZ_AUTH_ID !== 'MA_PLACEHOLDER' && !env.VOBIZ_AUTH_ID.includes('placeholder')) {
-      const url = `${env.VOBIZ_API_URL}/Account/${subAccount.authId}/PhoneNumber/${phoneNumber.phoneNumber}/`;
-      
-      try {
-        const response = await fetch(url, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-Auth-ID': env.VOBIZ_AUTH_ID,
-            'X-Auth-Token': env.VOBIZ_AUTH_TOKEN, // In reality, sub-account auth token decrypted
-          },
-        });
-
-        if (!response.ok && response.status !== 404) {
-          const text = await response.text();
-          logger.warn('UsageSyncService: Vobiz provider release warning', { status: response.status, body: text });
-        }
-      } catch (err) {
-        logger.warn('UsageSyncService: failed to release number from provider, proceeding with local DB deletion', { error: String(err) });
-      }
+    if (outcome.result === 'cool_off' || outcome.result === 'failed') {
+      const pendingOutcome = outcome as Extract<ReleaseOutcome, { result: 'cool_off' | 'failed' }>;
+      const reason = pendingOutcome.result === 'cool_off' ? 'carrier cool-off after recent calls' : `carrier refused: ${pendingOutcome.detail}`;
+      const retryAfter = pendingOutcome.result === 'cool_off' ? pendingOutcome.retryAfter : null;
+      await prisma.phoneNumber.update({ where: { id: phoneNumber.id }, data: { status: 'release_pending' } });
+      logger.error('[ADMIN_ALERT][NUMBER_RELEASE] number could not be released at the carrier yet; kept as release_pending and retried', {
+        userId, phoneNumberId, provider: phoneNumber.telephonyProvider, reason, retryAfter,
+      });
+      return { released: false, pending: true, retryAfter, reason };
     }
 
     // Clean up child inbound configs to prevent foreign key errors
@@ -111,7 +48,6 @@ export class UsageSyncService {
       where: { phoneNumberId: phoneNumber.id }
     }).catch(() => {});
 
-    // Remove permanently from DB
     await prisma.phoneNumber.delete({
       where: { id: phoneNumber.id }
     });
@@ -119,14 +55,12 @@ export class UsageSyncService {
     // The plan's one number has been used: releasing it does NOT give back a free slot (audit #5:
     // claim -> release -> claim bought a new number on the master account every time). Buying a plan
     // grants a new slot (PlanFulfillmentService).
-    const remainingCount = await prisma.phoneNumber.count({
-      where: { userId }
-    });
-
+    const remainingCount = await prisma.phoneNumber.count({ where: { userId } });
     if (remainingCount === 0) {
       logger.info('UsageSyncService: last number released; the bundled-number slot stays used until the next plan purchase', { userId });
     }
 
-    logger.info('UsageSyncService: Successfully released number from DB', { phoneNumberId, userId });
+    logger.info('UsageSyncService: number released at the carrier and removed', { phoneNumberId, userId, carrierResult: outcome.result });
+    return { released: true };
   }
 }

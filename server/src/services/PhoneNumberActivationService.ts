@@ -4,12 +4,17 @@ import { logAuditEvent } from '../utils/auditLogger';
 
 export class PhoneNumberActivationService {
   /**
-   * Evaluates the activation rule for all numbers belonging to a user:
-   * Rule: A number becomes active automatically when:
-   *   (KYC verified OR number does not require KYC) AND walletFundedAt is set.
+   * Evaluates the activation rule for all numbers belonging to a user. A number waiting for
+   * activation becomes active automatically when its KYC is verified, or when the number itself
+   * needs no extra KYC.
    *
-   * @param userId - ID of the user owning the numbers and sub-account
-   * @param triggeredBy - Context ('kyc_webhook' | 'sync_kyc' | 'admin_wallet_funding')
+   * No manual "wallet funded" step (owner decision 2026-11-19): a Vobiz sub-account (SA_) uses the
+   * master account's ledger, so nothing has to be topped up before a number can work. Calls stay
+   * gated separately by the user's own Vobiz KYC (kycCallsBlocked).
+   * Only numbers in 'activation_pending' are touched; suspended, released or failed numbers are not.
+   *
+   * @param userId - ID of the user owning the numbers
+   * @param triggeredBy - Context ('purchase' | 'kyc_webhook' | 'sync_kyc' | 'admin_wallet_funding')
    * @param actorUserId - User ID performing the action (for audit logs)
    * @returns Array of activated phone records
    */
@@ -18,63 +23,42 @@ export class PhoneNumberActivationService {
     triggeredBy: string,
     actorUserId?: string
   ): Promise<any[]> {
-    // 1. Fetch user's sub-account to check walletFundedAt
-    const subAccount = await prisma.vobizSubAccount.findUnique({
-      where: { userId },
-    });
-
-    if (!subAccount || !subAccount.walletFundedAt) {
-      logger.info('PhoneNumberActivationService: wallet is not yet funded, skipping auto-activation', {
-        userId,
-        triggeredBy,
-      });
-      return [];
-    }
-
-    // 2. Find all pending activation numbers for this user
     const pendingNumbers = await prisma.phoneNumber.findMany({
-      where: {
-        userId,
-        status: { not: 'active' },
-      },
+      where: { userId, status: 'activation_pending' },
     });
 
     const activated: any[] = [];
 
     for (const phone of pendingNumbers) {
-      // Rule: (KYC verified OR number does not require KYC) AND walletFundedAt is set
       const isKycSatisfied = phone.kycStatus === 'verified' || !phone.aadhaarRequired;
+      if (!isKycSatisfied) continue;
 
-      if (isKycSatisfied) {
-        const updated = await prisma.phoneNumber.update({
-          where: { id: phone.id },
-          data: { status: 'active' },
-        });
+      const updated = await prisma.phoneNumber.update({
+        where: { id: phone.id },
+        data: { status: 'active' },
+      });
+      activated.push(updated);
 
-        activated.push(updated);
-
-        await logAuditEvent({
-          workspaceOwnerId: userId,
-          actorUserId: actorUserId || userId,
-          action: 'number.activated',
-          targetId: phone.id,
-          metadata: {
-            phoneNumber: phone.phoneNumber,
-            reason: 'Auto-activated: KYC verified or not required AND wallet funded',
-            triggeredBy,
-            walletFundedAt: subAccount.walletFundedAt,
-            kycStatus: phone.kycStatus,
-            aadhaarRequired: phone.aadhaarRequired,
-          },
-        });
-
-        logger.info('PhoneNumberActivationService: auto-activated phone number', {
-          userId,
-          phoneId: phone.id,
+      await logAuditEvent({
+        workspaceOwnerId: userId,
+        actorUserId: actorUserId || userId,
+        action: 'number.activated',
+        targetId: phone.id,
+        metadata: {
           phoneNumber: phone.phoneNumber,
+          reason: 'Auto-activated: number KYC verified or not required',
           triggeredBy,
-        });
-      }
+          kycStatus: phone.kycStatus,
+          aadhaarRequired: phone.aadhaarRequired,
+        },
+      });
+
+      logger.info('PhoneNumberActivationService: auto-activated phone number', {
+        userId,
+        phoneId: phone.id,
+        phoneNumber: phone.phoneNumber,
+        triggeredBy,
+      });
     }
 
     return activated;

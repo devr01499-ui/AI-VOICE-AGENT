@@ -106,7 +106,10 @@ async function main() {
       assert.ok(/kycCallsBlocked/.test(src(f)), `${f} must write kycCallsBlocked`);
     }
     const kyc = src('routes/kyc.ts');
-    assert.strictEqual((kyc.match(/kycCallsBlocked: normalizedStatus !== 'verified'/g) || []).length, 2, 'both webhook update paths');
+    // The KYC webhook no longer trusts its body: it reads the state back from Vobiz (applyKycStatus),
+    // which stores kycCallsBlocked (behaviour proven in test:carrier-accuracy).
+    const webhook = kyc.slice(kyc.indexOf("router.post('/webhook/vobiz'"), kyc.indexOf('GET /api/v2/kyc/status'));
+    assert.ok(/applyKycStatus\(/.test(webhook) && !/kycStatus: normalizedStatus/.test(webhook), 'webhook confirms with Vobiz instead of trusting the body');
   });
 
   await test('#2 one-time repair unblocks already-verified accounts, once', async () => {

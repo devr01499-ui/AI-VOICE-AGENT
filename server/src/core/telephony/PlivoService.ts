@@ -55,6 +55,28 @@ export class PlivoService {
   }
 
   /**
+   * Unrents a number (Plivo "Unrent a number": DELETE /Account/{auth_id}/Number/{number}/), so the
+   * main account stops paying its monthly rental. 404 = already gone.
+   */
+  async unrentNumber(number: string): Promise<'released' | 'already_gone' | 'failed' | 'no_credentials'> {
+    if (!this.hasValidCredentials()) return 'no_credentials';
+    const digits = String(number || '').replace(/\D/g, '');
+    try {
+      const res = await fetch(`${this.baseUrl}/Account/${this.parentAuthId}/Number/${digits}/`, {
+        method: 'DELETE',
+        headers: this.getParentHeaders(),
+      });
+      if (res.status === 204 || res.ok) return 'released';
+      if (res.status === 404) return 'already_gone';
+      logger.error('[PLIVO] unrent number failed', { number: `***${digits.slice(-4)}`, status: res.status, body: (await res.text().catch(() => '')).slice(0, 200) });
+      return 'failed';
+    } catch (err) {
+      logger.error('[PLIVO] unrent number error', { error: String(err) });
+      return 'failed';
+    }
+  }
+
+  /**
    * Idempotent Subaccount Provisioning:
    * 1. Checks local database for existing PlivoSubAccount.
    * 2. If not found locally, queries Plivo Subaccount list to verify if a subaccount with that name exists.

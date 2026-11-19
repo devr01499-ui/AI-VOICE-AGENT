@@ -12,7 +12,7 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
   /**
    * Validates fresh price, creates order idempotently, purchases number under master,
    * provisions user sub-account with email naming, explicitly assigns number to sub-account,
-   * enforces ZERO auto-funding, and sets status to 'activation_pending'.
+   * and activates the number once it is assigned (no manual funding step).
    */
   public async purchaseAndAssignNumber(params: {
     userId: string,
@@ -89,10 +89,10 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
         'POST', 
         purchaseEndpoint, 
         {
+          // Documented body (Vobiz Purchase from Inventory): e164 + currency. The number lands in the
+          // master pool (master is charged setup + monthly fee) and is then assigned below.
           e164: numberDetails.e164,
           currency: numberDetails.currency || 'INR',
-          sub_account_auth_id: subAccount.authId,
-          subaccount: subAccount.authId,
         },
         { userId: params.userId }
       );
@@ -148,8 +148,8 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
       const nextBillingDate = new Date();
       nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
 
-      // 7. Record the purchased number in our database with status "activation_pending"
-      // Sub-account has ₹0 balance until the founder manually tops it up via Vobiz console.
+      // 7. Record the number, then activate it (no manual top-up: a sub-account uses the master
+      // ledger). A number that needs its own Aadhaar KYC stays pending until that is verified.
       const newPhone = await prisma.phoneNumber.create({
         data: {
           userId: params.userId,
@@ -159,7 +159,7 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
           region: numberDetails.region || null,
           type: 'local',
           telephonyProvider: 'vobiz',
-          status: 'activation_pending', // Honesty in UI: activation pending manual founder top-up
+          status: 'activation_pending',
           kycStatus: numberDetails.aadhaar_verification_required ? 'pending' : 'verified',
           monthlyCost: currentMonthlyFee,
           setupFee: currentSetupFee,
@@ -169,6 +169,10 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
           nextBillingDate,
         }
       });
+
+      const { PhoneNumberActivationService } = await import('./PhoneNumberActivationService');
+      await PhoneNumberActivationService.evaluateAndActivateUserNumbers(params.userId, 'purchase');
+      const activePhone = (await prisma.phoneNumber.findUnique({ where: { id: newPhone.id } })) || newPhone;
 
       // 8. Mark Order Success
       const successOrder = await prisma.phoneNumberOrder.update({
@@ -181,10 +185,10 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
         e164: numberDetails.e164,
         subAuthId: subAccount.authId,
         orderId: order.id,
-        status: 'activation_pending',
+        status: activePhone.status,
       });
 
-      return { order: successOrder, phoneNumber: newPhone };
+      return { order: successOrder, phoneNumber: activePhone };
 
     } catch (err: any) {
       const error = err as any;
