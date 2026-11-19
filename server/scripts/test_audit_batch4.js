@@ -286,6 +286,9 @@ async function main() {
   await test('#26/#27 batch lock renewed during a long call; a no-answer contact due a retry keeps it running (#144 userData passed)', async () => {
     const { BatchService } = require('../dist/services/BatchService');
     const { callOrchestrator } = require('../dist/core/orchestrator/CallOrchestrator');
+    const prodHeartbeat = BatchService.lockHeartbeatMs;
+    assert.strictEqual(prodHeartbeat, 20000, 'production heartbeat is a third of the 60 s lock timeout');
+    BatchService.lockHeartbeatMs = 400;
     const origInit = callOrchestrator.initiateOutboundCall;
     const origWait = callOrchestrator.waitForCallEnd;
     const u = await newUser('professional', { maxConcurrentCalls: 5 });
@@ -310,7 +313,7 @@ async function main() {
     };
     callOrchestrator.waitForCallEnd = async () => {
       lockAtStart = (await prisma.batch.findUnique({ where: { id: batch.id }, select: { lockedAt: true } })).lockedAt;
-      await sleep(21500); // longer than one heartbeat period (LOCK_TIMEOUT_MS / 3 = 20 s)
+      await sleep(1600); // several heartbeat periods (lowered from 20 s for the test)
       lockAtEnd = (await prisma.batch.findUnique({ where: { id: batch.id }, select: { lockedAt: true } })).lockedAt;
       return { reason: 'no_answer' };
     };
@@ -319,6 +322,7 @@ async function main() {
     } finally {
       callOrchestrator.initiateOutboundCall = origInit;
       callOrchestrator.waitForCallEnd = origWait;
+      BatchService.lockHeartbeatMs = prodHeartbeat;
     }
     assert.ok(lockAtStart && lockAtEnd, 'lock held while the call ran');
     assert.ok(lockAtEnd.getTime() > lockAtStart.getTime(), 'lock renewed during the call');

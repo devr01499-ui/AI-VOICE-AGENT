@@ -104,6 +104,9 @@ export function resolveRetryPolicy(raw: unknown): { maxAttempts: number; retryIn
 }
 
 export class BatchService {
+  /** How often a running worker renews its batch lock (a third of the stale-lock timeout). */
+  static lockHeartbeatMs = Math.floor(LOCK_TIMEOUT_MS / 3);
+
   /**
    * Universal Single Source of Truth Counter Function.
    * Every number shown to customer is computed strictly from real database rows.
@@ -382,7 +385,7 @@ export class BatchService {
     const heartbeat = setInterval(() => {
       prisma.batch.updateMany({ where: { id: batchId, lockedBy: workerId }, data: { lockedAt: new Date() } })
         .catch((err) => logger.warn(`BatchService: lock heartbeat failed for batch ${batchId}`, { error: String(err) }));
-    }, Math.floor(LOCK_TIMEOUT_MS / 3));
+    }, BatchService.lockHeartbeatMs);
     if (typeof heartbeat.unref === 'function') heartbeat.unref();
 
     const releaseLock = async (extraData: Record<string, any> = {}) => {
