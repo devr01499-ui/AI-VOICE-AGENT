@@ -137,3 +137,39 @@ Each area is its own revertable commit on `chore/dead-code`. Typecheck, build an
 - A blueprint-detail route.
 - An integrations module that was never switched on.
 - An unused design kit and 50 unused frontend libraries.
+
+## 6. Second sweep (2026-11-19): what was removed, what was kept and why
+Method: an import graph from the real entry points (Frontend and Admin `src/main.tsx`, server `src/index.ts`, all lazy `import()`s included). Every script was checked for references from npm scripts, CI, Render/Docker config and other code. Each unwired test was run against the local TEST database only, and its failure cause was read. Scripts written to call live carrier APIs were not run; they were judged by reading them.
+
+**Removed (56 files; all recoverable from git history):**
+- Broken: imports point at deleted code (4): `scripts/pseo/backfill-gsc-data.ts`, `generate-daily.ts`, `sync-notion-reviews.ts` (the pSEO library was removed earlier); `server/scripts/seed-users.ts` (`src/config/database` no longer exists).
+- Cannot start (11): root `scripts/test_agent_import_export.js`, `test_agents_section_flow.js`, `test_audit_log.js`, `test_automated_qa.js`, `test_concurrency.js`, `test_data_retention.js`, `test_e2e_agent_canvas.js`, `test_integrations_expansion.js`, `test_ip_allowlist.js`, `test_rbac_protection.js`. They use `require` in an ES-module package. Also `scripts/test_auth_protection.js`, a one-line shim; the real `.cjs` test is kept and wired.
+- Stale tests that fail because they test behaviour that was deliberately changed (17). Each area is covered by a wired suite:
+  - `test_batch_items13_18`, `test_calendar_part1/part2_suite`, `test_concurrency_enforcement` and `test_number_assignment_failure` are covered by call-limits, calendar-bookings, number-entitlement and audit-batch4.
+  - `test_item0_plivo_inbound` needed a production number; inbound is covered by plivo-webhook and audit-batch1.
+  - `test_item2_voice_persona` and `test_item5_turn_aggregator` are covered by test:persona and test:turn.
+  - The KYC tests (`test_kyc_notification_resend`, `test_kyc_status_cache`, `test_kyc_webhook_mapping`, `test_sync_kyc_aadhaar_scope`) expected the old no-replay-check or downgrade behaviour; covered by audit-batch1.
+  - `test_midcall_error_fallback` called a method removed in a8cfd82; covered by audit-batch5 and audiostream-isolation.
+  - `test_number_activation` used a removed route.
+  - `test_phase2_paywall_audit` expected the removed client API-key header.
+  - `test_pii_redaction_real_service` is covered by pii-redaction-settings.
+  - `test_subaccount_repair` needs live carrier keys.
+- One-off database changes, already applied or obsolete (11): `add_industry_column`, `apply_migration_m1` (points at an archived migration), `apply_rag_indexes` (in the baseline migration), `migrateSipTrunks`, `migrateAdminVobizTrunk` (SIP was removed), `reindex_sample_kb`, `reproduce_batch_failure`, `reset_erroneous_kyc_failures`, `audit_and_reset_mock_kyc`, `backfill_pan_categories`, `link_user_plivo_number` (hard-coded accounts).
+- Live-carrier probes (5): `test_curl_vobiz.js`, `test_vobiz_real.js/.ts`, `test_vobiz_inventory.ts`, `verify_kyc_fixes.js`. The test-DB guard blanks live keys, so these could never run.
+- Other (4): `generate_walkthrough_screenshots.js` (hard-coded path into the previous tool's folder), `generate_previews.py` (JavaScript in a `.py` file, a duplicate of `generate_matrix_previews.ts`), `eval/anonymizer.ts` (orphan), `test_email_normalizer.ts` (duplicate of the `.js`).
+- Frontend (4): `src/styles/globals.css`, `default_shadcn_theme.css`, `guidelines/Guidelines.md` (template leftovers, never imported) and `public/hero-bg.png` (no reference).
+
+**Kept and now wired (they pass):**
+- `npm run test:legacy` at the root runs `test_auth_protection.cjs`, `test_kyc_governance_suite.ts` and the server `test:legacy`.
+- The server `test:legacy` runs 25 suites, including `test_csv_hindi_bom.ts`, whose fixture now creates its own user and agent instead of production ids.
+- Not in CI yet. On a WIN1252-encoded local Postgres, the CSV test fails on Hindi text; use a UTF-8 test DB.
+
+**Kept on purpose (not trash):**
+- Operator/seed tools: `create-first-owner`, `seed-plan-catalog`, `seed-admin-settings`, `seed-supabase`, `backfill-minutes-ledger`, `purge_demo_data`.
+- Eval and benchmark tools: `eval_rag_baseline/v2`, `eval/run_eval_harness`, `load_test_rag`, `audio/*`, `test-latency`, `generate_matrix_previews`.
+- SEO tools: `Frontend/scripts/submit-indexnow.js` and its key file, `verify-indexing-readiness.js`.
+- The `e2e-call-harness` runner and the calendar audit harness.
+- Tests that pass but don't exit on their own: `test_phase0_foundations.ts`, `test_call_drop_and_inbound_resilience.ts`, `test_item4_call_history.js`.
+- Not run here because they are written to call live services: `test_subaccount_race.js`, `test_call_end_and_hangup.ts`, `test_audit_logging_compliance.js`, `verify_and_certify_all.ts`, `test_turn_latency_measurement.js`.
+- **`calendar/execute-scheduled-calls.ts` + `src/lib/calendar/retryPolicy.ts`:** WIRE-UP, not trash (audit #148). This script is the only code that dials scheduled follow-up calls, and nothing runs it. `send-daily-report.ts` is in the same state.
+- Docs were not part of this sweep.

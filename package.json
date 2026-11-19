@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "typecheck": "npm run --prefix Frontend typecheck && npm run --prefix server typecheck",
     "test:security": "npm run --prefix server test:security",
+    "test:legacy": "node scripts/test_auth_protection.cjs && npx --prefix server tsx scripts/test_kyc_governance_suite.ts && npm run --prefix server test:legacy",
     "test:audio": "npm run --prefix server test:audio",
     "test:playout": "npm run --prefix server test:playout",
     "test:codec": "npm run --prefix server test:codec",
