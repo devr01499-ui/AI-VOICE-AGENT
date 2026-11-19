@@ -131,7 +131,13 @@ test('smoke: sign up → agent → plan → number → call → history + record
   expect(seen.find((r) => r.url.includes('/create-plan-order'))?.body).toEqual({ planName: 'Startup' });
 
   // ── 5. Claim the plan's number (simulated carrier) ──
-  await page.goto('/dashboard/numbers');
+  // The app reloads the page right after the purchase-success alert; do not race that reload.
+  for (let attempt = 0; ; attempt++) {
+    try { await page.goto('/dashboard/numbers'); break; } catch (e) {
+      if (attempt >= 2 || !/interrupted by another navigation/.test(String(e))) throw e;
+      await page.waitForLoadState('load');
+    }
+  }
   await expect(page.getByText("You haven't provisioned any numbers yet")).toBeVisible({ timeout: 30_000 });
   await page.getByRole('button', { name: 'Buy number' }).first().click();
   await page.locator('#select-btn-inv-1').click({ timeout: 30_000 });

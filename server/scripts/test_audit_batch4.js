@@ -128,7 +128,7 @@ async function main() {
         const user = await prisma.user.findUnique({ where: { id: u }, select: { email: true } });
         emails.set(u, user.email);
         for (const [documentType, extra] of [['pan', { panNumber: 'ABCPE1234F' }], ['aadhaar', {}]]) {
-          await prisma.kycDocument.create({ data: { userId: u, documentType, status: 'verified', vobizReference: `VER_${crypto.randomBytes(6).toString('hex')}`, ...extra } });
+          await prisma.kycDocument.create({ data: { userId: u, documentType, status: 'verified', vobizReference: `VER_KYC${crypto.randomBytes(6).toString('hex')}`, ...extra } });
         }
         const numberRef = `num_b4_${uid().slice(0, 8)}`;
         const order = await new BillingService().createNumberPurchaseOrder(u, 499, { provider: 'vobiz', numberRef });
