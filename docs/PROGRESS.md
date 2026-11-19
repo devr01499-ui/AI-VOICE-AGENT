@@ -57,4 +57,4 @@
 1. (resolved 2026-11-19) Gemini model policy: newest Live model, removed ones dropped — config/geminiModels.ts. 2. `devr0144@gmail.com` address (§11). 3. Migration: Option A prepared (step 25). 4. When an account loses its paid plan (cancel/downgrade): keep its number working, pause calls on it, or release it after N days? STANDING RULE (§0.6/§12a): merge each verified phase to `main`, push, never ask between phases.
 
 ## Next exact step
-AUDIT FIXES (owner: fix all in docs/AUDIT_FINDINGS.md one by one). Done: batches 1-5 + pricing + Gemini 3.8 Live (fix-status table). All H items fixed except #146 (Live 15-min session cap; needs a live Google test). NEXT: the M items in order (#7 onward, skipping fixed ones), then L.
+AUDIT FIXES (owner: fix all in docs/AUDIT_FINDINGS.md one by one). Done and merged to main (merge 92053a6, 2026-11-19): batches 1-5 + pricing + Gemini 3.8 Live (fix-status table). All H items fixed except #146 (Live 15-min session cap; needs a live Google test). NEXT: the M items in order (#7 onward, skipping fixed ones), then L.
