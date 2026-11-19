@@ -7,11 +7,17 @@ async function main() {
   const reportsRouter = (await import('../src/routes/reports')).default;
   const { errorHandler } = await import('../src/utils/errorHandler');
 
+  // Own fixtures (the test DB holds no customer data).
+  const { randomUUID } = await import('crypto');
+  const userId = randomUUID();
+  await prisma.user.create({ data: { id: userId, email: `csv-${userId.slice(0, 8)}@claritiy-test.co.in`, fullName: 'CSV Test', passwordHash: 'x', accountType: 'developer' } });
+  const agent = await prisma.agent.create({ data: { userId, name: 'CSV agent', status: 'active', systemPrompt: 'x' } });
+
   const app = express();
   app.use(express.json());
   app.use((req: any, _res, next) => {
-    req.userId = '1e69187e-82d5-4166-929f-4bbba90e5304';
-    req.effectiveWorkspaceId = '1e69187e-82d5-4166-929f-4bbba90e5304';
+    req.userId = userId;
+    req.effectiveWorkspaceId = userId;
     req.workspaceRole = 'admin';
     next();
   });
@@ -19,15 +25,15 @@ async function main() {
   app.use(errorHandler);
 
   const server = http.createServer(app);
-  await new Promise<void>((r) => server.listen(3923, '127.0.0.1', r));
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
 
   // Seed sample call and result with Hindi text & formula injection
   const callId = `csv-hindi-test-${Date.now()}`;
   await prisma.call.create({
     data: {
       id: callId,
-      userId: '1e69187e-82d5-4166-929f-4bbba90e5304',
-      agentId: '03dc2b81-e0f5-478e-b977-8ddf7dcb98f2',
+      userId: userId,
+      agentId: agent.id,
       status: 'completed',
       callDirection: 'inbound',
       fromPhoneNumber: '+919876543210',
@@ -43,7 +49,7 @@ async function main() {
   await prisma.callResult.create({
     data: {
       callId,
-      workspaceId: '1e69187e-82d5-4166-929f-4bbba90e5304',
+      workspaceId: userId,
       blueprintVersion: 'tpl-12',
       resultLabel: 'Interview Scheduled',
       status: 'completed',
@@ -61,7 +67,7 @@ async function main() {
     },
   });
 
-  const res = await fetch('http://127.0.0.1:3923/api/v2/reports/export/csv');
+  const res = await fetch(`http://127.0.0.1:${(server.address() as any).port}/api/v2/reports/export/csv`);
   const buf = Buffer.from(await res.arrayBuffer());
   const text = buf.toString('utf-8');
 
@@ -84,6 +90,8 @@ async function main() {
   // Cleanup
   await prisma.callResult.deleteMany({ where: { callId } });
   await prisma.call.deleteMany({ where: { id: callId } });
+  await prisma.agent.deleteMany({ where: { userId } });
+  await prisma.user.deleteMany({ where: { id: userId } });
   server.close();
 
   if (hasBom && isFormulaNeutralized && hasHindiText && hasDirectionColumns) {

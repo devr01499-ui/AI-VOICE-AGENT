@@ -75,6 +75,7 @@
     "test:audit-batch4": "node scripts/test_audit_batch4.js",
     "test:audit-batch5": "node scripts/test_audit_batch5.js",
     "test:gemini-models": "node scripts/test_model_resolver.js",
+    "test:legacy": "node scripts/test_email_normalizer.js && node scripts/test_ip_allowlist_security.js && node scripts/test_item1_latency_and_timing.js && node scripts/test_item3_capabilities_sms.js && node scripts/test_item7_claim_visibility.js && node scripts/test_item8_admin_security.js && node scripts/test_pan_category_derivation.js && node scripts/test_pan_mismatch_api.js && node scripts/test_phase1_auth_audit.js && node scripts/test_phase3_payment_audit.js && node scripts/test_phase4_idor_audit.js && node scripts/test_rate_limiting.js && node scripts/test_rbac_real_routes.js && npx tsx scripts/test_balance_consistency.ts && npx tsx scripts/test_end_call_controls.ts && npx tsx scripts/test_health_queue.ts && npx tsx scripts/test_kyc_email_idempotency.ts && npx tsx scripts/test_notification_events.ts && npx tsx scripts/test_prompt_coach_contract.ts && npx tsx scripts/test_result_tenant_isolation.ts && npx tsx scripts/test_section_g_matrix.ts && npx tsx scripts/test_timezone_formatting.ts && npx tsx scripts/test_turn_aggregator.ts && npx tsx scripts/test_csv_hindi_bom.ts && npx tsx scripts/certify_batch_v3.ts",
     "test:batch-calling": "node scripts/test_batch_calling_suite.js"
   },
   "dependencies": {
