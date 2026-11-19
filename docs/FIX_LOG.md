@@ -301,3 +301,31 @@ One entry per fix, newest at the bottom. Template:
 - Gemini models (owner request, cde3afd): Google's pages (checked 2026-11-19) list gemini-3.8-live as the current Live model; our fallback gemini-2.0-flash-exp was shut down 2025-12-09 and our default gemini-2.5-flash-native-audio-latest is no longer documented; text gemini-2.0-flash shut down 2026-06-01. Now: gemini-3.8-live → gemini-2.5-flash-native-audio-preview-12-2025 (logged fallback); text gemini-3.6-flash → gemini-3.5-flash-lite; one source of truth `server/src/config/geminiModels.ts`; 3.8 setup omits `proactivity` and declares tools BLOCKING.
 - Tests: test:audit-batch4 8/8 (0/8 before), test:audit-batch5 8/8 (0/8 before), test:gemini-models 5/5, e2e audit-pending-plan 2/2 (both fail before); legacy batch-calling suite repaired 8/8.
 - Not verifiable here: a real call on gemini-3.8-live (keys treated as compromised) — owner step 11a; Google's 15-minute session cap (#146, open).
+
+## Carrier accuracy — Vobiz + Plivo checked against their docs (2026-11-19, branch fix/carrier-accuracy)
+- **Vobiz KYC (critical):**
+  - Root cause: sub-accounts were created with `{ name, enabled }`. Vobiz then defaults to `personal_use`, which inherits the master KYC, and our sync counted the resulting "calls not blocked" as verified. So no customer was ever verified by Vobiz.
+  - Fix:
+    - Customers are created as `customer_use` with their email.
+    - KYC is read from the documented `/sub-accounts/{SA}/kyc/status`; only own-KYC `verified` + not blocked counts.
+    - The webhook re-reads Vobiz's status instead of trusting its body.
+    - Existing accounts are switched by a boot job; owner chose all users.
+- **Vobiz numbers:**
+  - Assignment used undocumented paths; it now uses `assign-subaccount`.
+  - Purchase now sends only the documented fields.
+  - Numbers auto-activate (owner choice).
+  - Release used an undocumented path and deleted our record even when the carrier refused, so the master kept paying. It now uses the documented unrent/unassign and keeps `release_pending` until the carrier confirms.
+- **Plans** (owner choice):
+  - A plan ends at 0 minutes or 30 days, whichever comes first, and the number is released 5 days later.
+  - New nullable `users.plan_expires_at`. Plans sold earlier keep no end date (COMPLIANCE_NOTES).
+  - Terms §2.1 corrected (it described monthly card billing).
+- **Plivo:**
+  - India numbers need an accepted business compliance application per sub-account, and our code never filed one.
+  - Built: document upload (checked by content), filing, review tracking (callback, poll, refresh on view), claim gated on `accepted`, and purchase with `compliance_application_id`. `/plivo/onboard` now needs a paid plan.
+  - New table `plivo_compliance_applications`.
+- **Tests:**
+  - test:carrier-accuracy 8/8 (0/8 on the old code).
+  - test:plan-lifecycle 6/6.
+  - test:plivo-business 5/5.
+  - e2e business-verification 4/4, screenshots in docs/proof.
+- **Not verified here:** the live Vobiz and Plivo APIs (keys treated as compromised); see PROGRESS owner step 15a.

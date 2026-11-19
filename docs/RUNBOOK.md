@@ -59,6 +59,19 @@ SIP / dev tooling: `SIP_ENCRYPTION_KEY` (still a fallback encryption key — do 
 - `ALLOW_OFFHOURS_BATCH_CALLS` bypasses the calling-hours window — must stay off in production (TRAI).
 - Stale names still referenced: `NEXTAUTH_SECRET`, `NEXT_PUBLIC_*` (no Next.js in this project).
 
+## Carriers (accuracy rules, docs checked 2026-11-19)
+- **Vobiz:**
+  - Every customer sub-account is `customer_use`, so Vobiz verifies that customer's own KYC and blocks their calls until it is done. Older `personal_use` accounts are switched by the boot job `VobizKycModeService` (retried every 30 min; look for `[ADMIN_ALERT][VOBIZ_KYC_MODE]` in the Render log).
+  - Numbers are bought on the master account, then moved with `assign-subaccount`.
+  - Releasing a number: unrent, or unassign first. A number cannot leave a sub-account for 15 days after its last call; it is kept as `release_pending` and retried hourly.
+- **Plivo** (business customers only):
+  - The India compliance application is filed per customer sub-account. Callback: `POST {PUBLIC_URL}/api/v2/webhooks/plivo/compliance`; it is only sent when `PUBLIC_URL` is https.
+  - Status is also polled every 15 min.
+  - A number is bought with `compliance_application_id` and `subaccount`.
+- **Plan lifecycle** (`PlanLifecycleService`, hourly):
+  - A plan ends at 0 minutes or 30 days, whichever comes first. Unused minutes lapse at the 30-day end.
+  - The number is released 5 days after the plan ends.
+
 ## Deploy / rollback / incident steps
 
 ### Deploy
