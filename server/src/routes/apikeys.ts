@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
+import { requireAuth, requireRole, AuthenticatedRequest } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
 import crypto from 'crypto';
 import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
@@ -7,11 +7,18 @@ import { requireActivePlan } from '../middleware/planValidation';
 
 const router = Router();
 
+/**
+ * API keys belong to the WORKSPACE (audit #60: a team member's key was tied to their own empty
+ * account, and any role could create one). Owners, admins and developers manage them.
+ */
+const workspaceOf = (req: AuthenticatedRequest) => req.effectiveWorkspaceId || req.userId!;
+const canManageKeys = requireRole(['admin', 'developer']);
+
 // Get all API keys for the user
 router.get('/', requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const apiKeys = await prisma.apiKey.findMany({
-      where: { userId: req.userId },
+      where: { userId: workspaceOf(req) },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -32,7 +39,7 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res) => {
 });
 
 // Generate a new API key
-router.post('/', requireAuth, sensitiveOperationsLimiter, requireActivePlan, async (req: AuthenticatedRequest, res) => {
+router.post('/', requireAuth, canManageKeys, sensitiveOperationsLimiter, requireActivePlan, async (req: AuthenticatedRequest, res) => {
   try {
     const { name } = req.body;
     
@@ -46,8 +53,8 @@ router.post('/', requireAuth, sensitiveOperationsLimiter, requireActivePlan, asy
     
     const apiKey = await prisma.apiKey.create({
       data: {
-        userId: req.userId!,
-        name: name || 'Default API Key',
+        userId: workspaceOf(req),
+        name: String(name || 'Default API Key').slice(0, 100),
         keyHash,
         keyPrefix: prefix,
         scopes: JSON.stringify(['*']),
@@ -72,15 +79,15 @@ router.post('/', requireAuth, sensitiveOperationsLimiter, requireActivePlan, asy
 });
 
 // Revoke an API key
-router.delete('/:id', requireAuth, sensitiveOperationsLimiter, async (req: AuthenticatedRequest, res) => {
+router.delete('/:id', requireAuth, canManageKeys, sensitiveOperationsLimiter, async (req: AuthenticatedRequest, res) => {
   try {
     const id = req.params.id as string;
     
-    const apiKey = await prisma.apiKey.findUnique({
-      where: { id }
+    const apiKey = await prisma.apiKey.findFirst({
+      where: { id, userId: workspaceOf(req) }
     });
 
-    if (!apiKey || apiKey.userId !== req.userId) {
+    if (!apiKey) {
       return res.status(404).json({ success: false, error: 'API key not found' });
     }
 

@@ -17,7 +17,8 @@ Severity: H high, M medium, L low.
 | 3 | 12aea83 | #46 #47 #48 #54 #57 #63 #64 #77 #80 #86 (test:audit-batch3, e2e audit-dashboard) |
 | 4 | 3ab90e6 | #4 #5 #12 #22 #23 #24 #25 #26 #27 #42 #144 (test:audit-batch4) |
 | 5 | 9bd8c13 | #28 #29 #30 #31 #35 #36 #38 #114 #145 (test:audit-batch5, e2e audit-pending-plan) |
-| 6 | (this commit) | #8 #9 #10 #13 #14 #15 #16 #18 #19 #20 #21 #40 (test:audit-batch6) |
+| 6 | d8171bb | #8 #9 #10 #13 #14 #15 #16 #18 #19 #20 #21 #40 (test:audit-batch6) |
+| 7 | (this commit) | #11 #49 #50 #60 #61 #88 #89 (test:audit-batch7) |
 | #148 | 7c19afa | scheduled follow-up calls (test:scheduled-calls) |
 | models | cde3afd | Gemini 3.8 Live + removed models dropped (owner request; test:gemini-models) |
 

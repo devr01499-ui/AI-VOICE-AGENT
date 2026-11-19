@@ -146,8 +146,10 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     });
 
     // Check if the user is a team member for any workspace
+    // Oldest membership wins, so a person in two teams always lands in the same one (audit #49).
     const teamMember = await prisma.teamMember.findFirst({
-      where: { memberId: userId }
+      where: { memberId: userId },
+      orderBy: { createdAt: 'asc' },
     });
 
     let effectiveWorkspaceId = userId;

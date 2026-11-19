@@ -115,7 +115,7 @@ router.get('/status', requireAuth, async (req, res, next) => {
  */
 router.get('/search', requireAuth, async (req, res, next) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).effectiveWorkspaceId || (req as any).userId; // numbers belong to the workspace (audit #11, #89)
 
     const { country = 'IN', type = 'local', region, page = '1', per_page = '20' } = req.query;
 
@@ -175,7 +175,7 @@ router.get('/search', requireAuth, async (req, res, next) => {
  * Body: { baseCost, setupFee?, currency? }
  */
 router.post('/create-order', requireAuth, requireEditor, requirePaidPlan, sensitiveOperationsLimiter, async (req, res, next) => {
-  const userId = (req as any).userId;
+  const userId = (req as any).effectiveWorkspaceId || (req as any).userId; // numbers belong to the workspace (audit #11, #89)
   try {
     // Gate on KYC: check every required KycDocument is status: 'verified' before allowing order creation
     const kycCheck = await checkRequiredKycDocumentsVerified(userId);
@@ -233,7 +233,7 @@ router.post('/create-order', requireAuth, requireEditor, requirePaidPlan, sensit
  *   - Raw error strings from Vobiz are never returned to the client.
  */
 router.post('/purchase', requireAuth, requireEditor, requirePaidPlan, sensitiveOperationsLimiter, async (req, res, next) => {
-  const userId = (req as any).userId;
+  const userId = (req as any).effectiveWorkspaceId || (req as any).userId; // numbers belong to the workspace (audit #11, #89)
   // expectedPrice from the browser is ignored: the price is the one Razorpay confirms was paid.
   const { vobizNumberId, orderId, paymentId, signature, agentId } = req.body || {};
 
@@ -482,7 +482,7 @@ router.post('/purchase', requireAuth, requireEditor, requirePaidPlan, sensitiveO
  * Body: { vobizNumberId, agentId? }
  */
 router.post('/claim', requireAuth, requireEditor, requirePaidPlan, sensitiveOperationsLimiter, async (req, res, next) => {
-  const userId = (req as any).userId;
+  const userId = (req as any).effectiveWorkspaceId || (req as any).userId; // numbers belong to the workspace (audit #11, #89)
   const { vobizNumberId, agentId } = req.body;
 
   if (!vobizNumberId) {
@@ -659,7 +659,7 @@ router.post('/claim', requireAuth, requireEditor, requirePaidPlan, sensitiveOper
  */
 router.delete('/:id', requireAuth, requireEditor, sensitiveOperationsLimiter, async (req, res, next) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).effectiveWorkspaceId || (req as any).userId; // numbers belong to the workspace (audit #11, #89)
     const id = req.params.id as string;
 
     if (!id) {
@@ -912,7 +912,7 @@ export function syncKycInBackground(userId: string): boolean {
 
 router.get('/calling-config', requireAuth, async (req, res, next) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).effectiveWorkspaceId || (req as any).userId; // numbers belong to the workspace (audit #11, #89)
     if (!userId) {
       res.status(401).json({ success: false, error: 'Unauthorized' });
       return;
@@ -967,7 +967,7 @@ router.get('/calling-config', requireAuth, async (req, res, next) => {
  */
 router.post('/:id/calling-config', requireAuth, requireEditor, sensitiveOperationsLimiter, async (req, res, next) => {
   try {
-    const userId = (req as any).userId;
+    const userId = (req as any).effectiveWorkspaceId || (req as any).userId; // numbers belong to the workspace (audit #11, #89)
     const id = req.params.id as string;
     const { assignedAgentId, inboundAgentId, inboundEnabled, businessHours } = req.body;
 

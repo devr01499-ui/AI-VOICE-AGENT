@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { BillingService, PaymentVerificationError } from '../services/BillingService';
 import { logger } from '../utils/logger';
-import { AuthenticatedRequest, requireAuth } from '../middleware/auth';
+import { AuthenticatedRequest, requireAuth, requireRole } from '../middleware/auth';
 import { env } from '../config/env';
 import { ADMIN_EMAIL } from '../config/constants';
 import { logAuditEvent } from '../utils/auditLogger';
@@ -9,7 +9,9 @@ import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
-router.post('/create-plan-order', requireAuth, sensitiveOperationsLimiter, async (req: AuthenticatedRequest, res) => {
+// Plans are bought for the WORKSPACE (audit #11: a member's purchase went to their own empty
+// account). Owners and admins only.
+router.post('/create-plan-order', requireAuth, requireRole(['admin']), sensitiveOperationsLimiter, async (req: AuthenticatedRequest, res) => {
   try {
     const { planName, plan } = req.body || {};
     const targetPlan = planName || plan;
@@ -21,7 +23,7 @@ router.post('/create-plan-order', requireAuth, sensitiveOperationsLimiter, async
       res.status(401).json({ success: false, error: 'Unauthorized' });
       return;
     }
-    const order = await new BillingService().createPlanPurchaseOrder(targetPlan, req.userId);
+    const order = await new BillingService().createPlanPurchaseOrder(targetPlan, req.effectiveWorkspaceId || req.userId);
     res.json({ success: true, data: order });
   } catch (err: any) {
     if (err instanceof PaymentVerificationError) {
@@ -39,7 +41,7 @@ router.post('/create-plan-order', requireAuth, sensitiveOperationsLimiter, async
  * one on the server's order. A repeat of the same confirmation (or one that loses the race with
  * the webhook) returns success without adding minutes twice.
  */
-router.post('/verify-plan', requireAuth, sensitiveOperationsLimiter, async (req: AuthenticatedRequest, res) => {
+router.post('/verify-plan', requireAuth, requireRole(['admin']), sensitiveOperationsLimiter, async (req: AuthenticatedRequest, res) => {
   try {
     if (!req.userId) {
       res.status(401).json({ success: false, error: 'Unauthorized' });
@@ -52,10 +54,11 @@ router.post('/verify-plan', requireAuth, sensitiveOperationsLimiter, async (req:
     const clientPlan = body.plan || body.planName;
 
     const { prisma } = await import('../lib/prisma');
-    const userBefore = await prisma.user.findUnique({ where: { id: req.userId }, select: { accountType: true } });
+    const workspaceId = req.effectiveWorkspaceId || req.userId;
+    const userBefore = await prisma.user.findUnique({ where: { id: workspaceId }, select: { accountType: true } });
 
     const result = await new BillingService().processPlanPurchase({
-      userId: req.userId,
+      userId: workspaceId,
       orderId,
       paymentId,
       signature,
