@@ -56,4 +56,4 @@
 1. Gemini model policy (CLAUDE.md §3). 2. `devr0144@gmail.com` address (§11). 3. Migration: Option A prepared (step 25). 4. When an account loses its paid plan (cancel/downgrade): keep its number working, pause calls on it, or release it after N days? STANDING RULE (§0.6/§12a): merge each verified phase to `main`, push, never ask between phases.
 
 ## Next exact step
-All 15 phases done (docs/FINAL_REPORT.md). Remaining work needs the owner: steps 1–27 above. After step 25: switch render.yaml buildCommand to `npm install --include=dev && npx prisma generate && npx prisma migrate deploy && npm run build`.
+AUDIT FIXES (owner: fix all 143 in docs/AUDIT_FINDINGS.md one by one). Merged to main: batches 1-3 + pricing (see AUDIT_FINDINGS fix-status table). NEXT batch 4 (remaining H): #4 paid number no refund, #5 bundled number reclaim, #22-#31 voice pipeline (double error handler, double audio after reconnect, reconnect resets session, event-bus leak, batch lock renewal, batch retries, webhook signature bypass, Vobiz hangup id, hangup cause mapping, silent-caller greeting), #114 pending plan checkout, #144 userData lost. Then M, then L.
