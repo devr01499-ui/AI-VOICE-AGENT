@@ -59,7 +59,7 @@ Frontend visual checks: Playwright + Chromium are preinstalled (`require('playwr
 - Webhooks are **fail-closed + timing-safe** signature checks.
 - Rate limiter on **every** mutating endpoint.
 - `server.listen` is called immediately at boot (no awaiting DB before listening).
-- **Known conflict to resolve (ask owner, then document):** GOVERNANCE_RULES pins `models/gemini-2.5-flash-native-audio-latest`, but commit 549955a added a universal fallback to `gemini-2.0-flash-exp`. Decide one policy: pinned primary + ordered, logged, tested fallback list; fallback must not silently degrade voice quality without a metric/alert.
+- **Gemini model policy (resolved by owner 2026-11-19):** use the newest Live model Google offers and drop removed ones. Single source: `server/src/config/geminiModels.ts` — primary `gemini-3.8-live`, one logged fallback `gemini-2.5-flash-native-audio-preview-12-2025` (`[LIVE_MODEL_FALLBACK]`), text `gemini-3.6-flash` → `gemini-3.5-flash-lite`. Test: `npm run test:gemini-models`.
 
 ---------------------------------------------------------------------
 ## 4. BUSINESS RULES THAT MUST HOLD

@@ -15,7 +15,7 @@ You are strictly bound to this zero-regression architectural contract. Before re
 
 ## 3. Real-Time Media & Streaming (Pipecat Framework)
 - **Codec Constancy**: The VoiceXML `<Stream>` tag must strictly dictate `contentType="audio/x-l16;rate=16000"`. You are strictly prohibited from degrading the media channel stream to 8kHz mu-law or A-law formats.
-- **Model Isolation**: The `GeminiLiveLLMService` engine task runner configuration block must remain pinned strictly to `models/gemini-2.5-flash-native-audio-latest` utilizing the `v1alpha` API stable channel.
+- **Model Isolation**: Gemini model IDs are decided only in `server/src/config/geminiModels.ts` (owner decision 2026-11-19: always the newest Live model Google offers; drop models Google removes). Live voice is pinned to `models/gemini-3.8-live` on the `v1alpha` channel, with one ordered fallback (`models/gemini-2.5-flash-native-audio-preview-12-2025`) that is logged as `[LIVE_MODEL_FALLBACK]` and covered by `npm run test:gemini-models`. Agents saved on any other model resolve to the primary. Re-check Google's deprecations page before changing the list.
 - **Interruption Flow**: The pipeline's Voice Activity Detection (VAD) loop must trigger an explicit, low-latency target queue flush (`this.pipeline.flushOutputQueue()`) immediately upon candidate speech interception to enforce fluid turn-taking.
 
 ## 4. Absolute Verification Gate
