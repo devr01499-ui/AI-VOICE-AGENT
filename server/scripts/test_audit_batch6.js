@@ -34,8 +34,10 @@ async function test(name, fn) {
 }
 const uid = () => crypto.randomUUID();
 const phone = () => `+9198${Math.floor(10000000 + Math.random() * 89999999)}`;
+const createdUsers = [];
 async function newUser(extra = {}) {
   const id = uid();
+  createdUsers.push(id);
   await prisma.user.create({ data: { id, email: `b6-${id.slice(0, 8)}@claritiy-test.co.in`, fullName: 'Batch Six', passwordHash: 'x', accountType: 'developer', callingBalanceMinutes: 100, minutesRemainingSeconds: 6000, ...extra } });
   return id;
 }
@@ -243,6 +245,9 @@ async function main() {
     assert.strictEqual((await prisma.call.findUnique({ where: { id: open.id } })).durationSeconds, 130, 'used for billing while open');
   });
 
+  // Analysis jobs queued by the calls ended here would crowd the shared test queue (M1 suite).
+  await new Promise((r) => setTimeout(r, 500));
+  await prisma.analysisJob.deleteMany({ where: { workspaceId: { in: createdUsers } } }).catch(() => {});
   console.log(`\nAudit batch 6: ${passed}/${total} passed`);
   BillingService.setRazorpayClientForTests(null);
   await prisma.$disconnect().catch(() => {});
