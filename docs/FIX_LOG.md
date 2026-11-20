@@ -394,3 +394,51 @@ One entry per fix, newest at the bottom. Template:
   - e2e audit-batch10: 8/8. On the old code 7 tests ran and all failed; the 8th (proof screenshots) only captures images.
   - #53 editor: shows 10 for a saved 0 on the pre-batch-9 editor.
   - Screenshots: docs/proof/audit-batch10-*.png (1440 and 390).
+
+## Defect audit — batch 12, server low items (2026-11-20, branch fix/audit-batch-11, f0c6c20)
+- **Agents:**
+  - #66: the agent list caps the page size at 200 and answers 401 without a user. A database error is a 503, no longer an empty "success".
+  - #67: deleting an agent **archives** it. Call → Agent is ON DELETE CASCADE, so deleting the row erased every call, transcript and report. The agent is hidden and can't be used; unfinished campaigns and booked follow-ups are cancelled.
+- **Reports, Analytics, Batches:**
+  - #68: the summary's queue counts follow the agent and date filters.
+  - #69: the trend keeps no-answer and busy calls out of "failed".
+  - #41: batch buckets add up to the total ("inProgress" added), and retries follow the campaign's policy.
+  - #73: batch "created" dates are IST days.
+  - #74: a finished campaign can't be rewritten as cancelled.
+- **Admin and notifications:**
+  - #70: staff roles are validated.
+  - #71: important notices are flagged as important.
+  - #72: each workspace's retention audit entry carries its own purge count.
+  - #107: the calendar-connect error is a plain sentence; setup details go to the logs.
+- **Tests:** test:audit-batch12 11/11, and 0/11 on the old code. Related suites pass.
+
+## Defect audit — batch 11, website and SEO (2026-11-20, branch fix/audit-batch-11, 20099b4)
+- **One source of truth:**
+  - Page titles, descriptions and H1s come from `src/app/data/seoPages.json`; the Voice AI Index article from `src/app/data/voiceAiArticle.json`.
+  - Both are used by the app and the pre-render. The build gate `scripts/verify-seo-output.js` fails the build when they drift (#134 #137 #138).
+- **Pages and routing:**
+  - #120: the Voice AI Index hub is its own canonical page.
+  - #121: leaving it no longer overwrites the next page's title and description.
+  - #125: unknown URLs, industries and topics show a noindex "Page not found" page.
+  - #131: industry tabs are real navigation, so the URL and canonical follow them.
+  - #135: app pages (/dashboard, /login, /signup…) are noindex.
+- **Structured data:**
+  - #122: /faq has FAQPage with its 9 real questions.
+  - #123: no FAQ schema on Home or Pricing, whose questions weren't on the page.
+- **Navigation:**
+  - #128: "Join Now" opens sign-up, and the mobile menu shows "Go to Dashboard" when signed in.
+  - #129 #130: footer items are real links to the page they name, plus Blog and AI Voice Agent Software; the blog opens the real RTO post instead of an inline copy.
+  - #136: the LinkedIn link no longer carries the admin parameter.
+- **Accurate claims:**
+  - #124: the fake newsletter form is gone.
+  - #133: no "free sandbox".
+  - #138: no certification-sounding titles and no false claims in the index article.
+  - Also removed: zero lag, SIP and bi-directional CRM claims elsewhere (COMPLIANCE_NOTES "Website accuracy, part 3").
+- **Not changed:**
+  - #126 Terms (California/Delaware, US-only telephony addendum): a draft for the owner's lawyer is in COMPLIANCE_NOTES (owner step 27a).
+  - Whether to noindex the 90 templated index pages is the owner's decision (step 28).
+- **Tests:**
+  - e2e audit-batch11: 9/9, and 0/9 on the old code.
+  - test:marketing-claims: 25/25, and 18/25 on the old code.
+  - Build gate: passes; 595 problems on the old code.
+  - Screenshots: docs/proof/audit-batch11-*.png.

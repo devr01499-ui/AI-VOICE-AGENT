@@ -22,6 +22,8 @@ Severity: H high, M medium, L low.
 | 8 | dccab7a | #33 #34 #37 #39 #146 (test:audit-batch8) |
 | 9 | ea9b5f2 | #7 #52 #53 #55 #56 #58 #59 #62 #65 #95 #101 #150 #151 (test:audit-batch9) |
 | 10 | a67fbcb | #85 #87 #93 #94 #96 #98 #99 #100 #149 #152 #153 (test:audit-batch10, e2e audit-batch10) |
+| 12 | f0c6c20 | #41 #66 #67 #68 #69 #70 #71 #72 #73 #74 #107 (test:audit-batch12) |
+| 11 | 20099b4 | #120 #121 #122 #123 #124 #125 #128 #129 #130 #131 #133 #134 #135 #136 #137 #138 (e2e audit-batch11, test:marketing-claims, build gate verify-seo-output.js). #126: lawyer draft in COMPLIANCE_NOTES (owner step 27a). #132: already fixed earlier (llms.txt has no /compare). #102: same as #149 (batch 10) |
 | #148 | 7c19afa | scheduled follow-up calls (test:scheduled-calls) |
 | models | cde3afd | Gemini 3.8 Live + removed models dropped (owner request; test:gemini-models) |
 

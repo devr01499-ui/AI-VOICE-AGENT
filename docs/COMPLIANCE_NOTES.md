@@ -69,3 +69,36 @@ Conservative choices made in code, and items a qualified professional (CA / lawy
 - Conservative choice: plans bought **before 19 November 2026** were sold as "one-time, no expiry". They get no 30-day limit (their `planExpiresAt` stays empty) and end only when their minutes run out. Changing the terms of packs already sold would be risky under consumer law. Ask the lawyer before extending the rule to them.
 - Terms §2.1 rewritten: it described monthly card billing, which the product never had. It now describes one-time packs, the validity, the number release and the refund sentence. Pricing page and llms.txt updated to match. Please have the lawyer confirm §2.1 and the refund wording (owner step 27).
 - Vobiz charges the master account a monthly fee per number. A number in Vobiz's 15-day cool-off after its last call cannot be released until the cool-off ends; it is blocked meanwhile and retried hourly.
+
+## Website accuracy, part 3 (audit batch 11, 2026-11-20) — guarded by `npm run test:marketing-claims` and the build gate `Frontend/scripts/verify-seo-output.js`
+- **Fixed** (claims the code proves false):
+  - "Free sandbox / test live calls today, no credit card". The live sandbox needs a plan, minutes or the customer's own AI key. Copy now says the account and agents are free and live calls start with a plan from ₹3,799.
+  - "Zero lag / zero-latency / sub-second call setup / zero queue latency": not measured.
+  - "SIP streaming / encrypted SIP signalling / SIP schemas": audio runs over the carrier media stream, not SIP.
+  - "Deep bi-directional CRM execution": integrations are signed webhooks and custom tools.
+  - An internal model id in crawlable HTML.
+  - The Voice AI Index topic pages:
+    - Titles no longer imply certifications ("Compliant PCI…", "Compliant HIPAA…", "Compliant SOC 2…", "Audited GDPR / ISO 27001…", "Certified data privacy…").
+    - The shared article text no longer claims that every transcript and recording is PII-scrubbed (redaction is a per-agent option; audio is not redacted).
+    - It no longer claims "full alignment" with the DPDP Act, unlimited scale, or unverified outcome figures (40% / 89% / 60% / 100%).
+  - FAQ structured data on Home and Pricing listed questions that were on neither page. It is removed; /faq carries the real questions.
+  - The blog newsletter form sent the address nowhere and still said "subscribed". It is replaced by a contact link.
+- **Owner / lawyer to review** (not changed): the outcome figures that remain on Solutions, UseCases, Home and the RTO blog title ("40%"), as listed in part 2 above.
+
+## Terms of Service — governing law and telephony addendum (audit #126) — DRAFT for the owner's lawyer, NOT applied
+The current Terms (pages/Terms.tsx):
+- §16.4–16.7 choose California law and Delaware courts.
+- The Telephony Compliance Addendum §3–§12 is written for US law: TCPA, FCC rulings, the FTC National Do Not Call Registry, US state laws, two-party-consent states, and the Truth in Caller ID Act.
+
+The product is sold by an Indian business to Indian businesses calling Indian numbers. Claude did not change legal text. Proposed replacement, for a lawyer to adapt:
+- **16.4 Governing law.** These Terms are governed by the laws of India.
+- **16.5 Jurisdiction.** The courts at [city of the Company's registered office], India have exclusive jurisdiction. Optionally, add arbitration under the Arbitration and Conciliation Act, 1996, with the seat at that city, in English.
+- **16.3 Jury trial waiver:** remove (not applicable in India).
+- **Telephony addendum, India first.** Customers must comply with:
+  - TRAI's Telecom Commercial Communications Customer Preference Regulations, 2018 (TCCCPR): DLT registration as required, headers/templates, and scrubbing against the National Customer Preference Register (DND);
+  - commercial calls only between 09:00 and 21:00 IST. The product enforces this window for campaigns;
+  - honouring opt-outs immediately. The product stores opt-outs and skips those numbers;
+  - the Digital Personal Data Protection Act, 2023: notice and consent for personal data, and its purpose limits;
+  - announcing call recording before it starts. The product plays the notice when recording is on;
+  - not spoofing caller ID.
+- **Keep the US sections** only as "If you call numbers outside India", or remove them if the product only allows Indian destinations (the batch campaign screen accepts Indian mobile numbers only).
