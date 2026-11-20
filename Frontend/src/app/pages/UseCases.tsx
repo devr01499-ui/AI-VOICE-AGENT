@@ -1,12 +1,10 @@
-import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { useState, useEffect } from "react";
 import {
   Building2, Landmark, ShoppingBag, Home as HomeIcon, ShieldCheck,
   Truck, Headphones, Code, ArrowRight, CheckCircle2, Play, Pause,
-  Terminal, Code2, Sparkles, Layers, Activity, Volume2, Copy, Check,
-  Workflow, GitBranch, Cpu, Database, MessageSquare, ChevronRight,
-  ExternalLink, Zap, Clock, Shield, Sliders, RefreshCw
-} from "lucide-react";
+  Terminal, Code2, Copy, Check,
+  Workflow, GitBranch, MessageSquare, 
+  Zap} from "lucide-react";
 
 type Page = any;
 
@@ -887,21 +885,6 @@ const USE_CASE_TOPICS: IndustryTopic[] = [
 ];
 
 // ── SVG Interactive Background Pattern ─────────────────────────────────────────
-function CleanWireframeGrid({ accent }: { accent: string }) {
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-20 z-0">
-      <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <pattern id="usecase-grid" width="40" height="40" patternUnits="userSpaceOnUse">
-            <path d="M 40 0 L 0 0 0 40" fill="none" stroke={accent} strokeWidth="0.5" strokeDasharray="1,4" />
-            <circle cx="20" cy="20" r="1.5" fill={accent} opacity="0.6" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#usecase-grid)" />
-      </svg>
-    </div>
-  );
-}
 
 export default function UseCases({ setPage, initialIndustryId }: UseCasesProps) {
   const [selectedIndustryId, setSelectedIndustryId] = useState<string>(() => {
@@ -913,7 +896,6 @@ export default function UseCases({ setPage, initialIndustryId }: UseCasesProps) 
   const [playingDialogueSubTopic, setPlayingDialogueSubTopic] = useState<string | null>(null);
 
   const currentTopic = USE_CASE_TOPICS.find(t => t.id === selectedIndustryId) || USE_CASE_TOPICS[0];
-  const isGreen = currentTopic.accent === "#059669";
 
   useEffect(() => {
     if (initialIndustryId) {

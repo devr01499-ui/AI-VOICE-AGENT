@@ -1,5 +1,4 @@
-import { motion } from "motion/react";
-import { ShieldCheck, Lock, FileCheck, Server, Key, EyeOff, CheckCircle2, Mail, ArrowRight } from "lucide-react";
+import { Lock, Server, Key, EyeOff, Mail } from "lucide-react";
 
 export default function Security() {
   const securityPillars = [

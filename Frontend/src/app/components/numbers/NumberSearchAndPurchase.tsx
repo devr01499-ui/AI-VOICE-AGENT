@@ -1,12 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Loader2, AlertCircle, CheckCircle2,
   Phone, Globe, ShieldAlert, ShieldCheck, Info, ChevronDown, UserCheck, Sparkles,
   ArrowLeft, Check, SlidersHorizontal, Lock
 } from 'lucide-react';
-import { formatCurrency } from '../../../lib/formatCurrency';
 import { API_BASE } from '../../api';
 import BusinessVerificationPanel, { type BusinessVerificationStatus } from './BusinessVerificationPanel';
 

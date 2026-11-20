@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Plus, User, Phone, Tag, Calendar, Edit3, Trash2, ChevronRight, X, Check, PhoneIncoming, MessageSquare, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Plus, User, Edit3, Trash2, ChevronRight, X, Check, PhoneIncoming, RefreshCw } from 'lucide-react';
 import { apiClient, fetchCalls, fetchContactsPage, type ApiCall } from '../../api';
 import { formatDateTime } from '../../lib/dateFormat';
 

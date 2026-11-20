@@ -7,7 +7,7 @@
  * - Prevents model-hallucinated or inconsistent scores: every point traces to an audited rule.
  */
 
-import { ReportBlueprint, BlueprintRubricItem } from '../config/reportBlueprints';
+import { ReportBlueprint } from '../config/reportBlueprints';
 
 export interface RubricEvaluationBreakdown {
   criterion: string;

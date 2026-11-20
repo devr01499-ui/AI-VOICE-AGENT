@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ShieldCheck, CheckCircle2, ExternalLink, RefreshCw, AlertCircle } from 'lucide-react';
 import { apiClient } from '../../api';

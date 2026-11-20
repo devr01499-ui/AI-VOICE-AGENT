@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Radio, PhoneOff, PhoneForwarded, Volume2, Mic, Activity, Clock, ShieldAlert, RefreshCw, User, CheckCircle2, ChevronRight, X, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Radio, PhoneOff, PhoneForwarded, Volume2, Activity, RefreshCw, CheckCircle2, X } from 'lucide-react';
 import { apiClient, fetchLiveCalls, fetchAgents, getCallTranscript, getLiveTranscriptWsUrl, requestTranscriptTicket, type ApiCall, type ApiAgent } from '../../api';
 import { formatTime } from '../../lib/dateFormat';
 

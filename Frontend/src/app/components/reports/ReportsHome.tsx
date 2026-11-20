@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  FileText, Search, Filter, Download, RefreshCw, AlertTriangle,
-  CheckCircle2, Clock, Phone, ChevronRight, Layers, ArrowUpRight,
-  ShieldCheck, BarChart3, HelpCircle, Check, XCircle, ArrowDownLeft, ArrowUpRight as ArrowUpRightIcon
+  FileText, Search, Download, RefreshCw, AlertTriangle,
+  CheckCircle2, Phone, ChevronRight, Layers, 
+  ShieldCheck, BarChart3, ArrowDownLeft, ArrowUpRight as ArrowUpRightIcon
 } from 'lucide-react';
 import {
   reportsApi,
@@ -14,7 +14,7 @@ import {
 } from '../../api';
 import { CallResultDrawer } from './CallResultDrawer';
 import { BlueprintCatalogModal } from './BlueprintCatalogModal';
-import { formatDateTime, formatDate, getWorkspaceTimezone } from '../../lib/dateFormat';
+import { formatDateTime, getWorkspaceTimezone } from '../../lib/dateFormat';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 
 interface ReportsHomeProps {
@@ -51,7 +51,6 @@ function ReportsHomeInner({ userRole = 'owner' }: ReportsHomeProps) {
     const tz = getWorkspaceTimezone();
     const now = new Date();
     if (dateRange === 'today') {
-      const todayStr = formatDate(now, { year: 'numeric', month: '2-digit', day: '2-digit' });
       // Format as YYYY-MM-DD
       const parts = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(now);
       return {

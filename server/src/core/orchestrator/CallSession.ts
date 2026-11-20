@@ -1,5 +1,4 @@
 import { CallStatus } from '../../types';
-import { SessionMetrics } from '../provider-sdk/provider.metrics';
 import { PipecatRunner } from '../pipeline/PipecatRunner';
 
 export interface IConversationState {

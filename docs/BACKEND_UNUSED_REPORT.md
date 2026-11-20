@@ -173,3 +173,20 @@ Method: an import graph from the real entry points (Frontend and Admin `src/main
 - Not run here because they are written to call live services: `test_subaccount_race.js`, `test_call_end_and_hangup.ts`, `test_audit_logging_compliance.js`, `verify_and_certify_all.ts`, `test_turn_latency_measurement.js`.
 - **`calendar/execute-scheduled-calls.ts` + `src/lib/calendar/retryPolicy.ts`:** WIRE-UP, not trash (audit #148). This script is the only code that dials scheduled follow-up calls, and nothing runs it. `send-daily-report.ts` is in the same state.
 - Docs were not part of this sweep.
+
+## 7. Third sweep (2026-11-20, audit #142, branch chore/dead-code-3)
+- **Method:** the TypeScript compiler with `noUnusedLocals`, driven by a script that applies the compiler's own "remove unused" fix only where nothing can run as a side effect. That covers unused imports, function declarations, and constants holding a function or literal. Everything else was checked by hand.
+- **Server: 42 → 0 unused declarations.**
+  - Mostly imports.
+  - A system-instruction copy in CallOrchestrator was computed and then discarded; it is removed.
+  - Two lookups keep their call (they throw for a missing record) and drop only the unused variable.
+  - A Vobiz request duration is now logged instead of discarded.
+  - `core/provider-sdk/provider.manager.ts` no longer has importers. It is kept for now, listed here, and has no load-time side effects.
+- **Frontend: 333 → 19 unused declarations.**
+  - Unused imports.
+  - Seven UI components that nothing rendered: SoundWave, FAQItem, DToggle, DTextarea, TiltCard, GeometricGridBackground, CleanWireframeGrid.
+  - The unreachable agent "detail" view in App.tsx (about 300 lines, with a fake "Acme Corp" sample prompt and a Save button with no handler), plus the in-browser test-call code and state only it used.
+  - The leftover Settings state and the fetches that only fed it: workspace name, billing email, default number, pipeline toggles, concurrency, IP allowlist and webhook form. Settings no longer makes those useless API calls on load. Their controls were removed in audit batch 2.
+- **Kept on purpose:**
+  - 19 frontend values that are still written by live code but never read (for example `agentsLoading`). Removing them means editing live setter calls for no user-visible gain.
+  - 16 Express handlers where not every path returns (`return res.json()` mixed with `res.json()`). Express ignores the return value; there is no runtime effect.

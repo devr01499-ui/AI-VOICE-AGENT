@@ -1,10 +1,9 @@
 import { formatDateTime, formatTime } from '../../lib/dateFormat';
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   ArrowLeft,
   Volume2,
   Sparkles,
-  Settings,
   BookOpen,
   Clock,
   Copy,
@@ -12,7 +11,6 @@ import {
   ChevronDown,
   Play,
   Pause,
-  Code,
   Wrench,
   FileText,
   Sliders,

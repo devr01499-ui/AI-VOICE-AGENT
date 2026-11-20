@@ -1,7 +1,7 @@
 import { savePendingPlan, readPendingPlan, clearPendingPlan } from "../lib/pendingPlan";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { Check, ArrowRight, ShieldCheck, Zap, Loader2, Sparkles, Lock, HelpCircle, PhoneCall } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { API_BASE } from "../api";
 import { PUBLIC_PLANS, formatInr, effectiveRate, PLAN_VALIDITY_DAYS, NUMBER_RELEASE_GRACE_DAYS } from '../lib/plans';
 import { supabase } from "../lib/supabaseClient";

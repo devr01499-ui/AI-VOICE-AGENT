@@ -110,9 +110,13 @@ test('Extract Variable keys and branch conditions reach the instructions', () =>
 });
 
 test('live calls and test calls use the same resolver', () => {
-  const orch = fs.readFileSync(path.join(__dirname, '../src/core/orchestrator/CallOrchestrator.ts'), 'utf8');
+  // Live calls: the Gemini provider builds the instruction with buildFinalSystemInstruction, which
+  // compiles flow agents with the same resolver. (CallOrchestrator used to compute a copy that was
+  // never used; it was removed in dead-code sweep 3, audit #142.)
+  const builder = fs.readFileSync(path.join(__dirname, '../src/utils/systemInstructionBuilder.ts'), 'utf8');
+  const provider = fs.readFileSync(path.join(__dirname, '../src/providers/gemini/GeminiLiveProvider.ts'), 'utf8');
   const sandbox = fs.readFileSync(path.join(__dirname, '../src/websockets/SandboxStreamHandler.ts'), 'utf8');
-  assert.ok(orch.includes('FlowCompiler.resolveFlowAgentInstructions(agent)'), 'live call');
+  assert.ok(builder.includes('FlowCompiler.resolveFlowAgentInstructions(') && provider.includes('buildFinalSystemInstruction('), 'live call');
   assert.ok(sandbox.includes('FlowCompiler.resolveFlowAgentInstructions(agent)'), 'test call');
 });
 

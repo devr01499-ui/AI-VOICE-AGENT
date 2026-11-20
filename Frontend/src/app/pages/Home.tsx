@@ -1,15 +1,12 @@
-import { motion, useScroll, useTransform } from "motion/react";
-import React, { useRef } from "react";
+import { motion, useScroll } from "motion/react";
 import Hero from "../components/hero/Hero";
 import IndustryShowroomGrid from "../components/showroom/IndustryShowroomGrid";
-import FeatureCapabilityGrid from "../components/showroom/FeatureCapabilityGrid";
 import {
-  ArrowRight, ShieldCheck, Zap, Bot, CheckCircle2, Lock, Cpu, Globe2,
-  PhoneCall, TrendingUp, Star, Clock, Users, Headphones, Phone,
-  BarChart3, Network, Mic2, Database, Radio, MessageSquare,
-  FileText, RefreshCw, Webhook, Languages, Activity
+  ArrowRight, ShieldCheck, Zap, Bot, CheckCircle2, Lock, Globe2,
+  PhoneCall, TrendingUp, Clock, Headphones, Phone,
+  BarChart3, Network, Database, MessageSquare,
+  RefreshCw, Webhook, Languages, Activity
 } from "lucide-react";
-import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import LottieVoiceOrb from "../components/animation/LottieVoiceOrb";
 
 type Page = any;
@@ -26,18 +23,6 @@ function SectionLabel({ text }: { text: string; color?: string }) {
 }
 
 // ── EdgeSkool wireframe card wrapper ──────────────────────────────────────────
-function TiltCard({ children, className = "", style = {} }: {
-  children: React.ReactNode; className?: string; style?: React.CSSProperties;
-}) {
-  return (
-    <div
-      className={`bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] transition-colors hover:border-[#9C998F] ${className}`}
-      style={style}
-    >
-      {children}
-    </div>
-  );
-}
 
 // ── Scroll progress line ─────────────────────────────────────────────────────
 function ScrollProgress() {

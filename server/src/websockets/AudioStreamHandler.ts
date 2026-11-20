@@ -8,18 +8,15 @@ import crypto from 'crypto';
 import { IncomingMessage } from 'http';
 import WebSocket, { WebSocketServer } from 'ws';
 import { logger } from '../utils/logger';
-import { env } from '../config/env';
 import { getWebhookSigningSecret } from '../utils/security';
 import { callOrchestrator } from '../core/orchestrator/CallOrchestrator';
-import { providerManagerSDK } from '../core/provider-sdk/provider.manager';
 import { eventBus, PROVIDER_EVENTS, type ProviderEventType } from '../core/provider-sdk/provider.events';
 import type { VobizStreamEvent } from '../types';
 import { callTimingTracker } from '../utils/CallTimingTracker';
-import { buildGreetingText, getGreetingTextForLanguage, resolveGreeting } from '../utils/greetingUtils';
+import { resolveGreeting } from '../utils/greetingUtils';
 import { PlayoutPacer } from '../utils/playoutPacer';
 
 const PLAYOUT_PACING_V2 = process.env.PLAYOUT_PACING_V2 === 'true';
-const INBOUND_FORMAT_V2 = process.env.INBOUND_FORMAT_V2 === 'true';
 
 // ─── Active Connection Tracking ───────────────────────
 
@@ -65,7 +62,6 @@ interface ActiveConnection {
 
 // ─── Pipeline Safety Limits ───────────────────────────
 const MAX_INBOUND_BUFFER_CHUNKS = 50;  // Max ~1 second of buffered audio before session ready
-const MAX_PLAYBACK_QUEUE_CHUNKS = 50;  // Max ~1.5 seconds of outbound playback buffer to prevent jitter lag & OOM
 
 
 // ─── Provider Error Classifier ────────────────────────

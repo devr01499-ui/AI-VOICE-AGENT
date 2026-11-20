@@ -12,7 +12,6 @@ import { CallRepository } from '../repositories/CallRepository';
 import { AgentRepository } from '../repositories/AgentRepository';
 import { TranscriptRepository } from '../repositories/TranscriptRepository';
 import { callOrchestrator } from '../core/orchestrator/CallOrchestrator';
-import { VobizService } from '../core/telephony/VobizService';
 import { env } from '../config/env';
 import type { CallStatus, CallResponse, TranscriptSegmentResponse, Speaker } from '../types';
 import { Call, Execution, TranscriptSegment } from '@prisma/client';
@@ -24,7 +23,7 @@ import { WebhookDispatcher } from '../utils/WebhookDispatcher';
 import { ContactsController } from '../controllers/ContactsController';
 import { applyPiiRedaction, piiCategoriesForCall } from '../repositories/TranscriptRepository';
 import { countActiveCalls, countGlobalActiveCalls, GLOBAL_TELEPHONY_CAP, withUserCallLock } from '../utils/concurrency';
-import { hasCallableBalance, getCallableSecondsRemaining } from '../utils/balanceUtils';
+import { hasCallableBalance } from '../utils/balanceUtils';
 import { EncryptionService } from '../utils/EncryptionService';
 import { checkOutboundDestination } from '../utils/destinationPolicy';
 import { getPlanConcurrency } from '../config/plans';
@@ -302,7 +301,7 @@ export class CallService {
    * Returns the transcript for a call.
    */
   static async getCallTranscript(callId: string): Promise<TranscriptSegmentResponse[]> {
-    const call = await CallRepository.findById(callId);
+    await CallRepository.findById(callId); // throws if the call does not exist
     const segments = await TranscriptRepository.findByCallId(callId);
 
     // Transcripts are redacted when stored; this also covers segments saved before redaction was

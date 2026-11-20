@@ -23,7 +23,6 @@ import { bookFollowUpCallTool, executeBookFollowUpCall } from '../../lib/calenda
 import { resolveLiveModel } from '../../utils/modelResolver';
 import { callTimingTracker } from '../../utils/CallTimingTracker';
 import { formatGreetingTurnPrompt } from '../../utils/greetingUtils';
-import { injectVoicePersonaDirective } from '../../utils/personaPrompt';
 import { buildFinalSystemInstruction } from '../../utils/systemInstructionBuilder';
 import { buildCapabilitiesBlock, filterActiveTools } from '../../utils/capabilities';
 import { getCallableSecondsRemaining } from '../../utils/balanceUtils';
@@ -301,7 +300,7 @@ export class CallOrchestrator extends EventEmitter {
         throw new Error('env.PUBLIC_URL not configured');
       }
 
-      const agent = await AgentRepository.findById(agentId);
+      await AgentRepository.findById(agentId); // throws if the agent does not exist
       // Never ask the carrier to record at the call-request level (audit #32): it defaulted to ON,
       // ignored the agent's "Record calls" setting and played no notice. Recording happens only
       // through the answer XML (<Speak> notice, then <Record>) when the agent has recording on
@@ -403,11 +402,6 @@ export class CallOrchestrator extends EventEmitter {
 
       const rawConfig = JSON.parse(agent.agentConfig || '{}') as any;
 
-      const defaultPrompt = 
-        "You are Claritiy AI, a helpful and professional AI voice assistant. " +
-        "- Personality: Articulate, warm, helpful, and conversational. " +
-        "- Constraints: Keep your utterances concise and natural. Speak clearly and politely.";
-
       const voiceName = agent.voiceName || rawConfig.voice || rawConfig.voice_config?.voice || 'Puck';
       const validVoices = ['alloy', 'echo', 'fable', 'onyx', 'shimmer', 'puck', 'charon', 'fenrir', 'kore', 'aoede'];
       const finalVoice = validVoices.includes(voiceName.toLowerCase()) ? voiceName : 'Puck';
@@ -415,19 +409,8 @@ export class CallOrchestrator extends EventEmitter {
       const llmProvider = rawConfig.llm?.provider || 
         (Boolean(env.GEMINI_API_KEY || env.GOOGLE_API_KEY) ? 'gemini' : 'openai');
 
-      let systemInstructions: string;
-      if (!agent.flowGraph || agent.flowGraph === "" || agent.flowGraph === "{}") {
-        logger.warn('CallOrchestrator: Empty visual canvas detected. Injected default prompt block sequence safely.');
-        systemInstructions = agent.systemPrompt || defaultPrompt;
-      } else {
-        try {
-          const FlowCompiler = require('./FlowCompiler');
-          systemInstructions = FlowCompiler.resolveFlowAgentInstructions(agent);
-        } catch (parseError) {
-          logger.error('CallOrchestrator: Canvas layout parsing failed. Utilizing baseline system instruction prompt block.', { error: String(parseError) });
-          systemInstructions = agent.systemPrompt || defaultPrompt;
-        }
-      }
+      // (The system instruction is built by the provider from the agent itself; an unused local
+      // copy built here was removed with the dead code sweep, audit #142.)
 
       const isRecordingEnabled = rawConfig.isRecordingEnabled ?? rawConfig.settings?.isRecordingEnabled ?? false;
       const isTranscriptionEnabled = rawConfig.isTranscriptionEnabled ?? rawConfig.settings?.isTranscriptionEnabled ?? false;

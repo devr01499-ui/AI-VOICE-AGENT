@@ -1,10 +1,8 @@
 import { motion, AnimatePresence } from "motion/react";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { 
-  Zap, ArrowRight, ShieldCheck, Cpu, Terminal, Database, CheckCircle2,
-  PhoneCall, RefreshCw, Layers, Sparkles, Activity, FastForward, Play,
-  Check, Radio, Server, MessageSquare, ArrowUpRight
-} from "lucide-react";
+  ArrowRight, ShieldCheck, Cpu, Terminal, Database, CheckCircle2,
+  PhoneCall, RefreshCw, Activity} from "lucide-react";
 
 type Page = any;
 

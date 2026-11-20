@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Plus, Play, CheckCircle2, AlertTriangle, XCircle, Clock, Search, ChevronRight, X, RefreshCw, BarChart3, Sliders, AlertCircle, FileText } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ShieldCheck, Plus, Play, X, RefreshCw, FileText } from 'lucide-react';
 import { apiClient, fetchAgents, type ApiAgent } from '../../api';
 
 interface QaCohort {

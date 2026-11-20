@@ -1,6 +1,6 @@
 import { formatDateTime, formatDate } from '../../lib/dateFormat';
-import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Copy, RefreshCw, Trash2, Plus } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Copy, RefreshCw, Trash2, Plus } from 'lucide-react';
 import { apiClient } from '../../api';
 
 interface ApiKey {

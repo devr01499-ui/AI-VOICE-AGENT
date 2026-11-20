@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  BookOpen, Search, ChevronRight, ChevronLeft, Bookmark, Clock, ArrowRight, ArrowLeft, Copy, Check
+  Search, ChevronRight, ChevronLeft, Bookmark, ArrowLeft, Copy, Check
 } from "lucide-react";
 import { CATEGORIES, ALL_TOPICS } from "../data/voiceAiTopics";
 import ARTICLE from "../data/voiceAiArticle.json";

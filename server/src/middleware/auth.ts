@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import { getUserIdFromRequest } from '../utils/auth';
 import { supabaseClient } from '../utils/supabase';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
@@ -27,7 +26,6 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
       authHeader = `Bearer ${req.query.token}`;
     }
     let userId: string | null = null;
-    let email = '';
     let userMetadata: any = {};
 
     if (!authHeader) {

@@ -495,7 +495,7 @@ router.post('/concurrency', requireAuth, requireRole(['admin']), sensitiveOperat
  */
 publicUserRouter.post('/validate-signup', signupLimiter, authIpThrottleDelay, async (req, res) => {
   try {
-    const { email, fullName, honeypot, contactNumber } = req.body || {};
+    const { email, honeypot, contactNumber } = req.body || {};
 
     // 1. Honeypot check: If the hidden honeypot input contains any text, drop silently
     if (honeypot && String(honeypot).trim() !== '') {

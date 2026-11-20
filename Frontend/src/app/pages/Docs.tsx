@@ -1,10 +1,8 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
 import {
-  Check, Copy, Terminal, Code2, Sparkles, ArrowRight, Webhook,
-  Cpu, ShieldCheck, Layers, ExternalLink, Zap, CheckCircle2,
-  Workflow, BookOpen, AlertCircle, RefreshCw
-} from "lucide-react";
+  Check, Copy, Terminal, Code2, Webhook,
+  ExternalLink, Zap, 
+  Workflow, BookOpen} from "lucide-react";
 
 type PlatformKey = "n8n" | "make" | "zapier" | "custom_rest" | "webhook_receiver";
 type RestLang = "curl" | "node" | "python" | "go";

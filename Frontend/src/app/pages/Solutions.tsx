@@ -1,13 +1,11 @@
-import { motion, AnimatePresence } from "motion/react";
-import React, { useState } from "react";
+import { motion } from "motion/react";
+import { useState } from "react";
 import IndustryShowroomGrid from "../components/showroom/IndustryShowroomGrid";
 import { 
-  ArrowRight, Building2, Landmark, Home as HomeIcon, 
-  ShoppingBag, Truck, HeartPulse, CheckCircle2, Sparkles, Phone, MessageSquare,
-  ShieldCheck, GraduationCap, Car, Code2, Eye, FileText, Check, Bot, Zap,
-  Clock, Shield, UserCheck, Stethoscope, ChevronRight, Play, Filter, Activity,
-  Sliders, ArrowUpRight
-} from "lucide-react";
+  ArrowRight, Landmark, Home as HomeIcon, 
+  ShoppingBag, Truck, HeartPulse, CheckCircle2, MessageSquare,
+  ShieldCheck, GraduationCap, Car, Code2, Bot, 
+  Activity} from "lucide-react";
 
 type Page = any;
 
@@ -16,21 +14,6 @@ interface SolutionsProps {
 }
 
 // ── SVG Geometric Blueprint Background Accent ──────────────────────────────────
-function GeometricGridBackground() {
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-20 z-0">
-      <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
-        <defs>
-          <pattern id="grid-solutions" width="50" height="50" patternUnits="userSpaceOnUse">
-            <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#059669" strokeWidth="0.5" strokeDasharray="3,3" />
-            <rect x="48" y="48" width="4" height="4" fill="#059669" opacity="0.4" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid-solutions)" />
-      </svg>
-    </div>
-  );
-}
 
 // ── 15 Pre-Built Production Templates Showcase Data ────────────────────────────
 interface ShowcaseTemplate {

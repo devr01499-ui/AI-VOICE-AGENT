@@ -22,17 +22,13 @@ import {
   PhoneOff,
   Calendar,
   Wrench,
-  Plus,
   Trash2,
-  Sparkles,
   Code,
   AlertTriangle,
   AlertCircle,
   FileText,
-  Layers,
   ArrowLeft,
   Play,
-  Volume2,
   Bot,
   Hash,
   UserCheck,
@@ -43,12 +39,11 @@ import {
   ChevronRight,
   ChevronDown,
   BookOpen,
-  Sliders,
   Mic,
   X,
   Check,
 } from 'lucide-react';
-import { FlowGraph, FlowNode, FlowNodeType, compileFlowToSystemPrompt, extractFlowGlobalPrompt } from './flowCompiler';
+import { FlowGraph, FlowNodeType, compileFlowToSystemPrompt, extractFlowGlobalPrompt } from './flowCompiler';
 import {
   GEMINI_VOICES,
   LANGUAGE_OPTIONS,

@@ -13,7 +13,6 @@
 import {
   PlaybookTemplate,
   PlaybookRequiredField,
-  PlaybookObjection,
   PromptCoachReview,
 } from '../types/promptCoach';
 

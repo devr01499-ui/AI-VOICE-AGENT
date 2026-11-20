@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ChevronDown, Search, Sparkles, HelpCircle, ShieldCheck, Zap, Layers, DollarSign } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 
 type Page = any;
 interface FAQProps { setPage: (p: Page) => void; }

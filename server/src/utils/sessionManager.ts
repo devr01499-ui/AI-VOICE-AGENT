@@ -10,14 +10,12 @@ export async function revokeUserSessions(userId: string): Promise<boolean> {
   if (!userId) return false;
 
   try {
-    let supabaseRevoked = false;
     if (supabaseAdmin) {
       try {
         const { error } = await supabaseAdmin.auth.admin.signOut(userId, 'global');
         if (error) {
           logger.warn(`[SessionManager] Supabase admin signOut returned error for user ${userId}:`, { error: error.message });
         } else {
-          supabaseRevoked = true;
           logger.info(`[SessionManager] Successfully invalidated all active Supabase sessions globally for user ${userId}`);
         }
       } catch (authErr: any) {

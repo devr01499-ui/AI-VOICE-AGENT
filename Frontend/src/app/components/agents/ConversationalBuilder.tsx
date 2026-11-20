@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Send, Bot, User, CheckCircle, ArrowRight, AlertCircle } from "lucide-react";
 import { buildAgentConversation } from "../../api";
 

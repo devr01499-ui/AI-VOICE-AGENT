@@ -2,10 +2,9 @@ import { RecordingPlayer } from '../calls/RecordingPlayer';
 import React, { useState, useEffect } from 'react';
 import {
   X, AlertTriangle, CheckCircle2, ShieldCheck, RefreshCw,
-  Clock, Phone, User, Play, Pause, FileText, Check, AlertCircle,
-  HelpCircle, MessageSquare, History, Edit3, Volume2, ShieldAlert
-} from 'lucide-react';
-import { reportsApi, type DetailedReport, type ReportListItem } from '../../api';
+  Phone, FileText, Check, AlertCircle,
+  Edit3} from 'lucide-react';
+import { reportsApi, type DetailedReport } from '../../api';
 import { formatDateTime } from '../../lib/dateFormat';
 
 interface CallResultDrawerProps {
