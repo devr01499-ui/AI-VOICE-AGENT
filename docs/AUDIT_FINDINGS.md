@@ -20,6 +20,7 @@ Severity: H high, M medium, L low.
 | 6 | d8171bb | #8 #9 #10 #13 #14 #15 #16 #18 #19 #20 #21 #40 (test:audit-batch6) |
 | 7 | a07d7ed | #11 #49 #50 #60 #61 #88 #89 (test:audit-batch7) |
 | 8 | dccab7a | #33 #34 #37 #39 #146 (test:audit-batch8) |
+| 9 | ea9b5f2 | #7 #52 #53 #55 #56 #58 #59 #62 #65 #95 #101 #150 #151 (test:audit-batch9) |
 | #148 | 7c19afa | scheduled follow-up calls (test:scheduled-calls) |
 | models | cde3afd | Gemini 3.8 Live + removed models dropped (owner request; test:gemini-models) |
 
@@ -29,6 +30,10 @@ Everything not listed above is still OPEN. New findings while fixing:
 - **#146** (fixed, batch 8: compression + resumption enabled, handles captured, resume reuses the full setup and key; a live 15+ min call is an owner check) H `SV/providers/gemini/GeminiLiveProvider.ts`: Google caps an audio Live session at about 15 minutes unless session resumption / context-window compression is used. Neither is enabled, and the resumption payload uses a wrong field (`setup.resumptionHandle` instead of `setup.sessionResumption.handle`), so calls longer than ~15 min (max duration is 30 min) can drop to a fresh session. Needs a live test against Google before changing.
 - **#148** FIXED (ScheduledCallService: claimed per row, DNC + calling-hours checked, retries, restart-safe; test:scheduled-calls 7/7). Daily report email deliberately NOT wired: nothing in the product promises it, and emailing every customer daily without opt-in would be unsolicited (owner decision needed). Was: H `server/scripts/calendar/execute-scheduled-calls.ts`: scheduled follow-up calls (booked by the agent through the follow-up tool, rows in `scheduled_calls`) are never dialled. The only code that executes them is this script, and no cron, Render job or in-server timer runs it. The daily report email (`send-daily-report.ts`) is in the same state. Fix: run the executor inside the server on a timer (with a lock), or add a Render cron job.
 - **#147** L the legacy `scripts/test_batch_calling_suite.js` was unwired and stale (it hung for 30 min); fixed and exposed as `test:batch-calling` (about 10 min, not in CI).
+- **#149** OPEN M `FE/components/alerting/DashAlerting.tsx:427` + `SV/services/AlertEvaluator.ts:161`: the "Total Spend ($)" alert metric is minutes x $0.05, a made-up dollar rate; customers pay in rupees per plan minute.
+- **#150** (fixed, batch 9) M `SV/routes/kyc.ts`: a document still being checked ("pending") got the "could not be completed, please re-submit" email and in-app notice.
+- **#151** (fixed, batch 9) H `SV/routes/kyc.ts` GET /status: documents were marked verified from the carrier status even for a personal_use sub-account, whose checks are the master account's, not the user's.
+- **#152** OPEN L `FE/components/alerting/DashAlerting.tsx:114,128`: create/toggle failures show a fixed "Failed to ..." alert and hide the server's reason.
 
 ## 1. Billing, plans, minutes, numbers, KYC
 1. H **V** `SV/services/MinutesService.ts:59-96,143-193`: the balance is read and then written back as an absolute value, with no row lock. Two calls ending at the same moment lose one debit, and a plan credit racing a debit can wipe paid minutes. Fix: atomic increment/decrement.

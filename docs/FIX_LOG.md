@@ -352,3 +352,25 @@ One entry per fix, newest at the bottom. Template:
   - Test: test:audit-batch8 5/5, and 0/5 on the old code.
 - **Test hygiene (ca4e38d):** m1-pipeline drains only its own analysis jobs, and batch 6 deletes the jobs it queues. This fixed an intermittent 5/13 m1 result.
 - **Not verified here:** a live call longer than 15 minutes against Google (#146), because the keys are treated as compromised. See PROGRESS owner step 11a.
+
+## Defect audit — batch 9 (2026-11-20, branch fix/audit-batch-9, ea9b5f2)
+- **Calendar:**
+  - #52: the daily booking cap counts bookings made earlier today, grouped by the rule's own time zone.
+  - #53: a buffer or minimum notice of 0 is kept at every layer (frontend, save route, read, slot search).
+  - #65: appointments and scheduled calls (follow-up, manual, batch) are listed together, and a scheduled call can be cancelled from the page.
+- **Batches (#55):** resuming right after a pause switches the campaign to running; the worker's atomic claim still allows only one runner.
+- **Reports (#56):** re-analysis uses the worker's 15-minute lock rule and answers 409 when nothing was queued.
+- **Alert rules (#58/#59):** metric, comparator, threshold, window, email and webhook URL are validated; clearing a field stores null.
+- **Admin (#62):** daily metrics are the latest 14 days.
+- **QA (#101):** transcript times are seconds, so the latency flag now fires at more than 2.5 s.
+- **KYC:**
+  - #7: the page shows a document as verified only when the number gate accepts it; no made-up references.
+  - #151: carrier-confirmed documents (customer_use sub-account only) get a traceable reference.
+  - #150: a pending document no longer triggers a "re-submit" email.
+- **White label (#95):**
+  - Provider errors reach customers as a neutral message.
+  - Customer JSON error and message text and customer notifications are scrubbed of carrier names.
+  - Raw carrier errors were removed from the onboard and search routes; the KYC email and the carrier-console fallback link no longer name the carrier.
+  - Staff routes keep the real names.
+- **Tests:** test:audit-batch9 10/10, and 0/10 on the old code. Related suites pass: calendar-bookings, data-pages, number-entitlement, carrier-accuracy, plivo-business, batch-compliance, notifications, scheduled-calls, batch3, batch5, recording.
+- **Not verified here:** a live hosted-KYC session from the carrier (keys treated as compromised).
