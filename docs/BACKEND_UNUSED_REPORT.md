@@ -184,7 +184,7 @@ Method: an import graph from the real entry points (Frontend and Admin `src/main
   - `core/provider-sdk/provider.manager.ts` no longer has importers. It is kept for now, listed here, and has no load-time side effects.
 - **Frontend: 333 → 19 unused declarations.**
   - Unused imports.
-  - Six page/section components that nothing rendered.
+  - Seven UI components that nothing rendered: SoundWave, FAQItem, DToggle, DTextarea, TiltCard, GeometricGridBackground, CleanWireframeGrid.
   - The unreachable agent "detail" view in App.tsx (about 300 lines, with a fake "Acme Corp" sample prompt and a Save button with no handler), plus the in-browser test-call code and state only it used.
   - The leftover Settings state and the fetches that only fed it: workspace name, billing email, default number, pipeline toggles, concurrency, IP allowlist and webhook form. Settings no longer makes those useless API calls on load. Their controls were removed in audit batch 2.
 - **Kept on purpose:**
