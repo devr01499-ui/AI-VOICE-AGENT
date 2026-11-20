@@ -21,9 +21,6 @@ import {
   normalizeMoneyOrNumber,
   normalizeDate,
   normalizeDurationDays,
-  validatePhoneNumber,
-  validateEmail,
-  validatePostalPinCode,
   validateEnum,
 } from '../utils/reportNormalizers';
 import { enforceEvidenceGrounding } from '../utils/evidenceValidator';
@@ -637,7 +634,6 @@ export class AnalysisService {
       groundedFields,
       groundedEvidence,
       evidenceFindings,
-      evidenceValidityRate,
     } = enforceEvidenceGrounding(normalizedFields, mergedEvidence, segments);
 
     // ─────────────────────────────────────────────────────────────────────────────

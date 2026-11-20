@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  Clock, Zap, ShieldAlert, Cpu, BarChart3, Database,
-  CheckCircle2, Play, ArrowRight, ShieldCheck, MessageSquare,
-  Network, Code, Settings, Lock, Share2, Layers, Heart
-} from "lucide-react";
+  Clock, Cpu, BarChart3, Database,
+  ShieldCheck} from "lucide-react";
 
 // Interactive simulated visualizer for Low-Latency Engine
 function LatencyVisual() {

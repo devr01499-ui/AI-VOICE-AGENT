@@ -1,6 +1,6 @@
 import { formatDateTime } from '../../lib/dateFormat';
-import React, { useState, useEffect } from 'react';
-import { Bell, Plus, Play, AlertCircle, AlertTriangle, CheckCircle2, Shield, RefreshCw, Key, Mail, Globe, Clock, Trash2, Edit3, X, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Bell, Plus, Play, Key, Mail, Globe, Trash2, X } from 'lucide-react';
 import { apiClient } from '../../api';
 
 interface AlertRule {

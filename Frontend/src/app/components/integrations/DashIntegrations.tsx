@@ -1,5 +1,5 @@
 import { formatTime } from '../../lib/dateFormat';
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Calendar, CheckCircle2, XCircle, AlertTriangle, RefreshCw, LogIn, Sliders } from 'lucide-react';
 import { apiClient } from '../../api';
 

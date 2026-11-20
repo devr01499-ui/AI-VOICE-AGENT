@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, Clock, IndianRupee, PhoneCall, CheckCircle2, AlertCircle, Calendar, RefreshCw, ArrowUpRight, ArrowDownLeft, Filter } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { BarChart3, TrendingUp, Clock, IndianRupee, PhoneCall, CheckCircle2, AlertCircle, RefreshCw, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { apiClient, fetchAgents, type ApiAgent } from '../../api';
-import { formatCurrency } from '../../../lib/formatCurrency';
 
 
 interface AnalyticsSummary {

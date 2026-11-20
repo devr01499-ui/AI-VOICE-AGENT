@@ -8,7 +8,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
-import { env } from '../config/env';
 
 export class QaController {
   static async listCohorts(req: Request, res: Response): Promise<void> {

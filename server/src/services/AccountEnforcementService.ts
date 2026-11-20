@@ -1,4 +1,3 @@
-import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { StaffContext } from '../middleware/requireStaff';
 import { withAudit } from '../admin/audit';

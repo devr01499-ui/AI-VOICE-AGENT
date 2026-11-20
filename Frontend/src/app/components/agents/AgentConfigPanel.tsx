@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Sliders, Sparkles, MessageSquare, Bot, Settings2, Calendar, Download, Play, Volume2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Sliders, MessageSquare, Bot, Settings2, Calendar, Download, Play, Volume2 } from "lucide-react";
 import { updateAgent, getCalendarStatus, getAuthToken, API_BASE, exportAgentAsJson } from "../../api";
 import ConversationalBuilder from "./ConversationalBuilder";
 import VisualFlowCanvas from "./VisualFlowCanvas";

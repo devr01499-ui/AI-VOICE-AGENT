@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import Lottie, { LottieRefCurrentProps } from "lottie-react";
 import { voiceOrbLottieData } from "./lottieVoiceData";
 import { 
-  Play, Pause, Sparkles, Volume2, Radio, Zap, Shield, 
-  MessageSquare, RefreshCw, Activity, ArrowRight, Mic, Check
+  Play, Pause, Zap, 
+  ArrowRight, Check
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { PUBLIC_PLANS, effectiveRate } from '../../lib/plans';

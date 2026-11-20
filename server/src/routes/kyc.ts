@@ -13,7 +13,7 @@ import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
 import { PhoneNumberActivationService } from '../services/PhoneNumberActivationService';
 import { NotificationService } from '../services/NotificationService';
 import { EncryptionService } from '../utils/EncryptionService';
-import { uploadGstCertificateToStorage, uploadKycDocumentToStorage } from '../utils/kycStorage';
+import { uploadGstCertificateToStorage } from '../utils/kycStorage';
 import { env } from '../config/env';
 
 const router = Router();

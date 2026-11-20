@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Layers, CheckCircle2, Search, Sliders, ShieldCheck } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Layers, Search, ShieldCheck } from 'lucide-react';
 import { reportsApi, type BlueprintSummary } from '../../api';
 
 interface BlueprintCatalogModalProps {

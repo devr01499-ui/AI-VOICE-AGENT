@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Menu, ArrowRight, ChevronDown, Zap, Users, Globe2, BookOpen, Layers, Workflow } from "lucide-react";
+import { X, Menu, ArrowRight, ChevronDown, Users, BookOpen } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from "motion/react";
 
 import { Session } from "@supabase/supabase-js";
@@ -12,12 +12,6 @@ interface NavbarProps {
   session?: Session | null;
 }
 
-const PLATFORM_ITEMS = [
-  { icon: Zap, label: "How Claritiy Works", desc: "Real-time audio engine", id: "how-it-works" as Page },
-  { icon: Layers, label: "Enterprise Solutions", desc: "COD confirmation & clinic intake", id: "solutions" as Page },
-  { icon: Workflow, label: "Use Case Blueprints", desc: "Industry diagrams & wiremaps", id: "use-cases" as Page },
-  { icon: Globe2, label: "HD Voice Gallery", desc: "7 languages incl. Hindi & Tamil", id: "voices" as Page },
-];
 
 const RESOURCE_ITEMS = [
   { icon: BookOpen, label: "Developer Docs", desc: "API, SDK & integrations", id: "docs" as Page },

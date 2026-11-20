@@ -12,26 +12,26 @@ import VisualFlowCanvas from "./components/agents/VisualFlowCanvas";
 import SinglePromptStudio from "./components/agents/SinglePromptStudio";
 import { DashCalendar } from "./components/calendar/CalendarOverview";
 import {
-  fetchAgents, fetchAgent, fetchCalls, fetchProfile, createAgent, updateAgent, deleteAgent, chatWithAgent,
+  fetchAgents, fetchAgent, fetchCalls, fetchProfile, createAgent, updateAgent, deleteAgent, 
   exportAgentAsJson, importAgentFromJson,
-  initiateCall, getCallTranscript, getLiveTranscriptWsUrl, requestTranscriptTicket, fetchCallsPage,
+  getCallTranscript, getLiveTranscriptWsUrl, requestTranscriptTicket, fetchCallsPage,
   fetchKBList, fetchKBLimits, uploadKBDocument, scrapeKBUrl, deleteKBDocument, reindexKBDocument, testKBQuery, fetchCalendarBatches, createBatchCampaign, pauseBatchCampaign, resumeBatchCampaign, cancelBatchCampaign,
-  fetchDataRetention, updateDataRetention, fetchIpAllowlist, updateIpAllowlist, fetchConcurrencyTelemetry, updateConcurrencyLimit,
-  DEV_USER_ID, DEFAULT_AGENT_ID, API_BASE, apiClient,
+  fetchDataRetention, updateDataRetention, 
+  apiClient,
   type ApiAgent, type ApiCall, type ApiProfile, type ApiKnowledgeBase, type KBTestQueryResult,
 } from "./api";
 import { motion, AnimatePresence } from "motion/react";
 import {
   PhoneCall, PhoneOff, Mic, BarChart3, Settings, ChevronRight,
-  Play, Pause, Check, ArrowRight, Globe, HeartPulse, ShoppingBag,
-  Landmark, GraduationCap, Truck, Building2, Hotel, Activity,
-  Clock, TrendingUp, Plus, Search, Bell, Bot, LogOut,
-  PhoneIncoming, CircleDot, X, Menu, Zap, Shield, Volume2,
+  Play, Pause, Check, 
+  Building2, Activity,
+  Clock, Plus, Search, Bell, Bot, LogOut,
+  PhoneIncoming, X, Menu, Zap, 
   Phone, Radio, BookOpen, Mic2, FileText, Upload, Link,
-  Cpu, MessageSquare, Eye, EyeOff, Copy, RefreshCw, Trash2,
+  Eye, RefreshCw, Trash2,
   Edit3, Download, Send, PlayCircle, PauseCircle, StopCircle,
-  CheckCircle2, AlertCircle, Info, Star, Headphones, Wand2,
-  ChevronLeft, ChevronDown, Users, Key, Sliders, CreditCard, Calendar, Sparkles, ShieldCheck, MessageCircle,
+  CheckCircle2, AlertCircle, Info, 
+  Users, Key, Sliders, CreditCard, Sparkles, ShieldCheck,
 } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "./components/ui/popover";
 import Navbar from "./components/layout/Navbar";
@@ -57,7 +57,7 @@ import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import BrandSplash from "./components/common/BrandSplash";
 import { resolveRoute, pathForPage, type Page } from "./lib/routes";
 import { initialAuthRedirect } from "./lib/authRedirect";
-import { PRICING_SUMMARY, PUBLIC_PLANS } from './lib/plans';
+import { PUBLIC_PLANS } from './lib/plans';
 const Home = lazy(() => import("./pages/Home"));
 const Solutions = lazy(() => import("./pages/Solutions"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
@@ -82,57 +82,7 @@ const AiVoiceAgentSoftware = lazy(() => import("./pages/AiVoiceAgentSoftware"));
 // Page type and URL ⇄ page mapping live in ./lib/routes (single source of truth).
 
 // ─── Sound Wave Component ─────────────────────────────────────────────────────
-function SoundWave({ active = true, bars = 32, className = "" }: { active?: boolean; bars?: number; className?: string }) {
-  return (
-    <div className={`flex items-center gap-[2px] ${className}`}>
-      {Array.from({ length: bars }).map((_, i) => (
-        <div
-          key={i}
-          className="bg-foreground rounded-full"
-          style={{
-            width: "2px",
-            height: active ? `${8 + Math.sin(i * 0.6) * 14 + Math.random() * 8}px` : "4px",
-            animation: active ? `wave ${0.8 + (i % 5) * 0.15}s ease-in-out infinite alternate` : "none",
-            animationDelay: `${i * 0.04}s`,
-            opacity: 0.15 + (i % 4) * 0.2,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
 
-function FAQItem({ q, a }: { q: string; a: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="border-b border-border py-5">
-      <button
-        className="flex items-center justify-between w-full text-left gap-4"
-        onClick={() => setOpen(!open)}
-      >
-        <p className="font-medium text-foreground" style={{ fontFamily: "'Figtree', sans-serif" }}>
-          {q}
-        </p>
-        <ChevronRight className={`w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform ${open ? "rotate-90" : ""}`} />
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            className="overflow-hidden"
-          >
-            <p className="pt-3 text-muted-foreground text-sm leading-relaxed" style={{ fontFamily: "'Figtree', sans-serif" }}>
-              {a}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 type DashSection = "agents"|"calling"|"batch"|"calls"|"numbers"|"knowledge"|"voices"|"calendar"|"settings"|"billing"|"companion"|"chat_history"|"contacts"|"analytics"|"live_monitoring"|"qa"|"alerting"|"integrations"|"reports";
@@ -169,17 +119,11 @@ function MiniWave({ on=true, bars=14 }: { on?: boolean; bars?: number }) {
 function DProg({ v, max, className="" }: { v:number; max:number; className?:string }) {
   return <div className={`h-1.5 bg-muted rounded-full overflow-hidden ${className}`}><div className="h-full bg-foreground rounded-full transition-all" style={{width:`${Math.min(100,(v/max)*100)}%`}}/></div>;
 }
-function DToggle({ on, set }: { on:boolean; set:(v:boolean)=>void }) {
-  return <button onClick={()=>set(!on)} className={`w-9 h-5 rounded-full relative transition-colors flex-shrink-0 ${on?"bg-foreground":"bg-muted"}`}><div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${on?"left-4":"left-0.5"}`}/></button>;
-}
 function DInput({ className="", ...p }: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input className={`w-full bg-surface-white border border-border-soft rounded-pill px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-mint-primary placeholder:text-ink-muted shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] transition-all ${className}`} style={{fontFamily:"'Plus Jakarta Sans',sans-serif"}} {...p}/>;
 }
 function DSelect({ className="", children, ...p }: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return <select className={`w-full bg-surface-white border border-border-soft rounded-pill px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-mint-primary shadow-sm transition-all ${className}`} style={{fontFamily:"'Plus Jakarta Sans',sans-serif"}} {...p}>{children}</select>;
-}
-function DTextarea({ className="", ...p }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea className={`w-full bg-surface-white border border-border-soft rounded-3xl px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-mint-primary shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] transition-all resize-none ${className}`} style={{fontFamily:"'Plus Jakarta Sans',sans-serif"}} {...p}/>;
 }
 function DBtn({ children, variant="primary", size="md", onClick, disabled, className="", title }: { children:React.ReactNode; variant?:"primary"|"secondary"|"ghost"|"danger"; size?:"sm"|"md"; onClick?:(e: React.MouseEvent<HTMLButtonElement>)=>void; disabled?:boolean; className?:string; title?:string }) {
   const s = size==="sm" ? "text-xs px-4 py-2" : "text-sm px-6 py-3";
@@ -1019,40 +963,8 @@ CLOSING: 'If you have any questions, you can reach [Insurance Company Name]'s cu
 
 
 // ── Web Audio Sandbox Conversion Helpers ──
-function floatTo16BitPCM(input: Float32Array): ArrayBuffer {
-  const buffer = new ArrayBuffer(input.length * 2);
-  const view = new DataView(buffer);
-  for (let i = 0; i < input.length; i++) {
-    const s = Math.max(-1, Math.min(1, input[i]));
-    view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-  }
-  return buffer;
-}
 
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  let binary = '';
-  const bytes = new Uint8Array(buffer);
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return window.btoa(binary);
-}
 
-function base64ToFloat32(base64: string): Float32Array {
-  const binaryString = window.atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  const int16Array = new Int16Array(bytes.buffer);
-  const float32Array = new Float32Array(int16Array.length);
-  for (let i = 0; i < int16Array.length; i++) {
-    float32Array[i] = int16Array[i] / 32768.0;
-  }
-  return float32Array;
-}
 
 // ── Agents ──
 type AgentView = "list"|"create"|"detail";
@@ -1131,31 +1043,17 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
 
   useEffect(() => { loadAgents(); }, [loadAgents]);
   const [view, setView] = useState<AgentView>("list");
-  const [selected, setSelected] = useState<AgentRow|null>(null);
   const [filter, setFilter] = useState<"all"|"prompt"|"conversational">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [createType, setCreateType] = useState<"prompt"|"conversational">("prompt");
-  const [detailTab, setDetailTab] = useState<"config"|"prompt"|"knowledge"|"calls">("config");
   const [realCallModal, setRealCallModal] = useState<{ open: boolean; agentId?: string; fromNumber?: string }>({ open: false });
   const [form, setForm] = useState({name:"",lang:"EN",voice:"Aoede",model:"gemini-3.8-live",systemPrompt:"",welcomeMsg:"",endPhrase:"goodbye",temperature:"0.7",maxTurns:"20",kb:[] as string[],steps:[{id:"s1",label:"Greet caller",cond:""},{id:"s2",label:"Verify identity",cond:"if account found"},{id:"s3",label:"Handle intent",cond:""}]});
-  const [testCallStatus, setTestCallStatus] = useState<'idle'|'calling'|'done'|'error'>('idle');
-  const [saveStatus, setSaveStatus] = useState<'idle'|'saving'|'done'|'error'>('idle');
 
   const [templateSearch, setTemplateSearch] = useState('');
   const [templateCategory, setTemplateCategory] = useState('all');
   const [selectedTemplate, setSelectedTemplate] = useState<AgentTemplate | null>(null);
 
-  const [showPicker, setShowPicker] = useState(false);
-  const [pickerError, setPickerError] = useState('');
-  const [numbersList, setNumbersList] = useState<any[]>([]);
-  const [selectedNumber, setSelectedNumber] = useState('');
-  const [destinationPhone, setDestinationPhone] = useState('');
-  const [sandboxOpen, setSandboxOpen] = useState(false);
-  const [sandboxActive, setSandboxActive] = useState(false);
   const [sandboxTranscript, setSandboxTranscript] = useState<{ speaker: 'agent' | 'user'; text: string; finalized?: boolean }[]>([]);
-  const [sandboxStatus, setSandboxStatus] = useState<'idle' | 'connecting' | 'connected' | 'disconnected'>('idle');
-  const [sandboxError, setSandboxError] = useState<string | null>(null);
-  const [sandboxLatency, setSandboxLatency] = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [importStatus, setImportStatus] = useState<{ loading: boolean; error: string | null; success: string | null }>({ loading: false, error: null, success: null });
@@ -1248,20 +1146,6 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
       // Reload list and open newly created agent
       loadAgents();
 
-      const newAgentRow: AgentRow = {
-        id: newAgent.id,
-        name: newAgent.name,
-        type: (newAgent.agentType === 'prompt' ? 'prompt' : 'conversational') as 'prompt' | 'conversational',
-        status: 'draft',
-        calls: 0,
-        csat: null,
-        lang: 'EN',
-        voice: newAgent.systemVoice || newAgent.voiceName || 'Puck',
-        model: newAgent.model ?? 'gemini-3.8-live',
-        kb: [],
-        numbers: [],
-        created: newAgent.createdAt?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
-      } as unknown as AgentRow;
 
       if (newAgent.agentType === 'conversational' || newAgent.flowGraph) {
         let parsedFlowGraph = null;
@@ -1308,7 +1192,6 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
     }
   };
 
-  const lastTestedAgentIdRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
@@ -1316,8 +1199,6 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
   const playbackContextRef = useRef<AudioContext | null>(null);
   const processorNodeRef = useRef<ScriptProcessorNode | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
-  const lastEmitTimeRef = useRef<number>(0);
-  const nextPlaybackTimeRef = useRef<number>(0);
 
   useEffect(() => {
     return () => {
@@ -1349,276 +1230,14 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
     }
   }, [sandboxTranscript]);
 
-  const finalizeLastMessage = useCallback(() => {
-    setSandboxTranscript(prev => {
-      if (prev.length === 0) return prev;
-      const last = prev[prev.length - 1];
-      if (last && !last.finalized) {
-        return [...prev.slice(0, -1), { ...last, finalized: true }];
-      }
-      return prev;
-    });
-  }, []);
-
-  async function fetchWorkspaceNumbers() {
-    try {
-      const response = await apiClient.get('/api/v2/numbers');
-      if (response.data?.success && Array.isArray(response.data.data)) {
-        setNumbersList(response.data.data);
-        if (response.data.data.length > 0) {
-          setSelectedNumber(response.data.data[0].phoneNumber);
-        }
-      } else {
-        setNumbersList([]);
-      }
-    } catch (err: any) {
-      setPickerError(err.message || 'Failed to retrieve workspace numbers.');
-    }
-  }
-
-  async function startSandbox() {
-    if (!selected) return;
-    if (lastTestedAgentIdRef.current !== selected.id) {
-      setSandboxTranscript([]);
-      lastTestedAgentIdRef.current = selected.id;
-    }
-    setSandboxStatus('connecting');
-    setSandboxError(null);
-    setSandboxOpen(true);
-    setSandboxActive(true);
-    setSandboxLatency(null);
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      micStreamRef.current = stream;
-
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
-        sampleRate: 16000,
-      });
-      audioContextRef.current = audioContext;
-
-      const playbackContext = new (window.AudioContext || (window as any).webkitAudioContext)({
-        sampleRate: 24000,
-      });
-      playbackContextRef.current = playbackContext;
-      nextPlaybackTimeRef.current = 0;
-
-      let WS_TARGET = 
-        (import.meta as any).env?.VITE_WS_URL || 
-        (window.location.host === 'localhost:5173' || window.location.host === 'localhost:3000'
-          ? 'ws://localhost:3001'
-          : 'wss://ai-voice-agent-backend-mv32.onrender.com');
-
-      // Immunize against literal markdown hyperlink syntax copy-pasted into environment variables
-      if (WS_TARGET.includes('[') && WS_TARGET.includes(']')) {
-        const match = WS_TARGET.match(/\(([^)]+)\)/);
-        if (match && match[1]) {
-          WS_TARGET = match[1];
-        } else {
-          WS_TARGET = WS_TARGET.replace(/\[.*?\]/g, '').replace(/[()]/g, '').trim();
-        }
-      }
-
-      const baseWsUrl = WS_TARGET.startsWith('http') 
-        ? WS_TARGET.replace('http', 'ws') 
-        : WS_TARGET;
-
-      const token = session?.access_token;
-      const tokenParam = token ? `&token=${token}` : '';
-      const wsUrl = `${baseWsUrl.replace(/\/$/, '')}/api/v2/sandbox/test-stream?agentId=${selected.id}${tokenParam}`;
-      
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        setSandboxStatus('connected');
-        setSandboxError(null);
-        
-        const source = audioContext.createMediaStreamSource(stream);
-        const processor = audioContext.createScriptProcessor(2048, 1, 1);
-        processorNodeRef.current = processor;
-
-        source.connect(processor);
-        processor.connect(audioContext.destination);
-
-        processor.onaudioprocess = (e) => {
-          const inputData = e.inputBuffer.getChannelData(0);
-          
-          let isSpeaking = false;
-          for (let i = 0; i < inputData.length; i++) {
-            if (Math.abs(inputData[i]) > 0.01) {
-              isSpeaking = true;
-              break;
-            }
-          }
-          if (isSpeaking) {
-            lastEmitTimeRef.current = Date.now();
-          }
-
-          const pcmBuffer = floatTo16BitPCM(inputData);
-          const base64 = arrayBufferToBase64(pcmBuffer);
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ event: 'audio', data: base64 }));
-          }
-        };
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          if (msg.event === 'audio' && msg.data) {
-            const floats = base64ToFloat32(msg.data);
-            const audioBuffer = playbackContext.createBuffer(1, floats.length, 24000);
-            audioBuffer.copyToChannel(floats as any, 0);
-
-            const sourceNode = playbackContext.createBufferSource();
-            sourceNode.buffer = audioBuffer;
-            sourceNode.connect(playbackContext.destination);
-
-            const currentTime = playbackContext.currentTime;
-            const startTime = Math.max(currentTime, nextPlaybackTimeRef.current);
-            sourceNode.start(startTime);
-            nextPlaybackTimeRef.current = startTime + audioBuffer.duration;
-          } else if (msg.event === 'transcript' && (typeof msg.text === 'string' || msg.isFinal)) {
-            if (lastEmitTimeRef.current > 0) {
-              const delta = Date.now() - lastEmitTimeRef.current;
-              setSandboxLatency(delta);
-            }
-
-            const speaker = msg.isUser ? 'user' : 'agent';
-
-            if (debounceTimerRef.current) {
-              clearTimeout(debounceTimerRef.current);
-              debounceTimerRef.current = null;
-            }
-
-            setSandboxTranscript(prev => {
-              const last = prev[prev.length - 1];
-              if (last && last.speaker !== speaker && !last.finalized) {
-                const finalizedLast = { ...last, finalized: true };
-                if (msg.text) {
-                  return [...prev.slice(0, -1), finalizedLast, { speaker, text: msg.text, finalized: msg.isFinal }];
-                } else {
-                  return [...prev.slice(0, -1), finalizedLast];
-                }
-              }
-              if (last && last.speaker === speaker && !last.finalized) {
-                return [...prev.slice(0, -1), { speaker, text: last.text + (msg.text || ''), finalized: msg.isFinal }];
-              } else if (msg.text) {
-                return [...prev, { speaker, text: msg.text, finalized: msg.isFinal }];
-              }
-              return prev;
-            });
-
-            if (!msg.isFinal) {
-              debounceTimerRef.current = setTimeout(() => {
-                finalizeLastMessage();
-              }, 1500);
-            }
-          } else if (msg.event === 'interrupted') {
-            nextPlaybackTimeRef.current = 0;
-          } else if (msg.event === 'error') {
-            setSandboxError(msg.message);
-          }
-        } catch (e: any) {
-          console.error('Failed to parse sandbox event message', e);
-        }
-      };
-
-      ws.onerror = (e) => {
-        setSandboxError('WebSocket error occurred during sandbox session.');
-        setSandboxStatus('disconnected');
-        setSandboxActive(false);
-      };
-
-      ws.onclose = () => {
-        setSandboxStatus('disconnected');
-        setSandboxActive(false);
-      };
-
-    } catch (err: any) {
-      setSandboxError(`Initialization failed: ${err.message}`);
-      setSandboxStatus('disconnected');
-      setSandboxActive(false);
-    }
-  }
-
-  async function handleLaunchLiveCall() {
-    if (!selected || !destinationPhone) return;
-    setTestCallStatus('calling');
-    try {
-      const response = await apiClient.post('/api/v2/calls', {
-        phoneNumber: destinationPhone,
-        agentId: selected.id,
-        fromPhoneNumber: selectedNumber || undefined,
-      });
-      if (response.data?.success) {
-        setTestCallStatus('done');
-      } else {
-        setTestCallStatus('error');
-      }
-    } catch (err: any) {
-      setTestCallStatus('error');
-      alert('Unable to launch call: ' + (err?.message || 'Call initialization failed. Please check your caller ID and minutes balance.'));
-    } finally {
-      setTimeout(() => setTestCallStatus('idle'), 3000);
-      setShowPicker(false);
-    }
-  }
-
-  function stopSandbox() {
-    if (micStreamRef.current) {
-      micStreamRef.current.getTracks().forEach(t => t.stop());
-      micStreamRef.current = null;
-    }
-    if (processorNodeRef.current) {
-      processorNodeRef.current.disconnect();
-      processorNodeRef.current = null;
-    }
-    if (audioContextRef.current) {
-      audioContextRef.current.close().catch(() => {});
-      audioContextRef.current = null;
-    }
-    if (playbackContextRef.current) {
-      playbackContextRef.current.close().catch(() => {});
-      playbackContextRef.current = null;
-    }
-    if (wsRef.current) {
-      if (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING) {
-        wsRef.current.close();
-      }
-      wsRef.current = null;
-    }
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = null;
-    }
-    setSandboxActive(false);
-    setSandboxOpen(false);
-    setSandboxStatus('idle');
-    setSandboxError(null);
-    setSandboxLatency(null);
-  }
-
-  function handleTestCall() {
-    setShowPicker(true);
-    fetchWorkspaceNumbers();
-  }
 
 
 
-  function handleSaveAgent() {
-    if (!selected) return;
-    setSaveStatus('saving');
-    updateAgent(selected.id as string, {
-      name: selected.name as string,
-      model: selected.model as string,
-      voiceName: selected.voice as string,
-      status: selected.status as string,
-      isRecordingEnabled: !!selected.isRecordingEnabled,
-      isTranscriptionEnabled: !!selected.isTranscriptionEnabled,
-    }).then(() => { setSaveStatus('done'); loadAgents(); }).catch(() => setSaveStatus('error')).finally(() => setTimeout(() => setSaveStatus('idle'), 2000));
-  }
+
+
+
+
+
 
   const [deleteModal, setDeleteModal] = useState<{ open: boolean, id: string }>({ open: false, id: '' });
 
@@ -1667,55 +1286,6 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
     setDeleteModal({ open: true, id: agentId });
   }
 
-  function handleCreate() {
-    const localAgent: AgentRow = {id:`a${Date.now()}`,name:form.name||"Untitled Agent",type:createType,status:"draft",calls:0,csat:null,lang:form.lang,voice:VOICES_SEED.find(v=>v.id===form.voice)?.name??"Nova",model:form.model,kb:form.kb,numbers:[],created:new Date().toISOString().slice(0,10)};
-    // Optimistically update UI, then persist to API
-    const previousAgents = [...agents];
-    setAgents(p=>[...p, localAgent]);
-
-    const localApiAgent: ApiAgent = {
-      id: localAgent.id,
-      name: localAgent.name,
-      description: null,
-      workspaceId: null,
-      systemPrompt: null,
-      flowGraph: null,
-      agentConfig: {},
-      agentType: createType,
-      status: 'draft',
-      version: 1,
-      model: form.model,
-      voiceName: VOICES_SEED.find(v=>v.id===form.voice)?.name??"Nova",
-      temperature: parseFloat(form.temperature),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    if (setApiAgents) {
-      setApiAgents(p => [...p, localApiAgent]);
-    }
-
-    setView("list");
-    createAgent({
-      name: form.name || 'Untitled Agent',
-      agentType: createType,
-      status: 'draft',
-      model: form.model,
-      temperature: parseFloat(form.temperature),
-      systemPrompt: form.systemPrompt || undefined,
-    }).then((created) => {
-      // Replace temp local ID with real server ID
-      setAgents(p => p.map(a => a.id === localAgent.id ? { ...a, id: created.id, created: created.createdAt?.slice(0, 10) ?? '' } : a));
-      if (setApiAgents) {
-        setApiAgents(p => p.map(a => a.id === localAgent.id ? created : a));
-      }
-    }).catch((err) => {
-      setAgents(previousAgents);
-      if (setApiAgents) {
-        setApiAgents(p => p.filter(a => a.id !== localAgent.id));
-      }
-      alert("Failed to create agent: " + (err instanceof Error ? err.message : String(err)));
-    });
-  }
 
   const filtered = useMemo(() => {
     let list = filter === "all" ? agents : agents.filter(a => a.type === filter);
@@ -1726,306 +1296,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
     return list;
   }, [agents, filter, searchQuery]);
 
-  if (view==="detail" && selected) return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <DBtn variant="ghost" size="sm" onClick={()=>{setView("list");setSelected(null);}}><ChevronLeft className="w-4 h-4"/> Back</DBtn>
-          <div><p className="text-xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{selected.name as string}</p><div className="flex items-center gap-2 mt-1"><SDot status={selected.status as string}/><DBadge>{selected.type==="prompt"?"Prompt-based":"Conversational"}</DBadge></div></div>
-        </div>
-        <div className="flex gap-3">
-          <DBtn variant="secondary" size="sm" onClick={handleTestCall} disabled={testCallStatus==='calling'}><PlayCircle className="w-3.5 h-3.5"/> {testCallStatus==='calling'?'Calling…':testCallStatus==='done'?'Called!':testCallStatus==='error'?'Failed':'Test call'}</DBtn>
-          <DBtn size="sm" onClick={handleSaveAgent} disabled={saveStatus==='saving'}><Check className="w-3.5 h-3.5"/> {saveStatus==='saving'?'Saving…':saveStatus==='done'?'Saved!':saveStatus==='error'?'Error':'Save'}</DBtn>
-        </div>
-      </div>
-      <div className="flex gap-3 pb-2 border-b border-transparent">
-        {(["config","prompt","knowledge","calls"] as const).map(t=>(
-          <button key={t} onClick={()=>setDetailTab(t)} className={`px-5 py-2.5 text-sm font-bold rounded-full transition-all ${detailTab===t?"nm-pressed text-[var(--nm-accent)]":"nm-raised text-[var(--nm-text)] hover:nm-pressed"}`} style={{fontFamily:"'Outfit', sans-serif"}}>{t==="prompt"?(selected.type==="prompt"?"System Prompt":"Conv. Flow"):t==="knowledge"?"Knowledge Base":t==="calls"?"Recent Calls":"Configuration"}</button>
-        ))}
-      </div>
-      {detailTab==="config" && (
-        <AgentConfigPanel 
-          agent={selected} 
-          onUpdate={(fields) => setSelected(prev => prev ? { ...prev, ...fields } : null)} 
-          onSaveStatus={setSaveStatus}
-        />
-      )}
-      {detailTab==="prompt" && (
-        <div className="nm-card space-y-4">
-          <DTextarea rows={16} defaultValue={selected.type==="prompt"?`You are a professional AI voice agent for Acme Corp specialising in ${(selected.name as string).toLowerCase()}.\n\nPersona:\n- Warm, clear, professional\n- Never rush the caller\n- Acknowledge concerns before responding\n\nRules:\n- Verify identity before accessing account data\n- Escalate to a human agent if the caller is distressed\n- Keep responses concise (2–3 sentences max)\n\nEscalation triggers:\n"frustrated", "manager", "cancel", "lawsuit" → offer immediate transfer`:"Step 1: Greet → Step 2: Verify → Step 3: Handle intent → Step 4: Confirm & close"}/>
-          <p className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>Changes take effect on the next call.</p>
-          <DBtn size="sm"><Check className="w-3.5 h-3.5"/> Save prompt</DBtn>
-        </div>
-      )}
-      {detailTab==="knowledge" && (
-        <div className="nm-raised rounded-2xl overflow-hidden mt-6">
-          <table className="w-full"><thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Document","Type","Size","Status","Attached"].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>)}</tr></thead>
-          <tbody className="divide-y divide-transparent">
-            {kbList.map(k=>(
-              <tr key={k.id} className="hover:nm-pressed transition-all">
-                <td className="px-5 py-4 text-base font-bold text-[var(--nm-text)] max-w-[200px] truncate" style={{fontFamily:"'Outfit', sans-serif"}}>{k.name}</td>
-                <td className="px-5 py-4"><DBadge>{(k.name.split('.').pop() ?? 'TXT').toUpperCase()}</DBadge></td>
-                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{(k.sizeChars/1024).toFixed(1)} KB</td>
-                <td className="px-5 py-4"><DBadge v="success"><SDot status="ready"/> ready</DBadge></td>
-                <td className="px-5 py-4"><DToggle on={(selected.kb as string[] || []).includes(k.id)} set={async (attached)=>{
-                  try {
-                    if (attached) {
-                      await apiClient.post(`/api/v2/knowledge-base/${k.id}/assign`, { agentId: selected.id });
-                    } else {
-                      await apiClient.post(`/api/v2/knowledge-base/${k.id}/unassign`, { agentId: selected.id });
-                    }
-                    setSelected(prev => {
-                      if (!prev) return null;
-                      const currentKb = (prev.kb as string[] || []);
-                      const nextKb = attached ? [...currentKb, k.id] : currentKb.filter(id => id !== k.id);
-                      return { ...prev, kb: nextKb };
-                    });
-                    const refreshedList = await fetchKBList();
-                    setKbList(refreshedList);
-                  } catch (err) {
-                    console.error("Failed to toggle agent knowledge base link", err);
-                  }
-                }}/></td>
-              </tr>
-            ))}
-            {kbList.length === 0 && (
-              <tr>
-                <td colSpan={5} className="text-center p-8 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>NO DOCUMENTS ATTACHED YET.</td>
-              </tr>
-            )}
-          </tbody></table>
-        </div>
-      )}
-      {detailTab==="calls" && (
-        <div className="nm-raised rounded-2xl overflow-hidden mt-6">
-          <table className="w-full"><thead><tr className="border-b border-transparent text-[var(--nm-text)]">{["Caller","Duration","Result","Sentiment","Date"].map(h=><th key={h} className="text-left px-5 py-4 text-xs font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{h.toUpperCase()}</th>)}</tr></thead>
-          <tbody className="divide-y divide-transparent">
-            {allCalls.filter(c => c.agentId === selected.id || c.agent?.name === selected.name).slice(0, 10).map((c, idx) => (
-              <tr key={c.id || idx} className="hover:nm-pressed transition-all">
-                <td className="px-5 py-4 text-base font-bold text-[var(--nm-text)] font-mono" style={{fontFamily:"'Outfit', sans-serif"}}>{c.phoneNumber || 'Anonymous'}</td>
-                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.duration != null ? `${Math.floor(c.duration/60)}m ${c.duration%60}s` : '0s'}</td>
-                <td className="px-5 py-4"><DBadge v={c.status==="completed"?"success":"warning"}>{c.status === "completed" ? "Completed" : c.status}</DBadge></td>
-                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.sentiment || 'Neutral'}</td>
-                <td className="px-5 py-4 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{c.createdAt ? formatDateTime(c.createdAt, { showZone: true }) : '—'}</td>
-              </tr>
-            ))}
-            {allCalls.filter(c => c.agentId === selected.id || c.agent?.name === selected.name).length === 0 && (
-              <tr>
-                <td colSpan={5} className="text-center p-8 text-sm font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>
-                  NO CALL TELEMETRY RECORDED FOR THIS AGENT YET.
-                </td>
-              </tr>
-            )}
-          </tbody></table>
-        </div>
-      )}
-      {/* ── Caller ID & Dialer Picker Modal ── */}
-      {showPicker && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-border rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex justify-between items-center pb-2 border-b border-border">
-              <h3 className="text-base font-semibold text-foreground flex items-center gap-2" style={{fontFamily:"'Outfit', sans-serif"}}>
-                <PhoneCall className="w-5 h-5 text-muted-foreground"/> Test Voice Agent
-              </h3>
-              <button onClick={() => setShowPicker(false)} className="text-muted-foreground hover:text-foreground">
-                <X className="w-5 h-5"/>
-              </button>
-            </div>
-
-            {pickerError ? (
-              <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0"/>
-                <p>{pickerError}</p>
-              </div>
-            ) : null}
-
-            {/* Selection buttons */}
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowPicker(false);
-                  startSandbox();
-                }}
-                className="border border-border rounded-xl p-4 text-center hover:border-foreground/30 hover:bg-muted/10 transition-all flex flex-col items-center gap-2"
-              >
-                <Headphones className="w-8 h-8 text-muted-foreground"/>
-                <div>
-                  <p className="text-xs font-semibold" style={{fontFamily:"'Outfit', sans-serif"}}>Desktop Browser</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Test instantly in-browser</p>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  // Allow clicking only if numbers list contains entries
-                  if (numbersList.length > 0) {
-                    // Handled conditionally below
-                  }
-                }}
-                className={`border rounded-xl p-4 text-center transition-all flex flex-col items-center gap-2 ${
-                  numbersList.length === 0 ? "opacity-50 cursor-not-allowed border-dashed border-border" : "border-border hover:border-foreground/30 hover:bg-muted/10"
-                }`}
-                disabled={numbersList.length === 0}
-              >
-                <Phone className="w-8 h-8 text-muted-foreground"/>
-                <div>
-                  <p className="text-xs font-semibold" style={{fontFamily:"'Outfit', sans-serif"}}>Live Phone Call</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Test on a mobile device</p>
-                </div>
-              </button>
-            </div>
-
-            {/* Live call dialer options */}
-            {numbersList.length === 0 ? (
-              <div className="bg-amber-50/50 border border-amber-200/60 rounded-xl p-4 space-y-2">
-                <div className="flex items-start gap-2.5 text-amber-800">
-                  <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0"/>
-                  <div className="text-xs space-y-1">
-                    <p className="font-semibold" style={{fontFamily:"'Outfit', sans-serif"}}>No Active Numbers Found</p>
-                    <p className="text-amber-700/90 leading-relaxed">No active phone numbers found in this workspace. Please provision a business number under the 'Phone Numbers' tab or use Desktop Testing mode.</p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3 pt-2">
-                <DField label="Caller ID (Outgoing Number)">
-                  <DSelect value={selectedNumber} onChange={(e) => setSelectedNumber(e.target.value)}>
-                    {numbersList.map((num) => (
-                      <option key={num.id} value={num.phoneNumber}>
-                        {num.phoneNumber} {num.agent ? `(${num.agent.name})` : ''}
-                      </option>
-                    ))}
-                  </DSelect>
-                </DField>
-
-                <DField label="Destination Phone Number">
-                  <DInput
-                    placeholder="e.g. +1234567890"
-                    value={destinationPhone}
-                    onChange={(e) => setDestinationPhone(e.target.value)}
-                  />
-                </DField>
-
-                <DBtn
-                  onClick={handleLaunchLiveCall}
-                  className="w-full"
-                  disabled={!destinationPhone || testCallStatus === 'calling'}
-                >
-                  {testCallStatus === 'calling' ? 'Launching...' : 'Launch Call'}
-                </DBtn>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── Persistent Right-Hand Audio Sandbox Drawer ── */}
-      {sandboxOpen && (
-        <div className="fixed inset-0 bg-black/10 backdrop-blur-[1px] z-40 flex justify-end">
-          {/* Back click overlay to stop sandbox */}
-          <div className="absolute inset-0" onClick={stopSandbox} />
-          
-          <div className="relative w-full max-w-md bg-white border-l border-border h-full shadow-2xl flex flex-col z-50">
-            {/* Header */}
-            <div className="p-4 border-b border-border flex justify-between items-center bg-muted/20">
-              <div className="flex items-center gap-2.5">
-                <div className="relative">
-                  <div className="w-8 h-8 rounded-lg bg-foreground/5 flex items-center justify-center">
-                    <Headphones className="w-4 h-4 text-foreground"/>
-                  </div>
-                  {sandboxActive && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full animate-ping"/>
-                  )}
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>Desktop Testing Sandbox</p>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className={`w-1.5 h-1.5 rounded-full ${sandboxStatus === 'connected' ? 'bg-emerald-500 animate-pulse' : sandboxStatus === 'connecting' ? 'bg-amber-500 animate-pulse' : 'bg-muted-foreground'}`}/>
-                    <span className="text-[10px] text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>
-                      {sandboxStatus === 'connected' ? 'Connected' : sandboxStatus === 'connecting' ? 'Connecting...' : sandboxStatus === 'disconnected' ? 'Disconnected' : 'Offline'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {sandboxLatency !== null && (
-                  <div className="flex items-center gap-1 bg-foreground/[0.03] px-2 py-1 rounded-md text-[10px] text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>
-                    <Activity className="w-3 h-3 text-muted-foreground"/> {sandboxLatency}ms latency
-                  </div>
-                )}
-                <button onClick={stopSandbox} className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-muted/80 transition-colors">
-                  <X className="w-5 h-5"/>
-                </button>
-              </div>
-            </div>
-
-            {/* Transcript scroll pane */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/5">
-              {sandboxError && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2 text-xs text-red-600 font-medium animate-in fade-in slide-in-from-top-2 duration-200" style={{fontFamily:"'Outfit', sans-serif"}}>
-                  <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-red-500" />
-                  <div className="flex-1">
-                    <p className="font-semibold mb-0.5">Sandbox Error</p>
-                    <p className="opacity-90">{sandboxError}</p>
-                  </div>
-                </div>
-              )}
-
-              {sandboxTranscript.map((msg, i) => (
-                <div
-                  key={i}
-                  className={`flex ${msg.speaker === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-xs shadow-sm ${
-                    msg.speaker === 'user'
-                      ? 'bg-foreground text-white rounded-tr-none'
-                      : 'bg-white border border-border text-foreground rounded-tl-none'
-                  }`} style={{fontFamily:"'Outfit', sans-serif", lineHeight: 1.4}}>
-                    <p className="font-semibold text-[9px] uppercase tracking-wider mb-1 opacity-70">
-                      {msg.speaker === 'user' ? 'You' : 'Agent'}
-                    </p>
-                    <p className="whitespace-pre-wrap">{msg.text}</p>
-                  </div>
-                </div>
-              ))}
-              <div ref={scrollRef} />
-            </div>
-
-            {/* Live telemetry VAD visualizer & controls footer */}
-            <div className="p-4 border-t border-border bg-white space-y-3 shadow-md">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-muted-foreground uppercase font-semibold" style={{fontFamily:"'Outfit', sans-serif"}}>Microphone Pipeline</span>
-                <SoundWave active={sandboxActive} bars={16} className="h-4"/>
-              </div>
-
-              <div className="flex gap-2">
-                {sandboxActive ? (
-                  <button
-                    onClick={stopSandbox}
-                    className="w-full py-2 px-4 rounded-xl text-xs font-semibold bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-colors flex items-center justify-center gap-1.5"
-                    style={{fontFamily:"'Outfit', sans-serif"}}
-                  >
-                    <StopCircle className="w-4 h-4"/> Stop Session
-                  </button>
-                ) : (
-                  <button
-                    onClick={startSandbox}
-                    className="w-full py-2 px-4 rounded-xl text-xs font-semibold bg-foreground text-white hover:bg-foreground/90 transition-colors flex items-center justify-center gap-1.5"
-                    style={{fontFamily:"'Outfit', sans-serif"}}
-                  >
-                    <Mic className="w-4 h-4"/> Restart Session
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  // (An agent "detail" view that could not be opened — fake sample prompt, Save without a handler — was removed, audit #142.)
 
   const applyTemplate = (tpl: AgentTemplate) => {
     if (tpl.type === 'conversational' || tpl.flowGraph) {
@@ -3849,8 +3120,6 @@ function DashNumbers({ profile, onNavigateToBilling, onNavigateToKyc }: { profil
   const [liveAgents, setLiveAgents] = useState<ApiAgent[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'list' | 'buy'>('list');
-  const [purchaseLoading, setPurchaseLoading] = useState<string | null>(null);
-  const [buyAgentId, setBuyAgentId] = useState<string>("");
   const [realCallModal, setRealCallModal] = useState<{ open: boolean; agentId?: string; fromNumber?: string }>({ open: false });
 
 
@@ -3883,100 +3152,8 @@ function DashNumbers({ profile, onNavigateToBilling, onNavigateToKyc }: { profil
     fetchAgents().then(setLiveAgents).catch(() => {});
   }, [loadNumbers]);
 
-  const handlePurchase = async (num: any) => {
-    setPurchaseLoading(num.e164);
-    try {
-      // 1. Create Order — the server prices the number from the carrier inventory.
-      const orderRes = await apiClient.post('/api/v2/numbers/create-order', {
-        vobizNumberId: num.number_id,
-      });
-      if (!orderRes.data?.success) throw new Error((orderRes.data as any)?.error || 'Order creation failed');
-      
-      const order = orderRes.data.data;
-
-      if (order.mock && order.mockPayment) {
-        // Local development/test only (the server never issues mock orders in production).
-        await completeNumberPurchase(num.number_id, order.id, order.mockPayment.paymentId, order.mockPayment.signature);
-      } else {
-        // Real Razorpay Flow
-        if (!window.Razorpay) throw new Error('Payment system not loaded. Please disable adblockers and refresh.');
-        
-        const razorpayKey = order.keyId || order.key || import.meta.env.VITE_RAZORPAY_KEY_ID;
-        if (!razorpayKey) throw new Error('Payments are not available right now. Please try again later.');
-        const razorpayOrderId = order.orderId || order.id;
-
-        const options = {
-          key: razorpayKey,
-          amount: order.amount,
-          currency: order.currency,
-          name: 'Claritiy Voice',
-          description: `Phone Number Subscription`,
-          order_id: razorpayOrderId,
-          prefill: { email: '' },
-          handler: async function (response: any) {
-            try {
-              await completeNumberPurchase(
-                num.number_id,
-                response.razorpay_order_id, 
-                response.razorpay_payment_id, 
-                response.razorpay_signature
-              );
-            } catch (err: any) {
-              alert('Failed to complete purchase: ' + err.message);
-            }
-          },
-          modal: { ondismiss: function() { setPurchaseLoading(null); } },
-          theme: { color: '#059669' }
-        };
-
-        const paymentObject = new window.Razorpay(options);
-        paymentObject.on('payment.failed', function (response: any) {
-          alert(`Payment failed: ${response.error.description || 'Unknown error'}`);
-          setPurchaseLoading(null);
-        });
-        paymentObject.open();
-      }
-    } catch (e: any) {
-      console.error(e);
-      alert('Failed to initialize purchase: ' + (e?.message));
-      setPurchaseLoading(null);
-    }
-  };
 
   // The paid amount is confirmed by the server with the payment gateway; no price is sent from here.
-  const completeNumberPurchase = async (vobizNumberId: string, orderId: string, paymentId: string, signature: string) => {
-    try {
-      const purchaseRes = await apiClient.post('/api/v2/numbers/purchase', {
-        vobizNumberId,
-        orderId,
-        paymentId,
-        signature,
-        agentId: buyAgentId || undefined,
-      });
-
-      if (purchaseRes.data?.success) {
-        setViewMode('list');
-        await loadNumbers();
-        // Check if onboarding/KYC is required
-        if (purchaseRes.data.data.status === 'KYC Required' || purchaseRes.data.data.kycStatus === 'pending') {
-          if (onNavigateToKyc) {
-            onNavigateToKyc();
-          } else {
-            alert('KYC verification required. Please navigate to Settings > KYC & Compliance.');
-          }
-        } else {
-          alert('Phone number purchased and assigned successfully!');
-        }
-      } else {
-        throw new Error((purchaseRes.data as any)?.error || 'Purchase failed');
-      }
-    } catch (e: any) {
-      console.error(e);
-      alert('Failed to finalize purchase: ' + (e?.message));
-    } finally {
-      setPurchaseLoading(null);
-    }
-  };
 
   const [deleteModal, setDeleteModal] = useState<{ open: boolean, id: string }>({ open: false, id: '' });
   async function performDelete(id: string) {
@@ -4809,7 +3986,7 @@ const getPreviewUrl = (voiceId: string, nation: string, language: string) => {
 };
 
 function DashVoices({ apiAgents = [], setApiAgents }: { apiAgents?: ApiAgent[]; setApiAgents?: React.Dispatch<React.SetStateAction<ApiAgent[]>> }) {
-  const [voices, setVoices] = useState([...VOICES_SEED]);
+  const [voices] = useState([...VOICES_SEED]);
   const [voiceFilter, setVoiceFilter] = useState<"all"|"builtin"|"clone">("all");
   const [selectedConfigAgentId, setSelectedConfigAgentId] = useState("");
   const [configSaveStatus, setConfigSaveStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
@@ -5139,7 +4316,6 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
     return "workspace";
   });
   const [kycOverallStatus, setKycOverallStatus] = useState<string>('pending');
-  const [numbersList, setNumbersList] = useState<any[]>([]);
   const [team, setTeam] = useState<any[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'admin' | 'developer' | 'analyst' | 'viewer'>('viewer');
@@ -5158,26 +4334,6 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
   const canManageTeam = !profile?.workspaceRole || profile.workspaceRole === 'admin' || profile.workspaceRole === 'owner';
 
   // Workspace Settings State (Hydrated from localStorage)
-  const [wsName, setWsName] = useState(() => {
-    try {
-      const s = localStorage.getItem('workspace_settings');
-      if (s) {
-        const parsed = JSON.parse(s);
-        if (parsed.wsName) return parsed.wsName;
-      }
-    } catch {}
-    return profile?.fullName ?? "Claritiy Voice Workspace";
-  });
-  const [billingEmail, setBillingEmail] = useState(() => {
-    try {
-      const s = localStorage.getItem('workspace_settings');
-      if (s) {
-        const parsed = JSON.parse(s);
-        if (parsed.billingEmail) return parsed.billingEmail;
-      }
-    } catch {}
-    return profile?.email ?? "billing@claritiy.com";
-  });
   const [timezone, setTimezone] = useState(() => {
     try {
       const s = localStorage.getItem('workspace_settings');
@@ -5187,31 +4343,6 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
       }
     } catch {}
     return "Asia/Kolkata";
-  });
-  const [defaultNumberId, setDefaultNumberId] = useState(() => {
-    try {
-      const s = localStorage.getItem('workspace_settings');
-      if (s) {
-        const parsed = JSON.parse(s);
-        if (parsed.defaultNumberId) return parsed.defaultNumberId;
-      }
-    } catch {}
-    return "";
-  });
-  const [toggles, setToggles] = useState<Record<string, boolean>>(() => {
-    try {
-      const s = localStorage.getItem('workspace_settings');
-      if (s) {
-        const parsed = JSON.parse(s);
-        if (parsed.toggles) return parsed.toggles;
-      }
-    } catch {}
-    return {
-      recording: true,
-      transcription: true,
-      sentiment: true,
-      summary: true,
-    };
   });
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
@@ -5255,94 +4386,14 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
   };
 
   // Concurrency Limit State
-  const [softConcurrencyLimit, setSoftConcurrencyLimit] = useState<number>(10);
-  const [concurrencySaveStatus, setConcurrencySaveStatus] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchConcurrencyTelemetry().then(res => {
-      if (res && res.softLimit) setSoftConcurrencyLimit(res.softLimit);
-    }).catch(() => {});
-  }, []);
 
-  const handleConcurrencySelect = (limitVal: number) => {
-    updateConcurrencyLimit(limitVal).then(res => {
-      setSoftConcurrencyLimit(res.softLimit);
-      setConcurrencySaveStatus(res.message);
-      setTimeout(() => setConcurrencySaveStatus(null), 3000);
-    }).catch(err => {
-      alert(err?.message || "Failed to update concurrency limit");
-    });
-  };
 
   // IP Allowlist State
-  const [allowedIpRanges, setAllowedIpRanges] = useState<string[]>([]);
-  const [ipInputText, setIpInputText] = useState("");
-  const [ipSaveStatus, setIpSaveStatus] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchIpAllowlist().then(res => {
-      if (res && Array.isArray(res.allowedIpRanges)) {
-        setAllowedIpRanges(res.allowedIpRanges);
-        setIpInputText(res.allowedIpRanges.join('\n'));
-      }
-    }).catch(() => {});
-  }, []);
 
-  const handleSaveIpAllowlist = () => {
-    const ranges = ipInputText
-      .split(/[\n,]/)
-      .map(r => r.trim())
-      .filter(Boolean);
-
-    updateIpAllowlist(ranges).then(res => {
-      setAllowedIpRanges(res.allowedIpRanges);
-      setIpSaveStatus(res.message || "IP allowlist updated successfully.");
-      setTimeout(() => setIpSaveStatus(null), 4000);
-    }).catch(err => {
-      alert(err?.message || "Failed to update IP allowlist");
-    });
-  };
 
   // Webhooks State (Hydrated from localStorage)
-  const [webhook, setWebhook] = useState(() => {
-    try {
-      const s = localStorage.getItem('webhook_settings');
-      if (s) {
-        const parsed = JSON.parse(s);
-        if (parsed.webhook) return parsed.webhook;
-      }
-    } catch {}
-    return "https://hooks.acmecorp.com/aivoice";
-  });
-  const [signingSecret, setSigningSecret] = useState(() => {
-    try {
-      const s = localStorage.getItem('webhook_settings');
-      if (s) {
-        const parsed = JSON.parse(s);
-        if (parsed.signingSecret) return parsed.signingSecret;
-      }
-    } catch {}
-    return "whsec_live_3847291048209384";
-  });
-  const [copiedSecret, setCopiedSecret] = useState(false);
-  const [events, setEvents] = useState<Record<string, boolean>>(() => {
-    try {
-      const s = localStorage.getItem('webhook_settings');
-      if (s) {
-        const parsed = JSON.parse(s);
-        if (parsed.events) return parsed.events;
-      }
-    } catch {}
-    return {
-      "call.started": true,
-      "call.ended": true,
-      "call.transferred": true,
-      "call.recording_ready": true,
-      "campaign.completed": true,
-      "agent.error": true,
-    };
-  });
-  const [webhookStatus, setWebhookStatus] = useState<string | null>(null);
 
   useEffect(() => {
     apiClient.get('/api/v2/team').then(res => {
@@ -5393,16 +4444,6 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
     }
   };
 
-  useEffect(() => {
-    apiClient.get('/api/v2/numbers').then((res) => {
-      if (res.data?.success && Array.isArray(res.data.data)) {
-        setNumbersList(res.data.data);
-        if (res.data.data.length > 0) {
-          setDefaultNumberId(res.data.data[0].id);
-        }
-      }
-    }).catch(() => {});
-  }, []);
 
   const handleSaveWorkspace = () => {
     try {
@@ -5415,21 +4456,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
     }
   };
 
-  const handleSaveWebhook = () => {
-    try {
-      localStorage.setItem('webhook_settings', JSON.stringify({ webhook, signingSecret, events }));
-      setWebhookStatus("Webhook configuration saved and test ping sent successfully!");
-      setTimeout(() => setWebhookStatus(null), 3000);
-    } catch (e) {
-      setWebhookStatus("Failed to save webhooks.");
-    }
-  };
 
-  const handleCopySecret = () => {
-    navigator.clipboard.writeText(signingSecret);
-    setCopiedSecret(true);
-    setTimeout(() => setCopiedSecret(false), 2000);
-  };
 
   const tabConfig: { id: "workspace"|"kyc"|"api"|"webhooks"|"team"; label: string; icon: any; badge?: React.ReactNode }[] = [
     { id: "workspace", label: "General & Voice", icon: Sliders },
@@ -6510,7 +5537,6 @@ function DashboardPage({ session }: { session: Session }) {
     );
   }
 
-  const isViewer = profile?.workspaceRole === 'viewer';
   const navGroups = [
     {
       label: "WORKSPACE",
@@ -6743,7 +5769,6 @@ export default function App() {
     return match ? match[1] : null;
   });
 
-  const [agentId, setAgentId] = useState<string | null>(null);
 
   // Sync state with browser back/forward buttons
   useEffect(() => {

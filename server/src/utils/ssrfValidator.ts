@@ -12,7 +12,7 @@ export function isPrivateOrReservedIPv4(ip: string): { isPrivate: boolean; reaso
     return { isPrivate: true, reason: 'Malformed IPv4 address' };
   }
 
-  const [a, b, c, d] = parts;
+  const [a, b, c] = parts;
 
   // 0.0.0.0/8 — Current network (only valid as source)
   if (a === 0) {

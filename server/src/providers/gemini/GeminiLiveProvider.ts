@@ -14,15 +14,12 @@
 
 import WebSocket from 'ws';
 import { logger } from '../../utils/logger';
-import { ProviderError } from '../../types/errors';
 import { CallError } from '../../utils/CallError';
 import { env } from '../../config/env';
 import { ADMIN_EMAIL } from '../../config/constants';
 import { resolveLiveModel, DEFAULT_LIVE_MODEL, UNIVERSAL_FALLBACK_LIVE_MODEL } from '../../utils/modelResolver';
 import { isGemini38Live } from '../../config/geminiModels';
 import { callTimingTracker } from '../../utils/CallTimingTracker';
-import { injectVoicePersonaDirective } from '../../utils/personaPrompt';
-import { deduplicateSystemPrompt } from '../../utils/promptOptimizer';
 import { buildFinalSystemInstruction } from '../../utils/systemInstructionBuilder';
 import { getCallableSecondsRemaining } from '../../utils/balanceUtils';
 import { EncryptionService } from '../../utils/EncryptionService';
@@ -496,7 +493,6 @@ export class GeminiLiveProvider implements IRealtimeProvider {
 
           if (!sessionCallStartTime.value) return;
           const elapsedSeconds = (Date.now() - sessionCallStartTime.value) / 1000;
-          const elapsedMinutes = elapsedSeconds / 60;
 
           const currentUser = await prismaInstance.user.findUnique({
             where: { id: userId }

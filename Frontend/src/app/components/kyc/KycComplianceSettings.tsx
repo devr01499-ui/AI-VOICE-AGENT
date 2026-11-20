@@ -3,7 +3,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { apiClient, KycDigiLockerInitiateData } from '../../api';
 import {
   ShieldCheck,
-  ShieldAlert,
   Clock,
   CheckCircle2,
   AlertCircle,
@@ -14,7 +13,6 @@ import {
   Building,
   CreditCard,
   UserCheck,
-  X,
 } from 'lucide-react';
 
 export interface KycDocData {

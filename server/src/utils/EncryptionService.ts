@@ -1,6 +1,5 @@
 import crypto from 'crypto';
 import { env } from '../config/env';
-import { getWebhookSigningSecret } from './security';
 import { logger } from './logger';
 
 let encryptionKeyWarned = false;

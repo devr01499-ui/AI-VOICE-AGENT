@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Play, Pause, Volume2, Sparkles, User, Check, ArrowRight, Mic } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { Play, Pause, Volume2, Sparkles, User, ArrowRight } from "lucide-react";
+import { motion } from "motion/react";
 
 interface VoiceGalleryProps {
   setPage: (p: any) => void;

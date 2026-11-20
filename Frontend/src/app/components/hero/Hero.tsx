@@ -1,11 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
-  ArrowRight, Zap, Shield, Globe, Phone, Play, 
-  CheckCircle2, Cpu, Activity, Database, Lock, 
-  Sparkles, Layers, RefreshCw, Volume2, ArrowUpRight,
-  Radio, Server, ShieldCheck, FileText, FastForward, Sliders, Check
-} from "lucide-react";
+  ArrowRight, Zap, Globe, Phone, Play, 
+  Activity, Database, Lock, 
+  Radio} from "lucide-react";
 import Lottie from "lottie-react";
 import { voiceOrbLottieData } from "../animation/lottieVoiceData";
 

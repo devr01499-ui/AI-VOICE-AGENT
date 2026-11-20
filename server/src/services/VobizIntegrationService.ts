@@ -80,6 +80,7 @@ export class VobizIntegrationService {
 
     if (!response.ok) {
       logger.error(`VobizIntegrationService: Provider Error [${response.status}]`, {
+        durationMs: duration,
         url,
         providerRequestId,
         error: responseData

@@ -1,6 +1,6 @@
 import { formatDateTime } from '../../lib/dateFormat';
-import React, { useState, useEffect } from 'react';
-import { Search, MessageSquare, Calendar, Filter, User, ArrowUpRight, ArrowDownLeft, ChevronRight, X, Clock, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, MessageSquare, ArrowUpRight, ArrowDownLeft, ChevronRight, X, RefreshCw } from 'lucide-react';
 import { apiClient } from '../../api';
 
 interface ChatMessage {

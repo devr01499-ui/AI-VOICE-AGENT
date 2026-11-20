@@ -9,12 +9,10 @@ import {
   AlertCircle, 
   Copy, 
   Radio, 
-  Activity, 
   Mic, 
   Disc, 
   ExternalLink, 
   RotateCcw,
-  Sparkles,
   Bot
 } from 'lucide-react';
 import { 
@@ -25,7 +23,6 @@ import {
   getCallStatus, 
   getLiveTranscriptWsUrl, 
   requestTranscriptTicket, 
-  type ApiCall, 
   type ApiAgent 
 } from '../../api';
 import { apiClient } from '../../api';
@@ -349,7 +346,6 @@ export function RealCallModal({
   if (!open) return null;
 
   const currentAgent = availableAgents.find((a) => a.id === selectedAgentId);
-  const currentNumberObj = availableNumbers.find((n) => n.phoneNumber === selectedFromNumber);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fadeIn">

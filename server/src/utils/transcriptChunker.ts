@@ -29,7 +29,6 @@ export function chunkTranscriptTurns(
   const chunks: TranscriptChunk[] = [];
   let currentTurns: SanitizedTranscriptTurn[] = [];
   let currentLength = 0;
-  let startIndex = 0;
 
   for (let i = 0; i < turns.length; i++) {
     const turn = turns[i];

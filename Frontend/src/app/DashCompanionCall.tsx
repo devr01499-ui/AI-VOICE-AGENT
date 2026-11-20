@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { chatWithAgent } from "./api";
 import { PhoneOff, Mic, MicOff, Loader2, Bot } from "lucide-react";
 

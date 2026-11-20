@@ -7,7 +7,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import type { Request, Response, NextFunction } from 'express';
-import { Agent } from '@prisma/client';
 import { AgentRepository } from '../repositories/AgentRepository';
 import { validateParams, validateQuery } from '../middleware/validation';
 import { prisma } from '../lib/prisma';

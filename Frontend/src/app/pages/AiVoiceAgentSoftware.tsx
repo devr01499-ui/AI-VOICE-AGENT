@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { useState, useEffect } from "react";
 import { 
-  Phone, Zap, Shield, Sparkles, CheckCircle2, ArrowRight, Activity, 
-  Layers, Volume2, Play, Pause, RefreshCw, Lock, Terminal, Sliders, 
-  ChevronRight, Headphones, Radio, Network, Server, FileCode, Check,
-  Bot, Clock, TrendingUp, Users, HeartPulse, ShoppingBag, Landmark, 
-  Building2, MessageSquare, AlertCircle, HelpCircle, Code2, Globe2
+  Zap, Shield, CheckCircle2, ArrowRight, 
+  Play, Pause, Terminal, 
+  ChevronRight, Network, Check,
+  Bot, HeartPulse, ShoppingBag, Landmark, 
+  HelpCircle, Globe2
 } from "lucide-react";
 import { PUBLIC_PLANS, effectiveRate } from '../lib/plans';
 

@@ -1,9 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
-import { env } from '../config/env';
 import crypto from 'crypto';
-import { ProviderError } from '../types/errors';
 import { CallService } from '../services/CallService';
 import { CallRepository } from '../repositories/CallRepository';
 import { CallFinalizer } from '../services/CallFinalizer';

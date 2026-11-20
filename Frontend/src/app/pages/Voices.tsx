@@ -1,10 +1,8 @@
 import { motion } from "motion/react";
-import React, { useState } from "react";
 import VoiceGallery from "../components/audio/VoiceGallery";
 import { 
-  Mic, Globe, Sparkles, Volume2, AudioWaveform, ShieldCheck, ArrowRight,
-  Cpu, Sliders, CheckCircle2, Play, Radio, Activity, Music, Waves
-} from "lucide-react";
+  ArrowRight,
+  Activity} from "lucide-react";
 
 type Page = any;
 

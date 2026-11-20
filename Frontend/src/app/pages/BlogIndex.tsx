@@ -1,8 +1,8 @@
-import React, { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { useState } from "react";
+import { motion } from "motion/react";
 import { 
-  ArrowLeft, Clock, User, Tag, Sparkles, BookOpen, 
-  ArrowRight, Search, CheckCircle2, Send, ShieldCheck, Code2, Eye
+  ArrowLeft, Clock, User, Tag, BookOpen, 
+  ArrowRight, Send, Code2, Eye
 } from "lucide-react";
 
 type Page = any;

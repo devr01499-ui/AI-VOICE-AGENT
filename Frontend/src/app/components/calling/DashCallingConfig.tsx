@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { PhoneCall, PhoneIncoming, PhoneOutgoing, Bot, CheckCircle2, AlertCircle, Clock, ShieldCheck, RefreshCw } from 'lucide-react';
+import { PhoneCall, PhoneIncoming, PhoneOutgoing, CheckCircle2, Clock, ShieldCheck, RefreshCw } from 'lucide-react';
 import { apiClient } from '../../api';
 import { RealCallModal } from '../calls/RealCallModal';
 
