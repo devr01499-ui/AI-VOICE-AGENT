@@ -112,8 +112,8 @@ export function DashAlerting() {
         notificationWebhookUrl: '',
       });
       fetchAlertData();
-    } catch {
-      alert('Failed to create alert rule');
+    } catch (err: any) {
+      alert(err?.message || 'Failed to create alert rule');
     } finally {
       setSubmitting(false);
     }
@@ -125,8 +125,8 @@ export function DashAlerting() {
         enabled: !rule.enabled,
       });
       fetchAlertData();
-    } catch {
-      alert('Failed to toggle rule');
+    } catch (err: any) {
+      alert(err?.message || 'Failed to toggle rule');
     }
   };
 
@@ -135,8 +135,8 @@ export function DashAlerting() {
     try {
       await apiClient.delete(`/api/v2/alerting/rules/${ruleId}`);
       fetchAlertData();
-    } catch {
-      alert('Failed to delete rule');
+    } catch (err: any) {
+      alert(err?.message || 'Failed to delete rule');
     }
   };
 
@@ -145,8 +145,8 @@ export function DashAlerting() {
       setEvaluating(true);
       await apiClient.post('/api/v2/alerting/evaluate-now');
       await fetchAlertData();
-    } catch {
-      alert('Failed to run manual alert evaluation pass');
+    } catch (err: any) {
+      alert(err?.message || 'Failed to run manual alert evaluation pass');
     } finally {
       setEvaluating(false);
     }
@@ -157,7 +157,7 @@ export function DashAlerting() {
       call_volume: 'Call Volume',
       error_rate: 'Error Rate (%)',
       success_rate: 'Success Rate (%)',
-      cost: 'Total Spend ($)',
+      cost: 'Billed Minutes',
       sentiment_score: 'Positive Sentiment (%)',
     }[m] || m;
   };
@@ -424,7 +424,7 @@ export function DashAlerting() {
                     <option value="call_volume">Call Volume</option>
                     <option value="error_rate">Error Rate (%)</option>
                     <option value="success_rate">Success Rate (%)</option>
-                    <option value="cost">Total Spend ($)</option>
+                    <option value="cost">Billed Minutes</option>
                     <option value="sentiment_score">Positive Sentiment (%)</option>
                   </select>
                 </div>

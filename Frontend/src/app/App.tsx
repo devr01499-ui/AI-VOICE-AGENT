@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspens
 import { supabase } from "./lib/supabaseClient";
 import AuthGateway from "./components/auth/AuthGateway";
 import { readPendingPlan, clearPendingPlan } from "./lib/pendingPlan";
+import { planDisplayName } from "./lib/planNames";
 import { Session } from "@supabase/supabase-js";
 import { ApiKeyManagement } from './components/settings/ApiKeyManagement';
 import AgentConfigPanel from "./components/agents/AgentConfigPanel";
@@ -1655,7 +1656,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
         alert((response.data as any)?.error || `Failed to delete agent`);
       }
     } catch (err: any) {
-      alert(`Failed to delete agent: ${err?.response?.data?.error || err.message}`);
+      alert(`Failed to delete agent: ${err?.message}`);
     }
   }
 
@@ -3219,12 +3220,12 @@ function DashCallLogs() {
     }).catch(() => {});
   }, []);
 
-  // Connect to live WebSocket transcript if the opened call is active
+  // Connect to live WebSocket transcript if the opened call is active. Keyed on "is the opened call
+  // live" rather than the whole live-calls list, so each refresh of that list does not reconnect.
+  const openCallIsLive = Boolean(transcriptOpen) && liveCalls.some(c => c.id === transcriptOpen && (c.status === 'in_progress' || c.status === 'ringing'));
   useEffect(() => {
     if (!transcriptOpen || !/^[0-9a-f-]{36}$/.test(transcriptOpen)) return;
-
-    const selectedCall = liveCalls.find(c => c.id === transcriptOpen);
-    if (!selectedCall || (selectedCall.status !== 'in_progress' && selectedCall.status !== 'ringing')) return;
+    if (!openCallIsLive) return;
 
     setTranscriptLoading(true);
     setTranscriptError(null);
@@ -3243,10 +3244,30 @@ function DashCallLogs() {
           if (!isCancelled) setTranscriptLoading(false);
         };
 
+        // The server sends one event per turn: { event: 'transcript', turnId, seq, speaker, text, isFinal },
+        // where text is the whole turn so far (audit #85: the page expected a single transcript string,
+        // so live lines never appeared). Turns are kept by id and shown in the order they started.
+        const turns = new Map<string, { seq: number; role: string; text: string }>();
+        let savedLines: { role: string; text: string }[] | null = null;
         ws.onmessage = (event) => {
           try {
             const message = JSON.parse(event.data);
-            if (message && typeof message.transcript === 'string') {
+            if (message && message.event === 'transcript' && message.turnId && typeof message.text === 'string') {
+              const prevTurn = turns.get(String(message.turnId));
+              turns.set(String(message.turnId), {
+                seq: typeof message.seq === 'number' ? message.seq : (prevTurn?.seq ?? turns.size),
+                role: message.speaker === 'agent' ? 'agent' : 'caller',
+                text: message.text,
+              });
+              if (!isCancelled) {
+                const live = Array.from(turns.values()).filter((t) => t.text.trim()).sort((a, b) => a.seq - b.seq).map(({ role, text }) => ({ role, text }));
+                // Lines loaded before connecting (already saved turns) stay above the live ones.
+                setTranscriptText((prev) => {
+                  if (savedLines === null) savedLines = prev;
+                  return [...savedLines, ...live];
+                });
+              }
+            } else if (message && typeof message.transcript === 'string') {
               const lines = message.transcript.split('\n').filter(Boolean);
               setTranscriptText(lines.map((l: string) => ({
                 role: l.startsWith('Agent:') ? 'agent' : 'caller',
@@ -3283,7 +3304,7 @@ function DashCallLogs() {
       isCancelled = true;
       if (activeWs) activeWs.close();
     };
-  }, [transcriptOpen, liveCalls]);
+  }, [transcriptOpen, openCallIsLive]);
 
   function openTranscript(callId: string) {
     setTranscriptOpen(callId);
@@ -3319,6 +3340,8 @@ function DashCallLogs() {
   }
 
   const [currentPage, setCurrentPage] = useState(1);
+  // A new search or filter starts at page 1 (audit #87).
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, directionFilter, statusFilter, agentFilter, dateRangeFilter, batchFilter]);
   const pageSize = 10;
 
   const normalizedRows = liveCalls.map(c => {
@@ -3359,7 +3382,10 @@ function DashCallLogs() {
   });
 
   const totalPages = Math.ceil(normalizedRows.length / pageSize) || 1;
-  const paginatedCalls = normalizedRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  // Never past the last page (audit #87: after a filter shrank the list the table stayed on an
+  // empty page with no way back).
+  const shownPage = Math.min(currentPage, totalPages);
+  const paginatedCalls = normalizedRows.slice((shownPage - 1) * pageSize, shownPage * pageSize);
 
   const [deleteModal, setDeleteModal] = useState<{ open: boolean, id: string }>({ open: false, id: '' });
 
@@ -3376,7 +3402,7 @@ function DashCallLogs() {
         alert((response.data as any)?.error || "Failed to delete call log");
       }
     } catch (err: any) {
-      alert("Failed to delete call log: " + (err?.response?.data?.error || err.message || String(err)));
+      alert("Failed to delete call log: " + (err?.message || String(err)));
     }
   }
 
@@ -3696,13 +3722,13 @@ function DashCallLogs() {
         {normalizedRows.length > pageSize && (
           <div className="flex items-center justify-between px-6 py-4 border-t border-transparent nm-pressed">
             <span className="text-xs font-bold text-[var(--nm-text)]">
-              Showing Page {currentPage} of {totalPages} ({normalizedRows.length} total calls)
+              Showing Page {shownPage} of {totalPages} ({normalizedRows.length} total calls)
             </span>
             <div className="flex gap-2">
-              <DBtn size="sm" variant="secondary" disabled={currentPage === 1} onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}>
+              <DBtn size="sm" variant="secondary" disabled={shownPage === 1} onClick={() => setCurrentPage(Math.max(1, shownPage - 1))}>
                 Previous
               </DBtn>
-              <DBtn size="sm" variant="secondary" disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}>
+              <DBtn size="sm" variant="secondary" disabled={shownPage === totalPages} onClick={() => setCurrentPage(Math.min(totalPages, shownPage + 1))}>
                 Next
               </DBtn>
             </div>
@@ -3874,7 +3900,7 @@ function DashNumbers({ profile, onNavigateToBilling, onNavigateToKyc }: { profil
       }
     } catch (e: any) {
       console.error(e);
-      alert('Failed to initialize purchase: ' + (e?.response?.data?.error || e.message));
+      alert('Failed to initialize purchase: ' + (e?.message));
       setPurchaseLoading(null);
     }
   };
@@ -3908,7 +3934,7 @@ function DashNumbers({ profile, onNavigateToBilling, onNavigateToKyc }: { profil
       }
     } catch (e: any) {
       console.error(e);
-      alert('Failed to finalize purchase: ' + (e?.response?.data?.error || e.message));
+      alert('Failed to finalize purchase: ' + (e?.message));
     } finally {
       setPurchaseLoading(null);
     }
@@ -3929,7 +3955,7 @@ function DashNumbers({ profile, onNavigateToBilling, onNavigateToKyc }: { profil
       }
     } catch (e: any) {
       console.error(e);
-      alert("Failed to delete phone number: " + (e?.response?.data?.error || e?.message || String(e)));
+      alert("Failed to delete phone number: " + (e?.message || String(e)));
     }
   }
 
@@ -4047,6 +4073,7 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
   const [testQueryText, setTestQueryText] = useState("");
   const [testTargetKbId, setTestTargetKbId] = useState("");
   const [testTargetAgentId, setTestTargetAgentId] = useState("");
+  const testTargetDefaultedRef = useRef(false);
   const [testLoading, setTestLoading] = useState(false);
   const [testResult, setTestResult] = useState<KBTestQueryResult | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
@@ -4061,8 +4088,12 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
       if (!quiet) setLoading(true);
       const list = await fetchKBList();
       setDocs(list);
-      if (list.length > 0 && !testTargetKbId) {
-        setTestTargetKbId(list[0].id);
+      // Default the test target to the first document ONCE. This runs on every background refresh,
+      // and choosing an agent clears the document, so it used to switch the test back to
+      // document #1 (audit #98).
+      if (list.length > 0 && !testTargetDefaultedRef.current) {
+        testTargetDefaultedRef.current = true;
+        setTestTargetKbId((prev) => prev || list[0].id);
       }
     } catch (err) {
       console.error("Failed to load knowledge base", err);
@@ -5181,7 +5212,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
       setRetentionSaveStatus(res.message || `Retention policy set to ${pendingRetentionDays} days.`);
       setTimeout(() => setRetentionSaveStatus(null), 4000);
     }).catch(err => {
-      alert(err?.response?.data?.error || "Failed to update retention policy");
+      alert(err?.message || "Failed to update retention policy");
     });
   };
 
@@ -5201,7 +5232,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
       setConcurrencySaveStatus(res.message);
       setTimeout(() => setConcurrencySaveStatus(null), 3000);
     }).catch(err => {
-      alert(err?.response?.data?.error || "Failed to update concurrency limit");
+      alert(err?.message || "Failed to update concurrency limit");
     });
   };
 
@@ -5230,7 +5261,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
       setIpSaveStatus(res.message || "IP allowlist updated successfully.");
       setTimeout(() => setIpSaveStatus(null), 4000);
     }).catch(err => {
-      alert(err?.response?.data?.error || "Failed to update IP allowlist");
+      alert(err?.message || "Failed to update IP allowlist");
     });
   };
 
@@ -5294,7 +5325,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
         alert(res.data?.error || "Failed to invite");
       }
     } catch (err: any) {
-      alert(err?.response?.data?.error || "Failed to invite user");
+      alert(err?.message || "Failed to invite user");
     }
   };
 
@@ -5307,7 +5338,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
         alert(res.data?.error || "Failed to update role");
       }
     } catch (err: any) {
-      alert(err?.response?.data?.error || "Failed to update member role");
+      alert(err?.message || "Failed to update member role");
     }
   };
 
@@ -5320,7 +5351,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
         alert(res.data?.error || "Failed to remove");
       }
     } catch (err: any) {
-      alert(err?.response?.data?.error || "Failed to remove user");
+      alert(err?.message || "Failed to remove user");
     }
   };
 
@@ -5527,7 +5558,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
                   </div>
                 </div>
                 <span className="text-xs font-bold px-3 py-1 bg-mint-primary/20 text-emerald-600 border border-emerald-500/30 rounded-full uppercase tracking-wider">
-                  {(profile as any)?.accountType || 'Growth'} Plan
+                  {planDisplayName((profile as any)?.accountType)} Plan
                 </span>
               </div>
               <div className="nm-pressed rounded-2xl p-5 flex items-center justify-between gap-4">
@@ -6979,7 +7010,7 @@ export default function App() {
           apiClient.post('/api/v2/calendar/link-from-signin', {
             providerRefreshToken
           }).catch((err) => {
-            console.warn('[Calendar Auto-Link] Notice:', err?.response?.data?.error || err.message);
+            console.warn('[Calendar Auto-Link] Notice:', err?.message);
           });
         }
         // A plan chosen while signed out opens checkout right at sign-in, never later on a token

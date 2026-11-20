@@ -127,7 +127,7 @@ export function DashContacts() {
       setIsModalOpen(false);
       fetchContactsList();
     } catch (err: any) {
-      setModalError(err.response?.data?.error || 'Failed to save contact');
+      setModalError(err?.message || 'Failed to save contact');
     } finally {
       setSubmitting(false);
     }

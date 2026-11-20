@@ -157,7 +157,7 @@ export class VobizProvider implements ITelephonyProvider {
 
     throw new ProviderError(
       'vobiz',
-      'Vobiz account not provisioned for this user — complete setup first.'
+      'Calling account not provisioned for this user — complete setup first.'
     );
   }
 

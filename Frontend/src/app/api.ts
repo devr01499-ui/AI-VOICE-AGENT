@@ -968,6 +968,8 @@ export async function updateConcurrencyLimit(maxConcurrentCalls: number): Promis
 export interface ReportListItem {
   id: string;
   callId: string;
+  /** True for a call still waiting for (or in) analysis: no result to open yet. */
+  queued?: boolean;
   blueprintId: string;
   blueprintName?: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';

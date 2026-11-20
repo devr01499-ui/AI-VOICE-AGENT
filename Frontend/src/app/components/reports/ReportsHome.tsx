@@ -474,8 +474,8 @@ function ReportsHomeInner({ userRole = 'owner' }: ReportsHomeProps) {
                   return (
                     <tr
                       key={item.id}
-                      onClick={() => setSelectedCallId(item.callId)}
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 cursor-pointer transition-colors"
+                      onClick={() => { if (!item.queued) setSelectedCallId(item.callId); }}
+                      className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors ${item.queued ? 'cursor-default' : 'cursor-pointer'}`}
                     >
                       {/* Direction */}
                       <td className="p-3.5">
@@ -586,6 +586,11 @@ function ReportsHomeInner({ userRole = 'owner' }: ReportsHomeProps) {
 
                       {/* Action */}
                       <td className="p-3.5 text-right">
+                        {item.queued ? (
+                          <span className="text-[11px] font-semibold text-slate-400" title="The report appears here once analysis finishes.">
+                            {item.status === 'processing' ? 'Analysing…' : 'In queue'}
+                          </span>
+                        ) : (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -595,6 +600,7 @@ function ReportsHomeInner({ userRole = 'owner' }: ReportsHomeProps) {
                         >
                           Inspect <ChevronRight className="w-3.5 h-3.5" />
                         </button>
+                        )}
                       </td>
                     </tr>
                   );

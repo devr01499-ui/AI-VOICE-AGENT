@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma';
+import { scrubCarrierNames } from '../utils/whiteLabel';
 import { logger } from '../utils/logger';
 
 export interface InAppNotification {
@@ -129,8 +130,9 @@ export class NotificationService {
         data: {
           userId: params.userId || null,
           type: params.type,
-          title: params.title,
-          message: params.message,
+          // Customers never see carrier names (audit #95); staff-only alerts (no owner) keep them.
+          title: params.userId ? scrubCarrierNames(params.title) : params.title,
+          message: params.userId ? scrubCarrierNames(params.message) : params.message,
           severity: params.severity || 'info',
           metadata: JSON.stringify(params.metadata || {}),
           isResolved: false,

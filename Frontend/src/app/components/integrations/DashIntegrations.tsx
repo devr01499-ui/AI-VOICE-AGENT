@@ -75,7 +75,7 @@ export function DashIntegrations() {
         alert('Failed to generate Google Calendar authorization link.');
       }
     } catch (err: any) {
-      const errorMsg = err?.response?.data?.message || err?.response?.data?.error || err?.message || 'Failed to initiate Google Calendar connection.';
+      const errorMsg = err?.message || 'Failed to initiate Google Calendar connection.';
       alert(`Google Calendar Setup:\n\n${errorMsg}`);
     } finally {
       setConnecting(false);
@@ -93,7 +93,7 @@ export function DashIntegrations() {
         setTestSlots([]);
       }
     } catch (err: any) {
-      alert(err?.response?.data?.error || 'Failed to query real-time free/busy slots.');
+      alert(err?.message || 'Failed to query real-time free/busy slots.');
     } finally {
       setTestingSlots(false);
     }

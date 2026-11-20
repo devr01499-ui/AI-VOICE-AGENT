@@ -60,7 +60,7 @@ export function GlobalConsentModal({ userEmail, userFullName }: GlobalConsentMod
         setError((res.data as any)?.error || 'Failed to record consent. Please try again.');
       }
     } catch (err: any) {
-      setError(err?.response?.data?.error || err.message || 'Consent recording failed.');
+      setError(err?.message || 'Consent recording failed.');
     } finally {
       setSubmitting(false);
     }

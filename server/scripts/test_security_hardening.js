@@ -284,7 +284,8 @@ async function main() {
     assert.strictEqual(await metric('error_rate'), 50);
     assert.strictEqual(await metric('success_rate'), 50);
     assert.strictEqual(await metric('sentiment_score'), 25);
-    assert.strictEqual(await metric('cost'), 0.15);
+    // "cost" = billed minutes by the billing rule (audit #149): 120 s = 2 min, 60 s = 1 min, unanswered = 0.
+    assert.strictEqual(await metric('cost'), 3);
   });
 
   supabaseClient.auth.getUser = originalGetUser;

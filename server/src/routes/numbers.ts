@@ -615,7 +615,7 @@ router.post('/claim', requireAuth, requireEditor, requirePaidPlan, sensitiveOper
       message = 'Phone number was acquired but carrier assignment failed. Our operations team has been alerted.';
       retryable = true;
     } else if (rawError.includes('SubAccount') || rawError.includes('sub-account') || rawError.includes('subaccount')) {
-      code = 'VOBIZ_SUBACCOUNT_FAILED';
+      code = 'SUBACCOUNT_FAILED';
       message = 'Failed to configure telephony sub-account. Please retry in a few moments.';
       retryable = true;
     } else if (rawError.includes('not found') || rawError.includes('inventory') || rawError.includes('Price changed') || rawError.includes('unavailable')) {
@@ -1072,7 +1072,7 @@ router.post('/plivo/onboard', requireAuth, requirePaidPlan, sensitiveOperationsL
     });
   } catch (err: any) {
     logger.error('[PLIVO_ONBOARD_ERROR] Failed to map subaccount', { error: err.message });
-    res.status(500).json({ success: false, error: err.message || 'Failed to onboard carrier subaccount' });
+    res.status(500).json({ success: false, error: 'Your calling account could not be set up right now. Please try again shortly.' });
   }
 });
 
@@ -1109,7 +1109,7 @@ router.get('/plivo/search', requireAuth, async (req, res, next) => {
     });
   } catch (err: any) {
     logger.error('[PLIVO_SEARCH_ROUTE_ERROR]', { error: err.message });
-    res.status(502).json({ success: false, error: err.message || 'Failed to search Indian numbers' });
+    res.status(502).json({ success: false, error: 'Number search is temporarily unavailable. Please try again shortly.' });
   }
 });
 

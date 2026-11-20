@@ -13,7 +13,7 @@ import { requireCallingMinutes } from '../middleware/planValidation';
 import { CallService } from '../services/CallService';
 import { prepareBatchRecipients, MAX_BATCH_RECIPIENTS } from '../services/BatchService';
 import { EncryptionService } from '../utils/EncryptionService';
-import { CalendarService, SchedulingRuleConfig } from '../core/orchestrator/CalendarService';
+import { CalendarService, SchedulingRuleConfig, ruleNumber } from '../core/orchestrator/CalendarService';
 
 const router = Router();
 
@@ -571,17 +571,21 @@ router.post('/rules/:agentId', requireAuth, agentWriteLimiter, async (req, res) 
       instructions,
     } = req.body;
 
+    // 0 is a real value for buffer and notice (audit #53): defaults only when a field is missing.
+    const ruleNumbers = {
+      appointmentMinutes: ruleNumber(appointmentMinutes, 30, 5, 480),
+      bufferBeforeAfterMinutes: ruleNumber(bufferBeforeAfterMinutes, 10, 0, 240),
+      minNoticeMinutes: ruleNumber(minNoticeMinutes, 120, 0, 43200),
+      maxDaysAhead: ruleNumber(maxDaysAhead, 30, 1, 365),
+      maxBookingsPerDay: ruleNumber(maxBookingsPerDay, 8, 1, 500),
+    };
     const upserted = await prisma.agentSchedulingRule.upsert({
       where: { agentId },
       update: {
         timeZone: timeZone || 'Asia/Kolkata',
         workingDays: JSON.stringify(workingDays || [1, 2, 3, 4, 5]),
         workingHours: JSON.stringify(workingHours || { start: '09:00', end: '17:00' }),
-        appointmentMinutes: Number(appointmentMinutes) || 30,
-        bufferBeforeAfterMinutes: Number(bufferBeforeAfterMinutes) || 10,
-        minNoticeMinutes: Number(minNoticeMinutes) || 120,
-        maxDaysAhead: Number(maxDaysAhead) || 30,
-        maxBookingsPerDay: Number(maxBookingsPerDay) || 8,
+        ...ruleNumbers,
         blackoutDates: JSON.stringify(blackoutDates || []),
         treatAllDayEventsAsBusy: treatAllDayEventsAsBusy !== false,
         allowedCalendars: JSON.stringify(allowedCalendars || ['primary']),
@@ -594,11 +598,7 @@ router.post('/rules/:agentId', requireAuth, agentWriteLimiter, async (req, res) 
         timeZone: timeZone || 'Asia/Kolkata',
         workingDays: JSON.stringify(workingDays || [1, 2, 3, 4, 5]),
         workingHours: JSON.stringify(workingHours || { start: '09:00', end: '17:00' }),
-        appointmentMinutes: Number(appointmentMinutes) || 30,
-        bufferBeforeAfterMinutes: Number(bufferBeforeAfterMinutes) || 10,
-        minNoticeMinutes: Number(minNoticeMinutes) || 120,
-        maxDaysAhead: Number(maxDaysAhead) || 30,
-        maxBookingsPerDay: Number(maxBookingsPerDay) || 8,
+        ...ruleNumbers,
         blackoutDates: JSON.stringify(blackoutDates || []),
         treatAllDayEventsAsBusy: treatAllDayEventsAsBusy !== false,
         allowedCalendars: JSON.stringify(allowedCalendars || ['primary']),
@@ -752,28 +752,26 @@ router.get('/bookings', requireAuth, async (req, res) => {
       take: 50,
     });
 
-    if (dbBookings.length > 0) {
-      const formatted = dbBookings.map((b) => ({
-        id: b.id,
-        source: 'ai_booked',
-        agentId: b.agentId,
-        agentName: agentMap.get(b.agentId) || 'AI Agent',
-        callerName: b.callerName,
-        phoneNumber: b.callerPhone || 'Caller',
-        callerEmail: b.callerEmail,
-        scheduledAtUtc: b.startUtc.toISOString(),
-        endUtc: b.endUtc.toISOString(),
-        timezone: b.timeZone,
-        status: b.status,
-        notes: b.notes || `Appointment with ${b.callerName || 'Caller'}`,
-        googleEventId: b.googleEventId,
-        callId: b.callId,
-        createdAt: b.createdAt.toISOString(),
-      }));
-      // Standard { success, data } envelope: without it the dashboard client treated the list as an
-      // error and the Calendar page always showed no bookings.
-      return res.json({ success: true, data: formatted });
-    }
+    // Appointments and scheduled calls are listed together (audit #65: once the first appointment
+    // existed, follow-up, manual and batch scheduled calls vanished from the Calendar page).
+    const formatted = dbBookings.map((b) => ({
+      id: b.id,
+      kind: 'appointment',
+      source: 'ai_booked',
+      agentId: b.agentId,
+      agentName: agentMap.get(b.agentId) || 'AI Agent',
+      callerName: b.callerName,
+      phoneNumber: b.callerPhone || 'Caller',
+      callerEmail: b.callerEmail,
+      scheduledAtUtc: b.startUtc.toISOString(),
+      endUtc: b.endUtc.toISOString(),
+      timezone: b.timeZone,
+      status: b.status,
+      notes: b.notes || `Appointment with ${b.callerName || 'Caller'}`,
+      googleEventId: b.googleEventId,
+      callId: b.callId,
+      createdAt: b.createdAt.toISOString(),
+    }));
 
     const scheduledCalls = await prisma.scheduledCall.findMany({
       where: {
@@ -784,8 +782,9 @@ router.get('/bookings', requireAuth, async (req, res) => {
       orderBy: { scheduledAtUtc: 'desc' },
     });
 
-    const bookings = scheduledCalls.map((sc) => ({
+    const calls = scheduledCalls.map((sc) => ({
       id: sc.id,
+      kind: 'scheduled_call',
       source: sc.source,
       agentId: sc.agentId,
       agentName: agentMap.get(sc.agentId) || 'AI Agent',
@@ -797,7 +796,9 @@ router.get('/bookings', requireAuth, async (req, res) => {
       createdAt: sc.createdAt.toISOString(),
     }));
 
-    res.json({ success: true, data: bookings });
+    // Standard { success, data } envelope, newest first.
+    const data = [...formatted, ...calls].sort((a, b) => b.scheduledAtUtc.localeCompare(a.scheduledAtUtc));
+    res.json({ success: true, data });
   } catch (error: any) {
     logger.error('Failed to get calendar bookings', { error: error.message });
     res.status(500).json({ success: false, error: 'Failed to get bookings' });
@@ -831,6 +832,21 @@ router.post('/bookings/:id/cancel', requireAuth, requireEditor, sensitiveOperati
       return res.status(400).json({ success: false, error: 'Invalid booking id' });
     }
     const result = await CalendarService.cancelAppointment({ workspaceId, bookingId });
+    if (result.status !== 'cancelled' && result?.error === 'BOOKING_NOT_FOUND') {
+      // Not an appointment: it may be a scheduled call (listed on the same page, audit #65).
+      const agents = await prisma.agent.findMany({ where: { userId: workspaceId }, select: { id: true } });
+      const cancelled = await prisma.scheduledCall.updateMany({
+        where: { id: bookingId, agentId: { in: agents.map((a) => a.id) }, status: 'scheduled' },
+        data: { status: 'canceled' },
+      });
+      if (cancelled.count === 1) {
+        return res.json({ success: true, data: { status: 'cancelled', kind: 'scheduled_call' } });
+      }
+      const exists = await prisma.scheduledCall.count({ where: { id: bookingId, agentId: { in: agents.map((a) => a.id) } } });
+      if (exists) {
+        return res.status(409).json({ success: false, error: 'This call is already being placed or has finished, so it can no longer be cancelled.', code: 'NOT_CANCELLABLE' });
+      }
+    }
     if (result.status !== 'cancelled') {
       return sendBookingFailure(res, result?.error);
     }
@@ -1297,15 +1313,17 @@ router.post('/batches/:id/resume', requireAuth, requireEditor, sensitiveOperatio
       });
     }
 
-    // One worker per batch check:
-    if (existing.lockedBy && existing.lockedAt && (Date.now() - existing.lockedAt.getTime() < 60000)) {
-      return res.json({ success: true, message: 'Batch campaign is already running.' });
-    }
-
-    await prisma.batch.updateMany({
-      where: { id: batchId, userId },
+    // Always switch paused -> running (audit #55: a resume within 60 s of a pause used to answer
+    // "already running" while the batch stayed paused for good). Only one worker can run it:
+    // processBatch claims the lock atomically, and a worker that still holds a fresh lock simply
+    // carries on now that the status is running again.
+    const resumed = await prisma.batch.updateMany({
+      where: { id: batchId, userId, status: 'paused' },
       data: { status: 'running', statusReason: null }
     });
+    if (resumed.count === 0) {
+      return res.status(409).json({ success: false, error: 'The campaign changed state just now. Refresh and try again.' });
+    }
 
     // Record audit log
     await prisma.auditLog.create({

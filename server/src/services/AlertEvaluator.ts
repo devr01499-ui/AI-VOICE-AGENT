@@ -159,8 +159,14 @@ export class AlertEvaluator {
         break;
       }
       case 'cost': {
-        const totalDurationSec = byStatus.reduce((acc, g) => acc + (g._sum.durationSeconds || 0), 0);
-        metricValue = Math.round((totalDurationSec / 60) * 0.05 * 100) / 100;
+        // Billed minutes in the window, by the billing rule: each connected call is charged per
+        // started minute, max(1, ceil(seconds / 60)) (audit #149: this was minutes x a made-up
+        // $0.05 rate, while customers pay in plan minutes). Summed in the database.
+        const rows = await prisma.$queryRaw<Array<{ m: bigint | number | null }>>`
+          SELECT COALESCE(SUM(GREATEST(1, CEIL(duration_seconds / 60.0))), 0)::bigint AS m
+          FROM calls
+          WHERE user_id = ${rule.userId} AND created_at >= ${windowStart} AND duration_seconds > 0`;
+        metricValue = Number(rows[0]?.m ?? 0);
         break;
       }
       case 'sentiment_score': {

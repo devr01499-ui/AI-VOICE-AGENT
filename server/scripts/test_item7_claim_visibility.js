@@ -41,7 +41,7 @@ async function run() {
   // 2. Verify error mapping logic
   const errorCases = [
     { raw: 'User Aadhaar KYC verification is pending', expectedCode: 'KYC_NOT_VERIFIED', retryable: false },
-    { raw: 'Vobiz SubAccount creation failed', expectedCode: 'VOBIZ_SUBACCOUNT_FAILED', retryable: true },
+    { raw: 'Vobiz SubAccount creation failed', expectedCode: 'SUBACCOUNT_FAILED', retryable: true },
     { raw: 'Number num_mock_123 not found in inventory', expectedCode: 'NUMBER_UNAVAILABLE', retryable: true },
     { raw: 'Account balance insufficient for monthly rental', expectedCode: 'INSUFFICIENT_FUNDS', retryable: false },
     { raw: 'Number purchased but assignment to sub-account failed', expectedCode: 'ASSIGNMENT_FAILED', retryable: true },
@@ -59,7 +59,7 @@ async function run() {
       code = 'ASSIGNMENT_FAILED';
       retryable = true;
     } else if (tc.raw.includes('SubAccount') || tc.raw.includes('sub-account')) {
-      code = 'VOBIZ_SUBACCOUNT_FAILED';
+      code = 'SUBACCOUNT_FAILED';
       retryable = true;
     } else if (tc.raw.includes('not found') || tc.raw.includes('inventory')) {
       code = 'NUMBER_UNAVAILABLE';

@@ -621,8 +621,8 @@ export default function SinglePromptStudio({
             workingDays: Array.isArray(r.workingDays) ? r.workingDays : [1, 2, 3, 4, 5],
             workingHours: r.workingHours || { start: '09:00', end: '17:00' },
             appointmentMinutes: r.appointmentMinutes || 30,
-            bufferBeforeAfterMinutes: r.bufferBeforeAfterMinutes || 10,
-            minNoticeMinutes: r.minNoticeMinutes || 120,
+            bufferBeforeAfterMinutes: r.bufferBeforeAfterMinutes ?? 10,
+            minNoticeMinutes: r.minNoticeMinutes ?? 120,
             maxDaysAhead: r.maxDaysAhead || 30,
             maxBookingsPerDay: r.maxBookingsPerDay || 8,
             addMeetLink: Boolean(r.addMeetLink),
@@ -1728,7 +1728,9 @@ export default function SinglePromptStudio({
     try {
       setIsPublishing(true);
       setPublishError(null);
-      await onSave(getStudioPayload());
+      // Publishing makes the agent live; Save keeps its current status (audit #99: Publish left
+      // new agents as drafts).
+      await onSave({ ...getStudioPayload(), status: 'active' } as any);
       setLastSavedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     } catch (err: any) {
       console.error('Failed to publish agent:', err);
@@ -2541,7 +2543,7 @@ export default function SinglePromptStudio({
                       onChange={(e) =>
                         setSchedulingRule((prev) => ({
                           ...prev,
-                          bufferBeforeAfterMinutes: parseInt(e.target.value, 10) || 10,
+                          bufferBeforeAfterMinutes: Math.max(0, parseInt(e.target.value, 10) || 0), // 0 = no buffer (audit #53)
                         }))
                       }
                       className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-200"
@@ -2561,7 +2563,7 @@ export default function SinglePromptStudio({
                       onChange={(e) =>
                         setSchedulingRule((prev) => ({
                           ...prev,
-                          minNoticeMinutes: parseInt(e.target.value, 10) || 120,
+                          minNoticeMinutes: Math.max(0, parseInt(e.target.value, 10) || 0), // 0 = no minimum notice
                         }))
                       }
                       className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-200"
