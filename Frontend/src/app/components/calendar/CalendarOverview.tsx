@@ -30,6 +30,8 @@ export function DashCalendar() {
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // The "Active Campaigns" panel lists only campaigns that can still dial (finished ones live on Batch Calls).
+  const activeBatches = batches.filter(b => b.status === 'running' || b.status === 'scheduled' || b.status === 'paused');
 
   const loadData = () => {
     Promise.all([fetchCalendarBookings(), fetchCalendarBatches()])
@@ -218,11 +220,11 @@ export function DashCalendar() {
           </h3>
           
           <div className="nm-raised rounded-3xl p-5">
-            {batches.length === 0 ? (
+            {activeBatches.length === 0 ? (
               <p className="text-sm text-gray-500 text-center py-6">No batch campaigns running.</p>
             ) : (
               <div className="space-y-6">
-                {batches.map(batch => (
+                {activeBatches.map(batch => (
                   <div key={batch.id} className="relative">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-bold text-[var(--nm-text)]">{batch.name}</span>
