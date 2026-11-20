@@ -146,7 +146,8 @@ router.get('/', async (req: Request, res: Response, next: NextFunction): Promise
 
     const effectiveLabel = query.label || query.resultLabel;
     if (effectiveLabel && effectiveLabel !== 'all') {
-      where.resultLabel = effectiveLabel;
+      // Rows without a label are shown as "Unclear", so that filter includes them (audit #109).
+      where.resultLabel = effectiveLabel === 'Unclear' ? { in: ['Unclear', ''] } : effectiveLabel;
     }
 
     if (query.reviewNeeded === true) {
@@ -469,7 +470,8 @@ const handleCsvExport = async (req: Request, res: Response, next: NextFunction):
 
     const effectiveLabel = query.label || query.resultLabel;
     if (effectiveLabel && effectiveLabel !== 'all') {
-      where.resultLabel = effectiveLabel;
+      // Rows without a label are shown as "Unclear", so that filter includes them (audit #109).
+      where.resultLabel = effectiveLabel === 'Unclear' ? { in: ['Unclear', ''] } : effectiveLabel;
     }
 
     if (query.reviewNeeded === true || query.reviewNeeded === 'true') {

@@ -1,3 +1,4 @@
+import { formatTime } from '../../lib/dateFormat';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, CheckCircle2, XCircle, AlertTriangle, RefreshCw, LogIn, Sliders } from 'lucide-react';
 import { apiClient } from '../../api';
@@ -223,7 +224,7 @@ export function DashIntegrations() {
                   {status?.lastCheckedAt && (
                     <div className="text-[10px] text-slate-400 flex items-center justify-between">
                       <span>Last checked:</span>
-                      <span>{new Date(status.lastCheckedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span>{formatTime(status.lastCheckedAt, { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   )}
 

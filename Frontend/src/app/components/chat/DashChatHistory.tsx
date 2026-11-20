@@ -1,3 +1,4 @@
+import { formatDateTime } from '../../lib/dateFormat';
 import React, { useState, useEffect } from 'react';
 import { Search, MessageSquare, Calendar, Filter, User, ArrowUpRight, ArrowDownLeft, ChevronRight, X, Clock, RefreshCw } from 'lucide-react';
 import { apiClient } from '../../api';
@@ -165,7 +166,7 @@ export function DashChatHistory() {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-slate-500 font-mono text-[11px]">
-                      {new Date(msg.createdAt).toLocaleString()}
+                      {formatDateTime(msg.createdAt)}
                     </td>
                     <td className="py-3 px-4 text-right">
                       <button
@@ -209,7 +210,7 @@ export function DashChatHistory() {
               <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl space-y-2">
                 <div className="flex justify-between text-[11px] text-slate-500">
                   <span>Agent: <strong className="text-slate-800 dark:text-slate-200">{activeMessage.agent?.name || 'System Assistant'}</strong></span>
-                  <span className="font-mono">{new Date(activeMessage.createdAt).toLocaleString()}</span>
+                  <span className="font-mono">{formatDateTime(activeMessage.createdAt)}</span>
                 </div>
                 <div className="flex justify-between text-[11px] text-slate-500">
                   <span>Direction: <strong className="uppercase">{activeMessage.direction}</strong></span>

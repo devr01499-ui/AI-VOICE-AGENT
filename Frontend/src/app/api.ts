@@ -187,10 +187,22 @@ export async function getValidAuthToken(): Promise<string | null> {
   return token;
 }
 
-async function apiFetch<T>(
+/** Server paging info sent next to `data` by list endpoints (calls, contacts…). */
+export interface ApiPagination {
+  total: number;
+  limit?: number;
+  offset?: number;
+  page?: number;
+  totalPages?: number;
+  hasMore?: boolean;
+}
+
+/** Calls the API and returns the data together with the server's paging info (audit #75, #110:
+ *  apiFetch returns only `data`, so list pages could not know the real total). */
+async function apiFetchWithMeta<T>(
   path: string,
   options: RequestInit = {}
-): Promise<T> {
+): Promise<{ data: T; pagination?: ApiPagination }> {
   const url = `${API_BASE}${path}`;
 
   let token: string | null = getAuthToken();
@@ -261,10 +273,17 @@ async function apiFetch<T>(
   // extract top-level properties so UI callers never receive undefined.
   if (json.data === undefined) {
     const { success, error, message, ...rest } = json as any;
-    return (Object.keys(rest).length > 0 ? rest : json) as T;
+    return { data: (Object.keys(rest).length > 0 ? rest : json) as T, pagination: (json as any).pagination };
   }
 
-  return json.data;
+  return { data: json.data, pagination: (json as any).pagination };
+}
+
+async function apiFetch<T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> {
+  return (await apiFetchWithMeta<T>(path, options)).data;
 }
 
 // ─── Agents ───────────────────────────────────────────────────────────────────
@@ -452,6 +471,41 @@ export async function fetchCalls(filters?: {
   if (filters?.offset !== undefined) params.set("offset", String(filters.offset));
   const qs = params.toString();
   return apiFetch<ApiCall[]>(`/api/v2/calls${qs ? `?${qs}` : ""}`);
+}
+
+/** Same as fetchCalls, plus the real total so the page can say how many calls exist (audit #110). */
+export async function fetchCallsPage(filters: Parameters<typeof fetchCalls>[0] = {}): Promise<{ items: ApiCall[]; total: number; hasMore: boolean }> {
+  const params = new URLSearchParams();
+  if (filters?.status && filters.status !== 'all') params.set("status", filters.status);
+  if (filters?.direction && filters.direction !== 'all') params.set("direction", filters.direction);
+  if (filters?.search && filters.search.trim()) params.set("search", filters.search.trim());
+  if (filters?.agentId && filters.agentId !== 'all') params.set("agentId", filters.agentId);
+  if (filters?.batchId && filters.batchId !== 'all') params.set("batchId", filters.batchId);
+  if (filters?.dateRange && filters.dateRange !== 'all') params.set("dateRange", filters.dateRange);
+  if (filters?.startDate) params.set("startDate", filters.startDate);
+  if (filters?.endDate) params.set("endDate", filters.endDate);
+  if (filters?.limit !== undefined) params.set("limit", String(filters.limit));
+  if (filters?.offset !== undefined) params.set("offset", String(filters.offset));
+  const qs = params.toString();
+  const { data, pagination } = await apiFetchWithMeta<ApiCall[]>(`/api/v2/calls${qs ? `?${qs}` : ""}`);
+  const items = Array.isArray(data) ? data : [];
+  const total = pagination?.total ?? items.length;
+  return { items, total, hasMore: pagination?.hasMore ?? false };
+}
+
+/** Contacts, one page at a time with server-side search (audit #75, #103: only the first 50 were
+ *  ever shown, and search ran on those 50 only). */
+export async function fetchContactsPage(opts: { page?: number; limit?: number; search?: string } = {}): Promise<{ items: any[]; total: number; hasMore: boolean }> {
+  const params = new URLSearchParams();
+  params.set("page", String(opts.page ?? 1));
+  params.set("limit", String(opts.limit ?? 100));
+  if (opts.search && opts.search.trim()) params.set("search", opts.search.trim());
+  const { data, pagination } = await apiFetchWithMeta<any[]>(`/api/v2/contacts?${params.toString()}`);
+  const items = Array.isArray(data) ? data : [];
+  const total = pagination?.total ?? items.length;
+  const page = opts.page ?? 1;
+  const limit = opts.limit ?? 100;
+  return { items, total, hasMore: pagination?.hasMore ?? page * limit < total };
 }
 
 /**

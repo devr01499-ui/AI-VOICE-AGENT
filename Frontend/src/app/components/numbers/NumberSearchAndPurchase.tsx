@@ -305,23 +305,22 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
       setSelectedCountry('IN');
       setSelectedType('local');
       triggerPlivoOnboard();
-      handleSearch('IN', 'local', 1, false, 'plivo', plivoRegion);
-    } else {
-      handleSearch(selectedCountry, selectedType, 1, false, 'vobiz', '');
     }
+    // The search effect below runs once for the new carrier (audit #105: it also ran here, so every
+    // change searched twice).
   };
 
   const handlePlivoRegionFilter = (region: string) => {
     setPlivoRegion(region);
     setPage(1);
-    handleSearch('IN', 'local', 1, false, 'plivo', region);
+    // The search effect runs when the region changes (it used to run here as well).
   };
 
   useEffect(() => {
     if (!numberLocked) {
       handleSearch(selectedCountry, selectedType, 1, false, provider, plivoRegion);
     }
-  }, [selectedCountry, selectedType, numberLocked, handleSearch]);
+  }, [selectedCountry, selectedType, numberLocked, handleSearch, provider, plivoRegion]);
 
   const handleTriggerKyc = () => {
     if (onNavigateToKyc) {
@@ -630,14 +629,6 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
             {/* Provider-Specific Transparency Breakdown */}
             {selectedNumber.provider === 'plivo' && (
               <div className="pt-4 border-t border-emerald-500/10 space-y-2 text-xs">
-                <div className="flex justify-between text-gray-600">
-                  <span>Customer Monthly Rental:</span>
-                  <span className="font-bold text-gray-800">₹{selectedNumber.monthly_fee || 450}.00 / month</span>
-                </div>
-                <div className="flex justify-between text-gray-600">
-                  <span>Applicable Indian Taxes (18% GST):</span>
-                  <span className="font-bold text-gray-800">₹{selectedNumber.taxes || 81}.00</span>
-                </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Carrier Setup Fee:</span>
                   <span className="font-bold text-emerald-700">₹{selectedNumber.setup_fee || 0}.00 (Waived)</span>
@@ -1032,7 +1023,7 @@ export function NumberSearchAndPurchase({ onBack, onNavigateToKyc }: NumberSearc
                             {isPlivo ? (
                               <div>
                                 <div className="text-xs font-extrabold text-emerald-600">Included in Plan</div>
-                                <div className="text-[10px] text-gray-500 font-medium">₹450/mo + ₹81 GST (Waived)</div>
+                                <div className="text-[10px] text-gray-400">₹0 additional charge</div>
                               </div>
                             ) : (
                               <div>

@@ -1,6 +1,6 @@
 {
   "_note": "Shared by pages/VoiceAIIndex.tsx (what users see) and scripts/prerender-seo.js (what crawlers see) so both always say the same thing. Placeholders: {title}, {titleLower}, {id}. Every statement here must be true of the product today (audit #138, docs/COMPLIANCE_NOTES.md).",
-  "summary": "A practical overview of \"{title}\" with Claritiy Voice: what the AI agent does on the call, what you configure, and what to check before you go live.",
+  "summary": "What a Claritiy Voice agent does for \"{title}\", what you set up, and what to check before going live.",
   "sections": [
     {
       "subtitle": "Where it fits",
@@ -36,5 +36,7 @@
         "Billed minutes against your plan balance."
       ]
     }
-  ]
+  ],
+  "titleSuffix": " | Claritiy Voice",
+  "maxTitleLength": 65
 }

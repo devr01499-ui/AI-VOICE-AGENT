@@ -470,7 +470,8 @@ for (let i = 0; i < topics.length; i++) {
   }
 
   const cleanTitle = topic.title.replace(/[?&]/g, '').trim();
-  const metaTitle = `${cleanTitle} | Claritiy Voice AI Index`;
+  // Same rule as pages/VoiceAIIndex.tsx (audit #139: titles over 65 characters).
+  const metaTitle = (cleanTitle + ARTICLE.titleSuffix).length <= ARTICLE.maxTitleLength ? cleanTitle + ARTICLE.titleSuffix : cleanTitle;
   const metaDesc = fillArticle(ARTICLE.summary, topic, cleanTitle);
 
   const jsonLd = {

@@ -75,8 +75,9 @@ export class ContactsController {
         const query = search.trim();
         whereClause.OR = [
           { phoneNumber: { contains: query } },
-          { name: { contains: query } },
-          { notes: { contains: query } },
+          // Names and notes match regardless of case (search moved server-side, audit #103).
+          { name: { contains: query, mode: 'insensitive' } },
+          { notes: { contains: query, mode: 'insensitive' } },
         ];
       }
 

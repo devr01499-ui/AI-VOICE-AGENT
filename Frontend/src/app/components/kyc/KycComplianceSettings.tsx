@@ -1,3 +1,4 @@
+import { formatDate } from '../../lib/dateFormat';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { apiClient, KycDigiLockerInitiateData } from '../../api';
 import {
@@ -664,7 +665,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
                 )}
                 {panDoc.verifiedAt && (
                   <p className="text-[10px] text-emerald-600/80">
-                    Verified on: {new Date(panDoc.verifiedAt).toLocaleDateString()}
+                    Verified on: {formatDate(panDoc.verifiedAt)}
                   </p>
                 )}
                 {/* Switch KYC Category link */}

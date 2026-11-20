@@ -63,7 +63,12 @@ export const agentBodySchema = z.object({
   model: z.string().max(120).nullable().optional(),
   voiceName: z.string().max(60).regex(/^[A-Za-z0-9 _.-]*$/, 'has invalid characters').nullable().optional(),
   systemVoice: z.string().max(60).regex(/^[A-Za-z0-9 _.-]*$/, 'has invalid characters').nullable().optional(),
-  temperature: z.union([z.number().min(0).max(2), z.string().regex(/^d+(.d+)?$/), z.null()]).optional(),
+  // Stored with the agent; live calls use a fixed temperature (LIVE_CALL_TEMPERATURE, audit #143).
+  temperature: z.union([
+    z.number().min(0).max(2),
+    z.string().regex(/^\d+(\.\d+)?$/).transform(Number).pipe(z.number().min(0).max(2)),
+    z.null(),
+  ]).optional(),
   systemPrompt: z.string().max(60_000).nullable().optional(),
   firstMessage: z.string().max(2000).nullable().optional(),
   flowGraph: z.union([jsonSized(MAX_FLOW_BYTES), z.null()]).optional(),

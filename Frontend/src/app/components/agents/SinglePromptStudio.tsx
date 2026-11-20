@@ -1,3 +1,4 @@
+import { formatDateTime, formatTime } from '../../lib/dateFormat';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   ArrowLeft,
@@ -254,10 +255,10 @@ interface SinglePromptStudioProps {
   kbList?: ApiKnowledgeBase[];
 }
 
-/** Short local date-time for Test Lab runs (workspace timezone handled by the browser locale). */
+/** Short date-time for Test Lab runs, in the workspace timezone (audit #104). */
 function formatTestLabDate(iso: string): string {
   const d = new Date(iso);
-  return isNaN(d.getTime()) ? '' : d.toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  return isNaN(d.getTime()) ? '' : formatDateTime(d, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', showZone: false });
 }
 
 export default function SinglePromptStudio({
@@ -1706,7 +1707,7 @@ export default function SinglePromptStudio({
       } else {
         await onSave(payload);
       }
-      setLastSavedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      setLastSavedAt(formatTime(new Date(), { hour: '2-digit', minute: '2-digit' }));
       setShowSavedToast(true);
       setTimeout(() => setShowSavedToast(false), 2500);
     } catch (err: any) {
@@ -1731,7 +1732,7 @@ export default function SinglePromptStudio({
       // Publishing makes the agent live; Save keeps its current status (audit #99: Publish left
       // new agents as drafts).
       await onSave({ ...getStudioPayload(), status: 'active' } as any);
-      setLastSavedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      setLastSavedAt(formatTime(new Date(), { hour: '2-digit', minute: '2-digit' }));
     } catch (err: any) {
       console.error('Failed to publish agent:', err);
       setPublishError(err?.message || 'Failed to publish agent.');
