@@ -11,7 +11,7 @@ import {
 type Page = any;
 
 interface UseCasesProps {
-  setPage: (p: Page) => void;
+  setPage: (p: Page, extraId?: string) => void;
   initialIndustryId?: string | null;
 }
 
@@ -968,6 +968,8 @@ export default function UseCases({ setPage, initialIndustryId }: UseCasesProps) 
                   setSelectedIndustryId(topic.id);
                   setActiveNodeIndex(0);
                   setPlayingDialogueSubTopic(null);
+                  // A real navigation: the URL and canonical follow the industry shown (audit #131).
+                  setPage("use-cases", topic.id);
                 }}
                 className={`flex items-center gap-2 px-3.5 py-2 rounded-[2px] text-xs font-mono uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${
                   isSelected

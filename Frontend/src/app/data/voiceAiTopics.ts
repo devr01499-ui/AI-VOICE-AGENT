@@ -49,19 +49,19 @@ export const CATEGORIES = [
       { id: "call-compliance-automation", title: "Secure call compliance automation" },
       { id: "secure-voice-ai", title: "Safe secure voice AI" },
       { id: "regulated-call-automation", title: "Secure regulated call automation" },
-      { id: "pci-compliant-voice-ai", title: "Compliant PCI compliant voice AI" },
-      { id: "hipaa-compliant-voice-ai", title: "Compliant HIPAA compliant voice AI" },
-      { id: "soc2-voice-ai", title: "Compliant SOC 2 voice AI" },
-      { id: "gdpr-voice-ai", title: "Audited GDPR voice AI" },
-      { id: "iso27001-voice-ai", title: "Audited ISO 27001 voice AI" },
-      { id: "data-privacy-automation", title: "Certified data privacy voice automation" },
-      { id: "consent-based-calling", title: "Compliant consent-based calling" },
+      { id: "pci-compliant-voice-ai", title: "PCI DSS and voice AI: keeping card data off calls" },
+      { id: "hipaa-compliant-voice-ai", title: "HIPAA and voice AI: what US healthcare teams should check" },
+      { id: "soc2-voice-ai", title: "SOC 2 and voice AI: questions to ask a vendor" },
+      { id: "gdpr-voice-ai", title: "GDPR and voice AI: personal data on calls" },
+      { id: "iso27001-voice-ai", title: "ISO 27001 and voice AI: security controls to look for" },
+      { id: "data-privacy-automation", title: "Data privacy in voice automation" },
+      { id: "consent-based-calling", title: "Consent-based calling" },
       { id: "audit-logs-redaction", title: "Clean audit logs & redaction" },
       { id: "pii-protection", title: "Safe PII protection" },
       { id: "escalation-logic", title: "Clear escalation logic" },
       { id: "human-handoff", title: "Seamless human handoff" },
       { id: "verified-call-scripts", title: "Safe verified call scripts" },
-      { id: "compliance-ready-flows", title: "Compliant compliance-ready call flows" }
+      { id: "compliance-ready-flows", title: "Call flows designed with compliance in mind" }
     ]
   },
   {

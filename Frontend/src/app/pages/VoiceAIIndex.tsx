@@ -4,6 +4,8 @@ import {
   BookOpen, Search, ChevronRight, ChevronLeft, Bookmark, Clock, ArrowRight, ArrowLeft, Copy, Check
 } from "lucide-react";
 import { CATEGORIES, ALL_TOPICS } from "../data/voiceAiTopics";
+import ARTICLE from "../data/voiceAiArticle.json";
+import SEO_FILE from "../data/seoPages.json";
 
 type Page = any;
 
@@ -12,69 +14,22 @@ interface VoiceAIIndexProps {
   initialTopicId?: string | null;
 }
 
-// ── Dynamic Masterpiece Content Engine (500+ Words Generator) ──────────────────
+// ── Article text ─────────────────────────────────────────────────────────────
+// One template shared with scripts/prerender-seo.js (data/voiceAiArticle.json), so users and crawlers
+// read the same words. Every statement in it must be true of the product (audit #138).
+function fillArticle(text: string, topicId: string, title: string): string {
+  return text.split("{title}").join(title).split("{titleLower}").join(title.toLowerCase()).split("{id}").join(topicId);
+}
+
 function generateArticleContent(topicId: string, title: string, category: string, chapNum: number, topNum: number) {
   const cleanTitle = title.replace(/[?&]/g, "").trim();
-  const summary = `This detailed guide covers the strategic implementation, architecture, and business metrics for "${cleanTitle}". We explore how modern enterprises leverage this capability to optimize customer pipelines, ensure high-fidelity delivery, and maintain compliance.`;
-
-  const sections = [
-    {
-      subtitle: "Strategic Context & Market Positioning",
-      paragraphs: [
-        `In the rapidly evolving landscape of 2026, deploying a robust capability like "${cleanTitle}" has transitioned from a competitive advantage to an operational necessity. Legacy call center systems and traditional interactive voice response (IVR) setups have consistently failed to meet customer expectations, introducing latency, awkward pause loops, and rigid dial-tone scripts. By contrast, modern voice automation platform modules leverage state-of-the-art natural language processing (NLP) to converse fluently with users.`,
-        `When enterprises evaluate the implementation of ${cleanTitle.toLowerCase()}, they are not merely installing a software package; they are deploying an autonomous conversational AI voice system. This integration allows companies to scale inbound call handling capacity and outbound sales calls infinitely, bypassing the constraints of recruiting, training, and managing manual calling agents. Under this paradigm, operational costs plummet while customer satisfaction scores (CSAT) rise.`,
-        `Furthermore, the strategic positioning of this capability within the broader AI customer calling system allows for precise data capture. Every interaction is transcribed with sub-second latency, structured into detailed summary fields, and fed directly back into operational workflows, ensuring a continuous loop of conversational intelligence and pipeline improvement.`
-      ]
-    },
-    {
-      subtitle: "Technical Implementation & Flow Architecture",
-      paragraphs: [
-        `From an engineering perspective, building an elite voice infrastructure for "${cleanTitle}" requires a vertically integrated pipeline. The voice stack is split into three core layers: Automatic Speech Recognition (ASR), Large Language Model orchestration (LLM), and Text-to-Speech synthesis (TTS). Chaining distinct API providers introduces a latency overhead of 800ms to 1.5s, which ruins conversational flow. Claritiy Voice solves this by streaming call audio to a single speech-to-speech model directly connected to our agent workflow engine.`,
-        `Below is a representative JSON configuration mapping the telephony API workflow parameters for deploying a custom voice AI agent:`
-      ],
-      code: `{
-  "agent_id": "agent_claritiy_voice_${topicId}",
-  "voice_profile": {
-    "provider": "claritiy_native_multimodal",
-    "voice_id": "premium_en_female_08",
-    "pitch": 1.05,
-    "cadence": 0.98,
-    "languages": ["en-US", "hi-IN"]
-  },
-  "pipeline_settings": {
-    "interruption_handling": {
-      "enabled": true,
-      "barge_in_threshold_ms": 150
-    },
-    "edge_pii_redaction": {
-      "enabled": true,
-      "scrub_rules": ["credit_card", "phone_number", "phi"]
-    }
-  }
-}`
-    },
-    {
-      subtitle: "Compliance, Security & Audit Logs",
-      paragraphs: [
-        `Regulated industries such as healthcare clinics, financial banking, and insurance carriers require absolute adherence to strict compliance guidelines. Deploying "${cleanTitle}" necessitates a security-first posture that integrates edge-based data redaction. Before any audio transcript or call recording is saved to a persistent database, the PII protection engine scrubs credit card numbers, personal health identifiers (PHI), and contact numbers.`,
-        `This workflow maintains full alignment with India's DPDP Act, MSME enterprise standards, TLS and AES-256 encryption, and audit logging. Additionally, campaigns only dial within TRAI calling hours (9 am – 9 pm), skip contacts who have opted out, and keep a record of every call.`
-      ]
-    },
-    {
-      subtitle: "Business Impact & ROI Metrics",
-      paragraphs: [
-        `The operational return on investment for "${cleanTitle}" is measurable across multiple business dimensions. By automating outbound lead reactivation and inbound receptionist call workflows, businesses experience a substantial decrease in average handling cost (AHT) while driving down customer wait times to zero.`,
-        `Typical metrics realized by enterprises utilizing this technology include:`
-      ],
-      bullets: [
-        "First-Ring Response Rate: 100% call answering with 0s customer wait time.",
-        "RTO Reduction: Up to 40% reduction in Cash-on-Delivery return-to-origin rates.",
-        "No-Show Reduction: 89% lower appointment no-show rates via automated scheduling.",
-        "Cost Deflection: 60% of tier-1 support queries handled without human escalation."
-      ]
-    }
-  ];
-
+  const summary = fillArticle(ARTICLE.summary, topicId, cleanTitle);
+  const sections = ARTICLE.sections.map((sec: { subtitle: string; paragraphs?: string[]; code?: string; bullets?: string[] }) => ({
+    subtitle: sec.subtitle,
+    paragraphs: (sec.paragraphs || []).map((p) => fillArticle(p, topicId, cleanTitle)),
+    ...(sec.code ? { code: fillArticle(sec.code, topicId, cleanTitle) } : {}),
+    ...(sec.bullets ? { bullets: sec.bullets.map((b) => fillArticle(b, topicId, cleanTitle)) } : {}),
+  }));
   return { title: cleanTitle, category, chapNum, topNum, summary, sections };
 }
 
@@ -90,63 +45,56 @@ export default function VoiceAIIndex({ setPage, initialTopicId }: VoiceAIIndexPr
   const [copied, setCopied] = useState(false);
   const [direction, setDirection] = useState(1);
 
-  // SEO Injection Hook
+  // Page metadata. The hub (/voice-ai-index) describes the index itself; a topic page describes its
+  // topic. Both match the pre-rendered HTML (audit #120: the hub pointed its canonical at topic 1).
   useEffect(() => {
     const activeTopic = ALL_TOPICS[currentTopicIndex];
-    if (activeTopic) {
-      // Update Title
-      document.title = `${activeTopic.title} | Claritiy Voice AI Index`;
-      
-      // Update Meta Description dynamically
-      let metaDesc = document.querySelector('meta[name="description"]');
-      if (!metaDesc) {
-        metaDesc = document.createElement('meta');
-        metaDesc.setAttribute('name', 'description');
-        document.head.appendChild(metaDesc);
-      }
-      metaDesc.setAttribute('content', `Detailed guide and architecture for ${activeTopic.title}. Learn how to implement enterprise voice AI.`);
+    if (!activeTopic) return;
+    const isHub = window.location.pathname.replace(/\/+$/, "") === "/voice-ai-index";
+    const hub = SEO_FILE.pages["voice-ai-index"];
+    const cleanTitle = activeTopic.title.replace(/[?&]/g, "").trim();
+    const description = isHub ? hub.description : fillArticle(ARTICLE.summary, activeTopic.id, cleanTitle);
+    const url = isHub ? "https://www.claritiy.com/voice-ai-index" : `https://www.claritiy.com/voice-ai-index/${activeTopic.id}`;
 
-      // Update Canonical Link dynamically to self-referencing topic URL
-      let canonical = document.querySelector('link[rel="canonical"]');
-      if (!canonical) {
-        canonical = document.createElement('link');
-        canonical.setAttribute('rel', 'canonical');
-        document.head.appendChild(canonical);
-      }
-      canonical.setAttribute('href', `https://www.claritiy.com/voice-ai-index/${activeTopic.id}`);
+    document.title = isHub ? hub.title : `${cleanTitle} | Claritiy Voice AI Index`;
 
-      // Inject TechArticle structured data
-      document.querySelectorAll("script[data-schema='voice-index-topic']").forEach(el => el.remove());
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement('meta');
+      metaDesc.setAttribute('name', 'description');
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.setAttribute('content', description);
+
+    let canonical = document.querySelector('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute('href', url);
+
+    document.querySelectorAll("script[data-schema='voice-index-topic']").forEach(el => el.remove());
+    if (!isHub) {
       const articleSchema = document.createElement("script");
       articleSchema.type = "application/ld+json";
       articleSchema.setAttribute("data-schema", "voice-index-topic");
       articleSchema.text = JSON.stringify({
         "@context": "https://schema.org",
         "@type": "TechArticle",
-        "headline": activeTopic.title,
-        "description": `Detailed guide and architecture for ${activeTopic.title}.`,
-        "url": `https://www.claritiy.com/voice-ai-index/${activeTopic.id}`,
+        "headline": cleanTitle,
+        "description": description,
+        "url": url,
         "inLanguage": "en-US",
-        "author": {
-          "@type": "Organization",
-          "name": "Claritiy Voice Systems Engineering"
-        },
-        "publisher": {
-          "@type": "Organization",
-          "name": "Claritiy Voice",
-          "url": "https://www.claritiy.com"
-        }
+        "author": { "@type": "Organization", "name": "Claritiy Voice Systems Engineering" },
+        "publisher": { "@type": "Organization", "name": "Claritiy Voice", "url": "https://www.claritiy.com" }
       });
       document.head.appendChild(articleSchema);
     }
 
-    // Cleanup when component unmounts
+    // Only remove what this page added. Resetting the title and description here overwrote the
+    // NEXT page's values, because this cleanup runs after the next page has set them (audit #121).
     return () => {
-      document.title = "Claritiy Voice";
-      const metaDesc = document.querySelector('meta[name="description"]');
-      if (metaDesc) {
-        metaDesc.setAttribute('content', 'Confirm cash-on-delivery (COD) orders before dispatch to reduce RTO (return-to-origin) and failed deliveries using automated AI voice calls.');
-      }
       document.querySelectorAll("script[data-schema='voice-index-topic']").forEach(el => el.remove());
     };
   }, [currentTopicIndex]);
@@ -373,7 +321,7 @@ export default function VoiceAIIndex({ setPage, initialTopicId }: VoiceAIIndexPr
                       {sec.code && (
                         <div className="relative rounded-md bg-[#F4F1EA] border border-[#EADEC9] p-5 my-4 font-mono text-[11px] text-[#2A2A2A] overflow-x-auto shadow-inner">
                           <button
-                            onClick={() => copyToClipboard(sec.code)}
+                            onClick={() => copyToClipboard(sec.code || "")}
                             className="absolute right-3 top-3 w-6 h-6 rounded bg-white hover:bg-slate-50 flex items-center justify-center border border-[#EADEC9] transition-colors shadow-sm"
                           >
                             {copied ? <Check className="w-3 h-3 text-[#059669]" /> : <Copy className="w-3 h-3 text-slate-500" />}

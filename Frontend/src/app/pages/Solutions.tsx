@@ -978,7 +978,7 @@ POST https://your-system.example.com/claritiy-webhook
               onClick={() => setPage("dashboard")}
               className="py-3 px-8 text-xs font-mono uppercase tracking-wider bg-[#121212] hover:bg-black text-white font-medium rounded-[2px] inline-flex items-center gap-2 transition-colors cursor-pointer"
             >
-              Start Free in Sandbox <ArrowRight className="w-4 h-4" />
+              Create a Free Account <ArrowRight className="w-4 h-4" />
             </button>
             <button
               onClick={() => setPage("contact")}

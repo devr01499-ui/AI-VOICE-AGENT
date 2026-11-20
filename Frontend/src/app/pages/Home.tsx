@@ -131,7 +131,7 @@ function BentoCapabilitySection({ setPage }: { setPage: (p: Page) => void }) {
   const items = [
     {
       title: "Real-Time Voice AI",
-      desc: "Native multimodal pipeline — no stacked APIs. ASR + LLM + TTS vertically integrated for human-like phone conversations with zero lag.",
+      desc: "Native multimodal pipeline — no stacked APIs. ASR + LLM + TTS vertically integrated for human-like phone conversations with quick, natural turn-taking.",
       icon: Zap,
     },
     {
@@ -145,8 +145,8 @@ function BentoCapabilitySection({ setPage }: { setPage: (p: Page) => void }) {
       icon: Languages,
     },
     {
-      title: "Zero-Latency Real-Time Telephony",
-      desc: "Direct PSTN carrier trunking and real-time audio streaming. Dedicated virtual phone numbers with sub-second call setup and zero queue latency.",
+      title: "Real-Time Telephony",
+      desc: "Calls run on our carrier partners' phone networks with real-time audio streaming, on the local +91 number included with your plan.",
       icon: Phone,
     },
     {

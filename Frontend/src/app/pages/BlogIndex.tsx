@@ -64,6 +64,8 @@ This comprehensive guide evaluates enterprise voice AI architectures, comparing 
   },
   {
     id: "cod-rto-reduction",
+    // Has its own page: open it instead of an inline copy (audit #130: duplicate content).
+    page: "blog-rto",
     title: "How Indian D2C Brands Cut COD RTO Rates by 40% Using Automated AI Voice Calls",
     date: "July 18, 2026",
     author: "Logistics Engineering Dept",
@@ -172,8 +174,6 @@ Learn how edge-based PII redaction, MSME registration, and DPDP Act 2023 complia
 export default function BlogIndex({ setPage }: BlogIndexProps) {
   const [activeArticleId, setActiveArticleId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [newsletterEmail, setNewsletterEmail] = useState("");
-  const [subscribed, setSubscribed] = useState(false);
 
   const activeArticle = ARTICLES.find(a => a.id === activeArticleId);
 
@@ -183,13 +183,10 @@ export default function BlogIndex({ setPage }: BlogIndexProps) {
 
   const featuredArticle = ARTICLES.find(a => a.featured) || ARTICLES[0];
 
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newsletterEmail) {
-      setSubscribed(true);
-      setTimeout(() => setSubscribed(false), 5000);
-      setNewsletterEmail("");
-    }
+  /** Articles with their own page open that page; the rest open here. */
+  const openArticle = (a: { id: string; page?: string }) => {
+    if (a.page) { setPage(a.page as Page); window.scrollTo({ top: 0 }); return; }
+    setActiveArticleId(a.id);
   };
 
   if (activeArticle) {
@@ -292,7 +289,7 @@ export default function BlogIndex({ setPage }: BlogIndexProps) {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          onClick={() => setActiveArticleId(featuredArticle.id)}
+          onClick={() => openArticle(featuredArticle)}
           className="bg-[#EBE9E2] text-[#121212] rounded-[2px] p-8 md:p-12 border border-[#CBC8BE] grid grid-cols-1 lg:grid-cols-12 gap-8 items-center cursor-pointer group hover:border-[#121212] transition-colors relative z-10"
         >
           <div className="lg:col-span-8 space-y-4">
@@ -347,7 +344,7 @@ export default function BlogIndex({ setPage }: BlogIndexProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.05 }}
-            onClick={() => setActiveArticleId(article.id)}
+            onClick={() => openArticle(article)}
             className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-8 hover:border-[#121212] transition-colors cursor-pointer flex flex-col justify-between group"
           >
             <div className="space-y-3">
@@ -370,38 +367,23 @@ export default function BlogIndex({ setPage }: BlogIndexProps) {
         ))}
       </div>
 
-      {/* Newsletter Subscription Box */}
+      {/* There is no newsletter: the old form sent the address nowhere and still said "subscribed"
+          (audit #124). Readers who want to talk to us are pointed to the contact page instead. */}
       <section className="bg-[#EBE9E2] text-[#121212] rounded-[2px] p-8 md:p-12 border border-[#CBC8BE] text-center space-y-4 relative z-10">
         <h3 className="text-2xl md:text-3xl font-bold text-[#121212]">
-          Subscribe To Enterprise Voice AI Research
+          Have a question about your use case?
         </h3>
         <p className="text-[#262523] text-sm max-w-xl mx-auto">
-          Get weekly operational benchmarks, latency optimizations, and ROI case studies delivered straight to your inbox.
+          Tell us what you want to automate and we will show you how a Claritiy Voice agent would handle it.
         </p>
-
-        {subscribed ? (
-          <div className="p-4 bg-[#DFDCD4] border border-[#CBC8BE] text-[#121212] font-mono text-xs font-bold rounded-[2px] max-w-md mx-auto flex items-center justify-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-[#121212]" />
-            Thank you for subscribing to Claritiy Voice Insights!
-          </div>
-        ) : (
-          <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row max-w-md mx-auto gap-3 pt-2">
-            <input
-              type="email"
-              required
-              value={newsletterEmail}
-              onChange={(e) => setNewsletterEmail(e.target.value)}
-              placeholder="Enter your work email..."
-              className="flex-1 bg-[#DFDCD4] border border-[#CBC8BE] rounded-[2px] px-4 py-3 text-xs text-[#121212] placeholder-[#737067] focus:outline-none focus:border-[#121212] font-mono"
-            />
-            <button
-              type="submit"
-              className="py-3 px-6 bg-[#121212] hover:bg-black text-white font-mono text-xs uppercase tracking-wider font-bold rounded-[2px] transition-colors flex items-center justify-center gap-2 cursor-pointer"
-            >
-              Subscribe <Send className="w-3.5 h-3.5" />
-            </button>
-          </form>
-        )}
+        <div className="pt-2">
+          <button
+            onClick={() => setPage("contact" as Page)}
+            className="py-3 px-6 bg-[#121212] hover:bg-black text-white font-mono text-xs uppercase tracking-wider font-bold rounded-[2px] transition-colors inline-flex items-center justify-center gap-2 cursor-pointer"
+          >
+            Contact Us <Send className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </section>
 
     </div>

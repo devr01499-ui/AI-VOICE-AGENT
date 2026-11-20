@@ -41,6 +41,13 @@ export default function Navbar({ page, setPage, session }: NavbarProps) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  /** "Join Now" opens the sign-up form, not sign-in (audit #128). The address is /signup before the
+   *  sign-in screen renders, and that screen picks its tab from the address. */
+  const joinNow = () => {
+    navigate("dashboard");
+    window.history.replaceState(null, "", "/signup");
+  };
+
   return (
     <>
       {/* ── Main Navbar (EdgeSkool Wireframe Editorial Style) ────────────── */}
@@ -139,7 +146,7 @@ export default function Navbar({ page, setPage, session }: NavbarProps) {
                   className="border border-[#9C998F] text-[#121212] bg-transparent hover:border-[#121212] hover:bg-black/5 rounded-[2px] px-3.5 py-1.5 text-xs font-mono tracking-wider transition-colors">
                   How It Works
                 </button>
-                <button onClick={() => navigate("dashboard")}
+                <button onClick={joinNow}
                   className="bg-[#121212] text-white hover:bg-neutral-800 rounded-[2px] px-4 py-1.5 text-xs font-mono tracking-wider flex items-center gap-2 transition-colors">
                   Join Now
                 </button>
@@ -208,9 +215,15 @@ export default function Navbar({ page, setPage, session }: NavbarProps) {
                 <button onClick={() => navigate("how-it-works")} className="w-full py-2.5 border border-[#9C998F] rounded-[2px] text-xs font-mono text-[#121212] hover:bg-black/5 transition-colors">
                   How It Works
                 </button>
-                <button onClick={() => navigate("dashboard")} className="w-full bg-[#121212] text-white py-2.5 rounded-[2px] text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2">
-                  Join Now <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                {session ? (
+                  <button onClick={() => navigate("dashboard")} className="w-full bg-[#121212] text-white py-2.5 rounded-[2px] text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2">
+                    Go to Dashboard <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                ) : (
+                  <button onClick={joinNow} className="w-full bg-[#121212] text-white py-2.5 rounded-[2px] text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2">
+                    Join Now <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </motion.div>
           </motion.div>
