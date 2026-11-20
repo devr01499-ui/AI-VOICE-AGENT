@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, requireRole } from '../middleware/auth';
 import { requireActivePlan } from '../middleware/planValidation';
 import { prisma } from '../lib/prisma';
 import { nextKycState, vobizKycVerdict } from '../utils/kycStatus';
@@ -462,7 +462,7 @@ router.get('/documents', requireAuth, requireActivePlan, async (req, res, next) 
  * NEVER uses the master MA_ credentials.
  * Fails closed on any provider error. Idempotent on (userId, documentType).
  */
-router.post('/verify-document', requireAuth, requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
+router.post('/verify-document', requireAuth, requireRole(['admin']), requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
   try {
     const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
     if (!userId) {
@@ -862,7 +862,7 @@ router.post('/verify-document', requireAuth, requireActivePlan, sensitiveOperati
  * IMPORTANT: Authenticates using parent MASTER account credentials (X-Auth-ID: VOBIZ_AUTH_ID, X-Auth-Token: VOBIZ_AUTH_TOKEN).
  * Sub-account SA_ id is only in the path parameter.
  */
-router.post(['/digilocker/initiate', '/aadhaar/initiate'], requireAuth, requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
+router.post(['/digilocker/initiate', '/aadhaar/initiate'], requireAuth, requireRole(['admin']), requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
   try {
     const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
     if (!userId) {
@@ -974,7 +974,7 @@ router.post(['/digilocker/initiate', '/aadhaar/initiate'], requireAuth, requireA
  * Strictly NEVER stores raw Aadhaar number or document image.
  * Shows status plainly without assuming a failure reason exists for Aadhaar.
  */
-router.post(['/digilocker/verify', '/verify-aadhaar'], requireAuth, requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
+router.post(['/digilocker/verify', '/verify-aadhaar'], requireAuth, requireRole(['admin']), requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
   try {
     const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
     if (!userId) {
@@ -1125,7 +1125,7 @@ router.post(['/digilocker/verify', '/verify-aadhaar'], requireAuth, requireActiv
  * @deprecated Use on-platform KYC endpoints (POST /verify-document, POST /verify-aadhaar) instead.
  * POST /api/v2/kyc/initiate-session
  */
-router.post(['/initiate-session', '/start'], requireAuth, requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
+router.post(['/initiate-session', '/start'], requireAuth, requireRole(['admin']), requireActivePlan, sensitiveOperationsLimiter, async (req, res, next) => {
   try {
     const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
     if (!userId) {

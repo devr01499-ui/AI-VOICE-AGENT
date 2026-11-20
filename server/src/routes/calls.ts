@@ -452,9 +452,9 @@ router.delete(
 );
 
 /** POST /api/v2/calls/:id/end — Supervisor intervention: Terminate live active call. */
-router.post('/:id/end', requireAuth, sensitiveOperationsLimiter, CallController.endActiveCall);
+router.post('/:id/end', requireAuth, requireEditor, sensitiveOperationsLimiter, CallController.endActiveCall);
 
 /** POST /api/v2/calls/:id/transfer — Supervisor intervention: Force call transfer. */
-router.post('/:id/transfer', requireAuth, sensitiveOperationsLimiter, CallController.transferActiveCall);
+router.post('/:id/transfer', requireAuth, requireEditor, sensitiveOperationsLimiter, CallController.transferActiveCall);
 
 export default router;
