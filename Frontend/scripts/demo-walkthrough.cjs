@@ -11,7 +11,8 @@ const fs = require('fs');
 const base = process.argv[2] || 'http://localhost:5180';
 const shotDir = process.argv[3] || '';
 const USER = { id: '00000000-0000-4000-8000-000000000001', email: 'e2e.user@example.org', fullName: 'Asha Verma (Demo)' };
-const SECTIONS = ['agents', 'calling', 'batch', 'calls', 'numbers', 'knowledge', 'voices', 'calendar', 'settings', 'billing', 'companion', 'chat_history', 'contacts', 'analytics', 'live_monitoring', 'qa', 'alerting', 'integrations', 'reports'];
+// "agent_studio" / "create_agent" open the first agent's editor / the Create Agent dialog from the Agents page.
+const SECTIONS = ['agent_studio', 'create_agent', 'agents','calling', 'batch', 'calls', 'numbers', 'knowledge', 'voices', 'calendar', 'settings', 'billing', 'companion', 'chat_history', 'contacts', 'analytics', 'live_monitoring', 'qa', 'alerting', 'integrations', 'reports'];
 
 (async () => {
   const browser = await chromium.launch();
@@ -45,9 +46,12 @@ const SECTIONS = ['agents', 'calling', 'batch', 'calls', 'numbers', 'knowledge',
       const u = r.url();
       if (/127\.0\.0\.1:54400/.test(u) && r.status() >= 400) problems.push(`API ${r.status()} ${r.request().method()} ${u.replace('http://127.0.0.1:54400', '')}`);
     });
-    const url = section === 'agents' ? `${base}/dashboard` : `${base}/dashboard/${section}`;
+    const onAgents = ['agents', 'agent_studio', 'create_agent'].includes(section);
+    const url = onAgents ? `${base}/dashboard` : `${base}/dashboard/${section}`;
     try {
       await page.goto(url, { waitUntil: 'networkidle', timeout: 45000 });
+      if (section === 'agent_studio') { await page.getByRole('button', { name: /Edit Studio/i }).first().click(); await page.waitForLoadState('networkidle'); }
+      if (section === 'create_agent') { await page.getByRole('button', { name: /Create an Agent/i }).first().click(); await page.waitForLoadState('networkidle'); }
     } catch (e) { problems.push(`navigation: ${String(e.message).slice(0, 120)}`); }
     await page.waitForTimeout(1500);
     const banners = await page.locator('[role="alert"], .text-rose-700, .text-red-600, .text-red-500').allInnerTexts().catch(() => []);
