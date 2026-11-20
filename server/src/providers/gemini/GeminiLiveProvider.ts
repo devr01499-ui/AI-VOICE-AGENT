@@ -26,6 +26,9 @@ import { deduplicateSystemPrompt } from '../../utils/promptOptimizer';
 import { buildFinalSystemInstruction } from '../../utils/systemInstructionBuilder';
 import { getCallableSecondsRemaining } from '../../utils/balanceUtils';
 import { EncryptionService } from '../../utils/EncryptionService';
+
+/** Sampling temperature for every live call (audit #143). */
+export const LIVE_CALL_TEMPERATURE = 0.5;
 import type {
   IRealtimeProvider,
   HealthCheckResult,
@@ -621,12 +624,10 @@ export class GeminiLiveProvider implements IRealtimeProvider {
       }
 
       let systemVoiceVal = 'Puck';
-      let temperatureVal = 0.7;
       let languageModeVal = 'auto';
 
       if (callData.agent) {
         systemVoiceVal = callData.agent.systemVoice || 'Puck';
-        temperatureVal = callData.agent.temperature ?? 0.7;
         languageModeVal = callData.agent.languageMode || 'auto';
       }
 
@@ -708,7 +709,10 @@ export class GeminiLiveProvider implements IRealtimeProvider {
                 }
               }
             },
-            temperature: 0.5
+            // Fixed for every live call: the tested setting for steady, natural speech. The agent's
+            // stored "temperature" is not applied to calls (audit #143: it was read and then ignored,
+            // which looked like a working setting). Changing this affects every live call.
+            temperature: LIVE_CALL_TEMPERATURE
           },
           systemInstruction: {
             parts: [{ text: systemInstructionString }]

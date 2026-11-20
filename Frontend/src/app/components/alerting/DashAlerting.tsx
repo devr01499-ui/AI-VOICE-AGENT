@@ -1,3 +1,4 @@
+import { formatDateTime } from '../../lib/dateFormat';
 import React, { useState, useEffect } from 'react';
 import { Bell, Plus, Play, AlertCircle, AlertTriangle, CheckCircle2, Shield, RefreshCw, Key, Mail, Globe, Clock, Trash2, Edit3, X, Check } from 'lucide-react';
 import { apiClient } from '../../api';
@@ -372,10 +373,10 @@ export function DashAlerting() {
                         {inc.summary}
                       </td>
                       <td className="py-3 px-4 text-slate-500">
-                        {new Date(inc.triggeredAt).toLocaleString()}
+                        {formatDateTime(inc.triggeredAt)}
                       </td>
                       <td className="py-3 px-4 text-slate-500">
-                        {inc.resolvedAt ? new Date(inc.resolvedAt).toLocaleString() : '-'}
+                        {inc.resolvedAt ? formatDateTime(inc.resolvedAt) : '-'}
                       </td>
                     </tr>
                   ))}

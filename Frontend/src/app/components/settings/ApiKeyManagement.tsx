@@ -1,3 +1,4 @@
+import { formatDateTime, formatDate } from '../../lib/dateFormat';
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, Copy, RefreshCw, Trash2, Plus } from 'lucide-react';
 import { apiClient } from '../../api';
@@ -130,8 +131,8 @@ export function ApiKeyManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-sm font-bold text-[var(--nm-text)]">{k.name}</span>
-                <p className="text-xs text-gray-400 mt-1">Created: {new Date(k.createdAt).toLocaleDateString()}</p>
-                {k.lastUsedAt && <p className="text-xs text-gray-400">Last Used: {new Date(k.lastUsedAt).toLocaleString()}</p>}
+                <p className="text-xs text-gray-400 mt-1">Created: {formatDate(k.createdAt)}</p>
+                {k.lastUsedAt && <p className="text-xs text-gray-400">Last Used: {formatDateTime(k.lastUsedAt)}</p>}
               </div>
               <span className="text-[10px] font-bold px-2 py-1 bg-[var(--nm-success)]/20 text-[var(--nm-success)] rounded uppercase">Active</span>
             </div>

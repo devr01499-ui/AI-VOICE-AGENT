@@ -2,8 +2,8 @@
   "_note": "One source for each public page's <title> and meta description, used by App.tsx (runtime) and scripts/prerender-seo.js (crawlers), so both always match (audit #134). h1 = the page's real H1. Keep every statement true of the product (docs/COMPLIANCE_NOTES.md).",
   "pages": {
     "": {
-      "title": "Claritiy Voice — AI Voice Agents for Outbound, Support & IVR Calls",
-      "description": "AI voice agents that answer and place phone calls in English, Hindi and five other Indian languages: order confirmation, appointment booking, reminders and support. Plans from ₹3,799.",
+      "title": "Claritiy Voice — AI Voice Agents for Sales, Support & IVR",
+      "description": "AI voice agents that answer and place calls in English, Hindi and 5 more Indian languages: order confirmation, bookings, reminders and support.",
       "h1": "Human-Like AI Voice Agents for Outbound Sales, Support & IVR"
     },
     "use-cases": {
@@ -22,7 +22,7 @@
       "h1": "How Claritiy Voice Keeps Conversations Real-Time"
     },
     "solutions": {
-      "title": "AI Voice Solutions for E-Commerce, Healthcare, Finance & Logistics — Claritiy Voice",
+      "title": "Voice AI Solutions by Industry — Claritiy Voice",
       "description": "Ready-made agent workflows for order confirmation, lead qualification, clinic appointments and payment reminders.",
       "h1": "Voice AI Engineered For Your Exact Business Operations"
     },
@@ -72,7 +72,7 @@
       "h1": "How Indian D2C Brands Cut COD RTO Rates by 40% Using Automated AI Voice Calls"
     },
     "blog/healthcare-ai-calling": {
-      "title": "AI Voice Agents for Clinic Appointments & Patient Intake — Claritiy Voice",
+      "title": "AI Voice Agents for Clinic Appointments — Claritiy Voice",
       "description": "How clinics use AI voice agents to remind patients, book appointments and handle intake calls.",
       "h1": "Zero-Wait Patient Outreach: Optimizing Clinic Intake & Appointment Schedules"
     },
@@ -87,8 +87,8 @@
       "h1": "Voice AI Index"
     },
     "ai-voice-agent-software": {
-      "title": "AI Voice Agent Software — Deploy Human-Sounding Phone Agents | Claritiy Voice",
-      "description": "AI voice agent software with natural, real-time conversation in English, Hindi and other Indian languages, plus webhook integrations. Plans from ₹3,799 for 750 minutes.",
+      "title": "AI Voice Agent Software for Phone Calls | Claritiy Voice",
+      "description": "AI voice agent software with natural, real-time phone conversations in English, Hindi and other Indian languages. Plans from ₹3,799 for 750 minutes.",
       "h1": "Enterprise AI Voice Agent Software Built for Real Conversations."
     }
   }

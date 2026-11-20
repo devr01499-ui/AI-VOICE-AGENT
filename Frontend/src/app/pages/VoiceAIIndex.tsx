@@ -17,6 +17,12 @@ interface VoiceAIIndexProps {
 // ── Article text ─────────────────────────────────────────────────────────────
 // One template shared with scripts/prerender-seo.js (data/voiceAiArticle.json), so users and crawlers
 // read the same words. Every statement in it must be true of the product (audit #138).
+/** "<topic> | Claritiy Voice" when it fits in the title limit, otherwise the topic alone (audit #139). */
+function topicDocumentTitle(cleanTitle: string): string {
+  const withSuffix = cleanTitle + ARTICLE.titleSuffix;
+  return withSuffix.length <= ARTICLE.maxTitleLength ? withSuffix : cleanTitle;
+}
+
 function fillArticle(text: string, topicId: string, title: string): string {
   return text.split("{title}").join(title).split("{titleLower}").join(title.toLowerCase()).split("{id}").join(topicId);
 }
@@ -56,7 +62,7 @@ export default function VoiceAIIndex({ setPage, initialTopicId }: VoiceAIIndexPr
     const description = isHub ? hub.description : fillArticle(ARTICLE.summary, activeTopic.id, cleanTitle);
     const url = isHub ? "https://www.claritiy.com/voice-ai-index" : `https://www.claritiy.com/voice-ai-index/${activeTopic.id}`;
 
-    document.title = isHub ? hub.title : `${cleanTitle} | Claritiy Voice AI Index`;
+    document.title = isHub ? hub.title : topicDocumentTitle(cleanTitle);
 
     let metaDesc = document.querySelector('meta[name="description"]');
     if (!metaDesc) {

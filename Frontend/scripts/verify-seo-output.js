@@ -56,7 +56,21 @@ for (const t of topics) {
   if (!html.includes(firstSubtitle)) problems.push(`/voice-ai-index/${t}: does not use the shared article text`);
 }
 
-// 4. No internal model ids anywhere in crawler HTML
+// 4. Title and description lengths search engines show in full (audit #139)
+(function walkLengths(dir) {
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) { walkLengths(p); continue; }
+    if (!e.name.endsWith('.html')) continue;
+    const html = fs.readFileSync(p, 'utf-8');
+    const title = (html.match(/<title>([\s\S]*?)<\/title>/) || [])[1] || '';
+    const desc = ((html.match(/<meta name="description" content="([^"]*)"/) || [])[1] || '').replace(/&quot;/g, '"');
+    if (title.length > 65) problems.push(`${path.relative(distDir, p)}: title is ${title.length} characters (max 65)`);
+    if (desc.length > 160) problems.push(`${path.relative(distDir, p)}: description is ${desc.length} characters (max 160)`);
+  }
+})(distDir);
+
+// 5. No internal model ids anywhere in crawler HTML
 (function walk(dir) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name);

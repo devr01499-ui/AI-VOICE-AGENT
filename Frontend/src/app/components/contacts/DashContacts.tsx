@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, User, Phone, Tag, Calendar, Edit3, Trash2, ChevronRight, X, Check, PhoneIncoming, MessageSquare, RefreshCw } from 'lucide-react';
-import { apiClient, fetchCalls, type ApiCall } from '../../api';
+import { apiClient, fetchCalls, fetchContactsPage, type ApiCall } from '../../api';
 import { formatDateTime } from '../../lib/dateFormat';
 
 interface Contact {
@@ -19,6 +19,14 @@ export function DashContacts() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('all');
+  // Paged from the server with server-side search (audit #75 #103: only the first 50 contacts were
+  // ever loaded, and search only looked at those).
+  const PAGE_SIZE = 100;
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [appliedSearch, setAppliedSearch] = useState('');
 
   // Contact Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -37,19 +45,52 @@ export function DashContacts() {
   const [contactCalls, setContactCalls] = useState<ApiCall[]>([]);
   const [loadingCalls, setLoadingCalls] = useState(false);
 
-  const fetchContactsList = async () => {
+  const fetchContactsList = async (term: string = appliedSearch) => {
     try {
       setLoading(true);
-      const res = await apiClient.get('/api/v2/contacts');
-      if (res.data?.success && Array.isArray(res.data?.data)) {
-        setContacts(res.data.data);
-      }
+      const res = await fetchContactsPage({ page: 1, limit: PAGE_SIZE, search: term });
+      setContacts(res.items);
+      setTotal(res.total);
+      setHasMore(res.hasMore);
+      setPage(1);
     } catch {
       setContacts([]);
+      setTotal(0);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
   };
+
+  const loadMoreContacts = async () => {
+    try {
+      setLoadingMore(true);
+      const next = page + 1;
+      const res = await fetchContactsPage({ page: next, limit: PAGE_SIZE, search: appliedSearch });
+      setContacts((prev) => {
+        const seen = new Set(prev.map((c) => c.id));
+        return [...prev, ...res.items.filter((c: Contact) => !seen.has(c.id))];
+      });
+      setTotal(res.total);
+      setHasMore(res.hasMore);
+      setPage(next);
+    } catch {
+      // keep what is shown; the button stays so the user can retry
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // Search on the server, after the user stops typing.
+  useEffect(() => {
+    const term = search.trim();
+    if (term === appliedSearch) return;
+    const t = setTimeout(() => {
+      setAppliedSearch(term);
+      fetchContactsList(term);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [search]);
 
   useEffect(() => {
     fetchContactsList();
@@ -58,7 +99,8 @@ export function DashContacts() {
   useEffect(() => {
     if (activeContact) {
       setLoadingCalls(true);
-      fetchCalls({ limit: 50 })
+      // This contact's calls, searched on the server (not just the latest 50 calls).
+      fetchCalls({ limit: 100, search: activeContact.phoneNumber })
         .then((allCalls) => {
           const filtered = allCalls.filter(
             (c) =>
@@ -158,14 +200,10 @@ export function DashContacts() {
     new Set(contacts.flatMap((c) => parseTagArray(c.tags)))
   );
 
+  // Search already ran on the server; the tag filter applies to the loaded contacts.
   const filteredContacts = contacts.filter((c) => {
-    const matchesSearch =
-      c.phoneNumber.toLowerCase().includes(search.toLowerCase()) ||
-      (c.name || '').toLowerCase().includes(search.toLowerCase()) ||
-      (c.notes || '').toLowerCase().includes(search.toLowerCase());
     const tags = parseTagArray(c.tags);
-    const matchesTag = selectedTag === 'all' || tags.includes(selectedTag);
-    return matchesSearch && matchesTag;
+    return selectedTag === 'all' || tags.includes(selectedTag);
   });
 
   return (
@@ -202,7 +240,7 @@ export function DashContacts() {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={fetchContactsList}
+            onClick={() => fetchContactsList()}
             className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
@@ -225,7 +263,7 @@ export function DashContacts() {
             <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-3">
               <User className="w-6 h-6" />
             </div>
-            <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-1">No Contacts Yet</h4>
+            <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-1">{appliedSearch || selectedTag !== 'all' ? 'No contacts match' : 'No Contacts Yet'}</h4>
             <p className="text-xs text-slate-500 max-w-sm mx-auto mb-4">
               Contacts are automatically populated when calls occur, or you can add them manually.
             </p>
@@ -317,6 +355,18 @@ export function DashContacts() {
                 })}
               </tbody>
             </table>
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500" data-testid="contacts-paging">
+              <span>Showing {contacts.length.toLocaleString('en-IN')} of {total.toLocaleString('en-IN')} contacts</span>
+              {hasMore && (
+                <button
+                  onClick={loadMoreContacts}
+                  disabled={loadingMore}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
+                >
+                  {loadingMore ? 'Loading…' : 'Load more'}
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>

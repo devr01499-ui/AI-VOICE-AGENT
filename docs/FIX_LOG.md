@@ -442,3 +442,24 @@ One entry per fix, newest at the bottom. Template:
   - test:marketing-claims: 25/25, and 18/25 on the old code.
   - Build gate: passes; 595 problems on the old code.
   - Screenshots: docs/proof/audit-batch11-*.png.
+
+## Defect audit — batch 13 (2026-11-20, branch fix/audit-batch-13, 8149fb7)
+- **Lists and totals:**
+  - #75 #103: Contacts load 100 at a time with the real total and "Load more", and search runs on the server (names and notes, any case). A contact's call history is searched on the server, not taken from the latest 50 calls.
+  - #110: Call History shows "N loaded of TOTAL calls" and can load older calls. `apiFetchWithMeta` now keeps the server's paging info, which `apiFetch` drops.
+- **Dates (#104):** alerts, chat history, API keys, KYC, team members, Test Lab and calendar status now use the workspace timezone (IST), not the browser's.
+- **Numbers:**
+  - #105: changing the carrier or region searches once.
+  - #106: a plan-included number no longer shows the carrier's ₹450/month + GST as if the customer paid it.
+- **Other screens:**
+  - #108: the low-balance message states the real rule (under 100 minutes).
+  - #109: the Reports "Unclear" filter includes unlabelled rows.
+- **Legal (#140):** the AI companion avatar was a real actor's photo. It is now a neutral icon, and the image is deleted from `public/`.
+- **Live calls (#143):** the temperature is one named constant, `LIVE_CALL_TEMPERATURE = 0.5`, unchanged. The agent's stored temperature is not applied to calls; wiring it would silently move every agent to 0.7. The API schema's temperature regex had lost its backslashes: it rejected "0.7" and accepted "dd".
+- **SEO (#139):**
+  - Titles are at most 65 characters and descriptions at most 160, enforced by the build gate.
+  - Topic titles use the " | Claritiy Voice" suffix only when it fits.
+  - The sitemap no longer carries a fake build-date `lastmod`, so builds stop rewriting it.
+  - The "thin" pre-rendered pages are the short static fallbacks shown before the app loads; search engines render the full page. Accepted.
+- **Tests:** test:audit-batch13 4/4, and 0/4 on the old code. e2e audit-batch13 5/5, and 0/5 on the old code.
+- **Not changed:** #127 (sign-up says an email is already registered) is an owner decision; see PROGRESS open question 5.

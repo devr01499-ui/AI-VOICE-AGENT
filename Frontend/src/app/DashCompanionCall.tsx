@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { chatWithAgent } from "./api";
-import { PhoneOff, Mic, MicOff, Loader2 } from "lucide-react";
+import { PhoneOff, Mic, MicOff, Loader2, Bot } from "lucide-react";
 
 export function DashCompanionCall({ agentId, onEnd }: { agentId: string; onEnd: () => void }) {
   const [callState, setCallState] = useState<"idle" | "listening" | "thinking" | "speaking">("idle");
@@ -174,12 +174,14 @@ export function DashCompanionCall({ agentId, onEnd }: { agentId: string; onEnd: 
         
         {/* Core Avatar */}
         <div className={`relative z-10 w-48 h-48 rounded-full border-4 flex items-center justify-center transition-all duration-500 shadow-xl overflow-hidden ${avatarColors[callState]}`}>
-          <img 
-            src="/tom_holland_avatar.png" 
-            alt="AI Avatar" 
-            className={`w-full h-full object-cover transition-transform duration-300 ${callState === "speaking" ? "scale-105 opacity-90" : "scale-100 opacity-100"}`}
+          {/* A neutral avatar: the old image showed a real actor's face (audit #140). */}
+          <div
+            aria-label="AI assistant"
+            className={`w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 text-white transition-transform duration-300 ${callState === "speaking" ? "scale-105 opacity-90" : "scale-100 opacity-100"}`}
             style={callState === "speaking" ? { animation: 'pulse 1s infinite' } : {}}
-          />
+          >
+            <Bot className="w-20 h-20" />
+          </div>
           {callState === "thinking" && (
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
               <Loader2 className="w-12 h-12 text-blue-400 animate-spin" />

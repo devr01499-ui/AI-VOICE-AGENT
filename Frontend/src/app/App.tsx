@@ -14,7 +14,7 @@ import { DashCalendar } from "./components/calendar/CalendarOverview";
 import {
   fetchAgents, fetchAgent, fetchCalls, fetchProfile, createAgent, updateAgent, deleteAgent, chatWithAgent,
   exportAgentAsJson, importAgentFromJson,
-  initiateCall, getCallTranscript, getLiveTranscriptWsUrl, requestTranscriptTicket,
+  initiateCall, getCallTranscript, getLiveTranscriptWsUrl, requestTranscriptTicket, fetchCallsPage,
   fetchKBList, fetchKBLimits, uploadKBDocument, scrapeKBUrl, deleteKBDocument, reindexKBDocument, testKBQuery, fetchCalendarBatches, createBatchCampaign, pauseBatchCampaign, resumeBatchCampaign, cancelBatchCampaign,
   fetchDataRetention, updateDataRetention, fetchIpAllowlist, updateIpAllowlist, fetchConcurrencyTelemetry, updateConcurrencyLimit,
   DEV_USER_ID, DEFAULT_AGENT_ID, API_BASE, apiClient,
@@ -3193,7 +3193,7 @@ function DashCallLogs() {
     try {
       setCallsLoading(true);
       setCallsError(null);
-      const data = await fetchCalls({
+      const { items: data, total } = await fetchCallsPage({
         limit: 100,
         status: statusFilter !== 'all' ? statusFilter : undefined,
         direction: directionFilter !== 'all' ? directionFilter : undefined,
@@ -3203,6 +3203,7 @@ function DashCallLogs() {
         dateRange: dateRangeFilter !== 'all' ? dateRangeFilter : undefined,
       });
       setLiveCalls(data);
+      setCallsTotal(total);
       setLastUpdated(new Date());
       localStorage.setItem('cache_live_calls', JSON.stringify(data));
     } catch (err: any) {
@@ -3343,6 +3344,9 @@ function DashCallLogs() {
   }
 
   const [currentPage, setCurrentPage] = useState(1);
+  // The server's real total (audit #110: the page showed the number loaded, 100, as the total).
+  const [callsTotal, setCallsTotal] = useState<number | null>(null);
+  const [loadingMoreCalls, setLoadingMoreCalls] = useState(false);
   // A new search or filter starts at page 1 (audit #87).
   useEffect(() => { setCurrentPage(1); }, [searchQuery, directionFilter, statusFilter, agentFilter, dateRangeFilter, batchFilter]);
   const pageSize = 10;
@@ -3385,6 +3389,32 @@ function DashCallLogs() {
   });
 
   const totalPages = Math.ceil(normalizedRows.length / pageSize) || 1;
+
+  /** Next 100 calls (older), with the same filters. */
+  async function loadMoreCalls() {
+    try {
+      setLoadingMoreCalls(true);
+      const { items, total } = await fetchCallsPage({
+        limit: 100,
+        offset: liveCalls.length,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        direction: directionFilter !== 'all' ? directionFilter : undefined,
+        search: searchQuery.trim() ? searchQuery.trim() : undefined,
+        agentId: agentFilter !== 'all' ? agentFilter : undefined,
+        batchId: batchFilter !== 'all' ? batchFilter : undefined,
+        dateRange: dateRangeFilter !== 'all' ? dateRangeFilter : undefined,
+      });
+      setLiveCalls((prev) => {
+        const seen = new Set(prev.map((c) => c.id));
+        return [...prev, ...items.filter((c) => !seen.has(c.id))];
+      });
+      setCallsTotal(total);
+    } catch (err: any) {
+      setCallsError(err?.message || 'Failed to load older calls');
+    } finally {
+      setLoadingMoreCalls(false);
+    }
+  }
   // Never past the last page (audit #87: after a filter shrank the list the table stayed on an
   // empty page with no way back).
   const shownPage = Math.min(currentPage, totalPages);
@@ -3722,12 +3752,17 @@ function DashCallLogs() {
             </div>
           )}
         </div>
-        {normalizedRows.length > pageSize && (
+        {(normalizedRows.length > pageSize || (callsTotal ?? 0) > normalizedRows.length) && (
           <div className="flex items-center justify-between px-6 py-4 border-t border-transparent nm-pressed">
-            <span className="text-xs font-bold text-[var(--nm-text)]">
-              Showing Page {shownPage} of {totalPages} ({normalizedRows.length} total calls)
+            <span className="text-xs font-bold text-[var(--nm-text)]" data-testid="calls-paging">
+              Showing Page {shownPage} of {totalPages} ({normalizedRows.length} loaded of {(callsTotal ?? normalizedRows.length).toLocaleString('en-IN')} calls)
             </span>
             <div className="flex gap-2">
+              {(callsTotal ?? 0) > liveCalls.length && (
+                <DBtn size="sm" variant="secondary" disabled={loadingMoreCalls} onClick={loadMoreCalls}>
+                  {loadingMoreCalls ? 'Loading…' : 'Load older calls'}
+                </DBtn>
+              )}
               <DBtn size="sm" variant="secondary" disabled={shownPage === 1} onClick={() => setCurrentPage(Math.max(1, shownPage - 1))}>
                 Previous
               </DBtn>
@@ -5579,7 +5614,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
                   </div>
                   <p className="text-xs text-ink-muted mt-1">
                     {(profile?.callingBalanceMinutes ?? 0) < 100
-                      ? '⚠️ Low balance alert: remaining credits are below 10% of standard capacity.'
+                      ? '⚠️ Low balance: fewer than 100 calling minutes left.'
                       : 'Live voice telephony minutes available across inbound and outbound calls.'}
                   </p>
                 </div>
@@ -5728,7 +5763,7 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
                           )}
                         </td>
                         <td className="px-5 py-4 text-xs font-medium text-ink-muted font-mono">
-                          {new Date(m.createdAt).toLocaleDateString()}
+                          {formatDate(m.createdAt)}
                         </td>
                         <td className="px-5 py-4 text-right">
                           {canManageTeam && (
