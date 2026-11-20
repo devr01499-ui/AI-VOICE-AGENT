@@ -97,7 +97,7 @@ router.post('/billing-config', requireAuth, requireRole(['admin']), sensitiveOpe
  * POST /api/v2/user/verify-gemini-key
  * Validates a Gemini API key against Google's Generative Language API.
  */
-router.post('/verify-gemini-key', requireAuth, sensitiveOperationsLimiter, async (req: AuthenticatedRequest, res, next) => {
+router.post('/verify-gemini-key', requireAuth, requireRole(['admin']), sensitiveOperationsLimiter, async (req: AuthenticatedRequest, res, next) => {
   try {
     const userId = req.effectiveWorkspaceId || req.userId;
     if (!userId) {

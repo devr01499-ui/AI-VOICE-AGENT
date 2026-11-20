@@ -127,7 +127,10 @@ function DSelect({ className="", children, ...p }: React.SelectHTMLAttributes<HT
 }
 function DBtn({ children, variant="primary", size="md", onClick, disabled, className="", title }: { children:React.ReactNode; variant?:"primary"|"secondary"|"ghost"|"danger"; size?:"sm"|"md"; onClick?:(e: React.MouseEvent<HTMLButtonElement>)=>void; disabled?:boolean; className?:string; title?:string }) {
   const s = size==="sm" ? "text-xs px-4 py-2" : "text-sm px-6 py-3";
-  const v = { primary:"bg-mint-primary text-forest-deep shadow-level-1 hover:bg-[#8fdcbb] hover:-translate-y-0.5 hover:shadow-level-2", secondary:"border border-border-soft text-ink hover:bg-cream-bg shadow-sm", ghost:"text-ink-muted hover:text-ink hover:bg-cream-bg", danger:"bg-error text-surface-white hover:bg-red-400" }[variant];
+  // Primary = the theme's black with WHITE text. (After the black rebrand both --mint-primary and
+  // --forest-deep are #121212, so the old "text-forest-deep" made every primary button's label
+  // black on black — invisible until hovered.)
+  const v = { primary:"bg-mint-primary text-white shadow-level-1 hover:bg-[#2A2825] hover:-translate-y-0.5 hover:shadow-level-2", secondary:"border border-border-soft text-ink hover:bg-cream-bg shadow-sm", ghost:"text-ink-muted hover:text-ink hover:bg-cream-bg", danger:"bg-error text-surface-white hover:bg-red-400" }[variant];
   return <button onClick={onClick} disabled={disabled} title={title} className={`inline-flex items-center justify-center gap-2 font-semibold rounded-pill transition-all active:translate-y-0 disabled:opacity-50 disabled:shadow-none ${s} ${v} ${className}`} style={{fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{children}</button>;
 }
 function DField({ label, children, hint }: { label:string; children:React.ReactNode; hint?:string }) {
@@ -1020,6 +1023,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
               model: a.model ?? 'gemini-3.8-live',
               kb: assignedKbIds,
               numbers: agentNumbers,
+              updatedAt: a.updatedAt,
               isRecordingEnabled: a.isRecordingEnabled ?? false,
               isTranscriptionEnabled: a.isTranscriptionEnabled ?? false,
             } as unknown as AgentRow;
@@ -1695,7 +1699,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
                 <th className="px-6 py-3 font-semibold">Agent Type</th>
                 <th className="px-6 py-3 font-semibold">Voice</th>
                 <th className="px-6 py-3 font-semibold">Phone</th>
-                <th className="px-6 py-3 font-semibold">Edited by</th>
+                <th className="px-6 py-3 font-semibold">Last edited</th>
                 <th className="px-6 py-3 font-semibold text-right">Actions</th>
               </tr>
             </thead>
@@ -1724,10 +1728,11 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
                     </div>
                   </td>
                   <td className="px-6 py-4 text-slate-500 font-mono text-[11px]">
-                    +91 (117) 136-8824
+                    {/* The agent's real numbers (this was a hard-coded sample number). */}
+                    {Array.isArray(a.numbers) && (a.numbers as string[]).length > 0 ? (a.numbers as string[]).join(', ') : '—'}
                   </td>
                   <td className="px-6 py-4 text-slate-400 text-[11px]">
-                    07/04/2026 • 15:08
+                    {a.updatedAt ? formatDateTime(a.updatedAt as string, { showZone: false }) : '—'}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
@@ -2128,7 +2133,7 @@ function DashBatch({ onNavigate }: DashBatchProps) {
       )}
 
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{campaigns.length} campaigns</p>
+        <p className="text-sm text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{campaigns.length} {campaigns.length === 1 ? 'campaign' : 'campaigns'}</p>
         <DBtn onClick={handleOpenCreate}><Plus className="w-4 h-4"/> New campaign</DBtn>
       </div>
 
@@ -2147,7 +2152,7 @@ function DashBatch({ onNavigate }: DashBatchProps) {
                 <span className="text-xs font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{s.label.toUpperCase()}</span>
                 <Icon className="w-5 h-5 text-[var(--nm-accent)]" strokeWidth={1.5}/>
               </div>
-              <p className="text-3xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Instrument Serif',serif"}}>{s.value}</p>
+              <p className="text-3xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>{s.value}</p>
             </div>
           );
         })}
@@ -2186,7 +2191,7 @@ function DashBatch({ onNavigate }: DashBatchProps) {
                     </td>
                     <td className="px-5 py-4">
                       <DBadge v={c.status === "running" ? "success" : c.status === "paused" ? "warning" : c.status === "completed" ? "info" : c.status === "failed" ? "error" : "neutral"}>
-                        <SDot status={c.status}/> {c.status}
+                        <SDot status={c.status}/> {codeLabel(c.status)}
                       </DBadge>
                     </td>
                     <td className="px-5 py-4 w-40">
@@ -2756,7 +2761,7 @@ function DashCallLogs() {
             />
           </div>
           <select 
-            className="nm-input rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--nm-text)] outline-none" 
+            className="nm-input w-auto! min-w-[150px] rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--nm-text)] outline-none" 
             style={{fontFamily:"'Outfit', sans-serif"}}
             value={directionFilter}
             onChange={(e: any) => setDirectionFilter(e.target.value)}
@@ -2766,7 +2771,7 @@ function DashCallLogs() {
             <option value="outbound">Outbound ↑</option>
           </select>
           <select 
-            className="nm-input rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--nm-text)] outline-none" 
+            className="nm-input w-auto! min-w-[150px] rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--nm-text)] outline-none" 
             style={{fontFamily:"'Outfit', sans-serif"}}
             value={statusFilter}
             onChange={(e: any) => setStatusFilter(e.target.value)}
@@ -2780,7 +2785,7 @@ function DashCallLogs() {
             <option value="canceled">Canceled</option>
           </select>
           <select 
-            className="nm-input rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--nm-text)] outline-none" 
+            className="nm-input w-auto! min-w-[150px] rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--nm-text)] outline-none" 
             style={{fontFamily:"'Outfit', sans-serif"}}
             value={agentFilter}
             onChange={(e: any) => setAgentFilter(e.target.value)}
@@ -2789,7 +2794,7 @@ function DashCallLogs() {
             {liveAgents.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
           <select 
-            className="nm-input rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--nm-text)] outline-none" 
+            className="nm-input w-auto! min-w-[150px] rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--nm-text)] outline-none" 
             style={{fontFamily:"'Outfit', sans-serif"}}
             value={dateRangeFilter}
             onChange={(e: any) => setDateRangeFilter(e.target.value)}
@@ -2849,11 +2854,11 @@ function DashCallLogs() {
                   <td className="px-5 py-4">
                     {c.direction === 'inbound' ? (
                       <DBadge v="info">
-                        <span className="flex items-center gap-1 font-bold">Inbound ↓</span>
+                        <span className="flex items-center gap-1 font-bold whitespace-nowrap">Inbound ↓</span>
                       </DBadge>
                     ) : (
                       <DBadge v="neutral">
-                        <span className="flex items-center gap-1 font-bold">Outbound ↑</span>
+                        <span className="flex items-center gap-1 font-bold whitespace-nowrap">Outbound ↑</span>
                       </DBadge>
                     )}
                   </td>
@@ -2881,7 +2886,7 @@ function DashCallLogs() {
                       c.status === "failed" ? "danger" : 
                       c.status === "busy" || c.status === "no_answer" ? "warning" : "neutral"
                     }>
-                      {c.status}
+                      {codeLabel(c.status)}
                     </DBadge>
                   </td>
                   <td className="px-5 py-4">
@@ -2896,7 +2901,7 @@ function DashCallLogs() {
                         }`}
                         title={c.endDetail || c.endReason}
                       >
-                        {c.endReason}
+                        {codeLabel(c.endReason)}
                       </span>
                     ) : (
                       <span className="text-xs opacity-40">—</span>
@@ -3194,7 +3199,7 @@ function DashNumbers({ profile, onNavigateToBilling, onNavigateToKyc }: { profil
 
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{numbers.length} numbers provisioned</p>
+        <p className="text-sm text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{numbers.length} {numbers.length === 1 ? 'number' : 'numbers'} provisioned</p>
         <div className="flex gap-2"><DBtn onClick={() => setViewMode('buy')}><Plus className="w-4 h-4"/> Buy number</DBtn></div>
       </div>
       
@@ -3272,7 +3277,21 @@ function DashNumbers({ profile, onNavigateToBilling, onNavigateToKyc }: { profil
   );
 }
 
+/** Status / end-reason codes for display: "no_answer" -> "No answer", "caller_hangup" -> "Caller hangup". */
+function codeLabel(code: string | null | undefined): string {
+  const s = String(code || '').replace(/_/g, ' ').trim();
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : '—';
+}
+
 // ── Knowledge Base ──
+/** Document size for the KB table: small text files read "58 B", not "0.0 KB". */
+function formatDocSize(chars: number | null | undefined): string {
+  const n = Number(chars) || 0;
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
   const [docs, setDocs] = useState<ApiKnowledgeBase[]>([]);
   const [loading, setLoading] = useState(true);
@@ -3469,7 +3488,7 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
           {label:"Storage used",v: kbLimits ? `${kbLimits.usage.storageMb} / ${kbLimits.limits.maxStorageMb} MB` : `${(docs.reduce((s,d)=>s+d.sizeChars,0) / (1024 * 1024)).toFixed(2)} MB`},
           {label:"Max file size",v: kbLimits ? `${kbLimits.limits.maxFileSizeMb} MB` : "—"},
         ].map(s=>(
-          <div key={s.label} className="nm-card p-4 text-center"><p className="text-xs font-bold text-[var(--nm-text)] mb-2" style={{fontFamily:"'Outfit', sans-serif"}}>{s.label.toUpperCase()}</p><p className="text-2xl font-bold" style={{fontFamily:"'Instrument Serif',serif"}}>{s.v}</p></div>
+          <div key={s.label} className="nm-card p-4 text-center"><p className="text-xs font-bold text-[var(--nm-text)] mb-2" style={{fontFamily:"'Outfit', sans-serif"}}>{s.label.toUpperCase()}</p><p className="text-2xl font-bold" style={{fontFamily:"'Outfit', sans-serif"}}>{s.v}</p></div>
         ))}
       </div>
       <div className="nm-raised rounded-2xl overflow-x-auto mt-6">
@@ -3603,7 +3622,7 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
                       </Popover>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{(d.sizeChars / 1024).toFixed(1)} KB</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{formatDocSize(d.sizeChars)}</td>
                   <td className="px-4 py-3 text-xs text-muted-foreground" style={{fontFamily:"'Outfit', sans-serif"}}>{formatDate(d.createdAt)}</td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">

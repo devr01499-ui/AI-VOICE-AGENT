@@ -1321,9 +1321,12 @@ router.post('/batches/:id/resume', requireAuth, requireEditor, sensitiveOperatio
     // "already running" while the batch stayed paused for good). Only one worker can run it:
     // processBatch claims the lock atomically, and a worker that still holds a fresh lock simply
     // carries on now that the status is running again.
+    // A campaign paused before its scheduled start goes back to waiting for that time (audit #154:
+    // resuming it used to start dialling at once, hours before the time the customer chose).
+    const waitForSchedule = !existing.startedAt && !!existing.scheduledAt && existing.scheduledAt.getTime() > Date.now();
     const resumed = await prisma.batch.updateMany({
       where: { id: batchId, userId, status: 'paused' },
-      data: { status: 'running', statusReason: null }
+      data: { status: waitForSchedule ? 'scheduled' : 'running', statusReason: null }
     });
     if (resumed.count === 0) {
       return res.status(409).json({ success: false, error: 'The campaign changed state just now. Refresh and try again.' });
@@ -1339,6 +1342,10 @@ router.post('/batches/:id/resume', requireAuth, requireEditor, sensitiveOperatio
         metadata: JSON.stringify({ batchName: existing.name })
       }
     }).catch(() => {});
+
+    if (waitForSchedule) {
+      return res.json({ success: true, message: 'Batch campaign resumed. It starts at its scheduled time.' });
+    }
 
     const { BatchService } = await import('../services/BatchService');
     BatchService.processBatch(batchId, userId).catch(err => {

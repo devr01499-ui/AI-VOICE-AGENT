@@ -119,6 +119,26 @@ async function main() {
     await prisma.batch.update({ where: { id: batch.id }, data: { status: 'cancelled', lockedBy: null, lockedAt: null } });
   });
 
+  await test('#154 pausing then resuming a campaign scheduled for later keeps its start time (no dialling now)', async () => {
+    const ws = await newUser();
+    const agent = await prisma.agent.create({ data: { userId: ws, name: 'Batch', systemPrompt: 'x' } });
+    const startAt = new Date(Date.now() + 3 * 3600000);
+    const batch = await prisma.batch.create({ data: { userId: ws, agentId: agent.id, name: 'B9-scheduled', status: 'scheduled', scheduledAt: startAt } });
+    const pause = handlerOf(calendarRouter, 'post', '/batches/:id/pause');
+    const resume = handlerOf(calendarRouter, 'post', '/batches/:id/resume');
+    assert.strictEqual((await call(pause, { workspaceId: ws, params: { id: batch.id } })).body.success, true);
+    const r = await call(resume, { workspaceId: ws, params: { id: batch.id } });
+    assert.strictEqual(r.body.success, true, JSON.stringify(r.body));
+    const after = await prisma.batch.findUnique({ where: { id: batch.id } });
+    assert.strictEqual(after.status, 'scheduled', 'back to scheduled, not running before its start time');
+    assert.strictEqual(after.scheduledAt.getTime(), startAt.getTime(), 'start time unchanged');
+    // A scheduled campaign whose time has passed (it already started) resumes as running.
+    const started = await prisma.batch.create({ data: { userId: ws, agentId: agent.id, name: 'B9-started', status: 'paused', scheduledAt: new Date(Date.now() - 3600000), lockedBy: 'w', lockedAt: new Date() } });
+    await call(resume, { workspaceId: ws, params: { id: started.id } });
+    assert.strictEqual((await prisma.batch.findUnique({ where: { id: started.id } })).status, 'running');
+    await prisma.batch.updateMany({ where: { id: { in: [batch.id, started.id] } }, data: { status: 'cancelled', lockedBy: null, lockedAt: null } });
+  });
+
   await test('#56 re-analysis: a live lock answers 409; a stale one is really re-queued', async () => {
     const reportsRouter = require('../dist/routes/reports').default;
     const reanalyze = handlerOf(reportsRouter, 'post', '/:callId/reanalyze');

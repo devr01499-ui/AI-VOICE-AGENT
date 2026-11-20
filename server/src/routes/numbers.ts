@@ -153,18 +153,11 @@ router.get('/search', requireAuth, async (req, res, next) => {
       stack: err instanceof Error ? err.stack : undefined,
     });
 
-    // Sanitize error string to prevent raw secret leaks while still surfacing real failure reason
-    let sanitizedError = errorDetail;
-    if (env.VOBIZ_AUTH_TOKEN && sanitizedError.includes(env.VOBIZ_AUTH_TOKEN)) {
-      sanitizedError = sanitizedError.replaceAll(env.VOBIZ_AUTH_TOKEN, '[REDACTED]');
-    }
-    if (env.VOBIZ_AUTH_ID && sanitizedError.includes(env.VOBIZ_AUTH_ID)) {
-      sanitizedError = sanitizedError.replaceAll(env.VOBIZ_AUTH_ID, '[REDACTED]');
-    }
-
+    // The carrier's own error text (and anything credential-like in it) stays in our logs; the
+    // customer gets a plain sentence (demo-readiness sweep: the raw provider message was shown).
     res.status(502).json({
       success: false,
-      error: `Failed to fetch available numbers: ${sanitizedError}`,
+      error: 'Available numbers could not be loaded right now. Please try again in a minute.',
     });
   }
 });
@@ -1050,7 +1043,7 @@ router.post('/plivo/compliance', requireAuth, requireEditor, requirePaidPlan, se
  * first initiates Plivo onboarding. Retry-safe & idempotent.
  * Never exposes tokens to the browser.
  */
-router.post('/plivo/onboard', requireAuth, requirePaidPlan, sensitiveOperationsLimiter, async (req, res, next) => {
+router.post('/plivo/onboard', requireAuth, requireEditor, requirePaidPlan, sensitiveOperationsLimiter, async (req, res, next) => {
   try {
     const userId = (req as any).effectiveWorkspaceId || (req as any).userId;
     const user = await prisma.user.findUnique({ where: { id: userId } });

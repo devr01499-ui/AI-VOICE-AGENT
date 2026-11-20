@@ -239,15 +239,18 @@ export function DashAnalytics() {
               {summary.volumeTrend.map((v) => {
                 const heightPct = Math.max(12, Math.round((v.total / maxTrendVol) * 100));
                 return (
-                  <div key={v.date} className="flex-1 min-w-[20px] flex flex-col items-center gap-2 group relative">
+                  // h-full: the bar height is a percentage of this column, which had no height, so no bar
+                  // was ever drawn (demo-readiness sweep).
+                  <div key={v.date} className="flex-1 min-w-[20px] max-w-[64px] h-full flex flex-col justify-end items-center gap-2 group relative">
                     {/* Tooltip */}
                     <div className="absolute -top-10 opacity-0 group-hover:opacity-100 bg-slate-800 text-white text-[10px] py-1 px-2 rounded font-mono pointer-events-none transition-opacity z-10 whitespace-nowrap shadow-md">
                       {v.date}: {v.total} calls ({v.completed} completed)
                     </div>
 
-                    <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-t-lg overflow-hidden flex flex-col justify-end transition-all" style={{ height: `${heightPct}%` }}>
+                    {/* Colours match the legend: indigo = all calls, green = completed. */}
+                    <div className="w-full bg-indigo-500 rounded-t-lg overflow-hidden flex flex-col justify-end transition-all" style={{ height: `${heightPct}%` }}>
                       <div
-                        className="bg-indigo-600 dark:bg-indigo-500 w-full transition-all"
+                        className="bg-emerald-500 w-full transition-all"
                         style={{ height: `${(v.completed / Math.max(1, v.total)) * 100}%` }}
                       />
                     </div>
@@ -306,10 +309,11 @@ export function DashAnalytics() {
 
               <div className="p-4 bg-amber-50/60 dark:bg-amber-950/30 rounded-xl space-y-1 border border-amber-100 dark:border-amber-900/40">
                 <div className="flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
-                  <Clock className="w-3.5 h-3.5 text-amber-600" /> No Answer
+                  <Clock className="w-3.5 h-3.5 text-amber-600" /> No Answer / Busy
                 </div>
+                {/* Busy calls were in no box, so the boxes did not add up to Total Calls. */}
                 <p className="text-xl font-bold font-mono text-amber-700 dark:text-amber-300">
-                  {summary.statusBreakdown.noAnswer}
+                  {(summary.statusBreakdown.noAnswer || 0) + (summary.statusBreakdown.busy || 0)}
                 </p>
               </div>
             </div>
