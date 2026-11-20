@@ -374,3 +374,23 @@ One entry per fix, newest at the bottom. Template:
   - Staff routes keep the real names.
 - **Tests:** test:audit-batch9 10/10, and 0/10 on the old code. Related suites pass: calendar-bookings, data-pages, number-entitlement, carrier-accuracy, plivo-business, batch-compliance, notifications, scheduled-calls, batch3, batch5, recording.
 - **Not verified here:** a live hosted-KYC session from the carrier (keys treated as compromised).
+
+## Defect audit — batch 10, dashboard (2026-11-20, branch fix/audit-batch-9, a67fbcb)
+- **Calls:**
+  - #85: the live call transcript merges the per-turn events the server actually sends. It no longer reconnects on every live-calls refresh, and lines loaded before connecting stay.
+  - #87: a new search or filter starts Call History at page 1, and the page number is clamped.
+- **Reports:**
+  - #93: the "Pending"/"Processing" filters list the calls waiting in the analysis queue, workspace-scoped and not clickable until analysed.
+  - #94: report history shows the customer's own corrections and accepts, with the team member's name. Staff entries show as "Claritiy support" and never include a staff email.
+- **Pages:**
+  - #96: the plan badge shows the plan name (Startup, Growth…).
+  - #98: picking an agent for the KB test survives list reloads.
+  - #99: Publish sets the agent active.
+  - #100/#152: 23 error messages now show the server's reason (apiFetch puts it in err.message).
+  - #153: the Calendar card is readable on phones.
+- **Alerts (#149):** the "cost" metric is now "Billed Minutes": per started minute, connected calls only. Rules saved earlier with a dollar threshold now compare minutes; the owner may want to tell users who set one.
+- **Tests:**
+  - test:audit-batch10: 3/3, and 0/3 on the old code.
+  - e2e audit-batch10: 8/8. On the old code 7 tests ran and all failed; the 8th (proof screenshots) only captures images.
+  - #53 editor: shows 10 for a saved 0 on the pre-batch-9 editor.
+  - Screenshots: docs/proof/audit-batch10-*.png (1440 and 390).
