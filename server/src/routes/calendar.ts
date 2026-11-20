@@ -13,7 +13,7 @@ import { requireCallingMinutes } from '../middleware/planValidation';
 import { CallService } from '../services/CallService';
 import { prepareBatchRecipients, MAX_BATCH_RECIPIENTS } from '../services/BatchService';
 import { EncryptionService } from '../utils/EncryptionService';
-import { CalendarService, SchedulingRuleConfig, ruleNumber } from '../core/orchestrator/CalendarService';
+import { CalendarService, SchedulingRuleConfig, ruleNumber, localDateKey } from '../core/orchestrator/CalendarService';
 
 const router = Router();
 
@@ -221,9 +221,13 @@ router.post('/connect-url', requireAuth, sensitiveOperationsLimiter, (req, res) 
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET || env.GOOGLE_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
+      // The customer sees a plain sentence; the setup detail is for our logs (audit #107: the page
+      // showed the raw code and the names of our environment variables).
+      logger.error('[ADMIN_ALERT][CALENDAR] Google OAuth is not configured (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET missing)');
       return res.status(503).json({
-        error: 'GOOGLE_OAUTH_NOT_CONFIGURED',
-        message: 'Google Calendar OAuth is not configured on this server. Please configure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in the environment variables.',
+        success: false,
+        code: 'GOOGLE_OAUTH_NOT_CONFIGURED',
+        error: 'Google Calendar connection is temporarily unavailable. Please try again later or contact support.',
       });
     }
 
@@ -937,7 +941,7 @@ router.get('/batches', requireAuth, async (req, res) => {
         progressPercent: counters.progressPercent,
         totalDurationSeconds: counters.totalDurationSeconds,
         totalBilledMinutes: counters.totalBilledMinutes,
-        created: b.createdAt.toISOString().slice(0, 10),
+        created: localDateKey(b.createdAt, 'Asia/Kolkata'), // the IST day (audit #73: UTC showed the previous day before 05:30 IST)
         createdAt: b.createdAt.toISOString()
       };
     }));
@@ -1232,7 +1236,7 @@ router.post('/batches', requireAuth, requireEditor, sensitiveOperationsLimiter, 
         connected: 0,
         estimatedMinutes: batch.estimatedMinutes,
         warning: duplicateRunningWarning || undefined,
-        created: batch.createdAt.toISOString().slice(0, 10),
+        created: localDateKey(batch.createdAt, 'Asia/Kolkata'),
         createdAt: batch.createdAt.toISOString()
       }
     });
@@ -1366,13 +1370,25 @@ router.post('/batches/:id/cancel', requireAuth, requireEditor, sensitiveOperatio
       return res.status(404).json({ success: false, error: 'Batch not found.' });
     }
 
+    // A finished campaign keeps its real outcome (audit #74: cancelling a completed batch rewrote
+    // it as cancelled with a new end time). Cancelling twice is harmless.
+    if (existing.status === 'cancelled') {
+      return res.json({ success: true, message: 'Batch campaign is already cancelled.' });
+    }
+    if (existing.status === 'completed' || existing.status === 'failed') {
+      return res.status(409).json({ success: false, error: `This campaign has already finished (${existing.status}), so it cannot be cancelled.` });
+    }
+
     const { endCurrentCall = false } = req.body || {};
 
-    // 1. Mark batch as cancelled
-    await prisma.batch.updateMany({
-      where: { id: batchId, userId },
+    // 1. Mark batch as cancelled (only if it is still open; a worker may finish it meanwhile)
+    const cancelled = await prisma.batch.updateMany({
+      where: { id: batchId, userId, status: { in: ['scheduled', 'running', 'paused'] } },
       data: { status: 'cancelled', completedAt: new Date() }
     });
+    if (cancelled.count === 0) {
+      return res.status(409).json({ success: false, error: 'The campaign changed state just now. Refresh and try again.' });
+    }
 
     // 2. Mark not-yet-dialed pending recipients as cancelled
     await prisma.batchRecipient.updateMany({

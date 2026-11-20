@@ -327,6 +327,11 @@ router.get('/summary', async (req: Request, res: Response, next: NextFunction): 
       }
     }
 
+    // The queue counts follow the same agent and date filters as everything else (audit #68).
+    const jobWhere: any = { workspaceId };
+    if (where.agentId) jobWhere.agentId = where.agentId;
+    if (where.createdAt) jobWhere.createdAt = where.createdAt;
+
     const [
       totalCalls,
       analyzedCalls,
@@ -347,13 +352,13 @@ router.get('/summary', async (req: Request, res: Response, next: NextFunction): 
       }),
       prisma.analysisJob.count({
         where: {
-          workspaceId,
+          ...jobWhere,
           status: { in: ['pending', 'processing'] },
         },
       }),
       prisma.analysisJob.count({
         where: {
-          workspaceId,
+          ...jobWhere,
           status: 'failed',
         },
       }),

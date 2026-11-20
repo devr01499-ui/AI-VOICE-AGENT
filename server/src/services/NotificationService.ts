@@ -54,7 +54,9 @@ function toNotification(a: AlertRow, isRead: boolean): InAppNotification {
     isRead,
     metadata: meta,
     createdAt: a.createdAt.toISOString(),
-    isImportant: a.severity === 'critical' || a.severity === 'error',
+    // Explicitly important notices (e.g. staff announcements) are flagged in their metadata; they
+    // used to be stored as "warning" and never shown as important (audit #71).
+    isImportant: a.severity === 'critical' || a.severity === 'error' || meta.isImportant === true,
     isAnnouncement: a.userId === null && a.type === ANNOUNCEMENT_TYPE,
   };
 }
@@ -231,7 +233,7 @@ export class NotificationService {
       title: params.title || 'Notification',
       message: params.message,
       severity: params.severity || (params.isImportant ? 'warning' : 'info'),
-      metadata: params.metadata,
+      metadata: params.isImportant ? { ...(params.metadata || {}), isImportant: true } : params.metadata,
     });
   }
 }

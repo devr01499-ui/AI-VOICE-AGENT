@@ -432,6 +432,13 @@ adminRouter.patch('/staff/:id', requireStaff('staff:manage'), async (req: StaffA
   const targetId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const { role, name } = req.body;
 
+  // Only a real role (audit #70: a typo was saved and removed every permission of that person).
+  const validRoles: StaffRole[] = ['owner', 'admin', 'sales', 'support', 'finance'];
+  if (role !== undefined && role !== null && role !== '' && !validRoles.includes(role)) {
+    res.status(400).json({ error: 'INVALID_ROLE', message: `Invalid role. Must be one of: ${validRoles.join(', ')}` });
+    return;
+  }
+
   if (targetId === req.staff!.id) {
     res.status(400).json({ error: 'SELF_MODIFICATION_FORBIDDEN', message: 'You cannot modify your own staff account.' });
     return;

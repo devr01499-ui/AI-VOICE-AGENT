@@ -66,6 +66,8 @@ export class DataRetentionJob {
 
         const retentionDays = user.dataRetentionDays;
         const cutoffDate = new Date(Date.now() - retentionDays * 86400 * 1000);
+        // This workspace's own count (audit #72: its log and audit entry carried the running total).
+        let workspacePurged = 0;
 
         // Find calls created before cutoff date (Call model)
         const expiredCalls = await prisma.call.findMany({
@@ -104,6 +106,7 @@ export class DataRetentionJob {
             where: { id: { in: callIds } },
           });
           totalPurgedCalls += deleteResult.count;
+          workspacePurged += deleteResult.count;
         }
 
         // Find call sessions created before cutoff date (CallSession model)
@@ -122,6 +125,7 @@ export class DataRetentionJob {
             where: { id: { in: sessionIds } },
           });
           totalPurgedCalls += deleteSessionResult.count;
+          workspacePurged += deleteSessionResult.count;
         }
 
         if (expiredCalls.length === 0 && expiredSessions.length === 0) continue;
@@ -130,7 +134,7 @@ export class DataRetentionJob {
           userId: user.id,
           retentionDays,
           cutoffDate: cutoffDate.toISOString(),
-          totalPurgedCalls,
+          purged: workspacePurged,
         });
 
         // Record audit log entry for the purge action
@@ -140,7 +144,7 @@ export class DataRetentionJob {
           action: 'data.retention.purge',
           metadata: {
             retentionDays,
-            purgedCallCount: totalPurgedCalls,
+            purgedCallCount: workspacePurged,
             cutoffDate: cutoffDate.toISOString(),
           },
         });

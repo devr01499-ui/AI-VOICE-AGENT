@@ -257,7 +257,7 @@ router.get(
     try {
       const userId = (req as any).effectiveWorkspaceId || (req as any).user?.id || (req as any).userId;
       if (!userId) {
-        res.status(200).json({ success: true, data: [], count: 0 });
+        res.status(401).json({ success: false, error: 'Unauthorized' });
         return;
       }
 
@@ -270,14 +270,19 @@ router.get(
       let agents = [];
       let totalCount = 0;
       try {
-        const lim = limit ? parseInt(limit, 10) : 50;
-        const off = offset ? parseInt(offset, 10) : 0;
+        // Bounded page size (audit #66: any limit was accepted). The dashboard asks for no limit and
+        // must see every agent, so the default is the maximum.
+        const parsedLimit = parseInt(String(limit ?? ''), 10);
+        const lim = Number.isFinite(parsedLimit) ? Math.min(200, Math.max(1, parsedLimit)) : 200;
+        const parsedOffset = parseInt(String(offset ?? ''), 10);
+        const off = Number.isFinite(parsedOffset) ? Math.max(0, parsedOffset) : 0;
         
         // Fetch paginated agents from the database directly
         agents = await prisma.agent.findMany({
           where: {
             userId,
-            ...(status ? { status } : {}),
+            // Deleted (archived) agents are hidden; their call history is kept (audit #67).
+            ...(status && status !== 'archived' ? { status } : { status: { not: 'archived' } }),
           },
           orderBy: { createdAt: 'desc' },
           take: lim,
@@ -306,7 +311,8 @@ router.get(
         totalCount = await prisma.agent.count({
           where: {
             userId,
-            ...(status ? { status } : {}),
+            // Deleted (archived) agents are hidden; their call history is kept (audit #67).
+            ...(status && status !== 'archived' ? { status } : { status: { not: 'archived' } }),
           }
         });
 
@@ -338,12 +344,12 @@ router.get(
         });
         return;
       } catch (error: any) {
-        logger.error("Handled Gracefully - Agent Repository Retrieval Exception:", { error: error?.message || String(error) });
-        // Unified fallback matching success contract
-        res.status(200).json({
-          success: true,
-          data: [],
-          count: 0,
+        logger.error("Agent list: database error", { error: error?.message || String(error) });
+        // A failure is reported as a failure — an empty "success" list made customers think their
+        // agents were gone (audit #66).
+        res.status(503).json({
+          success: false,
+          error: 'Your agents could not be loaded right now. Please refresh in a moment.',
         });
         return;
       }
@@ -385,7 +391,7 @@ router.get(
       
       // Strict user-wise lookup constraint
       const agent = await prisma.agent.findFirst({
-        where: { id: agentId, userId: userId }
+        where: { id: agentId, userId: userId, status: { not: 'archived' } }
       });
 
       if (!agent) {
@@ -708,12 +714,12 @@ router.put(
 
       // Verify ownership before updating
       let exists = await prisma.agent.findFirst({
-        where: { id: agentId, userId: userId }
+        where: { id: agentId, userId: userId, status: { not: 'archived' } }
       });
 
       if (!exists && primaryUserId && primaryUserId !== userId) {
         exists = await prisma.agent.findFirst({
-          where: { id: agentId, userId: primaryUserId }
+          where: { id: agentId, userId: primaryUserId, status: { not: 'archived' } }
         });
         if (exists) {
           userId = primaryUserId;
@@ -865,7 +871,7 @@ router.delete(
 
       // Verify ownership before deleting
       const exists = await prisma.agent.findFirst({
-        where: { id: agentId, userId: userId }
+        where: { id: agentId, userId: userId, status: { not: 'archived' } }
       });
 
       if (!exists) {
@@ -873,9 +879,12 @@ router.delete(
         return;
       }
 
-      // Clean up child dependencies to ensure 100% cascade delete in Supabase/PostgreSQL
+      // Deleting an agent ARCHIVES it (audit #67). Its calls, transcripts, recordings, reports and
+      // batches are business and billing records: Call -> Agent is ON DELETE CASCADE, so removing the
+      // row used to erase all of that history from Call History, Reports and Analytics. The agent
+      // disappears from every list and can no longer take or place calls.
       await prisma.phoneNumber.updateMany({
-        where: { assignedAgentId: agentId },
+        where: { assignedAgentId: agentId, userId },
         data: { assignedAgentId: null }
       }).catch(() => {});
 
@@ -887,49 +896,21 @@ router.delete(
         where: { agentId }
       }).catch(() => {});
 
-      await prisma.batch.deleteMany({
-        where: { agentId }
+      // Campaigns that have not finished stop (their results so far are kept).
+      await prisma.batch.updateMany({
+        where: { agentId, userId, status: { in: ['scheduled', 'running', 'paused'] } },
+        data: { status: 'cancelled', statusReason: 'Agent deleted' }
       }).catch(() => {});
 
-      await prisma.voiceSession.deleteMany({
-        where: { agentId }
+      // Follow-up calls the agent had booked will not be placed.
+      await prisma.scheduledCall.updateMany({
+        where: { agentId, status: 'scheduled' },
+        data: { status: 'canceled' }
       }).catch(() => {});
 
-      await prisma.callSession.deleteMany({
-        where: { agentId }
-      }).catch(() => {});
-
-      await prisma.agentVersion.deleteMany({
-        where: { agentId }
-      }).catch(() => {});
-
-      // Delete associated call logs and their child executions
-      const agentCalls = await prisma.call.findMany({
-        where: { agentId, userId },
-        select: { id: true }
-      });
-      const callIds = agentCalls.map(c => c.id);
-
-      if (callIds.length > 0) {
-        await prisma.execution.deleteMany({
-          where: { callId: { in: callIds } }
-        }).catch(() => {});
-
-        await prisma.transcriptSegment.deleteMany({
-          where: { callId: { in: callIds } }
-        }).catch(() => {});
-
-        await prisma.callEvent.deleteMany({
-          where: { callId: { in: callIds } }
-        }).catch(() => {});
-
-        await prisma.call.deleteMany({
-          where: { id: { in: callIds } }
-        }).catch(() => {});
-      }
-
-      await prisma.agent.deleteMany({
+      await prisma.agent.updateMany({
         where: { id: agentId, userId: userId },
+        data: { status: 'archived' },
       });
 
       logAuditEvent({
@@ -937,12 +918,12 @@ router.delete(
         actorUserId: (req as any).user?.id || userId,
         action: 'agent.deleted',
         targetId: agentId,
-        metadata: { name: exists.name }
+        metadata: { name: exists.name, archived: true }
       });
 
       res.json({
         success: true,
-        message: 'Agent and associated records deleted permanently from Supabase',
+        message: 'Agent deleted. Its call history and reports are kept.',
       });
     } catch (err) {
       next(err);
@@ -975,7 +956,7 @@ router.post(
 
       // 1. Fetch Agent & System Prompt
       const agent = await prisma.agent.findFirst({
-        where: { id: agentId, userId: userId }
+        where: { id: agentId, userId: userId, status: { not: 'archived' } }
       });
 
       if (!agent) {

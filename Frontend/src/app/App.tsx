@@ -2315,7 +2315,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
         onClose={() => setDeleteModal({ open: false, id: '' })} 
         onConfirm={() => performDelete(deleteModal.id)} 
         title="Delete Agent" 
-        message="Are you sure you want to delete this agent? It will be deleted forever." 
+        message="Delete this agent? It stops taking and placing calls and its unfinished campaigns stop. Its call history and reports are kept."
       />
 
       {/* Sub-sidebar: All Agents / Folders (Snapshot 2) */}

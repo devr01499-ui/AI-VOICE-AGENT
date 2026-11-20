@@ -574,7 +574,7 @@ export class KnowledgeBaseController {
       const uniqueIds = Array.from(new Set(agentIds as string[]));
       const kb = await prisma.knowledgeBase.findFirst({ where: { id: kbId, userId }, select: { id: true } });
       if (!kb) { res.status(404).json({ success: false, error: 'Document not found' }); return; }
-      const validAgents = await prisma.agent.findMany({ where: { id: { in: uniqueIds }, userId }, select: { id: true } });
+      const validAgents = await prisma.agent.findMany({ where: { id: { in: uniqueIds }, userId, status: { not: 'archived' } }, select: { id: true } });
       if (validAgents.length !== uniqueIds.length) {
         res.status(400).json({ success: false, error: 'One or more agent IDs are invalid or unauthorized' });
         return;

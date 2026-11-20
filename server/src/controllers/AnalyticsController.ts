@@ -77,7 +77,7 @@ export class AnalyticsController {
       let totalCalls = 0, completed = 0, failed = 0, noAnswer = 0, busy = 0, inProgress = 0;
       let totalDurationSeconds = 0, durationCount = 0, billedMinutes = 0;
       let positive = 0, neutral = 0, negative = 0, inbound = 0, outbound = 0;
-      const trendMap = new Map<string, { date: string; total: number; completed: number; failed: number }>();
+      const trendMap = new Map<string, { date: string; total: number; completed: number; failed: number; unanswered: number }>();
 
       for (const r of rows) {
         const n = Number(r.n);
@@ -92,9 +92,12 @@ export class AnalyticsController {
         billedMinutes += Number(r.billed);
         if (r.sentiment === 'positive') positive += n; else if (r.sentiment === 'negative') negative += n; else neutral += n;
         if (r.direction === 'inbound') inbound += n; else outbound += n;
-        const item = trendMap.get(r.day) || { date: r.day, total: 0, completed: 0, failed: 0 };
+        const item = trendMap.get(r.day) || { date: r.day, total: 0, completed: 0, failed: 0, unanswered: 0 };
         item.total += n;
-        if (r.status === 'completed') item.completed += n; else item.failed += n;
+        // Same buckets as the totals above (audit #69: no-answer, busy and live calls were "failed").
+        if (r.status === 'completed') item.completed += n;
+        else if (r.status === 'failed' || r.status === 'canceled' || r.status === 'cancelled' || r.status === 'error') item.failed += n;
+        else if (r.status === 'no_answer' || r.status === 'busy') item.unanswered += n;
         trendMap.set(r.day, item);
       }
 
