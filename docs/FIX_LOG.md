@@ -463,3 +463,34 @@ One entry per fix, newest at the bottom. Template:
   - The "thin" pre-rendered pages are the short static fallbacks shown before the app loads; search engines render the full page. Accepted.
 - **Tests:** test:audit-batch13 4/4, and 0/4 on the old code. e2e audit-batch13 5/5, and 0/5 on the old code.
 - **Not changed:** #127 (sign-up says an email is already registered) is an owner decision; see PROGRESS open question 5.
+
+## Demo-readiness sweep (2026-11-20, branch fix/demo-readiness)
+- **Access (7bf06e3):** read-only (viewer/analyst) members could end or transfer live calls, start KYC sessions, onboard the business carrier, run or delete QA cohorts and test the AI key.
+  - Root cause: those routes had `requireAuth` only.
+  - Fix: `requireEditor` / `requireRole(['admin'])`.
+  - Number search no longer passes the carrier's raw error text to the customer.
+  - Test: `test:demo-smoke` (in test:security):
+    - every GET as the owner without a 5xx;
+    - another customer can neither read nor change anything through any id-based endpoint;
+    - viewers cannot write;
+    - no token is refused.
+- **#154 (ee12894):** pausing and then resuming a campaign scheduled for later started dialling at once.
+  - Root cause: resume always set `running`.
+  - Fix: it goes back to `scheduled`, keeping its start time, when it never started.
+  - Test: test:audit-batch9 #154. It failed before the fix and passes after.
+- **UI polish (bfd1038):**
+  - Primary buttons had black text on black.
+  - The Agents list showed a hard-coded phone number and date for every agent.
+  - Call History: filter widths, raw status/end-reason codes, wrapping direction pills.
+  - The Analytics chart height and colours were wrong, and busy calls were missing from the status boxes.
+  - Batch and KB stat numbers used a font that is never loaded, so they rendered in Times.
+  - "1 campaigns" / "1 numbers" plurals.
+  - KB sizes showed "0.0 KB".
+  - The Calendar listed finished campaigns as active.
+  - Proof: docs/proof/demo-*-1440.png.
+- **Tooling (70b8968, aaad3af):** `server/scripts/demo_backend.js` and `Frontend/scripts/demo-walkthrough.cjs`.
+  - The backend runs the production routers on the TEST database, with a seeded workspace.
+  - The walkthrough covers 21 views: all dashboard pages, the agent editor and Create Agent. It reports console errors, failed API calls, crashes, error banners and undefined/NaN text.
+  - Result: CLEAN.
+  - Owner write flows also checked against the real API: agent create/edit/delete, contacts, alert rules, QA cohorts, API keys, KB upload/query/assign, retention, notifications, campaign create/pause/resume/cancel. All succeed, and invalid input gets a clear 4xx message.
+- **Not verifiable here:** live carrier calls, Gemini answers, Razorpay payments and emails. These need the rotated production keys (PROGRESS owner steps 11–19).
