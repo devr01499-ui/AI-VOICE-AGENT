@@ -4,6 +4,9 @@ require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test databa
  * advertise capabilities or prices the product does not have. Each pattern below was a claim the
  * code proved false and was corrected; this test keeps it from coming back.
  *  - Phase 14: transport, retention, DND, HIPAA, SIP/BYO carrier, fictional endpoints…
+ *  - Audit #133 #137 #138 (batch 11): no free sandbox (live calls need a plan), no zero-lag/zero-latency,
+ *    no SIP claims, no bi-directional CRM sync, no internal model ids, no certification-sounding
+ *    Voice AI Index titles; the index article and page titles come from shared JSON files.
  *  - Audit #111-#113, #115, #119: prices are the Billing-page plans only (lib/plans.ts must equal the
  *    server's PLAN_CONFIG); no per-minute/pay-as-you-go/overage/monthly pricing; 7 languages, not 70+.
  * Not checked here (owner / lawyer decisions, see docs/COMPLIANCE_NOTES.md): business-outcome
@@ -45,6 +48,12 @@ const FALSE_CLAIMS = [
   // Languages: the editor offers 7 languages + automatic detection.
   ['70+ / 60+ languages or dialects', /\b[67]0\+\s*(regional |Indian |global )?(languages|dialects)/i],
   ['unmeasured latency', /Sub-?180\s?ms/i],
+  // Audit batch 11
+  ['a free sandbox / free live test calls (the sandbox needs a plan, minutes or the customer\'s own AI key)', /free (interactive )?sandbox|Start Free in Sandbox|Launch Free Sandbox/i],
+  ['zero lag / zero latency (not measured, not true)', /zero[- ](human |conversational )?lag|zero-latency/i],
+  ['SIP signalling / SIP streaming / SIP schemas (audio runs over a carrier media stream, no SIP)', /encrypted SIP|SIP streaming|SIP telephony schemas/i],
+  ['bi-directional CRM integration (webhooks and custom tools only)', /bi-directional CRM/i],
+  ['internal model ids on public pages', /gemini_\d|"llm":\s*"gemini/i],
 ];
 
 /** Every plan figure shown on the site must equal what the server charges and credits. */
@@ -77,6 +86,27 @@ function planFactProblems() {
 let failures = 0;
 let total = 0;
 console.log('\n--- MARKETING CLAIMS ---');
+// Voice AI Index topic titles may name a standard, never imply that we hold it (audit #138).
+total++;
+{
+  const topicsSrc = fs.readFileSync(path.join(root, 'src/app/data/voiceAiTopics.ts'), 'utf8');
+  const titles = [...topicsSrc.matchAll(/title: "([^"]+)"/g)].map((m) => m[1]);
+  const bad = titles.filter((t) => /\b(compliant|certified|audited)\b/i.test(t) && /\b(PCI|HIPAA|SOC ?2|GDPR|ISO ?27001|privacy)\b/i.test(t));
+  if (bad.length === 0 && titles.length > 50) console.log('  ✓ Voice AI Index titles do not imply certifications');
+  else { failures++; console.error(`  ✗ FAIL: certification-sounding Voice AI Index titles\n    ${bad.join('\n    ')}`); }
+}
+
+// Users and crawlers read the same words: the index article and page titles each come from one file.
+total++;
+{
+  const vai = fs.readFileSync(path.join(root, 'src/app/pages/VoiceAIIndex.tsx'), 'utf8');
+  const pre = fs.readFileSync(path.join(root, 'scripts/prerender-seo.js'), 'utf8');
+  const app = fs.readFileSync(path.join(root, 'src/app/App.tsx'), 'utf8');
+  const ok = vai.includes('voiceAiArticle.json') && pre.includes('voiceAiArticle.json') && pre.includes('seoPages.json') && app.includes('seoPages.json');
+  if (ok) console.log('  ✓ Voice AI Index article and page titles come from shared files (app + pre-render)');
+  else { failures++; console.error('  ✗ FAIL: app and pre-render no longer share voiceAiArticle.json / seoPages.json'); }
+}
+
 for (const [label, re] of FALSE_CLAIMS) {
   total++;
   const offenders = files.filter((f) => fs.existsSync(f) && re.test(fs.readFileSync(f, 'utf8'))).map((f) => path.relative(root, f));

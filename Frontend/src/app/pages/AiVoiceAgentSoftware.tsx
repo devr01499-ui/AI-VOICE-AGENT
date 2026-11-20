@@ -221,7 +221,7 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
                 onClick={() => setPage("dashboard")}
                 className="px-6 py-3.5 bg-[#121212] hover:bg-black text-white font-mono text-xs uppercase tracking-wider rounded-[2px] transition-colors flex items-center justify-center gap-2 font-medium cursor-pointer"
               >
-                <span>Launch Free Sandbox</span>
+                <span>Create a Free Account</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
@@ -575,7 +575,7 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
             Ready to Automate Your Voice Operations?
           </h2>
           <p className="text-[#262523] text-sm md:text-base max-w-2xl mx-auto leading-relaxed font-sans">
-            Test real-time conversational phone calls in our free interactive sandbox. No credit card required. Experience real-time voice AI in minutes.
+            Create your account and build your first agents for free. Live calls start when you choose a plan, from ₹3,799 for 750 minutes.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
@@ -583,7 +583,7 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
               onClick={() => setPage("dashboard")}
               className="w-full sm:w-auto px-6 py-3.5 bg-[#121212] hover:bg-black text-white font-mono text-xs uppercase tracking-wider rounded-[2px] transition-colors flex items-center justify-center gap-2 font-medium cursor-pointer"
             >
-              <span>Start Free in Sandbox</span>
+              <span>Create a Free Account</span>
               <ArrowRight className="w-4 h-4" />
             </button>
 

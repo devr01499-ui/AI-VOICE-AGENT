@@ -3,6 +3,8 @@ import { supabase } from "./lib/supabaseClient";
 import AuthGateway from "./components/auth/AuthGateway";
 import { readPendingPlan, clearPendingPlan } from "./lib/pendingPlan";
 import { planDisplayName } from "./lib/planNames";
+import SEO_PAGES_FILE from "./data/seoPages.json";
+const SEO_PAGES = SEO_PAGES_FILE.pages;
 import { Session } from "@supabase/supabase-js";
 import { ApiKeyManagement } from './components/settings/ApiKeyManagement';
 import AgentConfigPanel from "./components/agents/AgentConfigPanel";
@@ -70,6 +72,7 @@ const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Security = lazy(() => import("./pages/Security"));
 const VoiceAIIndex = lazy(() => import("./pages/VoiceAIIndex"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 const FAQ = lazy(() => import("./pages/FAQ"));
 const ContactUs = lazy(() => import("./pages/ContactUs"));
 const UseCases = lazy(() => import("./pages/UseCases"));
@@ -2315,7 +2318,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
         onClose={() => setDeleteModal({ open: false, id: '' })} 
         onConfirm={() => performDelete(deleteModal.id)} 
         title="Delete Agent" 
-        message="Are you sure you want to delete this agent? It will be deleted forever." 
+        message="Delete this agent? It stops taking and placing calls and its unfinished campaigns stop. Its call history and reports are kept."
       />
 
       {/* Sub-sidebar: All Agents / Folders (Snapshot 2) */}
@@ -6759,6 +6762,7 @@ export default function App() {
       "ai-voice-agent-software": "AI Voice Agent Software — Deploy Human-Sounding Phone Agents | Claritiy Voice",
       compare: "Compare — Claritiy Voice",
       numbers_buy: "Buy Numbers — Claritiy Voice",
+      "not-found": "Page not found — Claritiy Voice",
     };
 
     const descMap: Record<Page, string> = {
@@ -6784,6 +6788,7 @@ export default function App() {
       "ai-voice-agent-software": "Deploy autonomous AI voice agent software with natural, real-time conversation, native regional accents, and seamless CRM integrations. Plans from ₹3,799 for 750 minutes.",
       compare: "Compare Claritiy Voice against other platforms.",
       numbers_buy: "Purchase phone numbers for your AI voice agents.",
+      "not-found": "The page you were looking for does not exist.",
     };
 
     const navPathMap: Record<Page, string> = {
@@ -6809,9 +6814,16 @@ export default function App() {
       "ai-voice-agent-software": "ai-voice-agent-software",
       compare: "compare",
       numbers_buy: "dashboard",
+      "not-found": "",
     };
 
-    document.title = titleMap[page] || "Claritiy Voice";
+    // Public pages take their title and description from data/seoPages.json, the same file the
+    // pre-render uses, so crawlers and users see the same words (audit #134).
+    const seo = (SEO_PAGES as Record<string, { title: string; description: string }>)[navPathMap[page] ?? ""];
+    const isAppPage = page === "dashboard" || page === "numbers_buy" || page === "not-found";
+    // The Voice AI Index page sets its own title, description and canonical (hub vs topic).
+    const pageOwnsMeta = page === "voice-ai-index";
+    if (!pageOwnsMeta) document.title = (!isAppPage && seo?.title) || titleMap[page] || "Claritiy Voice";
 
     // Update meta description
     let metaDesc = document.querySelector("meta[name='description']");
@@ -6820,7 +6832,7 @@ export default function App() {
       metaDesc.setAttribute("name", "description");
       document.head.appendChild(metaDesc);
     }
-    metaDesc.setAttribute("content", descMap[page] || "");
+    if (!pageOwnsMeta) metaDesc.setAttribute("content", (!isAppPage && seo?.description) || descMap[page] || "");
 
     // Update canonical link
     let canonical = document.querySelector("link[rel='canonical']");
@@ -6834,8 +6846,10 @@ export default function App() {
       path = `voice-ai-index/${currentTopicId}`;
     } else if ((page === "use-cases" || page === "industries") && currentIndustryId) {
       path = `use-cases/${currentIndustryId}`;
+    } else if (page === "not-found") {
+      path = window.location.pathname.replace(/^\/+/, "");
     }
-    canonical.setAttribute("href", path ? `https://www.claritiy.com/${path}` : "https://www.claritiy.com/");
+    if (!pageOwnsMeta) canonical.setAttribute("href", path ? `https://www.claritiy.com/${path}` : "https://www.claritiy.com/");
 
     // Update Robots tag
     let robots = document.querySelector("meta[name='robots']");
@@ -6844,64 +6858,16 @@ export default function App() {
       robots.setAttribute("name", "robots");
       document.head.appendChild(robots);
     }
-    robots.setAttribute("content", "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1");
+    robots.setAttribute("content", isAppPage
+      ? "noindex, nofollow" // /dashboard, /login, /signup, /auth… (audit #135)
+      : "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1");
 
     // Inject JSON-LD Schema
     document.querySelectorAll("script[data-schema]").forEach(el => el.remove());
 
-    if (page === "home") {
-      // FAQ Page Schema
-      const faqScript = document.createElement("script");
-      faqScript.type = "application/ld+json";
-      faqScript.setAttribute("data-schema", "faq");
-      faqScript.text = JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "FAQPage",
-        "mainEntity": [
-          {
-            "@type": "Question",
-            "name": "How does Claritiy Voice reduce COD RTO?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Claritiy Voice places an automated confirmation call to every cash-on-delivery customer before their order is dispatched, verifying the order details and delivery address. This catches wrong numbers, changed minds, and unclear addresses before a courier is sent, which directly reduces return-to-origin (RTO) and failed delivery costs."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Do I need to hire a calling team to confirm COD orders?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "No. Claritiy Voice replaces or scales alongside a manual calling team with AI voice agents that call every order automatically, at any volume, without additional hiring."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "What languages does Claritiy Voice support for COD confirmation calls?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Claritiy Voice agents speak English, Hindi (including Hinglish), Bengali, Kannada, Malayalam, Gujarati and Tamil, and can detect the caller's language automatically."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "How much does Claritiy Voice cost?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": PRICING_SUMMARY
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "How is Claritiy Voice different from Retell or Vapi?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Claritiy Voice is built specifically around COD order confirmation and RTO reduction, with the workflow ready out of the box — general voice AI platforms require building that flow yourself, and typically charge separately for speech-to-text, the language model, and text-to-speech rather than one transparent per-minute price."
-            }
-          }
-        ]
-      });
-      document.head.appendChild(faqScript);
-
+    // FAQ structured data only where the questions are visible: the /faq page (pre-rendered from
+    // pages/FAQ.tsx). Home and Pricing carried FAQ schema for questions shown nowhere (audit #123).
+    if (page === "home" || page === "pricing") {
       // SoftwareApplication Schema
       const appScript = document.createElement("script");
       appScript.type = "application/ld+json";
@@ -6913,64 +6879,12 @@ export default function App() {
         "applicationCategory": "BusinessApplication",
         "operatingSystem": "Web",
         "url": "https://www.claritiy.com",
-        "description": "Claritiy Voice is an AI voice calling platform that confirms cash-on-delivery (COD) orders before dispatch, reducing RTO and failed deliveries for Indian D2C and e-commerce sellers.",
+        "description": "Claritiy Voice is an AI voice calling platform: agents answer and place phone calls in English, Hindi and five other Indian languages, for order confirmation, appointment booking, reminders and support.",
         "offers": PUBLIC_PLANS.map((p) => ({ "@type": "Offer", "name": `${p.name} plan`, "priceCurrency": "INR", "price": String(p.price), "description": `${p.minutes} calling minutes, one-time` }))
       });
       document.head.appendChild(appScript);
-    } else if (page === "pricing") {
-      // FAQ Page Schema
-      const faqScript = document.createElement("script");
-      faqScript.type = "application/ld+json";
-      faqScript.setAttribute("data-schema", "faq");
-      faqScript.text = JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "FAQPage",
-        "mainEntity": [
-          {
-            "@type": "Question",
-            "name": "How does Claritiy Voice reduce COD RTO?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Claritiy Voice places an automated confirmation call to every cash-on-delivery customer before their order is dispatched, verifying the order details and delivery address. This catches wrong numbers, changed minds, and unclear addresses before a courier is sent, which directly reduces return-to-origin (RTO) and failed delivery costs."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Do I need to hire a calling team to confirm COD orders?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "No. Claritiy Voice replaces or scales alongside a manual calling team with AI voice agents that call every order automatically, at any volume, without additional hiring."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "What languages does Claritiy Voice support for COD confirmation calls?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Claritiy Voice agents speak English, Hindi (including Hinglish), Bengali, Kannada, Malayalam, Gujarati and Tamil, and can detect the caller's language automatically."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "How much does Claritiy Voice cost?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": PRICING_SUMMARY
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "How is Claritiy Voice different from Retell or Vapi?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Claritiy Voice is built specifically around COD order confirmation and RTO reduction, with the workflow ready out of the box — general voice AI platforms require building that flow yourself, and typically charge separately for speech-to-text, the language model, and text-to-speech rather than one transparent per-minute price."
-            }
-          }
-        ]
-      });
-      document.head.appendChild(faqScript);
     }
-  }, [page]);
+  }, [page, currentTopicId, currentIndustryId]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: currentSession }, error: authError }) => {
@@ -7106,6 +7020,7 @@ export default function App() {
             {page === "contact" && <ContactUs />}
             {(page as string) === "dashboard" && <AuthGateway onSuccess={() => handleNavigate("dashboard")} />}
             {page === "voice-ai-index" && <VoiceAIIndex setPage={setPage} initialTopicId={currentTopicId} />}
+            {page === "not-found" && <NotFound setPage={handleNavigate} />}
             {page === "ai-voice-agent-software" && <AiVoiceAgentSoftware setPage={handleNavigate} />}
             {(page === "use-cases" || page === "industries") && (
               <UseCases setPage={handleNavigate} initialIndustryId={currentIndustryId} />

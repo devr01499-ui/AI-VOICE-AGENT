@@ -1,4 +1,6 @@
+import type React from "react";
 import { ArrowRight, Mail, MessageCircle, Globe2, Sparkles } from "lucide-react";
+import { pathForPage, type Page as RoutePage } from "../../lib/routes";
 
 type Page = 
   | "home" 
@@ -19,10 +21,11 @@ type Page =
   | "use-cases"
   | "faq" 
   | "contact" 
-  | "voice-ai-index";
+  | "voice-ai-index"
+  | "ai-voice-agent-software";
 
 interface FooterProps {
-  setPage: (p: Page) => void;
+  setPage: (p: Page, extraId?: string) => void;
 }
 
 export default function Footer({ setPage }: FooterProps) {
@@ -31,6 +34,15 @@ export default function Footer({ setPage }: FooterProps) {
       window.history.pushState(null, "", href);
     }
     setPage(p);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  /** Real links (crawlable, open in a new tab) that navigate inside the app on a normal click. */
+  const hrefFor = (p: Page, extraId?: string) => pathForPage(p as RoutePage, extraId);
+  const go = (e: React.MouseEvent<HTMLAnchorElement>, p: Page, extraId?: string) => {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    setPage(p, extraId);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -45,10 +57,10 @@ export default function Footer({ setPage }: FooterProps) {
               PRODUCTION-GRADE TELEPHONY PILOT
             </div>
             <h3 className="text-2xl md:text-3xl font-extrabold text-[#121212] tracking-tight">
-              Ready to automate 10,000+ monthly calls with zero human lag?
+              Ready to automate your phone calls?
             </h3>
             <p className="text-[#262523] text-sm md:text-base leading-relaxed">
-              Explore 15 pre-built production templates across BFSI, Healthcare, E-Commerce, Real Estate, and Front Desk operations. Deploy within 10 minutes or test live in sandbox.
+              Start from pre-built templates for BFSI, healthcare, e-commerce, real estate and front-desk work. Create your account and build agents for free; live calls start with a plan from ₹3,799.
             </p>
           </div>
 
@@ -57,7 +69,7 @@ export default function Footer({ setPage }: FooterProps) {
               onClick={() => navigate("dashboard")}
               className="px-6 py-3.5 bg-[#121212] hover:bg-black text-white font-mono text-xs uppercase tracking-wider rounded-[2px] transition-colors flex items-center justify-center gap-2"
             >
-              Launch Free Sandbox <ArrowRight className="w-4 h-4" />
+              Create a Free Account <ArrowRight className="w-4 h-4" />
             </button>
             <button
               onClick={() => navigate("contact")}
@@ -84,7 +96,7 @@ export default function Footer({ setPage }: FooterProps) {
           </button>
           
           <p className="text-sm text-[#262523] leading-relaxed max-w-sm">
-            Autonomous conversational voice AI infrastructure designed for high-scale enterprise telephony. Real-time conversation, native regional accents, and deep bi-directional CRM execution.
+            Autonomous conversational voice AI infrastructure designed for high-scale enterprise telephony. Real-time conversation, native regional accents, and results sent to your systems through signed webhooks.
           </p>
 
           {/* Live System Operational Status */}
@@ -117,34 +129,34 @@ export default function Footer({ setPage }: FooterProps) {
           </p>
           <ul className="space-y-2.5 text-sm">
             <li>
-              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
+              <a href={hrefFor("use-cases", "ecommerce")} onClick={(e) => go(e, "use-cases", "ecommerce")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 E-Commerce COD & RTO
-              </button>
+              </a>
             </li>
             <li>
-              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
+              <a href={hrefFor("use-cases", "healthcare")} onClick={(e) => go(e, "use-cases", "healthcare")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 Healthcare Clinic Intake
-              </button>
+              </a>
             </li>
             <li>
-              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
+              <a href={hrefFor("use-cases", "finance")} onClick={(e) => go(e, "use-cases", "finance")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 BFSI & EMI Collections
-              </button>
+              </a>
             </li>
             <li>
-              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
+              <a href={hrefFor("use-cases", "realestate")} onClick={(e) => go(e, "use-cases", "realestate")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 Real Estate Speed-to-Lead
-              </button>
+              </a>
             </li>
             <li>
-              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
+              <a href={hrefFor("use-cases", "logistics")} onClick={(e) => go(e, "use-cases", "logistics")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 Home Services Dispatch
-              </button>
+              </a>
             </li>
             <li>
-              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
+              <a href={hrefFor("use-cases", "bpo")} onClick={(e) => go(e, "use-cases", "bpo")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 BPO & Overflow Deflection
-              </button>
+              </a>
             </li>
           </ul>
         </div>
@@ -156,34 +168,34 @@ export default function Footer({ setPage }: FooterProps) {
           </p>
           <ul className="space-y-2.5 text-sm">
             <li>
-              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
+              <a href={hrefFor("use-cases", "healthcare")} onClick={(e) => go(e, "use-cases", "healthcare")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 Front Desk Receptionist
-              </button>
+              </a>
             </li>
             <li>
-              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
+              <a href={hrefFor("blog-healthcare")} onClick={(e) => go(e, "blog-healthcare")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 Dental Clinic Scheduler
-              </button>
+              </a>
             </li>
             <li>
-              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
+              <a href={hrefFor("use-cases", "saas")} onClick={(e) => go(e, "use-cases", "saas")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 B2B Lead Qualifier (SDR)
-              </button>
+              </a>
             </li>
             <li>
-              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
+              <a href={hrefFor("use-cases", "ecommerce")} onClick={(e) => go(e, "use-cases", "ecommerce")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 Win-Back & Reactivation
-              </button>
+              </a>
             </li>
             <li>
-              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
+              <a href={hrefFor("blog-fintech")} onClick={(e) => go(e, "blog-fintech")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 EMI Pre-Due & Overdue
-              </button>
+              </a>
             </li>
             <li>
-              <button onClick={() => navigate("solutions")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
+              <a href={hrefFor("use-cases", "saas")} onClick={(e) => go(e, "use-cases", "saas")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 After-Hours P1 Triage
-              </button>
+              </a>
             </li>
           </ul>
         </div>
@@ -195,34 +207,44 @@ export default function Footer({ setPage }: FooterProps) {
           </p>
           <ul className="space-y-2.5 text-sm">
             <li>
-              <button onClick={() => navigate("how-it-works")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
+              <a href={hrefFor("how-it-works")} onClick={(e) => go(e, "how-it-works")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 Real-Time Voice Engine
-              </button>
+              </a>
             </li>
             <li>
-              <button onClick={() => navigate("voices")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
+              <a href={hrefFor("voices")} onClick={(e) => go(e, "voices")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 HD Voices & 7 Languages
-              </button>
+              </a>
             </li>
             <li>
-              <button onClick={() => navigate("pricing")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
+              <a href={hrefFor("pricing")} onClick={(e) => go(e, "pricing")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 Pricing (plans from ₹3,799)
-              </button>
+              </a>
             </li>
             <li>
-              <button onClick={() => navigate("docs")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
+              <a href={hrefFor("docs")} onClick={(e) => go(e, "docs")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 Developer API & Webhooks
-              </button>
+              </a>
             </li>
             <li>
-              <button onClick={() => navigate("voice-ai-index")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
+              <a href={hrefFor("voice-ai-index")} onClick={(e) => go(e, "voice-ai-index")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 Voice AI Index (Knowledge)
-              </button>
+              </a>
             </li>
             <li>
-              <button onClick={() => navigate("faq")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
+              <a href={hrefFor("faq")} onClick={(e) => go(e, "faq")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
                 Enterprise FAQ
-              </button>
+              </a>
+            </li>
+            <li>
+              <a href={hrefFor("ai-voice-agent-software")} onClick={(e) => go(e, "ai-voice-agent-software")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
+                AI Voice Agent Software
+              </a>
+            </li>
+            <li>
+              <a href={hrefFor("blog")} onClick={(e) => go(e, "blog")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
+                Blog & Guides
+              </a>
             </li>
           </ul>
         </div>
@@ -255,7 +277,7 @@ export default function Footer({ setPage }: FooterProps) {
             </li>
             <li>
               <a
-                href="https://www.linkedin.com/company/claritiy/?viewAsMember=true"
+                href="https://www.linkedin.com/company/claritiy/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-[#262523] hover:text-[#121212] hover:underline transition-colors font-medium"
@@ -278,15 +300,15 @@ export default function Footer({ setPage }: FooterProps) {
           <p>&copy; 2026 Claritiy Voice. All rights reserved.</p>
           <span className="hidden sm:inline text-[#CBC8BE]">•</span>
           <div className="flex items-center gap-4">
-            <button onClick={() => navigate("privacy", "/privacy")} className="hover:text-[#121212] hover:underline transition-colors">
+            <a href={hrefFor("privacy")} onClick={(e) => go(e, "privacy")} className="hover:text-[#121212] hover:underline transition-colors">
               Privacy Policy
-            </button>
-            <button onClick={() => navigate("terms", "/terms")} className="hover:text-[#121212] hover:underline transition-colors">
+            </a>
+            <a href={hrefFor("terms")} onClick={(e) => go(e, "terms")} className="hover:text-[#121212] hover:underline transition-colors">
               Terms of Use
-            </button>
-            <button onClick={() => navigate("security", "/security")} className="hover:text-[#121212] hover:underline transition-colors">
+            </a>
+            <a href={hrefFor("security")} onClick={(e) => go(e, "security")} className="hover:text-[#121212] hover:underline transition-colors">
               Security Architecture
-            </button>
+            </a>
           </div>
         </div>
 

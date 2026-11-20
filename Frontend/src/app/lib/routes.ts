@@ -26,7 +26,14 @@ export type Page =
   | "use-cases"
   | "industries"
   | "compare"
-  | "numbers_buy";
+  | "numbers_buy"
+  | "not-found";
+
+import { ALL_TOPICS } from "../data/voiceAiTopics";
+
+/** Industry pages that exist under /use-cases/:id (pages/UseCases.tsx USE_CASE_TOPICS). */
+export const USE_CASE_IDS = ["healthcare", "finance", "ecommerce", "realestate", "insurance", "logistics", "bpo", "saas"] as const;
+const TOPIC_IDS = new Set(ALL_TOPICS.map((t) => t.id));
 
 /** Exact path → page. */
 const EXACT_PATHS: Record<string, Page> = {
@@ -70,26 +77,33 @@ export interface ResolvedRoute {
   topicId: string | null;
 }
 
-/** Resolves any pathname to the page that must render for it. Unknown paths resolve to home. */
+/**
+ * Resolves any pathname to the page that must render for it. Unknown paths, industries and topics
+ * get a "Page not found" page (noindex) — they used to show the home page or the first industry,
+ * a "soft 404" for search engines (audit #125).
+ */
 export function resolveRoute(pathname: string): ResolvedRoute {
   const path = pathname.replace(/\/+$/, "") || "/";
   const none = { industryId: null, topicId: null };
 
   if (path.startsWith("/use-cases") || path.startsWith("/industries")) {
     const match = path.match(/\/(?:use-cases|industries)\/([^/]+)/);
+    if (match && !(USE_CASE_IDS as readonly string[]).includes(match[1])) return { page: "not-found", ...none };
     return { page: "use-cases", industryId: match ? match[1] : null, topicId: null };
   }
   if (EXACT_PATHS[path]) return { page: EXACT_PATHS[path], ...none };
   if (APP_PREFIXES.some((prefix) => path.startsWith(prefix))) return { page: "dashboard", ...none };
   if (path.startsWith("/blog/how-to-reduce-cod-rto")) return { page: "blog-rto", ...none };
   if (path.startsWith("/voice-ai-index")) {
+    const topic = path.startsWith("/voice-ai-index/") ? path.replace("/voice-ai-index/", "") : null;
+    if (topic !== null && !TOPIC_IDS.has(topic)) return { page: "not-found", ...none };
     return {
       page: "voice-ai-index",
       industryId: null,
       topicId: path.startsWith("/voice-ai-index/") ? path.replace("/voice-ai-index/", "") : null,
     };
   }
-  return { page: "home", ...none };
+  return { page: "not-found", ...none };
 }
 
 /** The canonical URL path for a page (used when navigating inside the app). */
@@ -102,6 +116,7 @@ export function pathForPage(page: Page, extraId?: string): string {
     case "blog-healthcare": return "/blog/healthcare-ai-calling";
     case "blog-fintech": return "/blog/fintech-collections-ai";
     case "numbers_buy": return "/dashboard";
+    case "not-found": return typeof window !== "undefined" ? window.location.pathname : "/";
     default: return `/${page}`;
   }
 }

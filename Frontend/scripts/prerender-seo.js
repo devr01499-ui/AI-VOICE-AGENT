@@ -17,6 +17,21 @@ if (!fs.existsSync(indexHtmlPath)) {
 
 const templateHtml = fs.readFileSync(indexHtmlPath, 'utf-8');
 
+// Titles, descriptions and H1s shared with App.tsx so crawlers and users see the same (audit #134).
+const SEO_PAGES = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../src/app/data/seoPages.json'), 'utf-8')).pages;
+
+// The Voice AI Index article text, shared with pages/VoiceAIIndex.tsx so crawlers and users read the
+// same words (audit #138: the old copy here had unverified claims and an internal model id, #137).
+const ARTICLE = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../src/app/data/voiceAiArticle.json'), 'utf-8'));
+const escHtml = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const fillArticle = (text, topic, title) => String(text).split('{title}').join(title).split('{titleLower}').join(title.toLowerCase()).split('{id}').join(topic.id);
+
+// The FAQ page's questions and answers, read from pages/FAQ.tsx so the FAQPage schema lists exactly
+// what the page shows (audit #122: the schema had no mainEntity, which makes it invalid).
+const FAQ_ITEMS = [...fs.readFileSync(path.resolve(__dirname, '../src/app/pages/FAQ.tsx'), 'utf-8')
+  .matchAll(/q:\s*"((?:[^"\\]|\\.)*)",\s*a:\s*"((?:[^"\\]|\\.)*)"/g)]
+  .map((m) => ({ q: JSON.parse('"' + m[1] + '"'), a: JSON.parse('"' + m[2] + '"') }));
+
 // Parse topics from voiceAiTopics.ts
 const tsContent = fs.readFileSync(topicsFilePath, 'utf-8');
 const topicRegex = /{\s*id:\s*"([^"]+)",\s*title:\s*"([^"]+)"\s*}/g;
@@ -45,7 +60,7 @@ const corePages = [
   {
     path: 'how-it-works',
     title: 'How Claritiy Voice Works — Real-Time Voice Telephony Architecture',
-    description: 'Explore the full audio pipeline: Automatic Speech Recognition (ASR), LLM orchestration, and zero-latency Text-to-Speech (TTS) SIP streaming.',
+    description: 'How a call flows: the phone network streams audio to a speech-to-speech AI model, the agent follows your instructions, and the results reach your systems.',
     h1: 'Inside the Claritiy Voice Telephony & Speech Synthesis Engine',
     summary: 'Our vertically integrated stack streams call audio straight from the phone network to a single speech-to-speech model, so replies start quickly without stitched-together speech services.'
   },
@@ -54,14 +69,14 @@ const corePages = [
     title: 'Enterprise AI Voice Solutions — BFSI, Healthcare, E-Commerce & Logistics',
     description: 'Pre-built conversational AI workflows designed to eliminate RTO, qualify inbound leads, schedule medical clinic appointments, and collect debt.',
     h1: 'Proven Voice Automation Solutions Across High-Impact Industries',
-    summary: 'Automate high-volume voice operations across e-commerce, banking, healthcare clinics, and logistics with deep bi-directional CRM integration.'
+    summary: 'Automate high-volume voice operations across e-commerce, banking, healthcare clinics, and logistics with results sent to your systems through signed webhooks.'
   },
   {
     path: 'use-cases',
     title: 'Production Use Case Blueprints & Telephony Architecture — Claritiy Voice',
     description: 'Detailed technical blueprints, call flows, latency metrics, and production templates for enterprise voice AI deployments.',
     h1: 'Production-Grade Voice AI Architecture & Industry Blueprints',
-    summary: 'Explore interactive system blueprints, SIP telephony schemas, and pre-built templates for inbound receptionist and outbound outreach pipelines.'
+    summary: 'Explore call flows and pre-built templates for inbound receptionist and outbound outreach agents.'
   },
   {
     path: 'voices',
@@ -75,7 +90,7 @@ const corePages = [
     title: 'Developer Documentation & API Reference — Claritiy Voice',
     description: 'REST API and webhook reference with code samples for dispatching calls, reading transcripts, and configuring AI voice agents.',
     h1: 'Developer API, Webhooks & Telephony Integration Guides',
-    summary: 'Integrate Claritiy Voice agents into your tech stack via robust REST APIs, real-time WebSocket transcript streams, and secure HMAC webhooks.'
+    summary: 'Integrate Claritiy Voice agents into your tech stack via the REST API and signed (HMAC) webhooks.'
   },
   {
     path: 'faq',
@@ -89,7 +104,7 @@ const corePages = [
     title: 'Contact Claritiy Voice — Speak with an Enterprise Telephony Architect',
     description: 'Schedule a discovery call or talk to us about high-volume enterprise voice automation.',
     h1: 'Connect with Claritiy Voice Engineering & Solutions Team',
-    summary: 'Speak directly with our voice architects to plan your enterprise rollout, custom telephony integrations, or sandbox trials.'
+    summary: 'Talk to our team to plan your rollout, integrations or a trial.'
   },
   {
     path: 'privacy',
@@ -110,14 +125,14 @@ const corePages = [
     title: 'Security Architecture & Compliance Standards — Claritiy Voice',
     description: 'Overview of our SOC2-aligned infrastructure, DPDP compliance, zero-trust network boundaries, and edge data scrubbing.',
     h1: 'Enterprise Security Architecture & Telephony Hardening',
-    summary: 'Discover our defense-in-depth security model including edge data scrubbing, encrypted SIP signaling, and verifiable audit trails.'
+    summary: 'How we protect call data: encryption in transit, team roles and access control, PII redaction in transcripts, audit logs and data retention.'
   },
   {
     path: 'blog',
     title: 'Voice AI & Conversational Telephony Blog — Claritiy Voice',
     description: 'In-depth engineering articles, benchmarks, case studies, and practical guides on scaling conversational AI in production.',
     h1: 'Engineering Insights, Benchmarks & Industry Case Studies',
-    summary: 'Read our latest research on voice latency optimization, RTO reduction strategies, and enterprise conversational design.'
+    summary: 'Practical guides on order confirmation calls, clinic scheduling and payment reminders with AI voice agents.'
   },
   {
     path: 'blog/how-to-reduce-cod-rto',
@@ -138,21 +153,21 @@ const corePages = [
     title: 'Fintech EMI Pre-Due Reminders & Debt Recovery Automation — Claritiy Voice',
     description: 'How microfinance and NBFC lenders achieve higher recovery rates through empathetic, RBI-aligned conversational voice bots.',
     h1: 'Modernizing Fintech Collections and EMI Reminders with Voice AI',
-    summary: 'Automate gentle pre-due reminders and payment coordination with high recovery rates and strict adherence to fair debt collection practices.'
+    summary: 'Automate gentle pre-due reminders and payment follow-ups that follow fair debt-collection practices.'
   },
   {
     path: 'voice-ai-index',
     title: 'Voice AI Knowledge Index — 80+ Enterprise Capabilities & Benchmarks',
     description: 'Comprehensive directory of enterprise voice AI architectures, compliance frameworks, benchmarks, and deployment patterns.',
     h1: 'Claritiy Voice AI Index — Comprehensive Architectural Knowledge Base',
-    summary: 'Browse all 80+ categorized guides detailing voice agent engineering, latency minimization, carrier integration, and compliance best practices.'
+    summary: 'Browse short guides on how AI voice agents handle calling, compliance, integrations and industry use cases.'
   },
   {
     path: 'ai-voice-agent-software',
     title: 'AI Voice Agent Software — Deploy Human-Sounding Phone Agents | Claritiy Voice',
     description: 'Deploy autonomous conversational AI voice agent software with natural, real-time conversation, native regional accents, and seamless CRM integrations. Plans from ₹3,799 for 750 minutes.',
     h1: 'Enterprise AI Voice Agent Software Engineered for Real Conversations',
-    summary: 'Claritiy Voice delivers production-grade conversational telephony agents that answer inbound calls, verify outbound cash-on-delivery orders, book clinic appointments, and collect payments with zero conversational lag.',
+    summary: 'Claritiy Voice delivers production-grade conversational telephony agents that answer inbound calls, verify outbound cash-on-delivery orders, book clinic appointments, and remind customers about payments, in natural real-time conversation.',
     customBody: `
       <div style="max-width: 1100px; margin: 0 auto; padding: 2.5rem 1rem; font-family: system-ui, -apple-system, sans-serif; color: #1F2937; line-height: 1.75;">
         <nav style="margin-bottom: 2rem; font-size: 0.875rem;">
@@ -169,10 +184,10 @@ const corePages = [
             Enterprise AI Voice Agent Software Engineered for Real Conversations
           </h1>
           <p style="font-size: 1.2rem; color: #4B5563; line-height: 1.7; max-width: 900px;">
-            Replace outdated interactive voice response (IVR) phone trees and high-turnover manual call centers with autonomous conversational voice agents. Claritiy Voice delivers natural, real-time turn-taking, native regional language support (English, Hindi, Bengali, Kannada, Malayalam, Gujarati and Tamil, plus automatic language detection), and deterministic bi-directional CRM execution, on simple one-time minute plans from ₹3,799.
+            Replace outdated interactive voice response (IVR) phone trees and high-turnover manual call centers with autonomous conversational voice agents. Claritiy Voice delivers natural, real-time turn-taking, native regional language support (English, Hindi, Bengali, Kannada, Malayalam, Gujarati and Tamil, plus automatic language detection), and results sent to your systems through signed webhooks, on simple one-time minute plans from ₹3,799.
           </p>
           <div style="display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap;">
-            <a href="/dashboard" style="background: #059669; color: white; padding: 0.875rem 1.75rem; border-radius: 0.75rem; text-decoration: none; font-weight: 700; font-size: 1rem;">Launch Free Sandbox</a>
+            <a href="/dashboard" style="background: #059669; color: white; padding: 0.875rem 1.75rem; border-radius: 0.75rem; text-decoration: none; font-weight: 700; font-size: 1rem;">Create a Free Account</a>
             <a href="/pricing" style="background: white; color: #0D1117; border: 1px solid #D1D5DB; padding: 0.875rem 1.75rem; border-radius: 0.75rem; text-decoration: none; font-weight: 600; font-size: 1rem;">View Plans & Pricing</a>
           </div>
         </header>
@@ -307,12 +322,12 @@ const corePages = [
         </section>
 
         <footer style="background: #0D1117; color: white; padding: 2.5rem; border-radius: 1rem; text-align: center;">
-          <h2 style="font-size: 1.75rem; font-weight: 800; margin-bottom: 1rem;">Experience Autonomous Telephony in Our Free Sandbox</h2>
+          <h2 style="font-size: 1.75rem; font-weight: 800; margin-bottom: 1rem;">Ready to Automate Your Voice Operations?</h2>
           <p style="color: #9CA3AF; margin-bottom: 1.5rem; max-width: 600px; margin-left: auto; margin-right: auto;">
-            Test live phone calls today. No credit card required.
+            Create your account and build your first agents for free. Live calls start when you choose a plan, from ₹3,799 for 750 minutes.
           </p>
           <a href="/dashboard" style="background: #10B981; color: #0D1117; padding: 0.875rem 2rem; border-radius: 0.75rem; text-decoration: none; font-weight: 800; font-size: 1rem;">
-            Start Free in Sandbox &rarr;
+            Create a Free Account &rarr;
           </a>
         </footer>
       </div>
@@ -381,6 +396,8 @@ ${canonicalTag}`;
 // ── 1. Pre-render Core Pages ──────────────────────────────────────────────────
 console.log('🚀 Pre-rendering core marketing pages...');
 for (const page of corePages) {
+  const seo = SEO_PAGES[page.path];
+  if (seo) { page.title = seo.title; page.description = seo.description; page.h1 = seo.h1; }
   const pageUrl = page.path ? `https://www.claritiy.com/${page.path}` : 'https://www.claritiy.com/';
   const targetDir = page.path ? path.resolve(distDir, page.path) : distDir;
   
@@ -390,7 +407,14 @@ for (const page of corePages) {
 
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": page.path.startsWith('blog/') ? "BlogPosting" : (page.path === 'faq' ? "FAQPage" : "WebPage"),
+    "@type": page.path.startsWith('blog/') ? "BlogPosting" : (page.path === 'faq' && FAQ_ITEMS.length ? "FAQPage" : "WebPage"),
+    ...(page.path === 'faq' && FAQ_ITEMS.length ? {
+      "mainEntity": FAQ_ITEMS.map((it) => ({
+        "@type": "Question",
+        "name": it.q,
+        "acceptedAnswer": { "@type": "Answer", "text": it.a },
+      })),
+    } : {}),
     "name": page.h1,
     "description": page.description,
     "url": pageUrl,
@@ -447,7 +471,7 @@ for (let i = 0; i < topics.length; i++) {
 
   const cleanTitle = topic.title.replace(/[?&]/g, '').trim();
   const metaTitle = `${cleanTitle} | Claritiy Voice AI Index`;
-  const metaDesc = `Detailed guide and architecture for ${cleanTitle}. Learn how modern enterprises deploy low-latency, compliant AI voice agents.`;
+  const metaDesc = fillArticle(ARTICLE.summary, topic, cleanTitle);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -477,51 +501,15 @@ for (let i = 0; i < topics.length; i++) {
       
       <h1 style="font-size: 2.5rem; font-weight: 800; color: #111827; line-height: 1.2; margin-bottom: 1rem;">${cleanTitle}</h1>
       <p style="font-size: 1.125rem; line-height: 1.7; color: #4B5563; font-style: italic; margin-bottom: 2rem;">
-        This detailed technical guide covers the strategic implementation, architecture, and business metrics for "${cleanTitle}". We explore how modern enterprises leverage this capability to optimize customer pipelines, ensure high-fidelity delivery, and maintain compliance.
+        ${escHtml(metaDesc)}
       </p>
 
-      <section style="margin-bottom: 2rem;">
-        <h2 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin-bottom: 0.75rem;">Strategic Context & Market Positioning</h2>
-        <p style="line-height: 1.7; margin-bottom: 1rem; color: #374151;">
-          In the rapidly evolving landscape of 2026, deploying a robust capability like "${cleanTitle}" has transitioned from a competitive advantage to an operational necessity. Legacy call center systems and traditional interactive voice response (IVR) setups have consistently failed to meet customer expectations, introducing latency, awkward pause loops, and rigid dial-tone scripts. By contrast, modern voice automation platform modules leverage state-of-the-art natural language processing (NLP) to converse fluently with users.
-        </p>
-        <p style="line-height: 1.7; margin-bottom: 1rem; color: #374151;">
-          When enterprises evaluate the implementation of ${cleanTitle.toLowerCase()}, they are deploying an autonomous conversational AI voice system. This integration allows companies to scale inbound call handling capacity and outbound sales calls infinitely, bypassing the constraints of recruiting, training, and managing manual calling agents. Under this paradigm, operational costs plummet while customer satisfaction scores (CSAT) rise.
-        </p>
-      </section>
-
-      <section style="margin-bottom: 2rem;">
-        <h2 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin-bottom: 0.75rem;">Technical Implementation & Flow Architecture</h2>
-        <p style="line-height: 1.7; margin-bottom: 1rem; color: #374151;">
-          From an engineering perspective, building an elite voice infrastructure for "${cleanTitle}" requires a vertically integrated pipeline. The voice stack is split into three core layers: Automatic Speech Recognition (ASR), Large Language Model orchestration (LLM), and Text-to-Speech synthesis (TTS). Claritiy Voice keeps replies fast by streaming call audio directly to a single speech-to-speech model connected to the agent workflow engine.
-        </p>
-        <pre style="background: #111827; color: #E5E7EB; padding: 1.25rem; border-radius: 0.75rem; overflow-x: auto; font-size: 0.875rem;"><code>{
-  "agent_id": "agent_claritiy_voice_${topic.id}",
-  "capabilities": ["real_time_turn_taking", "carrier_media_streaming", "pii_protection"],
-  "telephony_pipeline": {
-    "asr": "native_multilingual",
-    "llm": "gemini_2_5_flash_audio",
-    "tts": "claritiy_hd_cadence"
-  }
-}</code></pre>
-      </section>
-
-      <section style="margin-bottom: 2rem;">
-        <h2 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin-bottom: 0.75rem;">Compliance, Security & Audit Logs</h2>
-        <p style="line-height: 1.7; margin-bottom: 1rem; color: #374151;">
-          Regulated industries such as healthcare clinics, financial banking, and insurance carriers require absolute adherence to strict compliance guidelines. Deploying "${cleanTitle}" necessitates a security-first posture that integrates edge-based data redaction. Before any audio transcript or call recording is saved, the PII protection engine scrubs credit card numbers, personal health identifiers (PHI), and contact numbers.
-        </p>
-      </section>
-
-      <section style="margin-bottom: 2.5rem;">
-        <h2 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin-bottom: 0.75rem;">Business Impact & ROI Metrics</h2>
-        <ul style="padding-left: 1.5rem; line-height: 1.8; color: #374151;">
-          <li>First-Ring Response Rate: 100% call answering with 0s customer wait time.</li>
-          <li>RTO Reduction: Up to 40% reduction in Cash-on-Delivery return-to-origin rates.</li>
-          <li>No-Show Reduction: 89% lower appointment no-show rates via automated scheduling.</li>
-          <li>Cost Deflection: 60% of tier-1 support queries handled without human escalation.</li>
-        </ul>
-      </section>
+${ARTICLE.sections.map((sec) => `      <section style="margin-bottom: 2rem;">
+        <h2 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin-bottom: 0.75rem;">${escHtml(sec.subtitle)}</h2>
+${(sec.paragraphs || []).map((p) => `        <p style="line-height: 1.7; margin-bottom: 1rem; color: #374151;">${escHtml(fillArticle(p, topic, cleanTitle))}</p>`).join('\n')}
+${sec.code ? `        <pre style="background: #111827; color: #E5E7EB; padding: 1.25rem; border-radius: 0.75rem; overflow-x: auto; font-size: 0.875rem;"><code>${escHtml(fillArticle(sec.code, topic, cleanTitle))}</code></pre>` : ''}
+${sec.bullets ? `        <ul style="padding-left: 1.5rem; line-height: 1.8; color: #374151;">${sec.bullets.map((b) => `<li>${escHtml(fillArticle(b, topic, cleanTitle))}</li>`).join('')}</ul>` : ''}
+      </section>`).join('\n\n')}
 
       <footer style="border-top: 1px solid #E5E7EB; padding-top: 1.5rem; margin-top: 2rem;">
         <h3 style="font-size: 1.125rem; font-weight: 700; margin-bottom: 1rem;">Explore Related Voice AI Index Topics</h3>

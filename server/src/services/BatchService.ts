@@ -31,6 +31,8 @@ export interface BatchCounters {
   skipped: number;
   cancelled: number;
   remaining: number;
+  /** A call is being placed or is underway right now. */
+  inProgress: number;
   progressPercent: number;
   totalDurationSeconds: number;
   totalBilledMinutes: number;
@@ -127,8 +129,13 @@ export class BatchService {
       }
     });
 
+    // Retries follow the campaign's own policy, not a fixed 3 (audit #41).
+    const batchRow = await prisma.batch.findUnique({ where: { id: batchId }, select: { retryConfig: true } });
+    const { maxAttempts } = resolveRetryPolicy(batchRow?.retryConfig);
+
     const total = recipients.length;
     let attempted = 0;
+    let inProgress = 0;
     let answered = 0;
     let notAnswered = 0;
     let busy = 0;
@@ -168,21 +175,27 @@ export class BatchService {
         const isBusy = r.lastErrorCode === 'BUSY' || r.call?.status === 'busy';
         const isNoAnswer = r.lastErrorCode === 'NO_ANSWER' || r.call?.status === 'no_answer';
 
+        // Every recipient lands in exactly one bucket, so the buckets add up to the total
+        // (audit #41: calls underway were in none of them).
         if (isAnswered) {
           answered++;
           finalStateCount++;
+        } else if (r.status === 'in_progress') {
+          inProgress++;
         } else if (isBusy) {
           busy++;
-          if (r.attempts >= 3 || r.status === 'failed') finalStateCount++;
+          if (r.attempts >= maxAttempts || r.status === 'failed') finalStateCount++;
         } else if (isNoAnswer) {
           notAnswered++;
-          if (r.attempts >= 3 || r.status === 'failed') finalStateCount++;
+          if (r.attempts >= maxAttempts || r.status === 'failed') finalStateCount++;
         } else if (r.status === 'failed') {
           failed++;
           finalStateCount++;
         } else if (r.status === 'completed') {
           answered++;
           finalStateCount++;
+        } else {
+          inProgress++;
         }
       }
     }
@@ -199,6 +212,7 @@ export class BatchService {
       skipped,
       cancelled,
       remaining,
+      inProgress,
       progressPercent,
       totalDurationSeconds,
       totalBilledMinutes
