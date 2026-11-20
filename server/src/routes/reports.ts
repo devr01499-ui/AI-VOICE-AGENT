@@ -51,6 +51,87 @@ const listQuerySchema = z.object({
   dateTo: z.string().optional(),
 });
 
+/**
+ * Calls still waiting for (or in) analysis, shaped like report rows so the list can show them
+ * (audit #93). They have no result yet: no label, score or drawer until analysis finishes.
+ */
+async function listQueuedAnalyses(workspaceId: string, status: 'pending' | 'processing', query: z.infer<typeof listQuerySchema>, req: Request) {
+  const where: any = { workspaceId, status };
+  if (query.agentId && query.agentId !== 'all') where.agentId = query.agentId;
+  const callWhere: any = { userId: workspaceId };
+  if (query.direction) callWhere.callDirection = query.direction;
+  if (query.batchId && query.batchId !== 'all') callWhere.batchId = query.batchId;
+  where.call = callWhere;
+  const reqTz = sanitizeTimezone((req.query.timezone as string) || (req.headers['x-workspace-timezone'] as string) || (req as any).user?.workspaceTimezone);
+  if (query.dateFrom || query.dateTo) {
+    where.createdAt = {};
+    if (query.dateFrom) where.createdAt.gte = query.dateFrom.length <= 10 ? getWorkspaceDayBounds(query.dateFrom, reqTz).startUtc : new Date(query.dateFrom);
+    if (query.dateTo) where.createdAt.lte = query.dateTo.length <= 10 ? getWorkspaceDayBounds(query.dateTo, reqTz).endUtc : new Date(query.dateTo);
+  }
+  const [jobs, totalCount] = await Promise.all([
+    prisma.analysisJob.findMany({
+      where,
+      take: query.limit + 1,
+      ...(query.cursor ? { skip: 1, cursor: { id: query.cursor } } : {}),
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      include: {
+        call: {
+          select: {
+            id: true, callDirection: true, recipientPhoneNumber: true, fromPhoneNumber: true, durationSeconds: true,
+            status: true, startTime: true, endTime: true, agent: { select: { id: true, name: true } },
+          },
+        },
+      },
+    }),
+    prisma.analysisJob.count({ where }),
+  ]);
+  let nextCursor: string | null = null;
+  if (jobs.length > query.limit) {
+    jobs.pop();
+    nextCursor = jobs.length > 0 ? jobs[jobs.length - 1].id : null;
+  }
+  const items = jobs.map((j: any) => {
+    const direction = j.call?.callDirection || 'outbound';
+    return {
+      id: j.id,
+      callId: j.callId,
+      queued: true,
+      blueprintId: 'tpl-0',
+      blueprintName: status === 'processing' ? 'Analysis running' : 'Waiting for analysis',
+      status: j.status,
+      label: status === 'processing' ? 'Analysing' : 'Queued',
+      resultLabel: null,
+      score: null,
+      confidence: null,
+      reviewNeeded: false,
+      reviewReason: null,
+      summary: null,
+      fields: {},
+      evidenceQuotes: {},
+      hasHumanCorrection: false,
+      reviewStatus: null,
+      createdAt: j.createdAt.toISOString(),
+      updatedAt: j.updatedAt.toISOString(),
+      call: {
+        id: j.call?.id || j.callId,
+        recipientPhoneNumber: j.call?.recipientPhoneNumber || '',
+        fromPhoneNumber: j.call?.fromPhoneNumber || '',
+        direction,
+        contactNumber: direction === 'inbound' ? (j.call?.fromPhoneNumber || '') : (j.call?.recipientPhoneNumber || ''),
+        businessNumber: direction === 'inbound' ? (j.call?.recipientPhoneNumber || '') : (j.call?.fromPhoneNumber || ''),
+        status: j.call?.status || 'completed',
+        durationSeconds: j.call?.durationSeconds || 0,
+        recordingUrl: null,
+        hasRecording: false,
+        startedAt: j.call?.startTime ? j.call.startTime.toISOString() : undefined,
+        endedAt: j.call?.endTime ? j.call.endTime.toISOString() : undefined,
+        agent: j.call?.agent ? { id: j.call.agent.id, name: j.call.agent.name } : null,
+      },
+    };
+  });
+  return { items, nextCursor, hasMore: !!nextCursor, totalCount };
+}
+
 router.get('/', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const workspaceId = (req as any).effectiveWorkspaceId || (req as any).userId;
@@ -78,20 +159,10 @@ router.get('/', async (req: Request, res: Response, next: NextFunction): Promise
       if (['completed', 'needs_review', 'failed'].includes(query.status)) {
         where.status = query.status;
       } else if (query.status === 'pending' || query.status === 'processing') {
-        // Pending or processing jobs do not yet have completed call_results rows
-        res.json({
-          success: true,
-          data: {
-            items: [],
-            nextCursor: null,
-            hasMore: false,
-            totalCount: 0,
-          },
-          items: [],
-          nextCursor: null,
-          hasMore: false,
-          totalCount: 0,
-        });
+        // These calls have no result yet: list them from the analysis queue (audit #93: the filter
+        // always answered with an empty list).
+        const payload = await listQueuedAnalyses(workspaceId, query.status, query, req);
+        res.json({ success: true, data: payload, ...payload });
         return;
       }
     }
@@ -530,7 +601,7 @@ router.get('/:callId', async (req: Request, res: Response, next: NextFunction): 
         },
       }),
       prisma.analysisJob.findFirst({
-        where: { callId },
+        where: { callId, workspaceId },
         select: {
           id: true,
           status: true,
@@ -550,8 +621,6 @@ router.get('/:callId', async (req: Request, res: Response, next: NextFunction): 
         select: {
           id: true,
           action: true,
-          staffId: true,
-          staffEmail: true,
           reason: true,
           before: true,
           after: true,
@@ -559,6 +628,21 @@ router.get('/:callId', async (req: Request, res: Response, next: NextFunction): 
         },
       }),
     ]);
+    // The customer's own report actions (corrections, accepts, re-analysis) live in the workspace
+    // audit log; the drawer only read the staff log, so they never appeared (audit #94).
+    const workspaceEvents = result
+      ? await prisma.auditLog.findMany({
+          where: { workspaceOwnerId: workspaceId, targetId: callId, action: { startsWith: 'CALL_REPORT_' } },
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+          select: { id: true, action: true, actorUserId: true, metadata: true, createdAt: true },
+        })
+      : [];
+    const actorIds = Array.from(new Set(workspaceEvents.map((e) => e.actorUserId).filter(Boolean)));
+    const actors = actorIds.length
+      ? await prisma.user.findMany({ where: { id: { in: actorIds } }, select: { id: true, fullName: true, email: true } })
+      : [];
+    const actorName = new Map(actors.map((a) => [a.id, a.fullName || a.email || 'Team member']));
 
     if (!result) {
       res.status(404).json({ success: false, error: 'Call result not found or unauthorized' });
@@ -621,17 +705,27 @@ router.get('/:callId', async (req: Request, res: Response, next: NextFunction): 
         createdAt: job.createdAt.toISOString(),
         updatedAt: job.updatedAt.toISOString(),
       } : undefined,
-      auditLogs: auditLogs.map((a: any) => ({
-        id: a.id,
-        action: a.action,
-        actorUserId: a.staffId || a.staffEmail || 'staff',
-        createdAt: a.createdAt.toISOString(),
-        metadata: {
-          reason: a.reason,
-          before: a.before,
-          after: a.after,
-        },
-      })),
+      auditLogs: [
+        ...workspaceEvents.map((e: any) => ({
+          id: e.id,
+          action: e.action,
+          actorUserId: actorName.get(e.actorUserId) || 'Team member',
+          createdAt: e.createdAt.toISOString(),
+          metadata: e.metadata || {},
+        })),
+        // Staff actions are shown without the staff member's identity.
+        ...auditLogs.map((a: any) => ({
+          id: a.id,
+          action: a.action,
+          actorUserId: 'Claritiy support',
+          createdAt: a.createdAt.toISOString(),
+          metadata: {
+            reason: a.reason,
+            before: a.before,
+            after: a.after,
+          },
+        })),
+      ].sort((x, y) => y.createdAt.localeCompare(x.createdAt)),
     };
 
     res.json({

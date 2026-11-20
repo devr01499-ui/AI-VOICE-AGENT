@@ -162,15 +162,15 @@ export function DashCalendar() {
                   <div key={booking.id} className="nm-raised rounded-2xl p-5 transition-all hover:scale-[1.01] duration-300 relative overflow-hidden border border-white/5">
                     <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isAI ? 'bg-indigo-500' : 'bg-emerald-500'}`}></div>
                     
-                    <div className="flex justify-between items-start ml-2">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 ml-2">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${isAI ? 'bg-indigo-500/20 text-indigo-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
                             {booking.kind === 'scheduled_call'
                               ? (isAI ? 'AI Follow-up Call' : booking.source === 'batch' ? 'Batch Call' : 'Scheduled Call')
                               : (isAI ? 'AI Booked' : 'Manual')}
                           </span>
-                          <span className="text-xs text-gray-400 bg-gray-800/50 px-2 py-0.5 rounded-md border border-gray-700/50 flex items-center gap-1">
+                          <span className="text-xs text-slate-500 dark:text-gray-400 bg-slate-100 dark:bg-gray-800/50 px-2 py-0.5 rounded-md border border-slate-200 dark:border-gray-700/50 flex items-center gap-1 min-w-0 truncate">
                             <MapPin className="w-3 h-3"/> {booking.timezone}
                           </span>
                         </div>
@@ -195,7 +195,7 @@ export function DashCalendar() {
                         </div>
                       </div>
                       
-                      <div className="text-right flex flex-col items-end justify-center nm-pressed px-4 py-2 rounded-xl border border-white/5">
+                      <div className="self-start sm:self-auto text-left sm:text-right flex flex-col items-start sm:items-end justify-center nm-pressed px-4 py-2 rounded-xl border border-white/5 shrink-0">
                         <span className="text-xl font-bold text-[var(--nm-text)]" style={{fontFamily:"'Outfit', sans-serif"}}>
                           {formatTime(d, { showZone: true, tz: booking.timezone })}
                         </span>

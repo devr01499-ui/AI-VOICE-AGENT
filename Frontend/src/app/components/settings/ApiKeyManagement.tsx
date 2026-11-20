@@ -49,7 +49,7 @@ export function ApiKeyManagement() {
         alert((res.data as any)?.error || 'Failed to generate API key');
       }
     } catch (err: any) {
-      alert(err?.response?.data?.error || 'Failed to generate API key');
+      alert(err?.message || 'Failed to generate API key');
     } finally {
       setIsGenerating(false);
     }
@@ -67,7 +67,7 @@ export function ApiKeyManagement() {
       }
 
     } catch (err: any) {
-      alert(err?.response?.data?.error || 'Failed to revoke API key');
+      alert(err?.message || 'Failed to revoke API key');
     }
   };
 

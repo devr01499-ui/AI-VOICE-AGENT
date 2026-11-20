@@ -1728,7 +1728,9 @@ export default function SinglePromptStudio({
     try {
       setIsPublishing(true);
       setPublishError(null);
-      await onSave(getStudioPayload());
+      // Publishing makes the agent live; Save keeps its current status (audit #99: Publish left
+      // new agents as drafts).
+      await onSave({ ...getStudioPayload(), status: 'active' } as any);
       setLastSavedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     } catch (err: any) {
       console.error('Failed to publish agent:', err);

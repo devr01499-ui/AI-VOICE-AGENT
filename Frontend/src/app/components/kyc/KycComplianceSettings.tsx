@@ -84,7 +84,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
         setPanError('Unable to generate hosted verification session link. Please contact support.');
       }
     } catch (err: any) {
-      setPanError(err?.response?.data?.error || 'Failed to start hosted verification.');
+      setPanError(err?.message || 'Failed to start hosted verification.');
     } finally {
       setInitiatingHosted(false);
     }
@@ -355,7 +355,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
         setGstError((res.data as any)?.error || 'GST verification failed.');
       }
     } catch (err: any) {
-      setGstError(err?.response?.data?.error || err.message || 'GST verification request failed.');
+      setGstError(err?.message || 'GST verification request failed.');
     } finally {
       setSubmittingGst(false);
     }
@@ -391,7 +391,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
         setAadhaarError((res.data as any)?.error || 'Unable to start DigiLocker session.');
       }
     } catch (err: any) {
-      setAadhaarError(err?.response?.data?.error || err.message || 'Failed to initiate DigiLocker session.');
+      setAadhaarError(err?.message || 'Failed to initiate DigiLocker session.');
     } finally {
       setInitiatingDigiLocker(false);
     }
@@ -435,7 +435,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
         setAadhaarError((res.data as any)?.error || 'DigiLocker verification failed.');
       }
     } catch (err: any) {
-      setAadhaarError(err?.response?.data?.error || err.message || 'Verification request failed.');
+      setAadhaarError(err?.message || 'Verification request failed.');
     } finally {
       setVerifyingDigiLocker(false);
     }
