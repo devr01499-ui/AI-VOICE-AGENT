@@ -36,6 +36,22 @@ export interface SchedulingRuleConfig {
   instructions?: string | null;
 }
 
+/**
+ * A scheduling-rule number: the default only when the value is missing or not a number, so a
+ * deliberate 0 (no buffer, no minimum notice) is kept (audit #53). Clamped to [min, max].
+ */
+export function ruleNumber(value: unknown, fallback: number, min: number, max: number): number {
+  if (value === null || value === undefined || value === '') return fallback;
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+/** YYYY-MM-DD of an instant in the given time zone. */
+export function localDateKey(date: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+}
+
 export class CalendarService {
   private static freeBusyCache = new Map<string, { data: any; expiresAt: number }>();
   private static calendarLocks = new Map<string, Promise<void>>();
@@ -261,11 +277,11 @@ export class CalendarService {
         timeZone: dbRule.timeZone || 'Asia/Kolkata',
         workingDays: JSON.parse(dbRule.workingDays || '[1,2,3,4,5]'),
         workingHours: JSON.parse(dbRule.workingHours || '{"start":"09:00","end":"17:00"}'),
-        appointmentMinutes: dbRule.appointmentMinutes || 30,
-        bufferBeforeAfterMinutes: dbRule.bufferBeforeAfterMinutes || 10,
-        minNoticeMinutes: dbRule.minNoticeMinutes || 120,
-        maxDaysAhead: dbRule.maxDaysAhead || 30,
-        maxBookingsPerDay: dbRule.maxBookingsPerDay || 8,
+        appointmentMinutes: ruleNumber(dbRule.appointmentMinutes, 30, 5, 480),
+        bufferBeforeAfterMinutes: ruleNumber(dbRule.bufferBeforeAfterMinutes, 10, 0, 240),
+        minNoticeMinutes: ruleNumber(dbRule.minNoticeMinutes, 120, 0, 43200),
+        maxDaysAhead: ruleNumber(dbRule.maxDaysAhead, 30, 1, 365),
+        maxBookingsPerDay: ruleNumber(dbRule.maxBookingsPerDay, 8, 1, 500),
         blackoutDates: JSON.parse(dbRule.blackoutDates || '[]'),
         treatAllDayEventsAsBusy: dbRule.treatAllDayEventsAsBusy,
         allowedCalendars: JSON.parse(dbRule.allowedCalendars || '["primary"]'),
@@ -488,11 +504,11 @@ export class CalendarService {
       const tz = rule.timeZone || 'Asia/Kolkata';
 
       const duration = options?.durationMinutes || rule.appointmentMinutes || 30;
-      const buffer = rule.bufferBeforeAfterMinutes || 10;
+      const buffer = rule.bufferBeforeAfterMinutes ?? 10;
       const slotStepMinutes = duration + buffer;
 
       const now = new Date();
-      const minNoticeMs = (rule.minNoticeMinutes || 120) * 60 * 1000;
+      const minNoticeMs = (rule.minNoticeMinutes ?? 120) * 60 * 1000;
       const earliestAllowedUtc = new Date(now.getTime() + minNoticeMs);
 
       // Determine date search bounds
@@ -518,11 +534,13 @@ export class CalendarService {
         end: new Date(b.end).getTime()
       }));
 
-      // Count existing bookings per day for daily cap
+      // Count existing bookings per LOCAL day for the daily cap (audit #52): include bookings made
+      // earlier today (from a day before the search start) and group them by the rule's time zone,
+      // the same key the day loop below uses.
       const existingBookings = await prisma.calendarBooking.findMany({
         where: {
           workspaceId,
-          startUtc: { gte: searchStart, lte: cappedEnd },
+          startUtc: { gte: new Date(searchStart.getTime() - 86400000), lte: new Date(cappedEnd.getTime() + 86400000) },
           status: { in: ['confirmed', 'rescheduled'] }
         },
         select: { startUtc: true }
@@ -530,7 +548,7 @@ export class CalendarService {
 
       const bookingsCountByDate = new Map<string, number>();
       for (const b of existingBookings) {
-        const dStr = b.startUtc.toISOString().slice(0, 10);
+        const dStr = localDateKey(b.startUtc, tz);
         bookingsCountByDate.set(dStr, (bookingsCountByDate.get(dStr) || 0) + 1);
       }
 

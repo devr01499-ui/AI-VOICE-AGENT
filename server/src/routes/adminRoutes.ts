@@ -1597,10 +1597,13 @@ adminRouter.get('/audit-logs', requireStaff('audit:view'), async (req: StaffAuth
  */
 adminRouter.get('/metrics/daily', requireStaff('metrics:view'), async (_req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const dailyMetrics = await prisma.dailyMetric.findMany({
+    // The LATEST 14 days, oldest first for the chart (audit #62: ascending + take returned the
+    // oldest 14 days ever recorded).
+    const latest = await prisma.dailyMetric.findMany({
       take: 14,
-      orderBy: { date: 'asc' },
+      orderBy: { date: 'desc' },
     });
+    const dailyMetrics = latest.reverse();
 
     res.status(200).json({ success: true, data: dailyMetrics });
   } catch (err: any) {

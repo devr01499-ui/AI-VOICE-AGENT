@@ -4,7 +4,7 @@ import { requireActivePlan } from '../middleware/planValidation';
 import { prisma } from '../lib/prisma';
 import { nextKycState, vobizKycVerdict } from '../utils/kycStatus';
 import { logger } from '../utils/logger';
-import { checkRequiredKycDocumentsVerified, checkAndApplyFullKycApproval, derivePanCategory } from '../services/KycVerificationService';
+import { checkRequiredKycDocumentsVerified, checkAndApplyFullKycApproval, derivePanCategory, isMockVobizReference, liveKycDocumentReference, shownKycDocumentStatus } from '../services/KycVerificationService';
 import { VobizSubAccountService } from '../services/VobizSubAccountService';
 import { verifyVobizWebhook } from '../middleware/vobizWebhook';
 import { Resend } from 'resend';
@@ -384,18 +384,18 @@ router.get('/documents', requireAuth, requireActivePlan, async (req, res, next) 
 
     let overallStatus: 'verified' | 'pending' | 'failed' | 'not_submitted' = 'not_submitted';
 
-    if (isFullyVerified || subAccount?.kycStatus === 'verified') {
+    if (isFullyVerified) { // same rule as the number gate (audit #7)
       overallStatus = 'verified';
     } else if (
-      (kycResult.requiredDocs.includes('PAN') && panDoc?.status === 'failed') ||
-      (kycResult.requiredDocs.includes('GST') && gstDoc?.status === 'failed') ||
-      (kycResult.requiredDocs.includes('Aadhaar') && aadhaarDoc?.status === 'failed')
+      (kycResult.requiredDocs.includes('PAN') && shownKycDocumentStatus(panDoc) === 'failed') ||
+      (kycResult.requiredDocs.includes('GST') && shownKycDocumentStatus(gstDoc) === 'failed') ||
+      (kycResult.requiredDocs.includes('Aadhaar') && shownKycDocumentStatus(aadhaarDoc) === 'failed')
     ) {
       overallStatus = 'failed';
     } else if (
-      (kycResult.requiredDocs.includes('PAN') && panDoc?.status === 'pending') ||
-      (kycResult.requiredDocs.includes('GST') && gstDoc?.status === 'pending') ||
-      (kycResult.requiredDocs.includes('Aadhaar') && aadhaarDoc?.status === 'pending')
+      (kycResult.requiredDocs.includes('PAN') && shownKycDocumentStatus(panDoc) === 'pending') ||
+      (kycResult.requiredDocs.includes('GST') && shownKycDocumentStatus(gstDoc) === 'pending') ||
+      (kycResult.requiredDocs.includes('Aadhaar') && shownKycDocumentStatus(aadhaarDoc) === 'pending')
     ) {
       overallStatus = 'pending';
     }
@@ -406,7 +406,7 @@ router.get('/documents', requireAuth, requireActivePlan, async (req, res, next) 
         label: 'Permanent Account Number (PAN)',
         description: 'Authorized signatory PAN for tax & identity verification',
         required: true,
-        status: panDoc?.status || 'not_submitted',
+        status: shownKycDocumentStatus(panDoc),
         panNumber: maskPan(panDoc?.panNumber),
         panType: panDoc?.panType || 'personal',
         fullName: maskFullName(panDoc?.fullName),
@@ -419,7 +419,7 @@ router.get('/documents', requireAuth, requireActivePlan, async (req, res, next) 
         label: 'GST Certificate (GSTIN)',
         description: 'GST registration certificate PDF/image for commercial telephony',
         required: businessType === 'company',
-        status: gstDoc?.status || 'not_submitted',
+        status: shownKycDocumentStatus(gstDoc),
         gstin: gstDoc?.gstin || null,
         gstCertUrl: gstDoc?.gstCertUrl || null,
         failureReason: gstDoc?.failureReason || null,
@@ -431,7 +431,7 @@ router.get('/documents', requireAuth, requireActivePlan, async (req, res, next) 
         label: 'Aadhaar Verification (DigiLocker)',
         description: 'Instant UIDAI identity verification via DigiLocker OTP authorization',
         required: businessType === 'individual',
-        status: aadhaarDoc?.status || 'not_submitted',
+        status: shownKycDocumentStatus(aadhaarDoc),
         vobizReference: aadhaarDoc?.vobizReference || null,
         failureReason: aadhaarDoc?.failureReason || null,
         verifiedAt: aadhaarDoc?.verifiedAt || null,
@@ -719,8 +719,18 @@ router.post('/verify-document', requireAuth, requireActivePlan, sensitiveOperati
           const resData = (await vobizRes.json()) as any;
           const status = (resData.status || '').toLowerCase();
           if (status === 'verified' || resData.verified === true) {
-            verificationResultStatus = 'verified';
-            vobizReference = resData.api_id || resData.reference || resData.id || `vob_${Date.now()}`;
+            // Only a real carrier reference makes a document "verified" (audit #7): a made-up
+            // reference showed "Verified" while the number gate (correctly) refused it. Without
+            // one, the document stays pending until the carrier's live KYC status confirms it.
+            const carrierRef = resData.api_id || resData.reference || resData.id || null;
+            if (carrierRef && !isMockVobizReference(String(carrierRef))) {
+              verificationResultStatus = 'verified';
+              vobizReference = String(carrierRef);
+            } else {
+              verificationResultStatus = 'pending';
+              vobizReference = null;
+              logger.warn('KYC: carrier reported a document verified without a usable reference; kept pending', { subAuthId, documentType });
+            }
           } else if (status === 'failed' || status === 'rejected' || resData.verified === false) {
             verificationResultStatus = 'failed';
             failureReason = resData.message || resData.reason || 'Document verification rejected: details did not match official records.';
@@ -803,7 +813,7 @@ router.post('/verify-document', requireAuth, requireActivePlan, sensitiveOperati
     await logAuditEvent({
       workspaceOwnerId: userId,
       actorUserId: userId,
-      action: verificationResultStatus === 'verified' ? 'kyc.document_verified' : 'kyc.document_rejected',
+      action: verificationResultStatus === 'verified' ? 'kyc.document_verified' : verificationResultStatus === 'pending' ? 'kyc.document_pending' : 'kyc.document_rejected',
       targetId: savedDoc.id,
       metadata: {
         documentType,
@@ -814,7 +824,9 @@ router.post('/verify-document', requireAuth, requireActivePlan, sensitiveOperati
     });
 
     // 6. Resend email notification
-    await notifyUserDocumentStatus(userId, documentType, verificationResultStatus, failureReason || undefined);
+    if (verificationResultStatus !== 'pending') { // pending is not a failure: no "re-submit" notice
+      await notifyUserDocumentStatus(userId, documentType, verificationResultStatus, failureReason || undefined);
+    }
 
     // 7. Check if overall KYC can now be elevated to verified
     if (verificationResultStatus === 'verified') {
@@ -1125,7 +1137,10 @@ router.post(['/initiate-session', '/start'], requireAuth, requireActivePlan, sen
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
     const subAccount = await subAccountService.getOrCreateSubAccount(userId, user?.email || undefined);
 
-    let redirectUrl = `https://console.vobiz.ai/kyc?sub_account_auth_id=${subAccount.authId}`;
+    // Only a hosted verification session from the carrier is a usable link. The old fallback (the
+    // carrier's own console) needs a carrier login our customers do not have and showed the
+    // carrier's name (audit #95), so without a session the customer is asked to try again.
+    let redirectUrl: string | null = null;
 
     const baseUrl = (env.VOBIZ_API_URL || 'https://api.vobiz.ai').replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
     const masterAuthId = env.VOBIZ_AUTH_ID;
@@ -1169,6 +1184,14 @@ router.post(['/initiate-session', '/start'], requireAuth, requireActivePlan, sen
           error: String(sessionErr),
         });
       }
+    }
+
+    if (!redirectUrl) {
+      res.status(503).json({
+        success: false,
+        error: 'Hosted verification is temporarily unavailable. Please try again in a few minutes, or verify your documents on this page.',
+      });
+      return;
     }
 
     logger.info('KYC: Initiated Vobiz Hosted KYC Session flow', { userId, subAuthId: subAccount.authId });
@@ -1355,24 +1378,26 @@ router.get('/status', requireAuth, requireActivePlan, async (req, res, next) => 
       });
     }
 
-    // Sync individual document records in DB if Vobiz reports them as verified
-    if (verifications.pan === 'verified') {
-      await prisma.kycDocument.updateMany({
-        where: { userId, documentType: 'pan', status: { not: 'verified' } },
-        data: { status: 'verified', verifiedAt: new Date() },
-      });
-    }
-    if (verifications.gst === 'verified') {
-      await prisma.kycDocument.updateMany({
-        where: { userId, documentType: 'gst', status: { not: 'verified' } },
-        data: { status: 'verified', verifiedAt: new Date() },
-      });
-    }
-    if (verifications.aadhaar === 'verified') {
-      await prisma.kycDocument.updateMany({
-        where: { userId, documentType: 'aadhaar', status: { not: 'verified' } },
-        data: { status: 'verified', verifiedAt: new Date() },
-      });
+    // Sync individual document records when the carrier reports them verified for THIS user's own
+    // (customer_use) KYC — a personal_use sub-account reports the master account's checks, which
+    // say nothing about this user. The record gets a reference to that live carrier result, so the
+    // number gate and the page agree (audit #7: documents showed "Verified" with no reference and
+    // the gate refused them as "PAN not verified").
+    if (verdict.customerUse) {
+      for (const docType of ['pan', 'gst', 'aadhaar'] as const) {
+        if (verifications[docType] !== 'verified') continue;
+        const ref = liveKycDocumentReference(subAuthId, docType);
+        if (!ref) continue;
+        const docs = await prisma.kycDocument.findMany({ where: { userId, documentType: docType }, select: { id: true, status: true, vobizReference: true, verifiedAt: true } });
+        for (const d of docs) {
+          // Keep a genuine reference (e.g. DigiLocker) — only fill in missing or made-up ones.
+          if (d.status === 'verified' && !isMockVobizReference(d.vobizReference)) continue;
+          await prisma.kycDocument.updateMany({
+            where: { id: d.id, userId },
+            data: { status: 'verified', verifiedAt: d.verifiedAt || new Date(), vobizReference: ref },
+          });
+        }
+      }
     }
 
     const isVerified = overallStatus === 'verified' && !kycCallsBlocked;

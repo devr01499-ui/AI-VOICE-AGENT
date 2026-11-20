@@ -139,9 +139,15 @@ async function run() {
         },
       });
       const data = await response.json();
+      // Without a hosted carrier session the route answers 503 (no carrier-console link, audit #95).
+      if (response.status === 503) {
+        assert.strictEqual(data.success, false);
+        console.log('✓ /api/v2/kyc/start: no hosted session available, clear 503 (no carrier console link)');
+        return;
+      }
       assert.strictEqual(response.status, 200, `Expected HTTP 200, got ${response.status}`);
       assert.strictEqual(data.success, true, 'Response must have success: true');
-      assert.ok(data.data?.redirectUrl?.includes('console.vobiz.ai/kyc'), 'Redirect URL must target Vobiz hosted KYC');
+      assert.ok(data.data?.redirectUrl && !/console\./i.test(data.data.redirectUrl), 'Redirect URL must be a hosted session, never the carrier console');
       console.log('✓ /api/v2/kyc/start route alias successfully returned hosted KYC URL:', data.data.redirectUrl);
     } finally {
       await new Promise((resolve) => server.close(resolve));

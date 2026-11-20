@@ -5,6 +5,8 @@ import { Calendar, Clock, MapPin, User, Bot, AlertCircle } from 'lucide-react';
 
 interface Booking {
   id: string;
+  /** appointment = Google Calendar booking; scheduled_call = a call we will place (audit #65). */
+  kind?: 'appointment' | 'scheduled_call';
   source: string;
   callerName?: string;
   phoneNumber: string;
@@ -47,8 +49,11 @@ export function DashCalendar() {
     loadData();
   }, []);
 
-  const handleCancelBooking = async (id: string) => {
-    if (!window.confirm('Are you sure you want to cancel this appointment in Google Calendar?')) return;
+  const handleCancelBooking = async (id: string, kind?: Booking['kind']) => {
+    const question = kind === 'scheduled_call'
+      ? 'Cancel this scheduled call? It will not be placed.'
+      : 'Are you sure you want to cancel this appointment in Google Calendar?';
+    if (!window.confirm(question)) return;
     try {
       setCancellingId(id);
       const { apiClient } = await import('../../api');
@@ -161,7 +166,9 @@ export function DashCalendar() {
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${isAI ? 'bg-indigo-500/20 text-indigo-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                            {isAI ? 'AI Booked' : 'Manual'}
+                            {booking.kind === 'scheduled_call'
+                              ? (isAI ? 'AI Follow-up Call' : booking.source === 'batch' ? 'Batch Call' : 'Scheduled Call')
+                              : (isAI ? 'AI Booked' : 'Manual')}
                           </span>
                           <span className="text-xs text-gray-400 bg-gray-800/50 px-2 py-0.5 rounded-md border border-gray-700/50 flex items-center gap-1">
                             <MapPin className="w-3 h-3"/> {booking.timezone}
@@ -179,11 +186,11 @@ export function DashCalendar() {
                         )}
                         <div className="mt-3">
                           <button
-                            onClick={() => handleCancelBooking(booking.id)}
+                            onClick={() => handleCancelBooking(booking.id, booking.kind)}
                             disabled={cancellingId === booking.id}
                             className="text-xs text-rose-400 hover:text-rose-300 font-semibold underline disabled:opacity-50"
                           >
-                            {cancellingId === booking.id ? 'Cancelling…' : 'Cancel appointment'}
+                            {cancellingId === booking.id ? 'Cancelling…' : booking.kind === 'scheduled_call' ? 'Cancel call' : 'Cancel appointment'}
                           </button>
                         </div>
                       </div>

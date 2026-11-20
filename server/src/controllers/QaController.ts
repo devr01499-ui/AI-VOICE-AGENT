@@ -158,15 +158,17 @@ export class QaController {
       for (const call of callsToScore) {
         const fullTranscript = call.transcriptSegments.map((s) => `${s.speaker}: ${s.content}`).join('\n');
 
-        // Latency gap check from segment timestamps
+        // Latency gap check from segment timestamps. Segment times are SECONDS from call start
+        // (TranscriptSegment.startTime), so convert before comparing (audit #101: seconds were
+        // compared with a millisecond threshold and the flag never fired).
         let maxLatencyGapMs = 0;
         for (let i = 1; i < call.transcriptSegments.length; i++) {
           const prev = call.transcriptSegments[i - 1];
           const curr = call.transcriptSegments[i];
           if ((prev.speaker === 'caller' || prev.speaker === 'user') && (curr.speaker === 'agent' || curr.speaker === 'assistant')) {
             const prevEnd = prev.endTime ?? prev.startTime;
-            const gap = curr.startTime - prevEnd;
-            if (gap > maxLatencyGapMs) maxLatencyGapMs = gap;
+            const gapMs = Math.round((curr.startTime - prevEnd) * 1000); // stored in an Int column
+            if (gapMs > maxLatencyGapMs) maxLatencyGapMs = gapMs;
           }
         }
 

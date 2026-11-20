@@ -824,12 +824,13 @@ router.post('/:callId/reanalyze', requireEditor, aiFeatureLimiter, async (req: R
       return;
     }
 
-    // Guard: Prevent double processing if worker is currently running this job
+    // Guard: Prevent double processing if worker is currently running this job. A lock counts as
+    // live for the same 15 minutes the AnalysisWorker uses before reclaiming it (audit #56).
     if (
       runningJob &&
       runningJob.status === 'processing' &&
       runningJob.lockedAt &&
-      Date.now() - runningJob.lockedAt.getTime() < 5 * 60 * 1000
+      Date.now() - runningJob.lockedAt.getTime() < 15 * 60 * 1000
     ) {
       res.status(409).json({
         success: false,
@@ -848,18 +849,28 @@ router.post('/:callId/reanalyze', requireEditor, aiFeatureLimiter, async (req: R
     }
 
     // Reset or enqueue new job in analysis_jobs (only when not actively processing)
-    await prisma.$executeRawUnsafe(
+    const queued = await prisma.$executeRawUnsafe(
       `INSERT INTO "analysis_jobs" (
         "id", "call_id", "workspace_id", "agent_id", "status", "attempts", "max_attempts", "next_run_at", "created_at", "updated_at"
       ) VALUES (
         gen_random_uuid(), $1, $2, $3, 'pending', 0, 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       ) ON CONFLICT ("call_id") DO UPDATE
       SET status = 'pending', attempts = 0, locked_at = NULL, locked_by = NULL, next_run_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-      WHERE "analysis_jobs".status != 'processing'`,
+      WHERE "analysis_jobs".status != 'processing'
+         OR "analysis_jobs".locked_at IS NULL
+         OR "analysis_jobs".locked_at < NOW() - INTERVAL '15 minutes'`,
       call.id,
       workspaceId,
       call.agentId
     );
+    // Nothing was queued when a worker took the job in the meantime: say so, never "queued".
+    if (!queued) {
+      res.status(409).json({
+        success: false,
+        error: 'This call is currently being analyzed by an active worker. Please wait.',
+      });
+      return;
+    }
 
     await logAuditEvent({
       workspaceOwnerId: workspaceId,

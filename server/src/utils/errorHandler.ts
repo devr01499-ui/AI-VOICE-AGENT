@@ -6,6 +6,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { AppError, ValidationError } from '../types/errors';
 import { logger } from './logger';
 import { env } from '../config/env';
+import { scrubCarrierNames } from './whiteLabel';
 
 /**
  * Standardised error-response envelope returned to every client.
@@ -74,9 +75,11 @@ export function errorHandler(
       success: false,
       error: {
         code: vErr.code || 'VALIDATION_ERROR',
-        message: vErr.message,
+        message: scrubCarrierNames(String(vErr.message || '')),
         requestId,
-        details: vErr.details,
+        details: Array.isArray(vErr.details)
+          ? vErr.details.map((d: any) => ({ ...d, message: scrubCarrierNames(String(d?.message ?? '')) }))
+          : vErr.details,
       },
     };
 
@@ -93,11 +96,20 @@ export function errorHandler(
   // ── Known operational errors ─────────────────
   if (err instanceof AppError || (err && typeof err === 'object' && 'statusCode' in err && 'code' in err)) {
     const appErr = err as any;
+    // A carrier's own failure text is for our logs, not the customer (audit #95: it carried the
+    // carrier's name and raw provider details).
+    const isStaffRoute = String(req.originalUrl || '').startsWith('/api/v2/admin');
+    const isProviderError = appErr.code === 'PROVIDER_ERROR' && !isStaffRoute;
+    if (isProviderError) {
+      logger.warn('Provider error', { requestId, provider: appErr.provider, message: appErr.message });
+    }
     const body: ErrorResponseBody = {
       success: false,
       error: {
         code: appErr.code,
-        message: appErr.message,
+        message: isProviderError
+          ? `Our calling carrier could not complete this request. Please try again in a moment; if it keeps happening, contact support with reference ${requestId}.`
+          : scrubCarrierNames(String(appErr.message || '')),
         requestId,
       },
     };

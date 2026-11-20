@@ -28,6 +28,7 @@ import { ADMIN_EMAIL } from './config/constants';
 import { logger } from './utils/logger';
 import { errorHandler, AppError } from './utils/errorHandler';
 import { requestIdMiddleware } from './middleware/requestId';
+import { whiteLabelResponses } from './utils/whiteLabel';
 import { initializeProviders } from './config/providers';
 import { ProviderManager } from './providers/ProviderManager';
 import { prisma } from './lib/prisma';
@@ -158,6 +159,9 @@ app.use(express.urlencoded({ extended: true }));
 
 // ── Request ID ────────────────────────────────────
 app.use(requestIdMiddleware);
+
+// ── White label: no carrier names in customer-facing API text (audit #95) ──
+app.use(whiteLabelResponses);
 
 // ── Request Logging ───────────────────────────────
 app.use((req, _res, next) => {

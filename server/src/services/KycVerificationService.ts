@@ -21,6 +21,24 @@ export interface KycVerificationResult {
  * VER_... or legitimate UUID/transaction IDs for PAN/GST), and proactively rejects any local
  * synthetic timestamps, mock prefixes (vob_, doc_, mock_, test_), or Date.now() patterns.
  */
+const LIVE_KYC_REF = /^KYCSTATUS_[A-Za-z0-9_-]{6,64}_(PAN|GST|AADHAAR)$/;
+
+/**
+ * Reference for a document the carrier reports verified in the live KYC status of the user's OWN
+ * (customer_use) sub-account (audit #7). Null for a missing or simulated sub-account id.
+ */
+export function liveKycDocumentReference(subAuthId: string | null | undefined, docType: 'pan' | 'gst' | 'aadhaar'): string | null {
+  if (!subAuthId || !/^[A-Za-z0-9_-]{6,64}$/.test(subAuthId) || /mock/i.test(subAuthId)) return null;
+  return `KYCSTATUS_${subAuthId}_${docType.toUpperCase()}`;
+}
+
+/** What the KYC page may call "verified": the same rule the number gate uses (audit #7). */
+export function shownKycDocumentStatus(doc: { status: string; vobizReference?: string | null } | null | undefined): string {
+  if (!doc) return 'not_submitted';
+  if (doc.status === 'verified' && isMockVobizReference(doc.vobizReference)) return 'pending';
+  return doc.status;
+}
+
 export function isMockVobizReference(ref?: string | null): boolean {
   if (!ref || typeof ref !== 'string') return true;
   const trimmed = ref.trim();
@@ -47,8 +65,10 @@ export function isMockVobizReference(ref?: string | null): boolean {
   const isVobizVerPattern = /^VER_[a-zA-Z0-9_-]{6,}$/i.test(trimmed);
   const isUuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
   const isVobizAlnumPattern = /^[A-Z0-9]{10,40}$/i.test(trimmed);
+  // The carrier's live KYC status for the user's own customer_use sub-account (liveKycDocumentReference).
+  const isLiveKycStatusPattern = LIVE_KYC_REF.test(trimmed);
 
-  if (isDigiLockerPattern || isVobizVerPattern || isUuidPattern || isVobizAlnumPattern) {
+  if (isDigiLockerPattern || isVobizVerPattern || isUuidPattern || isVobizAlnumPattern || isLiveKycStatusPattern) {
     return false; // Valid genuine Vobiz reference
   }
 
@@ -196,7 +216,7 @@ async function notifyFullKycApproved(userId: string) {
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #0F172A;">
           <h2 style="color: #059669;">Claritiy Voice — KYC Verification Verified</h2>
           <p>Hello ${user.fullName || 'User'},</p>
-          <p>Your account-level KYC verification with Vobiz has been successfully approved! You can now activate and use phone numbers directly in your dashboard.</p>
+          <p>Your account-level KYC verification with our telephony carrier has been approved. You can now activate and use phone numbers directly in your dashboard.</p>
           <p style="margin-top: 24px; font-size: 12px; color: #64748B;">This is an automated notification from Claritiy Voice Enterprise Voice AI.</p>
         </div>
       `,

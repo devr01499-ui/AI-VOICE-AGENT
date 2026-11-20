@@ -345,6 +345,8 @@ export class BatchService {
       lower.includes('account suspended') ||
       lower.includes('account restricted') ||
       lower.includes('vobiz account not provisioned') ||
+      lower.includes('calling account not provisioned') ||
+      lower.includes('calling account is disabled') ||
       lower.includes('provider credentials')
     );
   }
