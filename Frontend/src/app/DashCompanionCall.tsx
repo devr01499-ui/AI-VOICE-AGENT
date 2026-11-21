@@ -102,11 +102,8 @@ export function DashCompanionCall({ agentId, onEnd }: { agentId: string; onEnd: 
       setHistory(p => [...p, { role: 'model', text: response.text }]);
       speakResponse(response.text);
     } catch (err: any) {
-      if (err.message && err.message.includes("Gemini API key is not configured")) {
-        setError("Gemini API key is missing! Please configure it in the server's .env file as GEMINI_API_KEY, or add it to your user Profile settings.");
-      } else {
-        setError(err.message || "Failed to communicate with Companion.");
-      }
+      // The server sends a clear, customer-safe message (never provider or server details).
+      setError(err.message || "Failed to communicate with Companion.");
       setCallState("idle");
     }
   };
