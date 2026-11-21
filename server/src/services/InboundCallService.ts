@@ -2,6 +2,7 @@ import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { hasCallableBalance } from '../utils/balanceUtils';
 import { logAuditEvent } from '../utils/auditLogger';
+import { AppError } from '../types/errors';
 
 export interface InboundCallResult {
   success: boolean;
@@ -475,7 +476,7 @@ export class InboundCallService {
     });
 
     if (!phoneRecord) {
-      throw new Error('Phone number not found or unauthorized');
+      throw new AppError(404, 'NOT_FOUND', 'Phone number not found or unauthorized');
     }
 
     // IDOR Protection: Verify assigned agent belongs to user
@@ -484,7 +485,7 @@ export class InboundCallService {
         where: { id: assignedAgentId, userId }
       });
       if (!assignedAgent) {
-        throw new Error('Assigned outbound agent not found or unauthorized');
+        throw new AppError(404, 'NOT_FOUND', 'Assigned outbound agent not found or unauthorized');
       }
     }
 
@@ -494,7 +495,7 @@ export class InboundCallService {
         where: { id: inboundAgentId, userId }
       });
       if (!inboundAgent) {
-        throw new Error('Inbound agent not found or unauthorized');
+        throw new AppError(404, 'NOT_FOUND', 'Inbound agent not found or unauthorized');
       }
     }
 

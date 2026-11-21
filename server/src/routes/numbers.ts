@@ -17,6 +17,7 @@ import { reserveNumberSlot, releaseNumberSlot, NUMBER_SLOT_TAKEN_MESSAGE } from 
 import { checkRequiredKycDocumentsVerified } from '../services/KycVerificationService';
 import { PlivoService } from '../core/telephony/PlivoService';
 import { NotificationService } from '../services/NotificationService';
+import { AppError } from '../types/errors';
 
 export { checkRequiredKycDocumentsVerified };
 
@@ -989,7 +990,12 @@ router.post('/:id/calling-config', requireAuth, requireEditor, sensitiveOperatio
     });
   } catch (err: any) {
     logger.error('Numbers: failed to update calling config', { error: String(err) });
-    res.status(400).json({ success: false, error: err.message || 'Failed to update calling configuration' });
+    // Only our own messages reach the customer; database or other internal errors stay in the log (audit #156).
+    if (err instanceof AppError && err.isOperational) {
+      res.status(err.statusCode).json({ success: false, error: err.message, code: err.code });
+      return;
+    }
+    res.status(500).json({ success: false, error: 'Could not save the calling configuration. Please try again.' });
   }
 });
 

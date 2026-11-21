@@ -205,7 +205,8 @@ router.post('/link-from-signin', requireAuth, requireEditor, sensitiveOperations
     logger.error('Failed to link calendar from sign-in', { error: error.message });
     res.status(500).json({
       error: 'CALENDAR_LINK_FAILED',
-      message: error.message || 'Failed to link Google Calendar'
+      // Google's error text stays in the log (audit #156).
+      message: 'Could not link Google Calendar. Please try connecting it again from Integrations.'
     });
   }
 });

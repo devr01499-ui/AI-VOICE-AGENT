@@ -78,7 +78,8 @@ export function DashCallingConfig({ onNavigateToKyc }: { onNavigateToKyc?: () =>
       }
     } catch (err) {
       setNumbers(before);
-      alert('Failed to update calling configuration: ' + (err instanceof Error ? err.message : String(err)));
+      // The server sends a complete, customer-safe sentence.
+      alert(err instanceof Error && err.message ? err.message : 'Could not save the calling configuration. Please try again.');
     } finally {
       setSavingId(null);
     }
