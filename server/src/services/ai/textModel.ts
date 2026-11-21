@@ -23,6 +23,13 @@ export interface TextGenerationRequest {
   /** Ask the model for a JSON object. */
   json: boolean;
   timeoutMs: number;
+  /** Earlier turns of a conversation (oldest first); `prompt` is the newest user turn. */
+  history?: ChatTurn[];
+}
+
+export interface ChatTurn {
+  role: 'user' | 'model';
+  text: string;
 }
 
 export interface TextModelTransport {
@@ -54,7 +61,14 @@ const geminiTransport: TextModelTransport = {
       },
       { timeout: req.timeoutMs },
     );
-    const result = await model.generateContent(req.prompt);
+    const result = req.history && req.history.length
+      ? await model.generateContent({
+          contents: [
+            ...req.history.map((t) => ({ role: t.role, parts: [{ text: t.text }] })),
+            { role: 'user', parts: [{ text: req.prompt }] },
+          ],
+        })
+      : await model.generateContent(req.prompt);
     const blockReason = result.response.promptFeedback?.blockReason;
     if (blockReason) throw new TextModelError('blocked', `Request blocked by the model safety filter (${blockReason}).`);
     return result.response.text();
@@ -117,6 +131,28 @@ export interface GenerateTextOptions {
   timeoutMs?: number;
   /** Label for logs, e.g. "prompt-coach". */
   purpose: string;
+  /** Earlier conversation turns, for chat-style features. */
+  history?: ChatTurn[];
+}
+
+/** Turns from the browser into a valid conversation: known roles, text only, size-capped, starting with the user. */
+export function sanitizeChatHistory(raw: unknown, maxTurns = 40, maxChars = 4000): ChatTurn[] {
+  if (!Array.isArray(raw)) return [];
+  const turns: ChatTurn[] = [];
+  for (const m of raw.slice(-maxTurns)) {
+    const text = String((m as any)?.text ?? (m as any)?.content ?? '').slice(0, maxChars).trim();
+    if (!text) continue;
+    const role: ChatTurn['role'] = (m as any)?.role === 'user' ? 'user' : 'model';
+    // Consecutive turns of the same speaker are merged (the model expects alternating turns).
+    const last = turns[turns.length - 1];
+    if (last && last.role === role) last.text += `\n${text}`;
+    else turns.push({ role, text });
+  }
+  // A conversation must open with the user; an agent that greets first keeps its greeting.
+  if (turns.length && turns[0].role === 'model') turns.unshift({ role: 'user', text: '(call connected)' });
+  // The new message is the next user turn, so an unanswered user turn is folded into the agent's silence.
+  if (turns.length && turns[turns.length - 1].role === 'user') turns.push({ role: 'model', text: '(no reply)' });
+  return turns;
 }
 
 /**
@@ -143,6 +179,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<{ text: s
             maxOutputTokens: opts.maxOutputTokens ?? 4096,
             json: opts.json ?? false,
             timeoutMs,
+            ...(opts.history && opts.history.length ? { history: opts.history } : {}),
           }),
           timeoutMs + 1_000,
         );

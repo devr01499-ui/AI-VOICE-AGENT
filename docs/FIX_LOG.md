@@ -494,3 +494,13 @@ One entry per fix, newest at the bottom. Template:
   - Result: CLEAN.
   - Owner write flows also checked against the real API: agent create/edit/delete, contacts, alert rules, QA cohorts, API keys, KB upload/query/assign, retention, notifications, campaign create/pause/resume/cancel. All succeed, and invalid input gets a clear 4xx message.
 - **Not verifiable here:** live carrier calls, Gemini answers, Razorpay payments and emails. These need the rotated production keys (PROGRESS owner steps 11–19).
+- **#155 (cf3fe5c):** the agent editor's Test LLM, the AI Companion and the conversational agent builder called Gemini directly.
+  - Each had one model, no timeout and no retry. Test LLM and the builder ignored the workspace's own key. The Companion and the builder showed Google's raw error text.
+  - Fix: they now use the shared client `services/ai/textModel`, which handles timeouts, retry, the fallback model, the workspace key and customer-safe errors. The client gains multi-turn history, cleaned by `sanitizeChatHistory`.
+  - Test: test:ai-chat is 7/7; on the old code it was 1/7.
+- **#156 (5d724ab):** the database's or Google's error text could reach the customer on three paths:
+  - the Call History load failure;
+  - a calling-configuration save failure;
+  - Google Calendar linking.
+  - Fix: plain sentences, plus a typed 404 for "not found".
+  - Test: test:error-leaks is 3/3; on the old code it was 0/3.

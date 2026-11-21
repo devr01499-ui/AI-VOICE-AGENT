@@ -16,13 +16,10 @@ import { logger } from '../utils/logger';
 import { logAuditEvent } from '../utils/auditLogger';
 import { ADMIN_EMAIL } from '../config/constants';
 import { QaController } from '../controllers/QaController';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { configuredTextModel, textModelCandidates, TEXT_MODEL_FALLBACK } from '../config/geminiModels';
 import { detectIndustry, normalizeIndustryInput } from '../utils/systemInstructionBuilder';
-import { EncryptionService } from '../utils/EncryptionService';
 import { aiFeatureLimiter, agentWriteLimiter } from '../middleware/rateLimiter';
 import { sealAgentSecrets, maskAgentSecrets } from '../utils/agentSecrets';
-import { TextModelError } from '../services/ai/textModel';
+import { TextModelError, generateText, sanitizeChatHistory } from '../services/ai/textModel';
 import { enhancePrompt, PromptCoachEnhanceRequestSchema, PromptCoachInputError } from '../services/PromptCoachService';
 import { runTestLab, listTestLabRuns, getTestLabRun, TestLabInputError } from '../services/TestLabService';
 
@@ -153,15 +150,6 @@ router.post(
         return;
       }
 
-      const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-      if (!apiKey) {
-        res.status(500).json({ success: false, error: 'GEMINI_API_KEY is not configured on the server.' });
-        return;
-      }
-
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const [primaryModel, fallbackModel = TEXT_MODEL_FALLBACK] = textModelCandidates(process.env.GEMINI_BUILDER_MODEL);
-
       let responseText = '';
 
       const systemInstruction = `You are an expert AI Voice Agent Builder for 'Claritiy Voice'.
@@ -184,29 +172,21 @@ Notes for systemVoice: choose one of Puck, Aoede, Charon, Fenrir, Kore, Leda, Or
 Notes for languageMode: choose one of auto, en, hi, bn, kn, ml, gu, ta, zh, ar matching the user's requested language (e.g. ta for Tamil, hi for Hindi, en for English).
 DO NOT wrap the JSON in markdown blocks. Output the raw JSON object string when ready, otherwise output conversational text.`;
 
-      const chatHistory = (history || []).map((msg: any) => ({
-        role: msg.role === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.content }],
-      }));
-
+      // Shared AI client (audit #155): timeouts, retry, fallback model, the workspace's own key,
+      // and errors that never show the provider's text.
       try {
-        const model = genAI.getGenerativeModel({ model: primaryModel, systemInstruction });
-        const chat = model.startChat({ history: chatHistory, generationConfig: { temperature: 0.2 } });
-        const result = await chat.sendMessage(message || "Hello, I want to build an agent.");
-        responseText = result.response.text().trim();
-      } catch (primaryErr: any) {
-        logger.warn(`Conversational builder primary model (${primaryModel}) failed, retrying with fallback (${fallbackModel})`, { error: String(primaryErr) });
-        try {
-          const modelFallback = genAI.getGenerativeModel({ model: fallbackModel, systemInstruction });
-          const chatFallback = modelFallback.startChat({ history: chatHistory, generationConfig: { temperature: 0.2 } });
-          const resultFallback = await chatFallback.sendMessage(message || "Hello, I want to build an agent.");
-          responseText = resultFallback.response.text().trim();
-        } catch (fallbackErr: any) {
-          const detailedErr = fallbackErr?.message || primaryErr?.message || 'Failed to communicate with Gemini API.';
-          logger.error("Error in conversational builder on primary and fallback models", { error: detailedErr });
-          res.status(500).json({ success: false, error: `Gemini API Builder Error: ${detailedErr}` });
-          return;
-        }
+        const out = await generateText({
+          workspaceId: userId,
+          systemInstruction,
+          prompt: String(message || 'Hello, I want to build an agent.').slice(0, 4000),
+          history: sanitizeChatHistory(history),
+          temperature: 0.2,
+          purpose: 'agent-builder',
+        });
+        responseText = out.text.trim();
+      } catch (aiErr) {
+        sendTextModelError(res, aiErr, 'The agent builder');
+        return;
       }
 
       // Attempt to parse as JSON to see if it's a final configuration
@@ -246,7 +226,7 @@ DO NOT wrap the JSON in markdown blocks. Output the raw JSON object string when 
       return;
     } catch (error: any) {
       logger.error("Error in conversational builder", { error: error?.message || String(error), stack: error?.stack });
-      res.status(500).json({ success: false, error: error?.message || 'Failed to process request' });
+      res.status(500).json({ success: false, error: 'The agent builder failed. Please try again.' });
       return;
     }
   }
@@ -968,46 +948,26 @@ router.post(
         return;
       }
 
-      // 2. Fetch User's Gemini API Key (or fallback to ENV)
-      const user = await prisma.user.findUnique({ where: { id: userId } });
-      const rawUserApiKey = EncryptionService.decryptIfEncrypted((user as any)?.geminiApiKey);
-      const geminiApiKey = rawUserApiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-
-      if (!geminiApiKey) {
-        res.status(400).json({ success: false, error: 'Gemini API key is not configured.' });
-        return;
-      }
-
-      // 3. Setup Gemini API
-      const genAI = new GoogleGenerativeAI(geminiApiKey);
-      const model = genAI.getGenerativeModel({ 
-        // agent.model is the agent's VOICE (Live) model, which cannot answer text chat; use the text model.
-        model: configuredTextModel(process.env.GEMINI_BUILDER_MODEL),
-        systemInstruction: agent.systemPrompt || "You are a helpful AI assistant."
+      // 2. Shared AI client (audit #155): the workspace's own key or the platform key, timeouts,
+      // retry and the fallback model. agent.model is the VOICE (Live) model, which cannot answer
+      // text chat, so the text model list is used.
+      const temperature = Number(agent.temperature);
+      const out = await generateText({
+        workspaceId: userId,
+        systemInstruction: agent.systemPrompt || 'You are a helpful AI assistant.',
+        prompt: String(message).slice(0, 4000),
+        history: sanitizeChatHistory(history),
+        temperature: Number.isFinite(temperature) && temperature >= 0 && temperature <= 2 ? temperature : 0.7,
+        purpose: 'agent-chat',
       });
-
-      // 4. Construct Chat
-      const chat = model.startChat({
-        history: history.map((msg: any) => ({
-          role: msg.role === 'user' ? 'user' : 'model',
-          parts: [{ text: msg.text }],
-        })),
-        generationConfig: {
-          temperature: agent.temperature ? Number(agent.temperature) : 0.7,
-        }
-      });
-
-      // 5. Send message and wait for response
-      const result = await chat.sendMessage(message);
-      const responseText = result.response.text();
 
       res.status(200).json({
         success: true,
-        data: { text: responseText }
+        data: { text: out.text }
       });
     } catch (err: any) {
-      logger.error('Agent chat error', { error: err.message, stack: err.stack });
-      res.status(500).json({ success: false, error: 'Failed to chat with agent', details: err.message });
+      // Never return the provider's error text to the customer.
+      sendTextModelError(res, err, 'The AI companion');
     }
   }
 );
@@ -1032,43 +992,27 @@ router.post(
         return;
       }
 
-      const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-      if (!apiKey) {
-        res.status(500).json({ success: false, error: 'GEMINI_API_KEY is not configured on the server.' });
-        return;
-      }
-
       const testModeInstruction = `You are being tested in a live chat preview of a voice agent. Respond with ONLY the next natural spoken turn a real person would say next — one to three sentences, plain conversational language. Never output stage directions, asterisks, markdown formatting, or the entire script at once. If the configured prompt contains an unfilled placeholder like [Clinic Name], substitute a reasonable example value rather than reciting the placeholder literally. Wait for the other person's next message before continuing — this is a back-and-forth conversation, not a monologue.`;
 
       const combinedSystemInstruction = `${systemPrompt ? `${systemPrompt}\n\n` : ''}TEST PREVIEW INSTRUCTIONS:\n${testModeInstruction}`;
 
-      const chatHistory = (history || []).map((msg: any) => ({
-        role: msg.role === 'user' ? 'user' : 'model',
-        parts: [{ text: String(msg.content || '') }],
-      }));
-
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({
-        model: configuredTextModel(process.env.GEMINI_BUILDER_MODEL),
+      // Shared AI client (audit #155): timeouts, retry, fallback model, the workspace's own key.
+      const out = await generateText({
+        workspaceId: userId,
         systemInstruction: combinedSystemInstruction,
+        prompt: userQuery.trim().slice(0, 4000),
+        history: sanitizeChatHistory(history),
+        temperature: 0.7,
+        purpose: 'test-llm',
       });
-
-      const chat = model.startChat({
-        history: chatHistory,
-        generationConfig: { temperature: 0.7 },
-      });
-
-      const result = await chat.sendMessage(userQuery.trim());
-      const replyText = result.response.text();
 
       res.status(200).json({
         success: true,
-        data: { reply: replyText },
+        data: { reply: out.text },
       });
       return;
     } catch (error: any) {
-      logger.error('Error in agent test-prompt endpoint', { error: error?.message || String(error) });
-      res.status(500).json({ success: false, error: 'Failed to generate test LLM response' });
+      sendTextModelError(res, error, 'The test assistant');
       return;
     }
   }

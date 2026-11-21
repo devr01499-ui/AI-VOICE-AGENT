@@ -221,7 +221,8 @@ router.get(
       logger.error('calls route: GET / failure', { error: err?.message || String(err) });
       res.status(500).json({
         success: false,
-        error: err?.message || 'Failed to fetch call history records',
+        // Never the raw database error (audit #156).
+        error: 'Could not load your call history. Please refresh the page.',
       });
     }
   }
