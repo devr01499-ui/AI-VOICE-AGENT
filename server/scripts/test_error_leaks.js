@@ -92,6 +92,18 @@ async function main() {
     assert.strictEqual(r.body.error, 'CALENDAR_LINK_FAILED');
   });
 
+  await test('#157 KYC status before KYC has started is a normal answer, not a 404', async () => {
+    const router = require('../dist/routes/kyc').default;
+    const status = handlerOf(router, 'get', '/status');
+    const ws = await newUser();
+    const r = await call(status, { workspaceId: ws });
+    assert.strictEqual(r.statusCode, 200, JSON.stringify(r.body));
+    assert.strictEqual(r.body.success, true);
+    assert.strictEqual(r.body.data.provisioned, false);
+    assert.strictEqual(r.body.data.isVerified, false, 'never reported as verified');
+    assert.strictEqual(r.body.data.overallStatus, undefined, 'the KYC tab keeps the status from /documents');
+  });
+
   await prisma.user.deleteMany({ where: { id: { in: users } } }).catch(() => {});
   console.log(`\nInternal error text: ${passed}/${total} passed`);
   await prisma.$disconnect();

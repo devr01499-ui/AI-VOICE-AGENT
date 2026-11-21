@@ -136,7 +136,9 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
 
       // Query live carrier status as authoritative provider state
       let resolvedOverall = localOverall;
-      try {
+      // No carrier sub-account yet (every new or free account): there is no live status to ask
+      // for, so skip the call instead of logging an error in the browser console.
+      if (loadedAuthId) try {
         const statusRes = await apiClient.get('/api/v2/kyc/status');
         if (statusRes.data?.success && statusRes.data.data) {
           const sData = statusRes.data.data;

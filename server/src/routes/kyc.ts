@@ -1289,7 +1289,9 @@ router.get('/status', requireAuth, requireActivePlan, async (req, res, next) => 
 
     const subAccount = await prisma.vobizSubAccount.findUnique({ where: { userId } });
     if (!subAccount) {
-      res.status(404).json({ success: false, error: 'Sub-account not provisioned for this user.' });
+      // Normal state before KYC starts, not an error (it logged a 404 in every new customer's
+      // browser console). No overallStatus: the KYC tab keeps the status from /documents.
+      res.json({ success: true, data: { provisioned: false, kycStatus: 'none', isVerified: false, kycCallsBlocked: true } });
       return;
     }
 
