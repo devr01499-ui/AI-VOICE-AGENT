@@ -74,6 +74,7 @@ const Security = lazy(() => import("./pages/Security"));
 const VoiceAIIndex = lazy(() => import("./pages/VoiceAIIndex"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const FAQ = lazy(() => import("./pages/FAQ"));
+const Guide = lazy(() => import("./pages/Guide"));
 const ContactUs = lazy(() => import("./pages/ContactUs"));
 const UseCases = lazy(() => import("./pages/UseCases"));
 const AiVoiceAgentSoftware = lazy(() => import("./pages/AiVoiceAgentSoftware"));
@@ -369,7 +370,7 @@ DISCOVERY & QUALIFICATION STEPS:
 
 QUALIFICATION LOGIC & BRANCHES:
 - High Qualified (>1,000 monthly calls + active budget): Initiate immediate live transfer to Senior Solutions AE.
-- Exploratory / Low Volume (<1,000 calls): Dispatch interactive video demo deck link via SMS for self-service onboarding.
+- Exploratory / Low Volume (<1,000 calls): Offer to have the team email a short demo video, and record whether they want it.
 
 EDGE CASES:
 1. Lead asks "Is this an AI voice?": Be transparent and confident: "Yes! I'm an AI SDR built by Claritiy Voice, demonstrating our real-time voice technology live on this call."
@@ -453,7 +454,7 @@ CLOSING BEHAVIOR:
   {
     id: 'tpl-5',
     name: 'Dental Clinic Scheduler',
-    description: 'Gentle dental scheduler that verifies patient status, service requested, date preferences, triages emergency dental pain to urgent care, or dispatches intake forms via SMS.',
+    description: 'Gentle dental scheduler that verifies patient status, service requested, date preferences, flags emergency dental pain as urgent, and offers a call-back from the clinic.',
     category: 'Appointment Booking',
     type: 'conversational',
     systemPrompt: `You are Maya, a gentle, reassuring Dental Office Scheduler for Bright Smiles Dental.
@@ -538,7 +539,7 @@ CLOSING BEHAVIOR:
   {
     id: 'tpl-7',
     name: 'Real Estate Inbound Qualifier',
-    description: 'Luxury real estate assistant that collects buyer budget, location, and pre-approval status, transfers qualified buyers to senior agents, or sends mortgage lender links via SMS.',
+    description: 'Luxury real estate assistant that collects buyer budget, location, and pre-approval status, and flags qualified buyers for a call-back from a senior agent.',
     category: 'Lead Qualification',
     type: 'conversational',
     systemPrompt: `You are Taylor, an elegant real estate assistant for Premier Heights Luxury Realty.
@@ -658,7 +659,7 @@ WORKFLOW STEPS:
           }
         },
         { id: 'send-tracking-sms', type: 'inCallSms', position: { x: 100, y: 540 }, data: { label: 'Dispatch Carrier Tracking SMS', smsMessage: 'Nova Trends: Order #849201 is in transit via FedEx (Tracking #9928103). Track live at https://novatrends.com/track/849201' } },
-        { id: 'tracking-say', type: 'sayMessage', position: { x: 100, y: 670 }, data: { label: 'Tracking Update Announcement', text: 'Your order is currently in transit and scheduled for delivery by 5:00 PM today. I\'ve also sent the live tracking link via SMS!' } },
+        { id: 'tracking-say', type: 'sayMessage', position: { x: 100, y: 670 }, data: { label: 'Tracking Update Announcement', text: 'Your order is currently in transit and scheduled for delivery by 5:00 PM today. The store will share the tracking details with you.' } },
         { id: 'end-tracking', type: 'endCall', position: { x: 100, y: 790 }, data: { label: 'Tracking Goodbye', text: 'Thank you for shopping with Nova Trends! Have a wonderful day.' } },
         { id: 'transfer-returns', type: 'transferCall', position: { x: 420, y: 540 }, data: { label: 'Transfer Returns Department', targetNumber: '+18005550177' } },
         { id: 'end-returns', type: 'endCall', position: { x: 420, y: 670 }, data: { label: 'Returns Hand-off Goodbye', text: 'Connecting you now to a Returns Specialist. Please hold...' } }
@@ -795,7 +796,7 @@ WORKFLOW STEPS:
   {
     id: 'tpl-13',
     name: 'EMI Pre-Due Reminder',
-    description: 'RBI-compliant courtesy reminder prior to EMI due date. Features caller disclosure, strict 8 AM-7 PM calling window, account verification, and dispute/hardship logging.',
+    description: 'Courtesy reminder before the EMI due date, written with RBI Fair Practices in mind. Features caller disclosure, strict 8 AM-7 PM calling window, account verification, and dispute/hardship logging.',
     category: 'BFSI Collections & Reminders',
     type: 'prompt',
     systemPrompt: `You are an automated payment reminder assistant calling on behalf of [Lender Name] regarding an upcoming EMI payment. You are NOT a recovery agent — this is a courtesy reminder before the due date, not overdue.
@@ -819,7 +820,7 @@ CLOSING: Always end with: 'If you'd like to raise any concern about this call, y
   {
     id: 'tpl-14',
     name: 'EMI Overdue Reminder (1–30 Days)',
-    description: 'RBI-compliant early overdue reminder. Features identity verification before disclosure, empathy-first inquiry, zero harassment/threat rules, and escalation for disputes or hardship.',
+    description: 'Early overdue reminder written with RBI Fair Practices in mind. Features identity verification before disclosure, empathy-first inquiry, zero harassment/threat rules, and escalation for disputes or hardship.',
     category: 'BFSI Collections & Reminders',
     type: 'prompt',
     systemPrompt: `You are an automated collections assistant calling on behalf of [Lender Name] regarding an overdue EMI payment, 1 to 30 days past due. You must strictly follow RBI's Fair Practices Code for debt collection at all times — this is a legal requirement, not a suggestion.
@@ -920,7 +921,7 @@ CLOSING: 'You can also raise any concern about this call directly with [Lender N
   {
     id: 'tpl-16',
     name: 'Credit Card Payment Due Reminder',
-    description: 'RBI-compliant credit card payment reminder clearly distinguishing Minimum Amount Due from Total Outstanding to prevent borrower confusion and mis-selling.',
+    description: 'Credit card payment reminder clearly distinguishing Minimum Amount Due from Total Outstanding to prevent borrower confusion and mis-selling.',
     category: 'BFSI Collections & Reminders',
     type: 'prompt',
     systemPrompt: `You are an automated payment reminder assistant calling on behalf of [Lender Name] regarding an upcoming credit card payment due date. You must strictly follow RBI guidelines on credit card disclosures and customer protection.
@@ -953,7 +954,7 @@ CALLING WINDOW: Only operate between 8:00 AM and 7:00 PM local time.
 
 VERIFICATION: Confirm identity with the policyholder before sharing policy details: 'Am I speaking with [Policyholder Name]?' If not the policyholder, politely end the call.
 
-CONTENT: State the policy type (Health / Auto / Life), policy number ending in last 4 digits, renewal premium amount, and due date. Factually state the consequence of non-renewal without alarmist language: 'If unpaid by the due date, your policy coverage will pause until renewed.' Offer options to send a secure instant renewal link via SMS or connect to a renewal agent.
+CONTENT: State the policy type (Health / Auto / Life), policy number ending in last 4 digits, renewal premium amount, and due date. Factually state the consequence of non-renewal without alarmist language: 'If unpaid by the due date, your policy coverage will pause until renewed.' Offer to have the team send the renewal link to their registered email or phone, or a call-back from a renewal agent. Never say a link has been sent unless a tool has confirmed it.
 
 TONE: Helpful, supportive, courteous, and informative. This is not a debt collection call—do not use collection-style firmness, urgency tactics, or legal terms.
 
@@ -3765,7 +3766,7 @@ function DashKnowledge({ apiAgents = [] }: { apiAgents?: ApiAgent[] }) {
               <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-600 flex items-start gap-2.5">
                 <ShieldCheck className="w-4 h-4 flex-shrink-0 mt-0.5"/>
                 <div>
-                  <p className="font-semibold">Relevance Gate Active: Zero Hallucination Enforced</p>
+                  <p className="font-semibold">Relevance Gate Active: Weak Matches Kept Off Calls</p>
                   <p className="mt-0.5 text-muted-foreground">No indexed chunks met the minimum reciprocal rank threshold. The voice agent will respond saying it will verify with the team rather than guessing.</p>
                 </div>
               </div>
@@ -5823,10 +5824,11 @@ export default function App() {
       industries: "Claritiy Voice — AI Calling Solutions for Every Industry",
       "use-cases": "Claritiy Voice — Production Use Case Blueprints & Architecture",
       pricing: "Claritiy Voice Pricing — Plans from ₹3,799",
-      "how-it-works": "How Claritiy Voice Confirms COD Orders Automatically",
+      "how-it-works": "How Claritiy Voice Works — Real-Time AI Phone Calls",
       "blog-rto": "How to Reduce COD RTO for D2C Brands in India",
       dashboard: "Dashboard — Claritiy Voice",
       faq: "FAQ — Claritiy Voice",
+      guide: "Claritiy Voice Guide — Features and Dashboard",
       contact: "Contact Us — Claritiy Voice",
       solutions: "Solutions — Claritiy Voice",
       voices: "AI Voices Library — Claritiy Voice",
@@ -5845,14 +5847,15 @@ export default function App() {
     };
 
     const descMap: Record<Page, string> = {
-      home: "Claritiy Voice calls every COD customer before dispatch to confirm the order, cutting RTO — without hiring a calling team.",
+      home: "AI voice agents that answer and make your business calls in Hindi, English and 5 more Indian languages.",
       industries: "Tailored voice AI agent solutions for e-commerce, healthcare, finance, logistics and more.",
       "use-cases": "Specific use case topics, interactive architecture wiremaps, and connected dashboard templates for healthcare, finance, e-commerce, and more.",
-      pricing: "Transparent, per-minute AI voice agent pricing. No stacked STT, LLM, or TTS fees like other platforms.",
-      "how-it-works": "See exactly how Claritiy Voice calls, confirms, and logs every cash-on-delivery order before it ships.",
+      pricing: "One-time AI calling plans from ₹3,799 for 750 minutes, each with a local +91 number after KYC.",
+      "how-it-works": "How an AI phone call works, from the first hello to the call summary in your dashboard.",
       "blog-rto": "A practical guide to cutting cash-on-delivery returns and reverse logistics costs using automated AI confirmation calls.",
       dashboard: "Manage your AI voice agents and view call analytics.",
       faq: "Frequently asked questions about Claritiy Voice.",
+      guide: "A step-by-step guide to every Claritiy Voice feature and dashboard screen.",
       contact: "Get in touch with the Claritiy Voice team.",
       solutions: "Explore how Claritiy Voice's AI agents can automate calls for your specific use cases.",
       voices: "Listen to our library of ultra-realistic AI voices in multiple languages and accents.",
@@ -5879,6 +5882,7 @@ export default function App() {
       "blog-rto": "blog/how-to-reduce-cod-rto",
       dashboard: "dashboard",
       faq: "faq",
+      guide: "guide",
       contact: "contact",
       solutions: "solutions",
       voices: "voices",
@@ -6096,6 +6100,7 @@ export default function App() {
             {page === "terms" && <Terms />}
             {page === "security" && <Security />}
             {page === "faq" && <FAQ setPage={handleNavigate} />}
+            {page === "guide" && <Guide setPage={handleNavigate} />}
             {page === "contact" && <ContactUs />}
             {(page as string) === "dashboard" && <AuthGateway onSuccess={() => handleNavigate("dashboard")} />}
             {page === "voice-ai-index" && <VoiceAIIndex setPage={setPage} initialTopicId={currentTopicId} />}

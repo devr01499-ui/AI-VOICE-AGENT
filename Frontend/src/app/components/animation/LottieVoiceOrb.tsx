@@ -30,9 +30,9 @@ export default function LottieVoiceOrb({ className = "", onExploreClick }: Lotti
       dialogue: [
         { speaker: "agent", text: "Namaste Rohan ji! Claritiy se calling. Aapka linen shirt COD order ₹2,499 confirm karna tha?" },
         { speaker: "caller", text: "Haan confirm hai! But please Thursday ko deliver karna." },
-        { speaker: "agent", text: "Done! Thursday delivery mark kar di hai. Tracking SMS bhej diya hai!" }
+        { speaker: "agent", text: "Done! Thursday delivery note kar li hai. Dhanyavaad!" }
       ],
-      metrics: { latency: "Real-time", accuracy: "99.8%", vad: "Adaptive" }
+      metrics: { latency: "Real-time", accuracy: "Hinglish", vad: "Adaptive" }
     },
     {
       id: "clinic",
@@ -45,20 +45,22 @@ export default function LottieVoiceOrb({ className = "", onExploreClick }: Lotti
         { speaker: "agent", text: "Yes! Dr. Sharma has a 4:15 PM slot available. Shall I reserve that for you?" },
         { speaker: "caller", text: "Perfect, please book it under Ananya." }
       ],
-      metrics: { latency: "Real-time", accuracy: "99.9%", vad: "Adaptive" }
+      metrics: { latency: "Real-time", accuracy: "English", vad: "Adaptive" }
     },
     {
       id: "bfsi",
       title: "EMI Pre-Due Reminder",
       tag: "BFSI & FINTECH",
       caller: "Priya (Borrower)",
-      agent: "Recovery Specialist",
+      agent: "Reminder Assistant",
       dialogue: [
-        { speaker: "agent", text: "Namaste Priya ji! Claritiy Finance se reminder hai, aapka ₹4,200 EMI due date 12th ko hai." },
-        { speaker: "caller", text: "Main kal pay kar dungi. Can you send the UPI link on WhatsApp?" },
-        { speaker: "agent", text: "Bilkul! Link abhi aapke WhatsApp par send kar diya hai. Thank you!" }
+        { speaker: "agent", text: "Namaste, Claritiy Finance se automated reminder hai. Kya main Priya ji se baat kar rahi hoon?" },
+        { speaker: "caller", text: "Haan, main Priya bol rahi hoon." },
+        { speaker: "agent", text: "Dhanyavaad. Aapka ₹4,200 ka EMI 12 tareekh ko due hai." },
+        { speaker: "caller", text: "Main kal pay kar dungi." },
+        { speaker: "agent", text: "Theek hai, kal ka note kar liya. Thank you!" }
       ],
-      metrics: { latency: "Real-time", accuracy: "100%", vad: "Adaptive" }
+      metrics: { latency: "Real-time", accuracy: "Hindi", vad: "Adaptive" }
     }
   ];
 
@@ -177,7 +179,7 @@ export default function LottieVoiceOrb({ className = "", onExploreClick }: Lotti
             {/* Center Floating Status Badge */}
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 bg-[#DFDCD4] border border-[#CBC8BE] px-2.5 py-1 rounded-[2px] text-[10px] font-mono text-[#121212] flex items-center gap-1.5 shadow-sm whitespace-nowrap">
               <Zap className="w-3 h-3 text-[#121212]" />
-              <span>{current.metrics.latency} Latency</span>
+              <span>{current.metrics.latency} Replies</span>
             </div>
           </div>
 
@@ -243,7 +245,7 @@ export default function LottieVoiceOrb({ className = "", onExploreClick }: Lotti
             </div>
 
             <div className="bg-[#DFDCD4] p-3 rounded-[2px] border border-[#CBC8BE]">
-              <span className="text-[10px] font-mono text-[#262523] block uppercase tracking-wider">INTENT ACCURACY</span>
+              <span className="text-[10px] font-mono text-[#262523] block uppercase tracking-wider">LANGUAGE</span>
               <span className="text-sm font-mono font-bold text-[#121212]">{current.metrics.accuracy}</span>
             </div>
 

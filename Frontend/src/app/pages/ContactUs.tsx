@@ -68,7 +68,7 @@ export default function ContactUs() {
           Speak With an AI Voice Solutions Architect
         </h1>
         <p className="text-[#262523] text-base md:text-lg leading-relaxed max-w-xl mx-auto">
-          Whether you need to slash COD courier returns, automate clinic appointment intakes, or deploy RBI-compliant EMI outreach, our engineering team will design your deployment roadmap.
+          Want fewer COD returns, a receptionist that never misses a call, or polite EMI reminders? Tell us about your calls and a person from our team will help you plan the setup.
         </p>
       </div>
 
@@ -161,12 +161,12 @@ export default function ContactUs() {
                   onChange={(e) => setFormData({ ...formData, templateInterest: e.target.value })}
                   className="w-full bg-[#DFDCD4] border border-[#CBC8BE] rounded-[2px] px-4 py-3 text-sm font-mono text-[#121212] focus:outline-none focus:border-[#121212] transition-colors"
                 >
-                  <option value="ecommerce">E-Commerce COD Verification & RTO Defense (Shopify/Shiprocket)</option>
+                  <option value="ecommerce">E-Commerce COD Order Confirmation</option>
                   <option value="bfsi">BFSI & Lending (EMI Pre-Due, 1–30 DPD Collections, KYC)</option>
                   <option value="healthcare">Healthcare & Dental Intake (24/7 Receptionist)</option>
                   <option value="realestate">Real Estate Speed-to-Lead (3-second qualification & site visits)</option>
                   <option value="frontdesk">Front Desk & Incident Response (Alex & P1 Outage Triage)</option>
-                  <option value="custom">Custom Enterprise Telephony & White-Label API</option>
+                  <option value="custom">Custom Setup or API Integration</option>
                 </select>
               </div>
 
@@ -206,7 +206,7 @@ export default function ContactUs() {
                   rows={4}
                   value={formData.message}
                   onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  placeholder="Share details regarding your current phone system (e.g., Twilio, Exotel), CRM (Salesforce, HubSpot, Zoho), or specific dialect requirements..."
+                  placeholder="Tell us what your calls are about, roughly how many you make or receive, the languages you need and the systems (CRM, store, calendar) you would like to connect..."
                   className="w-full bg-[#DFDCD4] border border-[#CBC8BE] rounded-[2px] px-4 py-3 text-sm text-[#121212] placeholder-[#737067] focus:outline-none focus:border-[#121212] transition-colors resize-none"
                 />
               </div>
@@ -248,7 +248,7 @@ export default function ContactUs() {
                 <MessageCircle className="w-5 h-5 text-white" />
               </div>
               <div>
-                <span className="font-bold text-sm text-[#121212] block">WhatsApp Enterprise Desk</span>
+                <span className="font-bold text-sm text-[#121212] block">WhatsApp Support</span>
                 <span className="text-xs text-[#262523] block mt-0.5 font-mono">+91 97073 37259</span>
                 <span className="text-[11px] text-[#5E5D57] block mt-1">Average response time: &lt; 15 minutes</span>
               </div>
@@ -278,11 +278,11 @@ export default function ContactUs() {
               </div>
               <div className="flex items-start gap-2.5">
                 <CheckCircle2 className="w-4 h-4 text-[#121212] flex-shrink-0 mt-0.5" />
-                <span>Full alignment with India's DPDP Act & Ministry of MSME guidelines</span>
+                <span>Recording off by default; data deleted after the retention period you set</span>
               </div>
               <div className="flex items-start gap-2.5">
                 <CheckCircle2 className="w-4 h-4 text-[#121212] flex-shrink-0 mt-0.5" />
-                <span>Pre-built templates verified against RBI Fair Practices Code</span>
+                <span>Lending templates confirm identity before mentioning any amount</span>
               </div>
               <div className="flex items-start gap-2.5">
                 <CheckCircle2 className="w-4 h-4 text-[#121212] flex-shrink-0 mt-0.5" />

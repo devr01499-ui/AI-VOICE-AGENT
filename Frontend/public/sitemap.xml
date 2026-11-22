@@ -1,9 +1,36 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://www.claritiy.com/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://www.claritiy.com/guide</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image><image:loc>https://www.claritiy.com/guide/agents.webp</image:loc><image:caption>The Agents list: every agent with its type, voice, connected number and quick actions.</image:caption></image:image>
+    <image:image><image:loc>https://www.claritiy.com/guide/create-agent.webp</image:loc><image:caption>Create agent: pick a type, then start from a template, a blank page or a short description.</image:caption></image:image>
+    <image:image><image:loc>https://www.claritiy.com/guide/agent-editor.webp</image:loc><image:caption>The agent editor: instructions on the left, settings in the middle, testing on the right.</image:caption></image:image>
+    <image:image><image:loc>https://www.claritiy.com/guide/knowledge-base.webp</image:loc><image:caption>Knowledge Base: your documents, your plan limits and the Retrieval Inspector for testing answers.</image:caption></image:image>
+    <image:image><image:loc>https://www.claritiy.com/guide/phone-numbers.webp</image:loc><image:caption>Phone Numbers: your number, its region, the agent that uses it, and a quick Call button.</image:caption></image:image>
+    <image:image><image:loc>https://www.claritiy.com/guide/settings-kyc.webp</image:loc><image:caption>KYC &amp; Compliance: verify PAN, Aadhaar (DigiLocker) or GST before your number can call out.</image:caption></image:image>
+    <image:image><image:loc>https://www.claritiy.com/guide/calling-config.webp</image:loc><image:caption>Calling Config: one place for your number's inbound and outbound agents.</image:caption></image:image>
+    <image:image><image:loc>https://www.claritiy.com/guide/batch-calls.webp</image:loc><image:caption>Batch Call: every campaign with its progress, connected and failed counts.</image:caption></image:image>
+    <image:image><image:loc>https://www.claritiy.com/guide/batch-new-campaign.webp</image:loc><image:caption>New campaign: agent, caller ID, pacing and your contact list.</image:caption></image:image>
+    <image:image><image:loc>https://www.claritiy.com/guide/call-history.webp</image:loc><image:caption>Call History with filters and export.</image:caption></image:image>
+    <image:image><image:loc>https://www.claritiy.com/guide/call-transcript.webp</image:loc><image:caption>A transcript: the agent switches between Hindi and English as the caller does.</image:caption></image:image>
+    <image:image><image:loc>https://www.claritiy.com/guide/contacts.webp</image:loc><image:caption>Contacts with tags.</image:caption></image:image>
+    <image:image><image:loc>https://www.claritiy.com/guide/analytics.webp</image:loc><image:caption>Analytics over the last 30 days.</image:caption></image:image>
+    <image:image><image:loc>https://www.claritiy.com/guide/live-monitoring.webp</image:loc><image:caption>Live Monitoring.</image:caption></image:image>
+    <image:image><image:loc>https://www.claritiy.com/guide/quality-assurance.webp</image:loc><image:caption>A QA cohort ready to run.</image:caption></image:image>
+    <image:image><image:loc>https://www.claritiy.com/guide/call-reports.webp</image:loc><image:caption>Call Reports: outcome labels and scores for every analysed call.</image:caption></image:image>
+    <image:image><image:loc>https://www.claritiy.com/guide/alerting.webp</image:loc><image:caption>An alert rule for failed calls.</image:caption></image:image>
+    <image:image><image:loc>https://www.claritiy.com/guide/integrations.webp</image:loc><image:caption>Integrations: Google Calendar.</image:caption></image:image>
+    <image:image><image:loc>https://www.claritiy.com/guide/billing.webp</image:loc><image:caption>Billing: choose a plan.</image:caption></image:image>
+    <image:image><image:loc>https://www.claritiy.com/guide/settings.webp</image:loc><image:caption>Settings: time zone, retention and your remaining minutes.</image:caption></image:image>
+    <image:image><image:loc>https://www.claritiy.com/guide/settings-api-keys.webp</image:loc><image:caption>API &amp; Keys.</image:caption></image:image>
+    <image:image><image:loc>https://www.claritiy.com/guide/settings-team.webp</image:loc><image:caption>Team members and roles.</image:caption></image:image>
   </url>
   <url>
     <loc>https://www.claritiy.com/pricing</loc>

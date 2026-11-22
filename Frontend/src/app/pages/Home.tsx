@@ -35,38 +35,38 @@ function ScrollProgress() {
   );
 }
 
-// ── Testimonials Section (Faithful to EdgeSkool Reference Image) ──────────────
+// ── Example setups (how businesses use the product; clearly not customer quotes) ──
 function TestimonialsSection() {
   const testimonials = [
     {
-      title: "Already winning",
-      body: "Scaled outbound confirmation calls to 4,000 orders/day with zero staff overhead. Our RTO dropped from 28% to 14% in the very first week.",
-      author: "- Sky (Rajesh K.)"
+      title: "A clinic front desk that never misses a call",
+      body: "A dental clinic points its +91 number at a receptionist agent. Callers ask about timings and fees, the agent answers from the clinic's price list and books the slot on Google Calendar.",
+      author: "Example setup · Clinic receptionist"
     },
     {
-      title: "Real-time conversation makes all the difference",
-      body: "Callers actually think they're speaking with a real receptionist. Interruption handling works flawlessly mid-sentence without lag or awkward pauses.",
-      author: "- Jacob (Ananya M.)"
+      title: "COD orders confirmed before they ship",
+      body: "A D2C brand uploads the day's cash-on-delivery orders as a batch campaign. The agent confirms each order and the delivery address in Hindi or English, and every answer lands in Call Reports.",
+      author: "Example setup · D2C brand"
     },
     {
-      title: "2 Trades for the day! 2,400 Leads qualified",
-      body: "Dialed form submissions within 3 seconds of registration. Qualified budgets, collected GSTIN details, and scheduled 180 demo meetings automatically.",
-      author: "- Muzher (Siddharth T.)"
+      title: "EMI reminders that check identity first",
+      body: "A lender's agent confirms it is speaking to the borrower before it mentions any amount, reminds them of the due date politely, and records the reply.",
+      author: "Example setup · Lender / NBFC"
     },
     {
-      title: "First Payout & ROI in 48 Hours",
-      body: "Replaced 6 manual calling agents with 1 Claritiy Voice agent. The dashboard gives us instant transcripts, sentiment breakdown, and recording replays.",
-      author: "- Vikram B., Logistics"
+      title: "New enquiries called back the same day",
+      body: "A real estate team sends web enquiries to an outbound agent through the API. The agent asks about budget, location and timeline, and the answers reach the CRM by webhook.",
+      author: "Example setup · Real estate"
     },
     {
-      title: "Zero hallucination on policy details",
-      body: "Attached our 60-page PDF policy guidelines to the knowledge base. It answers complex claims questions with 100% precision.",
-      author: "- Neha S., Insurance"
+      title: "Answers that come from your documents",
+      body: "An insurance help desk uploads its policy FAQ. The agent answers from the document, and when a question is not covered it offers a call-back instead of guessing.",
+      author: "Example setup · Insurance support"
     },
     {
-      title: "Commodities are hot. Up 20k since Yesterday",
-      body: "When high-value enterprise accounts call in, the agent seamlessly routes them to dedicated account managers with zero queue drop.",
-      author: "- Amit P., Real Estate"
+      title: "Every call written down",
+      body: "A support manager reads transcripts in Call History, sorts outcomes in Call Reports, and gets an email alert when failed calls go above the limit the team chose.",
+      author: "Example setup · Support team"
     }
   ];
 
@@ -79,11 +79,14 @@ function TestimonialsSection() {
       <div className="text-left mb-10 space-y-3">
         <div className="flex items-center gap-2 text-xs font-mono text-[#121212]">
           <span className="text-[#121212] font-semibold">|</span>
-          <span className="tracking-wider">Testimonials</span>
+          <span className="tracking-wider">Example setups</span>
         </div>
         <h2 className="text-3xl sm:text-4xl lg:text-5xl font-normal sm:font-medium text-[#121212] tracking-tight leading-[1.1] font-sans">
-          What enterprise teams inside are seeing from day one.
+          How businesses put their AI agent to work.
         </h2>
+        <p className="text-xs sm:text-sm text-[#262523] font-sans">
+          These are typical setups built with the product, not customer quotes.
+        </p>
       </div>
 
       {/* 3-Column Wireframe Bento Grid */}
@@ -116,12 +119,12 @@ function BentoCapabilitySection({ setPage }: { setPage: (p: Page) => void }) {
   const items = [
     {
       title: "Real-Time Voice AI",
-      desc: "Native multimodal pipeline — no stacked APIs. ASR + LLM + TTS vertically integrated for human-like phone conversations with quick, natural turn-taking.",
+      desc: "One speech-to-speech model listens and speaks, so the conversation flows without the pauses of stitched-together speech services.",
       icon: Zap,
     },
     {
-      title: "Interruption & Barge-In Support",
-      desc: "Full-duplex audio processing allows callers to interrupt naturally. The AI voice agent instantly adapts — real-time conversation that feels genuinely human.",
+      title: "Natural Interruptions",
+      desc: "Callers can cut in mid-sentence, the way people do. The agent stops, listens and answers the new question.",
       icon: MessageSquare,
     },
     {
@@ -135,8 +138,8 @@ function BentoCapabilitySection({ setPage }: { setPage: (p: Page) => void }) {
       icon: Phone,
     },
     {
-      title: "Warm Transfer & Human Handoff",
-      desc: "When escalation is needed, the AI voice agent executes a warm transfer with full call context and transcript — seamless hand-off to your human agent team.",
+      title: "Appointment Booking",
+      desc: "Connect Google Calendar and the agent checks free slots and books appointments during the call, within the working hours and gaps you set.",
       icon: PhoneCall,
     },
     {
@@ -146,12 +149,12 @@ function BentoCapabilitySection({ setPage }: { setPage: (p: Page) => void }) {
     },
     {
       title: "Batch Calling & Smart Retry",
-      desc: "Launch 10,000+ simultaneous outbound AI calls with intelligent retry schedules for busy lines, voicemails, and unanswered calls. AI call automation at enterprise scale.",
+      desc: "Upload up to 5,000 contacts per campaign. Calls go out at your plan's capacity between 9 am and 9 pm IST, and busy or unanswered numbers are retried automatically.",
       icon: RefreshCw,
     },
     {
-      title: "Call Summarization & Sentiment",
-      desc: "Automated post-call disposition, key phrase extraction, sentiment scoring, call recording, and transcription indexing — everything you need for AI call analytics.",
+      title: "Call Summaries & Outcomes",
+      desc: "Every call gets a transcript, a summary, an outcome label, a sentiment and the details you asked the agent to collect. Recording is optional and off by default.",
       icon: BarChart3,
     }
   ];
@@ -201,10 +204,10 @@ function BentoCapabilitySection({ setPage }: { setPage: (p: Page) => void }) {
 // ── Technical Neo-Brutalist Use Cases Section ──────────────────────────────────
 function UseCaseSection({ setPage }: { setPage: (p: Page) => void }) {
   const useCases = [
-    { step: "FIRST USE CASE", num: "01", title: "APPOINTMENTS", desc: "Automate booking, demo scheduling, and calendar integration. Reduce no-shows by 89%.", icon: Clock, metric: "89% No-Show Reduction" },
-    { step: "SECOND USE CASE", num: "02", title: "QUALIFICATION", desc: "Contact leads within 3s of form submission. Qualify budgets and score intent.", icon: TrendingUp, metric: "3s Response Window" },
-    { step: "THIRD USE CASE", num: "03", title: "INBOUND", desc: "Handle inbound calls, answer FAQs, and intelligently route to human agents.", icon: PhoneCall, metric: "0ms First-Ring Answering" },
-    { step: "FOURTH USE CASE", num: "04", title: "COLLECTIONS", desc: "Automate EMI reminders and debt outreach with secure data handling.", icon: Activity, metric: "42% Recovery Lift" },
+    { step: "FIRST USE CASE", num: "01", title: "APPOINTMENTS", desc: "Book, confirm and remind. The agent reads your Google Calendar, offers free slots and books them during the call.", icon: Clock, metric: "Google Calendar booking" },
+    { step: "SECOND USE CASE", num: "02", title: "QUALIFICATION", desc: "Call new enquiries as soon as your system sends them through the API, ask your questions and label each lead.", icon: TrendingUp, metric: "Leads via API or campaigns" },
+    { step: "THIRD USE CASE", num: "03", title: "INBOUND", desc: "Answer every call on your +91 number, answer FAQs from your documents and offer a call-back when needed.", icon: PhoneCall, metric: "Answers day and night" },
+    { step: "FOURTH USE CASE", num: "04", title: "COLLECTIONS", desc: "Polite EMI due-date reminders that confirm who is on the line before mentioning any amount.", icon: Activity, metric: "Identity check first" },
   ];
 
   return (
@@ -259,9 +262,9 @@ function ComparisonSection({ setPage }: { setPage: (p: Page) => void }) {
     { feature: "Multilingual Support", claritiy: "✅ 7 Languages + Auto-Detect", vapi: "✅ Limited", legacy: "⚠️ Per hire" },
     { feature: "Concurrent Calls", claritiy: "✅ Up to 15 per plan", vapi: "⚠️ Rate limited", legacy: "❌ Team capacity" },
     { feature: "RAG Knowledge Base", claritiy: "✅ Built-in", vapi: "⚠️ Manual setup", legacy: "❌ Scripts only" },
-    { feature: "MSME Registered", claritiy: "✅ Ministry Registered", vapi: "❌ N/A (US Only)", legacy: "⚠️ N/A" },
-    { feature: "Pricing Model", claritiy: "✅ All-inclusive minute plans", vapi: "❌ STT+LLM+TTS billed separately", legacy: "❌ ₹25K+/agent/mo" },
-    { feature: "Setup Time", claritiy: "✅ < 10 minutes", vapi: "⚠️ Days of engineering", legacy: "❌ Weeks of hiring" },
+    { feature: "Indian +91 Number", claritiy: "✅ Included after KYC", vapi: "⚠️ Bought separately", legacy: "⚠️ Your own lines" },
+    { feature: "Pricing Model", claritiy: "✅ All-inclusive minute plans", vapi: "❌ Each service billed separately", legacy: "❌ Salary per caller" },
+    { feature: "Setup Time", claritiy: "✅ Same day", vapi: "⚠️ Days of engineering", legacy: "❌ Weeks of hiring" },
   ];
 
   return (
@@ -272,7 +275,7 @@ function ComparisonSection({ setPage }: { setPage: (p: Page) => void }) {
           Claritiy Voice vs Chained Multi-Vendor Stacks<br />& Legacy Call Centers
         </h2>
         <p className="text-[#262523] leading-relaxed font-sans text-sm sm:text-base">
-          See why enterprise teams choose Claritiy Voice for low-latency, unified pricing, and instant compliance.
+          How one speech-to-speech platform compares with stitching several AI services together, or hiring a calling team.
         </p>
       </div>
 
@@ -326,13 +329,13 @@ function FinalCTA({ setPage }: { setPage: (p: Page) => void }) {
             <div className="space-y-6">
               <div className="inline-flex items-center gap-2 border border-[#CBC8BE] bg-[#DFDCD4] rounded-[2px] px-3 py-1 font-mono text-xs uppercase tracking-wider text-[#121212]">
                 <span className="w-1.5 h-1.5 bg-[#121212] rounded-full animate-pulse" />
-                <span>Now Live — Zero Setup</span>
+                <span>Free to Start</span>
               </div>
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-normal sm:font-medium text-[#121212] leading-tight font-sans tracking-tight">
-                Deploy Your First AI Voice Agent in Under 10 Minutes
+                Build Your First AI Voice Agent Today
               </h2>
               <p className="text-[#262523] text-sm sm:text-base leading-relaxed font-sans">
-                No engineering team. No call center overhead. Deploy conversational AI voice agents for appointment booking, lead qualification, COD verification, and more — instantly.
+                No engineering team and no calling floor. Pick a template, write what the agent should do, and chat with it before you pay. Real calls start with a plan from ₹3,799, with a +91 number included.
               </p>
               <div className="flex flex-wrap gap-3">
                 <button
@@ -360,11 +363,11 @@ function FinalCTA({ setPage }: { setPage: (p: Page) => void }) {
                 "Lead qualification",
                 "COD confirmation",
                 "Payment reminders",
-                "Warm call transfer",
-                "Multilingual voice AI",
-                "MSME Certified Enterprise",
-                "CRM integration",
-                "Real-time analytics",
+                "Google Calendar booking",
+                "Hindi, English + 5 languages",
+                "Your own +91 number",
+                "CRM via webhooks & API",
+                "Call reports & analytics",
               ].map((f, i) => (
                 <div key={i} className="flex items-center gap-2.5 text-sm text-[#121212] font-medium">
                   <CheckCircle2 className="w-4 h-4 text-[#121212] flex-shrink-0" />
@@ -399,7 +402,7 @@ export default function Home({ setPage }: HomeProps) {
             Experience Real-Time Voice AI
           </h2>
           <p className="text-[#262523] text-sm sm:text-base leading-relaxed font-sans">
-            Watch our 60 FPS neural audio engine react on loop. Switch between live conversational scenarios, toggle playback speed, and test how our agents handle interruptions with native human cadence.
+            Play through sample conversations and watch how an agent confirms an order, books an appointment and copes when the caller interrupts.
           </p>
         </div>
 
@@ -420,7 +423,7 @@ export default function Home({ setPage }: HomeProps) {
             AI Voice Agents for Every Enterprise Vertical
           </h2>
           <p className="text-[#262523] leading-relaxed font-sans text-sm sm:text-base">
-            AI voice agents for healthcare, finance, real estate, ecommerce, logistics, insurance, BPO, SaaS, education, recruitment, telecom, and travel — 12 pre-configured verticals.
+            Starting points for healthcare, finance, real estate, e-commerce, logistics, insurance, BPO, SaaS, education, recruitment, telecom and travel. Pick the closest one and change it to fit your business.
           </p>
         </div>
         <IndustryShowroomGrid />
@@ -446,11 +449,11 @@ export default function Home({ setPage }: HomeProps) {
               <p className="text-xs font-mono uppercase tracking-wider text-[#262523] mb-2">AI Inbound Calling</p>
               <h3 className="text-2xl font-medium text-[#121212] mb-3 font-sans">AI Receptionist & Inbound Call Automation</h3>
               <p className="text-[#262523] text-xs sm:text-sm leading-relaxed font-sans">
-                Answer every inbound call on the first ring — 24/7. Deflect FAQs, book appointments, qualify leads, and execute warm transfers to human agents. Replace legacy IVR with conversational AI voice.
+                Every call to your +91 number is answered, day and night, holidays included. The agent answers questions from your documents, books appointments and qualifies enquiries, and offers a call-back when a person should follow up. A friendlier replacement for "press 1, press 2" menus.
               </p>
             </div>
             <ul className="space-y-2 border-t border-[#CBC8BE]/60 pt-4">
-              {["Zero-wait first-ring AI answering", "CRM & calendar booking integration", "Warm human escalation with transcript", "Intent classification & smart routing", "AI receptionist for 12+ industries", "Front desk automation"].map((f, i) => (
+              {["Answers every call, day and night", "Google Calendar appointment booking", "Answers from your own documents", "Call-back offered when unsure", "Templates for clinics, offices and help desks", "Transcript and summary for every call"].map((f, i) => (
                 <li key={i} className="flex items-center gap-2.5 text-xs font-mono text-[#262523]">
                   <CheckCircle2 className="w-3.5 h-3.5 text-[#121212] flex-shrink-0" /> {f}
                 </li>
@@ -467,18 +470,18 @@ export default function Home({ setPage }: HomeProps) {
               <p className="text-xs font-mono uppercase tracking-wider text-[#262523] mb-2">AI Outbound Calling</p>
               <h3 className="text-2xl font-medium text-[#121212] mb-3 font-sans">Outbound AI Calling Campaign Engine</h3>
               <p className="text-[#262523] text-xs sm:text-sm leading-relaxed font-sans">
-                Contact thousands of leads within seconds of form submission. Verify COD orders, recover abandoned carts, collect EMI payments, and reactivate cold databases with personalized AI voice calls.
+                Confirm COD orders before dispatch, remind customers about appointments and EMIs, and call new enquiries back, one at a time from the API or as campaigns from a CSV list.
               </p>
             </div>
             <ul className="space-y-2 border-t border-[#CBC8BE]/60 pt-4">
-              {["3-second speed-to-lead response time", "Smart retry for busy / unanswered lines", "Dynamic call disposition & sentiment scoring", "Batch campaigns of up to 5,000 contacts", "COD verification & RTO reduction", "AI-powered collections calls"].map((f, i) => (
+              {["Batch campaigns of up to 5,000 contacts", "Automatic retries for busy and unanswered numbers", "Calls only between 9 am and 9 pm IST", "Outcome label and score for every call", "COD order confirmation", "EMI and appointment reminders"].map((f, i) => (
                 <li key={i} className="flex items-center gap-2.5 text-xs font-mono text-[#262523]">
                   <CheckCircle2 className="w-3.5 h-3.5 text-[#121212] flex-shrink-0" /> {f}
                 </li>
               ))}
             </ul>
             <div className="grid grid-cols-3 gap-3 pt-4 border-t border-[#CBC8BE]">
-              {[{ v: "94.2%", l: "Contact rate" }, { v: "1m 45s", l: "Avg qualify" }, { v: "₹6.98", l: "Per lead" }].map((m, i) => (
+              {[{ v: "5,000", l: "Contacts per campaign" }, { v: "3", l: "Attempts per person" }, { v: "9–9", l: "IST calling hours" }].map((m, i) => (
                 <div key={i} className="text-center p-3 rounded-[2px] bg-[#DFDCD4] border border-[#CBC8BE]">
                   <p className="text-base font-bold font-mono text-[#121212]">{m.v}</p>
                   <p className="text-[10px] font-mono text-[#262523] mt-0.5">{m.l}</p>
@@ -505,17 +508,17 @@ export default function Home({ setPage }: HomeProps) {
                 Built Different — Not Just Another Stacked Voice API
               </h2>
               <p className="text-[#262523] text-sm sm:text-base leading-relaxed font-sans">
-                Most AI voice calling software chains third-party STT → LLM → TTS providers, adding 800ms–1.5s of pipeline latency. Claritiy Voice runs a single speech-to-speech model — direct carrier audio streaming with real-time response. That's the difference between a voice bot and a real AI phone agent.
+                Many AI calling tools chain separate speech-to-text, language-model and text-to-speech services, and every hand-off adds a pause the caller can hear. Claritiy Voice streams the call audio to one speech-to-speech model, so the agent hears and answers in a single step. That is the difference between a voice bot and an AI phone agent people are happy to talk to.
               </p>
             </div>
 
             {/* Right: 4 Wireframe Cards */}
             <div className="space-y-3">
               {[
-                { icon: Zap, title: "Real-Time Replies", desc: "No REST overhead — direct audio streaming" },
-                { icon: Globe2, title: "7 Languages, Zero Translation", desc: "Native speech models, no lossy intermediate API" },
-                { icon: ShieldCheck, title: "PII Redaction", desc: "MSME Certified, DPDP Act & TLS encryption" },
-                { icon: Network, title: "Function Calling & Tool Calling", desc: "Real-time API execution while live on the call" },
+                { icon: Zap, title: "Real-Time Replies", desc: "Call audio streams straight to the model" },
+                { icon: Globe2, title: "7 Languages, No Translation Step", desc: "The model hears and speaks each language directly" },
+                { icon: ShieldCheck, title: "Privacy Controls", desc: "TLS encryption, optional PII redaction, recording opt-in" },
+                { icon: Network, title: "Functions During the Call", desc: "The agent can call your APIs while it talks" },
               ].map(({ icon: Icon, title, desc }, i) => (
                 <div
                   key={i}
@@ -547,13 +550,13 @@ export default function Home({ setPage }: HomeProps) {
               <Lock className="w-4 h-4" />
             </div>
             <h2 className="text-2xl sm:text-4xl font-medium text-[#121212] tracking-tight font-sans">
-              Enterprise Security & MSME Certification
+              Security and Privacy, Built In
             </h2>
             <p className="text-[#262523] max-w-2xl mx-auto text-xs sm:text-sm leading-relaxed font-sans">
-              Claritiy Voice is an officially registered MSME enterprise. Edge-level PII redaction, consent-based calling, audit logs, and escalation logic — built for performance and compliance.
+              Calls stream over encrypted connections. Recording is off until you switch it on, and then callers hear a notice. Transcripts can hide personal details, data is deleted after the retention period you choose, and every campaign asks you to confirm consent before it dials.
             </p>
             <div className="flex flex-wrap justify-center gap-2 pt-2">
-              {["📜 MSME REGISTERED", "🔒 TLS ENCRYPTED", "🛡️ AES-256 ENCRYPTION", "⚖️ DPDP ACT ALIGNED", "📋 CONSENT-BASED CALLS"].map((b, i) => (
+              {["🔒 TLS ENCRYPTED", "🔑 ENCRYPTED CREDENTIALS", "🎙️ RECORDING OFF BY DEFAULT", "⏰ 9 AM–9 PM IST CAMPAIGNS", "📋 CONSENT CONFIRMED PER CAMPAIGN"].map((b, i) => (
                 <span key={i} className="text-[11px] font-mono text-[#121212] bg-[#DFDCD4] border border-[#CBC8BE] rounded-[2px] px-3 py-1.5 uppercase font-medium">
                   {b}
                 </span>
@@ -573,16 +576,16 @@ export default function Home({ setPage }: HomeProps) {
 function GridSteps() {
   const steps = [
     { n: "01", title: "Configure Your AI Agent", desc: "Name your agent, pick a voice persona, set language mode, and define the conversation goal.", icon: Bot },
-    { n: "02", title: "Upload Knowledge Base", desc: "Paste FAQs, connect Shopify/CRM, or upload PDFs. Your AI phone assistant learns your business instantly via RAG.", icon: Database },
-    { n: "03", title: "Connect Phone Number", desc: "Get a dedicated local number with your plan. Inbound and outbound routing configured in one click.", icon: Phone },
-    { n: "04", title: "Launch & Monitor", desc: "Go live. Monitor calls in real-time, read transcripts, view AI call analytics, and iterate from the dashboard.", icon: BarChart3 },
+    { n: "02", title: "Upload Knowledge Base", desc: "Add your FAQ, price list or policies as PDF, TXT, CSV or Markdown, or a web page. The agent answers from them instead of guessing.", icon: Database },
+    { n: "03", title: "Connect Phone Number", desc: "Every plan includes a local +91 number after KYC. Choose which agent answers it and which one calls out.", icon: Phone },
+    { n: "04", title: "Launch & Monitor", desc: "Go live. Follow calls as they happen, read transcripts, check outcomes and improve the agent from the dashboard.", icon: BarChart3 },
   ];
 
   return (
     <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <div className="hatched-strip h-10 w-full mb-10" />
       <div className="text-center max-w-3xl mx-auto mb-14 space-y-3">
-        <SectionLabel text="Deploy in Under 10 Minutes" />
+        <SectionLabel text="From Sign-Up to First Call" />
         <h2 className="text-3xl sm:text-4xl lg:text-5xl font-normal sm:font-medium text-[#121212] tracking-tight leading-[1.1] font-sans">
           From Zero to Live AI Voice Agent
         </h2>

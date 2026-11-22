@@ -4,8 +4,8 @@ export default function Security() {
   const securityPillars = [
     {
       icon: EyeOff,
-      title: "Edge PII Pattern Redaction",
-      desc: "Before any call transcript or telemetry event is persisted to storage, our edge redaction engine scrubs credit cards, bank account numbers, tax identifiers, and sensitive phone numbers."
+      title: "PII Redaction in Transcripts",
+      desc: "Switch on PII redaction for an agent and its transcripts are stored with card numbers, bank account numbers, tax identifiers and similar details masked. Agents can also be told never to ask for card numbers, CVVs or OTPs."
     },
     {
       icon: Lock,
@@ -20,25 +20,25 @@ export default function Security() {
     {
       icon: Key,
       title: "Role-Based Access Control & Scoped Keys",
-      desc: "Granular workspace permissions enforce Admin, Editor, and Viewer privileges. Live API keys can be scoped with IP allowlists, concurrency rate limits, and instant rotation."
+      desc: "Team members get one of four roles: admin, developer, analyst or viewer; analysts and viewers can look but not change anything. API keys are shown only once and can be revoked at any time."
     }
   ];
 
   const complianceStandards = [
     {
-      title: "MSME Registered Enterprise",
-      authority: "Ministry of MSME, Govt. of India",
-      desc: "Officially registered Micro, Small & Medium Enterprise operating under Indian regulatory frameworks with certified corporate identification."
+      title: "TRAI Calling Hours & Opt-Outs",
+      authority: "Telecom Regulatory Authority of India",
+      desc: "Batch campaigns dial only between 9 am and 9 pm IST, skip everyone on your opt-out list and ask you to confirm consent before they start. DND (NCPR) scrubbing and DLT registration remain your responsibility."
     },
     {
       title: "Digital Personal Data Protection (DPDP)",
       authority: "India DPDP Act 2023",
-      desc: "Consent-first data processing models, transparent purpose limitation, and rapid data subject deletion protocols in full alignment with the DPDP framework."
+      desc: "Built around the Act's principles: consent confirmed before every campaign, data used only to run your calls, recording off by default with a spoken notice, and call data deleted after the retention period you choose."
     },
     {
-      title: "RBI Fair Practices Code Aligned",
+      title: "For Lenders: RBI Fair Practices",
       authority: "Reserve Bank of India Guidelines",
-      desc: "Pre-built debt recovery and EMI reminder templates strictly adhere to permitted calling hours (8 AM - 7 PM), identity verification gates, and zero-harassment rules."
+      desc: "EMI reminder templates confirm the borrower's identity before any detail and never use pressure or threats. RBI expects recovery calls between 8 am and 7 pm, so schedule lending campaigns inside those hours."
     }
   ];
 
@@ -49,13 +49,13 @@ export default function Security() {
       <div className="text-center space-y-4 mb-16">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-[2px] bg-[#DFDCD4] border border-[#CBC8BE] text-[#121212] text-xs font-mono uppercase tracking-wider">
           <span>|</span>
-          <span>Enterprise Security & Compliance Blueprint</span>
+          <span>Security & Compliance</span>
         </div>
         <h1 className="text-4xl md:text-5xl font-normal md:font-medium text-[#121212] tracking-tight leading-[1.08] font-sans">
           Security Standards & Data Governance
         </h1>
         <p className="text-[#262523] text-base md:text-lg max-w-2xl mx-auto leading-relaxed font-sans">
-          Architected from the ground up for strict privacy protection, edge-level PII redaction, and enterprise telecommunication compliance.
+          How we protect call data, what you control, and which responsibilities stay with you under Indian telecom and privacy rules.
         </p>
       </div>
 

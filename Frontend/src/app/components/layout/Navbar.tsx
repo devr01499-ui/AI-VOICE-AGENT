@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Menu, ArrowRight, ChevronDown, Users, BookOpen } from "lucide-react";
+import { X, Menu, ArrowRight, ChevronDown, Users, BookOpen, Compass, HelpCircle } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from "motion/react";
 
 import { Session } from "@supabase/supabase-js";
@@ -14,8 +14,10 @@ interface NavbarProps {
 
 
 const RESOURCE_ITEMS = [
-  { icon: BookOpen, label: "Developer Docs", desc: "API, SDK & integrations", id: "docs" as Page },
-  { icon: Users, label: "Blog & Research", desc: "Industry insights & case studies", id: "blog" as Page },
+  { icon: Compass, label: "Product Guide", desc: "Every feature, step by step, with screenshots", id: "guide" as Page },
+  { icon: HelpCircle, label: "FAQ", desc: "Pricing, languages, KYC and calls", id: "faq" as Page },
+  { icon: BookOpen, label: "Developer Docs", desc: "REST API and signed webhooks", id: "docs" as Page },
+  { icon: Users, label: "Blog", desc: "Practical guides for Indian businesses", id: "blog" as Page },
 ];
 
 export default function Navbar({ page, setPage, session }: NavbarProps) {
@@ -93,7 +95,7 @@ export default function Navbar({ page, setPage, session }: NavbarProps) {
             <div className="relative"
               onMouseEnter={() => setActiveDropdown("resources")}
               onMouseLeave={() => setActiveDropdown(null)}>
-              <button className={`flex items-center gap-1 px-3 py-1.5 text-xs font-mono transition-colors ${activeDropdown === "resources" || page === "blog" || page === "docs" ? "text-[#121212] font-bold border-b border-[#121212]" : "text-[#5E5D57] hover:text-[#121212]"}`}>
+              <button className={`flex items-center gap-1 px-3 py-1.5 text-xs font-mono transition-colors ${activeDropdown === "resources" || page === "blog" || page === "docs" || page === "guide" || page === "faq" ? "text-[#121212] font-bold border-b border-[#121212]" : "text-[#5E5D57] hover:text-[#121212]"}`}>
                 Resources <ChevronDown className="w-3 h-3" />
               </button>
               <AnimatePresence>
@@ -194,8 +196,10 @@ export default function Navbar({ page, setPage, session }: NavbarProps) {
                 {[
                   { label: "How It Works", id: "how-it-works" as Page },
                   { label: "Solutions", id: "solutions" as Page },
-                  { label: "HD Voice Gallery", id: "voices" as Page },
+                  { label: "Voices", id: "voices" as Page },
                   { label: "Pricing Plans", id: "pricing" as Page },
+                  { label: "Product Guide", id: "guide" as Page },
+                  { label: "FAQ", id: "faq" as Page },
                   { label: "Blog & Insights", id: "blog" as Page },
                   { label: "Developer Docs", id: "docs" as Page },
                 ].map((l) => (

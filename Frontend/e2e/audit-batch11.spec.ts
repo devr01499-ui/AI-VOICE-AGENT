@@ -103,7 +103,7 @@ test('#124 #130 the blog has no fake newsletter; the RTO article opens its own p
   await page.goto('/blog');
   await expect(page.getByRole('heading', { name: /Have a question about your use case/ })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByPlaceholder('Enter your work email...')).toHaveCount(0);
-  await page.getByText('How Indian D2C Brands Cut COD RTO Rates by 40% Using Automated AI Voice Calls').first().click();
+  await page.getByText('How Indian D2C Brands Can Cut COD RTO With Automated Confirmation Calls').first().click();
   await expect(page).toHaveURL(/\/blog\/how-to-reduce-cod-rto$/);
 });
 

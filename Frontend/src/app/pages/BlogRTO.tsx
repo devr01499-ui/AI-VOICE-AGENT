@@ -40,62 +40,71 @@ export default function BlogRTO({ setPage }: BlogRTOProps) {
         >
           <div className="space-y-4">
             <div className="flex items-center gap-3 text-xs text-[#5E5D57] font-mono font-bold">
-              <span className="flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5 text-[#121212]" /> Claritiy Voice Logistics Team</span>
+              <span className="flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5 text-[#121212]" /> Claritiy Voice Team</span>
               <span>·</span>
               <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-[#121212]" /> 6 min read</span>
             </div>
             <h1 className="text-3xl md:text-5xl font-extrabold text-[#121212] leading-tight">
-              How Indian D2C Brands Cut COD RTO Rates by 40% Using Automated AI Voice Calls
+              How Indian D2C Brands Can Cut COD RTO With Automated Confirmation Calls
             </h1>
           </div>
 
           <div className="bg-[#DFDCD4] border border-[#CBC8BE] rounded-[2px] p-6 font-medium text-[#262523] leading-relaxed">
             <p className="text-xs font-bold text-[#121212] font-mono uppercase tracking-wider mb-2">Direct Answer Summary</p>
-            Indian D2C brands reduce Return-to-Origin (RTO) costs on Cash-on-Delivery (COD) orders by placing automated AI voice calls within 60 seconds of checkout. By verifying address accuracy, landmark details, and buyer confirmation in the customer's regional language before dispatching couriers, brands filter out impulse purchases and invalid addresses, cutting reverse logistics expenses by up to 40%.
+            Call every cash-on-delivery buyer before the parcel ships. A short automated call in Hindi, English or Hinglish confirms the buyer still wants the order, checks the address and landmark, and flags numbers that never answer. Orders that are cancelled or unreachable can be held back before you pay for shipping both ways.
           </div>
 
           <div className="space-y-6 text-[#262523] leading-relaxed">
-            <h2 className="text-2xl font-bold text-[#121212] mt-8 mb-4">The Real Cost of RTO for Indian E-Commerce</h2>
+            <h2 className="text-2xl font-bold text-[#121212] mt-8 mb-4">Why COD orders come back</h2>
             <p>
-              For D2C brands operating in India, Cash-on-Delivery accounts for 60% to 75% of total order volume. However, unconfirmed COD orders carry a hidden tax: an average RTO rate of 20% to 35%.
+              Cash on delivery is popular with Indian shoppers because they pay only when the parcel arrives. The flip side is RTO (return to origin): parcels refused at the door or never delivered. The usual reasons are simple. The buyer changed their mind, ordered on impulse, gave a wrong or incomplete address, or was not home.
             </p>
             <p>
-              Every returned parcel costs a brand double shipping fees, packaging damage, inventory lockup, and operational overhead—often wiping out net profit margins entirely.
+              Every returned parcel costs you shipping twice, ties up stock for days and can damage packaging. Most of these returns can be spotted before dispatch, if someone asks the buyer.
             </p>
 
-            <h2 className="text-2xl font-bold text-[#121212] mt-8 mb-4">Why Manual Calling Teams Fail to Scale</h2>
-            <p>
-              Historically, brands hired manual call centers to verify COD orders. However, human calling teams face three massive structural bottlenecks:
-            </p>
+            <h2 className="text-2xl font-bold text-[#121212] mt-8 mb-4">Why manual confirmation calls are hard to keep up</h2>
             <ol className="list-decimal pl-6 space-y-2">
-              <li><strong>Delayed Outreach:</strong> Calling hours or days after checkout allows impulse buyers to change their minds.</li>
-              <li><strong>High Payroll Overhead:</strong> Scaling a calling team to handle 10,000 monthly orders requires massive headcount expenses.</li>
-              <li><strong>Language Barriers:</strong> Agents often struggle to converse in local regional dialects across diverse Indian tier-2 and tier-3 cities.</li>
+              <li><strong>Timing:</strong> a calling team works office hours, so many orders are confirmed late or not at all.</li>
+              <li><strong>Volume:</strong> order spikes during sales and festivals need more callers than you can hire for a few weeks.</li>
+              <li><strong>Language:</strong> buyers across the country prefer Hindi, English or their regional language, often mixed.</li>
             </ol>
 
-            <h2 className="text-2xl font-bold text-[#121212] mt-8 mb-4">How Automated AI Voice Confirmation Solves the RTO Crisis</h2>
-            <p>
-              Automating confirmation call schedules transforms order verification into a zero-friction, instant workflow:
-            </p>
+            <h2 className="text-2xl font-bold text-[#121212] mt-8 mb-4">How an automated confirmation call works</h2>
             <ul className="list-disc pl-6 space-y-2">
-              <li><strong>Instant Call Triggering:</strong> The moment an order is created on Shopify or WooCommerce, a webhook triggers an outbound call to the buyer's mobile number.</li>
-              <li><strong>Regional Language Intelligence:</strong> The AI agent detects the customer's location or preferred language and speaks naturally in Hindi, Marathi, Bengali, Tamil, or Indian English.</li>
-              <li><strong>Dynamic Address Correction:</strong> The agent asks the customer to confirm their delivery landmark and house number out loud. If the customer indicates a change of address or cancels the order, the status is updated in real time directly inside Shopify and Shiprocket.</li>
+              <li><strong>Trigger:</strong> your store or OMS sends each new COD order to the agent through the Claritiy Voice API, or you upload the day's COD orders as a batch campaign.</li>
+              <li><strong>Conversation:</strong> the agent calls from your +91 number, in the buyer's language, and confirms the order, the address and landmark, and a good delivery time.</li>
+              <li><strong>Retries:</strong> busy and unanswered numbers are tried again automatically, up to 3 attempts at least 10 minutes apart, only between 9 am and 9 pm IST.</li>
+              <li><strong>Result:</strong> confirmed, cancelled or unreachable, with any address note, goes back to your store or shipping tool through a signed webhook, so your team decides what to ship.</li>
             </ul>
+
+            <h2 className="text-2xl font-bold text-[#121212] mt-8 mb-4">What to put in the agent's instructions</h2>
+            <ol className="list-decimal pl-6 space-y-2">
+              <li>Introduce your brand and say it is an automated call.</li>
+              <li>Read out the product and the order value, and ask the buyer to confirm.</li>
+              <li>Ask for a nearby landmark if the address looks incomplete.</li>
+              <li>Ask for a good delivery time.</li>
+              <li>If the buyer wants to cancel, accept it politely and record it.</li>
+            </ol>
 
             <h2 className="text-2xl font-bold text-[#121212] mt-8 mb-4">Frequently Asked Questions</h2>
             <div className="space-y-4">
               <div className="border border-[#CBC8BE] rounded-[2px] p-5 bg-[#DFDCD4]">
-                <h4 className="font-bold text-[#121212] mb-2">Q: How fast does Claritiy Voice place confirmation calls after an order is placed?</h4>
-                <p className="text-xs text-[#262523]">A: Claritiy Voice triggers calls within 30 to 60 seconds of order creation, reaching buyers while their purchase intent is at its highest.</p>
+                <h4 className="font-bold text-[#121212] mb-2">Q: How soon after an order is the confirmation call placed?</h4>
+                <p className="text-xs text-[#262523]">A: You decide. Send each order through the API as it is created and the call is placed straight away within calling hours, or run one campaign a day for all of yesterday's COD orders.</p>
               </div>
               <div className="border border-[#CBC8BE] rounded-[2px] p-5 bg-[#DFDCD4]">
-                <h4 className="font-bold text-[#121212] mb-2">Q: What happens if a customer doesn't pick up the first verification call?</h4>
-                <p className="text-xs text-[#262523]">A: The system automatically schedules up to 3 smart retry calls at staggered intervals throughout the day, or sends a fallback WhatsApp confirmation link if the call remains unanswered.</p>
+                <h4 className="font-bold text-[#121212] mb-2">Q: What if the buyer does not pick up?</h4>
+                <p className="text-xs text-[#262523]">A: The number is retried automatically, up to 3 attempts at least 10 minutes apart. If it still does not answer, the order is marked unreachable so your team can decide whether to ship it.</p>
+              </div>
+              <div className="border border-[#CBC8BE] rounded-[2px] p-5 bg-[#DFDCD4]">
+                <h4 className="font-bold text-[#121212] mb-2">Q: How much does it cost?</h4>
+                <p className="text-xs text-[#262523]">A: Plans start at ₹3,799 for 750 minutes, and each answered call uses its started minutes; a short confirmation call usually uses one. Unanswered calls cost nothing.</p>
               </div>
             </div>
           </div>
-        </motion.article>
+        
+</motion.article>
       </div>
     </div>
   );
