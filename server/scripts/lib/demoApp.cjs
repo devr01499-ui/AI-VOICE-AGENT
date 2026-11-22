@@ -13,7 +13,9 @@ function installAuthStub(tokenToUser) {
     const user = await tokenToUser(token);
     if (!user) return { data: { user: null }, error: { message: 'invalid' } };
     const now = new Date().toISOString();
-    return { data: { user: { id: user.id, email: user.email, email_confirmed_at: now, user_metadata: { email_confirmed_at: now } } }, error: null };
+    // Like a real Supabase session: sign-up stores the person's name in user_metadata.full_name
+    // (requireAuth copies it to the user row on every request).
+    return { data: { user: { id: user.id, email: user.email, email_confirmed_at: now, user_metadata: { email_confirmed_at: now, ...(user.fullName ? { full_name: user.fullName } : {}) } } }, error: null };
   };
 }
 
