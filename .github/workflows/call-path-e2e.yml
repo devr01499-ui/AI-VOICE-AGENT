@@ -35,6 +35,7 @@ jobs:
   e2e-call-test:
     name: Automated Call Path Harness (10x Outbound + 10x Inbound + Safe Tier)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     services:
       postgres:
@@ -76,13 +77,14 @@ jobs:
           POSTGRES_PORT="${{ job.services.postgres.ports[5432] }}"
           [ -z "$POSTGRES_PORT" ] && POSTGRES_PORT="5432"
           echo "Resolved Postgres port: $POSTGRES_PORT"
-          echo "DATABASE_URL=postgresql://claritiy:testpassword@127.0.0.1:${POSTGRES_PORT}/claritiy_test?schema=public" >> $GITHUB_ENV
-          echo "DIRECT_URL=postgresql://claritiy:testpassword@127.0.0.1:${POSTGRES_PORT}/claritiy_test?schema=public" >> $GITHUB_ENV
-          echo "TEST_DATABASE_URL=postgresql://claritiy:testpassword@127.0.0.1:${POSTGRES_PORT}/claritiy_test?schema=public" >> $GITHUB_ENV
+          echo "DATABASE_URL=postgresql://claritiy:testpassword@127.0.0.1:${POSTGRES_PORT}/claritiy_test?schema=public&sslmode=disable" >> $GITHUB_ENV
+          echo "DIRECT_URL=postgresql://claritiy:testpassword@127.0.0.1:${POSTGRES_PORT}/claritiy_test?schema=public&sslmode=disable" >> $GITHUB_ENV
+          echo "TEST_DATABASE_URL=postgresql://claritiy:testpassword@127.0.0.1:${POSTGRES_PORT}/claritiy_test?schema=public&sslmode=disable" >> $GITHUB_ENV
           echo "NODE_ENV=test" >> $GITHUB_ENV
           echo "JWT_SECRET=ci_jwt_secret_test_32_characters_long_min" >> $GITHUB_ENV
           echo "ENCRYPTION_KEY=ci_aes_encryption_key_32_chars_ok" >> $GITHUB_ENV
-          echo "PLIVO_AUTH_TOKEN=ci_test_plivo_auth_token" >> $GITHUB_ENV
+          # Carrier token and Gemini key: run_case.sh sets fixed TEST_ values that the test-DB guard
+          # hands to both the server and the simulator (live keys are never used here).
 
       - name: Setup Database Schema
         # Empty throwaway CI database: plain db push (never --accept-data-loss, owner rule).

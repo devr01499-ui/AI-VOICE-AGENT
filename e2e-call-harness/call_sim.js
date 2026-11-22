@@ -13,13 +13,15 @@ require('../server/scripts/lib/testDbGuard.cjs'); // MUST stay first: blocks any
  */
 
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
-require('dotenv').config({ path: path.resolve(__dirname, '../server/.env') });
+// ws and dotenv are server dependencies (the repo root does not install them): resolve them there.
+const serverRequire = require('module').createRequire(path.resolve(__dirname, '../server/package.json'));
+serverRequire('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+serverRequire('dotenv').config({ path: path.resolve(__dirname, '../server/.env') });
 
 const assert = require('assert');
 const crypto = require('crypto');
 const http = require('http');
-const WebSocket = require('ws');
+const WebSocket = serverRequire('ws');
 const { prisma } = require('../server/dist/lib/prisma');
 const { getWebhookSigningSecret } = require('../server/dist/utils/security');
 const { computePlivoV3Signature } = require('../server/dist/middleware/plivoWebhook');
@@ -49,50 +51,58 @@ function httpRequest(options, postData) {
   });
 }
 
+// A dedicated, deterministic harness tenant: a paying customer (not an admin, so the real balance
+// and plan checks run) with minutes left. Never "the first user in the database".
+const HARNESS_USER_ID = '00000000-0000-4000-8000-0000000ca11e';
+const HARNESS_AGENT_ID = '00000000-0000-4000-8000-0000000a9e47';
+const HARNESS_DID = '+918065530386';
+
 async function ensureSeedData() {
-  let user = await prisma.user.findFirst();
-  if (!user) {
-    user = await prisma.user.create({
-      data: {
-        email: 'test-harness@claritiy.com',
-        fullName: 'Test Harness User',
-        passwordHash: 'ci_test_password_hash',
-        accountType: 'admin',
-        callingBalanceMinutes: 1000,
-      },
-    });
-  }
+  const planExpiresAt = new Date(Date.now() + 30 * 86400000);
+  const user = await prisma.user.upsert({
+    where: { id: HARNESS_USER_ID },
+    update: { accountType: 'professional', accountStatus: 'active', minutesRemainingSeconds: 1000 * 60, callingBalanceMinutes: 1000, planExpiresAt },
+    create: {
+      id: HARNESS_USER_ID,
+      email: 'call-harness@example.org',
+      fullName: 'Call Path Harness',
+      passwordHash: 'ci_test_password_hash',
+      accountType: 'professional',
+      minutesRemainingSeconds: 1000 * 60,
+      callingBalanceMinutes: 1000,
+      hasConsentedTerms: true,
+      planExpiresAt,
+    },
+  });
 
-  let agent = await prisma.agent.findFirst({ where: { userId: user.id } });
-  if (!agent) {
-    agent = await prisma.agent.create({
-      data: {
-        userId: user.id,
-        name: 'Harness Test Agent',
-        systemPrompt: 'You are an intelligent telephone voice assistant for Claritiy Voice.',
-        systemVoice: 'Puck',
-        languageMode: 'auto',
-      },
-    });
-  }
+  const agentData = {
+    name: 'Harness Test Agent',
+    status: 'active',
+    direction: 'both',
+    systemPrompt: 'You are an intelligent telephone voice assistant for Claritiy Voice.',
+    systemVoice: 'Puck',
+    languageMode: 'auto',
+  };
+  const agent = await prisma.agent.upsert({
+    where: { id: HARNESS_AGENT_ID },
+    update: agentData,
+    create: { id: HARNESS_AGENT_ID, userId: user.id, ...agentData },
+  });
 
-  const registeredDid = '+918065530386';
-  let phone = await prisma.phoneNumber.findFirst({ where: { phoneNumber: registeredDid } });
-  if (!phone) {
-    phone = await prisma.phoneNumber.create({
-      data: {
-        userId: user.id,
-        phoneNumber: registeredDid,
-        assignedAgentId: agent.id,
-        telephonyProvider: 'plivo',
-        status: 'active',
-        kycStatus: 'verified',
-        countryCode: 'IN',
-        currency: 'INR',
-        monthlyCost: 500,
-      },
-    });
-  }
+  const phoneData = {
+    userId: user.id,
+    assignedAgentId: agent.id,
+    telephonyProvider: 'plivo',
+    status: 'active',
+    kycStatus: 'verified',
+    countryCode: 'IN',
+    currency: 'INR',
+    monthlyCost: 500,
+  };
+  const existing = await prisma.phoneNumber.findFirst({ where: { phoneNumber: HARNESS_DID } });
+  const phone = existing
+    ? await prisma.phoneNumber.update({ where: { id: existing.id }, data: phoneData })
+    : await prisma.phoneNumber.create({ data: { phoneNumber: HARNESS_DID, ...phoneData } });
 
   return { user, agent, phone };
 }
@@ -157,11 +167,7 @@ async function runSimulator(mode = 'outbound') {
       callId,
     };
   } else {
-    // Inbound mode: Plivo calls answer webhook with signature
-    const authToken = (process.env.PLIVO_AUTH_TOKEN || 'test_plivo_token').trim();
-    const nonce = `nonce-${Date.now()}`;
-    const targetUrl = `${BASE_URL}/api/v2/webhooks/plivo/answer`;
-
+    // Inbound mode: the carrier calls the answer webhook, signed with the V3 signature below.
     answerReqBody = {
       CallUUID: testCallUuid,
       RequestUUID: testCallUuid,
@@ -169,12 +175,6 @@ async function runSimulator(mode = 'outbound') {
       From: callerNumber,
       To: businessDid,
       CallStatus: 'ringing',
-    };
-
-    const sigV3 = computePlivoV3Signature(targetUrl, nonce, authToken, 'POST', answerReqBody);
-    answerReqHeaders = {
-      'X-Plivo-Signature-V3': sigV3,
-      'X-Plivo-Signature-V3-Nonce': nonce,
     };
   }
 
