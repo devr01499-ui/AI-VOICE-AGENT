@@ -1037,7 +1037,7 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
           console.error("[Dashboard Fetch Error]:", err);
           const msg = String(err.message || err);
           if (msg.includes('401') || msg.includes('403') || msg.includes('500') || msg.includes('UNAUTHORIZED_ACCESS')) {
-            setAgentsError("Internal Server Authentication Exception");
+            setAgentsError("We could not verify your session. Please refresh the page, or sign in again.");
           } else {
             setAgentsError(msg || 'Failed to load agents');
           }
