@@ -253,8 +253,11 @@ export function routingConfigProblem(functions: unknown, flowGraph: unknown, pre
       } else if (fn.type === 'agent_transfer') {
         if (!String(fn.targetAgentId || '').trim()) return `Agent transfer "${name}": choose the agent to hand the call to.`;
       } else if (fn.type === 'send_whatsapp') {
+        // No template yet (e.g. an old SMS step shown as WhatsApp) may be saved; it is not offered on
+        // calls until a template is chosen.
         const t = String(fn.whatsappTemplate || '').trim();
-        if (!t || t.length > 512) return `WhatsApp function "${name}": choose an approved WhatsApp template.`;
+        if (t.length > 512) return `WhatsApp function "${name}": the template name is too long.`;
+        if (Array.isArray(fn.whatsappVariables) && fn.whatsappVariables.length > 20) return `WhatsApp function "${name}": at most 20 variables.`;
       }
     }
   }

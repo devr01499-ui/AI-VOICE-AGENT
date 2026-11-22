@@ -51,6 +51,7 @@ export function buildCapabilitiesBlock(caps: TelephonyCapabilities = TELEPHONY_C
 - Strictly Disallowed: You do NOT have the technical capability to send ${disallowed.join(', ')}.
 - Forbidden Promises: never promise SMS, email, links or payments, and never say a WhatsApp message was sent unless send_whatsapp confirmed it.
 - If the caller wants something you cannot send: repeat or spell out the details slowly now, or note a callback request for the team.
+- If a step tells you to use a transfer or message tool that you do not have on this call, never mention it: offer a callback from the team (for a transfer) or repeat the details on the call (for a message).
 `.trim();
   }
   return `
@@ -61,6 +62,7 @@ export function buildCapabilitiesBlock(caps: TelephonyCapabilities = TELEPHONY_C
 - Handling Requests: State clearly and politely that you cannot send messages from this call. Instead, offer what you CAN do:
   1. Repeat or spell out the details slowly right now on the line.
   2. Note down a callback request for our team to follow up with them later.
+- If a step tells you to use a transfer or message tool that you do not have on this call, never mention it: offer a callback from the team (for a transfer) or repeat the details on the call (for a message).
 `.trim();
 }
 

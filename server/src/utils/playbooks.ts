@@ -508,7 +508,7 @@ export const PLAYBOOKS: Record<PlaybookType, PlaybookConfig> = {
     objectionHandlingLibrary: [
       {
         objection: 'I am busy / in a meeting',
-        response: 'I completely understand! Would it be better if I send you a 1-click WhatsApp link, or may I call you back tomorrow?',
+        response: 'I completely understand! When would be a better time for me to call you back?',
       },
       {
         objection: 'Why are you calling me?',
@@ -516,7 +516,7 @@ export const PLAYBOOKS: Record<PlaybookType, PlaybookConfig> = {
       },
     ],
     objectionHandling: {
-      'I am busy / in a meeting': 'I completely understand! Would it be better if I send you a 1-click WhatsApp link, or may I call you back tomorrow?',
+      'I am busy / in a meeting': 'I completely understand! When would be a better time for me to call you back?',
       'Why are you calling me?': 'We are reaching out to verify your recent experience and ensure you received the quality of service you expected. This will only take about a minute.',
     },
     closingNextStep: 'Thank you so much for your valuable feedback! Have a wonderful day ahead.',
