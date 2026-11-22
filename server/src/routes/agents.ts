@@ -25,6 +25,25 @@ import { runTestLab, listTestLabRuns, getTestLabRun, TestLabInputError } from '.
 
 const router = Router();
 
+// ─── Agent tags (audit #160) ─────────────────────
+// Clients may send tags as an array, a JSON array string or "a, b" text. They used to be stored
+// as sent and JSON.parse'd on every read, so a plain string made create answer 500 and the agent
+// impossible to open. Store a JSON array always; read old rows safely.
+function tagList(raw: unknown): string[] {
+  let items: unknown[] = [];
+  if (Array.isArray(raw)) items = raw;
+  else if (typeof raw === 'string' && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw);
+      items = Array.isArray(parsed) ? parsed : [String(parsed)];
+    } catch {
+      items = raw.split(',');
+    }
+  }
+  return [...new Set(items.map((t) => String(t ?? '').trim()).filter(Boolean).map((t) => t.slice(0, 60)))].slice(0, 50);
+}
+const storeTags = (raw: unknown): string => JSON.stringify(tagList(raw));
+
 // ─── Validation Schemas ──────────────────────────
 
 const agentIdParamSchema = z.object({
@@ -422,7 +441,7 @@ router.get(
           isPiiRedactionEnabled: Boolean(agent.isPiiRedactionEnabled),
           flowGraph: parsedFlowGraph,
           agentConfig: maskAgentSecrets(parsedConfig),
-          tags: JSON.parse(agent.tags || '[]'),
+          tags: tagList(agent.tags),
           createdAt: agent.createdAt.toISOString(),
           updatedAt: agent.updatedAt.toISOString(),
         },
@@ -581,7 +600,7 @@ router.post(
           agentType: agentType || 'conversational',
           status: status || 'draft',
           agentConfig: JSON.stringify(finalConfig),
-          tags: typeof tags === 'string' ? tags : JSON.stringify(Array.isArray(tags) ? tags : []),
+          tags: storeTags(tags),
           userId: userId,
           // workspaceId is never taken from the client (zero client trust).
           workspaceId: null,
@@ -638,7 +657,7 @@ router.post(
           isPiiRedactionEnabled: Boolean(newAgent.isPiiRedactionEnabled),
           flowGraph: parsedFlow,
           agentConfig: maskAgentSecrets(finalConfig),
-          tags: JSON.parse(newAgent.tags || '[]'),
+          tags: tagList(newAgent.tags),
           qaEvaluation,
           createdAt: newAgent.createdAt.toISOString(),
           updatedAt: newAgent.updatedAt.toISOString(),
@@ -751,7 +770,7 @@ router.put(
           ...(status !== undefined && { status }),
           ...(finalConfigToSave !== undefined && { agentConfig: finalConfigToSave }),
           ...(tags !== undefined && {
-            tags: typeof tags === 'string' ? tags : JSON.stringify(Array.isArray(tags) ? tags : [])
+            tags: storeTags(tags)
           }),
           ...(model !== undefined && { model }),
           ...(voiceName !== undefined && { voiceName, systemVoice: voiceName }),
@@ -820,7 +839,7 @@ router.put(
           isPiiRedactionEnabled: Boolean(updatedAgent.isPiiRedactionEnabled),
           flowGraph: parsedFlow,
           agentConfig: maskAgentSecrets(parsedConfig),
-          tags: JSON.parse(updatedAgent.tags || '[]'),
+          tags: tagList(updatedAgent.tags),
           qaEvaluation,
           createdAt: updatedAgent.createdAt.toISOString(),
           updatedAt: updatedAgent.updatedAt.toISOString(),
