@@ -17,6 +17,9 @@ export class CallSession {
   public conversationState?: IConversationState;
   public inboundAudioAllowed: boolean = false;
   public isRecordingEnabled: boolean = false;
+  /** Where the AI's audio goes (the caller's stream); reused when another agent takes over. */
+  public audioSink?: (audioBase64: string) => void;
+  public agentName: string | null = null;
 
   constructor(
     public readonly callId: string,

@@ -16,7 +16,7 @@ import type { ToolDefinition } from '../types';
 
 /** Names handled by CallOrchestrator itself. A custom tool may never reuse them. */
 export const RESERVED_TOOL_NAMES = new Set([
-  'hang_up', 'end_call', 'transfer_call', 'send_sms', 'book_follow_up_call', 'get_available_slots',
+  'hang_up', 'end_call', 'transfer_call', 'send_sms', 'send_whatsapp', 'book_follow_up_call', 'get_available_slots',
   'book_appointment', 'reschedule_appointment', 'cancel_appointment', 'check_availability',
   'check_calendar_availability', 'schedule_event', 'lookup_knowledge_base', 'query_knowledge_base',
   'search_knowledge_base', 'press_digit', 'agent_transfer', 'execute_inline_code',

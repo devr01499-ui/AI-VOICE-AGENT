@@ -11,6 +11,8 @@
  * 4. Injects explicit tool execution protocols and direction guidance.
  */
 
+import { routeKey } from '../../runtime/routeKey';
+
 export interface FlowNodeData {
   label?: string;
   text?: string;
@@ -221,7 +223,12 @@ export function compileFlowToPrompt(
     } else if (node.type === 'checkCalendar') {
       prompt += `- ACTION: Query availability and suggest open slots to caller.\n`;
     } else if (node.type === 'transferCall') {
-      prompt += `- ACTION: Politely inform the caller that transfer is being scheduled, take down callback details, and follow up.\n`;
+      // Same key as runtime/callRouting (the node id), so the step names the configured destination.
+      prompt += `- ACTION: Say you are connecting the caller to ${data.label || 'the team'} and ask them to stay on the line, then call transfer_call with destination "${routeKey(node.id)}".\n`;
+    } else if (node.type === 'agentTransfer' || node.type === 'subagent') {
+      prompt += `- ACTION: Say you are connecting the caller to a specialist, then call agent_transfer with target "${routeKey(node.id)}" and a summary of what the caller needs.\n`;
+    } else if (node.type === 'whatsapp') {
+      prompt += `- ACTION: Ask whether the caller agrees to receive this on WhatsApp on this number. Only after a clear yes, call send_whatsapp with template "${routeKey(node.id)}" and consent_confirmed true. If they say no, continue without it.\n`;
     }
   });
 

@@ -96,6 +96,8 @@ export interface ITelephonyProvider extends IBaseProvider {
   initiateCall(params: InitiateCallParams): Promise<InitiateCallResult>;
   terminateCall(callUuid: string, userId?: string): Promise<void>;
   getCallStatus(callUuid: string, userId?: string): Promise<CallStatusResult>;
+  /** Moves the caller's leg to new XML (hand-off to a person). */
+  transferCall?(callUuid: string, alegUrl: string, userId?: string): Promise<'transferred' | 'not_found' | 'failed'>;
 }
 
 // ─── Realtime AI Provider ─────────────────────────────

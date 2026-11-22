@@ -25,7 +25,8 @@ function buildApp({ corsOrigin } = {}) {
     const cors = require('cors');
     app.use(cors({ origin: corsOrigin, credentials: true }));
   }
-  app.use(express.json({ limit: '25mb' }));
+  // Like src/index.ts: keep the raw body for signed webhooks (WhatsApp X-Hub-Signature-256).
+  app.use(express.json({ limit: '25mb', verify: (req, _res, buf) => { req.rawBody = buf; } }));
   app.use(express.urlencoded({ extended: true }));
   app.use(d('middleware/requestId').requestIdMiddleware);
   app.use(d('middleware/rejectNullCharacters').rejectNullCharacters);
@@ -44,6 +45,9 @@ function buildApp({ corsOrigin } = {}) {
   app.use('/api/v2/billing', requireAuth, d('routes/billing').default);
   app.use('/api/v2/chat-history', requireAuth, d('routes/chatHistory').default);
   app.use('/api/v2/contacts', requireAuth, d('routes/contacts').default);
+  app.use('/api/v2/whatsapp', requireAuth, d('routes/whatsapp').default);
+  app.use('/api/v2/webhooks/whatsapp', d('routes/whatsapp').whatsappWebhookRouter);
+  app.use('/api/v2/webhooks/transfer', d('routes/transferWebhooks').default);
   app.use('/api/v2/analytics', requireAuth, d('routes/analytics').default);
   app.use('/api/v2/qa', requireAuth, d('routes/qa').default);
   app.use('/api/v2/alerting', requireAuth, d('routes/alerting').default);

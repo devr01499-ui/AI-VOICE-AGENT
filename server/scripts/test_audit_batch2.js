@@ -161,15 +161,18 @@ async function main() {
       }
     });
 
-    await test('#78/#141 transfer answers 501 and changes nothing (no fake success)', async () => {
+    await test('#78/#141 transfer never fakes success: no carrier call id -> refused, nothing written', async () => {
       const u = await newUser();
       const agent = await prisma.agent.create({ data: { userId: u, name: 'X' } });
       const c = await prisma.call.create({ data: { userId: u, agentId: agent.id, recipientPhoneNumber: '+919833333333', status: 'in_progress', userData: '{}' } });
       const r = await call('POST', `/api/v2/calls/${c.id}/transfer`, u, { targetNumber: '+919844444444' });
-      assert.strictEqual(r.status, 501);
-      assert.strictEqual(r.body.code, 'TRANSFER_NOT_AVAILABLE');
+      // Live transfer is built now (test_call_transfer covers success); without a carrier call it cannot happen.
+      assert.ok([403, 409].includes(r.status), `status ${r.status}`);
+      assert.notStrictEqual(r.body.success, true);
       const after = await prisma.call.findUnique({ where: { id: c.id } });
       assert.strictEqual(after.userData, '{}', 'nothing written');
+      const bad = await call('POST', `/api/v2/calls/${c.id}/transfer`, u, { targetNumber: '+911900123456' });
+      assert.strictEqual(bad.status, 400, 'premium-rate number refused');
     });
   } finally {
     server.close();

@@ -609,7 +609,8 @@ ${recXml}  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/
           callId,
           mappedReason,
           hangupCause ? `Plivo: ${hangupCause} (source: ${hangupSource || 'unknown'})` : undefined,
-          endedBy
+          endedBy,
+          { carrierFinal: true } // the phone call itself is over (also after a hand-off to a person)
         );
       }
 
@@ -705,7 +706,8 @@ ${recXml}  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/
         callId,
         mappedReason,
         hangupCause ? `Vobiz: ${hangupCause} (source: ${hangupSource || 'unknown'})` : undefined,
-        endedBy
+        endedBy,
+        { carrierFinal: true } // the phone call itself is over (also after a hand-off to a person)
       );
 
       res.json({ success: true });
@@ -758,7 +760,7 @@ ${recXml}  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/
         return;
       }
       const callId = String(req.params.id);
-      const { targetNumber } = req.body;
+      const targetNumber = req.body && typeof req.body === 'object' ? (req.body as any).targetNumber : undefined;
 
       const call = await prisma.call.findFirst({
         where: { id: callId, userId },
@@ -769,14 +771,33 @@ ${recXml}  <Stream bidirectional="true" keepCallAlive="true" contentType="audio/
         return;
       }
 
-      // Audit #78/#141: this used to write 'transferredTo' on the call and answer "transfer initiated"
-      // without ever asking the carrier to move the call. Live transfer is not built yet, so say so.
-      void targetNumber;
-      res.status(501).json({
-        success: false,
-        error: 'Live call transfer is not available yet. The call stays with the AI agent.',
-        code: 'TRANSFER_NOT_AVAILABLE',
-      });
+      // A supervisor hands the live call to a person. Success only when the carrier accepted the
+      // transfer (audit #78/#141: it used to answer "transfer initiated" without moving the call).
+      const { normalizeTransferNumber } = await import('../runtime/callRouting');
+      const number = normalizeTransferNumber(targetNumber);
+      if (!number.ok) {
+        res.status(400).json({ success: false, error: number.error, code: 'INVALID_DESTINATION' });
+        return;
+      }
+      const owner = await prisma.user.findUnique({ where: { id: userId }, select: { accountType: true, email: true, accountStatus: true, planExpiresAt: true } });
+      const { hasActivePaidPlan } = await import('../middleware/planValidation');
+      if (!owner || !hasActivePaidPlan(owner)) {
+        res.status(403).json({ success: false, error: 'Live transfers need an active paid plan.', code: 'PAID_PLAN_REQUIRED' });
+        return;
+      }
+      const result = await callOrchestrator.startHumanHandoff(
+        callId,
+        { id: call.agentId, userId },
+        { key: 'supervisor', label: 'Supervisor transfer', number: number.e164, whenToUse: '' },
+        'Transferred by a supervisor from Live Monitoring',
+        1500,
+      );
+      if (!result.ok) {
+        const status = result.code === 'CARRIER_FAILED' || result.code === 'NOT_CONFIGURED' ? 502 : 409;
+        res.status(status).json({ success: false, error: result.message, code: result.code });
+        return;
+      }
+      res.status(200).json({ success: true, data: { transferId: result.transferId, status: 'dialing' } });
     } catch (err: any) {
       logger.error('CallController: Error transferring call', { error: err.message });
       res.status(500).json({ success: false, error: 'Internal server error' });

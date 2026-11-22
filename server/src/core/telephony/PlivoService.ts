@@ -613,6 +613,41 @@ export class PlivoService {
     }
     return sawNotFound ? 'already_ended' : 'failed';
   }
+
+  /**
+   * Moves a live call (the caller's leg) to new XML: used to hand the caller to a person.
+   * POST https://api.plivo.com/v1/Account/{auth_id}/Call/{call_uuid}/  legs=aleg, aleg_url, aleg_method
+   * (Plivo "Transfer a call"). Sub-account credentials first, then the parent account.
+   */
+  async transferCall(callUuid: string, alegUrl: string, opts: { subAuthId?: string | null } = {}): Promise<'transferred' | 'not_found' | 'failed' | 'no_credentials'> {
+    const uuid = (callUuid || '').trim();
+    if (!uuid || !/^[A-Za-z0-9-]{8,64}$/.test(uuid)) return 'failed';
+    if (!/^https:\/\//.test(alegUrl)) return 'failed';
+    if (!this.hasValidCredentials()) return 'no_credentials';
+    const candidates: Array<{ authId: string; headers: Record<string, string>; label: string }> = [];
+    if (opts.subAuthId) {
+      const sub = await prisma.plivoSubAccount.findFirst({ where: { authId: opts.subAuthId } }).catch(() => null);
+      if (sub && sub.authToken !== 'DIRECT_PARENT_ACCOUNT') {
+        const creds = Buffer.from(`${sub.authId}:${EncryptionService.decrypt(sub.authToken)}`).toString('base64');
+        candidates.push({ authId: sub.authId, label: 'subaccount', headers: { 'Authorization': `Basic ${creds}`, 'Content-Type': 'application/json', 'User-Agent': 'Claritiy-Voice/2.0' } });
+      }
+    }
+    candidates.push({ authId: this.parentAuthId, headers: this.getParentHeaders() as Record<string, string>, label: 'parent' });
+    let sawNotFound = false;
+    for (const c of candidates) {
+      try {
+        const response = await fetch(`${this.baseUrl}/Account/${c.authId}/Call/${uuid}/`, {
+          method: 'POST', headers: c.headers, body: JSON.stringify({ legs: 'aleg', aleg_url: alegUrl, aleg_method: 'POST' }),
+        });
+        logger.info('[PLIVO_TRANSFER_CALL]', { callUuid: uuid, status: response.status, credential: c.label });
+        if (response.status >= 200 && response.status < 300) return 'transferred';
+        if (response.status === 404) { sawNotFound = true; continue; }
+      } catch (err: any) {
+        logger.warn('[PLIVO_TRANSFER_FAILED]', { callUuid: uuid, credential: c.label, error: err?.message });
+      }
+    }
+    return sawNotFound ? 'not_found' : 'failed';
+  }
 }
 
 

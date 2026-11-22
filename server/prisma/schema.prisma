@@ -70,6 +70,10 @@ model User {
   minutesLedgerEntries MinutesLedger[]
   calendarConnection   CalendarConnection?
   calendarBookings     CalendarBooking[]
+  whatsappAccount      WhatsAppAccount?
+  whatsappMessages     WhatsAppMessage[]
+  whatsappConsents     WhatsAppConsent[]
+  callTransfers        CallTransfer[]
 
   @@index([createdAt])
   @@index([accountStatus])
@@ -219,6 +223,7 @@ model Call {
   batchRecipients    BatchRecipient[]
   analysisJob        AnalysisJob?
   callResult         CallResult?
+  transfers          CallTransfer[]
 
   @@index([agentId])
   @@index([userId])
@@ -1479,4 +1484,106 @@ model PlivoComplianceApplication {
 
   @@index([status])
   @@map("plivo_compliance_applications")
+}
+
+// ─────────────────────────────────────────────
+// WHATSAPP (customer's own WhatsApp Business account, Meta Cloud API) & CALL TRANSFERS
+// ─────────────────────────────────────────────
+
+/// One connected WhatsApp Business phone number per Claritiy account. Tokens are encrypted.
+model WhatsAppAccount {
+  id                 String    @id @default(uuid())
+  userId             String    @unique @map("user_id")
+  phoneNumberId      String    @unique @map("phone_number_id")
+  wabaId             String    @map("waba_id")
+  displayPhoneNumber String?   @map("display_phone_number")
+  verifiedName       String?   @map("verified_name")
+  accessToken        String    @map("access_token") // EncryptionService
+  appSecret          String    @map("app_secret") // EncryptionService
+  verifyToken        String    @map("verify_token")
+  status             String    @default("connected") // connected | error
+  lastError          String?   @map("last_error")
+  templates          String    @default("[]") // JSON: templates last read from Meta
+  templatesSyncedAt  DateTime? @map("templates_synced_at")
+  webhookVerifiedAt  DateTime? @map("webhook_verified_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("whatsapp_accounts")
+}
+
+/// Every WhatsApp message sent for a customer (approved templates only) and every reply received.
+model WhatsAppMessage {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  callId         String?  @map("call_id")
+  agentId        String?  @map("agent_id")
+  direction      String   @default("outbound") // outbound | inbound
+  phoneNumber    String   @map("phone_number") // E.164
+  templateName   String?  @map("template_name")
+  language       String?
+  body           String   @default("")
+  status         String   @default("queued") // queued | sent | delivered | read | failed | received
+  metaMessageId  String?  @unique @map("meta_message_id")
+  idempotencyKey String?  @unique @map("idempotency_key")
+  errorCode      String?  @map("error_code")
+  errorMessage   String?  @map("error_message")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([callId])
+  @@index([userId, phoneNumber])
+  @@map("whatsapp_messages")
+}
+
+/// Opt-in / opt-out per recipient (Meta requires opt-in before a business sends a message).
+model WhatsAppConsent {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  phoneNumber String    @map("phone_number") // E.164
+  status      String    @default("opted_in") // opted_in | opted_out
+  source      String    @default("call_verbal") // call_verbal | whatsapp_reply | dashboard
+  callId      String?   @map("call_id")
+  evidence    String?
+  optedInAt   DateTime? @map("opted_in_at")
+  optedOutAt  DateTime? @map("opted_out_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, phoneNumber])
+  @@map("whatsapp_consents")
+}
+
+/// A hand-off during a live call: to another of the customer's agents, or to a human (phone number).
+model CallTransfer {
+  id                String    @id @default(uuid())
+  userId            String    @map("user_id")
+  callId            String    @map("call_id")
+  kind              String // agent | human
+  fromAgentId       String?   @map("from_agent_id")
+  toAgentId         String?   @map("to_agent_id")
+  destinationLabel  String?   @map("destination_label")
+  destinationNumber String?   @map("destination_number") // E.164, human transfers only
+  reason            String?
+  summary           String?
+  status            String    @default("requested") // requested | dialing | connected | completed | no_answer | busy | failed
+  dialStatus        String?   @map("dial_status")
+  errorMessage      String?   @map("error_message")
+  completedAt       DateTime? @map("completed_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([callId])
+  @@index([userId, createdAt])
+  @@map("call_transfers")
 }

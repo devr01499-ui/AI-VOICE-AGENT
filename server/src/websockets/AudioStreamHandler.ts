@@ -180,6 +180,12 @@ export class AudioStreamHandler {
     if (conn) conn.isClosing = true;
   }
 
+  /** Lets the AI talk again (a live transfer that could not be started). */
+  reopenAudio(callId: string): void {
+    const conn = this.connections.get(callId);
+    if (conn) conn.isClosing = false;
+  }
+
   /**
    * Resolves once the caller has heard everything we already sent (plus a small network margin),
    * or after maxMs. Used so "goodbye" is never cut off by the hangup.
