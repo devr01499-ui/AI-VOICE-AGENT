@@ -401,7 +401,7 @@ export function DashContacts() {
                 </label>
                 <input
                   type="text"
-                  placeholder="+1 (555) 000-0000"
+                  placeholder="+91 98765 43210"
                   value={formData.phoneNumber}
                   onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"

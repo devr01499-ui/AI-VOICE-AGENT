@@ -129,7 +129,7 @@ const nodeTypes = {
   ),
   transferCall: ({ data, selected }: any) => (
     <RetellNodeCard title={data.label || 'Call Transfer'} icon={<PhoneForwarded className="w-3.5 h-3.5 text-green-500" />} colorClass="bg-green-50" selected={selected}>
-      <p className="font-mono text-[10px] text-green-600">{data.targetNumber || '+18005550199'}</p>
+      <p className="font-mono text-[10px] text-green-600">{data.targetNumber || '+918000050199'}</p>
     </RetellNodeCard>
   ),
   pressDigit: ({ data, selected }: any) => (
@@ -416,7 +416,7 @@ export default function VisualFlowCanvas({
         label,
         text: type === 'conversation' || type === 'sayMessage' ? 'Speech message payload' : undefined,
         question: type === 'askQuestion' ? 'How can I assist you?' : undefined,
-        targetNumber: type === 'transferCall' ? '+18005550199' : undefined,
+        targetNumber: type === 'transferCall' ? '+918000050199' : undefined,
         toolName: type === 'function' || type === 'callTool' ? 'webhook_action' : undefined,
       },
     };
@@ -1445,7 +1445,7 @@ export default function VisualFlowCanvas({
                                 disabled
                                 type="text"
                                 value={nodeData.targetNumber || ''}
-                                placeholder="+18005550199"
+                                placeholder="+918000050199"
                                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono cursor-not-allowed"
                               />
                             </div>

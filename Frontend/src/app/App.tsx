@@ -295,7 +295,7 @@ DISCLAIMER & CLOSING:
             ]
           }
         },
-        { id: 'transfer-tier2', type: 'transferCall', position: { x: 250, y: 800 }, data: { label: 'Priority Support Transfer', targetNumber: '+18005550199' } },
+        { id: 'transfer-tier2', type: 'transferCall', position: { x: 250, y: 800 }, data: { label: 'Priority Support Transfer', targetNumber: '+918000050199' } },
         { id: 'end-urgent', type: 'endCall', position: { x: 250, y: 920 }, data: { label: 'Transfer Hand-off', text: 'Connecting you directly to priority support. Please hold...' } },
         { id: 'general-support-msg', type: 'sayMessage', position: { x: 450, y: 800 }, data: { label: 'Support Ticket Logged', text: 'I have logged your support ticket for our engineering team. You will receive an update by email within 1 hour.' } },
         { id: 'end-support', type: 'endCall', position: { x: 450, y: 920 }, data: { label: 'Support Goodbye', text: 'Thank you for reaching Claritiy Voice Support!' } },
@@ -399,7 +399,7 @@ CLOSING:
             ]
           }
         },
-        { id: 'transfer-ae', type: 'transferCall', position: { x: 100, y: 660 }, data: { label: 'Live Transfer to AE', targetNumber: '+18005550188' } },
+        { id: 'transfer-ae', type: 'transferCall', position: { x: 100, y: 660 }, data: { label: 'Live Transfer to AE', targetNumber: '+918000050188' } },
         { id: 'closing-ae', type: 'sayMessage', position: { x: 100, y: 790 }, data: { label: 'AE Transfer Announcement', text: 'Connecting you now with our Senior Solutions Engineer. Please hold one moment...' } },
         { id: 'end-ae', type: 'endCall', position: { x: 100, y: 910 }, data: { label: 'AE Call Hand-off', text: 'Call transferred successfully.' } },
         { id: 'send-demo-sms', type: 'inCallSms', position: { x: 420, y: 660 }, data: { label: 'Send Demo Video SMS', smsMessage: 'Claritiy Voice: Watch our 3-minute interactive demo video & sandbox walkthrough here: https://claritiy.com/demo-video' } },
@@ -487,7 +487,7 @@ WORKFLOW STEPS:
             ]
           }
         },
-        { id: 'urgent-transfer', type: 'transferCall', position: { x: 100, y: 660 }, data: { label: 'Transfer Urgent Care Triage', targetNumber: '+18005550133' } },
+        { id: 'urgent-transfer', type: 'transferCall', position: { x: 100, y: 660 }, data: { label: 'Transfer Urgent Care Triage', targetNumber: '+918000050133' } },
         { id: 'end-urgent', type: 'endCall', position: { x: 100, y: 790 }, data: { label: 'Urgent Care Hand-off', text: 'Transferring your call to our emergency dental triage desk now. Please hold...' } },
         { id: 'send-intake-sms', type: 'inCallSms', position: { x: 420, y: 660 }, data: { label: 'Dispatch Intake Form SMS', smsMessage: 'Bright Smiles Dental: Your appointment request has been logged! Fill out your medical history intake form at https://brightsmiles.com/intake' } },
         { id: 'closing-confirm', type: 'sayMessage', position: { x: 420, y: 790 }, data: { label: 'Booking Confirmation Message', text: 'I have reserved your appointment request slot and sent a digital intake form link directly to your mobile phone.' } },
@@ -661,7 +661,7 @@ WORKFLOW STEPS:
         { id: 'send-tracking-sms', type: 'inCallSms', position: { x: 100, y: 540 }, data: { label: 'Dispatch Carrier Tracking SMS', smsMessage: 'Nova Trends: Order #849201 is in transit via FedEx (Tracking #9928103). Track live at https://novatrends.com/track/849201' } },
         { id: 'tracking-say', type: 'sayMessage', position: { x: 100, y: 670 }, data: { label: 'Tracking Update Announcement', text: 'Your order is currently in transit and scheduled for delivery by 5:00 PM today. The store will share the tracking details with you.' } },
         { id: 'end-tracking', type: 'endCall', position: { x: 100, y: 790 }, data: { label: 'Tracking Goodbye', text: 'Thank you for shopping with Nova Trends! Have a wonderful day.' } },
-        { id: 'transfer-returns', type: 'transferCall', position: { x: 420, y: 540 }, data: { label: 'Transfer Returns Department', targetNumber: '+18005550177' } },
+        { id: 'transfer-returns', type: 'transferCall', position: { x: 420, y: 540 }, data: { label: 'Transfer Returns Department', targetNumber: '+918000050177' } },
         { id: 'end-returns', type: 'endCall', position: { x: 420, y: 670 }, data: { label: 'Returns Hand-off Goodbye', text: 'Connecting you now to a Returns Specialist. Please hold...' } }
       ],
       edges: [
@@ -774,7 +774,7 @@ WORKFLOW STEPS:
             ]
           }
         },
-        { id: 'transfer-concierge', type: 'transferCall', position: { x: 100, y: 660 }, data: { label: 'Transfer Event Concierge', targetNumber: '+18005550144' } },
+        { id: 'transfer-concierge', type: 'transferCall', position: { x: 100, y: 660 }, data: { label: 'Transfer Event Concierge', targetNumber: '+918000050144' } },
         { id: 'end-vip', type: 'endCall', position: { x: 100, y: 790 }, data: { label: 'VIP Hand-off Goodbye', text: 'Transferring you to our VIP Event Concierge. Please hold...' } },
         { id: 'send-badge-sms', type: 'inCallSms', position: { x: 420, y: 660 }, data: { label: 'Dispatch Digital Badge SMS', smsMessage: 'Claritiy Voice Summit: Registration confirmed! Access your digital QR badge & agenda at https://claritiy.com/summit/badge' } },
         { id: 'pass-confirm-say', type: 'sayMessage', position: { x: 420, y: 790 }, data: { label: 'Registration Confirmation Message', text: 'You\'re all registered! I have texted your digital event pass and schedule directly to your phone.' } },
@@ -2951,9 +2951,9 @@ function DashCallLogs() {
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5">
                   {c.direction === 'inbound' ? (
-                    <DBadge v="info"><span className="font-bold">Inbound ↓</span></DBadge>
+                    <DBadge v="info"><span className="font-bold whitespace-nowrap">Inbound ↓</span></DBadge>
                   ) : (
-                    <DBadge v="neutral"><span className="font-bold">Outbound ↑</span></DBadge>
+                    <DBadge v="neutral"><span className="font-bold whitespace-nowrap">Outbound ↑</span></DBadge>
                   )}
                   <DBadge v={
                     c.status === "completed" ? "success" : 
@@ -2961,7 +2961,7 @@ function DashCallLogs() {
                     c.status === "failed" ? "danger" : 
                     c.status === "busy" || c.status === "no_answer" ? "warning" : "neutral"
                   }>
-                    {c.status}
+                    {codeLabel(c.status)}
                   </DBadge>
                 </div>
                 <span className="text-[11px] font-bold text-[var(--nm-text)] opacity-70">{c.date}</span>
@@ -4390,6 +4390,9 @@ function DashSettings({ profile }: { profile: ApiProfile | null }) {
         setDataRetentionDays(null);
         setRetentionSaveStatus("Data retention updated: Keep forever.");
         setTimeout(() => setRetentionSaveStatus(null), 3000);
+      }).catch(err => {
+        // Same as the confirmed path: say why it failed (e.g. only admins may change retention).
+        alert(err?.message || "Failed to update retention policy");
       });
     }
   };

@@ -333,7 +333,8 @@ export function DashLiveMonitoring() {
                         )}
                         <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold rounded-full flex items-center gap-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          {call.status}
+                          {/* "in_progress" -> "In progress" (raw codes are not for customers). */}
+                          {String(call.status || '').replace(/_/g, ' ').replace(/^./, (ch: string) => ch.toUpperCase())}
                         </span>
                       </div>
                     </div>
@@ -472,7 +473,7 @@ export function DashLiveMonitoring() {
                 </label>
                 <input
                   type="text"
-                  placeholder="+1 (555) 123-4567"
+                  placeholder="+91 98765 43210"
                   value={transferNumber}
                   onChange={(e) => setTransferNumber(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 font-mono focus:outline-none focus:ring-2 focus:ring-amber-500"
