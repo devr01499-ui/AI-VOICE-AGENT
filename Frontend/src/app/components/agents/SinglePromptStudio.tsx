@@ -1,5 +1,6 @@
 import { formatDateTime, formatTime } from '../../lib/dateFormat';
 import { DIRECTION_TEXTS, DIRECTION_HEADER, HANDBOOK_HEADER, stripGeneratedPromptBlocks } from './promptBlocks';
+import { TransferCallFields, AgentTransferFields, WhatsAppFields, transferNumberProblem, type WhatsAppVariableSetting } from './RoutingFunctionFields';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   ArrowLeft,
@@ -209,16 +210,27 @@ export interface AgentFunction {
   id: string;
   name: string;
   description: string;
-  type: 'custom_api' | 'end_call' | 'transfer_call' | 'send_sms' | 'check_calendar' | 'book_calendar' | 'press_digit' | 'agent_transfer';
+  type: 'custom_api' | 'end_call' | 'transfer_call' | 'send_sms' | 'send_whatsapp' | 'check_calendar' | 'book_calendar' | 'press_digit' | 'agent_transfer';
   url?: string;
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   headers?: string;
   parameters?: Record<string, any>;
   targetNumber?: string;
+  /** Transfer to a person: what the caller hears if nobody answers. */
+  fallbackMessage?: string;
+  /** Old SMS text (kept when an SMS step became a WhatsApp step). */
   messageTemplate?: string;
   calendarId?: string;
   digits?: string;
   targetAgentId?: string;
+  whatsappTemplate?: string;
+  whatsappLanguage?: string;
+  whatsappVariables?: WhatsAppVariableSetting[];
+}
+
+/** SMS never worked and is replaced by WhatsApp: an old SMS step becomes a WhatsApp step (text kept). */
+export function upgradeLegacyFunction(fn: AgentFunction): AgentFunction {
+  return fn && fn.type === 'send_sms' ? { ...fn, type: 'send_whatsapp', whatsappTemplate: fn.whatsappTemplate || '', whatsappVariables: fn.whatsappVariables || [] } : fn;
 }
 
 export interface PostCallExtractionField {
@@ -420,7 +432,7 @@ export default function SinglePromptStudio({
     const rawCfg = initialAgent?.agentConfig;
     if (!rawCfg) return [];
     const parsed = typeof rawCfg === 'string' ? (() => { try { return JSON.parse(rawCfg); } catch { return {}; } })() : rawCfg;
-    return Array.isArray(parsed?.functions) ? parsed.functions : [];
+    return Array.isArray(parsed?.functions) ? parsed.functions.map(upgradeLegacyFunction) : [];
   });
 
   const [isFunctionModalOpen, setIsFunctionModalOpen] = useState(false);
@@ -438,6 +450,10 @@ export default function SinglePromptStudio({
   const [fnCalendarId, setFnCalendarId] = useState('primary');
   const [fnDigits, setFnDigits] = useState('1');
   const [fnTargetAgentId, setFnTargetAgentId] = useState('');
+  const [fnFallbackMessage, setFnFallbackMessage] = useState('');
+  const [fnWaTemplate, setFnWaTemplate] = useState('');
+  const [fnWaLanguage, setFnWaLanguage] = useState('');
+  const [fnWaVariables, setFnWaVariables] = useState<WhatsAppVariableSetting[]>([]);
   const [fnFormError, setFnFormError] = useState<string | null>(null);
 
   const openAddFunctionModal = () => {
@@ -454,6 +470,10 @@ export default function SinglePromptStudio({
     setFnCalendarId('primary');
     setFnDigits('1');
     setFnTargetAgentId('');
+    setFnFallbackMessage('');
+    setFnWaTemplate('');
+    setFnWaLanguage('');
+    setFnWaVariables([]);
     setFnFormError(null);
     setIsFunctionModalOpen(true);
   };
@@ -472,6 +492,10 @@ export default function SinglePromptStudio({
     setFnCalendarId(fn.calendarId || 'primary');
     setFnDigits(fn.digits || '1');
     setFnTargetAgentId(fn.targetAgentId || '');
+    setFnFallbackMessage(fn.fallbackMessage || '');
+    setFnWaTemplate(fn.whatsappTemplate || '');
+    setFnWaLanguage(fn.whatsappLanguage || '');
+    setFnWaVariables(Array.isArray(fn.whatsappVariables) ? fn.whatsappVariables : []);
     setFnFormError(null);
     setIsFunctionModalOpen(true);
   };
@@ -488,7 +512,7 @@ export default function SinglePromptStudio({
     }
     // Same rules as the server (runtime/agentTools.ts): a function may not reuse a built-in tool
     // name, and names must be unique, otherwise it would be skipped on live calls.
-    const BUILT_IN_TOOL_NAMES = ['hang_up', 'end_call', 'transfer_call', 'send_sms', 'book_follow_up_call', 'get_available_slots', 'book_appointment', 'reschedule_appointment', 'cancel_appointment', 'check_availability', 'check_calendar_availability', 'schedule_event', 'lookup_knowledge_base', 'query_knowledge_base', 'search_knowledge_base', 'press_digit', 'agent_transfer', 'execute_inline_code'];
+    const BUILT_IN_TOOL_NAMES = ['hang_up', 'end_call', 'transfer_call', 'send_sms', 'send_whatsapp', 'book_follow_up_call', 'get_available_slots', 'book_appointment', 'reschedule_appointment', 'cancel_appointment', 'check_availability', 'check_calendar_availability', 'schedule_event', 'lookup_knowledge_base', 'query_knowledge_base', 'search_knowledge_base', 'press_digit', 'agent_transfer', 'execute_inline_code'];
     if (fnType === 'custom_api' && (BUILT_IN_TOOL_NAMES.includes(cleanedName) || cleanedName.startsWith('code_'))) {
       setFnFormError(`"${cleanedName}" is a built-in tool name. Choose a different name.`);
       return;
@@ -498,7 +522,17 @@ export default function SinglePromptStudio({
       return;
     }
     if (!fnDesc.trim()) {
-      setFnFormError('Function description for LLM is required.');
+      setFnFormError(fnType === 'transfer_call' || fnType === 'agent_transfer' || fnType === 'send_whatsapp'
+        ? 'Describe when the agent should use this (for example: "The caller asks for a person or a refund").'
+        : 'Function description for LLM is required.');
+      return;
+    }
+    if (fnType === 'transfer_call') {
+      const problem = transferNumberProblem(fnTargetNumber);
+      if (problem) { setFnFormError(problem); return; }
+    }
+    if (fnType === 'agent_transfer' && !fnTargetAgentId.trim()) {
+      setFnFormError('Choose the agent to hand the call to.');
       return;
     }
 
@@ -540,8 +574,13 @@ export default function SinglePromptStudio({
         headers: fnHeaders,
         parameters: parsedParameters,
       }),
-      ...(fnType === 'transfer_call' && { targetNumber: fnTargetNumber.trim() }),
-      ...(fnType === 'send_sms' && { messageTemplate: fnMessageTemplate.trim() }),
+      ...(fnType === 'transfer_call' && { targetNumber: fnTargetNumber.trim(), ...(fnFallbackMessage.trim() ? { fallbackMessage: fnFallbackMessage.trim().slice(0, 300) } : {}) }),
+      ...(fnType === 'send_whatsapp' && {
+        whatsappTemplate: fnWaTemplate,
+        whatsappLanguage: fnWaLanguage,
+        whatsappVariables: fnWaVariables.map((v) => ({ ...(v.description?.trim() ? { description: v.description.trim() } : {}), ...(v.fixedValue?.trim() ? { fixedValue: v.fixedValue.trim() } : {}) })),
+        ...(fnMessageTemplate.trim() ? { messageTemplate: fnMessageTemplate.trim() } : {}),
+      }),
       ...((fnType === 'check_calendar' || fnType === 'book_calendar') && { calendarId: fnCalendarId.trim() }),
       ...(fnType === 'press_digit' && { digits: fnDigits.trim() }),
       ...(fnType === 'agent_transfer' && { targetAgentId: fnTargetAgentId.trim() }),
@@ -2361,8 +2400,11 @@ export default function SinglePromptStudio({
                               {fn.name}
                             </span>
                             <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 uppercase">
-                              {fn.type.replace('_', ' ')}
+                              {fn.type === 'send_whatsapp' ? 'whatsapp' : fn.type === 'transfer_call' ? 'transfer to person' : fn.type === 'agent_transfer' ? 'transfer to agent' : fn.type.replace('_', ' ')}
                             </span>
+                            {fn.type === 'send_whatsapp' && !fn.whatsappTemplate && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300" title="Not used on calls until a template is chosen">choose a template</span>
+                            )}
                           </div>
                           <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{fn.description}</p>
                         </div>
@@ -3931,12 +3973,12 @@ export default function SinglePromptStudio({
                 >
                   <option value="custom_api">Custom API (HTTP Request)</option>
                   <option value="end_call">End Call</option>
-                  <option value="transfer_call">Transfer Call (PSTN) (Coming Soon)</option>
-                  <option value="send_sms">Send SMS (Coming Soon)</option>
+                  <option value="transfer_call">Transfer Call to a Person (phone number)</option>
+                  <option value="agent_transfer">Transfer to Another Agent</option>
+                  <option value="send_whatsapp">Send WhatsApp Message (approved template)</option>
                   <option value="check_calendar">Check Calendar Availability</option>
                   <option value="book_calendar">Book Calendar Appointment</option>
                   <option value="press_digit">Press Digit / IVR Navigation (Coming Soon)</option>
-                  <option value="agent_transfer">Transfer to Another Agent (Coming Soon)</option>
                 </select>
               </div>
 
@@ -4024,59 +4066,16 @@ export default function SinglePromptStudio({
               )}
 
               {fnType === 'transfer_call' && (
-                <div className="space-y-3">
-                  <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
-                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-bold text-amber-800 dark:text-amber-300" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                        Call Transfer is Coming Soon
-                      </p>
-                      <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                        This function type is currently disabled. PSTN call bridging via our telephony network is undergoing maintenance and cannot be executed during live calls.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="opacity-50 pointer-events-none">
-                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Target Phone Number
-                    </label>
-                    <input
-                      disabled
-                      type="text"
-                      value={fnTargetNumber}
-                      placeholder="+1234567890"
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-slate-800 dark:text-slate-200 cursor-not-allowed"
-                    />
-                  </div>
-                </div>
+                <TransferCallFields targetNumber={fnTargetNumber} setTargetNumber={setFnTargetNumber} fallbackMessage={fnFallbackMessage} setFallbackMessage={setFnFallbackMessage} />
               )}
 
-              {fnType === 'send_sms' && (
-                <div className="space-y-3">
-                  <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
-                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-bold text-amber-800 dark:text-amber-300" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                        SMS/WhatsApp Messaging is Coming Soon
-                      </p>
-                      <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                        This function type is currently disabled. In-call text messaging via SMS or WhatsApp is undergoing maintenance and cannot be executed during live calls.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="opacity-50 pointer-events-none">
-                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Message Template
-                    </label>
-                    <textarea
-                      disabled
-                      rows={3}
-                      value={fnMessageTemplate}
-                      placeholder="Hi! Here is your requested information: {details}"
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 cursor-not-allowed"
-                    />
-                  </div>
-                </div>
+              {fnType === 'send_whatsapp' && (
+                <WhatsAppFields
+                  template={fnWaTemplate} setTemplate={setFnWaTemplate}
+                  language={fnWaLanguage} setLanguage={setFnWaLanguage}
+                  variables={fnWaVariables} setVariables={setFnWaVariables}
+                  legacyText={editingFunction?.messageTemplate && !editingFunction?.whatsappTemplate ? editingFunction.messageTemplate : undefined}
+                />
               )}
 
               {(fnType === 'check_calendar' || fnType === 'book_calendar') && (
@@ -4123,31 +4122,7 @@ export default function SinglePromptStudio({
               )}
 
               {fnType === 'agent_transfer' && (
-                <div className="space-y-3">
-                  <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
-                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-bold text-amber-800 dark:text-amber-300" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                        Agent Transfer is Coming Soon
-                      </p>
-                      <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                        This function type is currently disabled. Context handoff to specialist agents is undergoing maintenance and cannot be executed during live calls.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="opacity-50 pointer-events-none">
-                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Target Agent ID
-                    </label>
-                    <input
-                      disabled
-                      type="text"
-                      value={fnTargetAgentId}
-                      placeholder="UUID of target agent"
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-slate-800 dark:text-slate-200 cursor-not-allowed"
-                    />
-                  </div>
-                </div>
+                <AgentTransferFields targetAgentId={fnTargetAgentId} setTargetAgentId={setFnTargetAgentId} currentAgentId={initialAgent?.id} />
               )}
             </div>
 

@@ -268,7 +268,9 @@ export function compileFlowToSystemPrompt(
 
       case 'transferCall':
         prompt += `## STEP ${stepNum}: ${data.label || 'Transfer Call'} [Type: Call Transfer]\n`;
-        prompt += `- ACTION: Say you are connecting the caller to ${data.label || 'the team'} and ask them to stay on the line, then call transfer_call with destination "${routeKey(node.id)}".\n\n`;
+        prompt += String(data.targetNumber || '').trim()
+          ? `- ACTION: Say you are connecting the caller to ${data.label || 'the team'} and ask them to stay on the line, then call transfer_call with destination "${routeKey(node.id)}".\n\n`
+          : `- ACTION: Take the caller's callback details and say the team will call them back. Do not promise a live transfer.\n\n`;
         break;
 
       case 'pressDigit':
@@ -298,7 +300,9 @@ export function compileFlowToSystemPrompt(
 
       case 'whatsapp':
         prompt += `## STEP ${stepNum}: ${data.label || 'Send on WhatsApp'} [Type: WhatsApp Message]\n`;
-        prompt += `- ACTION: Ask whether the caller agrees to receive this on WhatsApp on this number. Only after a clear yes, call send_whatsapp with template "${routeKey(node.id)}" and consent_confirmed true. If they say no, continue without it.\n`;
+        prompt += String(data.templateName || '').trim()
+          ? `- ACTION: Ask whether the caller agrees to receive this on WhatsApp on this number. Only after a clear yes, call send_whatsapp with template "${routeKey(node.id)}" and consent_confirmed true. If they say no, continue without it.\n`
+          : `- ACTION: Do not promise to send any message. Offer to repeat the details slowly on the call instead.\n`;
         prompt += defaultNextTarget ? `- NEXT STEP: Proceed to ${getStepRef(defaultNextTarget)}.\n\n` : `\n`;
         break;
 

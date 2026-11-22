@@ -44,6 +44,21 @@ import {
   Check,
 } from 'lucide-react';
 import { FlowGraph, FlowNodeType, compileFlowToSystemPrompt, extractFlowGlobalPrompt } from './flowCompiler';
+import { TransferCallFields, AgentTransferFields, WhatsAppFields, transferNumberProblem } from './RoutingFunctionFields';
+
+/**
+ * SMS never worked and is replaced by WhatsApp: an old SMS step opens as a WhatsApp step (its text is
+ * kept as the "when to offer" note) and an old example transfer number is left as the customer set it.
+ */
+export function upgradeLegacyNode<T extends { type?: string; data: any }>(node: T): T {
+  if (node.type !== 'inCallSms') return node;
+  const d = node.data || {};
+  return {
+    ...node,
+    type: 'whatsapp',
+    data: { ...d, label: String(d.label || 'Send on WhatsApp').replace(/\bSMS\b/g, 'WhatsApp'), instructions: d.instructions || d.smsMessage || '', templateName: d.templateName || '' },
+  };
+}
 import {
   GEMINI_VOICES,
   LANGUAGE_OPTIONS,
@@ -129,7 +144,7 @@ const nodeTypes = {
   ),
   transferCall: ({ data, selected }: any) => (
     <RetellNodeCard title={data.label || 'Call Transfer'} icon={<PhoneForwarded className="w-3.5 h-3.5 text-green-500" />} colorClass="bg-green-50" selected={selected}>
-      <p className="font-mono text-[10px] text-green-600">{data.targetNumber || '+918000050199'}</p>
+      <p className={`font-mono text-[10px] ${data.targetNumber ? 'text-green-600' : 'text-amber-600'}`}>{data.targetNumber || 'Add your team’s number'}</p>
     </RetellNodeCard>
   ),
   pressDigit: ({ data, selected }: any) => (
@@ -152,9 +167,15 @@ const nodeTypes = {
       <p className="text-[10px]">Agent: {data.subagentName || 'Escalation'}</p>
     </RetellNodeCard>
   ),
+  whatsapp: ({ data, selected }: any) => (
+    <RetellNodeCard title={data.label || 'Send on WhatsApp'} icon={<MessageCircle className="w-3.5 h-3.5 text-emerald-600" />} colorClass="bg-emerald-50" selected={selected}>
+      <p className={`line-clamp-1 font-mono text-[10px] ${data.templateName ? 'text-emerald-700' : 'text-amber-600'}`}>{data.templateName || 'Choose an approved template'}</p>
+    </RetellNodeCard>
+  ),
+  // Old SMS step (opened before it was upgraded): shown, never executed.
   inCallSms: ({ data, selected }: any) => (
-    <RetellNodeCard title={data.label || 'In-Call SMS'} icon={<MessageCircle className="w-3.5 h-3.5 text-teal-500" />} colorClass="bg-teal-50" selected={selected}>
-      <p className="line-clamp-1 italic">"{data.smsMessage || 'Confirmation SMS'}"</p>
+    <RetellNodeCard title={data.label || 'Share details'} icon={<MessageCircle className="w-3.5 h-3.5 text-teal-500" />} colorClass="bg-teal-50" selected={selected}>
+      <p className="line-clamp-1 italic">Replaced by WhatsApp</p>
     </RetellNodeCard>
   ),
   extractVariable: ({ data, selected }: any) => (
@@ -338,7 +359,7 @@ export default function VisualFlowCanvas({
 
   const initialNodesState = useMemo(() => {
     if (initialGraph && initialGraph.nodes && initialGraph.nodes.length > 0) {
-      return initialGraph.nodes.map((n) => ({
+      return initialGraph.nodes.map((n) => upgradeLegacyNode({
         id: n.id,
         type: n.type,
         position: n.position || { x: 300, y: 150 },
@@ -416,7 +437,8 @@ export default function VisualFlowCanvas({
         label,
         text: type === 'conversation' || type === 'sayMessage' ? 'Speech message payload' : undefined,
         question: type === 'askQuestion' ? 'How can I assist you?' : undefined,
-        targetNumber: type === 'transferCall' ? '+918000050199' : undefined,
+        // No example number: a placeholder that is a real-format number could ring a stranger.
+        targetNumber: type === 'transferCall' ? '' : undefined,
         toolName: type === 'function' || type === 'callTool' ? 'webhook_action' : undefined,
       },
     };
@@ -674,10 +696,19 @@ export default function VisualFlowCanvas({
   }, [compiledPrompt, nodes]);
 
   const validateFlowGraph = (): void => {
-    const comingSoonTypes = new Set(['transferCall', 'pressDigit', 'agentTransfer', 'inCallSms', 'subagent', 'code', 'mcp']);
+    const comingSoonTypes = new Set(['pressDigit', 'subagent', 'code', 'mcp']);
     for (const node of nodes) {
       if (node.type && comingSoonTypes.has(node.type)) {
         throw new Error(`Node "${node.data?.label || node.type}" uses a Coming Soon feature that is not yet supported for live call execution.`);
+      }
+      // Live transfers: an empty number is allowed (the step is skipped and the agent takes a
+      // callback); a wrong one must be fixed before publishing.
+      if (node.type === 'transferCall' && String(node.data?.targetNumber || '').trim()) {
+        const problem = transferNumberProblem(String(node.data?.targetNumber));
+        if (problem) throw new Error(`"${node.data?.label || 'Call Transfer'}": ${problem}`);
+      }
+      if (node.type === 'agentTransfer' && !String(node.data?.targetAgentId || '').trim() && !String(node.data?.subagentName || '').trim()) {
+        throw new Error(`Choose the agent that "${node.data?.label || 'Agent Transfer'}" hands the call to.`);
       }
       if (node.type === 'askQuestion' && !node.data?.question && !node.data?.prompt && !node.data?.text) {
         throw new Error(`Node "${node.data?.label || 'Ask Question'}" requires a question prompt.`);
@@ -789,11 +820,11 @@ export default function VisualFlowCanvas({
     { type: 'checkCalendar' as FlowNodeType, label: 'Check Calendar Availability', desc: 'Query open calendar slots', icon: <Calendar className="w-4 h-4 text-emerald-500" /> },
     { type: 'subagent' as FlowNodeType, label: 'Subagent', desc: 'Delegate flow to subagent', icon: <Bot className="w-4 h-4 text-indigo-500" /> , comingSoon: true },
     { type: 'function' as FlowNodeType, label: 'Function', desc: 'Call external tool/webhook', icon: <Wrench className="w-4 h-4 text-purple-500" /> },
-    { type: 'transferCall' as FlowNodeType, label: 'Call Transfer', desc: 'Transfer call to number', icon: <PhoneForwarded className="w-4 h-4 text-green-500" />, comingSoon: true },
+    { type: 'transferCall' as FlowNodeType, label: 'Call Transfer', desc: 'Connect the caller to your team', icon: <PhoneForwarded className="w-4 h-4 text-green-500" /> },
     { type: 'pressDigit' as FlowNodeType, label: 'Press Digit', desc: 'IVR DTMF key press', icon: <Hash className="w-4 h-4 text-cyan-500" />, comingSoon: true },
     { type: 'logicSplit' as FlowNodeType, label: 'Logic Split', desc: 'Conditional intent branch', icon: <GitBranch className="w-4 h-4 text-orange-500" /> },
-    { type: 'agentTransfer' as FlowNodeType, label: 'Agent Transfer', desc: 'Hand over to specialist', icon: <UserCheck className="w-4 h-4 text-emerald-500" />, comingSoon: true },
-    { type: 'inCallSms' as FlowNodeType, label: 'In-Call SMS', desc: 'Send text during call', icon: <MessageCircle className="w-4 h-4 text-teal-500" />, comingSoon: true },
+    { type: 'agentTransfer' as FlowNodeType, label: 'Agent Transfer', desc: 'Hand over to another agent', icon: <UserCheck className="w-4 h-4 text-emerald-500" /> },
+    { type: 'whatsapp' as FlowNodeType, label: 'WhatsApp Message', desc: 'Send an approved template', icon: <MessageCircle className="w-4 h-4 text-emerald-600" /> },
     { type: 'extractVariable' as FlowNodeType, label: 'Extract Variable', desc: 'Capture response slots', icon: <Binary className="w-4 h-4 text-pink-500" /> },
     { type: 'code' as FlowNodeType, label: 'Code', desc: 'Execute inline code logic', icon: <Code className="w-4 h-4 text-slate-600" /> , comingSoon: true },
     { type: 'mcp' as FlowNodeType, label: 'MCP', desc: 'Model Context Protocol', icon: <Globe className="w-4 h-4 text-sky-500" /> , comingSoon: true },
@@ -1428,27 +1459,17 @@ export default function VisualFlowCanvas({
                         {/* Call Transfer */}
                         {selectedNode.type === 'transferCall' && (
                           <div className="space-y-3">
-                            <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
-                              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                              <div>
-                                <p className="text-sm font-bold text-amber-800 dark:text-amber-300" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                                  Call Transfer is Coming Soon
-                                </p>
-                                <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                                  This node type is currently disabled while our telephony network PSTN call bridging integration is being finalized.
-                                </p>
-                              </div>
+                            <TransferCallFields
+                              targetNumber={String(nodeData.targetNumber || '')}
+                              setTargetNumber={(v) => updateSelectedNodeData({ targetNumber: v })}
+                              fallbackMessage={String(nodeData.fallbackMessage || '')}
+                              setFallbackMessage={(v) => updateSelectedNodeData({ fallbackMessage: v })}
+                            />
+                            <div>
+                              <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">When to transfer</label>
+                              <textarea rows={2} value={String(nodeData.instructions || '')} onChange={(e) => updateSelectedNodeData({ instructions: e.target.value })} placeholder="e.g. The caller asks for a person, or wants to discuss a refund." className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" />
                             </div>
-                            <div className="opacity-50 pointer-events-none space-y-2">
-                              <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Transfer Phone Number</label>
-                              <input
-                                disabled
-                                type="text"
-                                value={nodeData.targetNumber || ''}
-                                placeholder="+918000050199"
-                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono cursor-not-allowed"
-                              />
-                            </div>
+                            {!String(nodeData.targetNumber || '').trim() && <p className="text-[11px] text-amber-700 dark:text-amber-300">Without a number this step is skipped on calls and the agent takes a callback request instead.</p>}
                           </div>
                         )}
 
@@ -1523,53 +1544,33 @@ export default function VisualFlowCanvas({
                         {/* Agent Transfer */}
                         {selectedNode.type === 'agentTransfer' && (
                           <div className="space-y-3">
-                            <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
-                              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                              <div>
-                                <p className="text-sm font-bold text-amber-800 dark:text-amber-300" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                                  Agent Transfer is Coming Soon
-                                </p>
-                                <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                                  This node type is currently disabled while specialist agent context switching is being integrated.
-                                </p>
-                              </div>
-                            </div>
-                            <div className="opacity-50 pointer-events-none space-y-2">
-                              <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">Specialist Agent Name</label>
-                              <input
-                                disabled
-                                type="text"
-                                value={nodeData.agentName || ''}
-                                placeholder="e.g. Tier-2 Technical Support"
-                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono cursor-not-allowed"
-                              />
+                            <AgentTransferFields
+                              targetAgentId={String(nodeData.targetAgentId || '')}
+                              setTargetAgentId={(v) => updateSelectedNodeData({ targetAgentId: v })}
+                              currentAgentId={initialAgent?.id}
+                            />
+                            <div>
+                              <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">When to hand over</label>
+                              <textarea rows={2} value={String(nodeData.instructions || '')} onChange={(e) => updateSelectedNodeData({ instructions: e.target.value })} placeholder="e.g. The caller has a billing or payment question." className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" />
                             </div>
                           </div>
                         )}
 
-                        {/* In-Call SMS */}
-                        {selectedNode.type === 'inCallSms' && (
+                        {/* WhatsApp message */}
+                        {selectedNode.type === 'whatsapp' && (
                           <div className="space-y-3">
-                            <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
-                              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                              <div>
-                                <p className="text-sm font-bold text-amber-800 dark:text-amber-300" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                                  SMS/WhatsApp Messaging is Coming Soon
-                                </p>
-                                <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                                  This node type is currently disabled. In-call text messaging via SMS or WhatsApp is undergoing maintenance and cannot be executed on live calls.
-                                </p>
-                              </div>
-                            </div>
-                            <div className="opacity-50 pointer-events-none space-y-2">
-                              <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">SMS Message Content</label>
-                              <textarea
-                                disabled
-                                rows={3}
-                                value={nodeData.smsBody || ''}
-                                placeholder="Here is your confirmation link: https://..."
-                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none resize-none font-mono cursor-not-allowed"
-                              />
+                            <WhatsAppFields
+                              template={String(nodeData.templateName || '')}
+                              setTemplate={(v) => updateSelectedNodeData({ templateName: v })}
+                              language={String(nodeData.language || '')}
+                              setLanguage={(v) => updateSelectedNodeData({ language: v })}
+                              variables={Array.isArray(nodeData.variables) ? nodeData.variables : []}
+                              setVariables={(v) => updateSelectedNodeData({ variables: v })}
+                              legacyText={nodeData.smsMessage && !nodeData.templateName ? String(nodeData.smsMessage) : undefined}
+                            />
+                            <div>
+                              <label className="font-semibold text-slate-600 dark:text-slate-400 block mb-1">When to offer it</label>
+                              <textarea rows={2} value={String(nodeData.instructions || '')} onChange={(e) => updateSelectedNodeData({ instructions: e.target.value })} placeholder="e.g. After the appointment is booked, offer the confirmation on WhatsApp." className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" />
                             </div>
                           </div>
                         )}

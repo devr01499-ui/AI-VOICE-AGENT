@@ -10,7 +10,9 @@
 - Calls at the same time: up to 5 on Startup and Growth, up to 15 on Enterprise.
 - Voice: a single speech-to-speech AI model with real-time, interruptible replies; 30 male and female voices.
 - Free to start: creating an account, building agents and chatting with an agent (Test LLM) is free. Real phone calls, Test Lab and Prompt Coach need a plan.
-- Not available yet: live transfer of a call to a human (the agent can offer a call-back), voice cloning, native CRM connectors (integrations use signed webhooks, the REST API and custom Functions; Google Calendar is built in).
+- Live transfers (paid plans): the agent can hand a live call to a person on the customer's team (their phone number, the business number shown as caller ID; if nobody answers the caller hears a message and the business gets a call-back notification) or to another of the customer's AI agents, which receives a summary of the conversation. The whole call is billed per started minute.
+- WhatsApp: agents can send approved WhatsApp templates from the customer's own WhatsApp Business number (Meta Cloud API), only to the caller's own number and only after the caller agrees during the call; STOP replies opt the person out. SMS is not offered.
+- Not available yet: voice cloning, native CRM connectors (integrations use signed webhooks, the REST API and custom Functions; Google Calendar is built in).
 
 ## Features
 - Agents: single-prompt agents or visual conversational flows; 17 templates (clinic receptionist, COD confirmation, EMI reminder, lead qualifier and more); Prompt Coach; Test LLM, Test Audio and Test Lab.

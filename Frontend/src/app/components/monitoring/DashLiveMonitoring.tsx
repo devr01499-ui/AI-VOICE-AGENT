@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Radio, PhoneOff, PhoneForwarded, Volume2, Activity, RefreshCw, CheckCircle2, X } from 'lucide-react';
-import { apiClient, fetchLiveCalls, fetchAgents, getCallTranscript, getLiveTranscriptWsUrl, requestTranscriptTicket, type ApiCall, type ApiAgent } from '../../api';
+import { apiClient, fetchLiveCalls, fetchAgents, getCallTranscript, getLiveTranscriptWsUrl, requestTranscriptTicket, transferLiveCall, type ApiCall, type ApiAgent } from '../../api';
+import { transferNumberProblem } from '../agents/RoutingFunctionFields';
 import { formatTime } from '../../lib/dateFormat';
 
 interface LiveTranscriptMessage {
@@ -43,6 +44,7 @@ export function DashLiveMonitoring() {
   const [interveneSuccess, setInterveneSuccess] = useState<string | null>(null);
   const [transferNumber, setTransferNumber] = useState('');
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferError, setTransferError] = useState<string | null>(null);
   const [submittingAction, setSubmittingAction] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -211,21 +213,23 @@ export function DashLiveMonitoring() {
   // Intervention: Force Transfer
   const handleForceTransfer = async () => {
     if (!selectedCall) return;
-    if (!transferNumber.trim()) {
-      alert('Please enter a valid transfer phone number');
+    const problem = transferNumberProblem(transferNumber);
+    if (problem) {
+      setTransferError(problem);
       return;
     }
 
     try {
       setSubmittingAction(true);
-      await apiClient.post(`/api/v2/calls/${selectedCall.id}/transfer`, {
-        targetNumber: transferNumber.trim(),
-      });
-      setInterveneSuccess(`Call transfer to ${transferNumber} initiated.`);
+      setTransferError(null);
+      // Success only after the carrier accepted the transfer (the server waits for it).
+      await transferLiveCall(selectedCall.id, transferNumber.trim());
+      setInterveneSuccess(`Connecting the caller to ${transferNumber.trim()}. The AI has left the call.`);
       setShowTransferModal(false);
+      setTransferNumber('');
       fetchActiveCalls();
-    } catch {
-      alert('Failed to initiate transfer.');
+    } catch (err: any) {
+      setTransferError(err?.message || 'The transfer could not be started. The call stays with the AI agent.');
     } finally {
       setSubmittingAction(false);
     }
@@ -383,15 +387,20 @@ export function DashLiveMonitoring() {
 
                 {/* Supervisor Intervention Action Buttons */}
                 <div className="flex items-center gap-2 w-full sm:w-auto">
-                  {/* Live transfer is not built yet (audit #78): shown disabled, never a fake success. */}
-                  <button
-                    disabled
-                    title="Live call transfer is coming soon"
-                    data-testid="force-transfer-disabled"
-                    className="flex-1 sm:flex-none px-3 py-2 bg-slate-200 text-slate-500 rounded-xl text-xs font-bold cursor-not-allowed flex items-center justify-center gap-1.5"
-                  >
-                    <PhoneForwarded className="w-3.5 h-3.5" /> Transfer (coming soon)
-                  </button>
+                  {selectedCall.handoff?.kind === 'human' ? (
+                    <span data-testid="with-person-badge" className="flex-1 sm:flex-none px-3 py-2 bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 whitespace-nowrap">
+                      <PhoneForwarded className="w-3.5 h-3.5" /> {selectedCall.handoff.status === 'connected' ? 'With your team' : 'Ringing your team'}
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => { setTransferError(null); setShowTransferModal(true); }}
+                      disabled={submittingAction}
+                      data-testid="force-transfer"
+                      className="flex-1 sm:flex-none px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <PhoneForwarded className="w-3.5 h-3.5" /> Transfer to a person
+                    </button>
+                  )}
                   <button
                     onClick={handleTerminateCall}
                     disabled={submittingAction}
@@ -465,11 +474,12 @@ export function DashLiveMonitoring() {
 
             <div className="p-5 space-y-3 text-xs">
               <p className="text-slate-500">
-                Instantly redirect call <strong className="font-mono text-slate-800 dark:text-slate-200">{selectedCall.contactNumber || selectedCall.recipientPhoneNumber}</strong> to a human operator or PSTN target.
+                Connect <strong className="font-mono text-slate-800 dark:text-slate-200">{selectedCall.contactNumber || selectedCall.recipientPhoneNumber}</strong> to a person on your team. The AI leaves the call; your Claritiy number is shown as caller ID, and minutes are charged for the whole call.
               </p>
+              {transferError && <p role="alert" className="p-2 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 break-words">{transferError}</p>}
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Target Transfer Number / SIP Endpoint
+                  Phone number of the person
                 </label>
                 <input
                   type="text"

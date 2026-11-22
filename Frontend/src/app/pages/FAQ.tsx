@@ -60,7 +60,17 @@ const FAQS: FAQItem[] = [
   {
     category: "Calls & Languages",
     q: "Can the AI transfer a call to a person?",
-    a: "Not yet. Live transfer to a human is on our roadmap. Today the agent can offer a call-back and record the request, and you can end any call from Live Monitoring.",
+    a: "Yes, on every paid plan. Add a transfer step with your team's mobile or landline number and describe when to use it, for example when the caller asks for a person or wants a refund. The agent tells the caller it is connecting them, then the call rings your team with your Claritiy number as caller ID. If nobody answers, the caller hears a short message and you get a call-back notification. You can also transfer any live call yourself from Live Monitoring. Minutes are charged for the whole call, including the time with your team.",
+  },
+  {
+    category: "Calls & Languages",
+    q: "Can one agent hand the call to another agent?",
+    a: "Yes. Add a Transfer to Another Agent step, for example from a receptionist to a billing specialist. The call stays connected; the second agent gets a summary and the recent conversation, introduces itself and carries on, so the caller is not asked the same questions again.",
+  },
+  {
+    category: "Calls & Languages",
+    q: "Can my agent send WhatsApp messages?",
+    a: "Yes, from your own WhatsApp Business number. Connect it in Integrations (Meta Cloud API) and choose which approved template a step may send, such as a booking confirmation or a brochure link. The agent always asks the caller first and sends only after a clear yes, only to the caller's own number. A reply of STOP opts that person out. Meta bills WhatsApp messages to your business directly. Claritiy does not send SMS.",
   },
   {
     category: "Calls & Languages",

@@ -140,6 +140,14 @@ export default function Privacy() {
           <li>Device IP address and device information</li>
         </ul>
 
+        <h4 className="font-sora text-lg font-bold text-ink mt-4 mb-2">WhatsApp Messages and Live Call Transfers</h4>
+        <p>
+          A customer may connect its own WhatsApp Business account (Meta WhatsApp Cloud API). Its AI agent then sends an approved WhatsApp message template only to the person on the call, and only after that person agrees during the call. For this we process: the recipient&apos;s phone number, the template name and the values filled into it, the time and call of the agreement together with a short excerpt of what was said, delivery and read statuses reported by Meta, and replies sent to the business, including opt-out replies such as &quot;STOP&quot;. Messages are delivered by Meta Platforms under Meta&apos;s own terms and privacy policy; the customer is the business sending them. The customer&apos;s access token and app secret are stored encrypted.
+        </p>
+        <p>
+          When an AI agent hands a live call to a person, the call is connected to the phone number the customer configured, showing the customer&apos;s Claritiy number as caller ID. We record which number or agent the call was handed to, the outcome (answered, busy or no answer) and, for a hand-off to another AI agent, a short summary of the conversation so the caller does not have to repeat themselves.
+        </p>
+
         <h3 className="font-sora text-xl font-bold text-ink mt-6 mb-3">Automatically Collected Information</h3>
         <p>
           Additionally, whether you visit our Service, receive communications from our customers, we automatically collect certain kinds of personal information via cookies or other tracking technologies. The type of information that we automatically collect via tracking technologies includes:

@@ -1,4 +1,5 @@
 import { RecordingPlayer } from '../calls/RecordingPlayer';
+import { CallHandoffsPanel } from '../calls/CallHandoffsPanel';
 import React, { useState, useEffect } from 'react';
 import {
   X, AlertTriangle, CheckCircle2, ShieldCheck, RefreshCw,
@@ -241,6 +242,13 @@ export function CallResultDrawer({ callId, onClose, onReportUpdated, userRole = 
             {report.call?.hasRecording && (
               <div className="px-5 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40">
                 <RecordingPlayer callId={report.callId || callId || ''} durationLabel={formatSeconds(report.call.durationSeconds)} />
+              </div>
+            )}
+
+            {/* Live transfers and WhatsApp messages of this call (nothing shown when there are none) */}
+            {(report.callId || callId) && (
+              <div className="px-5">
+                <CallHandoffsPanel callId={report.callId || callId || ''} className="py-3" />
               </div>
             )}
 
