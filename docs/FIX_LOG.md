@@ -504,3 +504,25 @@ One entry per fix, newest at the bottom. Template:
   - Google Calendar linking.
   - Fix: plain sentences, plus a typed 404 for "not found".
   - Test: test:error-leaks is 3/3; on the old code it was 0/3.
+
+## SEO, GEO and AEO content pass + product guide (2026-11-22, branch feat/seo-content-guide)
+- **#157 (01c6ffb):** the KYC tab logged a 404 in every new customer's browser console.
+  - Root cause: `/kyc/status` answered 404 before KYC had started.
+  - Fix: it now answers 200 `{ provisioned: false }`, and the tab skips the call when there is no sub-account.
+  - Test: test:error-leaks #157. It failed before the fix and passes after.
+- **Product guide `/guide` (86532d7):**
+  - 16 sections and 22 real dashboard screenshots (WebP, about 1 MB in total), taken from the demo backend with fictional data.
+  - Quick start and FAQ, with HowTo, FAQPage, TechArticle and BreadcrumbList structured data.
+  - Linked from the navbar, footer, FAQ and How It Works; listed in the sitemap with its images.
+  - Proof: docs/proof/seo-guide-*.png.
+- **Accurate content across the public site (86532d7):**
+  - Home, Hero, FAQ (20 answers), How It Works, Voices, Solutions, Use Cases, AI Voice Agent Software, Security, Contact, the blog index and three blog posts, Footer, Navbar and the showroom.
+  - Every false or unverified claim is listed in COMPLIANCE_NOTES "Website content pass".
+  - Guard: test:marketing-claims went from 25 to 38 checks. Each new pattern matched HEAD before the change and matches nothing now.
+  - The build gate checks the guide and the minimum crawlable words per page; it caught a thin /pricing.
+  - e2e seo-guide.spec.ts: 4/4.
+- **GEO:**
+  - Organization, WebSite and SoftwareApplication (with offers) structured data on the home page.
+  - llms.txt rewritten as a factual sheet.
+  - robots.txt allows answer-engine crawlers and disallows /dashboard.
+- **Not verifiable here:** rankings, indexing and traffic. These need Search Console after deploy (PROGRESS owner step 29).

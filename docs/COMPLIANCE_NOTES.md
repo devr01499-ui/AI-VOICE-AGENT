@@ -102,3 +102,26 @@ The product is sold by an Indian business to Indian businesses calling Indian nu
   - announcing call recording before it starts. The product plays the notice when recording is on;
   - not spoofing caller ID.
 - **Keep the US sections** only as "If you call numbers outside India", or remove them if the product only allows Indian destinations (the batch campaign screen accepts Indian mobile numbers only).
+
+## Website content pass (2026-11-22): guarded by `npm run test:marketing-claims` and the build gate
+- **Removed** (no evidence, or the code proved them false):
+  - six invented customer testimonials (replaced by clearly labelled example setups);
+  - invented author bylines;
+  - a random "164–176 ms" latency badge;
+  - "99.9% human parity" and "100% accurate / zero hallucination";
+  - every unmeasured outcome figure (40% RTO, 89% no-shows, 94.2% contact, 3.4× recovery, 1,200+ clinics, ...);
+  - "MSME registered";
+  - "RBI-compliant / 100% RBI audit";
+  - warm transfer (the endpoint answers 501);
+  - 10,000+ / unlimited concurrent calls;
+  - native Shopify, Shiprocket, EHR and CRM sync;
+  - the agent sending SMS or WhatsApp links;
+  - white-label;
+  - 5-second voice cloning;
+  - Marathi as a supported language.
+- **In-app templates**: four templates told agents to send links "via SMS" or to transfer calls. An agent could have told a caller "I've sent you the link" when nothing was sent. They now offer a call-back, or say the team will send it.
+- **Owner decisions** (please answer; Claude will apply):
+  1. **MSME**: if Claritiy has an Udyam registration, send the number. The badge can return with the number shown.
+  2. **RBI calling hours**: RBI expects recovery calls between 8 am and 7 pm, while campaigns dial between 9 am and 9 pm IST. Recommendation: add a per-campaign narrower window (for example 9 am–7 pm) and default lending templates to it.
+  3. **AI disclosure**: nothing makes an agent say it is an AI. Recommendation: add a default opening line ("I'm an AI assistant from …") that a workspace can only change, not remove, and have a lawyer confirm the wording.
+  4. **Testimonials**: add real ones only with written permission from the customer (name, company, quote).
