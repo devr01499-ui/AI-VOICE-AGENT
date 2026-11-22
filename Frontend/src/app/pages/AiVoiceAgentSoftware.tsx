@@ -74,7 +74,7 @@ function AudioDemoPlayer() {
             AI
           </div>
           <div className="text-xs text-[#121212] leading-relaxed font-sans">
-            "Bilkul! Maine delivery dispatch team ko Thursday note kar diya hai. Order dispatch hote hi tracking SMS mil jayega. Shubh din!"
+            "Bilkul! Maine delivery dispatch team ko Thursday note kar diya hai. Order Thursday ko deliver ho jayega. Shubh din!"
           </div>
         </div>
       </div>
@@ -236,7 +236,7 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
             <div className="flex flex-wrap items-center gap-6 pt-4 text-xs font-mono text-[#262523]">
               <div className="flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-[#121212]" />
-                <span>Zero Audio Retained (DPDP Aligned)</span>
+                <span>Recording Off by Default</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-[#121212]" />
@@ -281,7 +281,7 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
             Why Modern Teams Choose Claritiy Voice Agent Software
           </h2>
           <p className="text-[#262523] text-sm sm:text-base max-w-2xl mx-auto font-sans">
-            Traditional voice bots fail because chaining separate APIs across the open web creates awkward 1,200ms pauses. Claritiy Voice integrates every telephony layer natively.
+            Many voice bots chain separate speech-to-text, AI and text-to-speech services, and every hand-off adds a pause the caller can hear. Claritiy Voice streams the call to one speech-to-speech model instead.
           </p>
         </div>
 
@@ -352,20 +352,20 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
                 </div>
                 <h3 className="text-lg font-medium text-[#121212] font-sans">E-Commerce COD Order Confirmation</h3>
                 <p className="text-xs sm:text-sm text-[#262523] leading-relaxed font-sans">
-                  Automatically phone customers immediately after cash-on-delivery checkout. Verifies delivery addresses, catches incorrect contact numbers, and slashes Return-to-Origin (RTO) courier costs by up to 40%.
+                  Call every cash-on-delivery buyer before the parcel ships. The agent confirms the order, the delivery address and a good time to deliver, and flags numbers that do not answer, so fewer parcels come back as RTO.
                 </p>
                 <ul className="space-y-2 text-xs text-[#121212] font-sans">
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-[#121212]" />
-                    <span>Calls placed within 60 seconds of checkout</span>
+                    <span>Triggered from your store through the API, or as a daily campaign</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-[#121212]" />
-                    <span>Direct Shopify & WooCommerce tag updates</span>
+                    <span>Results sent to your store or OMS by signed webhook</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-[#121212]" />
-                    <span>Converts COD to UPI pre-paid with SMS link</span>
+                    <span>Hindi, English or Hinglish, as the buyer prefers</span>
                   </li>
                 </ul>
               </div>
@@ -387,16 +387,16 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
                 </div>
                 <h3 className="text-lg font-medium text-[#121212] font-sans">Clinic & Dental Appointment Intake</h3>
                 <p className="text-xs sm:text-sm text-[#262523] leading-relaxed font-sans">
-                  Never miss an incoming patient call after hours. The agent books appointments, checks physician availability, answers pricing queries, and sends reminder calls that reduce no-show rates by 89%.
+                  Never miss an incoming patient call after hours. The agent books appointments, checks physician availability, answers pricing queries, and calls patients the day before to remind them, so fewer appointments are missed.
                 </p>
                 <ul className="space-y-2 text-xs text-[#121212] font-sans">
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-[#121212]" />
-                    <span>24/7 zero-wait inbound patient reception</span>
+                    <span>Every patient call answered, day and night</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-[#121212]" />
-                    <span>Direct Google Calendar & EHR synchronization</span>
+                    <span>Appointments booked on Google Calendar</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-[#121212]" />
@@ -422,12 +422,12 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
                 </div>
                 <h3 className="text-lg font-medium text-[#121212] font-sans">BFSI & EMI Pre-Due Debt Recovery</h3>
                 <p className="text-xs sm:text-sm text-[#262523] leading-relaxed font-sans">
-                  Deliver gentle, polite, and RBI-compliant automated payment reminders before due dates. Recovers overdue loan installments and insurance premiums without annoying customers or risking legal violations.
+                  Polite automated reminders before EMI and premium due dates. The agent confirms identity before mentioning any amount, never uses pressure, and records when the customer will pay.
                 </p>
                 <ul className="space-y-2 text-xs text-[#121212] font-sans">
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-[#121212]" />
-                    <span>100% compliant with RBI Fair Practices Code</span>
+                    <span>Identity check before any amount is mentioned</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-[#121212]" />
@@ -435,7 +435,7 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-[#121212]" />
-                    <span>Automated payment link delivery via WhatsApp</span>
+                    <span>Calls only between 9 am and 9 pm IST</span>
                   </li>
                 </ul>
               </div>
@@ -474,7 +474,7 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
             <div className="space-y-2 pt-1 font-mono text-xs text-[#121212]">
               <div className="flex items-center gap-2.5">
                 <CheckCircle2 className="w-4 h-4 text-[#121212]" />
-                <span>Deterministic REST API & WebSocket audio streams</span>
+                <span>REST API to place calls and read transcripts</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <CheckCircle2 className="w-4 h-4 text-[#121212]" />
@@ -482,7 +482,7 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
               </div>
               <div className="flex items-center gap-2.5">
                 <CheckCircle2 className="w-4 h-4 text-[#121212]" />
-                <span>Zero infrastructure maintenance or SIP trunk setup</span>
+                <span>No servers or phone lines to manage: your +91 number is included</span>
               </div>
             </div>
           </div>
@@ -531,7 +531,7 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
               How natural and human-like does Claritiy Voice agent software sound?
             </h3>
             <p className="text-sm text-[#262523] leading-relaxed font-sans">
-              Claritiy Voice utilizes low-latency neural speech synthesis paired with regional acoustic models. Unlike synthetic robot voices, our agents breathe, pause naturally, match regional intonation, and immediately pause when interrupted (barge-in latency under 20ms). Over 92% of recipients assume they are conversing with an articulate human representative.
+              Claritiy Voice uses a single speech-to-speech model with 30 voices, so replies sound natural rather than robotic, follow the rhythm of Indian English and Hindi, and stop as soon as the caller interrupts. We still recommend that every agent tells callers it is an AI assistant.
             </p>
           </div>
 

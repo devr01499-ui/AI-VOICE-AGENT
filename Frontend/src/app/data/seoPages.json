@@ -1,49 +1,54 @@
 {
-  "_note": "One source for each public page's <title> and meta description, used by App.tsx (runtime) and scripts/prerender-seo.js (crawlers), so both always match (audit #134). h1 = the page's real H1. Keep every statement true of the product (docs/COMPLIANCE_NOTES.md).",
+  "_note": "One source for each public page's <title> and meta description, used by App.tsx (runtime) and scripts/prerender-seo.js (crawlers), so both always match (audit #134). h1 = the page's real H1. Keep every statement true of the product (docs/COMPLIANCE_NOTES.md). Limits enforced by the build gate: title <= 65, description <= 160 characters.",
   "pages": {
     "": {
-      "title": "Claritiy Voice — AI Voice Agents for Sales, Support & IVR",
-      "description": "AI voice agents that answer and place calls in English, Hindi and 5 more Indian languages: order confirmation, bookings, reminders and support.",
-      "h1": "Human-Like AI Voice Agents for Outbound Sales, Support & IVR"
+      "title": "AI Voice Agents for Indian Businesses | Claritiy Voice",
+      "description": "AI voice agents that answer and make your business calls in Hindi, English and 5 more Indian languages. Book appointments, confirm COD orders, send reminders.",
+      "h1": "Human-Like AI Voice Agents for Indian Businesses"
     },
     "use-cases": {
-      "title": "Production Use Case Blueprints — Claritiy Voice",
-      "description": "Call flows and agent templates for healthcare, finance, e-commerce, logistics and more.",
+      "title": "AI Calling Use Cases by Industry — Claritiy Voice",
+      "description": "Call flows and agent templates for clinics, D2C brands, lenders, real estate, insurance, logistics, BPO and SaaS teams, step by step.",
       "h1": "Production Use Case Blueprints"
     },
     "pricing": {
-      "title": "Claritiy Voice Pricing — Plans from ₹3,799",
-      "description": "One-time minute plans from ₹3,799 for 750 minutes, each with a local +91 number after KYC. No auto-renewal and no separate fees for speech or AI.",
+      "title": "Claritiy Voice Pricing — AI Calling Plans from ₹3,799",
+      "description": "One-time AI calling plans from ₹3,799 for 750 minutes, each with a local +91 number after KYC. No subscription, no overage, no separate AI or speech fees.",
       "h1": "Simple Plans With Everything Included"
     },
     "how-it-works": {
       "title": "How Claritiy Voice Works — Real-Time AI Phone Calls",
-      "description": "How a call flows: the phone network streams audio to a speech-to-speech AI model, the agent follows your instructions, and the results reach your systems.",
+      "description": "How an AI phone call works: the call audio streams to a speech-to-speech AI model, the agent follows your instructions, and the results reach your systems.",
       "h1": "How Claritiy Voice Keeps Conversations Real-Time"
     },
     "solutions": {
-      "title": "Voice AI Solutions by Industry — Claritiy Voice",
-      "description": "Ready-made agent workflows for order confirmation, lead qualification, clinic appointments and payment reminders.",
+      "title": "AI Voice Agent Solutions by Industry — Claritiy Voice",
+      "description": "Ready-made AI calling workflows for COD order confirmation, lead qualification, clinic appointments and EMI reminders in Hindi and English.",
       "h1": "Voice AI Engineered For Your Exact Business Operations"
     },
     "voices": {
-      "title": "AI Voices in 7 Languages — Claritiy Voice",
-      "description": "Listen to the agent voices in English, Hindi and other Indian languages before you choose one.",
-      "h1": "26+ HD Voice Personas & 7 Languages"
+      "title": "30 AI Voices in 7 Indian Languages — Claritiy Voice",
+      "description": "Hear the AI agent voices before you choose: male and female voices that speak English, Hindi, Bengali, Kannada, Malayalam, Gujarati and Tamil.",
+      "h1": "30 AI Voices & 7 Indian Languages"
     },
     "docs": {
-      "title": "Developer Documentation & API Reference — Claritiy Voice",
-      "description": "REST API and webhook reference with code samples for placing calls, reading transcripts and configuring AI voice agents.",
+      "title": "Developer Docs: REST API & Webhooks — Claritiy Voice",
+      "description": "REST API and webhook reference with code samples for placing AI calls, reading transcripts and receiving signed post-call results.",
       "h1": "Connect Claritiy Voice To Any Platform"
     },
     "faq": {
-      "title": "Frequently Asked Questions — Claritiy Voice",
-      "description": "Answers about call quality, languages, pricing, compliance and setting up AI voice agents.",
+      "title": "AI Voice Agent FAQ: Pricing, KYC, Languages — Claritiy Voice",
+      "description": "Straight answers on pricing and minutes, languages, KYC and +91 numbers, call recording, TRAI calling hours, integrations and getting started.",
       "h1": "Frequently Asked Questions"
     },
+    "guide": {
+      "title": "How to Use Claritiy Voice — Features & Dashboard Guide",
+      "description": "Step-by-step guide with screenshots: build an AI voice agent, add knowledge, get a +91 number after KYC, run batch calls and read call reports.",
+      "h1": "Claritiy Voice Guide: Features and How to Use the Dashboard"
+    },
     "contact": {
-      "title": "Contact Claritiy Voice",
-      "description": "Talk to the Claritiy Voice team about AI voice agents for your business.",
+      "title": "Contact Claritiy Voice — WhatsApp & Email Support",
+      "description": "Talk to the Claritiy Voice team about AI voice agents for your business on WhatsApp or email. We reply Monday to Saturday, 9 am to 8 pm IST.",
       "h1": "Speak With an AI Voice Solutions Architect"
     },
     "privacy": {
@@ -62,24 +67,24 @@
       "h1": "Security Standards & Data Governance"
     },
     "blog": {
-      "title": "Blog — Claritiy Voice",
-      "description": "Practical guides on using AI voice calls for order confirmation, clinic scheduling and payment reminders.",
+      "title": "Blog: AI Calling for Indian Businesses — Claritiy Voice",
+      "description": "Practical guides on using AI voice calls for COD order confirmation, clinic appointment booking and EMI payment reminders in India.",
       "h1": "Claritiy Voice Blog"
     },
     "blog/how-to-reduce-cod-rto": {
       "title": "How to Reduce COD RTO for D2C Brands in India — Claritiy Voice",
-      "description": "A practical guide to cutting cash-on-delivery returns and reverse-logistics costs with automated AI confirmation calls.",
-      "h1": "How Indian D2C Brands Cut COD RTO Rates by 40% Using Automated AI Voice Calls"
+      "description": "A practical guide to cutting cash-on-delivery returns with an automated AI confirmation call before dispatch: what to ask, when to call, what to do next.",
+      "h1": "How Indian D2C Brands Can Cut COD RTO With Automated Confirmation Calls"
     },
     "blog/healthcare-ai-calling": {
       "title": "AI Voice Agents for Clinic Appointments — Claritiy Voice",
-      "description": "How clinics use AI voice agents to remind patients, book appointments and handle intake calls.",
-      "h1": "Zero-Wait Patient Outreach: Optimizing Clinic Intake & Appointment Schedules"
+      "description": "How clinics use AI voice agents to answer every call, book appointments on the clinic calendar and remind patients, in Hindi and English.",
+      "h1": "How Clinics Use AI Voice Agents for Appointments and Reminders"
     },
     "blog/fintech-collections-ai": {
       "title": "AI Voice Agents for EMI Reminders & Collections — Claritiy Voice",
-      "description": "How lenders automate EMI reminders and early collections calls with AI voice agents.",
-      "h1": "Negotiating EMIs Empathetically: AI Voice Agents in Financial Payment Recovery"
+      "description": "How lenders automate polite EMI due-date reminders with AI voice agents: identity checks first, permitted calling hours, a record of every call.",
+      "h1": "Polite EMI Reminders With AI Voice Agents: A Practical Guide for Lenders"
     },
     "voice-ai-index": {
       "title": "Voice AI Index — Guides to AI Voice Agents | Claritiy Voice",
@@ -88,7 +93,7 @@
     },
     "ai-voice-agent-software": {
       "title": "AI Voice Agent Software for Phone Calls | Claritiy Voice",
-      "description": "AI voice agent software with natural, real-time phone conversations in English, Hindi and other Indian languages. Plans from ₹3,799 for 750 minutes.",
+      "description": "AI voice agent software for natural, real-time phone calls in English, Hindi and other Indian languages. Plans from ₹3,799 for 750 minutes.",
       "h1": "Enterprise AI Voice Agent Software Built for Real Conversations."
     }
   }

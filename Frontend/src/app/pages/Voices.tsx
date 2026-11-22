@@ -13,35 +13,35 @@ interface VoicesProps {
 export default function Voices({ setPage }: VoicesProps) {
   const acousticSpecs = [
     { label: "AUDIO FORMAT & CODEC", value: "audio/x-l16 (16kHz 16-bit PCM)", tech: "Uncompressed PCM streamed to the carrier over a secure WebSocket." },
-    { label: "REGIONAL BCP-47 MATRICES", value: "7 Languages & Accents", tech: "Native phoneme alignment across hi-IN, bn-IN, gu-IN, kn-IN, ta-IN, mr-IN, en-US/IN." },
-    { label: "VOICE CLONING SPEED", value: "5 Seconds (Zero-Shot Diffusion)", tech: "Encoder vector embedding mapping acoustic timbre & prosody from 5s sample." },
-    { label: "BARGE-IN DSP DURATION", value: "20ms Speech Interception Window", tech: "Full-duplex VAD window with adaptive energy thresholding at -42dB." }
+    { label: "LANGUAGES", value: "7 Indian Languages + Auto-Detect", tech: "English, Hindi, Bengali, Kannada, Malayalam, Gujarati and Tamil; Hinglish handled naturally." },
+    { label: "VOICES", value: "30 Voices", tech: "Male and female voices with different tones, chosen per agent in the agent editor." },
+    { label: "INTERRUPTIONS", value: "Caller Can Cut In", tech: "The agent stops talking as soon as the caller speaks, then answers the new question." }
   ];
 
   const tonePersonas = [
     {
-      role: "Empathetic Healthcare & Dental",
+      role: "Healthcare & Dental Reception",
       tone: "Calm, Gentle, Reassuring",
-      desc: "Designed for clinic receptionists and pre-op reminders. Speaks slowly, provides clear triage instructions, and comforts anxious patients.",
-      badge: "Medical Grade"
+      desc: "For clinic receptionists and appointment reminders. Speaks at an easy pace, explains timings clearly and offers a call-back from the doctor instead of giving medical advice.",
+      badge: "Clinics"
     },
     {
-      role: "Executive B2B & Real Estate",
+      role: "B2B & Real Estate Enquiries",
       tone: "Crisp, Articulate, Confident",
-      desc: "Tailored for high-ticket property qualification and enterprise SDR calls. Commands attention without aggressive sales pressure.",
-      badge: "Commercial SDR"
+      desc: "For calling back property and business enquiries. Asks the qualifying questions you set, without pushy sales talk.",
+      badge: "Lead Qualification"
     },
     {
-      role: "Ethical BFSI Payment Outreach",
+      role: "EMI & Payment Reminders",
       tone: "Respectful, Firm, Polite",
-      desc: "Engineered strictly under RBI Fair Practices Code. Clarifies EMI dates and dispatches UPI payment links without shame or guilt tactics.",
-      badge: "RBI Compliant"
+      desc: "Confirms it is speaking to the borrower before mentioning any amount, states the due date clearly and never uses shame or pressure.",
+      badge: "Lenders"
     },
     {
-      role: "Rapid E-Commerce COD Verification",
+      role: "E-Commerce COD Confirmation",
       tone: "Warm, Conversational, Friendly",
-      desc: "Speaks local colloquial Hindi/Hinglish to verify courier landmarks within 60 seconds of checkout and encourage prepaid upgrades.",
-      badge: "RTO Defense"
+      desc: "Speaks everyday Hindi or Hinglish to confirm the order, the delivery address and a good time to deliver before the parcel ships.",
+      badge: "D2C Brands"
     }
   ];
 
@@ -52,7 +52,6 @@ export default function Voices({ setPage }: VoicesProps) {
     { code: "kn-IN", name: "Kannada (ಕನ್ನಡ)", region: "Karnataka & Bengaluru", sample: "ನಮಸ್ಕಾರ, ನಿಮ್ಮ ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್ ಬಗ್ಗೆ..." },
     { code: "ta-IN", name: "Tamil (தமிழ்)", region: "Tamil Nadu & Chennai", sample: "வணக்கம், உங்கள் ஆர்டர் விவரங்களை..." },
     { code: "gu-IN", name: "Gujarati (ગુજરાતી)", region: "Gujarat & Western Trade", sample: "નમસ્તે, તમારા ઓર્ડરની ચકાસણી માટે..." },
-    { code: "mr-IN", name: "Marathi (मराठी)", region: "Maharashtra & Mumbai", sample: "नमस्कार, तुमच्या डिलिव्हरीच्या संदर्भात..." },
     { code: "ml-IN", name: "Malayalam (മലയാളം)", region: "Kerala", sample: "നമസ്കാരം, നിങ്ങളുടെ ഓർഡർ സംബന്ധിച്ച്..." }
   ];
 
@@ -64,24 +63,24 @@ export default function Voices({ setPage }: VoicesProps) {
         <div className="hatched-strip h-10 w-full mb-8" />
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-[2px] bg-[#DFDCD4] border border-[#CBC8BE] text-[#121212] text-xs font-mono uppercase tracking-wider">
           <span>|</span>
-          <span>HD Acoustic Voice Gallery & Dialects</span>
+          <span>Voice Gallery & Languages</span>
         </div>
 
-        <motion.h1 
+        <motion.h1
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-4xl md:text-5xl lg:text-6xl font-normal md:font-medium text-[#121212] tracking-tight leading-[1.08] font-sans"
         >
-          26+ HD Voice Personas & 7 Languages
+          30 AI Voices & 7 Indian Languages
         </motion.h1>
 
-        <motion.p 
+        <motion.p
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="text-[#262523] text-base md:text-lg max-w-3xl mx-auto font-sans leading-relaxed"
         >
-          Hyper-realistic neural voice synthesis with natural human breath pauses, pitch modulation, and dialect authenticity across global and regional Indian languages.
+          Listen before you choose. Every agent can use any of 30 male and female voices, and speak English, Hindi, Bengali, Kannada, Malayalam, Gujarati or Tamil, or switch to the caller's language on its own.
         </motion.p>
       </section>
 
@@ -100,7 +99,7 @@ export default function Voices({ setPage }: VoicesProps) {
             Emotionally Tuned For Each Business Scenario
           </h2>
           <p className="text-[#262523] text-sm font-sans">
-            AI voices shouldn't sound like monotone robots. Claritiy Voice modulates pitch, speed, and warmth to match the gravity of the call.
+            A reminder call and a sales call should not sound the same. Pick a voice and describe the tone in the agent's instructions to match the call.
           </p>
         </div>
 
@@ -137,10 +136,10 @@ export default function Voices({ setPage }: VoicesProps) {
             | REGIONAL PHONEMIC AUTHENTICITY
           </span>
           <h2 className="text-3xl md:text-4xl font-normal md:font-medium text-[#121212] font-sans tracking-tight">
-            Native Accents Without Machine Translation Lag
+            Spoken Directly, Not Translated
           </h2>
           <p className="text-[#262523] text-sm font-sans">
-            Speech models are trained natively on regional speech matrices, understanding local colloquialisms and pincodes effortlessly.
+            The speech model hears and speaks each language itself, so there is no translation step in the middle of the call. Choose one language per agent, or let it follow the caller.
           </p>
         </div>
 

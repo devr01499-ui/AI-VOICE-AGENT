@@ -1,0 +1,322 @@
+{
+  "_note": "Single source for the /guide page (pages/Guide.tsx) and its pre-rendered HTML (scripts/prerender-seo.js), so people and search engines read the same words. Every statement must be true of the dashboard today; screenshots come from scripts/guide-screenshots.cjs (fictional demo data). Plan figures live in lib/plans.ts and are inserted where {plans} appears.",
+  "updated": "2026-11-21",
+  "title": "Claritiy Voice Guide: Features and How to Use the Dashboard",
+  "intro": [
+    "This guide walks you through every screen of the Claritiy Voice dashboard in the order most teams use it: build an AI voice agent, teach it about your business, connect a phone number, and then follow the calls as they come in.",
+    "Every screenshot below is taken from the real dashboard. The sample data belongs to a made-up dental clinic in Pune and a made-up D2C brand, so you can see what a working account looks like before you build your own."
+  ],
+  "quickStart": {
+    "title": "Your first live AI call in seven steps",
+    "lead": "Most people get from sign-up to a working test call in under an hour. Here is the short version; each step links to the detailed section below.",
+    "steps": [
+      { "name": "Create your free account", "text": "Sign up with your email or with Google. We ask for your name, work email and an Indian mobile number, and we send a link to confirm your email.", "anchor": "agents" },
+      { "name": "Create an agent", "text": "Open Agents and click Create an Agent. Start from one of 17 ready templates (clinic receptionist, COD confirmation, EMI reminder and more) or from a blank page.", "anchor": "agents" },
+      { "name": "Write and test the prompt", "text": "Describe how the agent should behave in plain words. Chat with it in Test LLM straight away; once you have a plan, Prompt Coach can tighten the prompt and Test Lab can run practice callers against it.", "anchor": "agent-editor" },
+      { "name": "Give it your business knowledge", "text": "Upload your FAQ, price list or policies in Knowledge Base and link them to the agent, so it answers from your documents instead of guessing.", "anchor": "knowledge-base" },
+      { "name": "Choose a plan, complete KYC and get your number", "text": "Buy a plan in Billing ({lowestPlan}). Complete KYC in Settings, then pick your local +91 number in Phone Numbers. One number is included with every plan.", "anchor": "phone-numbers" },
+      { "name": "Connect the number to your agent", "text": "In Calling Config, choose which agent answers inbound calls and which one places outbound calls, then press Test Call.", "anchor": "calling-config" },
+      { "name": "Watch the results", "text": "Every call lands in Call History with its transcript. Call Reports labels the outcome, and Analytics shows the trend.", "anchor": "call-history" }
+    ]
+  },
+  "groups": [
+    { "id": "build", "title": "Build your agent", "sections": ["agents", "agent-editor", "knowledge-base"] },
+    { "id": "deploy", "title": "Connect and start calling", "sections": ["phone-numbers", "calling-config", "batch-calls"] },
+    { "id": "data", "title": "Calls and contacts", "sections": ["call-history", "contacts"] },
+    { "id": "monitor", "title": "Monitor and improve", "sections": ["analytics", "live-monitoring", "quality-assurance", "call-reports", "alerting"] },
+    { "id": "system", "title": "Account and settings", "sections": ["integrations", "billing", "settings"] }
+  ],
+  "sections": {
+    "agents": {
+      "title": "Agents: create and manage your AI voice agents",
+      "where": "Sidebar → Workspace → Agents",
+      "lead": "An agent is one AI caller with its own instructions, voice, language and phone behaviour. Most businesses start with one inbound agent (a receptionist) and one outbound agent (confirmations or reminders).",
+      "steps": [
+        "Click Create an Agent.",
+        "Pick the type. Single prompt is the quickest: you describe the job in plain words. Conversational flow lets you draw the call step by step, which suits calls that must follow a fixed order, such as identity checks before sharing a balance.",
+        "Choose a template, Build from scratch, or Generate from prompt (describe your scenario and the AI drafts the agent; this needs a plan or your own AI key).",
+        "Click Create agent. The agent opens in the editor, ready to adjust."
+      ],
+      "tips": [
+        "The Call button next to each agent places a real test call to a number you enter. It uses your plan minutes.",
+        "Export saves an agent as a file you can Import into another workspace, which is handy for agencies that build agents for several clients.",
+        "Phone shows the number connected to the agent, and Last edited shows when someone last changed it."
+      ],
+      "images": [
+        { "src": "/guide/agents.webp", "alt": "Agents list in the Claritiy Voice dashboard showing a dental receptionist agent, a COD confirmation agent and an EMI reminder agent", "caption": "The Agents list: every agent with its type, voice, connected number and quick actions." },
+        { "src": "/guide/create-agent.webp", "alt": "Create agent dialog with Single prompt and Conversational flow types and 17 templates", "caption": "Create agent: pick a type, then start from a template, a blank page or a short description." }
+      ]
+    },
+    "agent-editor": {
+      "title": "Agent editor: instructions, voice, settings and testing",
+      "where": "Agents → Edit Studio",
+      "lead": "The editor is where an agent becomes yours. The left side holds the instructions, the middle column holds every setting, and the right side lets you test without placing a real call.",
+      "steps": [
+        "Pick a voice (30 voices, male and female) and a language: one of 7 Indian languages, or automatic detection so the agent replies in the caller's language, including Hinglish.",
+        "Choose Inbound Call or Outbound Call, and decide who speaks first under Welcome message and call turn mode.",
+        "Write the instructions in the large text box: who the agent is, what it must achieve, what it must never say, and when to end the call. Agent Handbook adds ready-made rules for common situations.",
+        "Open the settings on the right as you need them: Functions (call your own APIs during a call), Knowledge Base, Scheduling and Calendar, Intelligence and Response Style, Speech Settings, Realtime Transcription, Call Settings (including recording with a spoken notice), Post-Call Data Extraction, Security and Fallback, Webhook Settings and MCPs.",
+        "Test it. Test LLM is a text chat with the agent and works on every account. Test Audio lets you talk to it from your browser. Test Lab plays several practice callers against the agent and shows where it went wrong.",
+        "Click Save to keep your changes, or Publish to make the agent live for calls."
+      ],
+      "tips": [
+        "Prompt Coach rewrites your instructions into a clearer structure (role, goal, rules, call flow) and shows exactly what it changed. You decide whether to keep it.",
+        "Keep instructions short and specific. \"Never quote a price that is not in the knowledge base\" works better than \"be accurate\".",
+        "Webhook Settings sends each finished call (outcome, extracted fields, transcript) to your own system. Every webhook is signed with an X-Claritiy-Signature header so you can check it came from us."
+      ],
+      "images": [
+        { "src": "/guide/agent-editor.webp", "alt": "Agent editor with voice, language and call direction controls, the instruction box, settings panels and Test Audio, Test LLM and Test Lab tabs", "caption": "The agent editor: instructions on the left, settings in the middle, testing on the right." }
+      ]
+    },
+    "knowledge-base": {
+      "title": "Knowledge Base: teach the agent your business",
+      "where": "Sidebar → Workspace → Knowledge Base",
+      "lead": "The knowledge base holds the facts your agent may quote: timings, fees, policies, product details. During a call the agent looks up the relevant passage instead of guessing.",
+      "steps": [
+        "Click Add document and upload a .txt, .pdf, .csv or .md file, or add a web page by its URL.",
+        "Wait until the status shows Ready. Large files take a little longer to index.",
+        "Click Link Agent to choose which agents may use the document.",
+        "In the Retrieval Inspector, pick a document or an agent, type a question a caller might ask, and click Test. You will see the passages the agent would use and how closely each one matches."
+      ],
+      "tips": [
+        "The cards at the top show how many documents and how much storage your plan allows ({kbDocs}).",
+        "If a correct answer does not come up in the Retrieval Inspector, rewrite that part of the document in plain sentences, the way a caller would ask it.",
+        "Keep one topic per document (fees, timings, returns policy). Small, focused documents give sharper answers than one long manual."
+      ],
+      "images": [
+        { "src": "/guide/knowledge-base.webp", "alt": "Knowledge Base page with document, storage and file-size limits, a ready document and the RAG v2 Retrieval Inspector", "caption": "Knowledge Base: your documents, your plan limits and the Retrieval Inspector for testing answers." }
+      ]
+    },
+    "phone-numbers": {
+      "title": "Phone Numbers and KYC: get your +91 business number",
+      "where": "Sidebar → Deploy → Phone Numbers, and Settings → KYC & Compliance",
+      "lead": "Every plan includes one local Indian (+91) number. Indian telecom rules require identity verification before a business number can make calls, so KYC comes first.",
+      "steps": [
+        "Buy a plan in Billing.",
+        "Open Settings → KYC & Compliance. Individuals and sole proprietors verify their PAN and complete Aadhaar verification through DigiLocker; companies verify a company PAN and upload their GST certificate.",
+        "When the documents show as verified, open Phone Numbers and click Buy number to choose your number.",
+        "Assign an agent to the number here or in Calling Config."
+      ],
+      "tips": [
+        "Outbound calls stay blocked until KYC is verified. The KYC page tells you exactly which document is still pending.",
+        "A plan lasts {validity} days, or until its minutes run out. Your number is kept for {grace} days after the plan ends, so renew within that time to keep it."
+      ],
+      "images": [
+        { "src": "/guide/phone-numbers.webp", "alt": "Phone Numbers page showing an active +91 number in Pune assigned to the dental receptionist agent", "caption": "Phone Numbers: your number, its region, the agent that uses it, and a quick Call button." },
+        { "src": "/guide/settings-kyc.webp", "alt": "KYC and Regulatory Compliance page with PAN verification, GST certificate upload and Aadhaar verification through DigiLocker", "caption": "KYC & Compliance: verify PAN, Aadhaar (DigiLocker) or GST before your number can call out." }
+      ]
+    },
+    "calling-config": {
+      "title": "Calling Config: decide who answers and who calls",
+      "where": "Sidebar → Deploy → Calling Config",
+      "lead": "Calling Config connects your number to your agents. One agent can answer incoming calls while another handles your outbound calls from the same number.",
+      "steps": [
+        "Under Outbound Settings, choose the Default Outbound Agent. It is pre-selected whenever you place single or batch calls from this number.",
+        "Under Inbound Settings, switch inbound calling on and choose the Answering AI Agent.",
+        "Press Test Call to hear the setup working."
+      ],
+      "tips": [
+        "Switch Inbound off if you only want to use the number for outbound campaigns. Callers then hear a short message that the number is not taking calls."
+      ],
+      "images": [
+        { "src": "/guide/calling-config.webp", "alt": "Calling Configuration page with outbound and inbound agent selectors for a verified +91 number", "caption": "Calling Config: one place for your number's inbound and outbound agents." }
+      ]
+    },
+    "batch-calls": {
+      "title": "Batch Call: run outbound campaigns",
+      "where": "Sidebar → Deploy → Batch Call",
+      "lead": "A batch campaign calls a list of people with one agent: COD confirmations, appointment reminders, EMI due-date reminders, renewal calls. You upload the list, the platform paces the calls and retries the ones that did not connect.",
+      "steps": [
+        "Click New campaign and give it a name.",
+        "Choose the AI agent and the outbound number (caller ID).",
+        "Pick the pacing. Sequential calls one person at a time with a gap you set (5 to 300 seconds). Concurrent dials up to your plan's limit at once.",
+        "Upload a CSV with a phone column. Ten-digit numbers get +91 added automatically; invalid numbers and duplicates are removed. One campaign can hold up to 5,000 contacts.",
+        "Start now or schedule a start time, confirm that you have the contacts' consent, and launch."
+      ],
+      "tips": [
+        "Calls are placed only between 9 am and 9 pm IST. A campaign that reaches 9 pm pauses on its own and continues the next morning.",
+        "Anyone on your workspace's opt-out list is skipped. Scrubbing your list against the national DND (NCPR) registry and DLT registration remain your responsibility under TRAI rules.",
+        "Unanswered and busy numbers are retried automatically, at most 3 attempts per person and at least 10 minutes apart.",
+        "You can pause, resume or stop a campaign at any time. Results shows every call it placed."
+      ],
+      "images": [
+        { "src": "/guide/batch-calls.webp", "alt": "Batch Calls page with total contacts, connected, failed and running counters and a completed campaign", "caption": "Batch Call: every campaign with its progress, connected and failed counts." },
+        { "src": "/guide/batch-new-campaign.webp", "alt": "Create batch campaign form with campaign name, AI agent, caller ID, dial mode, inter-call delay and CSV upload", "caption": "New campaign: agent, caller ID, pacing and your contact list." }
+      ]
+    },
+    "call-history": {
+      "title": "Call History: every call, transcript and recording",
+      "where": "Sidebar → Data → Call History",
+      "lead": "Call History lists every inbound and outbound call with its direction, contact, agent, duration, status and end reason.",
+      "steps": [
+        "Use the search box and the filters (direction, status, agent, time range) to find calls.",
+        "Click Transcript to read the conversation, with the date, duration, billed minutes and sentiment at the top.",
+        "If recording is switched on for the agent, play the recording from the Recording column, with seek, playback speed and download.",
+        "Click Export CSV to download the filtered list."
+      ],
+      "tips": [
+        "Billing is per started minute: a 1 minute 35 second call uses 2 minutes. Calls that are never answered use no minutes.",
+        "Recording is off by default. When you switch it on for an agent, callers hear a short notice at the start, and recordings are deleted after 90 days at the latest, or sooner if you set a shorter retention period in Settings."
+      ],
+      "images": [
+        { "src": "/guide/call-history.webp", "alt": "Call History table with filters, export button, direction, contact, agent, billed duration, status and end reason", "caption": "Call History with filters and export." },
+        { "src": "/guide/call-transcript.webp", "alt": "Call transcript of a Hinglish conversation in which a caller books a dental cleaning appointment", "caption": "A transcript: the agent switches between Hindi and English as the caller does." }
+      ]
+    },
+    "contacts": {
+      "title": "Contacts: the people you call",
+      "where": "Sidebar → Data → Contacts",
+      "lead": "Contacts keeps the people your agents talk to, with tags and notes, and shows each person's call history.",
+      "steps": [
+        "Click Add Contact and enter the phone number, name, tags and any notes.",
+        "Search by name, number or notes; the list loads 100 contacts at a time.",
+        "Open a contact to see every call with that number."
+      ],
+      "tips": [
+        "Tags such as patient, vip or cod-customer make it easy to build the right list for a campaign."
+      ],
+      "images": [
+        { "src": "/guide/contacts.webp", "alt": "Contacts page listing contacts with phone numbers and tags", "caption": "Contacts with tags." }
+      ]
+    },
+    "analytics": {
+      "title": "Analytics: how your calls are going",
+      "where": "Sidebar → Monitor & Analytics → Analytics",
+      "lead": "Analytics turns your calls into a few numbers you can act on: how many calls, how many completed, how long they lasted and how many minutes they used.",
+      "steps": [
+        "Choose 7, 30 or 90 days, and one agent or all agents.",
+        "Read the cards: total calls, completion rate, average duration and billed minutes.",
+        "Check the daily volume chart and the inbound versus outbound split, with completed, failed and no-answer or busy counts."
+      ],
+      "tips": [
+        "A falling completion rate on outbound calls usually means the list or the calling time needs a look before the agent does."
+      ],
+      "images": [
+        { "src": "/guide/analytics.webp", "alt": "Analytics page with total calls, completion rate, average duration, billed minutes and a daily call volume chart", "caption": "Analytics over the last 30 days." }
+      ]
+    },
+    "live-monitoring": {
+      "title": "Live Monitoring: calls happening right now",
+      "where": "Sidebar → Monitor & Analytics → Live Monitoring",
+      "lead": "Live Monitoring shows every call in progress, so you can follow the conversation as it happens.",
+      "steps": [
+        "Open Live Monitoring while calls are running; new calls appear on their own.",
+        "Select a call to follow its live transcript.",
+        "Click End Call if you need to stop a call."
+      ],
+      "tips": [
+        "Transferring a live call to a person is not available yet; the call stays with the AI agent."
+      ],
+      "images": [
+        { "src": "/guide/live-monitoring.webp", "alt": "Live Monitoring page for calls in progress", "caption": "Live Monitoring." }
+      ]
+    },
+    "quality-assurance": {
+      "title": "AI Quality Assurance: score batches of calls",
+      "where": "Sidebar → Monitor & Analytics → AI Quality Assurance",
+      "lead": "Quality Assurance reviews a group of calls (a cohort) and scores how well the agent handled them, so you can find weak spots without listening to every call.",
+      "steps": [
+        "Click New QA Cohort, name it, and choose the agent and the date range.",
+        "Click Run QA Pass.",
+        "Read the average score, the pass rate and how many calls were scored."
+      ],
+      "tips": [
+        "Run a cohort after every big prompt change to see whether the change helped."
+      ],
+      "images": [
+        { "src": "/guide/quality-assurance.webp", "alt": "AI Quality Assurance page with a QA cohort card showing average score, pass rate and calls", "caption": "A QA cohort ready to run." }
+      ]
+    },
+    "call-reports": {
+      "title": "Call Reports: outcomes, scores and extracted details",
+      "where": "Sidebar → Monitor & Analytics → Call Reports",
+      "lead": "Call Reports labels the outcome of every analysed call (for example Booked, Interested, Callback Requested) and gives it a score, so you can sort and follow up.",
+      "steps": [
+        "Filter by status, direction, label, campaign, agent and date, or tick Needs Review to see calls the system was unsure about.",
+        "Click Inspect to read the summary, the outcome and the details pulled from the conversation.",
+        "Click Export CSV to send the results to your team or CRM."
+      ],
+      "tips": [
+        "Blueprint Catalog shows the ready-made analysis blueprints, such as COD confirmation or appointment booking, that decide which labels and fields a call gets."
+      ],
+      "images": [
+        { "src": "/guide/call-reports.webp", "alt": "Call Results and Reports page with analysed calls, outcome labels such as Booked and Interested, scores and filters", "caption": "Call Reports: outcome labels and scores for every analysed call." }
+      ]
+    },
+    "alerting": {
+      "title": "Alerting: hear about problems early",
+      "where": "Sidebar → Monitor & Analytics → Alerting",
+      "lead": "Alert rules watch your calls and tell you when something crosses a line, for example when more than 20% of calls fail in the last hour.",
+      "steps": [
+        "Click Create Alert Rule.",
+        "Choose the metric, the condition and the threshold, the time window and how often to check.",
+        "Add an email address, a webhook URL, or both. Webhooks are signed with HMAC-SHA256 in the X-Claritiy-Signature header.",
+        "Use Evaluate Now to check the rules immediately, and Incident History to see past alerts."
+      ],
+      "tips": [],
+      "images": [
+        { "src": "/guide/alerting.webp", "alt": "Alerting page with an alert rule for failed calls above 20 percent", "caption": "An alert rule for failed calls." }
+      ]
+    },
+    "integrations": {
+      "title": "Integrations: Google Calendar booking",
+      "where": "Sidebar → System → Integrations",
+      "lead": "Connect Google Calendar so your agents can check free slots and book appointments during the call.",
+      "steps": [
+        "Click Connect Google Calendar and approve access. If you signed up with Google, the calendar connects for you.",
+        "In the agent editor, open Scheduling & Calendar to set working hours, appointment length, buffers and minimum notice."
+      ],
+      "tips": [
+        "Need your CRM or order system? Use Functions in the agent editor to call your own APIs during the call, and Webhook Settings to receive every finished call."
+      ],
+      "images": [
+        { "src": "/guide/integrations.webp", "alt": "Integrations page with the Google Calendar connection card", "caption": "Integrations: Google Calendar." }
+      ]
+    },
+    "billing": {
+      "title": "Billing: plans and minutes",
+      "where": "Sidebar → System → Billing",
+      "lead": "Plans are one-time minute packs. There is no subscription to cancel and no per-minute overage.",
+      "steps": [
+        "Compare the plans: {plans}.",
+        "Click the plan you want and pay securely through Razorpay.",
+        "Your minutes are added as soon as the payment is confirmed. GST is shown on your invoice."
+      ],
+      "tips": [
+        "Every plan includes speech, AI and telephony in the minute price; nothing is billed separately.",
+        "When your minutes or validity run low, the dashboard tells you, so a campaign never stops by surprise."
+      ],
+      "images": [
+        { "src": "/guide/billing.webp", "alt": "Billing and Plans page with Startup, Growth and Enterprise plans and their minutes", "caption": "Billing: choose a plan." }
+      ]
+    },
+    "settings": {
+      "title": "Settings: time zone, data retention, API keys and team",
+      "where": "Sidebar → System → Settings",
+      "lead": "Settings holds the workspace-wide choices: how dates are shown, how long call data is kept, your KYC, API keys and your team.",
+      "steps": [
+        "General & Voice: choose the time zone dates are shown in, and how long call recordings and transcripts are kept before they are deleted automatically.",
+        "KYC & Compliance: verify your documents (see Phone Numbers above).",
+        "API & Keys: click Generate New Key to call the Claritiy Voice REST API from your own software, for example to place a call when an order is created.",
+        "Team: invite colleagues who have already signed up, and give each a role: admin, developer, analyst or viewer. Viewers and analysts can look but not change anything."
+      ],
+      "tips": [
+        "Copy an API key when it is shown: for your safety it is displayed only once."
+      ],
+      "images": [
+        { "src": "/guide/settings.webp", "alt": "Settings page with display time zone, call data retention policy and remaining credits", "caption": "Settings: time zone, retention and your remaining minutes." },
+        { "src": "/guide/settings-api-keys.webp", "alt": "API and Keys tab for generating REST API keys", "caption": "API & Keys." },
+        { "src": "/guide/settings-team.webp", "alt": "Team tab for inviting colleagues with roles", "caption": "Team members and roles." }
+      ]
+    }
+  },
+  "faqs": [
+    { "q": "Do I need to know how to code to use Claritiy Voice?", "a": "No. You build agents by writing instructions in plain language or by starting from a template, and you connect your number from the dashboard. Developers can use the REST API, webhooks and Functions when they want to connect their own systems." },
+    { "q": "Can I try it before paying?", "a": "Yes. Creating an account and building agents is free, and Test LLM lets you chat with an agent on any account. Real phone calls, Test Lab and Prompt Coach start when you buy a plan, {lowestPlan}." },
+    { "q": "Which languages can the agent speak?", "a": "English, Hindi, Bengali, Kannada, Malayalam, Gujarati and Tamil. With automatic detection the agent answers in the caller's language and handles Hinglish naturally." },
+    { "q": "How are calls billed?", "a": "Per started minute of each answered call, with a minimum of one minute. Calls that are never answered use no minutes. Plans are one-time packs: {plans}." },
+    { "q": "Why do I need KYC?", "a": "Indian telecom rules require a verified identity before a business number can place calls. You verify PAN and Aadhaar (through DigiLocker), or a company PAN and GST certificate, in Settings → KYC & Compliance." },
+    { "q": "Is call recording legal, and is it on by default?", "a": "Recording is off by default. When you switch it on for an agent, the agent tells callers at the start of the call that it is being recorded, and recordings are deleted after 90 days at the latest, or sooner if you set a shorter retention period." },
+    { "q": "Can the AI transfer a call to a human?", "a": "Not yet. Live transfer is on our roadmap; today the agent can offer a call-back and you can end a call from Live Monitoring." }
+  ]
+}

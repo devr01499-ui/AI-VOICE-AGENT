@@ -20,6 +20,7 @@ export type Page =
   | "terms"
   | "security"
   | "faq"
+  | "guide"
   | "contact"
   | "voice-ai-index"
   | "ai-voice-agent-software"
@@ -50,6 +51,7 @@ const EXACT_PATHS: Record<string, Page> = {
   "/auth/callback": "dashboard",
   "/confirm": "dashboard",
   "/faq": "faq",
+  "/guide": "guide",
   "/contact": "contact",
   "/solutions": "solutions",
   "/compare": "solutions",

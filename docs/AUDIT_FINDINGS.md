@@ -43,6 +43,7 @@ Everything not listed above is still OPEN. New findings while fixing:
 - **#154** (fixed, demo-readiness ee12894) M `SV/routes/calendar.ts` POST /batches/:id/resume: a campaign scheduled for later that was paused and then resumed was set to running and dialled at once, hours before its chosen start time. It now returns to scheduled.
 - **#155** (fixed, demo-readiness cf3fe5c) M `SV/routes/agents.ts` /test-prompt, /:agentId/chat, /conversational-builder: direct Gemini calls (no timeout, no fallback, own key ignored, raw provider errors shown). They now use services/ai/textModel.
 - **#156** (fixed, demo-readiness 5d724ab) L `SV/routes/calls.ts` GET /, `SV/routes/numbers.ts` POST /:id/calling-config, `SV/routes/calendar.ts` POST /link-from-signin: database or Google error text was returned to the customer.
+- **#157** (fixed, feat/seo-content-guide 01c6ffb) L `SV/routes/kyc.ts` GET /status answered 404 for every account before KYC started, so every new customer's KYC tab logged a console error; now 200 { provisioned: false }, and the tab skips the call without a sub-account.
 
 ## 1. Billing, plans, minutes, numbers, KYC
 1. H **V** `SV/services/MinutesService.ts:59-96,143-193`: the balance is read and then written back as an absolute value, with no row lock. Two calls ending at the same moment lose one debit, and a plan credit racing a debit can wipe paid minutes. Fix: atomic increment/decrement.

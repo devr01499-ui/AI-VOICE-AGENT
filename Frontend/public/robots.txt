@@ -1,31 +1,52 @@
 User-agent: *
 Allow: /
-Disallow: /dashboard/
+Disallow: /dashboard
+Disallow: /api/
+
+# Search and answer engines (AI assistants that cite the site)
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /dashboard
+Disallow: /api/
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /dashboard
+Disallow: /api/
+
+User-agent: GPTBot
+Allow: /
+Disallow: /dashboard
 Disallow: /api/
 
 User-agent: PerplexityBot
 Allow: /
-Disallow: /dashboard/
+Disallow: /dashboard
 Disallow: /api/
 
 User-agent: ClaudeBot
 Allow: /
-Disallow: /dashboard/
+Disallow: /dashboard
+Disallow: /api/
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /dashboard
 Disallow: /api/
 
 User-agent: GoogleOther
 Allow: /
-Disallow: /dashboard/
+Disallow: /dashboard
 Disallow: /api/
 
-User-agent: OAI-SearchBot
+User-agent: Applebot
 Allow: /
-Disallow: /dashboard/
+Disallow: /dashboard
 Disallow: /api/
 
 User-agent: bingbot
 Allow: /
-Disallow: /dashboard/
+Disallow: /dashboard
 Disallow: /api/
 
 Sitemap: https://www.claritiy.com/sitemap.xml

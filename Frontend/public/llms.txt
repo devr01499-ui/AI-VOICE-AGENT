@@ -1,20 +1,43 @@
 # Claritiy Voice
 
-> Claritiy Voice is an enterprise AI voice platform that automates customer support, sales qualification, appointment scheduling, and order verification in English, Hindi, Bengali, Kannada, Malayalam, Gujarati and Tamil, plus automatic language detection.
+> Claritiy Voice is an AI voice agent platform for Indian businesses. Its AI agents answer and place real phone calls in English, Hindi, Bengali, Kannada, Malayalam, Gujarati and Tamil (plus automatic language detection, Hinglish included) on the business's own +91 number: appointment booking, cash-on-delivery (COD) order confirmation, EMI and payment reminders, lead qualification and customer support.
 
-## Key Facts
-- Pricing (one-time minute plans valid 30 days, INR, no auto-renewal): Startup ₹3,799 for 750 minutes, Growth ₹10,799 for 2,865 minutes, Enterprise ₹30,799 for 10,000 minutes. Each includes a local +91 number after KYC. A plan ends when its minutes are used up or after 30 days, whichever comes first; the number is released 5 days after the plan ends unless a new plan is bought. There is no pay-as-you-go or overage billing.
-- Contact: support@claritiy.com | WhatsApp: +91 9707337259
-- Voice: a single speech-to-speech model with real-time, interruptible replies.
-- Languages: English, Hindi, Bengali, Kannada, Malayalam, Gujarati and Tamil, plus automatic language detection.
+## Key facts
+- Pricing (INR, one-time minute plans valid 30 days, no subscription, no auto-renewal, no overage): Startup ₹3,799 for 750 minutes; Growth ₹10,799 for 2,865 minutes; Enterprise ₹30,799 for 10,000 minutes. Speech, AI and telephony are included in the minute price.
+- Billing: each answered call uses its started minutes, minimum one minute. Unanswered calls use no minutes. A plan ends when its minutes are used up or after 30 days, whichever comes first.
+- Phone numbers: every plan includes one local Indian (+91) number after KYC. The number is released 5 days after the plan ends unless a new plan is bought. Bring-your-own carrier or SIP trunk is not available.
+- KYC: individuals verify PAN and Aadhaar (via DigiLocker); companies verify a company PAN and GST certificate.
+- Calls at the same time: up to 5 on Startup and Growth, up to 15 on Enterprise.
+- Voice: a single speech-to-speech AI model with real-time, interruptible replies; 30 male and female voices.
+- Free to start: creating an account, building agents and chatting with an agent (Test LLM) is free. Real phone calls, Test Lab and Prompt Coach need a plan.
+- Not available yet: live transfer of a call to a human (the agent can offer a call-back), voice cloning, native CRM connectors (integrations use signed webhooks, the REST API and custom Functions; Google Calendar is built in).
+
+## Features
+- Agents: single-prompt agents or visual conversational flows; 17 templates (clinic receptionist, COD confirmation, EMI reminder, lead qualifier and more); Prompt Coach; Test LLM, Test Audio and Test Lab.
+- Knowledge base: upload PDF, TXT, CSV or Markdown files or a web page; the agent answers from them; a Retrieval Inspector shows what it would find.
+- Batch campaigns: up to 5,000 contacts per campaign from a CSV; calls only between 9 am and 9 pm IST; opt-out list skipped; busy and unanswered numbers retried up to 3 times, at least 10 minutes apart; consent confirmed before launch.
+- Call data: transcripts, summaries, outcome labels, sentiment and extracted fields for every call; Call History with CSV export; Call Reports; Analytics; Live Monitoring; AI Quality Assurance scoring; Alerting by email or signed webhook.
+- Integrations: REST API with API keys; post-call webhooks signed with HMAC-SHA256 (X-Claritiy-Signature); Functions that call the customer's own API during a call; Google Calendar booking.
+- Privacy: TLS-encrypted call audio; sensitive credentials encrypted; recording off by default, with a spoken notice when switched on; recordings deleted after 90 days at the latest; workspace data retention setting; optional PII redaction in transcripts; team roles (admin, developer, analyst, viewer).
+- Compliance responsibilities that stay with the customer: DND (NCPR) scrubbing, DLT registration, consent of the people called, and telling callers they are speaking with an AI where the law requires it.
+
+## Contact
+- Email: support@claritiy.com
+- WhatsApp: +91 97073 37259 (Monday to Saturday, 9 am to 8 pm IST)
 
 ## Pages
-- Homepage: https://www.claritiy.com/
-- Features: https://www.claritiy.com/how-it-works
-- Solutions: https://www.claritiy.com/solutions
-- HD Voices: https://www.claritiy.com/voices
+- Home: https://www.claritiy.com/
+- Product guide (every feature and dashboard screen, step by step, with screenshots): https://www.claritiy.com/guide
 - Pricing: https://www.claritiy.com/pricing
+- FAQ: https://www.claritiy.com/faq
+- How it works: https://www.claritiy.com/how-it-works
+- Solutions by industry: https://www.claritiy.com/solutions
+- Use cases: https://www.claritiy.com/use-cases
+- Voices and languages: https://www.claritiy.com/voices
+- AI voice agent software: https://www.claritiy.com/ai-voice-agent-software
+- Developer docs (REST API and webhooks): https://www.claritiy.com/docs
 - Blog: https://www.claritiy.com/blog
+- Security: https://www.claritiy.com/security
 - Privacy: https://www.claritiy.com/privacy
 - Terms: https://www.claritiy.com/terms
-- Security: https://www.claritiy.com/security
+- Contact: https://www.claritiy.com/contact

@@ -19,8 +19,9 @@ type Page =
   | "dashboard" 
   | "industries" 
   | "use-cases"
-  | "faq" 
-  | "contact" 
+  | "faq"
+  | "guide"
+  | "contact"
   | "voice-ai-index"
   | "ai-voice-agent-software";
 
@@ -54,13 +55,13 @@ export default function Footer({ setPage }: FooterProps) {
           <div className="space-y-3 max-w-2xl relative z-10">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-[2px] bg-[#DFDCD4] border border-[#CBC8BE] text-[#121212] font-mono text-[11px] font-bold tracking-wider uppercase">
               <Sparkles className="w-3 h-3 text-[#121212]" />
-              PRODUCTION-GRADE TELEPHONY PILOT
+              START FREE · NO CARD NEEDED TO BUILD
             </div>
             <h3 className="text-2xl md:text-3xl font-extrabold text-[#121212] tracking-tight">
-              Ready to automate your phone calls?
+              Ready to put your phone calls on autopilot?
             </h3>
             <p className="text-[#262523] text-sm md:text-base leading-relaxed">
-              Start from pre-built templates for BFSI, healthcare, e-commerce, real estate and front-desk work. Create your account and build agents for free; live calls start with a plan from ₹3,799.
+              Pick a template for your clinic, store, lending desk or front office, adjust it in plain words, and chat with it before you pay anything. Real phone calls start with a plan from ₹3,799.
             </p>
           </div>
 
@@ -96,29 +97,29 @@ export default function Footer({ setPage }: FooterProps) {
           </button>
           
           <p className="text-sm text-[#262523] leading-relaxed max-w-sm">
-            Autonomous conversational voice AI infrastructure designed for high-scale enterprise telephony. Real-time conversation, native regional accents, and results sent to your systems through signed webhooks.
+            AI voice agents that answer and place phone calls for Indian businesses: appointment booking, COD order confirmation, payment reminders and customer support, on your own +91 number.
           </p>
 
-          {/* Live System Operational Status */}
+          {/* Languages */}
           <div className="p-3.5 rounded-[2px] bg-[#EBE9E2] border border-[#CBC8BE] space-y-2 max-w-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[#121212]" />
-                <span className="text-xs font-bold text-[#121212] font-mono">ALL SYSTEMS OPERATIONAL</span>
+                <span className="text-xs font-bold text-[#121212] font-mono">7 INDIAN LANGUAGES</span>
               </div>
-              <span className="text-[10px] font-mono text-[#121212] bg-[#DFDCD4] border border-[#CBC8BE] px-2 py-0.5 rounded-[2px] font-bold">Real-time</span>
+              <span className="text-[10px] font-mono text-[#121212] bg-[#DFDCD4] border border-[#CBC8BE] px-2 py-0.5 rounded-[2px] font-bold">+ Auto-detect</span>
             </div>
             <p className="text-[11px] text-[#5E5D57] leading-tight">
-              Voice streaming, telephony and dashboard services.
+              English, Hindi, Bengali, Kannada, Malayalam, Gujarati and Tamil, with natural Hinglish.
             </p>
           </div>
 
-          {/* Governance & Compliance Tags */}
+          {/* Trust facts (each one is how the product works today) */}
           <div className="flex flex-wrap items-center gap-2 pt-1">
-            <span className="text-[10px] font-mono font-bold text-[#121212] bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] px-2.5 py-1">MSME REGISTERED</span>
-            <span className="text-[10px] font-mono font-bold text-[#121212] bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] px-2.5 py-1">TLS / AES-256</span>
-            <span className="text-[10px] font-mono font-bold text-[#121212] bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] px-2.5 py-1">DPDP ALIGNED</span>
-            <span className="text-[10px] font-mono font-bold text-[#121212] bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] px-2.5 py-1">RBI FAIR PRACTICES</span>
+            <span className="text-[10px] font-mono font-bold text-[#121212] bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] px-2.5 py-1">TLS ENCRYPTED</span>
+            <span className="text-[10px] font-mono font-bold text-[#121212] bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] px-2.5 py-1">SIGNED WEBHOOKS</span>
+            <span className="text-[10px] font-mono font-bold text-[#121212] bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] px-2.5 py-1">RECORDING OFF BY DEFAULT</span>
+            <span className="text-[10px] font-mono font-bold text-[#121212] bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] px-2.5 py-1">9 AM–9 PM IST CAMPAIGNS</span>
           </div>
         </div>
 
@@ -207,8 +208,13 @@ export default function Footer({ setPage }: FooterProps) {
           </p>
           <ul className="space-y-2.5 text-sm">
             <li>
+              <a href={hrefFor("guide")} onClick={(e) => go(e, "guide")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
+                Product Guide (Dashboard How-To)
+              </a>
+            </li>
+            <li>
               <a href={hrefFor("how-it-works")} onClick={(e) => go(e, "how-it-works")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
-                Real-Time Voice Engine
+                How a Call Works
               </a>
             </li>
             <li>
@@ -233,7 +239,7 @@ export default function Footer({ setPage }: FooterProps) {
             </li>
             <li>
               <a href={hrefFor("faq")} onClick={(e) => go(e, "faq")} className="text-[#262523] hover:text-[#121212] hover:underline transition-colors text-left font-medium">
-                Enterprise FAQ
+                FAQ
               </a>
             </li>
             <li>
@@ -320,7 +326,7 @@ export default function Footer({ setPage }: FooterProps) {
       </div>
 
       <div className="max-w-7xl mx-auto mt-4 pt-2 text-center text-[11px] text-[#5E5D57] font-mono">
-        Notice: Claritiy Voice agents declare their automated nature in compliance with telecommunication guidelines and DPDP standards.
+        You decide how your agent introduces itself. We recommend that every agent tells callers they are speaking with an AI assistant; for many uses the law requires it.
       </div>
     </footer>
   );

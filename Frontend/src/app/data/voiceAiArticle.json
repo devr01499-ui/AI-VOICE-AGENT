@@ -21,7 +21,7 @@
       "subtitle": "Compliance and data protection",
       "paragraphs": [
         "Batch campaigns dial only between 9 am and 9 pm IST, skip contacts who have opted out, and keep a record of every call. You confirm that you have consent before each campaign, and you remain responsible for your own TRAI obligations, such as DLT registration and DND (NCPR) scrubbing.",
-        "Recording is off by default. If you switch it on for an agent, the caller hears a recording notice first, and recordings are deleted after the retention period. Personal data in transcripts can be redacted by category for each agent, and data is encrypted in transit. If your industry requires a vendor certified under a standard such as PCI DSS, HIPAA, SOC 2 or ISO 27001, ask us for our current status before you start, and do not collect card numbers or health records on calls."
+        "Recording is off by default. If you switch it on for an agent, the caller hears a recording notice first, and recordings are deleted after 90 days at the latest, or sooner if a shorter retention period is set. Personal data in transcripts can be redacted by category for each agent, and data is encrypted in transit. If your industry requires a vendor certified under a standard such as PCI DSS, HIPAA, SOC 2 or ISO 27001, ask us for our current status before you start, and do not collect card numbers or health records on calls."
       ]
     },
     {

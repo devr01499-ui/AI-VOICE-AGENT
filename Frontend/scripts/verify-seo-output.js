@@ -25,7 +25,13 @@ const read = (rel) => {
   return fs.readFileSync(f, 'utf-8');
 };
 const attr = (s) => s.replace(/"/g, '&quot;');
-const jsonLd = (html) => [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => { try { return JSON.parse(m[1]); } catch { return null; } }).filter(Boolean);
+// Every schema.org node on the page, including the ones inside an @graph.
+const jsonLd = (html) => [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)]
+  .map((m) => { try { return JSON.parse(m[1]); } catch { problems.push('invalid JSON-LD'); return null; } })
+  .filter(Boolean)
+  .flatMap((j) => (Array.isArray(j['@graph']) ? j['@graph'] : [j]));
+const GUIDE = JSON.parse(fs.readFileSync(path.resolve(here, '../src/app/data/guideContent.json'), 'utf-8'));
+const publicDir = path.resolve(here, '../public');
 
 // 1. Titles and descriptions match the shared source
 for (const [rel, page] of Object.entries(SEO)) {
@@ -41,6 +47,28 @@ for (const [rel, page] of Object.entries(SEO)) {
 const faq = jsonLd(read('faq')).find((j) => j['@type'] === 'FAQPage');
 if (!faq || !Array.isArray(faq.mainEntity) || faq.mainEntity.length === 0) problems.push('/faq: FAQPage without questions (mainEntity)');
 else if (faq.mainEntity.some((q) => !q.name || !q.acceptedAnswer || !q.acceptedAnswer.text)) problems.push('/faq: a FAQ entry has no question or answer');
+
+// 2b. /guide: the whole guide is in the crawler HTML, with HowTo + FAQPage, and every screenshot exists
+const guideHtml = read('guide');
+const guideLd = jsonLd(guideHtml);
+const howTo = guideLd.find((j) => j['@type'] === 'HowTo');
+if (!howTo || !Array.isArray(howTo.step) || howTo.step.length !== GUIDE.quickStart.steps.length) problems.push('/guide: HowTo missing or without every quick-start step');
+const guideFaq = guideLd.find((j) => j['@type'] === 'FAQPage');
+if (!guideFaq || guideFaq.mainEntity.length !== GUIDE.faqs.length) problems.push('/guide: FAQPage missing or incomplete');
+for (const [id, s] of Object.entries(GUIDE.sections)) {
+  if (!guideHtml.includes(`id="${id}"`)) problems.push(`/guide: section #${id} not in the pre-rendered HTML`);
+  for (const img of s.images) {
+    if (!fs.existsSync(path.join(publicDir, img.src))) problems.push(`/guide: screenshot ${img.src} is missing from public/`);
+    if (!guideHtml.includes(`src="${img.src}"`)) problems.push(`/guide: screenshot ${img.src} not in the pre-rendered HTML`);
+  }
+}
+if (/\{(plans|lowestPlan|kbDocs|validity|grace)\}/.test(guideHtml)) problems.push('/guide: an unfilled {placeholder} reached the HTML');
+// Crawlers and AI assistants read this HTML: it must carry the real content, not a stub.
+for (const rel of ['', 'pricing', 'guide', 'ai-voice-agent-software']) {
+  const text = read(rel).replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  const words = text.split(' ').length;
+  if (words < (rel === 'guide' ? 2500 : 300)) problems.push(`/${rel}: only ${words} words of crawlable text`);
+}
 
 // 3. Voice AI Index hub and topics
 const hub = read('voice-ai-index');
@@ -83,4 +111,4 @@ if (problems.length) {
   console.error(`❌ SEO output check failed (${problems.length}):\n  - ${problems.join('\n  - ')}`);
   process.exit(1);
 }
-console.log(`✅ SEO output: ${Object.keys(SEO).length} pages match seoPages.json, /faq FAQPage has ${faq.mainEntity.length} questions, ${topics.length} index topics use the shared article.`);
+console.log(`✅ SEO output: ${Object.keys(SEO).length} pages match seoPages.json, /faq FAQPage has ${faq.mainEntity.length} questions, /guide has ${Object.keys(GUIDE.sections).length} sections with HowTo + FAQPage, ${topics.length} index topics use the shared article.`);

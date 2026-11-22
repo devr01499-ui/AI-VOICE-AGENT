@@ -40,36 +40,48 @@ export default function BlogHealthcare({ setPage }: BlogHealthcareProps) {
         >
           <div className="space-y-4">
             <div className="flex items-center gap-3 text-xs text-[#5E5D57] font-mono font-bold">
-              <span className="flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5 text-[#121212]" /> Healthcare Operations Team</span>
+              <span className="flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5 text-[#121212]" /> Claritiy Voice Team</span>
               <span>·</span>
               <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-[#121212]" /> 5 min read</span>
             </div>
             <h1 className="text-3xl md:text-5xl font-extrabold text-[#121212] leading-tight">
-              Zero-Wait Patient Outreach: Optimizing Clinic Intake &amp; Appointment Schedules
+              How Clinics Use AI Voice Agents for Appointments and Reminders
             </h1>
           </div>
 
           <div className="bg-[#DFDCD4] border border-[#CBC8BE] rounded-[2px] p-6 font-medium text-[#262523] leading-relaxed">
             <p className="text-xs font-bold text-[#121212] font-mono uppercase tracking-wider mb-2">Direct Answer Summary</p>
-            Conversational AI voice agents automate clinic scheduling and follow-up reminders with zero wait times. By placing outbound calls immediately, explaining pre-op instructions, and confirming patient visit status automatically, healthcare organizations save up to 4 hours of front-desk operations daily.
+            Clinics use AI voice agents to answer every call, share timings and fees from their own documents, book appointments on the doctor's Google Calendar and remind patients the day before. The agent never gives medical advice; it offers a call-back from the doctor instead.
           </div>
 
           <div className="space-y-6 text-[#262523] leading-relaxed">
-            <h2 className="text-2xl font-bold text-[#121212] mt-8 mb-4">Eliminating Phone Tag in Medical Settings</h2>
+            <h2 className="text-2xl font-bold text-[#121212] mt-8 mb-4">The problem: one receptionist, two queues</h2>
             <p>
-              Patients often wait on hold or miss callbacks from clinic schedulers. Schedulers spend hours manually dialing patients to verify appointments or outline pre-treatment instructions.
-            </p>
-            <p>
-              Claritiy Voice automates this entire outreach cycle securely, with patient data encrypted in transit and at rest and personal details redacted in transcripts.
+              A receptionist has to look after the patients at the counter and the phone at the same time. In the morning rush, calls go unanswered and appointment requests are lost.
             </p>
 
-            <h2 className="text-2xl font-bold text-[#121212] mt-8 mb-4">Actionable Benefits of Voice AI in Healthcare</h2>
+            <h2 className="text-2xl font-bold text-[#121212] mt-8 mb-4">What the AI receptionist handles</h2>
             <ul className="list-disc pl-6 space-y-2">
-              <li><strong>Reduce Patient No-Shows:</strong> Auto-reminders run 24 to 48 hours prior to visits, confirming attendance.</li>
-              <li><strong>Pre-Treatment Instructions:</strong> Deliver preparation rules (e.g., fasting hours) consistently and query patient compliance before they arrive.</li>
+              <li><strong>Every incoming call:</strong> answered in Hindi, English or the caller's language, including after hours.</li>
+              <li><strong>Questions:</strong> timings, fees and preparation instructions, read from your clinic's documents.</li>
+              <li><strong>Bookings:</strong> free slots checked and appointments booked on Google Calendar, within your working hours and gaps.</li>
+              <li><strong>Reminders:</strong> a call the day before to confirm the patient is coming.</li>
             </ul>
+
+            <h2 className="text-2xl font-bold text-[#121212] mt-8 mb-4">Safety rules to write into the instructions</h2>
+            <ul className="list-disc pl-6 space-y-2">
+              <li>Never diagnose or give medical advice; offer a call-back from the doctor.</li>
+              <li>For chest pain or other emergencies, tell the caller to call 112 or go to the nearest hospital.</li>
+              <li>Say it is an AI assistant at the start of the call.</li>
+            </ul>
+
+            <h2 className="text-2xl font-bold text-[#121212] mt-8 mb-4">Patient privacy</h2>
+            <p>
+              Call audio travels over encrypted connections. Recording is off by default; if you switch it on, patients hear a notice, and recordings are deleted after 90 days at the latest. You can mask personal details in transcripts and choose how long call data is kept.
+            </p>
           </div>
-        </motion.article>
+        
+</motion.article>
       </div>
     </div>
   );

@@ -36,46 +36,46 @@ function ArchitecturePipelineCanvas() {
       id: "vad",
       stepNum: "02",
       badge: "MEDIA PROCESSING",
-      name: "Full-Duplex Speech Interception & VAD",
-      humanizedSummary: "Unlike older voice bots where callers must wait for the AI to finish its paragraph, Claritiy Voice listens continuously. If a customer interrupts mid-sentence, the agent yields instantly.",
-      techSummary: "20ms Voice Activity Detection (VAD) audio buffer window with -42dB energy thresholding. Instant queue flush drops outbound synthesis frames upon speech onset.",
+      name: "Listening, With Interruptions Allowed",
+      humanizedSummary: "Older voice bots make callers wait until they finish talking. Claritiy Voice keeps listening the whole time, so when a customer cuts in mid-sentence the agent stops and hears them out.",
+      techSummary: "Voice activity detection runs on the incoming audio throughout the call; when the caller starts speaking, the agent's pending audio is dropped.",
       businessHighlights: [
-        "True human conversational cadence",
-        "Caller interrupts naturally without lag",
-        "Zero awkward delays or cross-talk overlap"
+        "Conversations flow like a normal phone call",
+        "Callers can interrupt at any time",
+        "The agent answers the new question, not the old one"
       ],
-      outcomeSnippet: "Caller speech detected mid-phrase -> 18ms Barge-In flush signal triggered.",
-      protocolSpec: "VADState(active=True, energy=-38dB) -> AudioQueue.Flush(drop_pending=True)"
+      outcomeSnippet: "Caller speaks mid-sentence -> the agent stops and listens.",
+      protocolSpec: "speech detected while agent is talking -> pending agent audio cleared"
     },
     {
       id: "reasoning",
       stepNum: "03",
       badge: "REASONING ENGINE",
-      name: "Streaming Reasoning & Fact-Checked RAG",
-      humanizedSummary: "The agent checks real-time inventory, CRM records, or clinic appointment slots while the customer is talking, generating exact business answers grounded in your documentation.",
-      techSummary: "First-token LLM stream generation in 80ms paired with Pinecone/Qdrant micro-vector hybrid RAG indexing. Zero hallucination guardrails via deterministic tool calling.",
+      name: "Understanding and Answering From Your Data",
+      humanizedSummary: "The agent follows your instructions and looks up the answer in your knowledge base. If you connected Functions or Google Calendar, it can check your systems or free slots while the caller waits.",
+      techSummary: "Retrieval from your uploaded documents, plus function calls to your own APIs and the calendar during the conversation.",
       businessHighlights: [
-        "Live CRM database lookups on call",
-        "100% accurate policy answers from PDFs",
-        "Automated booking, triage & qualification"
+        "Answers from your documents, not guesses",
+        "Your APIs called during the call (Functions)",
+        "Appointment booking on Google Calendar"
       ],
-      outcomeSnippet: "Intent matched: 'Verify COD order' -> CRM API executed in 45ms.",
-      protocolSpec: "LLMStreamSession(temp=0.1) -> ToolCall(action='crm_lookup', latency=42ms)"
+      outcomeSnippet: "Caller asks for the cleaning price -> answer taken from the clinic's price list.",
+      protocolSpec: "knowledge lookup + function call (your API) -> reply"
     },
     {
       id: "synthesis",
       stepNum: "04",
-      badge: "NEURAL SYNTHESIS",
-      name: "Neural Voice Delivery & Egress",
-      humanizedSummary: "Synthesized response audio streams back into the caller's ear with natural human breath pauses, pitch inflection, and flawless pronunciation of regional languages.",
-      techSummary: "Streaming speech output: audio is sent to the caller as it is generated, without waiting for the full reply.",
+      badge: "VOICE REPLY",
+      name: "Speaking Back, Then Writing It Down",
+      humanizedSummary: "The reply is spoken back in the voice you picked, in the caller's language. When the call ends, the transcript, summary and outcome appear in your dashboard.",
+      techSummary: "Streaming speech output: audio is sent to the caller as it is generated, without waiting for the full reply. After the call, analysis runs and signed webhooks deliver the results.",
       businessHighlights: [
-        "Indistinguishable from polite human agent",
-        "7 languages with natural accents",
-        "Consistent brand persona and voice clarity"
+        "30 voices, male and female",
+        "7 Indian languages plus auto-detect",
+        "Transcript, summary and outcome for every call"
       ],
       outcomeSnippet: "First audio chunk streamed to the caller as soon as it is generated.",
-      protocolSpec: "NeuralTTS.Stream(model='claritiy-v2-fast', chunk_size=1024, latency=64ms)"
+      protocolSpec: "streamed reply audio -> call ends -> transcript + outcome -> signed webhook"
     }
   ];
 
@@ -96,7 +96,7 @@ function ArchitecturePipelineCanvas() {
         <div className="flex items-center gap-3">
           <div className="w-2.5 h-2.5 rounded-full bg-[#121212] animate-pulse" />
           <span className="font-mono text-xs font-bold tracking-wider text-[#121212] uppercase">
-            LIVE MULTIMODAL PIPELINE ENGINE · STAGE {current.stepNum} OF 04
+            HOW A CALL FLOWS · STAGE {current.stepNum} OF 04
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -245,22 +245,24 @@ export default function HowItWorks({ setPage }: HowItWorksProps) {
     {
       step: "02",
       title: "Live Conversational Intelligence",
-      desc: "Customer speaks naturally in their dialect. Voice AI listens, understands nuances, allows natural interruptions, and retrieves facts in 85ms.",
+      desc: "The customer speaks naturally, in their own language or in Hinglish. The agent listens, lets them interrupt, and answers from your instructions and documents.",
       icon: Activity
     },
     {
       step: "03",
-      title: "Resolution & Automated Handoff",
-      desc: "Appointment booked, order verified, or payment reminder confirmed. Real-time CRM update or warm human transfer with full transcript context.",
+      title: "Outcome Recorded",
+      desc: "Appointment booked, order confirmed or reminder delivered. The transcript, summary and outcome land in your dashboard and, if you set one up, in your own system by signed webhook.",
       icon: CheckCircle2
     }
   ];
 
+  // How each stage works. No millisecond figures: none are published until measured on live calls
+  // (docs/COMPLIANCE_NOTES.md, "Marketing claims").
   const latencyBreakdown = [
-    { phase: "Audio Ingestion & Egress", target: "Streaming", tech: "Bidirectional carrier audio stream" },
-    { phase: "VAD Speech Boundary Interception", target: "18ms", tech: "High-precision 20ms audio frame energy analysis" },
-    { phase: "Streaming First-Token Reasoning", target: "72ms", tech: "High-speed quantized inference with tool calling" },
-    { phase: "Streaming Neural Speech Synthesis", target: "60ms", tech: "Direct chunked neural PCM audio packetization" }
+    { phase: "Call audio in and out", target: "Streamed", tech: "Two-way audio stream between the phone network and our servers" },
+    { phase: "Hearing the caller", target: "Continuous", tech: "Voice activity detection lets the caller interrupt at any time" },
+    { phase: "Understanding and replying", target: "One model", tech: "A single speech-to-speech model, with knowledge lookups and functions" },
+    { phase: "Speaking the reply", target: "Streamed", tech: "Audio is sent while it is generated, not after the whole reply" }
   ];
 
   return (
@@ -288,7 +290,7 @@ export default function HowItWorks({ setPage }: HowItWorksProps) {
           transition={{ delay: 0.1 }}
           className="text-[#262523] text-base md:text-lg max-w-3xl mx-auto font-sans leading-relaxed"
         >
-          Experience how our unified real-time voice pipeline eliminates legacy phone trees and transforms complex business phone calls into fluid, human conversations.
+          What happens between "hello" and the call summary in your dashboard: how the agent hears your caller, lets them interrupt, answers from your data, and records the outcome.
         </motion.p>
       </section>
 
@@ -341,13 +343,13 @@ export default function HowItWorks({ setPage }: HowItWorksProps) {
         <div className="bg-[#EBE9E2] text-[#121212] border border-[#CBC8BE] rounded-[2px] p-8 md:p-12 space-y-8">
           <div className="text-center max-w-3xl mx-auto space-y-3">
             <span className="text-xs font-mono text-[#121212] uppercase tracking-widest">
-              | TELEMETRY BENCHMARK AUDIT
+              | WHAT HAPPENS DURING A CALL
             </span>
             <h2 className="text-3xl font-medium text-[#121212] font-sans tracking-tight">
-              Real-Time Audio Pipeline Specs
+              The Real-Time Audio Pipeline
             </h2>
             <p className="text-[#262523] text-sm font-sans">
-              Total roundtrip latency budget measured from caller utterance to synthesized audio playback.
+              Each stage streams into the next, so the agent starts answering without waiting for whole sentences to be passed between separate services.
             </p>
           </div>
 
@@ -396,19 +398,19 @@ export default function HowItWorks({ setPage }: HowItWorksProps) {
               icon: Terminal,
               num: "02",
               title: "Prompt & Tool Calling",
-              desc: "The agent executes dynamic tools in real time — checking inventory, looking up CRM records, or booking appointments during live calls."
+              desc: "With Functions, the agent calls your own APIs during the call, for example to look up an order or a customer record, and it books appointments on Google Calendar."
             },
             {
               icon: Database,
               num: "03",
-              title: "Vector Knowledge Bases",
-              desc: "RAG micro-vector lookups inject exact product specs, FAQs, or medical protocols into context within milliseconds without hallucinations."
+              title: "Knowledge Base",
+              desc: "Your price lists, policies and FAQs are indexed so the agent answers from them. The Retrieval Inspector shows exactly what it would find for any question."
             },
             {
               icon: ShieldCheck,
               num: "04",
-              title: "Edge PII Redaction",
-              desc: "Transcripts and recordings are automatically scrubbed for sensitive numbers and personal identifiers before storage."
+              title: "Privacy Controls",
+              desc: "Optional redaction of personal details in transcripts, recording off by default with a spoken notice when on, and automatic deletion after your retention period."
             }
           ].map((pillar) => {
             const Icon = pillar.icon;
@@ -439,23 +441,23 @@ export default function HowItWorks({ setPage }: HowItWorksProps) {
       <section className="px-6 max-w-5xl mx-auto relative z-10">
         <div className="bg-[#EBE9E2] text-[#121212] rounded-[2px] p-8 md:p-12 text-center space-y-6 border border-[#CBC8BE]">
           <h2 className="text-3xl md:text-4xl font-medium font-sans tracking-tight text-[#121212]">
-            Experience Real-Time Voice in Action
+            Try It With Your Own Agent
           </h2>
           <p className="text-[#262523] max-w-2xl mx-auto text-sm sm:text-base font-sans leading-relaxed">
-            Launch our interactive sandbox in your browser and test voice barge-in with your microphone now.
+            Create a free account, start from a template and chat with your agent in Test LLM. Talk to it out loud and place real calls once you pick a plan.
           </p>
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10">
             <button
               onClick={() => setPage("dashboard")}
               className="py-3 px-8 text-xs font-mono uppercase tracking-wider bg-[#121212] hover:bg-black text-white font-medium rounded-[2px] inline-flex items-center gap-2 transition-colors cursor-pointer"
             >
-              Test Live in Sandbox <ArrowRight className="w-4 h-4" />
+              Create Free Account <ArrowRight className="w-4 h-4" />
             </button>
             <button
-              onClick={() => setPage("solutions")}
+              onClick={() => setPage("guide")}
               className="py-3 px-8 text-xs font-mono uppercase tracking-wider bg-[#DFDCD4] hover:bg-[#D5D1C7] text-[#121212] font-medium rounded-[2px] inline-flex items-center gap-2 border border-[#CBC8BE] cursor-pointer transition-colors"
             >
-              Explore Templates
+              Read the Product Guide
             </button>
           </div>
         </div>

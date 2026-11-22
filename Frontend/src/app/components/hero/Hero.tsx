@@ -6,6 +6,7 @@ import {
   Radio} from "lucide-react";
 import Lottie from "lottie-react";
 import { voiceOrbLottieData } from "../animation/lottieVoiceData";
+import { LOWEST_PLAN, formatInr } from "../../lib/plans";
 
 type Page = any;
 interface HeroProps {
@@ -59,64 +60,63 @@ function RealtimeAudioWaveform({ active, color = "#121212", barsCount = 28 }: {
 function HdGeometricalArchitectureDiagram() {
   const [selectedNode, setSelectedNode] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
-  const [simulatedLatency, setSimulatedLatency] = useState<number>(168);
   const [activeTab, setActiveTab] = useState<"flow" | "features">("flow");
 
-  // Enterprise USPs mapped into high-definition architectural pipeline flow
+  // What the platform does, as it works today (no unmeasured numbers: docs/COMPLIANCE_NOTES.md).
   const nodes = [
     {
       id: 0,
       title: "Real-Time Speech Engine",
       badge: "Real-Time Replies",
-      category: "CORE NATIVE ENGINE",
-      desc: "Call audio streams straight to a single speech-to-speech model, without separate speech-to-text and text-to-speech hops, for quick, natural replies.",
+      category: "CORE ENGINE",
+      desc: "Call audio streams straight to a single speech-to-speech model, without separate speech-to-text and text-to-speech hops, so replies come quickly and sound natural.",
       icon: Zap,
       stats: { primary: "Real-time", label: "Replies", detail: "Single speech-to-speech model" }
     },
     {
       id: 1,
-      title: "7 Languages + Auto-Detect",
-      badge: "Native Speech Models",
+      title: "7 Indian Languages + Auto-Detect",
+      badge: "Hinglish Included",
       category: "MULTILINGUAL",
-      desc: "Direct neural speech recognition for Hindi, English, Spanish, Arabic, Bengali, Kannada & regional dialects without translation loss.",
+      desc: "Speaks English, Hindi, Bengali, Kannada, Malayalam, Gujarati and Tamil, and can switch to the caller's language on its own, Hinglish included.",
       icon: Globe,
-      stats: { primary: "7", label: "Languages & Accents", detail: "Zero Translation Lag" }
+      stats: { primary: "7", label: "Indian Languages", detail: "Plus automatic detection" }
     },
     {
       id: 2,
-      title: "Full-Duplex Barge-In",
-      badge: "99.9% Human Parity",
-      category: "REAL-TIME MEDIA",
-      desc: "Callers interrupt naturally mid-sentence. High-precision 20ms VAD audio monitors continuous voice activity to flush target queues instantly.",
+      title: "Natural Interruptions",
+      badge: "Barge-In Support",
+      category: "REAL-TIME AUDIO",
+      desc: "Callers can cut in mid-sentence, the way people do. The agent stops talking, listens, and answers the new question.",
       icon: Activity,
-      stats: { primary: "100%", label: "Duplex Audio Stream", detail: "Instant Queue Flush" }
+      stats: { primary: "Live", label: "Interruptions", detail: "Agent stops and listens" }
     },
     {
       id: 3,
-      title: "Enterprise Carrier SIP & PSTN",
-      badge: "Carrier Telephony Gateway",
-      category: "TELEPHONY GATEWAY",
-      desc: "Get a local business number with your plan in a few clicks and start answering and placing calls on our integrated carrier network.",
+      title: "Your +91 Business Number",
+      badge: "Included With Every Plan",
+      category: "TELEPHONY",
+      desc: "Every plan includes one local +91 number after KYC. Answer inbound calls and place outbound calls and campaigns from it.",
       icon: Phone,
-      stats: { primary: "1-Click", label: "Line Provisioning", detail: "Global Carrier Trunking" }
+      stats: { primary: "+91", label: "Local Number", detail: "After KYC" }
     },
     {
       id: 4,
-      title: "100% Fact-Checked RAG",
-      badge: "Zero Hallucination",
+      title: "Answers From Your Documents",
+      badge: "Knowledge Base",
       category: "KNOWLEDGE RETRIEVAL",
-      desc: "Ground AI voice agents with PDFs, website URLs, and CRM databases for 100% accurate factual responses during live phone calls.",
+      desc: "Upload price lists, policies and FAQs (PDF, TXT, CSV, Markdown or a web page). The agent answers from them instead of guessing, and you can test every answer first.",
       icon: Database,
-      stats: { primary: "100%", label: "Fact-Checked Retrieval", detail: "Vector DB Grounded" }
+      stats: { primary: "Docs", label: "Grounded Answers", detail: "Retrieval Inspector" }
     },
     {
       id: 5,
-      title: "MSME Security Blueprint",
-      badge: "Enterprise Guardrails",
+      title: "Privacy Controls",
+      badge: "Built-In Guardrails",
       category: "COMPLIANCE",
-      desc: "Edge-level PII redaction, TLS-encrypted media streams, DPDP privacy compliance, and automated call audit trails.",
+      desc: "TLS-encrypted call streams, recording off by default (with a spoken notice when you switch it on), optional PII redaction in transcripts, and a data retention period you choose.",
       icon: Lock,
-      stats: { primary: "MSME", label: "Registered Enterprise", detail: "DPDP Act Aligned" }
+      stats: { primary: "TLS", label: "Encrypted Streams", detail: "Recording opt-in" }
     }
   ];
 
@@ -125,7 +125,6 @@ function HdGeometricalArchitectureDiagram() {
     if (!isPlaying) return;
     const interval = setInterval(() => {
       setSelectedNode((prev) => (prev + 1) % nodes.length);
-      setSimulatedLatency(Math.floor(164 + Math.random() * 12));
     }, 4000);
     return () => clearInterval(interval);
   }, [isPlaying, nodes.length]);
@@ -141,10 +140,10 @@ function HdGeometricalArchitectureDiagram() {
         <div className="flex items-center gap-2.5">
           <div className="w-2 h-2 rounded-full bg-[#121212] animate-pulse" />
           <span className="text-xs font-bold text-[#121212] font-mono tracking-wider">
-            PIPECAT NATIVE VOICE ENGINE
+            HOW A CALL FLOWS
           </span>
           <span className="text-[11px] font-bold font-mono text-[#121212] bg-[#DFDCD4] px-2 py-0.5 rounded-[2px] border border-[#CBC8BE]">
-            {simulatedLatency}ms
+            LIVE
           </span>
         </div>
 
@@ -235,8 +234,8 @@ function HdGeometricalArchitectureDiagram() {
                     <Phone className="w-4 h-4" strokeWidth={2} />
                   </div>
                   <div className="min-w-0">
-                    <h5 className="text-xs font-semibold text-[#121212] font-sans truncate">Carrier SIP & PSTN</h5>
-                    <p className="text-[10px] text-[#262523] font-mono truncate">Telephony Trunking</p>
+                    <h5 className="text-xs font-semibold text-[#121212] font-sans truncate">Phone Network</h5>
+                    <p className="text-[10px] text-[#262523] font-mono truncate">Your +91 number</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 pt-1 border-t border-[#CBC8BE] text-[9px] font-mono font-medium text-[#121212]">
@@ -438,17 +437,17 @@ export default function Hero({ setPage }: HeroProps) {
             {/* Live Status Tag */}
             <div className="flex items-center gap-2 text-xs font-mono text-[#262523]">
               <span className="text-[#121212] font-bold">|</span>
-              <span className="uppercase tracking-wider">Claritiy Voice · Enterprise Outbound, Support & IVR</span>
+              <span className="uppercase tracking-wider">Claritiy Voice · AI Calling for Indian Businesses</span>
             </div>
 
             {/* Headline */}
             <h1 className="text-[#121212] text-4xl sm:text-5xl lg:text-6xl font-normal lg:font-medium tracking-tight leading-[1.08] font-sans">
-              Human-Like AI Voice Agents for Outbound Sales, Support & IVR
+              Human-Like AI Voice Agents for Indian Businesses
             </h1>
 
             {/* Clear Explanation of What We Do */}
             <p className="text-[#262523] text-base sm:text-lg leading-relaxed font-normal">
-              Claritiy Voice builds real-time conversational AI phone agents that place outbound sales calls, handle inbound customer support, qualify leads, and automate payment reminders across <span className="text-[#121212] font-semibold">7 languages</span> with zero setup overhead.
+              Your AI agent picks up every call, books appointments, confirms COD orders and sends payment reminders, in <span className="text-[#121212] font-semibold">Hindi, English and 5 more Indian languages</span>. Write what it should do in plain words, connect your own +91 number, and read every conversation afterwards.
             </p>
 
             {/* Primary & Secondary CTAs */}
@@ -466,17 +465,17 @@ export default function Hero({ setPage }: HeroProps) {
                 className="btn-secondary uppercase font-mono text-xs tracking-wider px-6 py-3 flex items-center gap-2"
               >
                 <Play className="w-3.5 h-3.5 fill-[#121212] text-[#121212]" />
-                Hear Sample AI Call
+                See How a Call Works
               </button>
             </div>
 
             {/* Platform Proof Metrics Bar */}
             <div className="pt-6 border-t border-[#CBC8BE] grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: "Response", value: "Real-time" },
-                { label: "Supported Languages", value: "7 Languages" },
-                { label: "Human Voice Parity", value: "99.9%" },
-                { label: "Security & Privacy", value: "256-Bit TLS" }
+                { label: "Replies", value: "Real-time" },
+                { label: "Indian Languages", value: "7 + Auto" },
+                { label: "AI Voices", value: "30" },
+                { label: "Plans from", value: formatInr(LOWEST_PLAN.price) }
               ].map((stat, idx) => (
                 <div key={idx} className="bg-[#EBE9E2] border border-[#CBC8BE] p-3 rounded-[2px] space-y-0.5">
                   <p className="text-base sm:text-lg font-bold text-[#121212] font-mono">

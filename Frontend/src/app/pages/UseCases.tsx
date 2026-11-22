@@ -53,111 +53,102 @@ interface IndustryTopic {
   jsonPayload: string;
 }
 
+// Industry walkthroughs. Every statement describes what the product does today; there are no outcome
+// figures because none have been measured (docs/COMPLIANCE_NOTES.md, "Marketing claims"). Third-party
+// systems (CRMs, stores, loan systems) connect through signed webhooks, the REST API and Functions.
 const USE_CASE_TOPICS: IndustryTopic[] = [
-  // ── 1. Healthcare & Clinical Practice ────────────────────────────────────
+  // ── 1. Healthcare & Clinics ───────────────────────────────────────────────
   {
     id: "healthcare",
     label: "Healthcare & Clinics",
     icon: Building2,
     visual: "🏥",
-    badge: "DPDP-Aligned Controls",
+    badge: "Privacy Controls Built In",
     accent: "#059669",
     bgLight: "#D1FAE5",
-    headline: "Autonomous Clinical Reception, Triage & Post-Op Recovery Telephony",
-    subhead: "Replace overburdened clinic phone lines with zero-queue voice agents that converse naturally in regional Indian dialects, coordinate doctor calendars, and flag clinical symptoms.",
-    heroStat: { value: "85%", label: "Hold Time Deflection" },
+    headline: "AI Receptionist for Clinics: Answer Every Call, Book Every Slot",
+    subhead: "An AI voice agent that picks up your clinic's calls in Hindi, English or the caller's language, answers questions from your own documents, books appointments on the doctor's Google Calendar and reminds patients the day before.",
+    heroStat: { value: "24×7", label: "Every patient call answered" },
     stats: [
-      { value: "0s", label: "Patient Queue Wait Time" },
-      { value: "99.2%", label: "Appointment Slot Accuracy" },
-      { value: "Auto", label: "PII Redaction in Transcripts" }
+      { value: "7", label: "Indian languages + auto-detect" },
+      { value: "Calendar", label: "Bookings on Google Calendar" },
+      { value: "Optional", label: "PII redaction in transcripts" }
     ],
     wiremap: [
-      { id: "h1", stage: "STAGE 1", label: "EHR / Portal Trigger", desc: "Appointment request or inbound clinic call lands on telephony gateway.", latency: "Real-time", protocol: "REST Webhook / Carrier Call", accent: "#059669" },
-      { id: "h2", stage: "STAGE 2", label: "16kHz Audio Codec Egress", desc: "Raw uncompressed PCM audio streaming with -42dB full-duplex VAD.", latency: "Real-time", protocol: "Carrier audio stream", accent: "#10B981" },
-      { id: "h3", stage: "STAGE 3", label: "DPDP PII Redaction", desc: "Aadhaar, contact and similar details are redacted in stored transcripts.", latency: "After each call", protocol: "Transcript PII Redaction", accent: "#34D399" },
-      { id: "h4", stage: "STAGE 4", label: "Clinical Conversational Core", desc: "Contextual speech agent converses with doctor calendar constraints.", latency: "Real-time", protocol: "Claritiy Multimodal Voice", accent: "#059669" },
-      { id: "h5", stage: "STAGE 5", label: "EHR Slot Mutation & WhatsApp", desc: "Locks slot in Practo/EHR database and dispatches clinic prep guidelines.", latency: "Real-time", protocol: "Authenticated JSON Relay", accent: "#10B981" }
+      { id: "h1", stage: "STAGE 1", label: "Patient Calls Your Number", desc: "A patient dials the clinic's +91 number, or a reminder campaign calls them.", latency: "Live", protocol: "Your +91 number", accent: "#059669" },
+      { id: "h2", stage: "STAGE 2", label: "Agent Answers", desc: "The receptionist agent greets the caller in their language and listens; the caller can interrupt at any time.", latency: "Real-time", protocol: "Speech-to-speech model", accent: "#10B981" },
+      { id: "h3", stage: "STAGE 3", label: "Answers From Your Documents", desc: "Timings, fees and preparation instructions come from the clinic's knowledge base, never from guesswork.", latency: "During the call", protocol: "Knowledge base", accent: "#34D399" },
+      { id: "h4", stage: "STAGE 4", label: "Slot Booked", desc: "The agent checks the doctor's free slots and books the appointment within your working hours.", latency: "During the call", protocol: "Google Calendar", accent: "#059669" },
+      { id: "h5", stage: "STAGE 5", label: "Summary Saved", desc: "Transcript, summary and booking details appear in Call History and can be sent to your system.", latency: "After the call", protocol: "Signed webhook", accent: "#10B981" }
     ],
     subTopics: [
       {
         id: "outpatient-intake",
-        title: "Sub-Topic 01: Outpatient Intake & Automated Doctor Scheduling",
-        badge: "Inbound & Outbound",
-        problem: "Peak morning call volume causes a 45% abandonment rate, leaving costly doctor consult slots unbooked.",
-        solution: "Voice agent handles hundreds of concurrent patient calls in Hindi/English, checks real-time doctor availability, and secures appointment slots in real time.",
-        metrics: "85% reduction in hold time • 99.2% booking accuracy",
-        templateId: "tpl-1",
-        templateName: "Front Desk Receptionist & Clinic Scheduler",
+        title: "Sub-Topic 01: Appointment Booking at the Front Desk",
+        badge: "Inbound",
+        problem: "In the morning rush the receptionist cannot answer the phone and help the patients at the counter at the same time, so calls go unanswered.",
+        solution: "The agent answers every call, checks the doctor's calendar and books the slot, in Hindi or English, while the front desk looks after the people in the clinic.",
+        metrics: "Calls answered • slots booked on Google Calendar • summary in Call History",
+        templateId: "tpl-2",
+        templateName: "Medical Clinic Receptionist",
         templateCategory: "Receptionist",
         dialogue: [
-          { speaker: "Claritiy AI", text: "Namaste Mr. Verma! I am calling from Apollo Clinic regarding your ultrasound consultation tomorrow at 10:30 AM with Dr. Rao. Are you able to attend?", time: "00:03" },
-          { speaker: "Patient", text: "Yes, I will be there. Do I need to fast before the test?", time: "00:09" },
-          { speaker: "Claritiy AI", text: "Yes, Dr. Rao requires a 4-hour fast beforehand, and please drink 500ml of water 30 minutes before arriving. I have sent the clinic address and instructions to your WhatsApp.", time: "00:19" },
-          { speaker: "Patient", text: "Thank you so much, that is very helpful.", time: "00:23" },
-          { speaker: "Claritiy AI", text: "You are most welcome. We look forward to seeing you tomorrow at 10:30 AM. Have a wonderful day!", time: "00:28" }
+          { speaker: "AI Agent", text: "Namaste, Lotus Clinic. Main Priya, AI assistant, bol rahi hoon. Appointment book karna hai?", time: "00:03" },
+          { speaker: "Patient", text: "Haan, Dr. Rao ke saath kal ka appointment chahiye.", time: "00:08" },
+          { speaker: "AI Agent", text: "Kal Dr. Rao 10:30 am aur 12 baje free hain. Kaunsa time theek rahega?", time: "00:14" },
+          { speaker: "Patient", text: "10:30 theek hai.", time: "00:17" },
+          { speaker: "AI Agent", text: "Done. Kal 10:30 am, Dr. Rao ke saath aapka appointment book ho gaya hai.", time: "00:23" }
         ]
       },
       {
         id: "pre-op-reminders",
-        title: "Sub-Topic 02: Pre-Operative Fasting & Diagnostic Protocol Verification",
-        badge: "Surgical Prep",
-        problem: "15% of surgical procedures are delayed or cancelled due to patients arriving without proper fasting, costing hospitals ₹1.5L per stalled operating theater.",
-        solution: "Voice agent calls patients 24 hours prior, confirms fasting adherence, explains medication hold instructions, and logs confirmations directly into the surgical roster.",
-        metrics: "94% procedure adherence • 0 manual staff calls",
+        title: "Sub-Topic 02: Day-Before Reminders and Preparation",
+        badge: "Outbound Reminders",
+        problem: "Patients forget appointments or arrive without following the preparation instructions, and the slot is wasted.",
+        solution: "A reminder campaign calls each patient the day before, confirms they are coming and reads out the clinic's preparation instructions from the knowledge base.",
+        metrics: "Attendance confirmed • preparation instructions read from your documents",
         templateId: "tpl-2",
-        templateName: "Pre-Op Fasting & Diagnostic Protocol",
+        templateName: "Medical Clinic Receptionist",
         templateCategory: "Appointment Booking",
         dialogue: [
-          { speaker: "Claritiy AI", text: "Hello Priya, calling from Fortis Surgical Desk regarding your laparoscopic procedure tomorrow morning at 8:00 AM. May I verify your pre-op fasting protocol?", time: "00:04" },
-          { speaker: "Patient", text: "Yes, please confirm when I should stop drinking water.", time: "00:09" },
-          { speaker: "Claritiy AI", text: "You must stop all solid food by 10:00 PM tonight. Clear water is allowed until 4:00 AM tomorrow morning. Please leave all jewelry and valuables at home. Did you have any questions about medications?", time: "00:21" },
-          { speaker: "Patient", text: "No, Dr. Kapoor explained that. I am all set.", time: "00:26" },
-          { speaker: "Claritiy AI", text: "Wonderful. Your surgical admission pass has been sent via SMS. See you tomorrow at 7:00 AM at Desk 4.", time: "00:32" }
+          { speaker: "AI Agent", text: "Hello Mr. Verma, this is the AI assistant from Apollo Clinic about your ultrasound tomorrow at 10:30 am with Dr. Rao. Will you be able to come?", time: "00:04" },
+          { speaker: "Patient", text: "Yes. Do I need to fast?", time: "00:09" },
+          { speaker: "AI Agent", text: "Yes, please don't eat for four hours before, and drink two glasses of water 30 minutes before you arrive. See you tomorrow!", time: "00:18" }
         ]
       },
       {
         id: "post-discharge-triage",
-        title: "Sub-Topic 03: Post-Discharge Recovery & Symptom Check",
-        badge: "Clinical Triage",
-        problem: "Readmissions surge when patients don't report fever, wound redness, or medication side effects until severe complications develop.",
-        solution: "Checks recovery milestones on Day 2 and Day 5, evaluates pain score, and instantly escalates red flags to the on-call surgical registrar via warm SIP transfer.",
-        metrics: "3.2× faster clinical escalations • 96% patient CSAT",
-        templateId: "tpl-3",
-        templateName: "Post-Discharge Triage & Recovery Check",
+        title: "Sub-Topic 03: Follow-Up Calls After a Visit",
+        badge: "Follow-Up",
+        problem: "Clinics want to check on patients after a procedure, but the staff rarely have time to call everyone.",
+        solution: "The agent calls patients a few days later, asks how they are, and flags anyone who reports a problem so the doctor's team can call them back. It never gives medical advice.",
+        metrics: "Patients needing a call-back flagged for your team",
+        templateId: "tpl-5",
+        templateName: "Dental Clinic Scheduler",
         templateCategory: "Customer Support",
         dialogue: [
-          { speaker: "Claritiy AI", text: "Hello Mr. Sen, this is Claritiy Clinical Desk checking in on your recovery 48 hours post-discharge. How is your surgical incision feeling today?", time: "00:04" },
-          { speaker: "Patient", text: "The incision feels a little warm and I have a slight fever of 100.4 degrees.", time: "00:11" },
-          { speaker: "Claritiy AI", text: "Thank you for noting that. Because you have a fever above 100 degrees with localized warmth, I am initiating a priority transfer to Sister Mary on our on-call clinical team right now. Please hold for 5 seconds.", time: "00:24" }
-        ]
-      },
-      {
-        id: "insurance-tpa-desk",
-        title: "Sub-Topic 04: Insurance TPA & Cashless Pre-Authorization",
-        badge: "Cashless Desk",
-        problem: "Patients and families wait 3+ hours at hospital billing counters during discharge waiting for insurance TPA pre-authorization status updates.",
-        solution: "Autonomous voice agent authenticates policy number, queries claim sanction status with the TPA desk, and delivers instantaneous resolution with zero queue delay.",
-        metrics: "60% less discharge wait time • Instant TPA transparency",
-        templateId: "tpl-13",
-        templateName: "First Notice of Loss & Policy Intake",
-        templateCategory: "Customer Support",
-        dialogue: [
-          { speaker: "Claritiy AI", text: "Hello! Calling from Manipal TPA Desk for patient Rahul Joshi. Your preliminary cashless pre-authorization of ₹85,000 has been sanctioned by Star Health.", time: "00:05" },
-          { speaker: "Patient", text: "Does that cover the private room rent as well?", time: "00:10" },
-          { speaker: "Claritiy AI", text: "Yes, your policy includes Single Private Room capping up to ₹7,000 per day without co-pay deductions. You can proceed directly to Billing Counter 2 for final discharge signing.", time: "00:22" }
+          { speaker: "AI Agent", text: "Hello Mr. Sen, this is the AI assistant from City Dental, checking in two days after your treatment. How are you feeling?", time: "00:04" },
+          { speaker: "Patient", text: "There's still some swelling and a little fever.", time: "00:10" },
+          { speaker: "AI Agent", text: "Thank you for telling me. I'm marking this as urgent, and the doctor's team will call you back shortly. If it gets worse, please go to the nearest hospital.", time: "00:21" }
         ]
       }
     ],
     jsonPayload: `{
-  "event": "clinic.appointment_scheduled",
-  "patientId": "pt_ap_9821",
-  "patientPhone": "+919876543210",
-  "doctor": "Dr. S. Rao, MD",
-  "specialty": "Radiology & Ultrasound",
-  "appointmentSlot": "2026-10-11T10:30:00+05:30",
-  "fastingInstructionsAcknowledged": true,
-  "disposition": "CONFIRMED_PREP_SENT",
-  "whatsappSummaryDispatched": true
+  "event": "call_analyzed",
+  "timestamp": "2026-10-10T11:42:08.000Z",
+  "data": {
+    "callId": "c_8f2a1d1",
+    "resultLabel": "Booked",
+    "confidence": 0.91,
+    "sentiment": "positive",
+    "summary": "Caller booked a consultation with Dr. Rao for 10:30 am.",
+    "extractedFields": {
+      "patient_name": "Rahul",
+      "doctor": "Dr. Rao",
+      "appointment_slot": "2026-10-11T10:30:00+05:30"
+    },
+    "status": "completed"
+  }
 }`
   },
 
@@ -167,101 +158,92 @@ const USE_CASE_TOPICS: IndustryTopic[] = [
     label: "Finance & Banking",
     icon: Landmark,
     visual: "🏦",
-    badge: "RBI Fair Practices Aligned",
+    badge: "Identity Check Before Details",
     accent: "#E8630A",
     bgLight: "#FEF3C7",
-    headline: "Ethical Debt Recovery, KYC Verification & Fraud Response",
-    subhead: "Replace aggressive third-party collection agencies with compliant, empathetic voice agents operating strictly within RBI Fair Practice Code guidelines.",
-    heroStat: { value: "42%", label: "Digital EMI Recovery Lift" },
+    headline: "Polite EMI Reminders and KYC Follow-Ups for Lenders",
+    subhead: "AI voice agents that remind borrowers before their EMI is due, confirm identity before sharing any detail, record when they will pay, and offer a call-back from your team for anything difficult.",
+    heroStat: { value: "Identity", label: "Confirmed before any amount" },
     stats: [
-      { value: "100%", label: "RBI Fair Practice Code Compliance" },
-      { value: "3s", label: "Speed-to-Contact Fraud Alerts" },
-      { value: "₹6.50", label: "Cost Per Qualified Lead" }
+      { value: "Opt-out", label: "Do-not-call list honoured" },
+      { value: "9–9", label: "IST campaign window (narrow it further)" },
+      { value: "Webhook", label: "Promise-to-pay sent to your system" }
     ],
     wiremap: [
-      { id: "f1", stage: "STAGE 1", label: "Core Banking / LMS Export", desc: "Tranche of upcoming due loans received via secure banking API.", latency: "Real-time", protocol: "Finacle / Mambu REST", accent: "#E8630A" },
-      { id: "f2", stage: "STAGE 2", label: "RBI Regulatory Guardrail", desc: "Enforces a 9 AM – 7 PM calling window (configurable within 9 AM – 9 PM) and the opt-out list.", latency: "Real-time", protocol: "Policy Rule Engine", accent: "#F59E0B" },
-      { id: "f3", stage: "STAGE 3", label: "Ethical NLU Voice Agent", desc: "Speaks regional language, understands borrower hardship, and negotiates dates.", latency: "Real-time", protocol: "Claritiy Voice Core", accent: "#E8630A" },
-      { id: "f4", stage: "STAGE 4", label: "UPI Dynamic Deep-link", desc: "Generates personalized UPI QR and payment link via SMS/WhatsApp.", latency: "Real-time", protocol: "Razorpay / Cashfree API", accent: "#F59E0B" },
-      { id: "f5", stage: "STAGE 5", label: "Core Ledger Reconciliation", desc: "Reconciles promissory note or settlement status in core loan ledger.", latency: "Real-time", protocol: "Real-time Banking Hook", accent: "#E8630A" }
+      { id: "f1", stage: "STAGE 1", label: "Due List Uploaded", desc: "Upcoming dues arrive as a CSV campaign or one call at a time through the API.", latency: "Before the call", protocol: "CSV / REST API", accent: "#E8630A" },
+      { id: "f2", stage: "STAGE 2", label: "Calling Rules", desc: "Campaigns dial only inside 9 am–9 pm IST and skip your opt-out list. Lenders should keep recovery calls within RBI's expected hours.", latency: "Every call", protocol: "Campaign rules", accent: "#F59E0B" },
+      { id: "f3", stage: "STAGE 3", label: "Identity Check", desc: "The agent confirms it is speaking to the borrower before mentioning any amount, and ends politely if not.", latency: "Real-time", protocol: "Agent instructions", accent: "#E8630A" },
+      { id: "f4", stage: "STAGE 4", label: "Reminder and Payment Date", desc: "It states the amount and due date and asks when the borrower will pay.", latency: "Real-time", protocol: "Speech-to-speech model", accent: "#F59E0B" },
+      { id: "f5", stage: "STAGE 5", label: "Result to Your Loan System", desc: "The promise to pay, or a call-back request, reaches your system after the call.", latency: "After the call", protocol: "Signed webhook", accent: "#E8630A" }
     ],
     subTopics: [
       {
-        id: "ethical-emi",
-        title: "Sub-Topic 01: Ethical Soft EMI Due Reminders",
-        badge: "Pre-Due & Due Date",
-        problem: "Aggressive third-party collection agencies damage banking brand reputation and frequently trigger RBI regulatory scrutiny.",
-        solution: "Polite, empathetic AI voice calls 3 days prior to due date, explains exact installment breakdown, and sends instant UPI payment links.",
-        metrics: "42% lift in digital EMI collection • 100% RBI compliance",
-        templateId: "tpl-7",
-        templateName: "Ethical Pre-Due EMI Reminder",
-        templateCategory: "BFSI Collections & Reminders",
+        id: "pre-due-emi",
+        title: "Sub-Topic 01: Pre-Due EMI Courtesy Reminders",
+        badge: "Pre-Due",
+        problem: "Many borrowers miss a due date simply because they forgot, and then pay a late fee and take a credit-score hit.",
+        solution: "Three days before the due date the agent calls, confirms identity, states the EMI and the date, and records whether the borrower will pay on time.",
+        metrics: "Identity confirmed • due date stated • reply recorded",
+        templateId: "tpl-13",
+        templateName: "EMI Due-Date Courtesy Reminder",
+        templateCategory: "BFSI",
         dialogue: [
-          { speaker: "Claritiy AI", text: "Namaste Ms. Kapoor, calling from Apex Finance regarding your personal loan EMI of ₹14,200 due on October 15th. Would you like me to send a secure UPI link?", time: "00:03" },
-          { speaker: "Borrower", text: "Can I pay by tomorrow evening instead? My salary gets credited tomorrow.", time: "00:10" },
-          { speaker: "Claritiy AI", text: "Certainly, Ms. Kapoor. I have scheduled your payment reminder for tomorrow at 5:00 PM and sent the direct payment link via WhatsApp. No late fees will apply if completed then.", time: "00:20" },
-          { speaker: "Borrower", text: "Okay, perfect. I will pay via UPI tomorrow.", time: "00:25" },
-          { speaker: "Claritiy AI", text: "Thank you for banking with Apex Finance. Have a wonderful day ahead!", time: "00:29" }
+          { speaker: "AI Agent", text: "Good evening. This is an automated reminder from Apex Lending. Am I speaking with Ms. Kapoor?", time: "00:04" },
+          { speaker: "Borrower", text: "Yes, speaking.", time: "00:07" },
+          { speaker: "AI Agent", text: "Thank you. Your EMI of ₹6,250 is due on the 12th. Will you be able to pay it by then?", time: "00:14" },
+          { speaker: "Borrower", text: "Yes, I'll pay tomorrow evening.", time: "00:18" },
+          { speaker: "AI Agent", text: "Noted, tomorrow evening. Thank you, and have a good day.", time: "00:23" }
         ]
       },
       {
-        id: "kyc-document-clarification",
-        title: "Sub-Topic 02: KYC Document Clarification & Video KYC Scheduling",
-        badge: "Loan Onboarding",
-        problem: "Loan application drop-off exceeds 50% when KYC documents have blurred signatures, cropped IDs, or mismatched names.",
-        solution: "Voice agent dials applicant within 3 minutes of rejection, explains exact missing document, and sends re-upload portal link directly to their phone.",
-        metrics: "3.5× faster loan disbursal • 68% drop-off recovered",
-        templateId: "tpl-9",
-        templateName: "High-Ticket Loan Prequalification",
-        templateCategory: "Lead Qualification",
+        id: "kyc-followup",
+        title: "Sub-Topic 02: KYC Document Follow-Up",
+        badge: "Onboarding",
+        problem: "Loan applications stall when a document is blurred or missing, and applicants do not read the email asking for it again.",
+        solution: "The agent calls the applicant, explains which document is missing and where to upload it, and records whether they will do it today.",
+        metrics: "Missing document explained • follow-up recorded",
+        templateId: "tpl-13",
+        templateName: "EMI Due-Date Courtesy Reminder",
+        templateCategory: "BFSI",
         dialogue: [
-          { speaker: "Claritiy AI", text: "Hello Ankit! Calling from FinGrow Capital regarding your business loan application. Your Aadhaar card upload was flagged because the QR code was cropped.", time: "00:04" },
-          { speaker: "Applicant", text: "Oh, I see. Do I need to redo the entire form?", time: "00:08" },
-          { speaker: "Claritiy AI", text: "Not at all! I have just texted you a direct one-click link to re-upload only the front and back of your Aadhaar card. Once uploaded, your loan approval will resume automatically.", time: "00:19" }
+          { speaker: "AI Agent", text: "Hello, this is the AI assistant from Apex Lending about your loan application. Am I speaking with Arjun?", time: "00:04" },
+          { speaker: "Applicant", text: "Yes, that's me.", time: "00:07" },
+          { speaker: "AI Agent", text: "Thanks. The back of your Aadhaar card was not clear. Could you upload it again in the app under Documents today?", time: "00:16" }
         ]
       },
       {
-        id: "fraud-alert-verification",
-        title: "Sub-Topic 03: Suspicious Debit & High-Ticket Fraud Alert",
-        badge: "Security Response",
-        problem: "SMS fraud alerts are overlooked by 70% of senior citizens, resulting in unrecoverable financial losses.",
-        solution: "Sub-3-second voice call asks customer to verify high-ticket debit with a single voice confirmation or block card instantly.",
-        metrics: "Sub-3-second contact rate • 98% fraud containment",
-        templateId: "tpl-1",
-        templateName: "Front Desk & Security Verification",
-        templateCategory: "Customer Support",
+        id: "early-overdue",
+        title: "Sub-Topic 03: Early Overdue Reminders (1–30 DPD)",
+        badge: "Early Overdue",
+        problem: "Borrowers a few days late often avoid calls from aggressive recovery agents, and the problem grows.",
+        solution: "The agent stays respectful, confirms identity first, asks for a payment date, and offers a call-back from a hardship officer when the borrower mentions difficulty.",
+        metrics: "Payment date or hardship call-back recorded",
+        templateId: "tpl-14",
+        templateName: "Early Overdue Reminder (1–30 DPD)",
+        templateCategory: "BFSI",
         dialogue: [
-          { speaker: "Claritiy AI", text: "Urgent Security Alert from Indus Bank. A debit of ₹48,500 was just attempted at Electronic Merchant Dubai. Did you authorize this transaction?", time: "00:04" },
-          { speaker: "Account Holder", text: "No! I did not do that! I am in Mumbai right now!", time: "00:08" },
-          { speaker: "Claritiy AI", text: "I have immediately blocked your debit card ending in 4012 and declined the charge. A replacement card has been dispatched to your home address.", time: "00:18" }
-        ]
-      },
-      {
-        id: "pre-approved-line-qualification",
-        title: "Sub-Topic 04: Pre-Approved Credit Line Prequalification",
-        badge: "Credit Outreach",
-        problem: "Human telemarketers spend 8 hours daily dialing cold numbers with only 2% conversion and high burn-out.",
-        solution: "AI qualifies interest, explains interest rates and tenure, and transfers hot leads directly to banking officers.",
-        metrics: "₹6.50 cost per qualified lead • Zero spam tactics",
-        templateId: "tpl-8",
-        templateName: "Overdue Debt Restructuring & Soft Recovery",
-        templateCategory: "Outbound Sales & Reactivation",
-        dialogue: [
-          { speaker: "Claritiy AI", text: "Hello Mr. Joshi, calling from Axis Credit. Based on your clean banking history, your pre-approved credit line of ₹5 Lakhs is active at 10.5% interest. Are you currently planning any home or business expansions?", time: "00:06" },
-          { speaker: "Customer", text: "I was actually looking to renovate our shop next month.", time: "00:11" },
-          { speaker: "Claritiy AI", text: "That is great timing. Your funds can be disbursed in 2 hours with zero paperwork. Let me connect you directly to our Senior Credit Officer Priya.", time: "00:22" }
+          { speaker: "AI Agent", text: "Hello, this is an automated call from Apex Lending. Am I speaking with Rahul Sharma?", time: "00:04" },
+          { speaker: "Borrower", text: "Yes. I lost my job last month.", time: "00:09" },
+          { speaker: "AI Agent", text: "I'm sorry to hear that. I'll ask a member of our team to call you to talk about options. Is this number the best one to reach you?", time: "00:19" }
         ]
       }
     ],
     jsonPayload: `{
-  "event": "emi.promissory_recorded",
-  "loanId": "LN-2026-8812",
-  "borrowerPhone": "+919811223344",
-  "emiAmount": 14200,
-  "originalDueDate": "2026-10-15",
-  "committedPaymentDate": "2026-10-16T17:00:00+05:30",
-  "disposition": "PROMISE_TO_PAY",
-  "upiLinkDispatched": true
+  "event": "call_analyzed",
+  "timestamp": "2026-10-10T11:42:08.000Z",
+  "data": {
+    "callId": "c_8f2a1d2",
+    "resultLabel": "Promise to Pay",
+    "confidence": 0.91,
+    "sentiment": "positive",
+    "summary": "Outcome: Promise to Pay.",
+    "extractedFields": {
+      "identity_confirmed": true,
+      "promised_payment_date": "2026-10-11",
+      "hardship_callback": false
+    },
+    "status": "completed"
+  }
 }`
   },
 
@@ -271,101 +253,93 @@ const USE_CASE_TOPICS: IndustryTopic[] = [
     label: "E-Commerce & Retail",
     icon: ShoppingBag,
     visual: "🛒",
-    badge: "RTO Defense Engine",
+    badge: "COD Confirmation",
     accent: "#059669",
     bgLight: "#D1FAE5",
-    headline: "Cash-on-Delivery (COD) Defense & 30-Second Verification",
-    subhead: "Cut return-to-origin rates by 40% with pre-dispatch COD verification, address landmark correction, and instant prepaid upgrade incentives.",
-    heroStat: { value: "40%", label: "RTO Rate Reduction" },
+    headline: "COD Order Confirmation Calls Before Dispatch",
+    subhead: "Call every cash-on-delivery buyer before the parcel ships, in Hindi, English or Hinglish. Confirm the order, fix the address and landmark, and send confirmed, cancelled and unreachable orders back to your store.",
+    heroStat: { value: "Pre-dispatch", label: "Every COD order confirmed" },
     stats: [
-      { value: "30s", label: "Speed-to-Call Post Checkout" },
-      { value: "94%", label: "Buyer Contact Rate" },
-      { value: "18%", label: "Prepaid Conversion Rate" }
+      { value: "5,000", label: "Contacts per campaign" },
+      { value: "3", label: "Attempts for busy / no answer" },
+      { value: "Webhook", label: "Result back to your store" }
     ],
     wiremap: [
-      { id: "e1", stage: "STAGE 1", label: "Shopify / WooCommerce Hook", desc: "Webhook fires upon new Cash-On-Delivery checkout completion.", latency: "Real-time", protocol: "REST Webhook", accent: "#059669" },
-      { id: "e2", stage: "STAGE 2", label: "30s Speed-to-Call Queue", desc: "Enqueues outbound telephony before buyer leaves order page.", latency: "Real-time", protocol: "Redis BullMQ Queue", accent: "#10B981" },
-      { id: "e3", stage: "STAGE 3", label: "Colloquial Hinglish Caller", desc: "Verifies address, confirms buyer intent, and captures missing landmarks.", latency: "Real-time", protocol: "Claritiy Neural Voice", accent: "#34D399" },
-      { id: "e4", stage: "STAGE 4", label: "Delhivery / Shiprocket Sync", desc: "Updates order tags as Confirmed, attaches delivery note, or cancels fake orders.", latency: "Real-time", protocol: "Carrier Aggregator API", accent: "#059669" },
-      { id: "e5", stage: "STAGE 5", label: "Prepaid Discount Incentive", desc: "Offers instant ₹50-₹100 discount to convert COD to instant UPI payment.", latency: "Real-time", protocol: "Dynamic UPI Payment Link", accent: "#10B981" }
+      { id: "e1", stage: "STAGE 1", label: "New COD Order", desc: "Your store or OMS sends the order through the API, or you upload the day's COD orders as a campaign.", latency: "Before dispatch", protocol: "REST API / CSV", accent: "#059669" },
+      { id: "e2", stage: "STAGE 2", label: "Call Placed", desc: "The agent calls the buyer from your +91 number, between 9 am and 9 pm IST.", latency: "Live", protocol: "Your +91 number", accent: "#10B981" },
+      { id: "e3", stage: "STAGE 3", label: "Order and Address Confirmed", desc: "It confirms the order, the delivery address and landmark, and a good delivery time, in the buyer's language.", latency: "Real-time", protocol: "Speech-to-speech model", accent: "#34D399" },
+      { id: "e4", stage: "STAGE 4", label: "Retries", desc: "Busy and unanswered numbers are retried automatically, up to 3 attempts, at least 10 minutes apart.", latency: "Same day", protocol: "Campaign rules", accent: "#059669" },
+      { id: "e5", stage: "STAGE 5", label: "Result to Your Store", desc: "Confirmed, cancelled or unreachable, with any address note, goes back to your store or shipping tool.", latency: "After the call", protocol: "Signed webhook", accent: "#10B981" }
     ],
     subTopics: [
       {
-        id: "cod-order-verification",
-        title: "Sub-Topic 01: Cash-on-Delivery (COD) Order Verification",
-        badge: "RTO Defense",
-        problem: "Return-to-Origin (RTO) rates hover at 35-40% for Indian D2C brands, bleeding shipping costs and locking inventory.",
-        solution: "Voice agent calls within 60 seconds of checkout, verifies intent, and flags fake/unresponsive numbers before dispatch.",
-        metrics: "40% reduction in RTO • ₹45 per order saved on shipping",
-        templateId: "tpl-4",
-        templateName: "Cash-on-Delivery (COD) Order Verification",
-        templateCategory: "Customer Support",
+        id: "cod-verification",
+        title: "Sub-Topic 01: COD Order Confirmation",
+        badge: "Pre-Dispatch",
+        problem: "COD orders from buyers who changed their mind or gave a wrong number come back as RTO, and the brand pays shipping both ways.",
+        solution: "The agent calls before dispatch, confirms the buyer still wants the order and flags numbers that never answer, so you can hold those parcels.",
+        metrics: "Confirmed / cancelled / unreachable for every order",
+        templateId: "tpl-9",
+        templateName: "E-Commerce COD Order Confirmation",
+        templateCategory: "E-Commerce",
         dialogue: [
-          { speaker: "Claritiy AI", text: "Namaste Rohan ji! Claritiy Retail calling to confirm your Cash on Delivery order for Puma sneakers. Should we ship it to Flat 402, Green Glen Layout?", time: "00:03" },
-          { speaker: "Customer", text: "Yes, Flat 402, but please tell the courier to come after 4 PM.", time: "00:09" },
-          { speaker: "Claritiy AI", text: "Noted! Added evening delivery instruction after 4 PM with landmark near Gate 1. If you pay right now via UPI, you can get ₹50 cashback. Shall I text the link?", time: "00:20" },
-          { speaker: "Customer", text: "Sure, text me the link, I will pay via Google Pay now.", time: "00:26" },
-          { speaker: "Claritiy AI", text: "Done! Link sent. Your order is confirmed and shipping today. Thank you for shopping with us!", time: "00:31" }
+          { speaker: "AI Agent", text: "Namaste Meera ji, main Kesar Naturals ki AI assistant hoon. Aapne ₹1,299 ka COD order kiya tha. Kya order confirm kar doon?", time: "00:04" },
+          { speaker: "Buyer", text: "Haan, confirm hai.", time: "00:08" },
+          { speaker: "AI Agent", text: "Dhanyavaad! Delivery ke liye koi achha time hai?", time: "00:12" },
+          { speaker: "Buyer", text: "Shaam 6 baje ke baad.", time: "00:15" },
+          { speaker: "AI Agent", text: "Theek hai, 6 baje ke baad note kar liya. Order aaj dispatch hoga.", time: "00:21" }
         ]
       },
       {
-        id: "rto-address-clarification",
-        title: "Sub-Topic 02: Pincode & Landmark Address Correction",
-        badge: "First-Attempt Delivery",
-        problem: "Couriers fail delivery when address lacks colony gates, opposite landmarks, or building names.",
-        solution: "Conversational AI prompts buyer for nearby landmarks and automatically appends them to shipping label.",
-        metrics: "94% first-attempt delivery • 0 courier confusion",
-        templateId: "tpl-5",
-        templateName: "RTO Address Clarification & Landmark Capture",
-        templateCategory: "Customer Support",
+        id: "address-landmark",
+        title: "Sub-Topic 02: Address and Landmark Correction",
+        badge: "Delivery Quality",
+        problem: "Couriers fail deliveries when the address has no landmark, gate or building name.",
+        solution: "The agent asks for a nearby landmark when the address looks incomplete, and sends it back with the order so it can go on the shipping label.",
+        metrics: "Landmark captured as a structured field",
+        templateId: "tpl-9",
+        templateName: "E-Commerce COD Order Confirmation",
+        templateCategory: "E-Commerce",
         dialogue: [
-          { speaker: "Claritiy AI", text: "Hello Sneha, calling from Snitch regarding your order #SN-9912. Your delivery address mentions 'Near Main Road'. Could you provide a prominent building or shop landmark?", time: "00:05" },
-          { speaker: "Buyer", text: "Yes, it is opposite the HDFC Bank ATM, blue gate.", time: "00:10" },
-          { speaker: "Claritiy AI", text: "Perfect! I have updated your shipping label with 'Opposite HDFC Bank ATM, Blue Gate'. Your package will arrive tomorrow by 2 PM.", time: "00:20" }
+          { speaker: "AI Agent", text: "Aapka address Sector 21 hai. Koi landmark bata sakte hain jisse delivery mein aasani ho?", time: "00:05" },
+          { speaker: "Buyer", text: "Shiv Mandir ke saamne wali building, Gate 2.", time: "00:10" },
+          { speaker: "AI Agent", text: "Shiv Mandir ke saamne, Gate 2. Note kar liya, dhanyavaad!", time: "00:15" }
         ]
       },
       {
-        id: "prepaid-upgrade-incentive",
-        title: "Sub-Topic 03: Instant Prepaid Conversion Incentive",
-        badge: "Working Capital Lift",
-        problem: "COD lockups delay merchant payouts by 10-15 days through courier remittance cycles.",
-        solution: "Offers buyer an exclusive instant discount if they settle immediately via UPI payment link on call.",
-        metrics: "18% of COD orders converted to prepaid • Zero risk",
-        templateId: "tpl-6",
-        templateName: "Cart Abandonment & Prepaid Upgrade Agent",
-        templateCategory: "Outbound Sales & Reactivation",
+        id: "ndr-rescue",
+        title: "Sub-Topic 03: Delivery Rescheduling",
+        badge: "Delivery Day",
+        problem: "Buyers who are not home on delivery day lead to failed attempts and return shipments.",
+        solution: "The agent calls before the attempt, checks someone will be there, or records a new date or a neighbour or guard who can receive it.",
+        metrics: "New date or alternate receiver recorded",
+        templateId: "tpl-9",
+        templateName: "E-Commerce COD Order Confirmation",
+        templateCategory: "E-Commerce",
         dialogue: [
-          { speaker: "Claritiy AI", text: "Hi Kunal! We have reserved your Noise Smartwatch COD order. If you switch to prepaid via UPI right now, our brand applies an instant ₹100 discount coupon.", time: "00:06" },
-          { speaker: "Buyer", text: "Oh, so total becomes ₹1,899 instead of ₹1,999?", time: "00:10" },
-          { speaker: "Claritiy AI", text: "Exactly! I have sent the discounted Razorpay UPI link to your WhatsApp. You can pay via PhonePe, Paytm, or GPay right now.", time: "00:20" }
-        ]
-      },
-      {
-        id: "delivery-rescheduling",
-        title: "Sub-Topic 04: Out-for-Delivery Rescheduling & Safe Drop",
-        badge: "Last-Mile Coordination",
-        problem: "Buyers away from home result in non-delivery reports (NDR) and return shipments.",
-        solution: "Calls before dispatch to confirm presence or re-schedule to a neighbor/security guard drop.",
-        metrics: "65% failed deliveries rescued on same day",
-        templateId: "tpl-14",
-        templateName: "Pre-Delivery Consignee Presence Check",
-        templateCategory: "Customer Support",
-        dialogue: [
-          { speaker: "Claritiy AI", text: "Hello Ananya, calling from Bluedart regarding your package arriving in 30 minutes. Are you available at Flat 301 to receive it?", time: "00:04" },
-          { speaker: "Receiver", text: "I am at office right now. Can you ask the delivery person to leave it with the security guard at Tower B?", time: "00:11" },
-          { speaker: "Claritiy AI", text: "Certainly. I have updated the driver's delivery note to leave the package with Tower B Security. We will text you a photo of the parcel upon drop-off.", time: "00:22" }
+          { speaker: "AI Agent", text: "Hello, your parcel is out for delivery today. Will someone be home to receive it?", time: "00:04" },
+          { speaker: "Buyer", text: "No, please deliver tomorrow morning.", time: "00:08" },
+          { speaker: "AI Agent", text: "Sure, tomorrow morning. I've noted that for the delivery team.", time: "00:13" }
         ]
       }
     ],
     jsonPayload: `{
-  "event": "order.cod_verified",
-  "orderId": "ORD-PUMA-991",
-  "customerName": "Rohan Patel",
-  "phoneNumber": "+919876543210",
-  "deliveryPreference": "AFTER_1600_HRS",
-  "additionalLandmark": "Gate 1, Green Glen Layout",
-  "prepaidConversion": "LINK_SENT",
-  "rtoRiskScore": 0.08
+  "event": "call_analyzed",
+  "timestamp": "2026-10-10T11:42:08.000Z",
+  "data": {
+    "callId": "c_8f2a1d3",
+    "resultLabel": "Confirmed",
+    "confidence": 0.91,
+    "sentiment": "positive",
+    "summary": "Outcome: Confirmed.",
+    "extractedFields": {
+      "order_id": "ORD-8941",
+      "verification_status": "VERIFIED",
+      "landmark": "Opposite Shiv Mandir, Gate 2",
+      "preferred_delivery_time": "after 6 pm"
+    },
+    "status": "completed"
+  }
 }`
   },
 
@@ -375,516 +349,462 @@ const USE_CASE_TOPICS: IndustryTopic[] = [
     label: "Real Estate & Property",
     icon: HomeIcon,
     visual: "🏢",
-    badge: "Speed-to-Lead Engine",
+    badge: "Lead Qualification",
     accent: "#E8630A",
     bgLight: "#FEF3C7",
-    headline: "Sub-3-Second Lead Contact, Intent Scoring & Tour Booking",
-    subhead: "Qualify high-ticket buyers while interest is at its peak. Score budget, timeline, and configuration before routing to senior brokers.",
-    heroStat: { value: "3s", label: "Speed to Lead" },
+    headline: "Call Every Property Enquiry, Qualify It and Book the Site Visit",
+    subhead: "Send each new enquiry from your website or ad forms to an AI agent through the API. It calls the buyer, asks about budget, location and timeline, books a site visit on your calendar and sends the answers to your CRM.",
+    heroStat: { value: "Same day", label: "Every enquiry called back" },
     stats: [
-      { value: "3×", label: "Pipeline Velocity" },
-      { value: "₹6.98", label: "Cost Per Qualified Lead" },
-      { value: "78%", label: "Site Visit Attendance" }
+      { value: "API", label: "Leads sent from your forms" },
+      { value: "Calendar", label: "Site visits booked" },
+      { value: "Webhook", label: "Answers sent to your CRM" }
     ],
     wiremap: [
-      { id: "r1", stage: "STAGE 1", label: "Meta / Google Lead Hook", desc: "Lead form submission lands on marketing ingestion webhook.", latency: "Real-time", protocol: "Graph API / Webhook", accent: "#E8630A" },
-      { id: "r2", stage: "STAGE 2", label: "Sub-3s Telephony Dial", desc: "Outbound agent dials lead while intent is maximum.", latency: "Real-time", protocol: "Claritiy Telephony Relay", accent: "#F59E0B" },
-      { id: "r3", stage: "STAGE 3", label: "High-Ticket SDR Persona", desc: "Qualifies 2BHK/3BHK configuration, budget floor, and timeline.", latency: "Real-time", protocol: "Multimodal Agent", accent: "#E8630A" },
-      { id: "r4", stage: "STAGE 4", label: "Site Visit Slot Scheduler", desc: "Reserves tour slot with senior broker and books cab voucher.", latency: "Real-time", protocol: "Salesforce / HubSpot API", accent: "#F59E0B" },
-      { id: "r5", stage: "STAGE 5", label: "Senior Broker Dossier", desc: "Dispatches WhatsApp qualification dossier to sales director.", latency: "Real-time", protocol: "CRM Webhook & SMS", accent: "#E8630A" }
+      { id: "r1", stage: "STAGE 1", label: "New Enquiry", desc: "Your website or lead tool sends the enquiry to Claritiy Voice through the REST API.", latency: "As it arrives", protocol: "REST API", accent: "#E8630A" },
+      { id: "r2", stage: "STAGE 2", label: "Call Placed", desc: "The outbound agent calls the buyer from your +91 number within calling hours.", latency: "Live", protocol: "Your +91 number", accent: "#F59E0B" },
+      { id: "r3", stage: "STAGE 3", label: "Qualifying Questions", desc: "It asks your questions: configuration, location, budget, timeline, home-loan status.", latency: "Real-time", protocol: "Speech-to-speech model", accent: "#E8630A" },
+      { id: "r4", stage: "STAGE 4", label: "Site Visit Booked", desc: "Interested buyers get a site-visit slot on your sales team's calendar.", latency: "During the call", protocol: "Google Calendar", accent: "#F59E0B" },
+      { id: "r5", stage: "STAGE 5", label: "Answers to Your CRM", desc: "The answers and the outcome label reach your CRM, ready for your sales team.", latency: "After the call", protocol: "Signed webhook", accent: "#E8630A" }
     ],
     subTopics: [
       {
         id: "speed-to-lead",
-        title: "Sub-Topic 01: Sub-3-Second Lead Contact & Qualification",
-        badge: "Instant Contact",
-        problem: "Lead conversion drops 8× after 5 minutes of form submission as buyers research competitors.",
-        solution: "Voice agent calls lead immediately, introduces property developer, and qualifies intent in seconds.",
-        metrics: "3s contact speed • 3× pipeline qualification rate",
-        templateId: "tpl-10",
-        templateName: "Instant Lead Qualification (Sub-3s Speed to Lead)",
-        templateCategory: "Lead Qualification",
+        title: "Sub-Topic 01: Calling New Enquiries Quickly",
+        badge: "Speed to Lead",
+        problem: "Property enquiries go cold when nobody calls back for a day or two, and buyers move on to other projects.",
+        solution: "Each enquiry is sent to the agent as it arrives, and the agent calls the buyer, introduces the project and asks what they are looking for.",
+        metrics: "Enquiries called as they arrive, within calling hours",
+        templateId: "tpl-7",
+        templateName: "Real Estate Enquiry Qualifier",
+        templateCategory: "Real Estate",
         dialogue: [
-          { speaker: "Claritiy AI", text: "Hello Mr. Sen, calling from Sobha Developers! You recently inquired about our 3BHK residences at Sobha Emerald. Are you looking for personal living or investment?", time: "00:03" },
-          { speaker: "Buyer", text: "Looking for personal use for my family. What is the approximate starting price?", time: "00:09" },
-          { speaker: "Claritiy AI", text: "The 3BHK residences start at ₹1.85 Crores with 1,800 sq ft carpet area. Are you looking to move in within the next 6 months?", time: "00:18" },
-          { speaker: "Buyer", text: "Yes, exactly within 6 months. Can we visit this Saturday?", time: "00:23" },
-          { speaker: "Claritiy AI", text: "Saturday at 11:30 AM is open. I have reserved your tour slot with our Senior Architect and sent a Google Maps pin to your phone. See you Saturday!", time: "00:32" }
+          { speaker: "AI Agent", text: "Hi Vikram, this is the AI assistant from Green Acres. You enquired about our 3BHK homes. Is now a good time?", time: "00:04" },
+          { speaker: "Buyer", text: "Yes, go ahead.", time: "00:07" },
+          { speaker: "AI Agent", text: "Great. Which area do you prefer, and what budget do you have in mind?", time: "00:12" },
+          { speaker: "Buyer", text: "Whitefield, up to 1.5 crore.", time: "00:16" },
+          { speaker: "AI Agent", text: "That fits two of our units. Would Saturday at 11:30 am work for a site visit?", time: "00:23" }
         ]
       },
       {
-        id: "budget-intent-scoring",
-        title: "Sub-Topic 02: Budget & Timeline Intent Scoring",
-        badge: "Pipeline Efficiency",
-        problem: "Brokers waste 60% of their workday speaking to unvetted leads with unrealistic budgets.",
-        solution: "AI filters out non-serious leads and tags High-Intent buyers for instant executive transfer.",
-        metrics: "₹6.98 cost per qualified lead • Zero wasted broker hours",
-        templateId: "tpl-11",
-        templateName: "Property Tour & Site Visit Booking",
-        templateCategory: "Appointment Booking",
+        id: "budget-qualification",
+        title: "Sub-Topic 02: Budget and Timeline Qualification",
+        badge: "Qualification",
+        problem: "Sales teams spend hours on enquiries that do not match the project's budget or location.",
+        solution: "The agent asks the same qualifying questions every time and labels each lead, so your team calls the right buyers first.",
+        metrics: "Every lead labelled with budget, area and timeline",
+        templateId: "tpl-7",
+        templateName: "Real Estate Enquiry Qualifier",
+        templateCategory: "Real Estate",
         dialogue: [
-          { speaker: "Claritiy AI", text: "Hi Karan, calling from Prestige Estates regarding your villa inquiry on Sarjapur Road. May I verify your ideal budget range?", time: "00:05" },
-          { speaker: "Buyer", text: "Our budget is between ₹3.5 to ₹4.5 Crores.", time: "00:09" },
-          { speaker: "Claritiy AI", text: "Understood. Our 4BHK Courtyard Villas fall right in that bracket at ₹3.8 Crores. Would you like to review the floor plans over WhatsApp?", time: "00:19" }
+          { speaker: "AI Agent", text: "When are you planning to buy: in the next three months, or later?", time: "00:05" },
+          { speaker: "Buyer", text: "Probably next year.", time: "00:08" },
+          { speaker: "AI Agent", text: "Understood. I'll share that with our team, and they'll keep you posted on new launches.", time: "00:14" }
         ]
       },
       {
-        id: "site-visit-accelerator",
-        title: "Sub-Topic 03: Property Tour & Cab Pickup Coordination",
-        badge: "Tour Booking",
-        problem: "Scheduled property visits have a 50% weekend no-show rate.",
-        solution: "Confirms visit time, coordinates Ola/Uber pickup voucher, and sends property master layout.",
-        metrics: "78% site visit attendance • 2.4× deal closure velocity",
-        templateId: "tpl-12",
-        templateName: "High-Net-Worth Investor Inventory Update",
-        templateCategory: "Outbound Sales & Reactivation",
+        id: "visit-reminders",
+        title: "Sub-Topic 03: Site Visit Reminders",
+        badge: "Visit Day",
+        problem: "Booked site visits are missed when buyers forget or their plans change.",
+        solution: "A reminder campaign calls buyers the day before to confirm the visit or record a new time.",
+        metrics: "Visit confirmed or rescheduled",
+        templateId: "tpl-7",
+        templateName: "Real Estate Enquiry Qualifier",
+        templateCategory: "Real Estate",
         dialogue: [
-          { speaker: "Claritiy AI", text: "Hello Rohit, confirming your site visit to Godrej Woodsman tomorrow at 11:00 AM. Would you like us to dispatch a complimentary executive cab to pick you up from Indiranagar?", time: "00:06" },
-          { speaker: "Buyer", text: "Yes, that would be wonderful.", time: "00:09" },
-          { speaker: "Claritiy AI", text: "Excellent! Your cab pickup is booked for 10:15 AM tomorrow. Your driver details and gate entry QR code have been texted to your mobile.", time: "00:20" }
-        ]
-      },
-      {
-        id: "database-reactivation",
-        title: "Sub-Topic 04: Database Reactivation for New Tower Launches",
-        badge: "Reactivation",
-        problem: "Dormant buyer lists of 10,000+ past inquiries sit untouched in spreadsheets.",
-        solution: "Batch calls entire database with natural tone announcing new inventory and exclusive pre-launch pricing.",
-        metrics: "12% dormant lead reactivation • 10,000 calls in 30 mins",
-        templateId: "tpl-10",
-        templateName: "Instant Lead Qualification",
-        templateCategory: "Outbound Sales & Reactivation",
-        dialogue: [
-          { speaker: "Claritiy AI", text: "Hello Mr. Nair! Calling from Puravankara. You visited our Whitefield project last year. We just opened pre-launch bookings for Tower C with an exclusive 10% launch discount for past visitors. Would you like to review the new 3BHK pricing?", time: "00:09" },
-          { speaker: "Buyer", text: "Yes, send me the price sheet on WhatsApp.", time: "00:13" },
-          { speaker: "Claritiy AI", text: "Sent! I have also flagged your profile for priority allocation if you book before Sunday.", time: "00:20" }
+          { speaker: "AI Agent", text: "Hello Rohit, confirming your site visit tomorrow at 11 am. Are you still able to come?", time: "00:05" },
+          { speaker: "Buyer", text: "Can we make it 4 pm instead?", time: "00:09" },
+          { speaker: "AI Agent", text: "4 pm is free. I've moved your visit to tomorrow at 4 pm.", time: "00:15" }
         ]
       }
     ],
     jsonPayload: `{
-  "event": "lead.qualified_site_visit",
-  "project": "Sobha Emerald 3BHK",
-  "buyerName": "Arjun Sen",
-  "buyerPhone": "+919822334455",
-  "intent": "END_USER",
-  "budgetMin": 18500000,
-  "timelineMonths": 6,
-  "siteVisitTime": "2026-10-17T11:30:00+05:30",
-  "disposition": "HIGH_INTENT_BOOKED"
+  "event": "call_analyzed",
+  "timestamp": "2026-10-10T11:42:08.000Z",
+  "data": {
+    "callId": "c_8f2a1d4",
+    "resultLabel": "Qualified",
+    "confidence": 0.91,
+    "sentiment": "positive",
+    "summary": "Outcome: Qualified.",
+    "extractedFields": {
+      "budget": "1.5_CR",
+      "preferred_area": "Whitefield",
+      "timeline": "within 3 months",
+      "site_visit": "2026-08-23T11:30:00+05:30"
+    },
+    "status": "completed"
+  }
 }`
   },
 
-  // ── 5. Insurance Claims & Renewals ────────────────────────────────────────
+  // ── 5. Insurance ──────────────────────────────────────────────────────────
   {
     id: "insurance",
     label: "Insurance Claims",
     icon: ShieldCheck,
     visual: "🛡️",
-    badge: "Claims AI Engine",
+    badge: "Renewals & Claims Intake",
     accent: "#059669",
     bgLight: "#D1FAE5",
-    headline: "First Notice of Loss (FNOL) Claims & Policy Retention Network",
-    subhead: "Provide 0-second emergency claim intake during accidents, verify coverage instantly, and coordinate roadside assistance without holding queues.",
-    heroStat: { value: "3.5×", label: "FNOL Speed-to-Intake" },
+    headline: "Renewal Reminders and Calm First Calls for Claims",
+    subhead: "Remind policyholders before their policy lapses, answer coverage questions from your own policy documents, and collect the first details of a claim so your claims team starts with the facts.",
+    heroStat: { value: "Before expiry", label: "Renewal reminders" },
     stats: [
-      { value: "0", label: "Queue Hold Time" },
-      { value: "78%", label: "Renewals Automated" },
-      { value: "100%", label: "IRDAI Compliance Logging" }
+      { value: "Docs", label: "Coverage answers from your FAQ" },
+      { value: "Fields", label: "Claim details captured" },
+      { value: "Webhook", label: "Sent to your policy system" }
     ],
     wiremap: [
-      { id: "i1", stage: "STAGE 1", label: "Emergency Toll-Free Call", desc: "Policyholder dials toll-free line during breakdown or medical intake.", latency: "Real-time", protocol: "SIP Inbound Trunk", accent: "#059669" },
-      { id: "i2", stage: "STAGE 2", label: "First Notice of Loss (FNOL)", desc: "Assesses accident severity, confirms safety, and logs claim number.", latency: "Real-time", protocol: "Claritiy Voice DSP", accent: "#10B981" },
-      { id: "i3", stage: "STAGE 3", label: "Policy & Coverage Match", desc: "Validates active policy number, IDV, and zero-depreciation coverage clauses.", latency: "Real-time", protocol: "Core Insurance API", accent: "#34D399" },
-      { id: "i4", stage: "STAGE 4", label: "Tow Truck / Surveyor Dispatch", desc: "Transfers GPS coordinates to road assistance provider via real-time API.", latency: "Real-time", protocol: "Roadside Fleet Hook", accent: "#059669" },
-      { id: "i5", stage: "STAGE 5", label: "Regulated Audit Vault", desc: "Archives verbatim recording with cryptographic signature for IRDAI compliance.", latency: "Real-time", protocol: "S3 Vault + SHA-256", accent: "#10B981" }
+      { id: "i1", stage: "STAGE 1", label: "Renewal List or Claim Call", desc: "A renewal campaign starts, or a policyholder calls your number to report a claim.", latency: "Live", protocol: "CSV / your +91 number", accent: "#059669" },
+      { id: "i2", stage: "STAGE 2", label: "Identity Check", desc: "The agent confirms the policyholder before discussing the policy.", latency: "Real-time", protocol: "Agent instructions", accent: "#10B981" },
+      { id: "i3", stage: "STAGE 3", label: "Questions Answered", desc: "Coverage and renewal questions are answered from your policy documents.", latency: "During the call", protocol: "Knowledge base", accent: "#34D399" },
+      { id: "i4", stage: "STAGE 4", label: "Details Collected", desc: "For a claim: what happened, when, where, and the best number to call back.", latency: "During the call", protocol: "Post-call data extraction", accent: "#059669" },
+      { id: "i5", stage: "STAGE 5", label: "Handed to Your Team", desc: "Renewal intent or claim details reach your system for the next step.", latency: "After the call", protocol: "Signed webhook", accent: "#10B981" }
     ],
     subTopics: [
       {
-        id: "fnol-claims-intake",
-        title: "Sub-Topic 01: First Notice of Loss (FNOL) Claims Intake",
-        badge: "Emergency Dispatch",
-        problem: "Claim intake queues during natural disasters or rush hours take 25+ minutes of hold time.",
-        solution: "Claritiy Voice picks up in 0 seconds, collects location, vehicle damage description, and logs claim number.",
-        metrics: "3.5× faster FNOL intake • 0 queue hold time",
-        templateId: "tpl-13",
-        templateName: "First Notice of Loss (FNOL) Auto Claim Intake",
+        id: "renewal-outreach",
+        title: "Sub-Topic 01: Policy Renewal Reminders",
+        badge: "Retention",
+        problem: "Policies lapse because renewal emails and messages are ignored.",
+        solution: "The agent calls before expiry, reminds the policyholder of the date, answers simple questions and records whether they want to renew.",
+        metrics: "Renewal intent recorded for every policyholder",
+        templateId: "tpl-10",
+        templateName: "Billing & Subscription Assistant",
         templateCategory: "Customer Support",
         dialogue: [
-          { speaker: "Claritiy AI", text: "Emergency Insurance Assistance. Are you in a safe location, and does anyone require medical aid?", time: "00:03" },
-          { speaker: "Caller", text: "Everyone is safe, but my car bumper is damaged after a collision near Electronic City.", time: "00:09" },
-          { speaker: "Claritiy AI", text: "I am glad you are safe. I have pulled up your comprehensive policy for vehicle KA-05-MB-1234. Your claim ticket #CLM-8910 is active, and roadside towing has been dispatched to your location.", time: "00:22" },
-          { speaker: "Caller", text: "What is the towing ETA?", time: "00:26" },
-          { speaker: "Claritiy AI", text: "The flatbed tow truck is currently 12 minutes away. I have sent the driver's live GPS tracking link to your registered mobile number.", time: "00:34" }
+          { speaker: "AI Agent", text: "Hello Rohan, this is the AI assistant from Shield Insurance. Your motor policy expires in five days. Would you like to renew it?", time: "00:05" },
+          { speaker: "Policyholder", text: "Yes. Is my no-claim bonus still there?", time: "00:10" },
+          { speaker: "AI Agent", text: "Yes, your 20% no-claim bonus applies. Our team will email you the renewal link today.", time: "00:18" }
         ]
       },
       {
-        id: "policy-renewal-engine",
-        title: "Sub-Topic 02: Automated Policy Renewal & Premium Collection",
-        badge: "Retention Desk",
-        problem: "22% of auto and health policies lapse due to forgotten renewal dates and ignored email alerts.",
-        solution: "Voice agent calls 14 and 3 days before expiry, explains no-claim bonus (NCB), and sends one-click renewal link.",
-        metrics: "78% renewal rate automated • ₹0 agent commission",
-        templateId: "tpl-7",
-        templateName: "Ethical Pre-Due EMI & Renewal Reminder",
-        templateCategory: "BFSI Collections & Reminders",
+        id: "fnol-intake",
+        title: "Sub-Topic 02: First Notice of Loss",
+        badge: "Claims Intake",
+        problem: "Claim callers are often stressed, and the first call is when key details get missed.",
+        solution: "The agent stays calm, asks what happened, when and where, and records each answer as a field for the claims team.",
+        metrics: "Incident type, date, place and call-back number captured",
+        templateId: "tpl-10",
+        templateName: "Billing & Subscription Assistant",
+        templateCategory: "Customer Support",
         dialogue: [
-          { speaker: "Claritiy AI", text: "Hello Vikram, calling from HDFC ERGO. Your comprehensive car policy for Hyundai Creta expires on October 20th. You have earned a 35% No-Claim Bonus discount. Would you like to renew now for ₹11,200?", time: "00:08" },
-          { speaker: "Policyholder", text: "Yes, please send the payment link.", time: "00:11" },
-          { speaker: "Claritiy AI", text: "I have just sent your instant renewal link via SMS and WhatsApp. Once paid, your renewed policy PDF will download instantly.", time: "00:21" }
+          { speaker: "AI Agent", text: "I'm sorry to hear about the accident. Is everyone safe?", time: "00:04" },
+          { speaker: "Policyholder", text: "Yes, just damage to the car.", time: "00:08" },
+          { speaker: "AI Agent", text: "Thank you. When and where did it happen? I'll pass the details to our claims team, who will call you back.", time: "00:16" }
         ]
       },
       {
-        id: "cashless-pre-auth",
-        title: "Sub-Topic 03: Cashless Hospitalization Pre-Authorization",
-        badge: "Health Desk",
-        problem: "Patients wait hours at hospital billing desks for initial sanction approval.",
-        solution: "Instant automated call verifies policy coverage limits, hospital room rent eligibility, and notifies billing team.",
-        metrics: "Instant policy verification • 92% patient relief",
-        templateId: "tpl-2",
-        templateName: "Pre-Op Fasting & Diagnostic Protocol",
+        id: "coverage-questions",
+        title: "Sub-Topic 03: Coverage Questions",
+        badge: "Support",
+        problem: "Support lines are busy with the same questions about what a policy covers.",
+        solution: "The agent answers from your policy FAQ and offers a call-back from an advisor when a question is not covered by the document.",
+        metrics: "Answers from your documents; call-back when unsure",
+        templateId: "tpl-10",
+        templateName: "Billing & Subscription Assistant",
         templateCategory: "Customer Support",
         dialogue: [
-          { speaker: "Claritiy AI", text: "Good afternoon. Calling Apollo Hospital Billing Desk regarding cashless admission for patient S. Mehra. Policy #HL-9912 covers 100% of room rent and surgical procedures up to ₹5,00,000.", time: "00:08" },
-          { speaker: "Desk Staff", text: "Confirming co-pay clauses.", time: "00:11" },
-          { speaker: "Claritiy AI", text: "Zero co-pay applied. Sanction letter has been electronically stamped and delivered to your portal.", time: "00:19" }
-        ]
-      },
-      {
-        id: "claim-status-deflection",
-        title: "Sub-Topic 04: Claim Status & Surveyor ETA Updates",
-        badge: "Deflection Desk",
-        problem: "60% of claim center inbound volume consists of repetitive 'Where is my claim?' inquiries.",
-        solution: "AI authenticates claim ID, retrieves real-time surveyor notes, and gives precise status updates.",
-        metrics: "65% call deflection • 4.8★ CSAT rating",
-        templateId: "tpl-1",
-        templateName: "Front Desk Receptionist",
-        templateCategory: "Customer Support",
-        dialogue: [
-          { speaker: "Claritiy AI", text: "Welcome to Bajaj Allianz Claims. May I have your 8-digit claim registration number?", time: "00:04" },
-          { speaker: "Caller", text: "Claim number is CLM-8910.", time: "00:08" },
-          { speaker: "Claritiy AI", text: "Thank you. Your vehicle inspection at Trident Hyundai has been completed by Surveyor Rajesh Kumar. Final settlement approval of ₹42,300 is scheduled for tomorrow at 3 PM.", time: "00:20" }
+          { speaker: "Caller", text: "Does my health policy cover day-care procedures?", time: "00:04" },
+          { speaker: "AI Agent", text: "Yes, your plan's document lists day-care procedures as covered, subject to the sum insured. Would you like an advisor to call you with the details?", time: "00:14" }
         ]
       }
     ],
     jsonPayload: `{
-  "event": "claim.fnol_logged",
-  "policyNumber": "POL-AUTO-899120",
-  "claimId": "CLM-8910",
-  "insuredName": "Vikram Sethi",
-  "accidentType": "REAR_COLLISION",
-  "injuriesReported": false,
-  "towingDispatched": true,
-  "gpsTrackingSent": true,
-  "disposition": "FNOL_PROCESSED"
+  "event": "call_analyzed",
+  "timestamp": "2026-10-10T11:42:08.000Z",
+  "data": {
+    "callId": "c_8f2a1d5",
+    "resultLabel": "Will Renew",
+    "confidence": 0.91,
+    "sentiment": "positive",
+    "summary": "Outcome: Will Renew.",
+    "extractedFields": {
+      "policy_number": "POL-992140",
+      "renewal_intent": "YES",
+      "ncb_confirmed": true
+    },
+    "status": "completed"
+  }
 }`
   },
 
-  // ── 6. Logistics & Supply Chain ───────────────────────────────────────────
+  // ── 6. Logistics ──────────────────────────────────────────────────────────
   {
     id: "logistics",
     label: "Logistics & Fleet",
     icon: Truck,
     visual: "🚚",
-    badge: "Real-Time Dispatch",
+    badge: "Delivery Coordination",
     accent: "#E8630A",
     bgLight: "#FEF3C7",
-    headline: "Hyper-Local Logistics, Gate Access & Driver Dispatch",
-    subhead: "Achieve 98.5% first-attempt delivery rates with pre-arrival presence verification, gated community PIN capture, and automated freight driver scheduling.",
-    heroStat: { value: "98.5%", label: "First-Attempt Delivery Rate" },
+    headline: "Delivery Calls That Prevent Failed Attempts",
+    subhead: "Call recipients before the delivery attempt, confirm someone will be there, collect drop-off instructions or a new date, and send them to your system for the driver.",
+    heroStat: { value: "Before arrival", label: "Recipient availability checked" },
     stats: [
-      { value: "∞", label: "Concurrent Outbound Calls" },
-      { value: "25%", label: "Faster Route Completion" },
-      { value: "0", label: "Gate Turnaround Delays" }
+      { value: "API", label: "Triggered from your TMS" },
+      { value: "Fields", label: "Instructions captured" },
+      { value: "Webhook", label: "Sent back for the driver" }
     ],
     wiremap: [
-      { id: "l1", stage: "STAGE 1", label: "Warehouse Dispatch Queue", desc: "Batch of 5,000 packages assigned to local delivery hubs.", latency: "Real-time", protocol: "WMS / Courier Core", accent: "#E8630A" },
-      { id: "l2", stage: "STAGE 2", label: "Consignee Time-Window Call", desc: "Calls receiver 1 hour prior to confirm presence and Gate security instructions.", latency: "Real-time", protocol: "Claritiy Voice DSP", accent: "#F59E0B" },
-      { id: "l3", stage: "STAGE 3", label: "Security Gate OTP / Passcode", desc: "Captures building visitor PIN or asks for leave-with-security authorization.", latency: "Real-time", protocol: "Speech-to-Digit Extraction", accent: "#E8630A" },
-      { id: "l4", stage: "STAGE 4", label: "TMS Driver Handset Sync", desc: "Pushes optimized delivery sequence and gate passcodes to delivery app.", latency: "Real-time", protocol: "Driver App WebSocket", accent: "#F59E0B" },
-      { id: "l5", stage: "STAGE 5", label: "Failed Attempt Recovery", desc: "If receiver is away, instantly books neighbor drop or shifts slot to next day.", latency: "Real-time", protocol: "Real-time Rescheduler", accent: "#E8630A" }
+      { id: "l1", stage: "STAGE 1", label: "Out-for-Delivery Event", desc: "Your TMS sends the shipment to the agent through the API.", latency: "Morning of delivery", protocol: "REST API", accent: "#E8630A" },
+      { id: "l2", stage: "STAGE 2", label: "Recipient Called", desc: "The agent calls the recipient from your number within calling hours.", latency: "Live", protocol: "Your +91 number", accent: "#F59E0B" },
+      { id: "l3", stage: "STAGE 3", label: "Availability Checked", desc: "It asks whether someone will be home and listens for instructions.", latency: "Real-time", protocol: "Speech-to-speech model", accent: "#E8630A" },
+      { id: "l4", stage: "STAGE 4", label: "Instructions Captured", desc: "Drop-off instructions, a new date or an alternate receiver are saved as fields.", latency: "During the call", protocol: "Post-call data extraction", accent: "#F59E0B" },
+      { id: "l5", stage: "STAGE 5", label: "Back to Your System", desc: "The instructions reach your TMS for the driver.", latency: "After the call", protocol: "Signed webhook", accent: "#E8630A" }
     ],
     subTopics: [
       {
-        id: "consignee-presence",
-        title: "Sub-Topic 01: Pre-Delivery Consignee Presence Verification",
-        badge: "Last-Mile Efficiency",
-        problem: "Delivery executives spend 20% of their workday waiting outside locked gates for unavailable recipients.",
-        solution: "Voice agent calls 45 minutes prior to delivery, confirming presence and preventing wasted driver trips.",
-        metrics: "98.5% first-attempt delivery rate • 25% faster routes",
-        templateId: "tpl-14",
-        templateName: "Pre-Delivery Consignee Presence Check",
-        templateCategory: "Customer Support",
+        id: "delivery-confirmation",
+        title: "Sub-Topic 01: Delivery-Day Availability",
+        badge: "Last Mile",
+        problem: "Drivers waste trips when nobody is home to receive the parcel.",
+        solution: "The agent calls before the attempt and records whether someone will be there, or who can receive it instead.",
+        metrics: "Availability or alternate receiver recorded",
+        templateId: "tpl-9",
+        templateName: "E-Commerce COD Order Confirmation",
+        templateCategory: "Logistics",
         dialogue: [
-          { speaker: "Claritiy AI", text: "Hello Ananya, calling from Express Logistics regarding package #EXP-4402 arriving in 35 minutes. Are you available at Flat 301 to receive it?", time: "00:03" },
-          { speaker: "Receiver", text: "I am at office right now. Can you ask the delivery person to leave it with the security guard at Tower B?", time: "00:11" },
-          { speaker: "Claritiy AI", text: "Certainly. I have updated the driver's delivery note to leave the package with Tower B Security. We will text you a photo of the parcel upon drop-off.", time: "00:22" }
+          { speaker: "AI Agent", text: "Hi Priya, this is the AI assistant calling about your parcel out for delivery to Sector 62 today. Will someone be home?", time: "00:05" },
+          { speaker: "Recipient", text: "I'm out. Leave it with the security guard at Gate 1.", time: "00:10" },
+          { speaker: "AI Agent", text: "Understood: leave with security at Gate 1. I've noted it for the delivery partner.", time: "00:16" }
         ]
       },
       {
-        id: "gate-security-pin",
-        title: "Sub-Topic 02: Gate Security PIN & Access Code Collection",
-        badge: "Gated Communities",
-        problem: "Strict apartment societies deny courier entry without resident pre-approval, delaying deliveries.",
-        solution: "AI prompts recipient to generate MyGate / NoBroker pass and relays code directly to courier app.",
-        metrics: "Zero gate turnaround delays • Smooth delivery",
-        templateId: "tpl-14",
-        templateName: "Pre-Delivery Consignee Presence Check",
-        templateCategory: "Customer Support",
+        id: "reschedule",
+        title: "Sub-Topic 02: Rescheduling Failed Deliveries",
+        badge: "Re-Attempt",
+        problem: "After a failed attempt, recipients are hard to reach and parcels head back to the warehouse.",
+        solution: "The agent calls after a failed attempt and records a new date and time that suits the recipient.",
+        metrics: "New delivery slot recorded",
+        templateId: "tpl-9",
+        templateName: "E-Commerce COD Order Confirmation",
+        templateCategory: "Logistics",
         dialogue: [
-          { speaker: "Claritiy AI", text: "Hello Rohan, your delivery partner has arrived at Sobha City Main Gate. May I have your 4-digit visitor PIN for security gate clearance?", time: "00:05" },
-          { speaker: "Resident", text: "Yes, the MyGate PIN is 4491.", time: "00:08" },
-          { speaker: "Claritiy AI", text: "PIN 4491 has been sent to your driver's app. Delivery to your doorstep is in progress.", time: "00:16" }
+          { speaker: "AI Agent", text: "We tried to deliver your parcel today but couldn't reach you. When would be a good time tomorrow?", time: "00:05" },
+          { speaker: "Recipient", text: "After 5 pm, please.", time: "00:08" },
+          { speaker: "AI Agent", text: "Tomorrow after 5 pm. Noted, thank you.", time: "00:12" }
         ]
       },
       {
-        id: "driver-availability-dispatch",
-        title: "Sub-Topic 03: Driver Availability & Route Acceptance",
-        badge: "Fleet Dispatch",
-        problem: "Dispatchers spend hours calling truck drivers to confirm morning freight assignments.",
-        solution: "Automated agent dials 500 drivers simultaneously, confirms truck capacity, and logs availability.",
-        metrics: "100% route allocation in 15 mins • Zero dispatcher chaos",
-        templateId: "tpl-10",
-        templateName: "Instant Lead Qualification",
-        templateCategory: "Lead Qualification",
+        id: "return-pickup",
+        title: "Sub-Topic 03: Return Pickup Confirmation",
+        badge: "Reverse Logistics",
+        problem: "Return pickups fail when the customer is not ready or not home.",
+        solution: "The agent confirms the pickup day and that the item is packed, or records a better day.",
+        metrics: "Pickup confirmed or moved",
+        templateId: "tpl-9",
+        templateName: "E-Commerce COD Order Confirmation",
+        templateCategory: "Logistics",
         dialogue: [
-          { speaker: "Claritiy AI", text: "Namaste Suresh ji, calling from FreightX. We have a 14-foot truck load from Bhiwandi to Pune leaving tomorrow at 6:00 AM at ₹8,500. Are you available to accept this route?", time: "00:07" },
-          { speaker: "Driver", text: "Haanji, I will take it. What is the loading dock address?", time: "00:12" },
-          { speaker: "Claritiy AI", text: "Route assigned! Dock 4, Warehouse 12, Bhiwandi. Google Maps navigation link sent via WhatsApp.", time: "00:21" }
-        ]
-      },
-      {
-        id: "delay-exception-alerts",
-        title: "Sub-Topic 04: Shipment Delay & Exception Broadcast",
-        badge: "Customer Care",
-        problem: "Unexpected highway blockades or weather delays flood support desks with angry status calls.",
-        solution: "Proactively calls consignees with revised delivery windows before they ever need to complain.",
-        metrics: "80% reduction in inbound support calls • Proactive trust",
-        templateId: "tpl-1",
-        templateName: "Front Desk Receptionist",
-        templateCategory: "Customer Support",
-        dialogue: [
-          { speaker: "Claritiy AI", text: "Hello Maya, calling from Delhivery. Due to highway waterlogging, your parcel #DEL-9912 will be delivered tomorrow morning between 10 AM and 12 PM instead of tonight. Would you like it delivered to home or office?", time: "00:08" },
-          { speaker: "Customer", text: "Office address please.", time: "00:11" },
-          { speaker: "Claritiy AI", text: "Address updated to your office location. Thank you for your patience!", time: "00:18" }
+          { speaker: "AI Agent", text: "Hello, your return pickup is scheduled for tomorrow. Will the item be packed and ready?", time: "00:05" },
+          { speaker: "Customer", text: "Yes, it's ready.", time: "00:08" }
         ]
       }
     ],
     jsonPayload: `{
-  "event": "delivery.rescheduled_guard",
-  "trackingNumber": "EXP-4402",
-  "consignee": "Ananya Roy",
-  "phoneNumber": "+919933445566",
-  "originalSlot": "2026-10-10T14:30:00",
-  "resolution": "LEAVE_WITH_SECURITY_TOWER_B",
-  "driverAppNotified": true
+  "event": "call_analyzed",
+  "timestamp": "2026-10-10T11:42:08.000Z",
+  "data": {
+    "callId": "c_8f2a1d6",
+    "resultLabel": "Instructions Captured",
+    "confidence": 0.91,
+    "sentiment": "positive",
+    "summary": "Outcome: Instructions Captured.",
+    "extractedFields": {
+      "waybill": "WB-9012481",
+      "driver_instruction": "Leave with security at Gate 1",
+      "recipient_confirmed": true
+    },
+    "status": "completed"
+  }
 }`
   },
 
-  // ── 7. BPO & Call Centers ─────────────────────────────────────────────────
+  // ── 7. BPO & Call Centres ─────────────────────────────────────────────────
   {
     id: "bpo",
     label: "BPO & Call Centers",
     icon: Headphones,
     visual: "🎧",
-    badge: "Infinite Scale Engine",
+    badge: "Overflow & After Hours",
     accent: "#059669",
     bgLight: "#D1FAE5",
-    headline: "High-Volume Call Queue Deflection & Warm Transfer",
-    subhead: "Handle high-traffic surge events without queue hold times. Deflect repetitive Tier-1 volume autonomously and transfer complex issues with live context.",
-    heroStat: { value: "10K+", label: "Concurrent Call Capacity" },
+    headline: "Take Routine and After-Hours Calls Off Your Agents",
+    subhead: "Let an AI voice agent answer routine questions, take messages and collect details at night or when the queue is full, so your human team spends its time on the calls that need a person.",
+    heroStat: { value: "24×7", label: "Routine calls answered" },
     stats: [
-      { value: "60%", label: "Operational Cost Reduction" },
-      { value: "4.9★", label: "CSAT Maintained" },
-      { value: "45s", label: "AHT Reduction on Warm Transfer" }
+      { value: "7", label: "Indian languages + auto-detect" },
+      { value: "Transcripts", label: "For every call" },
+      { value: "Reports", label: "Outcome labels and QA scores" }
     ],
     wiremap: [
-      { id: "b1", stage: "STAGE 1", label: "SIP PBX Overflow Routing", desc: "Inbound queues exceeding 30s automatically divert to Claritiy Voice.", latency: "Real-time", protocol: "FreeSWITCH / Asterisk SIP", accent: "#059669" },
-      { id: "b2", stage: "STAGE 2", label: "Tier-1 Autonomous Deflection", desc: "Resolves FAQs, order lookups, and account resets without human intervention.", latency: "Real-time", protocol: "Claritiy Core LLM", accent: "#10B981" },
-      { id: "b3", stage: "STAGE 3", label: "Sentiment & Escalation Monitor", desc: "Detects caller frustration, urgent keywords, or VIP customer status.", latency: "Real-time", protocol: "VAD + Sentiment Pipeline", accent: "#34D399" },
-      { id: "b4", stage: "STAGE 4", label: "SIP-REFER Human Handover", desc: "Transfers audio stream to available human agent along with live screenpop notes.", latency: "Real-time", protocol: "SIP REFER", accent: "#059669" },
-      { id: "b5", stage: "STAGE 5", label: "100% Automated Call Auditing", desc: "Evaluates compliance, empathy, and accuracy scores across 10,000+ daily calls.", latency: "Real-time", protocol: "Audit Vector Embeddings", accent: "#10B981" }
+      { id: "b1", stage: "STAGE 1", label: "Customer Calls", desc: "The call reaches the +91 number connected to the agent.", latency: "Live", protocol: "Your +91 number", accent: "#059669" },
+      { id: "b2", stage: "STAGE 2", label: "Reason for Calling", desc: "The agent finds out why the customer is calling.", latency: "Real-time", protocol: "Speech-to-speech model", accent: "#10B981" },
+      { id: "b3", stage: "STAGE 3", label: "Routine Questions Answered", desc: "Order status, timings and policies come from your knowledge base or your API (Functions).", latency: "During the call", protocol: "Knowledge base / Functions", accent: "#34D399" },
+      { id: "b4", stage: "STAGE 4", label: "Call-Back Requested", desc: "When a person is needed, the agent takes the details and books a call-back.", latency: "During the call", protocol: "Post-call data extraction", accent: "#059669" },
+      { id: "b5", stage: "STAGE 5", label: "Ticket for Your Team", desc: "The summary and details reach your helpdesk for follow-up.", latency: "After the call", protocol: "Signed webhook", accent: "#10B981" }
     ],
     subTopics: [
       {
-        id: "surge-queue-deflection",
-        title: "Sub-Topic 01: High-Volume Call Queue Deflection",
-        badge: "Infinite Scalability",
-        problem: "Surge events (outages, flash sales) create 45-minute wait times and sky-high abandonment rates.",
-        solution: "Spins up thousands of concurrent AI agents in 20 milliseconds, providing instant answers with zero hold time.",
-        metrics: "0-second wait times • 60% operational cost reduction",
-        templateId: "tpl-15",
-        templateName: "High-Volume Call Queue Deflection",
+        id: "overflow",
+        title: "Sub-Topic 01: Overflow at Peak Times",
+        badge: "Overflow",
+        problem: "When the queue is full, customers wait on hold or hang up.",
+        solution: "Point a second number at the AI agent for overflow: it answers routine questions and books call-backs for the rest.",
+        metrics: "Routine questions answered • call-backs booked",
+        templateId: "tpl-1",
+        templateName: "Front Desk & Department Router",
         templateCategory: "Customer Support",
         dialogue: [
-          { speaker: "Claritiy AI", text: "Thank you for calling Skyward Support. I am your AI assistant. How may I help you today?", time: "00:03" },
-          { speaker: "Customer", text: "My broadband has been down since morning, and I need it for an important work meeting.", time: "00:09" },
-          { speaker: "Claritiy AI", text: "I understand how urgent that is. I have tested your optical line for account #ACC-7712. A local fiber cut is currently under repair near your node. Field engineers estimate restoration by 2:30 PM.", time: "00:22" },
-          { speaker: "Customer", text: "Can you notify me once it is back up?", time: "00:26" },
-          { speaker: "Claritiy AI", text: "I have enrolled your mobile for instant SMS and WhatsApp notification the moment the optical signal stabilizes. You will receive an alert automatically.", time: "00:35" }
+          { speaker: "AI Agent", text: "Thanks for calling. I'm the AI assistant. How can I help?", time: "00:03" },
+          { speaker: "Customer", text: "What time does your Pune branch close today?", time: "00:07" },
+          { speaker: "AI Agent", text: "The Pune branch is open until 7 pm today.", time: "00:11" }
         ]
       },
       {
-        id: "warm-human-transfer",
-        title: "Sub-Topic 02: Contextual Warm Transfer to Human Agents",
-        badge: "Hybrid Operations",
-        problem: "Callers get frustrated repeating their issue when transferred from IVR to human agents.",
-        solution: "Claritiy Voice briefs the human agent with a 2-sentence summary and intent score before connecting audio.",
-        metrics: "45-second reduction in Average Handle Time (AHT)",
-        templateId: "tpl-1",
-        templateName: "Front Desk Receptionist",
-        templateCategory: "Receptionist",
-        dialogue: [
-          { speaker: "Claritiy AI (to Agent)", text: "[Internal Screenpop]: Caller is Priya Sharma, Account #8819. Disputed credit card annual fee of ₹1,500. High-value customer (Tier 1 Gold). Recommended action: Fee waiver.", time: "00:06" },
-          { speaker: "Human Agent", text: "Hello Ms. Sharma, I see you are inquiring about the ₹1,500 annual fee. I would be happy to process an immediate waiver for your Gold account today.", time: "00:15" }
-        ]
-      },
-      {
-        id: "automated-call-qa",
-        title: "Sub-Topic 03: 100% Automated Call QA & Compliance Auditing",
-        badge: "Quality Assurance",
-        problem: "BPO QA teams can only manually review 1-2% of recorded calls, missing compliance violations.",
-        solution: "Transcribes and scores 100% of calls for regulatory compliance, script adherence, and sentiment trends.",
-        metrics: "100% audit coverage • Zero compliance penalties",
-        templateId: "tpl-15",
-        templateName: "High-Volume Call Queue Deflection",
+        id: "after-hours",
+        title: "Sub-Topic 02: After-Hours Messages",
+        badge: "After Hours",
+        problem: "Calls at night reach voicemail, and messages are incomplete or never returned.",
+        solution: "The agent takes a complete message (name, number, reason, urgency) and your team sees it first thing in the morning.",
+        metrics: "Complete message for every after-hours call",
+        templateId: "tpl-11",
+        templateName: "After-Hours Incident Line",
         templateCategory: "Customer Support",
         dialogue: [
-          { speaker: "Claritiy QA Engine", text: "Call ID #CL-9921 analyzed. Agent adherence: 98%. Mandatory disclaimer stated: YES. Customer sentiment trend: Neutral -> Positive. QA Score: 9.6/10.", time: "00:05" }
+          { speaker: "AI Agent", text: "Our office is closed right now, but I can take a message. What is it about?", time: "00:04" },
+          { speaker: "Customer", text: "My refund hasn't come yet.", time: "00:08" },
+          { speaker: "AI Agent", text: "I'm sorry about that. May I have your order number? Our team will call you tomorrow morning.", time: "00:15" }
         ]
       },
       {
-        id: "tier1-faq-automation",
-        title: "Sub-Topic 04: Tier-1 FAQ & Transaction Automation",
-        badge: "Self-Service Voice",
-        problem: "Agents spend 70% of their shift answering repetitive questions like 'Where is my order?' or 'Reset password'.",
-        solution: "Voice agent resolves routine inquiries directly from backend databases, freeing humans for complex sales.",
-        metrics: "72% first-contact resolution • 4.9★ CSAT",
+        id: "qa-review",
+        title: "Sub-Topic 03: Quality Review Without Listening to Every Call",
+        badge: "Quality",
+        problem: "Supervisors cannot listen to every call to check quality.",
+        solution: "Every call gets a transcript, an outcome label and a score; QA cohorts score groups of calls so supervisors review only the weak ones.",
+        metrics: "Transcript, outcome label and score for every call",
         templateId: "tpl-1",
-        templateName: "Front Desk Receptionist",
-        templateCategory: "Receptionist",
+        templateName: "Front Desk & Department Router",
+        templateCategory: "Customer Support",
         dialogue: [
-          { speaker: "Claritiy AI", text: "Hello! Claritiy Care Desk. How can I assist you with your account today?", time: "00:03" },
-          { speaker: "Caller", text: "I need to reset my corporate account password.", time: "00:06" },
-          { speaker: "Claritiy AI", text: "I have just triggered an encrypted password reset link to your registered email address on file ending in @company.com. The link is valid for 15 minutes.", time: "00:18" }
+          { speaker: "Supervisor", text: "Show me this week's calls that scored below 60.", time: "00:02" },
+          { speaker: "Dashboard", text: "Call Reports → filter by score and Needs Review.", time: "00:05" }
         ]
       }
     ],
     jsonPayload: `{
-  "event": "support.tier1_resolved",
-  "customerId": "cust_8819",
-  "serviceType": "Fiber Broadband",
-  "incidentId": "INC-NODE-99",
-  "intent": "OUTAGE_CHECK",
-  "disposition": "AUTONOMOUSLY_RESOLVED",
-  "humanEscalationRequired": false,
-  "csatPrediction": 4.8
+  "event": "call_analyzed",
+  "timestamp": "2026-10-10T11:42:08.000Z",
+  "data": {
+    "callId": "c_8f2a1d7",
+    "resultLabel": "Callback Requested",
+    "confidence": 0.91,
+    "sentiment": "positive",
+    "summary": "Outcome: Callback Requested.",
+    "extractedFields": {
+      "caller_name": "Neha",
+      "reason": "Refund status",
+      "order_number": "A-55120",
+      "urgency": "normal"
+    },
+    "status": "completed"
+  }
 }`
   },
 
-  // ── 8. SaaS & Digital Agencies ────────────────────────────────────────────
+  // ── 8. SaaS & Agencies ────────────────────────────────────────────────────
   {
     id: "saas",
     label: "SaaS & Agencies",
     icon: Code,
     visual: "⚡",
-    badge: "White-Label API",
+    badge: "API & Webhooks",
     accent: "#E8630A",
     bgLight: "#FEF3C7",
-    headline: "White-Label Voice AI & Product Trial Activation",
-    subhead: "Deliver voice AI infrastructure for marketing agencies and product-led SaaS companies. Activate new signups within 5 minutes and book executive demos.",
-    heroStat: { value: "3×", label: "Trial-to-Paid Lift" },
+    headline: "Add AI Phone Calls to Your Product or Your Clients' Businesses",
+    subhead: "Trigger calls from your own software with the REST API, receive every result on a signed webhook, and let agents call your APIs during the conversation. Agencies can build and export agents for each client.",
+    heroStat: { value: "REST API", label: "Place calls from your code" },
     stats: [
-      { value: "100%", label: "White-Label Custom Domain SIP" },
-      { value: "45%", label: "Faster Onboarding Activation" },
-      { value: "28%", label: "Churn Reduction" }
+      { value: "HMAC", label: "Signed webhooks" },
+      { value: "Functions", label: "Your APIs during the call" },
+      { value: "Export", label: "Agents as files for clients" }
     ],
     wiremap: [
-      { id: "s1", stage: "STAGE 1", label: "Product Signup Hook", desc: "User signs up for software trial or triggers high-value upgrade intent.", latency: "Real-time", protocol: "PostHog / Segment Hook", accent: "#E8630A" },
-      { id: "s2", stage: "STAGE 2", label: "Firmographic Enrichment", desc: "Enriches company size, LinkedIn tech stack, and ICP tier within 2 seconds.", latency: "Real-time", protocol: "Clearbit / Apollo API", accent: "#F59E0B" },
-      { id: "s3", stage: "STAGE 3", label: "White-Label Outbound SDR", desc: "Calls buyer representing the SaaS brand, answers setup doubts, qualifies demo.", latency: "Real-time", protocol: "Custom Domain SIP Gateway", accent: "#E8630A" },
-      { id: "s4", stage: "STAGE 4", label: "Executive Demo Slot Booking", desc: "Integrates with Calendly/ChiliPiper to schedule video walkthrough with AE.", latency: "Real-time", protocol: "OAuth Calendar API", accent: "#F59E0B" },
-      { id: "s5", stage: "STAGE 5", label: "CRM Deal Stage Advance", desc: "Updates HubSpot/Salesforce deal stage to 'Demo Scheduled' with call transcript.", latency: "Real-time", protocol: "CRM REST API", accent: "#E8630A" }
+      { id: "s1", stage: "STAGE 1", label: "Your App Calls the API", desc: "Create an API key in Settings and start a call with the REST API.", latency: "On demand", protocol: "REST API", accent: "#E8630A" },
+      { id: "s2", stage: "STAGE 2", label: "Agent Talks", desc: "The agent you built in the dashboard handles the conversation.", latency: "Real-time", protocol: "Speech-to-speech model", accent: "#F59E0B" },
+      { id: "s3", stage: "STAGE 3", label: "Functions", desc: "During the call the agent can call your endpoints, for example to look up an account.", latency: "During the call", protocol: "Functions (your API)", accent: "#E8630A" },
+      { id: "s4", stage: "STAGE 4", label: "Data Extracted", desc: "The fields you defined are pulled out of the conversation.", latency: "After the call", protocol: "Post-call data extraction", accent: "#F59E0B" },
+      { id: "s5", stage: "STAGE 5", label: "Webhook Delivered", desc: "Your server receives the result, signed with HMAC-SHA256 in X-Claritiy-Signature.", latency: "After the call", protocol: "Signed webhook", accent: "#E8630A" }
     ],
     subTopics: [
       {
-        id: "trial-activation",
-        title: "Sub-Topic 01: Instant Trial Activation & Guided Onboarding",
-        badge: "Product-Led Growth",
-        problem: "65% of trial signups churn within 48 hours without completing their first core product setup.",
-        solution: "Voice agent calls 5 minutes after signup, answers onboarding hurdles, and guides user to their first 'aha' moment.",
-        metrics: "3× trial-to-paid conversion • 45% faster activation",
-        templateId: "tpl-16",
-        templateName: "Product Demo & Trial Activation Agent",
-        templateCategory: "Outbound Sales & Reactivation",
+        id: "trial-onboarding",
+        title: "Sub-Topic 01: Calling New Sign-Ups",
+        badge: "Onboarding",
+        problem: "Many trial users never finish setting up and quietly leave.",
+        solution: "Your app calls the API when someone signs up; the agent asks what they want to achieve and books a setup call for larger accounts.",
+        metrics: "Goal and next step recorded for each sign-up",
+        templateId: "tpl-8",
+        templateName: "SaaS Free Trial Onboarding",
+        templateCategory: "Sales",
         dialogue: [
-          { speaker: "Claritiy AI", text: "Hi Priya! This is Alex from CloudScale. I saw you just deployed your first Kubernetes cluster on our trial. Did everything connect smoothly for your team?", time: "00:04" },
-          { speaker: "Founder", text: "Yes, it connected, but we had a question about connecting our private GitHub repo for auto-deploys.", time: "00:11" },
-          { speaker: "Claritiy AI", text: "That is super common! You just need to paste your deploy key into Settings under Git Integrations. Our Solutions Engineer Mark has 15 minutes open tomorrow at 3 PM if you want him to walk you through it live.", time: "00:23" },
-          { speaker: "Founder", text: "Tomorrow at 3 PM works great for me.", time: "00:27" },
-          { speaker: "Claritiy AI", text: "Awesome! I have booked Mark's calendar and sent the Google Meet link to your inbox. Welcome to CloudScale!", time: "00:34" }
+          { speaker: "AI Agent", text: "Hi, this is Chris, an AI assistant. Thanks for signing up. What would you like to use the product for?", time: "00:04" },
+          { speaker: "User", text: "Order confirmation calls for our online store.", time: "00:08" },
+          { speaker: "AI Agent", text: "Great. Would a 15-minute setup call with our team tomorrow help?", time: "00:13" }
         ]
       },
       {
-        id: "white-label-agency",
-        title: "Sub-Topic 02: White-Label Voice AI for Digital Agencies",
-        badge: "Agency Reseller",
-        problem: "Agencies struggle to build proprietary AI voice infrastructure for their local business clients.",
-        solution: "White-label Claritiy Voice with custom domains, client billing sub-accounts, and custom voice models.",
-        metrics: "100% white-label ready • Multi-tenant client portals",
-        templateId: "tpl-1",
-        templateName: "Front Desk Receptionist",
-        templateCategory: "Receptionist",
+        id: "agency-clients",
+        title: "Sub-Topic 02: Agencies Building Agents for Clients",
+        badge: "Agencies",
+        problem: "Agencies rebuild the same agent for every client by hand.",
+        solution: "Build an agent once, Export it as a file and Import it into the client's workspace, then change the business details.",
+        metrics: "Agents reused across workspaces",
+        templateId: "tpl-3",
+        templateName: "B2B Outbound Lead Qualifier",
+        templateCategory: "Sales",
         dialogue: [
-          { speaker: "Claritiy Agency Core", text: "White-label tenant created for Agency 'Apex Digital'. Brand domain: calling.apexdigital.io. Client sub-account quota allocated: 50,000 minutes.", time: "00:05" }
+          { speaker: "Agency", text: "Export the receptionist agent and import it for the new clinic client.", time: "00:02" },
+          { speaker: "Dashboard", text: "Agents → Export, then Import in the client's workspace.", time: "00:05" }
         ]
       },
       {
-        id: "pre-churn-outreach",
-        title: "Sub-Topic 03: Pre-Churn Risk Outreach & Feature Discovery",
-        badge: "Customer Success",
-        problem: "Accounts go silent for 3 weeks before cancelling, leaving CS teams blindsided.",
-        solution: "Detects drop in platform usage and triggers friendly check-in call to address roadblocks.",
-        metrics: "28% churn reduction • Proactive customer love",
-        templateId: "tpl-16",
-        templateName: "Product Demo & Trial Activation Agent",
-        templateCategory: "Customer Support",
+        id: "webhook-integration",
+        title: "Sub-Topic 03: Results Into Your Own Database",
+        badge: "Integration",
+        problem: "Call results sit in yet another dashboard instead of your own system.",
+        solution: "Every finished call is posted to your webhook with the outcome, the extracted fields and the transcript, signed so you can verify it.",
+        metrics: "Signed post-call webhook for every call",
+        templateId: "tpl-3",
+        templateName: "B2B Outbound Lead Qualifier",
+        templateCategory: "Sales",
         dialogue: [
-          { speaker: "Claritiy AI", text: "Hello David, checking in from DataSync. We noticed your team's API syncs paused over the weekend. Were there any schema changes we can assist you with?", time: "00:06" },
-          { speaker: "User", text: "Yes, we upgraded our PostgreSQL version and were getting an auth handshake error.", time: "00:11" },
-          { speaker: "Claritiy AI", text: "Got it! That just requires enabling SSL mode 'require' in the connector. I have sent the doc link and assigned our senior database specialist to review your logs.", time: "00:22" }
-        ]
-      },
-      {
-        id: "contract-renewals",
-        title: "Sub-Topic 04: High-Tier Enterprise Contract Renewal Reminders",
-        badge: "Revenue Operations",
-        problem: "Annual contracts risk slipping into month-to-month delays when renewal managers miss follow-ups.",
-        solution: "Conversational agent verifies procurement contact, confirms license count, and schedules review.",
-        metrics: "94% on-time annual renewals • Clean CRM forecasting",
-        templateId: "tpl-7",
-        templateName: "Ethical Pre-Due EMI & Renewal Reminder",
-        templateCategory: "BFSI Collections & Reminders",
-        dialogue: [
-          { speaker: "Claritiy AI", text: "Good afternoon Sarah, calling from WorkStream Revenue Operations. Your annual enterprise tier is up for renewal on November 15th. May we confirm your seat count for the upcoming year?", time: "00:08" },
-          { speaker: "VP Eng", text: "We are expanding from 50 to 80 seats next month.", time: "00:11" },
-          { speaker: "Claritiy AI", text: "Fantastic! I have scheduled your Account Executive Liam to send the tiered volume pricing contract today. Have a great afternoon!", time: "00:20" }
+          { speaker: "Your server", text: "POST /claritiy-webhook (X-Claritiy-Signature verified)", time: "00:00" }
         ]
       }
     ],
     jsonPayload: `{
-  "event": "saas.demo_scheduled",
-  "leadEmail": "priya@techstartup.io",
-  "company": "TechStartup IO",
-  "trialDay": 1,
-  "assignedAE": "Mark Davis",
-  "scheduledTime": "2026-10-11T15:00:00+05:30",
-  "integrationDoubt": "GitHub Private Repo Deploy Keys",
-  "disposition": "HIGH_VALUE_DEMO_BOOKED"
+  "event": "call_analyzed",
+  "timestamp": "2026-10-10T11:42:08.000Z",
+  "data": {
+    "callId": "c_8f2a1d8",
+    "resultLabel": "Qualified",
+    "confidence": 0.91,
+    "sentiment": "positive",
+    "summary": "Outcome: Qualified.",
+    "extractedFields": {
+      "team_size": 30,
+      "monthly_calls": 5000
+    },
+    "status": "completed"
+  }
 }`
   }
 ];
-
-// ── SVG Interactive Background Pattern ─────────────────────────────────────────
 
 export default function UseCases({ setPage, initialIndustryId }: UseCasesProps) {
   const [selectedIndustryId, setSelectedIndustryId] = useState<string>(() => {
@@ -924,7 +844,7 @@ export default function UseCases({ setPage, initialIndustryId }: UseCasesProps) 
           <div>
             <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-[#121212] flex items-center gap-1.5 mb-1">
               <Workflow className="w-3.5 h-3.5 text-[#121212]" />
-              ENTERPRISE VERTICAL ARCHITECTURES
+              AI CALLING BY INDUSTRY
             </span>
             <h1 className="text-3xl md:text-5xl font-normal md:font-medium text-[#121212] tracking-tight font-sans">
               Production Use Case Blueprints
@@ -994,7 +914,7 @@ export default function UseCases({ setPage, initialIndustryId }: UseCasesProps) 
             {/* Quick Metrics Card */}
             <div className="bg-[#DFDCD4] border border-[#CBC8BE] rounded-[2px] p-6 space-y-4">
               <span className="text-[10px] font-mono text-[#262523] uppercase tracking-widest block">
-                MEASURED IMPACT
+                AT A GLANCE
               </span>
               <div className="space-y-1">
                 <span className="text-4xl font-bold font-mono text-[#121212]">
@@ -1027,7 +947,7 @@ export default function UseCases({ setPage, initialIndustryId }: UseCasesProps) 
               SYSTEM WIREMAP & FLOWGRAPH
             </span>
             <h2 className="text-2xl md:text-3xl font-medium text-[#121212] font-sans tracking-tight">
-              End-to-End Latency & Telephony Dataflow
+              How the Call Flows, Stage by Stage
             </h2>
             <p className="text-xs text-[#262523] font-sans max-w-2xl">
               Inspect each stage of the audio pipeline from network ingress to conversational reasoning and enterprise database mutation.
@@ -1091,17 +1011,17 @@ export default function UseCases({ setPage, initialIndustryId }: UseCasesProps) 
                 <div className="flex items-center gap-2">
                   <Terminal className="w-4 h-4 text-[#121212]" />
                   <span className="text-xs font-mono font-bold text-[#121212] uppercase">
-                    ACTIVE TELEMETRY: {currentTopic.wiremap[activeNodeIndex].label}
+                    STAGE: {currentTopic.wiremap[activeNodeIndex].label}
                   </span>
                 </div>
                 <p className="text-xs text-[#262523] font-sans">
-                  {currentTopic.wiremap[activeNodeIndex].desc} Protocol transport: <code>{currentTopic.wiremap[activeNodeIndex].protocol}</code>.
+                  {currentTopic.wiremap[activeNodeIndex].desc} Connects through: <code>{currentTopic.wiremap[activeNodeIndex].protocol}</code>.
                 </p>
               </div>
 
               <div className="flex items-center gap-3">
                 <span className="text-xs font-mono text-[#121212] bg-[#EBE9E2] px-3 py-1.5 rounded-[2px] border border-[#CBC8BE]">
-                  Latency Budget: {currentTopic.wiremap[activeNodeIndex].latency}
+                  When: {currentTopic.wiremap[activeNodeIndex].latency}
                 </span>
               </div>
             </div>
@@ -1184,7 +1104,7 @@ export default function UseCases({ setPage, initialIndustryId }: UseCasesProps) 
 
                   <div className="bg-[#DFDCD4] border border-[#CBC8BE] rounded-[2px] p-5 space-y-2">
                     <span className="text-[10px] font-mono text-[#121212] uppercase tracking-wider block font-medium">
-                      CLARITIY VOICE AUTOMATION RESOLUTION
+                      HOW CLARITIY VOICE HANDLES IT
                     </span>
                     <p className="text-xs md:text-sm text-[#262523] leading-relaxed font-sans">
                       {sub.solution}
@@ -1203,7 +1123,7 @@ export default function UseCases({ setPage, initialIndustryId }: UseCasesProps) 
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-mono text-[#121212] uppercase flex items-center gap-1.5 font-medium">
                       <MessageSquare className="w-3.5 h-3.5 text-[#121212]" />
-                      SIMULATED CALL TRANSCRIPT ({sub.dialogue.length} TURNS)
+                      EXAMPLE CONVERSATION ({sub.dialogue.length} TURNS)
                     </span>
 
                     <button

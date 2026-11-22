@@ -30,144 +30,193 @@ function GeometricGridBackground() {
 
 const CATEGORIES = ["All", "Buyer Guide", "E-Commerce", "Engineering", "Healthcare", "Real Estate", "Finance", "Compliance"];
 
+// Articles written by the Claritiy Voice team. Every product statement must be true today
+// (docs/COMPLIANCE_NOTES.md); industry context is described in general terms, without invented figures.
 const ARTICLES = [
   {
     id: "buyer-guide-2026",
-    title: "Best AI Voice Calling Agents in 2026: An Enterprise Buyer's Guide",
+    title: "How to Choose an AI Voice Agent Platform in India: A 2026 Buyer's Checklist",
     date: "July 20, 2026",
-    author: "Claritiy Voice Research Team",
+    author: "Claritiy Voice Team",
     category: "Buyer Guide",
-    readTime: "12 min read",
+    readTime: "8 min read",
     featured: true,
-    excerpt: "Selecting an enterprise AI voice agent platform requires evaluating total cost of ownership, speech recognition accuracy across regional accents, response latency parameters, and telephony reliability.",
-    nonTechSummary: "For business executives, choosing a voice AI platform comes down to 3 things: Will it sound human? Will it integrate with our CRM? How much money will it save compared to a manual call center?",
-    techSummary: "For technical architects, the evaluation focuses on direct carrier audio streaming, BCP-47 language handling, full-duplex barge-in, and REST/SIP payload security.",
-    content: `Selecting an enterprise AI voice agent platform requires evaluating total cost of ownership, speech recognition accuracy across regional accents, response latency parameters, and telephony reliability.
+    excerpt: "Before you sign up for any AI calling platform, check these seven things: languages, how replies are produced, pricing, phone numbers, compliance, integrations, and what you can test for free.",
+    nonTechSummary: "If you run a clinic, a D2C brand or a lending desk, the right AI voice agent should speak your customers' language, cost a predictable amount, use an Indian number, and let you try it before you pay.",
+    techSummary: "Technical buyers should check the audio path (one speech-to-speech model or chained services), webhook signing, API access, data retention controls and how calls are billed.",
+    content: `Before you sign up for any AI calling platform, check these seven things. They decide whether your customers will enjoy talking to the agent, and whether the bill will surprise you.
 
-This comprehensive guide evaluates enterprise voice AI architectures, comparing a single speech-to-speech model against multi-vendor chained API pipelines across latency, cost transparency, and regional dialect comprehension.
+### 1. Does it speak your customers' languages?
+Most Indian callers mix languages. Ask which languages are supported and whether the agent can switch to the caller's language on its own. Claritiy Voice speaks English, Hindi, Bengali, Kannada, Malayalam, Gujarati and Tamil, with automatic detection that copes with Hinglish.
 
-### Executive Buyer Checklist for 2026
+### 2. How does it produce a reply?
+Some platforms chain three services: speech-to-text, a language model and text-to-speech. Every hand-off adds a pause. A single speech-to-speech model hears and answers in one step, which usually feels more natural. Ask the vendor which one they use, then test it yourself.
 
-1. **Response Latency**: Human speech flow breaks down when system delay exceeds 300ms. Platforms that stream audio to a single speech-to-speech model avoid the extra hops of chained speech-to-text, LLM and text-to-speech services.
-2. **Pricing Transparency**: Look out for hidden vendor fees. Platforms charging separate line items for ASR, LLM tokens, and neural TTS increase total cost per minute significantly compared to flat-rate bundled plans.
-3. **Regional Dialect Support**: For global and Indian markets, native speech models comprehension across Hindi, Bengali, Gujarati, Kannada, Malayalam and Tamil is critical for high conversion.
-4. **Barge-In & Interruption DSP**: Real-world phone calls involve frequent interruptions. Full-duplex DSP audio stack allows immediate cancellation of agent audio when callers speak.
+### 3. Can callers interrupt it?
+Real people talk over each other. A good agent stops talking when the caller speaks and answers the new question.
 
-### Technical Architecture Comparison
+### 4. Is the price predictable?
+Watch for separate charges for speech, AI tokens and telephony. Claritiy Voice sells one-time minute packs that include all three, and bills each answered call per started minute. Unanswered calls cost nothing.
 
-| Feature | Chained Multi-Vendor Stack | Claritiy Voice (single speech-to-speech model) |
-| :--- | :--- | :--- |
-| **Response Path** | Several separate services per reply | **One speech-to-speech model per reply** |
-| **Pricing Model** | Stacked STT + LLM + TTS tokens | **All-inclusive minute plans** |
-| **Audio Transport** | Chained HTTP REST endpoints | **Full-duplex carrier audio stream** |
-| **Voice Cloning** | High setup cost & manual training | **5-Second Zero-Shot Diffusion** |`
+### 5. Do you get an Indian business number?
+Check whether a +91 number is included and what KYC is needed. Every Claritiy Voice plan includes one local +91 number after KYC.
+
+### 6. What about compliance?
+Look for recording that is off by default with a spoken notice, data retention you control, an opt-out list, and campaigns that respect TRAI calling hours. DND scrubbing and DLT registration usually stay your responsibility.
+
+### 7. Can you try it before paying?
+You should be able to build an agent and talk to it before you commit. On Claritiy Voice, creating an account and chatting with your agent in Test LLM is free.`
   },
   {
     id: "cod-rto-reduction",
     // Has its own page: open it instead of an inline copy (audit #130: duplicate content).
     page: "blog-rto",
-    title: "How Indian D2C Brands Cut COD RTO Rates by 40% Using Automated AI Voice Calls",
+    title: "How Indian D2C Brands Can Cut COD RTO With Automated Confirmation Calls",
     date: "July 18, 2026",
-    author: "Logistics Engineering Dept",
+    author: "Claritiy Voice Team",
     category: "E-Commerce",
-    readTime: "10 min read",
+    readTime: "7 min read",
     featured: false,
-    excerpt: "Cash-on-Delivery (COD) accounts for up to 70% of e-commerce transactions in India, but unverified orders suffer from a 30% Return-to-Origin (RTO) rate.",
-    nonTechSummary: "D2C store owners lose millions every year paying return courier fees when COD buyers give wrong addresses or change their minds. Automatic phone calls verify every order within 60 seconds of checkout.",
-    techSummary: "Webhooks emitted on order creation pass through edge queue workers. The AI agent executes dynamic address verification via REST APIs, standardizing landmark fields in Shopify/Shiprocket.",
-    content: `Cash-on-Delivery (COD) accounts for up to 70% of e-commerce transactions in India, but unverified orders suffer from a 30% Return-to-Origin (RTO) rate.
-
-Deploying automated AI voice confirmation calls within 60 seconds of checkout allows brands to verify delivery address landmarks, confirm buyer intent, and offer pre-dispatch prepaid conversion incentives. This single automated workflow cuts RTO rates by up to 40%.
-
-### Step-by-Step Implementation Workflow
-
-1. **Trigger on Checkout**: Shopify / WooCommerce webhook fires POST /api/v2/calls/outbound within 10 seconds of order placement.
-2. **Interactive Local Language Verification**: The agent calls the buyer in Hindi, English, or regional dialects, verifying order items and landmarks.
-3. **Automated Order Update**: If confirmed, order status updates to VERIFIED_FOR_DISPATCH in your logistics dashboard.`
+    excerpt: "Cash on delivery is popular in India, and so are COD orders that come back. A short confirmation call before dispatch catches wrong addresses and changed minds early.",
+    nonTechSummary: "Before you ship a COD parcel, an AI agent calls the buyer, confirms they still want it and checks the address, so fewer parcels come back unopened.",
+    techSummary: "Send each COD order to the agent through the REST API (or upload a daily CSV campaign) and receive confirmed, cancelled or unreachable results on a signed webhook.",
+    content: `Cash on delivery is popular in India, and so are COD orders that come back. A short confirmation call before dispatch catches wrong addresses and changed minds early. Read the full guide for the step-by-step setup.`
   },
   {
     id: "low-latency-multimodal",
-    title: "Understanding Low-Latency Voice AI: Native Multimodal Audio vs. Chained API Pipelines",
+    title: "Why Some AI Voice Agents Pause Before Answering (and How to Avoid It)",
     date: "July 15, 2026",
-    author: "Infrastructure Core Team",
+    author: "Claritiy Voice Team",
     category: "Engineering",
-    readTime: "14 min read",
+    readTime: "6 min read",
     featured: false,
-    excerpt: "Chaining Speech-to-Text (STT) to large language models (LLM) and Text-to-Speech (TTS) introduces significant HTTP latency.",
-    nonTechSummary: "Traditional voice bots pause awkwardly for 2 seconds before answering because they have to convert voice to text, send text to an AI brain, and convert text back to voice. Claritiy Voice processes voice directly.",
-    techSummary: "Engineering breakdown of streaming 16 kHz PCM audio in 20 ms frames, VAD energy thresholding, and hybrid vector + keyword knowledge search.",
-    content: `Chaining Speech-to-Text (STT) to large language models (LLM) and Text-to-Speech (TTS) introduces significant HTTP latency.
+    excerpt: "That awkward silence before a voice bot answers usually comes from passing audio and text between several separate services. Here is what happens inside a call, step by step.",
+    nonTechSummary: "Older voice bots turn your voice into text, send it to an AI, and turn the answer back into speech. Each step adds a pause. Newer systems hear and answer in one step.",
+    techSummary: "Call audio streams over a TLS WebSocket to a single speech-to-speech model; voice activity detection lets the caller interrupt; knowledge lookups and function calls run during the conversation.",
+    content: `That awkward silence before a voice bot answers usually comes from passing audio and text between several separate services.
 
-This deep technical guide explains how a single speech-to-speech model removes intermediary text translations to deliver fluid, real-time conversational speech.
+### The chained approach
+1. Speech-to-text turns the caller's words into text.
+2. A language model writes a reply.
+3. Text-to-speech turns the reply back into audio.
+Each step waits for the previous one, and each hop across the internet adds time.
 
-### Telephony Latency Budget
+### The single-model approach
+Claritiy Voice streams the call audio to one speech-to-speech model that hears and answers directly. Replies are streamed back to the caller as they are generated, not after the whole sentence is ready.
 
-- **Carrier Handshake**: 32ms
-- **VAD Signal Window**: 15ms
-- **Multimodal Neural Inference**: 85ms
-- **RAG Lookup & Tool Exec**: 14ms
-- **Audio Packet Egress**: 28ms
-- **Total Latency**: depends on the network and model; measured per call in your dashboard`
+### Interruptions
+Voice activity detection runs throughout the call. When the caller starts speaking, the agent's pending audio is dropped and it listens.
+
+### Knowledge and tools
+If the answer lives in your documents, the agent looks it up in your knowledge base during the call. If it needs your systems, Functions let it call your API.
+
+### A note on numbers
+We do not publish a latency figure yet. We will once we have measured it across a large number of real calls.`
   },
   {
     id: "clinic-patient-intake",
-    title: "Automating Clinic Patient Intake: A Secure Guide to AI Voice Receptionists",
+    title: "AI Receptionists for Clinics: What They Can (and Should Not) Do",
     date: "July 12, 2026",
-    author: "Dr. Elena Rostova",
+    author: "Claritiy Voice Team",
     category: "Healthcare",
-    readTime: "9 min read",
+    readTime: "6 min read",
     featured: false,
-    excerpt: "Healthcare clinic reception desks face constant phone call queues for scheduling, pre-procedure prep, and intake.",
-    nonTechSummary: "Clinics can answer every patient call on the first ring, schedule appointments automatically, and remind patients about clinic prep rules without hiring extra front-desk staff.",
-    techSummary: "Opt-in call recording with retention limits, encrypted data transport, webhook delivery to your own systems, and PII redaction in transcripts.",
-    content: `Healthcare clinic reception desks face constant phone call queues for scheduling, pre-procedure prep, and intake.
+    excerpt: "An AI receptionist can answer every call, book appointments and remind patients. It should never diagnose. Here is how to set one up safely.",
+    nonTechSummary: "Your clinic's phone gets answered every time, appointments land on the doctor's calendar, and patients get a reminder call the day before, while your staff look after the people in front of them.",
+    techSummary: "Inbound agent on the clinic's +91 number, Google Calendar booking with working hours and buffers, knowledge base for fees and timings, optional PII redaction, recording off by default.",
+    content: `An AI receptionist can answer every call, book appointments and remind patients. It should never diagnose.
 
-AI voice receptionists answer calls on the first ring, schedule appointments directly into EHR software (Epic, Cerner), and enforce strict Data Redaction at Edge.`
+### What it does well
+- Answers every call, including during the morning rush and after hours.
+- Shares timings, fees and preparation instructions from your own documents.
+- Books, moves and cancels appointments on the doctor's Google Calendar.
+- Calls patients the day before to remind them.
+
+### What it must not do
+- Give medical advice or a diagnosis. Write this into the instructions, and offer a call-back from the doctor instead.
+- Handle emergencies. For chest pain or other urgent symptoms, the agent should tell the caller to call 112 or go to the nearest hospital.
+
+### Privacy
+Recording is off by default. If you switch it on, callers hear a notice. You can mask personal details in transcripts and choose how long call data is kept.`
   },
   {
     id: "real-estate-lead-qualification",
-    title: "How Real Estate Teams Qualify 10,000+ Inbound Leads Monthly Without Scaling Call Centers",
+    title: "Real Estate Lead Qualification With AI Calls: A Practical Playbook",
     date: "July 08, 2026",
-    author: "Real Estate Growth Group",
+    author: "Claritiy Voice Team",
     category: "Real Estate",
-    readTime: "8 min read",
+    readTime: "6 min read",
     featured: false,
-    excerpt: "Speed-to-lead dictates real estate conversion. Contacting web leads within 3 seconds yields a 94% contact rate.",
-    nonTechSummary: "When a potential home buyer fills out an online lead form, Claritiy Voice calls them within 3 seconds, checks their budget and location preference, and books site visits for sales agents.",
-    techSummary: "Sub-3-second speed-to-lead outbound triggering from Facebook Ads, Google Ads, or HubSpot webhooks into CRM pipeline.",
-    content: `Speed-to-lead dictates real estate conversion. Contacting web leads within 3 seconds yields a 94% contact rate.
+    excerpt: "Property enquiries cool quickly. Here is how to call every enquiry back automatically, ask the right questions and hand your sales team only the serious buyers.",
+    nonTechSummary: "When someone fills in your enquiry form, an AI agent calls them, asks about budget, location and timeline, and books a site visit, so your team spends its time with serious buyers.",
+    techSummary: "Send each enquiry to an outbound agent through the REST API, book visits on Google Calendar, and receive budget, area and timeline fields on a signed webhook.",
+    content: `Property enquiries cool quickly. Here is how to call every enquiry back automatically and hand your sales team only the serious buyers.
 
-AI voice agents place immediate qualification calls, check buyer budget criteria, and book site visits directly onto broker calendars.`
+### The questions to ask
+1. Which configuration (2BHK, 3BHK)?
+2. Which area?
+3. What budget?
+4. When do they plan to buy?
+5. Is a home loan already approved?
+
+### How to set it up
+1. Start from the Real Estate Enquiry Qualifier template and add your project details to the knowledge base.
+2. Send each new enquiry to the agent through the REST API.
+3. Connect Google Calendar so the agent can book site visits.
+4. Add a webhook so the answers reach your CRM.
+
+### What your team gets
+Every enquiry has a transcript, a summary, an outcome label and the answers above as fields, so the best leads are called first.`
   },
   {
     id: "ethical-emi-collections",
-    title: "Ethical EMI & Debt Collection: How Conversational AI Improves Recovery Rates While Preserving Trust",
+    title: "Polite EMI Reminders With AI: A Guide for Lenders",
     date: "July 05, 2026",
-    author: "Fintech Risk Operations",
+    author: "Claritiy Voice Team",
     category: "Finance",
-    readTime: "11 min read",
+    readTime: "7 min read",
     featured: false,
-    excerpt: "Traditional debt recovery outreach causes high customer friction and regulatory risk.",
-    nonTechSummary: "Polite, respectful automated calls guide borrowers through payment schedules and send direct UPI/Razorpay payment links during the call without rude pressure.",
-    techSummary: "Secure payment webhook triggers, core banking integration (Finacle/T24), and regulatory audit logging.",
-    content: `Traditional debt recovery outreach causes high customer friction and regulatory risk.
+    excerpt: "Most missed EMIs are forgotten, not refused. A courteous reminder a few days before the due date, with an identity check first, helps borrowers and protects your brand.",
+    nonTechSummary: "An AI agent calls borrowers before their EMI is due, checks it is speaking to the right person, reminds them politely and records when they will pay.",
+    techSummary: "Campaigns from a CSV or the REST API, identity check in the agent's instructions, promise-to-pay date as an extracted field on a signed webhook, opt-out list honoured.",
+    content: `Most missed EMIs are forgotten, not refused. A courteous reminder before the due date helps borrowers and protects your brand.
 
-Conversational AI voice agents maintain polite, non-judgmental dialogue, negotiate pre-approved EMI payment schedules, and send secure SMS payment links in real time.`
+### Rules every reminder call should follow
+- Confirm identity first. Never mention an amount to anyone but the borrower.
+- Say who is calling and why, and that it is an automated call.
+- Never threaten, shame or pressure.
+- Respect opt-outs, and keep recovery calls within the hours RBI expects (8 am to 7 pm). Claritiy Voice campaigns never dial outside 9 am to 9 pm IST.
+
+### What to record
+The promised payment date, any hardship mentioned, and whether a call-back from your team is needed. These come through as fields on a signed webhook, ready for your loan system.`
   },
   {
     id: "voice-ai-compliance-guide",
-    title: "AI Voice Agent Compliance Guide: DPDP Act, MSME Certification & Data Privacy Explained",
+    title: "AI Calling and Compliance in India: DPDP, TRAI and Call Recording Explained",
     date: "July 01, 2026",
-    author: "Security & Legal Counsel",
+    author: "Claritiy Voice Team",
     category: "Compliance",
-    readTime: "13 min read",
+    readTime: "8 min read",
     featured: false,
-    excerpt: "Deploying AI voice agents in enterprise environments demands robust data protection.",
-    nonTechSummary: "A simple guide to how voice AI keeps customer conversations private, protects financial data, and complies with Indian privacy laws.",
-    techSummary: "AES-256 encryption at rest, TLS-encrypted transport, pattern-based PII redaction, and audit logging.",
-    content: `Deploying AI voice agents in enterprise environments demands robust data protection.
+    excerpt: "Using AI voice agents in India touches data protection, telecom rules and call recording. Here is a plain-language overview of what to think about. It is not legal advice.",
+    nonTechSummary: "Before you start AI calls, think about consent, calling hours, recordings and how long you keep data. This guide explains each in plain language.",
+    techSummary: "Recording off by default with a spoken notice, recordings deleted after 90 days at the latest, workspace retention settings, optional PII redaction, TLS transport and encrypted credentials.",
+    content: `Using AI voice agents in India touches data protection, telecom rules and call recording. This is a plain-language overview, not legal advice. Talk to your lawyer about your specific use.
 
-Learn how edge-based PII redaction, MSME registration, and DPDP Act 2023 compliance safeguard customer audio logs.`
+### Consent and purpose (DPDP Act)
+Only call people who have agreed to hear from you, and use their data only for the purpose they agreed to. Claritiy Voice asks you to confirm consent before every campaign.
+
+### Calling hours and DND (TRAI)
+Commercial calls belong in permitted hours. Claritiy Voice campaigns dial only between 9 am and 9 pm IST and skip your opt-out list. Scrubbing against the national DND (NCPR) registry and DLT registration remain your responsibility.
+
+### Call recording
+Tell people when a call is recorded. In Claritiy Voice, recording is off by default; when you switch it on, the agent plays a notice at the start of the call. Recordings are deleted after 90 days at the latest.
+
+### Keeping data only as long as needed
+Set a retention period in Settings and call data is deleted automatically after it. You can also mask personal details in transcripts.
+
+### Telling callers it is an AI
+We recommend that every agent says it is an AI assistant. For many uses, the law expects it.`
   }
 ];
 
@@ -252,7 +301,7 @@ export default function BlogIndex({ setPage }: BlogIndexProps) {
               Ready to automate your phone operations?
             </h3>
             <p className="text-[#262523] text-sm max-w-lg mx-auto">
-              Deploy human-like AI voice agents in under 10 minutes with zero developer code.
+              Build your first AI voice agent from a template and chat with it for free. No code needed.
             </p>
             <button 
               onClick={() => setPage("dashboard")} 

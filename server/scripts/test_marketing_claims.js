@@ -54,6 +54,20 @@ const FALSE_CLAIMS = [
   ['SIP signalling / SIP streaming / SIP schemas (audio runs over a carrier media stream, no SIP)', /encrypted SIP|SIP streaming|SIP telephony schemas/i],
   ['bi-directional CRM integration (webhooks and custom tools only)', /bi-directional CRM/i],
   ['internal model ids on public pages', /gemini_\d|"llm":\s*"gemini/i],
+  // SEO / content pass (2026-11-22): claims the code or the owner cannot back up.
+  ['invented customer testimonials', /Commodities are hot|RTO dropped from 28%|Replaced 6 manual calling agents|Up 20k since Yesterday/i],
+  ['invented author bylines', /Elena Rostova/],
+  ['warm transfer / live human handoff (not built: the transfer endpoint answers 501)', /warm (call |SIP |human )?(transfer|escalation)|Live agent transfer|initiates senior human transfer|transferring you directly|live-transfer to/i],
+  ['10,000+ / unlimited simultaneous calls (plans allow 5 or 15)', /10,000\+ simultaneous|10K\+|∞/],
+  ['unmeasured millisecond figures', /\b\d{1,3} ?ms (Barge|barge|VAD|Speech Interception|first-token)|latency=\d+ms|barge-in latency under|sub-20ms|Sub-3-?s(econd)?\b/i],
+  ['unverified outcome percentages and multipliers', /\d{1,3}(\.\d)?% (RTO|No-Show|no-show|Recovery Lift|recovery lift|contact rate|Contact rate|first-call booking|completed verification|promise to pay|first-attempt|Hold Time|On-Time Payment|Win-Back|Renewal Rate|Lift in)|\d(\.\d)?× (Debt|faster|Pipeline|Site Visits|More Site|Trial|FNOL)/],
+  ['MSME registration (unverified: re-add only with the Udyam number, owner decision)', /MSME (REGISTERED|Registered|Certified|Certification)|Ministry Registered/],
+  ['human-parity / accuracy percentages', /99\.[89]%|Human (Voice )?Parity|Fact-Checked RAG|[Zz]ero [Hh]allucination|100% (accurate|fact|PCI|RBI)/],
+  ['RBI-compliant claims (the product supports good practice; compliance is the lender\'s)', /RBI[- ]compliant|RBI Compliant|RBI Audit Compliance/],
+  ['native Shopify / Shiprocket / WooCommerce order updates (webhooks only)', /(Shopify|WooCommerce|Shiprocket)[^.\n]{0,30}(tag updates|status automatically|order status|Sync\b)/i],
+  ['the agent sending SMS / WhatsApp itself (not a platform feature)', /(sent|send|texted|dispatch(es)?)[^."\n]{0,40}(via|on|to your) (SMS|WhatsApp)|Tracking SMS bhej|WhatsApp par send/i],
+  ['white-label offering', /White-Label API|white-label ready/i],
+  ['old voice count', /26\+ (HD )?Voice/],
 ];
 
 /** Every plan figure shown on the site must equal what the server charges and credits. */
@@ -78,8 +92,12 @@ function planFactProblems() {
     const p = PLAN_CONFIG[k];
     const fact = `${p.name} ₹${p.price.toLocaleString('en-IN')} for ${p.minutes.toLocaleString('en-IN')} minutes`;
     if (!llms.includes(fact)) problems.push(`llms.txt is missing "${fact}"`);
-    if (!seo.includes(fact)) problems.push(`prerender pricing summary is missing "${fact}"`);
   }
+  // The crawler HTML takes its plan figures from lib/plans.ts (checked above) instead of typing them,
+  // and refuses to build if it cannot read them; any rupee figure still typed there must be a real price.
+  if (!seo.includes("'../src/app/lib/plans.ts'")) problems.push('prerender-seo.js must read the plan facts from lib/plans.ts');
+  const prices = new Set(['startup', 'growth', 'enterprise'].map((k) => `₹${PLAN_CONFIG[k].price.toLocaleString('en-IN')}`));
+  for (const m of seo.matchAll(/₹\s?[\d,]{3,}/g)) if (!prices.has(m[0].replace(/\s/g, ''))) problems.push(`prerender-seo.js types a price that is not a plan: ${m[0]}`);
   return problems;
 }
 

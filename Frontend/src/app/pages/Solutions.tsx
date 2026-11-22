@@ -13,9 +13,10 @@ interface SolutionsProps {
   setPage: (p: Page) => void;
 }
 
-// ── SVG Geometric Blueprint Background Accent ──────────────────────────────────
-
-// ── 15 Pre-Built Production Templates Showcase Data ────────────────────────────
+// ── Template showcase ────────────────────────────────────────────────────────
+// Every rule below is something the agent does on the call itself (its instructions), or through a
+// Function / webhook the customer connects. No outcome figures: none have been measured
+// (docs/COMPLIANCE_NOTES.md, "Marketing claims").
 interface ShowcaseTemplate {
   id: string;
   name: string;
@@ -32,227 +33,227 @@ const PRODUCTION_TEMPLATES: ShowcaseTemplate[] = [
   {
     id: "tpl-1",
     name: "Front Desk & Department Router",
-    persona: "Alex • Executive Front Desk Assistant",
+    persona: "Alex • Front Desk Assistant",
     category: "Support & Front Desk",
     type: "Visual Flow Canvas",
-    problemSolved: "Human front desks get flooded during peak hours. Inquiries for sales, tech support, and billing wait in queues while VIP callers drop off.",
-    guardrails: ["Detects angry/confused tone and initiates senior human transfer", "Dispatches self-service portal links via SMS for routine billing queries", "Emergency security issues escalate to priority contact"],
+    problemSolved: "At busy times the front desk cannot pick up every call. Sales, support and billing questions wait in a queue, and some callers simply hang up.",
+    guardrails: ["Works out whether the caller needs sales, support or billing, and collects name and company", "Offers a call-back from the right team when a person needs to follow up", "Records the reason for the call so your team can act on it"],
     sampleDialogue: [
-      { speaker: "Alex (AI)", text: "Hello! Thank you for calling Claritiy Voice. My name is Alex, your front desk assistant. How can I direct your call today?" },
+      { speaker: "Alex (AI)", text: "Hello, thank you for calling. I'm Alex, the AI front desk assistant. How can I help you today?" },
       { speaker: "Caller", text: "I need to discuss pricing for our 30-person sales team." },
-      { speaker: "Alex (AI)", text: "Fantastic! I'll connect you directly with our enterprise sales engineering desk. May I have your name and company?" }
+      { speaker: "Alex (AI)", text: "Happy to help. May I have your name and company? I'll ask our sales team to call you back today." }
     ],
-    impactMetric: "0s Front Desk Hold Time"
+    impactMetric: "Every call picked up"
   },
   {
     id: "tpl-2",
-    name: "Medical Clinic Receptionist & Triage",
-    persona: "Sarah • Medical Assistant",
+    name: "Medical Clinic Receptionist",
+    persona: "Priya • Clinic Receptionist",
     category: "Healthcare & Clinics",
     type: "System Prompt Studio",
-    problemSolved: "Clinics miss 25% of patient calls during clinic hours. Receptionists are tied up booking appointments instead of helping patients at the counter.",
-    guardrails: ["Mandatory immediate 911 emergency interrupt protocol for chest pain or acute symptoms", "Zero medical diagnosis disclaimer", "Strict patient privacy compliance"],
+    problemSolved: "Receptionists juggle the phone and the patients in front of them. Calls go unanswered in busy hours, and appointment requests are lost.",
+    guardrails: ["Tells callers with chest pain or other emergency symptoms to call 112 or go to the nearest hospital", "Never gives a diagnosis or medical advice; offers a call-back from the doctor instead", "Books appointments on the clinic's Google Calendar within its working hours"],
     sampleDialogue: [
-      { speaker: "Sarah (AI)", text: "Thank you for calling Pinecrest Medical Group. My name is Sarah. Are you calling to schedule an appointment or request a prescription refill?" },
-      { speaker: "Patient", text: "I need to see Dr. Patel this Thursday afternoon for a routine annual follow-up." },
-      { speaker: "Sarah (AI)", text: "Dr. Patel has openings at 2:00 PM and 4:15 PM this Thursday. Which slot suits you best?" }
+      { speaker: "Priya (AI)", text: "Namaste, Lotus Clinic, this is Priya, the AI assistant. Would you like to book an appointment?" },
+      { speaker: "Patient", text: "I need to see Dr. Patel on Thursday afternoon for a follow-up." },
+      { speaker: "Priya (AI)", text: "Dr. Patel is free at 2 pm and 4:15 pm on Thursday. Which time suits you?" }
     ],
-    impactMetric: "85% Shorter Intake Hold"
+    impactMetric: "Google Calendar booking"
   },
   {
     id: "tpl-3",
-    name: "B2B Outbound SDR & Lead Qualifier",
-    persona: "Jordan • AI Sales Development Rep",
+    name: "B2B Outbound Lead Qualifier",
+    persona: "Jordan • AI Sales Assistant",
     category: "Sales & Lead Gen",
     type: "Visual Flow Canvas",
-    problemSolved: "Web leads decay by 80% if not called within 5 minutes. Human SDR teams struggle to dial hundreds of fresh MQLs promptly every morning.",
-    guardrails: ["Sub-3s speed-to-lead trigger from CRM webhook", "Instant live-transfer to Account Executive if monthly call volume > 1,000", "Dispatches self-serve video demo if lead is exploratory"],
+    problemSolved: "New enquiries go cold while the sales team works through yesterday's list. Many are never called at all.",
+    guardrails: ["Called as soon as your CRM sends the lead through the API", "Asks your qualifying questions: team size, call volume, timeline, budget", "Books a meeting on the calendar or marks the lead for follow-up, and sends the answers to your CRM by webhook"],
     sampleDialogue: [
-      { speaker: "Jordan (AI)", text: "Hi! This is Jordan from Claritiy Voice following up on your demo request. Do you have 2 minutes to discuss automating your team's call volume?" },
-      { speaker: "Prospect", text: "Sure. We handle about 5,000 outbound dials a month on HubSpot." },
-      { speaker: "Jordan (AI)", text: "That qualifies directly for our enterprise volume tier. Let me transfer you live to our Senior Solutions Engineer right now." }
+      { speaker: "Jordan (AI)", text: "Hi, this is Jordan, an AI assistant, following up on your demo request. Do you have two minutes?" },
+      { speaker: "Prospect", text: "Sure. We make about 5,000 outbound calls a month." },
+      { speaker: "Jordan (AI)", text: "Thanks. That fits our larger plans. Shall I book a 30-minute call with our solutions team for tomorrow?" }
     ],
-    impactMetric: "3-Second Speed-to-Lead"
+    impactMetric: "Leads called via API"
   },
   {
     id: "tpl-4",
     name: "Win-Back & Churn Reactivation",
-    persona: "Marcus • Customer Win-Back Specialist",
+    persona: "Marcus • Customer Win-Back Assistant",
     category: "Sales & Lead Gen",
     type: "System Prompt Studio",
-    problemSolved: "Canceled and churned accounts are rarely phoned systematically. Generic win-back emails land in spam filters without discovering why the customer left.",
-    guardrails: ["Respects immediate opt-out and removes from calling cadence instantly", "Tailors pitch based on root cause (pricing, features, volume)", "Logs structured exit reasons into CRM"],
+    problemSolved: "Customers who cancel are rarely phoned. Win-back emails go unread, and nobody learns why they left.",
+    guardrails: ["Stops and ends the call politely when the customer says they do not want calls", "Asks why they left: price, features or volume", "Sends the reason to your CRM as a structured field after the call"],
     sampleDialogue: [
-      { speaker: "Marcus (AI)", text: "Hello! Marcus here from Claritiy Voice. I noticed your subscription was recently paused, and wanted to see what main factor contributed?" },
-      { speaker: "Customer", text: "Our monthly volume dipped during the off-season so the fixed plan wasn't economical." },
-      { speaker: "Marcus (AI)", text: "Understood! We recently launched a flexible pay-as-you-go tier with zero monthly minimums. Would you like me to switch your account to that?" }
+      { speaker: "Marcus (AI)", text: "Hello, this is Marcus, an AI assistant. I noticed your subscription was paused. May I ask what led to that?" },
+      { speaker: "Customer", text: "Our volume dropped in the off-season, so the plan wasn't worth it." },
+      { speaker: "Marcus (AI)", text: "That makes sense. Would it help if someone from our team called you about a smaller plan?" }
     ],
-    impactMetric: "22% Win-Back Reactivation"
+    impactMetric: "Exit reasons captured"
   },
   {
     id: "tpl-5",
-    name: "Dental Clinic Scheduler & Urgent Triage",
-    persona: "Maya • Dental Office Scheduler",
+    name: "Dental Clinic Scheduler",
+    persona: "Maya • Dental Clinic Assistant",
     category: "Healthcare & Clinics",
     type: "Visual Flow Canvas",
-    problemSolved: "Dental practices lose high-margin procedures when patients get voicemail. Staff get overwhelmed balancing chair-side care with constant telephone calls.",
-    guardrails: ["Instant triage for facial swelling, broken teeth, or acute tooth pain to emergency desk", "Dispatches digital intake forms via SMS directly to caller's mobile", "Checks existing vs new patient status"],
+    problemSolved: "Dentists lose bookings when patients reach voicemail, and staff cannot leave the chair to answer every call.",
+    guardrails: ["Asks whether the caller is a new or existing patient", "Flags severe pain or swelling as urgent and offers the earliest slot or a call-back from the dentist", "Books cleanings and check-ups on the clinic calendar"],
     sampleDialogue: [
-      { speaker: "Maya (AI)", text: "Bright Smiles Dental, Maya speaking! Are you calling for a routine cleaning, checkup, or experiencing any discomfort?" },
-      { speaker: "Patient", text: "I have severe pain in my lower molar that started last night." },
-      { speaker: "Maya (AI)", text: "I'm sorry to hear that. Because you are in acute pain, I am transferring you directly to our emergency triage desk right now." }
+      { speaker: "Maya (AI)", text: "Bright Smiles Dental, this is Maya, the AI assistant. Is this for a cleaning, a check-up, or are you in any pain?" },
+      { speaker: "Patient", text: "I have bad pain in a lower tooth since last night." },
+      { speaker: "Maya (AI)", text: "I'm sorry to hear that. I'm marking this as urgent. The earliest slot is today at 5 pm; shall I book it?" }
     ],
-    impactMetric: "94% First-Call Booking Rate"
+    impactMetric: "Urgent cases flagged"
   },
   {
     id: "tpl-6",
-    name: "Home Services Dispatch & Safety Triage",
-    persona: "Mark • Field Dispatch Assistant",
+    name: "Home Services Booking & Safety",
+    persona: "Mark • Service Booking Assistant",
     category: "Real Estate & Home Services",
     type: "System Prompt Studio",
-    problemSolved: "HVAC, plumbing, and electrical contractors miss emergency repair jobs during nights and weekends, while dispatchers waste time negotiating basic call-out fees.",
-    guardrails: ["Immediate gas leak safety intervention: instructs caller to evacuate building and call utility", "Flooding shutoff guidance before dispatching technician", "Transparent dispatch diagnostic fee disclosure"],
+    problemSolved: "AC, plumbing and electrical businesses miss jobs in the evening and on weekends, and spend staff time repeating the same visit-charge details.",
+    guardrails: ["For a gas smell, tells the caller to leave the building and call the gas emergency line first", "States the visit charge clearly before booking", "Offers the next free technician window"],
     sampleDialogue: [
-      { speaker: "Mark (AI)", text: "Apex Home Services, Mark here! Can we help you with Plumbing, HVAC heating and cooling, or Electrical work today?" },
-      { speaker: "Homeowner", text: "Our AC unit stopped blowing cold air this afternoon." },
-      { speaker: "Mark (AI)", text: "We have technician arrival windows tomorrow between 8 AM and 12 PM. Our $49 diagnostic fee is completely waived if repairs are approved." }
+      { speaker: "Mark (AI)", text: "Apex Home Services, this is Mark, the AI assistant. Is it plumbing, AC or electrical work?" },
+      { speaker: "Homeowner", text: "Our AC stopped cooling this afternoon." },
+      { speaker: "Mark (AI)", text: "A technician can come tomorrow between 8 am and 12 pm. The visit charge is ₹399, adjusted against the repair. Shall I book it?" }
     ],
-    impactMetric: "24/7 After-Hours Dispatch"
+    impactMetric: "Bookings after hours"
   },
   {
     id: "tpl-7",
-    name: "Real Estate Inbound Lead Qualifier",
-    persona: "Taylor • Luxury Property Qualifier",
+    name: "Real Estate Enquiry Qualifier",
+    persona: "Taylor • Property Enquiry Assistant",
     category: "Real Estate & Home Services",
     type: "Visual Flow Canvas",
-    problemSolved: "Real estate agents spend 60% of their day screening unqualified leads who lack mortgage pre-approvals or budget alignment for the listing.",
-    guardrails: ["Collects preferred area, timeline, and budget parameters", "Live agent transfer for pre-approved or cash buyers", "Dispatches vetted mortgage lender partners link via SMS for unapproved buyers"],
+    problemSolved: "Property teams spend hours calling enquiries that turn out to be outside budget or location.",
+    guardrails: ["Asks preferred location, budget, property type and timeline", "Asks whether the buyer has a home loan approved or is paying from savings", "Books a site visit or marks the lead for follow-up, and sends the answers to your CRM"],
     sampleDialogue: [
-      { speaker: "Taylor (AI)", text: "Premier Heights Realty, Taylor speaking! Are you looking to purchase a new home, sell, or lease?" },
-      { speaker: "Buyer", text: "Looking to buy a 3-bedroom apartment in the downtown corridor under $850k." },
-      { speaker: "Taylor (AI)", text: "Wonderful. Are you purchasing with cash or pre-approved for a mortgage loan?" }
+      { speaker: "Taylor (AI)", text: "Premier Heights Realty, this is Taylor, the AI assistant. Are you looking to buy, sell or rent?" },
+      { speaker: "Buyer", text: "Buying a 3BHK in Baner, under 1.2 crore." },
+      { speaker: "Taylor (AI)", text: "Great. Is a home loan already approved, or will you arrange one?" }
     ],
-    impactMetric: "5× Site Visits Scheduled"
+    impactMetric: "Site visits booked"
   },
   {
     id: "tpl-8",
-    name: "SaaS Free Trial Onboarding Guide",
-    persona: "Chris • Product Onboarding Specialist",
+    name: "SaaS Free Trial Onboarding",
+    persona: "Chris • Onboarding Assistant",
     category: "Sales & Lead Gen",
     type: "System Prompt Studio",
-    problemSolved: "90% of free trial signups abandon software within 48 hours without configuring their first workflow or seeing product value.",
-    guardrails: ["Greets trial user by name within 15 minutes of registration", "Guides them directly to the 5-minute quickstart workflow based on their goal", "Routes enterprise SLA inquiries to dedicated Account Executive"],
+    problemSolved: "Many trial users sign up and never finish setting up, so they never see what the product can do.",
+    guardrails: ["Calls new trial users after sign-up, through the API", "Asks what they want to achieve and points them to the right first step", "Offers a call with the team for larger accounts"],
     sampleDialogue: [
-      { speaker: "Chris (AI)", text: "Welcome to Claritiy Voice! Congratulations on starting your trial. I'm Chris, your onboarding guide. Are you building inbound support or outbound calling?" },
-      { speaker: "User", text: "We need outbound COD order confirmation for our Shopify store." },
-      { speaker: "Chris (AI)", text: "Perfect! I've sent our 3-minute Shopify webhook quickstart link to your phone so you can launch your first test call right away." }
+      { speaker: "Chris (AI)", text: "Hi, this is Chris, an AI assistant. Thanks for starting your trial. Are you setting up inbound support or outbound calling?" },
+      { speaker: "User", text: "Outbound COD order confirmation for our online store." },
+      { speaker: "Chris (AI)", text: "Perfect. The COD confirmation template is the quickest start. Would a short setup call with our team help?" }
     ],
-    impactMetric: "3× Trial-to-Paid Lift"
+    impactMetric: "Trial users called"
   },
   {
     id: "tpl-9",
-    name: "E-Commerce COD Order Verification & RTO Defense",
-    persona: "Courier Intake Assistant",
+    name: "E-Commerce COD Order Confirmation",
+    persona: "Order Confirmation Assistant",
     category: "E-Commerce & Logistics",
     type: "Visual Flow Canvas",
-    problemSolved: "Cash on Delivery represents up to 70% of retail orders in high-growth markets. Fake addresses and impulse cancellations cause 30–40% return-to-origin courier losses.",
-    guardrails: ["Calls customer within 60 seconds of checkout", "Confirms exact delivery landmark and recipient availability", "Incentivizes immediate prepaid UPI upgrade with instant discount link"],
+    problemSolved: "Cash-on-delivery orders with wrong addresses or second thoughts come back as RTO, and the brand pays shipping both ways.",
+    guardrails: ["Triggered from your store or OMS through the API, or as a daily batch campaign", "Confirms the order, the delivery address and landmark, and a good delivery time", "Sends confirmed, cancelled and unreachable orders back to your system by webhook"],
     sampleDialogue: [
-      { speaker: "Claritiy Agent", text: "Namaste Rahul! Calling from Claritiy Footwear regarding your COD order #8941 for Running Shoes. Can you confirm this delivery?" },
-      { speaker: "Customer", text: "Yes, I confirmed! Please ask the delivery partner to leave it near the landmark gate." },
-      { speaker: "Claritiy Agent", text: "Landmark recorded! If you pay now via UPI, you get ₹150 instant discount. Would you like me to send the payment link?" }
+      { speaker: "AI Agent", text: "Namaste Rahul, main Kesar Naturals ki AI assistant bol rahi hoon. Aapke COD order ko confirm karna tha. Kya delivery confirm kar doon?" },
+      { speaker: "Customer", text: "Haan, confirm hai. Gate ke paas wale landmark par chhod dena." },
+      { speaker: "AI Agent", text: "Theek hai, landmark note kar liya. Order kal deliver hoga. Dhanyavaad!" }
     ],
-    impactMetric: "40% RTO Courier Reduction"
+    impactMetric: "Confirmed before dispatch"
   },
   {
     id: "tpl-10",
-    name: "PCI-Compliant Billing & Subscription Assistant",
-    persona: "Morgan • Billing Specialist",
+    name: "Billing & Subscription Assistant",
+    persona: "Morgan • Billing Assistant",
     category: "Support & Front Desk",
     type: "System Prompt Studio",
-    problemSolved: "Support teams spend hours answering 'What is this line item on my invoice?' while risking severe PCI violations by handling credit card numbers on audio lines.",
-    guardrails: ["Strict security rule: never requests full card numbers or CVV codes over voice", "Verifies last 4 digits only and dispatches secure self-service portal link via SMS", "Itemizes usage fees vs base plan subscription clearly"],
+    problemSolved: "Support teams spend hours explaining invoice line items, and card details should never be read out on a call.",
+    guardrails: ["Never asks for a full card number, CVV or OTP", "Explains invoice items from your billing documents in the knowledge base", "Offers a call-back from the billing team for disputes"],
     sampleDialogue: [
-      { speaker: "Morgan (AI)", text: "Claritiy Voice Billing Support, Morgan speaking. How can I assist with your invoice today?" },
-      { speaker: "Customer", text: "I have a question about the extra usage minutes billed on last month's statement." },
-      { speaker: "Morgan (AI)", text: "I'd be glad to explain that. Your base tier includes 2,000 minutes; your team used 2,420 minutes, so the extra 420 minutes were charged at your plan's agreed rate." }
+      { speaker: "Morgan (AI)", text: "Billing support, this is Morgan, the AI assistant. How can I help with your invoice?" },
+      { speaker: "Customer", text: "Why is last month's bill higher than usual?" },
+      { speaker: "Morgan (AI)", text: "Your plan covers 2,000 minutes and your team used 2,420, so the extra 420 minutes were billed at your agreed rate." }
     ],
-    impactMetric: "100% PCI Compliance"
+    impactMetric: "No card details on calls"
   },
   {
     id: "tpl-11",
-    name: "24/7 Incident Response & P1 Outage Triage",
-    persona: "Alex • Incident Response Dispatcher",
+    name: "After-Hours Incident Line",
+    persona: "Alex • After-Hours Support Assistant",
     category: "Support & Front Desk",
     type: "System Prompt Studio",
-    problemSolved: "When production infrastructure crashes at 2 AM, angry clients dial support numbers and reach dead voicemails. Escalation takes hours instead of minutes.",
-    guardrails: ["Identifies P1 downtime immediately and triggers on-call PagerDuty alert within 60 seconds", "Enforces 15-minute SLA engineer callback guarantee", "Collects impacted server region, error symptom, and caller contact"],
+    problemSolved: "When a client's system goes down at 2 am, they reach voicemail and nobody knows until morning.",
+    guardrails: ["Asks whether it is an outage or a general question", "Collects the affected service, the symptoms and a call-back number", "Calls your own alerting tool through a Function so the on-call engineer is notified"],
     sampleDialogue: [
-      { speaker: "Alex (AI)", text: "Enterprise Cloud Support After-Hours. Is this call regarding an active production outage or general inquiry?" },
-      { speaker: "DevOps Lead", text: "Our US-East database cluster is returning 500 errors and our checkout service is down." },
-      { speaker: "Alex (AI)", text: "P1 Incident #4092 logged. Our on-call primary database engineer has been paged and will reach you at this number within 15 minutes." }
+      { speaker: "Alex (AI)", text: "After-hours support, this is Alex, the AI assistant. Is this about an outage that is affecting you right now?" },
+      { speaker: "Client", text: "Yes, our checkout page has been down for 10 minutes." },
+      { speaker: "Alex (AI)", text: "Understood. I've logged it as urgent and alerted the on-call engineer, who will call you back on this number." }
     ],
-    impactMetric: "15-Min Guaranteed P1 SLA"
+    impactMetric: "On-call alerted via Functions"
   },
   {
     id: "tpl-12",
-    name: "Conference & Event Registration Desk",
-    persona: "Sam • Event Coordinator",
+    name: "Event Registration Desk",
+    persona: "Sam • Event Assistant",
     category: "Support & Front Desk",
     type: "Visual Flow Canvas",
-    problemSolved: "Event attendees call incessantly asking about registration status, badging, and venue locations leading up to major summits.",
-    guardrails: ["Verifies attendee email and registration status", "Dispatches digital QR badge pass directly via SMS", "Routes VIP keynote and group registrations to live event concierge"],
+    problemSolved: "Before a big event, the phones ring all day with the same questions about registration, timings and the venue.",
+    guardrails: ["Checks the caller's registration through a Function connected to your system", "Answers timing, venue and parking questions from the event FAQ", "Passes group and VIP requests to your team for a call-back"],
     sampleDialogue: [
-      { speaker: "Sam (AI)", text: "Claritiy Voice Summit Registration Desk! Sam speaking. Are you calling to register or check your pass?" },
-      { speaker: "Attendee", text: "I need to get my QR admission badge for tomorrow's keynote." },
-      { speaker: "Sam (AI)", text: "Confirmed! I've just texted your digital admission badge and conference schedule directly to your phone." }
+      { speaker: "Sam (AI)", text: "Summit registration desk, this is Sam, the AI assistant. Are you calling to register or about an existing pass?" },
+      { speaker: "Attendee", text: "What time does tomorrow's keynote start, and where do I park?" },
+      { speaker: "Sam (AI)", text: "The keynote starts at 10 am in Hall A. Parking is at Gate 3, free for registered attendees." }
     ],
-    impactMetric: "Instant QR Badge Dispatch"
+    impactMetric: "Event FAQs answered"
   },
   {
     id: "tpl-13",
-    name: "BFSI Pre-Due EMI Courtesy Reminder",
-    persona: "Automated Courtesy Reminder",
+    name: "EMI Due-Date Courtesy Reminder",
+    persona: "Courtesy Reminder Assistant",
     category: "BFSI & Fintech",
     type: "System Prompt Studio",
-    problemSolved: "Borrowers miss due dates simply from forgetfulness, leading to late penalties and credit score hits. Human collection calls are expensive and prone to rude interactions.",
-    guardrails: ["RBI Fair Practices Code compliant: operates strictly between 8:00 AM and 7:00 PM", "Clear disclosure: states upfront that this is a courtesy reminder, NOT a collections call", "Never uses pressure, threats, or words like 'default'"],
+    problemSolved: "Many borrowers miss a due date simply because they forgot, and then face late fees and a credit score hit.",
+    guardrails: ["Confirms it is speaking to the borrower before mentioning any amount", "Says clearly that it is a courtesy reminder from the lender, not a collections call", "Never uses pressure, threats or shaming words"],
     sampleDialogue: [
-      { speaker: "Claritiy Voice", text: "Good morning. This is an automated courtesy reminder from Apex Lending regarding your EMI of ₹4,200 due on October 12th." },
-      { speaker: "Borrower", text: "Thanks for reminding me. Can you send me the payment link?" },
-      { speaker: "Claritiy Voice", text: "Certainly! I have texted the secure UPI payment link to your registered mobile number right now. Have a wonderful day." }
+      { speaker: "AI Agent", text: "Good morning. This is an automated courtesy reminder from Apex Lending. Am I speaking with Rahul Sharma?" },
+      { speaker: "Borrower", text: "Yes, speaking." },
+      { speaker: "AI Agent", text: "Thank you. Your EMI of ₹4,200 is due on 12 October. You can pay through your usual app or bank. Have a good day." }
     ],
-    impactMetric: "42% On-Time Payment Lift"
+    impactMetric: "Identity check first"
   },
   {
     id: "tpl-14",
-    name: "BFSI Early Overdue Reminder (1–30 DPD)",
-    persona: "Empathy-First Collections Assistant",
+    name: "Early Overdue Reminder (1–30 DPD)",
+    persona: "Empathy-First Reminder Assistant",
     category: "BFSI & Fintech",
     type: "System Prompt Studio",
-    problemSolved: "Early overdue borrowers (1–30 days) are alienated by aggressive recovery agents, leading to call avoidance and default escalation.",
-    guardrails: ["Mandatory borrower identity verification before disclosing account details", "Zero harassment guarantee: max 1 call per day, respectful non-judgmental tone", "Instant escalation to hardship officer if borrower reports financial distress"],
+    problemSolved: "Borrowers a few days late often avoid calls from aggressive recovery agents, and the problem grows.",
+    guardrails: ["Verifies the borrower's identity before sharing any account detail", "Keeps a respectful, non-judgemental tone and asks for a payment date", "Offers a call-back from a hardship officer when the borrower reports difficulty"],
     sampleDialogue: [
-      { speaker: "Claritiy Voice", text: "Hello. This is an automated notification from Apex Lending for account ending in 8192. Am I speaking with Rahul Sharma?" },
+      { speaker: "AI Agent", text: "Hello, this is an automated call from Apex Lending about the account ending 8192. Am I speaking with Rahul Sharma?" },
       { speaker: "Rahul", text: "Yes, speaking." },
-      { speaker: "Claritiy Voice", text: "Thank you for confirming Rahul. Your payment of ₹5,600 is currently 8 days past due. Would you like to confirm a payment date or set up a UPI link?" }
+      { speaker: "AI Agent", text: "Thank you, Rahul. Your payment of ₹5,600 is 8 days overdue. Could you share a date when you'll be able to pay?" }
     ],
-    impactMetric: "3.4× Debt Resolution Rate"
+    impactMetric: "Payment dates recorded"
   },
   {
     id: "tpl-15",
-    name: "Loan Recovery & Settlement Outreach (30+ DPD)",
-    persona: "Resolution & Settlement Assistant",
+    name: "Late-Stage Recovery Outreach (30+ DPD)",
+    persona: "Resolution Assistant",
     category: "BFSI & Fintech",
     type: "Visual Flow Canvas",
-    problemSolved: "Late-stage debt collection is fraught with regulatory compliance risks, third-party disclosure breaches, and manual tracking errors.",
-    guardrails: ["Strict third-party non-disclosure gate: terminates call immediately if person is not verified borrower", "RBI compliant settlement escalation to human restructuring officer", "Dispatches legal payment receipts via SMS and WhatsApp"],
+    problemSolved: "Late-stage collections carry real risk: sharing account details with the wrong person, or losing track of what was promised.",
+    guardrails: ["Ends the call politely without any account detail if the person is not the verified borrower", "Offers a call-back from a restructuring officer for settlement questions", "Records every promise to pay as a structured field for your team"],
     sampleDialogue: [
-      { speaker: "Claritiy Voice", text: "This is an automated call from Apex Lending regarding loan account ending in 4102. Am I speaking with the account holder?" },
+      { speaker: "AI Agent", text: "This is an automated call from Apex Lending about the loan account ending 4102. Am I speaking with the account holder?" },
       { speaker: "Third Party", text: "No, he is not available right now." },
-      { speaker: "Claritiy Voice", text: "I understand. I am unable to discuss account details with anyone other than the account holder. Thank you." }
+      { speaker: "AI Agent", text: "I understand. I can only discuss this with the account holder. Thank you for your time." }
     ],
-    impactMetric: "100% RBI Audit Compliance"
+    impactMetric: "Third-party disclosure blocked"
   }
 ];
 
@@ -266,21 +267,24 @@ export default function Solutions({ setPage }: SolutionsProps) {
     templateCategoryFilter === "All" ? true : tpl.category === templateCategoryFilter
   );
 
+  // Industry walkthroughs. "integrations" lists how each one connects today (webhooks, API, Functions,
+  // Google Calendar); named third-party systems are reached through those, not native connectors.
+  const CONNECTS = ["Signed webhooks", "REST API", "Functions (your own API)"];
   const solutions = [
     {
       id: "ecommerce",
       name: "E-Commerce COD & Logistics",
       icon: ShoppingBag,
-      tagline: "Slash Return-To-Origin (RTO) Losses by 40%",
-      metric: "40% RTO Reduction",
-      summary: "In markets where Cash-on-Delivery (COD) represents up to 70% of e-commerce orders, fake addresses and buyer mind-changes cause massive courier losses. Claritiy Voice calls buyers automatically within 60 seconds of checkout, verifying delivery landmarks and offering prepaid discount upgrades in their local language.",
-      triggers: ["Shopify / WooCommerce Checkout Webhook", "High-Risk Fraud Score Trigger"],
-      integrations: ["Shopify", "WooCommerce", "Shiprocket", "Clickpost", "Custom REST APIs"],
-      useCases: ["Address & Landmark Verification", "Pre-Dispatch Prepaid Conversion Incentives", "Order Cancellation Handling", "Delivery Exception Rescheduling"],
+      tagline: "Confirm Every COD Order Before It Ships",
+      metric: "Confirms order, address and delivery time",
+      summary: "Cash-on-delivery orders with a wrong address or a buyer who changed their mind come back as RTO, and you pay shipping both ways. The agent calls each COD buyer before dispatch, in Hindi, English or Hinglish, confirms the order and the landmark, and sends the answer back to your store.",
+      triggers: ["New COD order sent through the API", "Daily batch campaign from a CSV"],
+      integrations: [...CONNECTS, "Your store / OMS via webhook"],
+      useCases: ["Order confirmation before dispatch", "Address and landmark check", "Cancellation captured early", "Delivery time preference"],
       transcript: [
-        { speaker: "agent", text: "Namaste Rahul! Calling from Claritiy Footwear regarding your order #8941 for Running Shoes (₹2,499, Cash on Delivery). Can you confirm this delivery?" },
-        { speaker: "customer", text: "Yes, I placed it! But can you ask the courier to deliver near the Blue Dart office in Bandra West?" },
-        { speaker: "agent", text: "Absolutely! I have noted 'Near Blue Dart office, Bandra West' in the delivery instructions. Your package will ship today!" }
+        { speaker: "agent", text: "Namaste Rahul, main Kesar Naturals ki AI assistant bol rahi hoon. Aapka ₹2,499 ka COD order confirm karna tha. Kya delivery confirm hai?" },
+        { speaker: "customer", text: "Haan, confirm hai. Bandra West mein Blue Dart office ke paas deliver karna." },
+        { speaker: "agent", text: "Theek hai, 'Blue Dart office ke paas, Bandra West' note kar liya. Order aaj dispatch hoga. Dhanyavaad!" }
       ],
       techSchema: `// Example: post-call data sent to YOUR webhook (fields are defined per agent
 // in Post-Call Data Extraction; payloads are HMAC-signed)
@@ -289,94 +293,91 @@ POST https://your-system.example.com/claritiy-webhook
   "order_id": "ORD-8941",
   "verification_status": "VERIFIED",
   "landmark_added": "Near Blue Dart office, Bandra West",
-  "confidence_score": 0.98
+  "preferred_delivery_time": "after 6 pm"
 }`,
       metricsData: {
         latency: "Real-time",
-        concurrency: "5,000+ calls/hr",
-        successRate: "94.2% completed verification",
-        format: "16 kHz PCM carrier audio stream"
+        concurrency: "5 or 15 at once",
+        successRate: "Confirmed / cancelled / unreachable",
+        format: "Recording optional"
       }
     },
     {
       id: "healthcare",
       name: "Healthcare & Dental Intake",
       icon: HeartPulse,
-      tagline: "Secure Patient Intake & Appointment Automation",
-      metric: "85% Shorter Queue Times",
-      summary: "Clinic receptionists spend hours answering repetitive phone calls for appointments, prep instructions, and clinic hours. Claritiy Voice acts as a 24/7 polite receptionist that answers on the first ring, books appointments directly onto the doctor's calendar, and reminds patients of pre-op guidelines.",
-      triggers: ["Inbound Patient Call", "Missed Appointment Alert", "Post-Op Follow-Up Schedule"],
-      integrations: ["Epic EHR", "Cerner", "AthenaHealth", "Kareo", "DrChrono"],
-      useCases: ["Appointment Scheduling & Reminders", "Pre-Procedure Prep Instructions", "Insurance Verification Intake", "Post-Discharge Wellness Check"],
+      tagline: "A Receptionist That Answers Every Call",
+      metric: "Answers, books and reminds",
+      summary: "Clinic receptionists spend the day answering the same questions about timings, fees and preparation. The agent answers every call from your clinic's documents, books appointments on the doctor's Google Calendar, and calls patients the day before as a reminder. It never gives medical advice.",
+      triggers: ["Inbound patient call", "Reminder campaign for tomorrow's appointments"],
+      integrations: ["Google Calendar", ...CONNECTS],
+      useCases: ["Appointment booking and changes", "Timings, fees and preparation questions", "Day-before reminders", "Call-back request for the doctor"],
       transcript: [
-        { speaker: "agent", text: "Hello! Thank you for calling Apollo Dental. How can I assist with your appointment today?" },
-        { speaker: "customer", text: "Hi, I need to see Dr. Sharma for a root canal checkup this Thursday afternoon." },
-        { speaker: "agent", text: "Dr. Sharma has open slots at 2:30 PM and 4:15 PM this Thursday. Which time works best for you?" }
+        { speaker: "agent", text: "Namaste, Lotus Dental Clinic. I'm Priya, the AI assistant. How can I help you today?" },
+        { speaker: "customer", text: "I need to see Dr. Sharma for a root canal check-up on Thursday afternoon." },
+        { speaker: "agent", text: "Dr. Sharma is free at 2:30 pm and 4:15 pm on Thursday. Which time suits you?" }
       ],
       techSchema: `// Example: post-call data sent to YOUR webhook (fields are defined per agent
 // in Post-Call Data Extraction; payloads are HMAC-signed)
 POST https://your-system.example.com/claritiy-webhook
 {
-  "resourceType": "Appointment",
-  "status": "booked",
-  "patientId": "pat_9921",
-  "practitionerId": "dr_sharma_01",
-  "start": "2026-08-27T14:30:00Z",
-  "phi_redacted": true
+  "appointment_status": "booked",
+  "patient_name": "Rahul",
+  "doctor": "Dr. Sharma",
+  "start": "2026-08-27T14:30:00+05:30"
 }`,
       metricsData: {
         latency: "Real-time",
-        concurrency: "1,200+ clinics active",
-        successRate: "91.8% first-call booking",
-        format: "PII redaction in transcripts"
+        concurrency: "5 or 15 at once",
+        successRate: "Booked / call-back / question answered",
+        format: "PII redaction option"
       }
     },
     {
       id: "finance",
-      name: "Financial Services & EMI Collections",
+      name: "Financial Services & EMI Reminders",
       icon: Landmark,
-      tagline: "Ethical Payment Reminders & KYC Outreach",
-      metric: "3.4× Debt Recovery Rate",
-      summary: "Traditional collection calls suffer from agent turnover, aggressive tone, and high compliance risk. Claritiy Voice agents maintain a polite, respectful tone, guiding borrowers through EMI schedules, offering pre-approved payment plans, and sending instant SMS payment links during the call.",
-      triggers: ["3-Day Pre-Due Reminder", "1-30 DPD Early Delinquency Queue"],
-      integrations: ["Finacle", "T24", "Salesforce Financial Services Cloud", "Custom Core Banking"],
-      useCases: ["Pre-Due EMI Payment Reminders", "Ethical Debt Restructuring Negotiations", "KYC Document Follow-up", "Credit Card Activation Intake"],
+      tagline: "Polite EMI Reminders With Identity Checks",
+      metric: "Identity check before any amount",
+      summary: "Most missed EMIs are simply forgotten. The agent confirms it is speaking to the borrower, reminds them of the amount and due date, asks when they will pay and records the answer. It stays polite, never threatens, and offers a call-back from your team for anything difficult.",
+      triggers: ["3-day pre-due reminder campaign", "Early overdue list (1–30 DPD)"],
+      integrations: [...CONNECTS, "Your loan system via webhook"],
+      useCases: ["Pre-due EMI reminders", "Payment date (promise to pay) capture", "KYC document follow-up", "Hardship call-back requests"],
       transcript: [
-        { speaker: "agent", text: "Good morning Ananya, this is Claritiy Credit calling regarding your loan EMI of ₹4,200 due tomorrow. Would you like me to send a direct UPI link to your phone now?" },
-        { speaker: "customer", text: "Yes please, send it on WhatsApp or SMS." },
-        { speaker: "agent", text: "Done! I have sent the secure payment link to your registered mobile number. Have a great day!" }
+        { speaker: "agent", text: "Good morning. This is an automated reminder from Apex Lending. Am I speaking with Ananya?" },
+        { speaker: "customer", text: "Yes, this is Ananya." },
+        { speaker: "agent", text: "Thank you. Your EMI of ₹4,200 is due tomorrow. Will you be able to pay it on time?" }
       ],
       techSchema: `// Example: post-call data sent to YOUR webhook (fields are defined per agent
 // in Post-Call Data Extraction; payloads are HMAC-signed)
 POST https://your-system.example.com/claritiy-webhook
 {
   "loan_account_id": "LN-481920",
-  "due_amount": 4200,
-  "payment_link_sent": true,
-  "channel": "SMS_AND_WHATSAPP",
+  "identity_confirmed": true,
+  "promised_payment_date": "2026-10-12",
   "call_disposition": "PROMISE_TO_PAY"
 }`,
       metricsData: {
         latency: "Real-time",
-        concurrency: "Plan-based concurrent calls",
-        successRate: "88.4% promise to pay",
-        format: "Calling-hours & opt-out controls • HTTPS"
+        concurrency: "5 or 15 at once",
+        successRate: "Promise to pay / call-back / unreachable",
+        format: "Opt-out list honoured"
       }
     },
     {
       id: "realestate",
       name: "Real Estate & Lead Qualification",
       icon: HomeIcon,
-      tagline: "Qualify 10,000+ Inbound Leads Monthly",
-      metric: "5× More Site Visits Booked",
-      summary: "Online property inquiries turn cold within 5 minutes. Claritiy Voice calls inbound web leads instantly, asks key qualification questions (budget, move-in timeline, location preference), and schedules site visits directly onto your sales agents' calendars.",
-      triggers: ["Web Lead Form Submission", "Property Listing Inquiry"],
-      integrations: ["HubSpot", "Salesforce", "Zoho CRM", "Google Calendar"],
-      useCases: ["Immediate Lead Qualification", "Site Visit Scheduling", "Listing Availability Check", "Mortgage Partner Referral Intake"],
+      tagline: "Call Every Property Enquiry the Same Day",
+      metric: "Qualifies and books site visits",
+      summary: "Property enquiries go cold when nobody calls back quickly. Send each new enquiry to the agent through the API; it asks about budget, location and timeline, books a site visit on your calendar, and sends the answers to your CRM.",
+      triggers: ["Web enquiry sent through the API", "Listing enquiry campaign"],
+      integrations: ["Google Calendar", ...CONNECTS],
+      useCases: ["Budget, location and timeline questions", "Site visit booking", "Home-loan status check", "Follow-up flag for your sales team"],
       transcript: [
-        { speaker: "agent", text: "Hi Vikram! Thank you for inquiring about Green Acres 3BHK apartments. Are you looking to buy within the next 3 months?" },
-        { speaker: "customer", text: "Yes, looking for a 3BHK around Whitefield under 1.5 Crores." },
-        { speaker: "agent", text: "Great! We have 2 corner units matching your budget in Whitefield. Can I book a site visit with our manager for Saturday morning?" }
+        { speaker: "agent", text: "Hi Vikram, this is the AI assistant from Green Acres. Thanks for your enquiry about our 3BHK homes. Are you planning to buy in the next three months?" },
+        { speaker: "customer", text: "Yes, a 3BHK around Whitefield under 1.5 crore." },
+        { speaker: "agent", text: "That fits two of our units. Shall I book a site visit with our manager for Saturday morning?" }
       ],
       techSchema: `// Example: post-call data sent to YOUR webhook (fields are defined per agent
 // in Post-Call Data Extraction; payloads are HMAC-signed)
@@ -385,30 +386,30 @@ POST https://your-system.example.com/claritiy-webhook
   "lead_id": "ld_8841",
   "budget": "1.5_CR",
   "preferred_area": "Whitefield",
-  "site_visit_timestamp": "2026-08-23T10:30:00Z",
+  "site_visit_timestamp": "2026-08-23T10:30:00+05:30",
   "status": "QUALIFIED"
 }`,
       metricsData: {
         latency: "Real-time",
-        concurrency: "Instant sub-3s trigger",
-        successRate: "68% tour schedule rate",
-        format: "Bidirectional CRM Webhooks"
+        concurrency: "5 or 15 at once",
+        successRate: "Qualified / not now / visit booked",
+        format: "Recording optional"
       }
     },
     {
       id: "logistics",
-      name: "Logistics & Supply Chain",
+      name: "Logistics & Delivery",
       icon: Truck,
-      tagline: "Proactive Delivery Updates & Driver Coordination",
-      metric: "62% Fewer WISMO Calls",
-      summary: "Shipment delays flood customer support lines with 'Where Is My Order?' (WISMO) calls. Claritiy Voice proactively calls recipients with revised delivery ETAs, clears up confusing delivery addresses, and coordinates driver pickups.",
-      triggers: ["Delivery Exception Event", "Address Unclear Flag"],
-      integrations: ["FedEx", "DHL", "Delhivery", "Custom WMS / TMS"],
-      useCases: ["Proactive Delivery Status Alerts", "Failed Delivery Rescheduling", "Driver Coordination Calling", "Return Pickup Verification"],
+      tagline: "Delivery Calls Before the Driver Arrives",
+      metric: "Fewer failed delivery attempts",
+      summary: "Failed deliveries and 'where is my order' calls cost money on both sides. The agent calls the recipient before the attempt, confirms someone will be home or takes drop-off instructions, and sends them to your system for the driver.",
+      triggers: ["Out-for-delivery event sent through the API", "Address-unclear flag"],
+      integrations: [...CONNECTS, "Your TMS / WMS via webhook"],
+      useCases: ["Availability check before delivery", "Drop-off instructions", "Failed delivery rescheduling", "Return pickup confirmation"],
       transcript: [
-        { speaker: "agent", text: "Hi Priya! Your delivery driver is 10 minutes away from your home address in Sector 62. Will someone be available to receive the shipment?" },
-        { speaker: "customer", text: "I am out right now, please leave it with the security guard at Gate 1." },
-        { speaker: "agent", text: "Understood! I have notified the delivery agent to drop the package with Security Guard at Gate 1." }
+        { speaker: "agent", text: "Hi Priya, this is an AI assistant calling about your parcel, which is out for delivery to Sector 62 today. Will someone be home to receive it?" },
+        { speaker: "customer", text: "I'm out. Please leave it with the security guard at Gate 1." },
+        { speaker: "agent", text: "Understood. I've noted 'leave with security at Gate 1' for the delivery partner." }
       ],
       techSchema: `// Example: post-call data sent to YOUR webhook (fields are defined per agent
 // in Post-Call Data Extraction; payloads are HMAC-signed)
@@ -420,101 +421,100 @@ POST https://your-system.example.com/claritiy-webhook
 }`,
       metricsData: {
         latency: "Real-time",
-        concurrency: "High-volume batch routing",
-        successRate: "98.5% first-attempt delivery",
-        format: "REST Event Stream"
+        concurrency: "5 or 15 at once",
+        successRate: "Available / instructions / reschedule",
+        format: "Recording optional"
       }
     },
     {
       id: "insurance",
-      name: "Insurance Claims & FNOL Intake",
+      name: "Insurance Renewals & Claims Intake",
       icon: ShieldCheck,
-      tagline: "First Notice of Loss Intake & Policy Renewal",
-      metric: "78% Policy Renewal Rate",
-      summary: "Filing an insurance claim or renewing a policy during emergencies requires fast, calm assistance. Claritiy Voice collects initial loss details, records vehicle/home damage descriptions, and sends instant claim tracking numbers.",
-      triggers: ["First Notice of Loss Call", "30-Day Policy Renewal Alert"],
-      integrations: ["Guidewire", "Duck Creek", "Salesforce Financial Cloud", "Custom Policy DB"],
-      useCases: ["FNOL Claims Intake", "Policy Renewal Outreach", "Claim Status Tracking", "Coverage Inquiry Handling"],
+      tagline: "Renewal Reminders and First Claim Details",
+      metric: "Renewal reminders and claim intake",
+      summary: "Policies lapse because renewal reminders get missed, and claim callers need a calm first conversation. The agent reminds policyholders before expiry, answers coverage questions from your documents, and collects the first details of a claim for your team.",
+      triggers: ["Renewal campaign before expiry", "Inbound claim call"],
+      integrations: [...CONNECTS, "Your policy system via webhook"],
+      useCases: ["Renewal reminders", "First notice of loss details", "Coverage questions from your policy FAQ", "Call-back for claim handlers"],
       transcript: [
-        { speaker: "agent", text: "Hello Rohan! I am calling from Claritiy Insurance regarding your motor policy renewal expiring in 5 days. Would you like to renew today with your 20% No Claim Bonus?" },
-        { speaker: "customer", text: "Yes, please confirm if my No Claim Bonus is applied." },
-        { speaker: "agent", text: "Confirmed! Your 20% NCB discount brings your premium to ₹8,450. I have sent the payment link to your email now." }
+        { speaker: "agent", text: "Hello Rohan, this is the AI assistant from Shield Insurance. Your motor policy expires in 5 days. Would you like to renew it?" },
+        { speaker: "customer", text: "Yes. Is my No Claim Bonus applied?" },
+        { speaker: "agent", text: "Yes, your 20% No Claim Bonus is applied. Our team will send the renewal link to your registered email today." }
       ],
       techSchema: `// Example: post-call data sent to YOUR webhook (fields are defined per agent
 // in Post-Call Data Extraction; payloads are HMAC-signed)
 POST https://your-system.example.com/claritiy-webhook
 {
   "policy_number": "POL-992140",
-  "incident_type": "MOTOR_ACCIDENT",
-  "ncb_discount_applied": true,
-  "status": "CLAIM_FILE_INITIATED"
+  "renewal_intent": "YES",
+  "ncb_confirmed": true,
+  "status": "SEND_RENEWAL_LINK"
 }`,
       metricsData: {
         latency: "Real-time",
-        concurrency: "24/7 disaster surge ready",
-        successRate: "3.5× faster claims triage",
-        format: "Configurable recording & retention"
+        concurrency: "5 or 15 at once",
+        successRate: "Renew / not now / call-back",
+        format: "Recording & retention you set"
       }
     },
     {
       id: "education",
-      name: "Education & Admissions Counseling",
+      name: "Education & Admissions",
       icon: GraduationCap,
-      tagline: "Student Counseling & Enrollment Nurturing",
-      metric: "41% Lift in Student Enrollment",
-      summary: "Universities and online learning platforms lose prospective students due to delayed follow-ups. Claritiy Voice calls applicants, answers course curriculum questions, guides them through tuition fee options, and schedules counselor video calls.",
-      triggers: ["Application Submitted Webhook", "Course Inquiry Form"],
-      integrations: ["LeadSquared", "Salesforce Education", "HubSpot", "Google Meet API"],
-      useCases: ["Enrollment Confirmation", "Financial Aid Counseling", "Class Schedule Updates", "Alumni Outreach"],
+      tagline: "Call Every Applicant Back Quickly",
+      metric: "Answers course questions, books counsellors",
+      summary: "Applicants who wait days for a call often join another institute. The agent calls them back, answers course and fee questions from your prospectus, and books a call with a counsellor on your calendar.",
+      triggers: ["Application or enquiry sent through the API", "Admissions campaign"],
+      integrations: ["Google Calendar", ...CONNECTS],
+      useCases: ["Course and fee questions", "Counsellor call booking", "Document reminders", "Batch start reminders"],
       transcript: [
-        { speaker: "agent", text: "Hi Sneha! Calling from Horizon University regarding your Master in Data Science application. Do you have any questions about the curriculum or scholarship options?" },
-        { speaker: "customer", text: "Yes, I wanted to know if weekend lab sessions are mandatory?" },
-        { speaker: "agent", text: "Great question! Weekend labs are recorded and optional for working professionals. Would you like to schedule a 10-minute call with our Academic Dean?" }
+        { speaker: "agent", text: "Hi Sneha, this is the AI assistant from Horizon Institute about your data science application. Do you have any questions about the course?" },
+        { speaker: "customer", text: "Are the weekend lab sessions compulsory?" },
+        { speaker: "agent", text: "They are recorded and optional for working professionals. Would you like a 10-minute call with a counsellor?" }
       ],
       techSchema: `// Example: post-call data sent to YOUR webhook (fields are defined per agent
 // in Post-Call Data Extraction; payloads are HMAC-signed)
 POST https://your-system.example.com/claritiy-webhook
 {
   "applicant_id": "app_5541",
-  "course": "M.Sc Data Science",
-  "counselor_slot_booked": "2026-08-25T11:00:00Z"
+  "course": "Data Science",
+  "counselor_slot_booked": "2026-08-25T11:00:00+05:30"
 }`,
       metricsData: {
         latency: "Real-time",
-        concurrency: "Scalable admissions queues",
-        successRate: "41% enrollment acceleration",
-        format: "LeadSquared & LMS APIs"
+        concurrency: "5 or 15 at once",
+        successRate: "Interested / booked / not now",
+        format: "Recording optional"
       }
     },
     {
       id: "automotive",
-      name: "Automotive & Service Centers",
+      name: "Automotive & Service Centres",
       icon: Car,
-      tagline: "Service Appointment & Test Drive Scheduling",
-      metric: "4.8 / 5 Customer Rating",
-      summary: "Car dealerships and service centers lose revenue when customer service lines are busy. Claritiy Voice handles service reminder calls, confirms test drive slots, and sends pickup notifications automatically.",
-      triggers: ["Mileage Service Interval Due", "Test Drive Booking Webhook"],
-      integrations: ["CDK Global", "Reynolds & Reynolds", "Salesforce Auto", "Custom DMS"],
-      useCases: ["Periodic Service Reminders", "Test Drive Confirmations", "Vehicle Pickup Readiness Alerts", "Parts Availability Check"],
+      tagline: "Service Reminders and Test Drive Bookings",
+      metric: "Reminds and books service slots",
+      summary: "Service centres lose bookings when the phone is busy. The agent calls customers when a service is due, books a slot, confirms test drives and answers common questions from your documents.",
+      triggers: ["Service-due list as a campaign", "Test drive enquiry sent through the API"],
+      integrations: ["Google Calendar", ...CONNECTS],
+      useCases: ["Periodic service reminders", "Test drive confirmation", "Pickup-ready calls", "Common service questions"],
       transcript: [
-        { speaker: "agent", text: "Hello Amit! Claritiy Auto calling to remind you that your SUV is due for its 20,000 km periodic service. Can we reserve a service bay for you this Saturday at 9 AM?" },
-        { speaker: "customer", text: "Yes, Saturday 9 AM works. Will a loaner car be available?" },
-        { speaker: "agent", text: "Yes! A complimentary sedan loaner car is reserved for you. See you Saturday at 9 AM!" }
+        { speaker: "agent", text: "Hello Amit, this is the AI assistant from Prime Motors. Your SUV is due for its 20,000 km service. Shall I book Saturday at 9 am?" },
+        { speaker: "customer", text: "Saturday 9 am works." },
+        { speaker: "agent", text: "Booked for Saturday at 9 am. See you then!" }
       ],
       techSchema: `// Example: post-call data sent to YOUR webhook (fields are defined per agent
 // in Post-Call Data Extraction; payloads are HMAC-signed)
 POST https://your-system.example.com/claritiy-webhook
 {
-  "vin": "MA1XY9821...",
+  "vehicle_reg": "MH12AB1234",
   "service_type": "20K_PERIODIC",
-  "bay_reserved": "BAY_04",
-  "loaner_vehicle_assigned": true
+  "slot": "2026-08-29T09:00:00+05:30"
 }`,
       metricsData: {
         latency: "Real-time",
-        concurrency: "Multi-dealership bay sync",
-        successRate: "92% booking completion",
-        format: "DMS Direct Bay Connector"
+        concurrency: "5 or 15 at once",
+        successRate: "Booked / call-back / not now",
+        format: "Recording optional"
       }
     }
   ];
@@ -546,26 +546,26 @@ POST https://your-system.example.com/claritiy-webhook
           transition={{ delay: 0.1 }}
           className="text-[#262523] text-base md:text-lg max-w-3xl mx-auto font-sans leading-relaxed"
         >
-          Stop losing revenue to missed calls, high courier returns, or slow lead follow-ups. Explore 15 pre-built production templates with native regional accents, built-in regulatory guardrails, and real-time CRM webhooks.
+          Missed calls, COD returns and slow lead follow-up all cost money. Explore 15 example templates for Indian businesses, each with the rules it gives the agent, a sample conversation and the data it sends to your systems.
         </motion.p>
 
         {/* Operational Highlights Pill Grid */}
         <div className="pt-4 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-4xl mx-auto">
           <div className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-4 text-center">
-            <span className="text-2xl font-bold text-[#121212] font-mono block">40%</span>
-            <span className="text-xs text-[#262523] font-mono">COD RTO Reduction</span>
+            <span className="text-2xl font-bold text-[#121212] font-mono block">30</span>
+            <span className="text-xs text-[#262523] font-mono">AI Voices</span>
           </div>
           <div className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-4 text-center">
             <span className="text-2xl font-bold text-[#121212] font-mono block">Real-time</span>
-            <span className="text-xs text-[#262523] font-mono">Sub-Human Latency</span>
+            <span className="text-xs text-[#262523] font-mono">Replies</span>
           </div>
           <div className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-4 text-center">
             <span className="text-2xl font-bold text-[#121212] font-mono block">7</span>
-            <span className="text-xs text-[#262523] font-mono">Languages</span>
+            <span className="text-xs text-[#262523] font-mono">Indian Languages</span>
           </div>
           <div className="bg-[#EBE9E2] border border-[#CBC8BE] rounded-[2px] p-4 text-center">
             <span className="text-2xl font-bold text-[#121212] font-mono block">15</span>
-            <span className="text-xs text-[#262523] font-mono">Production Templates</span>
+            <span className="text-xs text-[#262523] font-mono">Template Examples</span>
           </div>
         </div>
       </section>
@@ -682,7 +682,7 @@ POST https://your-system.example.com/claritiy-webhook
             {/* Operational Guardrails */}
             <div className="space-y-2.5">
               <h4 className="text-xs font-mono font-medium text-[#121212] uppercase tracking-wider">
-                BUILT-IN ENTERPRISE GUARDRAILS:
+                RULES THE TEMPLATE GIVES THE AGENT:
               </h4>
               <div className="space-y-1.5">
                 {selectedTemplate.guardrails.map((gr, idx) => (
@@ -774,7 +774,7 @@ POST https://your-system.example.com/claritiy-webhook
           {/* Left Content Column */}
           <div className="lg:col-span-7 space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-[2px] bg-[#DFDCD4] text-[#121212] font-mono text-xs border border-[#CBC8BE]">
-              <span>BENCHMARK IMPACT: {currentSolution.metric}</span>
+              <span>WHAT IT DOES: {currentSolution.metric}</span>
             </div>
             
             <h2 className="text-3xl font-medium text-[#121212] font-sans tracking-tight">
@@ -811,7 +811,7 @@ POST https://your-system.example.com/claritiy-webhook
                 </div>
               </div>
               <div>
-                <span className="text-[#262523] block mb-1">COMPATIBLE INTEGRATIONS:</span>
+                <span className="text-[#262523] block mb-1">CONNECTS THROUGH:</span>
                 <div className="flex flex-wrap gap-1">
                   {currentSolution.integrations.map((i) => (
                     <span key={i} className="px-2 py-0.5 bg-[#DFDCD4] text-[#121212] rounded-[1px] border border-[#CBC8BE]">{i}</span>
@@ -902,24 +902,24 @@ POST https://your-system.example.com/claritiy-webhook
             {inspectorMode === "metrics" && (
               <div className="grid grid-cols-2 gap-3 font-mono text-xs">
                 <div className="bg-[#EBE9E2] p-3.5 rounded-[2px] border border-[#CBC8BE] space-y-1">
-                  <span className="text-[10px] text-[#262523] uppercase block">ROUNDTRIP LATENCY</span>
+                  <span className="text-[10px] text-[#262523] uppercase block">REPLIES</span>
                   <span className="text-[#121212] font-bold text-sm block">{currentSolution.metricsData.latency}</span>
-                  <span className="text-[10px] text-[#262523] block">Edge ingress node</span>
+                  <span className="text-[10px] text-[#262523] block">One speech-to-speech model</span>
                 </div>
                 <div className="bg-[#EBE9E2] p-3.5 rounded-[2px] border border-[#CBC8BE] space-y-1">
-                  <span className="text-[10px] text-[#262523] uppercase block">CONCURRENCY BUDGET</span>
+                  <span className="text-[10px] text-[#262523] uppercase block">CALLS AT ONCE</span>
                   <span className="text-[#121212] font-bold text-sm block">{currentSolution.metricsData.concurrency}</span>
-                  <span className="text-[10px] text-[#262523] block">Plan-based concurrency</span>
+                  <span className="text-[10px] text-[#262523] block">Startup and Growth 5, Enterprise 15</span>
                 </div>
                 <div className="bg-[#EBE9E2] p-3.5 rounded-[2px] border border-[#CBC8BE] space-y-1">
-                  <span className="text-[10px] text-[#262523] uppercase block">RESOLUTION RATE</span>
+                  <span className="text-[10px] text-[#262523] uppercase block">OUTCOME LABELS</span>
                   <span className="text-[#121212] font-bold text-sm block">{currentSolution.metricsData.successRate}</span>
-                  <span className="text-[10px] text-[#262523] block">Without human agent transfer</span>
+                  <span className="text-[10px] text-[#262523] block">One label per call in Call Reports</span>
                 </div>
                 <div className="bg-[#EBE9E2] p-3.5 rounded-[2px] border border-[#CBC8BE] space-y-1">
-                  <span className="text-[10px] text-[#262523] uppercase block">AUDIO PROTOCOL</span>
+                  <span className="text-[10px] text-[#262523] uppercase block">PRIVACY</span>
                   <span className="text-[#121212] font-bold text-sm block">{currentSolution.metricsData.format}</span>
-                  <span className="text-[10px] text-[#262523] block">Full-duplex audio</span>
+                  <span className="text-[10px] text-[#262523] block">Set per agent</span>
                 </div>
               </div>
             )}
@@ -954,7 +954,7 @@ POST https://your-system.example.com/claritiy-webhook
             Deploy Your First Production Agent in 10 Minutes
           </h2>
           <p className="text-[#262523] max-w-2xl mx-auto text-sm sm:text-base font-sans leading-relaxed">
-            Connect your phone number, select a production template, and launch with zero upfront engineering overhead.
+            Pick a template, adjust it in plain words, connect your +91 number and go live, without an engineering team.
           </p>
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10">
             <button
