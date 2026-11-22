@@ -72,6 +72,19 @@ SIP / dev tooling: `SIP_ENCRYPTION_KEY` (still a fallback encryption key — do 
   - A plan ends at 0 minutes or 30 days, whichever comes first. Unused minutes lapse at the 30-day end.
   - The number is released 5 days after the plan ends.
 
+## Live transfers and WhatsApp (2026-11-22)
+- **Live transfer to a person** needs `PUBLIC_URL` on https: the carrier fetches the dial XML from it.
+  - The transfer uses the carrier's documented "transfer a call" request: `POST /Account/{auth_id}/Call/{call_uuid}/` with `legs=aleg` and `aleg_url`. For Vobiz this goes through `VOBIZ_API_URL`, the same base as hangup; Vobiz documents it as `https://api.vobiz.ai/api/v1`.
+  - The XML is then fetched from signed URLs at `/api/v2/webhooks/transfer/:id/xml`, `/dial-event` and `/dial-result`.
+- **Billing after a hand-off:** the carrier's final hangup webhook closes the call and bills the whole call at the carrier's duration.
+  - The 1-hour stuck-call reaper is the ceiling.
+  - The Dial `timeLimit` is set to whatever is left of the call's maximum duration and the account's minutes.
+- **WhatsApp** uses each customer's own Meta app and WhatsApp Business account. Claritiy holds no Meta keys.
+  - Optional env: `WHATSAPP_GRAPH_VERSION` (default `v27.0`) and `WHATSAPP_GRAPH_BASE` (tests only).
+  - Per-customer webhook: `{PUBLIC_URL}/api/v2/webhooks/whatsapp/{accountId}`, with the verify token shown on the Integrations card. It is fail-closed: `X-Hub-Signature-256` with the customer's app secret.
+  - Tokens and app secrets are stored encrypted with `ENCRYPTION_KEY`.
+- **Incident:** search the logs for `[CALL_TRANSFER]`, `[ADMIN_ALERT][CALL_TRANSFER]`, `[WHATSAPP]` and `[WHATSAPP_WEBHOOK]`.
+
 ## Deploy / rollback / incident steps
 
 ### Deploy

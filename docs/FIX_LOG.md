@@ -586,3 +586,48 @@ Noted, not changed:
   - 4 high: prisma CLI at build time, and zod 3, which is accepted item A1;
   - 5 moderate: transitive dependencies of googleapis.
 - Upgrades were deferred: node_modules is shared with another working session.
+
+## WhatsApp instead of SMS, live transfer to a person or another agent (2026-11-22, branch feat/whatsapp-transfers)
+Owner decisions:
+- each customer connects their own WhatsApp Business account;
+- the whole call is billed after a hand-off;
+- all paid plans;
+- SMS is replaced by WhatsApp.
+
+- **Backend (3fd0adc):**
+  - `runtime/callRouting.ts`:
+    - routes come only from saved functions and flow nodes;
+    - the AI picks a key and never a number, agent or template;
+    - a paid plan is required.
+  - `services/CallTransferService.ts` and `routes/transferWebhooks.ts`:
+    - the carrier "transfer a call" request and the signed dial XML (caller ID = our number; the time limit comes from the time and minutes left);
+    - the dial outcome: no answer = a spoken message plus a call-back notification.
+  - `CallOrchestrator`:
+    - `transfer_call`, `agent_transfer` and `send_whatsapp` handlers;
+    - while the caller is with a person, only the carrier's final hangup ends and bills the call;
+    - an agent hand-off continues the same call with a summary and the transcript, and falls back to the previous agent.
+  - `services/whatsapp/*` and `routes/whatsapp.ts`:
+    - Meta Cloud API v27.0;
+    - consent first, approved templates only, limits;
+    - fail-closed webhook, forward-only statuses, STOP opt-out, tokens encrypted.
+  - Supervisor transfer in Live Monitoring now really transfers; it used to answer 501.
+  - Save-time checks never block an unchanged old step.
+  - Additive migration `20261122120000_whatsapp_and_call_transfers`.
+- **Frontend:**
+  - agent editor function types;
+  - flow nodes (Call Transfer, Agent Transfer, WhatsApp Message);
+  - the WhatsApp card in Integrations;
+  - the Transfers & WhatsApp panel in Call History and the Reports drawer;
+  - Live Monitoring transfer and the "with your team" badge;
+  - FAQ, guide, llms.txt and the Privacy paragraph.
+- **Found and fixed on the way:** #164 (example numbers in templates), #165 (false "message sent" claims), #166 (such flows could not be published). #167 is for the owner/lawyer.
+- **Tests:**
+  - `test:whatsapp` 16/16 and `test:call-transfer` 15/15, both in test:security; `test:marketing-claims` 39/39.
+  - `e2e/whatsapp-transfers.spec.ts` 6/6, with screenshots in docs/proof/whatsapp-integration-{1440,390}.png.
+  - Related specs 29/29.
+- **Not verifiable here (needs real accounts):**
+  - a real carrier transfer (Plivo/Vobiz) and the exact Dial callback fields on a live call;
+  - the audio switch of an agent hand-off with a live AI session;
+  - a real Meta send and webhook.
+
+  Steps are in PROGRESS "Needs owner verification" item 31.

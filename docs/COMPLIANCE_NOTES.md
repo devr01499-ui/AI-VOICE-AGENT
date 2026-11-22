@@ -125,3 +125,43 @@ The product is sold by an Indian business to Indian businesses calling Indian nu
   2. **RBI calling hours**: RBI expects recovery calls between 8 am and 7 pm, while campaigns dial between 9 am and 9 pm IST. Recommendation: add a per-campaign narrower window (for example 9 am–7 pm) and default lending templates to it.
   3. **AI disclosure**: nothing makes an agent say it is an AI. Recommendation: add a default opening line ("I'm an AI assistant from …") that a workspace can only change, not remove, and have a lawyer confirm the wording.
   4. **Testimonials**: add real ones only with written permission from the customer (name, company, quote).
+
+## WhatsApp and live transfers (2026-11-22) — implemented conservatively; lawyer review recommended
+Owner decisions:
+- Each customer connects their own WhatsApp Business account.
+- After a hand-off to a person, the whole call is billed.
+- WhatsApp and transfers are available on all paid plans.
+- SMS is replaced by WhatsApp.
+
+**WhatsApp (Meta Business Messaging policy)**
+- **Sender:** messages come from the customer's own verified WhatsApp Business number, in its own name. Claritiy never sends from a shared number.
+- **Opt-in before sending:**
+  - The agent asks on the call, naming the business and WhatsApp. Meta lists phone/IVR as an accepted opt-in channel.
+  - The agent sends only after a clear yes.
+  - The opt-in (call, time, transcript excerpt) is stored before the message is sent.
+- **Opt-out:** a "STOP"-type reply opts the person out, and later sends are refused.
+  - Conservative choice: a person who opted out by reply is not re-opted in by a later verbal yes. They can message the business again ("START") to opt back in.
+- **Templates:**
+  - Only Meta-approved templates are sent; utility and marketing are allowed.
+  - Not sent: authentication/OTP templates, media headers, variable buttons.
+  - No free-form text: a caller has not opened a 24-hour service window.
+- **Recipient and volume:**
+  - Only to the caller's own number; the AI never chooses a recipient.
+  - At most 3 messages per call and 5 per person per 24 hours.
+  - No bulk or broadcast sending (the website guard forbids claiming it).
+- **Open for the owner/lawyer:**
+  - Whether marketing templates sent after a call need an extra DPDP consent notice.
+  - Privacy-policy wording for Meta as a channel. A factual paragraph was added to /privacy.
+
+**Live transfers**
+- **Caller ID:** the business's own Claritiy number. The caller's number is not passed through.
+- **Disclosure:** the agent says it is connecting the caller before the transfer.
+- **Toll-fraud policy:** destinations must pass it: Indian numbers only by default, never 1900/1860.
+- **Fixed targets:** the AI can only pick a target the customer saved.
+- **Billing disclosure:** the whole call is billed per started minute. This is shown in the editor, Live Monitoring, the FAQ and the guide.
+- **Recording:** if recording is on, the carrier recording may continue during the person-to-person part. The recording notice was given at the start of the call. Lawyer to confirm this is sufficient.
+
+**Found during this work (needs the owner's lawyer, step 27):**
+- /privacy section 5 ("Integration and Connector Data") ends with a placeholder: "[TEXT TRUNCATED HERE; PLEASE PROVIDE THE REMAINDER …]". It is visible on the live site.
+- The same page names Twilio as a provider; Twilio is not used.
+- The legal text was not rewritten here.
