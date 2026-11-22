@@ -526,3 +526,22 @@ One entry per fix, newest at the bottom. Template:
   - llms.txt rewritten as a factual sheet.
   - robots.txt allows answer-engine crawlers and disallows /dashboard.
 - **Not verifiable here:** rankings, indexing and traffic. These need Search Console after deploy (PROGRESS owner step 29).
+
+## CI E2E harness and AUTH-TRACE errors (2026-11-22, branches fix/call-path-e2e 07199de, fix/auth-transient-errors 474acce)
+- **Call Path E2E Lock & Timing Verification** had failed on all 26 runs since it was added (GitHub Actions emails). Five root causes, each reproduced locally:
+  - The repo root is `"type": "module"`, so the harness `.js` files loaded as ESM and died on `require`. Fix: `e2e-call-harness/package.json` scopes the folder as CommonJS.
+  - `ws` and `dotenv` are server dependencies, not installed at the root. Fix: resolved from `server/`.
+  - The server ran without the test-DB guard and the simulator with it, so the carrier token differed between them and no Gemini key existed. Fix: both run through the guard with fixed `TEST_` values; the key only reaches the fake Gemini server.
+  - The workflow database URLs lacked `sslmode=disable` (the app pool always asks for TLS).
+  - The seed used "the first user in the database"; it is now a dedicated paying harness tenant.
+  - Safety: `prisma db push --accept-data-loss` removed from `run_case.sh` (run locally it would have hit the database in `server/.env`); the script now requires `TEST_DATABASE_URL`.
+  - Proof: `run_case.sh` locally: ALL 21 TEST RUNS GREEN (first audio 110-200 ms); street-smart 32/32, regression 41/41, eval bad caught / good 100.
+  - "Trigger Render Deployment" failures in the same emails stopped on 2026-11-18 (fixed in Q8); every run since is green.
+- **"Internal Server Authentication Exception (Reference: AUTH-TRACE-1795322434580)":**
+  - Evidence: the reference is 04:40:34Z. Production `/live` showed the process started at 04:39:12Z, so the error came 82 s after a server restart. There was no git deploy at that time.
+  - Root cause in code: `requireAuth` turned every thrown error into this 500, including a database connection that was briefly down. It also answered an unreachable Supabase with 401, and the dashboard signs the customer out on a 401.
+  - Fix: `utils/transientErrors.ts` classifies connection-level errors. `requireAuth` answers those with 503 + `Retry-After` (code `AUTH_TEMPORARILY_UNAVAILABLE`, reference kept). Real bugs keep a 500 with a plain sentence and the reference. The log phase now says `user_lookup` for the user lookup.
+  - Frontend: GET requests retry twice on 502/503/504; writes are never retried. The Agents page error text is now readable.
+  - Test: `test_auth_transient.js` in test:security: 8/8; on the old code 3/8.
+  - Regression: test:security 100%, OWASP 23/23, payment security 16/16, Playwright 149 passed / 1 skipped, typecheck 0, build OK.
+  - **Not verifiable here:** the exact failing phase of that one production request. It is in the Render log line containing `AUTH-TRACE-1795322434580` (PROGRESS owner step 30).
