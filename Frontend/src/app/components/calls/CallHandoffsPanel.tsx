@@ -28,7 +28,14 @@ export function CallHandoffsPanel({ callId, className = '' }: { callId: string; 
     let alive = true;
     setData(null);
     if (!callId) return;
-    fetchCallHandoffs(callId).then((d) => { if (alive) setData(d); }).catch(() => { if (alive) setData(null); });
+    // Any unexpected answer (older backend during a deploy, proxy error) means "nothing to show",
+    // never a crash of Call History.
+    fetchCallHandoffs(callId)
+      .then((d: any) => {
+        if (!alive) return;
+        setData({ transfers: Array.isArray(d?.transfers) ? d.transfers : [], whatsapp: Array.isArray(d?.whatsapp) ? d.whatsapp : [] });
+      })
+      .catch(() => { if (alive) setData(null); });
     return () => { alive = false; };
   }, [callId]);
 
