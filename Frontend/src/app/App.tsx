@@ -41,6 +41,7 @@ import { NumberSearchAndPurchase } from "./components/numbers/NumberSearchAndPur
 import { DashCallingConfig } from "./components/calling/DashCallingConfig";
 import { csvRow } from "./lib/csv";
 import { RecordingPlayer } from "./components/calls/RecordingPlayer";
+import { CallHandoffsPanel } from "./components/calls/CallHandoffsPanel";
 import { DashChatHistory } from "./components/chat/DashChatHistory";
 import { DashContacts } from "./components/contacts/DashContacts";
 import { DashAnalytics } from "./components/analytics/DashAnalytics";
@@ -249,7 +250,7 @@ GREETING & INTAKE:
 ROUTING & SCENARIOS:
 - Sales: Inquire about team size and call volume, then route to sales scheduling.
 - Technical Support: Check if there is an active service outage. For urgent outages, initiate immediate priority transfer. For routine support, log ticket details.
-- Billing: Provide billing self-service portal details via SMS and explain common invoice line items.
+- Billing: Explain common invoice line items and offer the billing self-service portal link on WhatsApp (only if the caller agrees).
 
 EDGE CASES:
 1. Caller demands immediate executive access: Politely explain that executive lines are managed by schedule, gather call reason, and promise a callback within 2 business hours.
@@ -295,12 +296,12 @@ DISCLAIMER & CLOSING:
             ]
           }
         },
-        { id: 'transfer-tier2', type: 'transferCall', position: { x: 250, y: 800 }, data: { label: 'Priority Support Transfer', targetNumber: '+918000050199' } },
+        { id: 'transfer-tier2', type: 'transferCall', position: { x: 250, y: 800 }, data: { label: 'Priority Support Transfer', targetNumber: '' } },
         { id: 'end-urgent', type: 'endCall', position: { x: 250, y: 920 }, data: { label: 'Transfer Hand-off', text: 'Connecting you directly to priority support. Please hold...' } },
         { id: 'general-support-msg', type: 'sayMessage', position: { x: 450, y: 800 }, data: { label: 'Support Ticket Logged', text: 'I have logged your support ticket for our engineering team. You will receive an update by email within 1 hour.' } },
         { id: 'end-support', type: 'endCall', position: { x: 450, y: 920 }, data: { label: 'Support Goodbye', text: 'Thank you for reaching Claritiy Voice Support!' } },
-        { id: 'billing-sms', type: 'inCallSms', position: { x: 600, y: 540 }, data: { label: 'Dispatch Billing Portal SMS', smsMessage: 'Claritiy Voice Billing: Manage invoices and update payment methods at https://claritiy.com/billing' } },
-        { id: 'end-billing', type: 'endCall', position: { x: 600, y: 670 }, data: { label: 'Billing Wrap Up', text: 'I have texted you our self-service billing link. Thank you for calling Claritiy Voice!' } }
+        { id: 'billing-sms', type: 'whatsapp', position: { x: 600, y: 540 }, data: { label: 'Billing Portal Link on WhatsApp', instructions: 'Offer the self-service billing portal link (manage invoices and payment methods).', templateName: '' } },
+        { id: 'end-billing', type: 'endCall', position: { x: 600, y: 670 }, data: { label: 'Billing Wrap Up', text: 'You can manage invoices and payment methods any time from the billing page of our website. Thank you for calling Claritiy Voice!' } }
       ],
       edges: [
         { id: 'e1', source: 'start-node', target: 'ask-name' },
@@ -399,11 +400,11 @@ CLOSING:
             ]
           }
         },
-        { id: 'transfer-ae', type: 'transferCall', position: { x: 100, y: 660 }, data: { label: 'Live Transfer to AE', targetNumber: '+918000050188' } },
+        { id: 'transfer-ae', type: 'transferCall', position: { x: 100, y: 660 }, data: { label: 'Live Transfer to AE', targetNumber: '' } },
         { id: 'closing-ae', type: 'sayMessage', position: { x: 100, y: 790 }, data: { label: 'AE Transfer Announcement', text: 'Connecting you now with our Senior Solutions Engineer. Please hold one moment...' } },
         { id: 'end-ae', type: 'endCall', position: { x: 100, y: 910 }, data: { label: 'AE Call Hand-off', text: 'Call transferred successfully.' } },
-        { id: 'send-demo-sms', type: 'inCallSms', position: { x: 420, y: 660 }, data: { label: 'Send Demo Video SMS', smsMessage: 'Claritiy Voice: Watch our 3-minute interactive demo video & sandbox walkthrough here: https://claritiy.com/demo-video' } },
-        { id: 'closing-sms', type: 'sayMessage', position: { x: 420, y: 790 }, data: { label: 'Self-Serve Deck Confirmation', text: 'I have texted you our starter walkthrough video and sandbox trial link. Feel free to reach back out anytime!' } },
+        { id: 'send-demo-sms', type: 'whatsapp', position: { x: 420, y: 660 }, data: { label: 'Demo Video on WhatsApp', instructions: 'Offer the 3-minute demo video and sandbox walkthrough link.', templateName: '' } },
+        { id: 'closing-sms', type: 'sayMessage', position: { x: 420, y: 790 }, data: { label: 'Self-Serve Deck Confirmation', text: 'Our walkthrough video and sandbox trial are on our website. Feel free to reach back out anytime!' } },
         { id: 'end-sms', type: 'endCall', position: { x: 420, y: 910 }, data: { label: 'Sales Goodbye', text: 'Thanks for speaking with Claritiy Voice! Have a great day.' } }
       ],
       edges: [
@@ -487,10 +488,10 @@ WORKFLOW STEPS:
             ]
           }
         },
-        { id: 'urgent-transfer', type: 'transferCall', position: { x: 100, y: 660 }, data: { label: 'Transfer Urgent Care Triage', targetNumber: '+918000050133' } },
+        { id: 'urgent-transfer', type: 'transferCall', position: { x: 100, y: 660 }, data: { label: 'Transfer Urgent Care Triage', targetNumber: '' } },
         { id: 'end-urgent', type: 'endCall', position: { x: 100, y: 790 }, data: { label: 'Urgent Care Hand-off', text: 'Transferring your call to our emergency dental triage desk now. Please hold...' } },
-        { id: 'send-intake-sms', type: 'inCallSms', position: { x: 420, y: 660 }, data: { label: 'Dispatch Intake Form SMS', smsMessage: 'Bright Smiles Dental: Your appointment request has been logged! Fill out your medical history intake form at https://brightsmiles.com/intake' } },
-        { id: 'closing-confirm', type: 'sayMessage', position: { x: 420, y: 790 }, data: { label: 'Booking Confirmation Message', text: 'I have reserved your appointment request slot and sent a digital intake form link directly to your mobile phone.' } },
+        { id: 'send-intake-sms', type: 'whatsapp', position: { x: 420, y: 660 }, data: { label: 'Intake Form on WhatsApp', instructions: 'Offer the medical history intake form link after the appointment request is logged.', templateName: '' } },
+        { id: 'closing-confirm', type: 'sayMessage', position: { x: 420, y: 790 }, data: { label: 'Booking Confirmation Message', text: 'I have noted your appointment request. Our team will confirm the slot with you shortly.' } },
         { id: 'end-routine', type: 'endCall', position: { x: 420, y: 910 }, data: { label: 'Dental Goodbye', text: 'We look forward to seeing your smile! Have a wonderful day.' } }
       ],
       edges: [
@@ -575,8 +576,8 @@ WORKFLOW STEPS:
         },
         { id: 'transfer-realtor', type: 'agentTransfer', position: { x: 100, y: 660 }, data: { label: 'Transfer to Senior Realtor', subagentName: 'Premier Listing Agent' } },
         { id: 'end-realtor', type: 'endCall', position: { x: 100, y: 790 }, data: { label: 'Realtor Hand-off', text: 'Handing your profile over to our senior listing advisor. Thank you for calling Premier Heights Realty!' } },
-        { id: 'send-lender-sms', type: 'inCallSms', position: { x: 420, y: 660 }, data: { label: 'Dispatch Lender Partners SMS', smsMessage: 'Premier Heights Realty: Here are our trusted mortgage lending partners for instant pre-approval: https://premierheights.com/lenders' } },
-        { id: 'lender-msg', type: 'sayMessage', position: { x: 420, y: 790 }, data: { label: 'Lender SMS Announcement', text: 'I have texted you our preferred lending partner list. Once pre-approved, our top agent will curate custom off-market listings for you!' } },
+        { id: 'send-lender-sms', type: 'whatsapp', position: { x: 420, y: 660 }, data: { label: 'Lender Partners on WhatsApp', instructions: 'Offer the list of trusted mortgage lending partners for pre-approval.', templateName: '' } },
+        { id: 'lender-msg', type: 'sayMessage', position: { x: 420, y: 790 }, data: { label: 'Lender Partners Announcement', text: 'Our preferred lending partners are listed on our website. Once pre-approved, our top agent will curate custom off-market listings for you!' } },
         { id: 'end-lender', type: 'endCall', position: { x: 420, y: 910 }, data: { label: 'Realty Goodbye', text: 'Thank you for reaching out to Premier Heights Realty. Happy home hunting!' } }
       ],
       edges: [
@@ -658,10 +659,10 @@ WORKFLOW STEPS:
             ]
           }
         },
-        { id: 'send-tracking-sms', type: 'inCallSms', position: { x: 100, y: 540 }, data: { label: 'Dispatch Carrier Tracking SMS', smsMessage: 'Nova Trends: Order #849201 is in transit via FedEx (Tracking #9928103). Track live at https://novatrends.com/track/849201' } },
+        { id: 'send-tracking-sms', type: 'whatsapp', position: { x: 100, y: 540 }, data: { label: 'Tracking Link on WhatsApp', instructions: 'Offer the order tracking link.', templateName: '' } },
         { id: 'tracking-say', type: 'sayMessage', position: { x: 100, y: 670 }, data: { label: 'Tracking Update Announcement', text: 'Your order is currently in transit and scheduled for delivery by 5:00 PM today. The store will share the tracking details with you.' } },
         { id: 'end-tracking', type: 'endCall', position: { x: 100, y: 790 }, data: { label: 'Tracking Goodbye', text: 'Thank you for shopping with Nova Trends! Have a wonderful day.' } },
-        { id: 'transfer-returns', type: 'transferCall', position: { x: 420, y: 540 }, data: { label: 'Transfer Returns Department', targetNumber: '+918000050177' } },
+        { id: 'transfer-returns', type: 'transferCall', position: { x: 420, y: 540 }, data: { label: 'Transfer Returns Department', targetNumber: '' } },
         { id: 'end-returns', type: 'endCall', position: { x: 420, y: 670 }, data: { label: 'Returns Hand-off Goodbye', text: 'Connecting you now to a Returns Specialist. Please hold...' } }
       ],
       edges: [
@@ -741,12 +742,12 @@ CLOSING BEHAVIOR:
   {
     id: 'tpl-12',
     name: 'Event Registration Desk',
-    description: 'Event registration coordinator that collects attendee details, issues digital badge QR codes via SMS, and transfers VIP/group pass inquiries to the event concierge.',
+    description: 'Event registration coordinator that collects attendee details, offers the digital QR badge on WhatsApp (with the caller\'s consent), and transfers VIP/group pass inquiries to the event concierge.',
     category: 'Receptionist',
     type: 'conversational',
     systemPrompt: `You are Sam, the upbeat Event Coordinator for the Claritiy Voice Annual Summit.
 OBJECTIVE:
-Register conference attendees, issue digital QR badges via SMS, and route VIP or group pass inquiries to live concierge managers.
+Register conference attendees, offer the digital QR badge on WhatsApp (only if the caller agrees), and route VIP or group pass inquiries to live concierge managers.
 
 WORKFLOW STEPS:
 1. Welcome caller to Claritiy Voice Summit Desk.
@@ -774,10 +775,10 @@ WORKFLOW STEPS:
             ]
           }
         },
-        { id: 'transfer-concierge', type: 'transferCall', position: { x: 100, y: 660 }, data: { label: 'Transfer Event Concierge', targetNumber: '+918000050144' } },
+        { id: 'transfer-concierge', type: 'transferCall', position: { x: 100, y: 660 }, data: { label: 'Transfer Event Concierge', targetNumber: '' } },
         { id: 'end-vip', type: 'endCall', position: { x: 100, y: 790 }, data: { label: 'VIP Hand-off Goodbye', text: 'Transferring you to our VIP Event Concierge. Please hold...' } },
-        { id: 'send-badge-sms', type: 'inCallSms', position: { x: 420, y: 660 }, data: { label: 'Dispatch Digital Badge SMS', smsMessage: 'Claritiy Voice Summit: Registration confirmed! Access your digital QR badge & agenda at https://claritiy.com/summit/badge' } },
-        { id: 'pass-confirm-say', type: 'sayMessage', position: { x: 420, y: 790 }, data: { label: 'Registration Confirmation Message', text: 'You\'re all registered! I have texted your digital event pass and schedule directly to your phone.' } },
+        { id: 'send-badge-sms', type: 'whatsapp', position: { x: 420, y: 660 }, data: { label: 'Digital Badge on WhatsApp', instructions: 'Offer the digital QR badge and agenda link after registration.', templateName: '' } },
+        { id: 'pass-confirm-say', type: 'sayMessage', position: { x: 420, y: 790 }, data: { label: 'Registration Confirmation Message', text: 'You\'re all registered! Our events team will confirm your pass and schedule with you.' } },
         { id: 'end-general', type: 'endCall', position: { x: 420, y: 910 }, data: { label: 'Summit Goodbye', text: 'We look forward to seeing you at the Claritiy Voice Summit! Have a great day.' } }
       ],
       edges: [
@@ -899,7 +900,7 @@ CLOSING: 'You can also raise any concern about this call directly with [Lender N
             ]
           }
         },
-        { id: 'send-payment-sms', type: 'inCallSms', position: { x: 580, y: 1030 }, data: { label: 'Dispatch Secure Payment SMS', smsMessage: 'I\'ve sent a secure payment link to your registered mobile number.' } },
+        { id: 'send-payment-sms', type: 'whatsapp', position: { x: 580, y: 1030 }, data: { label: 'Secure Payment Link on WhatsApp', instructions: 'Offer the secure payment link (never ask for card or bank details on the call).', templateName: '' } },
         { id: 'end-compliant-closing', type: 'endCall', position: { x: 580, y: 1150 }, data: { label: 'Compliant Closing', text: 'Thank you for your time. If you\'d like to raise any concern about this call, you can contact [Lender Name]\'s grievance officer at any time. Have a good day.' } }
       ],
       edges: [
@@ -3076,6 +3077,8 @@ function DashCallLogs() {
               <RecordingPlayer callId={selectedCallRow.id} durationLabel={selectedCallRow.durDisplay} />
             </div>
           )}
+
+          {selectedCallRow?.id && <CallHandoffsPanel callId={selectedCallRow.id} />}
 
           {transcriptLoading && (
             <p className="text-sm font-bold text-[var(--nm-text)] text-center py-6" style={{fontFamily:"'Outfit', sans-serif"}}>

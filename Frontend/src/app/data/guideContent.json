@@ -62,7 +62,8 @@
       "tips": [
         "Prompt Coach rewrites your instructions into a clearer structure (role, goal, rules, call flow) and shows exactly what it changed. You decide whether to keep it.",
         "Keep instructions short and specific. \"Never quote a price that is not in the knowledge base\" works better than \"be accurate\".",
-        "Webhook Settings sends each finished call (outcome, extracted fields, transcript) to your own system. Every webhook is signed with an X-Claritiy-Signature header so you can check it came from us."
+        "Webhook Settings sends each finished call (outcome, extracted fields, transcript) to your own system. Every webhook is signed with an X-Claritiy-Signature header so you can check it came from us.",
+        "Functions can also hand the call over: Transfer Call to a Person (your team's number), Transfer to Another Agent (for example a billing specialist), and Send WhatsApp Message (an approved template, only after the caller agrees). Describe when each should be used."
       ],
       "images": [
         { "src": "/guide/agent-editor.webp", "alt": "Agent editor with voice, language and call direction controls, the instruction box, settings panels and Test Audio, Test LLM and Test Lab tabs", "caption": "The agent editor: instructions on the left, settings in the middle, testing on the right." }
@@ -202,10 +203,11 @@
       "steps": [
         "Open Live Monitoring while calls are running; new calls appear on their own.",
         "Select a call to follow its live transcript.",
+        "Click Transfer to a person to hand the call to someone on your team: enter their number and the call rings them, with your Claritiy number as caller ID.",
         "Click End Call if you need to stop a call."
       ],
       "tips": [
-        "Transferring a live call to a person is not available yet; the call stays with the AI agent."
+        "While a caller is with your team, the call shows Ringing your team or With your team. Minutes are charged for the whole call."
       ],
       "images": [
         { "src": "/guide/live-monitoring.webp", "alt": "Live Monitoring page for calls in progress", "caption": "Live Monitoring." }
@@ -259,12 +261,15 @@
       ]
     },
     "integrations": {
-      "title": "Integrations: Google Calendar booking",
+      "title": "Integrations: Google Calendar and WhatsApp",
       "where": "Sidebar → System → Integrations",
-      "lead": "Connect Google Calendar so your agents can check free slots and book appointments during the call.",
+      "lead": "Connect Google Calendar so your agents can check free slots and book appointments during the call, and WhatsApp Business so they can send approved messages to callers who agree.",
       "steps": [
         "Click Connect Google Calendar and approve access. If you signed up with Google, the calendar connects for you.",
-        "In the agent editor, open Scheduling & Calendar to set working hours, appointment length, buffers and minimum notice."
+        "In the agent editor, open Scheduling & Calendar to set working hours, appointment length, buffers and minimum notice.",
+        "For WhatsApp, click Connect WhatsApp and paste the Phone number ID, WhatsApp Business Account ID, a permanent access token and the App secret from your Meta Business account. Claritiy checks them with Meta before saving.",
+        "Copy the Callback URL and Verify token shown on the card into your Meta app (WhatsApp → Configuration) and subscribe to messages, so delivery reports and STOP replies reach Claritiy.",
+        "Create message templates in WhatsApp Manager. Once Meta approves them, click Refresh and choose them in an agent's Send WhatsApp Message step."
       ],
       "tips": [
         "Need your CRM or order system? Use Functions in the agent editor to call your own APIs during the call, and Webhook Settings to receive every finished call."
@@ -317,6 +322,7 @@
     { "q": "How are calls billed?", "a": "Per started minute of each answered call, with a minimum of one minute. Calls that are never answered use no minutes. Plans are one-time packs: {plans}." },
     { "q": "Why do I need KYC?", "a": "Indian telecom rules require a verified identity before a business number can place calls. You verify PAN and Aadhaar (through DigiLocker), or a company PAN and GST certificate, in Settings → KYC & Compliance." },
     { "q": "Is call recording legal, and is it on by default?", "a": "Recording is off by default. When you switch it on for an agent, the agent tells callers at the start of the call that it is being recorded, and recordings are deleted after 90 days at the latest, or sooner if you set a shorter retention period." },
-    { "q": "Can the AI transfer a call to a human?", "a": "Not yet. Live transfer is on our roadmap; today the agent can offer a call-back and you can end a call from Live Monitoring." }
+    { "q": "Can the AI transfer a call to a human?", "a": "Yes, on every paid plan. Add a transfer step with your team's number; the agent tells the caller it is connecting them and the call rings your team. If nobody answers, the caller hears a short message and you get a call-back notification. You can also transfer a live call from Live Monitoring." },
+    { "q": "Can the agent send WhatsApp messages?", "a": "Yes, approved templates from your own WhatsApp Business number, only after the caller agrees on the call. Connect WhatsApp in Integrations. Claritiy does not send SMS." }
   ]
 }

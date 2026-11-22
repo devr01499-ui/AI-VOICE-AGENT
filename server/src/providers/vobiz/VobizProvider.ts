@@ -328,6 +328,37 @@ export class VobizProvider implements ITelephonyProvider {
     }
   }
 
+  /**
+   * Moves the caller's leg of a live call to new XML (hand-off to a person). Vobiz "Transfer Call":
+   * POST /Account/{auth_id}/Call/{call_uuid}/ with legs=aleg, aleg_url, aleg_method (202 = done,
+   * 404 = call not in progress).
+   */
+  async transferCall(callUuid: string, alegUrl: string, userId?: string): Promise<'transferred' | 'not_found' | 'failed'> {
+    const uuid = (callUuid || '').trim();
+    if (!uuid || !/^[A-Za-z0-9-]{8,64}$/.test(uuid) || !/^https:\/\//.test(alegUrl)) return 'failed';
+    if (this.isMock) {
+      // Never pretend a hand-off worked on a real call: the caller would be left in silence.
+      if ((process.env.NODE_ENV || env.NODE_ENV) === 'production') return 'failed';
+      logger.info('VobizProvider: mock transfer', { callUuid: uuid });
+      return 'transferred';
+    }
+    try {
+      const { authId, authToken } = await this.getAuthCredentials(userId);
+      const response = await fetch(`${this.baseUrl}/Account/${authId}/Call/${uuid}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Auth-ID': authId, 'X-Auth-Token': authToken },
+        body: JSON.stringify({ legs: 'aleg', aleg_url: alegUrl, aleg_method: 'POST' }),
+      });
+      logger.info('VobizProvider: transfer call', { callUuid: uuid, status: response.status });
+      if (response.status >= 200 && response.status < 300) return 'transferred';
+      if (response.status === 404) return 'not_found';
+      return 'failed';
+    } catch (err) {
+      logger.warn('VobizProvider: transfer call error', { callUuid: uuid, error: err instanceof Error ? err.message : String(err) });
+      return 'failed';
+    }
+  }
+
   /** Queries the status of a specific call. */
   async getCallStatus(callUuid: string, userId?: string): Promise<CallStatusResult> {
     if (this.isMock) {

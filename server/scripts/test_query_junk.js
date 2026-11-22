@@ -26,7 +26,7 @@ const JUNK = [
 ];
 // Needs a live carrier, which tests never have: a clean 502 is the correct answer there.
 const CARRIER = /\/numbers\/(plivo\/)?search$/;
-const MOUNTED = /^\/api\/v2\/(calls|agents|numbers|knowledge-base|user|team|apikeys|calendar|kyc|billing|chat-history|contacts|analytics|qa|alerting|audit-logs|reports)\b/;
+const MOUNTED = /^\/api\/v2\/(calls|agents|numbers|knowledge-base|user|team|apikeys|calendar|kyc|billing|chat-history|contacts|analytics|qa|alerting|audit-logs|reports|whatsapp)\b/;
 
 (async () => {
   const userId = crypto.randomUUID();

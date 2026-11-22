@@ -253,6 +253,35 @@ router.get('/:id/recording-link', requireAuth, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/v2/calls/:id/handoffs: live transfers (to a person or another agent) and WhatsApp
+ * messages of one call, for Call History. Tenant-scoped through the call.
+ */
+router.get('/:id/handoffs', requireAuth, async (req, res) => {
+  const userId = (req as any).effectiveWorkspaceId || getUserIdFromRequest(req);
+  if (!userId) { res.status(401).json({ success: false, error: 'Unauthorized' }); return; }
+  try {
+    const callId = String(req.params.id);
+    const call = await prisma.call.findFirst({ where: { id: callId, userId: String(userId) }, select: { id: true } });
+    if (!call) { res.status(404).json({ success: false, error: 'Call not found' }); return; }
+    const { CallTransferService } = await import('../services/CallTransferService');
+    const { WhatsAppService } = await import('../services/whatsapp/WhatsAppService');
+    const [transfers, whatsapp] = await Promise.all([
+      CallTransferService.listForCall(callId, String(userId)),
+      WhatsAppService.listMessages(String(userId), { callId, limit: 20 }),
+    ]);
+    const agentIds = Array.from(new Set(transfers.map((t) => t.toAgentId).filter((x): x is string => Boolean(x))));
+    const agents = agentIds.length ? await prisma.agent.findMany({ where: { id: { in: agentIds }, userId: String(userId) }, select: { id: true, name: true } }) : [];
+    res.json({ success: true, data: {
+      transfers: transfers.map((t) => ({ ...t, toAgentName: agents.find((a) => a.id === t.toAgentId)?.name || null })),
+      whatsapp,
+    } });
+  } catch (err) {
+    logger.error('Calls: handoffs lookup failed', { error: String(err) });
+    res.status(500).json({ success: false, error: 'Could not load the transfers for this call.' });
+  }
+});
+
 router.get('/live', async (req, res) => {
   try {
     const userId = (req as any).effectiveWorkspaceId || (req as any).userId || ((req as any).user && (req as any).user.id);
@@ -263,6 +292,8 @@ router.get('/live', async (req, res) => {
     const { getLiveCalls } = await import('../utils/concurrency');
     const batchId = typeof req.query.batchId === 'string' && req.query.batchId && req.query.batchId !== 'all' ? req.query.batchId : null;
     const rows = await getLiveCalls(userId, Date.now(), batchId);
+    const ids = rows.map((c: any) => c.id);
+    const withPerson = ids.length ? await prisma.callTransfer.findMany({ where: { userId, callId: { in: ids }, kind: 'human', status: { in: ['requested', 'dialing', 'connected'] } }, select: { callId: true, status: true, destinationLabel: true } }) : [];
     const data = rows.map((c: any) => ({
       id: c.id,
       direction: String(c.callDirection || '').toLowerCase() === 'inbound' ? 'inbound' : 'outbound',
@@ -271,6 +302,7 @@ router.get('/live', async (req, res) => {
       agentId: c.agentId || null,
       batchId: c.batchId || null,
       status: c.status,
+      handoff: (() => { const t = withPerson.find((w) => w.callId === c.id); return t ? { kind: 'human', status: t.status, destination: t.destinationLabel } : null; })(),
       startedAt: (c.startTime || c.createdAt).toISOString(),
       createdAt: c.createdAt.toISOString(),
     }));

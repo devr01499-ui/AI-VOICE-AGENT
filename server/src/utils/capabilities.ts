@@ -14,6 +14,8 @@ export interface TelephonyCapabilities {
   email: boolean;
   payments: boolean;
   transfer: boolean;
+  /** Only when transfer is true: false when only AI-specialist hand-offs are configured. */
+  transferToHuman?: boolean;
   dtmf: boolean;
 }
 
@@ -39,7 +41,19 @@ export function buildCapabilitiesBlock(caps: TelephonyCapabilities = TELEPHONY_C
   if (!caps.email) disallowed.push('emails');
   if (!caps.payments) disallowed.push('payment links or payments');
   if (!caps.transfer) disallowed.push('call transfers to other numbers/agents');
+  else if (!caps.transferToHuman) disallowed.push('call transfers to phone numbers');
 
+  if (caps.whatsapp) {
+    // WhatsApp is configured on this call (approved templates only, after the caller agrees).
+    return `
+[CAPABILITIES & COMMUNICATION BOUNDARIES]
+- Channels: you speak on this live call, and you can send ONLY the approved WhatsApp messages listed under [WHATSAPP], with the send_whatsapp tool, after the caller agrees.
+- Strictly Disallowed: You do NOT have the technical capability to send ${disallowed.join(', ')}.
+- Forbidden Promises: never promise SMS, email, links or payments, and never say a WhatsApp message was sent unless send_whatsapp confirmed it.
+- If the caller wants something you cannot send: repeat or spell out the details slowly now, or note a callback request for the team.
+- If a step tells you to use a transfer or message tool that you do not have on this call, never mention it: offer a callback from the team (for a transfer) or repeat the details on the call (for a message).
+`.trim();
+  }
   return `
 [CAPABILITIES & COMMUNICATION BOUNDARIES]
 - Voice-Only Channel: You can only speak and listen on this live audio call.
@@ -48,6 +62,7 @@ export function buildCapabilitiesBlock(caps: TelephonyCapabilities = TELEPHONY_C
 - Handling Requests: State clearly and politely that you cannot send messages from this call. Instead, offer what you CAN do:
   1. Repeat or spell out the details slowly right now on the line.
   2. Note down a callback request for our team to follow up with them later.
+- If a step tells you to use a transfer or message tool that you do not have on this call, never mention it: offer a callback from the team (for a transfer) or repeat the details on the call (for a message).
 `.trim();
 }
 
@@ -57,7 +72,9 @@ export function buildCapabilitiesBlock(caps: TelephonyCapabilities = TELEPHONY_C
 export function filterActiveTools(tools: any[], caps: TelephonyCapabilities = TELEPHONY_CAPABILITIES): any[] {
   if (!Array.isArray(tools)) return [];
   const disallowedToolNames = new Set<string>();
-  if (!caps.sms) disallowedToolNames.add('send_sms');
+  // SMS was never available and is replaced by WhatsApp (send_whatsapp).
+  disallowedToolNames.add('send_sms');
+  if (!caps.whatsapp) disallowedToolNames.add('send_whatsapp');
   if (!caps.transfer) {
     disallowedToolNames.add('transfer_call');
     disallowedToolNames.add('agent_transfer');

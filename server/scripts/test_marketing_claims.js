@@ -57,7 +57,8 @@ const FALSE_CLAIMS = [
   // SEO / content pass (2026-11-22): claims the code or the owner cannot back up.
   ['invented customer testimonials', /Commodities are hot|RTO dropped from 28%|Replaced 6 manual calling agents|Up 20k since Yesterday/i],
   ['invented author bylines', /Elena Rostova/],
-  ['warm transfer / live human handoff (not built: the transfer endpoint answers 501)', /warm (call |SIP |human )?(transfer|escalation)|Live agent transfer|initiates senior human transfer|transferring you directly|live-transfer to/i],
+  // Live transfer is built (2026-11-22) as a direct hand-off: the person is not briefed first, so no "warm" transfer.
+  ['warm transfer (live transfer is a direct hand-off; the person is not briefed first)', /warm (call |SIP |human )?(transfer|escalation)|initiates senior human transfer/i],
   ['10,000+ / unlimited simultaneous calls (plans allow 5 or 15)', /10,000\+ simultaneous|10K\+|∞/],
   ['unmeasured millisecond figures', /\b\d{1,3} ?ms (Barge|barge|VAD|Speech Interception|first-token)|latency=\d+ms|barge-in latency under|sub-20ms|Sub-3-?s(econd)?\b/i],
   ['unverified outcome percentages and multipliers', /\d{1,3}(\.\d)?% (RTO|No-Show|no-show|Recovery Lift|recovery lift|contact rate|Contact rate|first-call booking|completed verification|promise to pay|first-attempt|Hold Time|On-Time Payment|Win-Back|Renewal Rate|Lift in)|\d(\.\d)?× (Debt|faster|Pipeline|Site Visits|More Site|Trial|FNOL)/],
@@ -65,7 +66,9 @@ const FALSE_CLAIMS = [
   ['human-parity / accuracy percentages', /99\.[89]%|Human (Voice )?Parity|Fact-Checked RAG|[Zz]ero [Hh]allucination|100% (accurate|fact|PCI|RBI)/],
   ['RBI-compliant claims (the product supports good practice; compliance is the lender\'s)', /RBI[- ]compliant|RBI Compliant|RBI Audit Compliance/],
   ['native Shopify / Shiprocket / WooCommerce order updates (webhooks only)', /(Shopify|WooCommerce|Shiprocket)[^.\n]{0,30}(tag updates|status automatically|order status|Sync\b)/i],
-  ['the agent sending SMS / WhatsApp itself (not a platform feature)', /(sent|send|texted|dispatch(es)?)[^."\n]{0,40}(via|on|to your) (SMS|WhatsApp)|Tracking SMS bhej|WhatsApp par send/i],
+  // WhatsApp is built (approved templates, consent first, the customer's own number); SMS is not.
+  ['the agent sending SMS (not a platform feature; WhatsApp replaced it)', /(sent|send|texted|dispatch(es)?)[^."\n]{0,40}(via|on|to your) SMS|Tracking SMS bhej|I have texted/i],
+  ['bulk / broadcast WhatsApp (only one approved message to a caller who agreed)', /(bulk|broadcast|mass|blast)[^.\n]{0,20}WhatsApp|WhatsApp[^.\n]{0,20}(blast|broadcast|campaigns? to (all|your list))/i],
   ['white-label offering', /White-Label API|white-label ready/i],
   ['old voice count', /26\+ (HD )?Voice/],
 ];

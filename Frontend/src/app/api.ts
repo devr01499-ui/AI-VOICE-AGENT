@@ -79,6 +79,8 @@ export interface ApiCall {
   direction?: 'inbound' | 'outbound';
   callDirection?: string;
   status: string;
+  /** Live calls only: the caller has been handed to a person (ringing or connected). */
+  handoff?: { kind: 'human'; status: string; destination: string | null } | null;
   contactNumber?: string;
   businessNumber?: string;
   phoneNumber?: string;
@@ -1202,3 +1204,90 @@ export const reportsApi = {
     document.body.removeChild(a);
   },
 };
+
+// ── WhatsApp (customer's own WhatsApp Business account) and live transfers ──────────────────────
+
+export interface WhatsAppTemplateInfo {
+  name: string;
+  language: string;
+  category: string;
+  status: string;
+  bodyText: string;
+  variables: Array<{ key: string; named: boolean }>;
+  usable: boolean;
+  unusableReason?: string;
+}
+
+export interface WhatsAppAccountInfo {
+  id: string;
+  phoneNumberId: string;
+  wabaId: string;
+  displayPhoneNumber: string | null;
+  verifiedName: string | null;
+  status: 'connected' | 'error' | string;
+  lastError: string | null;
+  webhookUrl: string;
+  verifyToken?: string;
+  webhookVerifiedAt: string | null;
+  templatesSyncedAt: string | null;
+  templates: WhatsAppTemplateInfo[];
+}
+
+export async function fetchWhatsAppAccount(): Promise<{ connected: boolean; account: WhatsAppAccountInfo | null }> {
+  return apiFetch('/api/v2/whatsapp/account');
+}
+
+/** Checked with Meta on the server; tokens are stored encrypted and never sent back. */
+export async function connectWhatsAppAccount(input: { phoneNumberId: string; wabaId: string; accessToken: string; appSecret: string }): Promise<{ connected: boolean; account: WhatsAppAccountInfo }> {
+  return apiFetch('/api/v2/whatsapp/account', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export async function syncWhatsAppTemplates(): Promise<{ connected: boolean; account: WhatsAppAccountInfo }> {
+  return apiFetch('/api/v2/whatsapp/account/sync-templates', { method: 'POST', body: JSON.stringify({}) });
+}
+
+export async function disconnectWhatsAppAccount(): Promise<void> {
+  await apiFetch('/api/v2/whatsapp/account', { method: 'DELETE' });
+}
+
+/** Approved templates an agent can send (only ones Claritiy can actually send). */
+export async function fetchWhatsAppTemplates(): Promise<{ connected: boolean; businessName: string | null; templates: WhatsAppTemplateInfo[] }> {
+  return apiFetch('/api/v2/whatsapp/templates');
+}
+
+export interface CallTransferInfo {
+  id: string;
+  kind: 'human' | 'agent';
+  destinationLabel: string | null;
+  destinationNumber: string | null;
+  toAgentId: string | null;
+  toAgentName: string | null;
+  reason: string | null;
+  summary: string | null;
+  status: string;
+  dialStatus: string | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export interface WhatsAppMessageInfo {
+  id: string;
+  callId: string | null;
+  direction: 'outbound' | 'inbound';
+  phoneNumber: string;
+  templateName: string | null;
+  body: string;
+  status: string;
+  errorMessage: string | null;
+  createdAt: string;
+}
+
+/** Transfers and WhatsApp messages of one call (Call History). */
+export async function fetchCallHandoffs(callId: string): Promise<{ transfers: CallTransferInfo[]; whatsapp: WhatsAppMessageInfo[] }> {
+  return apiFetch(`/api/v2/calls/${encodeURIComponent(callId)}/handoffs`);
+}
+
+/** Supervisor: hand a live call to a person (Live Monitoring). */
+export async function transferLiveCall(callId: string, targetNumber: string): Promise<{ transferId: string; status: string }> {
+  return apiFetch(`/api/v2/calls/${encodeURIComponent(callId)}/transfer`, { method: 'POST', body: JSON.stringify({ targetNumber }) });
+}

@@ -2,6 +2,7 @@ import { formatTime } from '../../lib/dateFormat';
 import { useState, useEffect, useCallback } from 'react';
 import { Calendar, CheckCircle2, XCircle, AlertTriangle, RefreshCw, LogIn, Sliders } from 'lucide-react';
 import { apiClient } from '../../api';
+import { WhatsAppIntegrationCard } from './WhatsAppIntegrationCard';
 
 interface CalendarStatus {
   connected: boolean;
@@ -147,7 +148,7 @@ export function DashIntegrations() {
             <Sliders className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> Integrations
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Connect Claritiy Voice to external services. Currently supported: Google Calendar.
+            Connect Claritiy Voice to external services: Google Calendar and WhatsApp Business.
           </p>
         </div>
 
@@ -164,8 +165,8 @@ export function DashIntegrations() {
       {loading ? (
         <div className="p-16 text-center text-xs text-slate-400">Checking integration status…</div>
       ) : (
-        <div className="max-w-sm">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs flex flex-col justify-between space-y-4 hover:border-slate-300 dark:hover:border-slate-700 transition-all">
+        <div className="grid gap-4 md:grid-cols-2 max-w-4xl items-start">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs flex flex-col justify-between space-y-4 hover:border-slate-300 dark:hover:border-slate-700 transition-all min-w-0">
             <div className="space-y-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -289,6 +290,7 @@ export function DashIntegrations() {
               )}
             </div>
           </div>
+          <WhatsAppIntegrationCard />
         </div>
       )}
     </div>

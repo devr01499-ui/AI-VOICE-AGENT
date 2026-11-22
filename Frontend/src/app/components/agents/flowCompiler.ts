@@ -1,5 +1,17 @@
 import { stripGeneratedPromptBlocks } from './promptBlocks';
 
+/**
+ * Key of a live-call route (a flow node's id), as lower-case letters, digits and underscores (max 40).
+ * Identical to server/src/runtime/routeKey.ts (server test_call_transfer checks they agree): the
+ * compiled step names the same key that the server maps to the saved number, agent or template.
+ */
+export function routeKey(raw: unknown): string {
+  let k = String(raw ?? '').toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
+  if (!k) k = 'route';
+  if (/^[0-9]/.test(k)) k = `r_${k}`.slice(0, 40);
+  return k;
+}
+
 export interface FlowNodeData {
   label: string;
   text?: string;
@@ -15,6 +27,13 @@ export interface FlowNodeData {
   toolName?: string;
   digits?: string;
   smsMessage?: string;
+  /** WhatsApp node: approved template name, its language and one entry per body variable. */
+  templateName?: string;
+  language?: string;
+  variables?: Array<{ description?: string; fixedValue?: string }>;
+  /** Transfer node: what the caller hears if nobody answers. Agent node: the chosen agent. */
+  fallbackMessage?: string;
+  targetAgentId?: string;
   codeSnippet?: string;
   mcpServer?: string;
   subagentName?: string;
@@ -38,6 +57,7 @@ export type FlowNodeType =
   | 'logicSplit'
   | 'agentTransfer'
   | 'inCallSms'
+  | 'whatsapp'
   | 'extractVariable'
   | 'code'
   | 'mcp'
@@ -232,7 +252,7 @@ export function compileFlowToSystemPrompt(
       case 'subagent':
       case 'agentTransfer':
         prompt += `## STEP ${stepNum}: ${data.label || 'Subagent Transfer'} [Type: Agent Transfer]\n`;
-        prompt += `- ACTION: Hand off conversational context to subagent (${data.subagentName || data.label}).\n\n`;
+        prompt += `- ACTION: Say you are connecting the caller to a specialist (${data.subagentName || data.label}), then call agent_transfer with target "${routeKey(node.id)}" and a summary of what the caller needs.\n\n`;
         break;
 
       case 'function':
@@ -248,7 +268,9 @@ export function compileFlowToSystemPrompt(
 
       case 'transferCall':
         prompt += `## STEP ${stepNum}: ${data.label || 'Transfer Call'} [Type: Call Transfer]\n`;
-        prompt += `- ACTION: Politely inform the caller that live transfer is currently unavailable, take down their callback details, and offer to have a representative follow up.\n\n`;
+        prompt += String(data.targetNumber || '').trim()
+          ? `- ACTION: Say you are connecting the caller to ${data.label || 'the team'} and ask them to stay on the line, then call transfer_call with destination "${routeKey(node.id)}".\n\n`
+          : `- ACTION: Take the caller's callback details and say the team will call them back. Do not promise a live transfer.\n\n`;
         break;
 
       case 'pressDigit':
@@ -276,9 +298,18 @@ export function compileFlowToSystemPrompt(
         prompt += `\n`;
         break;
 
+      case 'whatsapp':
+        prompt += `## STEP ${stepNum}: ${data.label || 'Send on WhatsApp'} [Type: WhatsApp Message]\n`;
+        prompt += String(data.templateName || '').trim()
+          ? `- ACTION: Ask whether the caller agrees to receive this on WhatsApp on this number. Only after a clear yes, call send_whatsapp with template "${routeKey(node.id)}" and consent_confirmed true. If they say no, continue without it.\n`
+          : `- ACTION: Do not promise to send any message. Offer to repeat the details slowly on the call instead.\n`;
+        prompt += defaultNextTarget ? `- NEXT STEP: Proceed to ${getStepRef(defaultNextTarget)}.\n\n` : `\n`;
+        break;
+
       case 'inCallSms':
-        prompt += `## STEP ${stepNum}: ${data.label || 'In-Call SMS'} [Type: Send SMS]\n`;
-        prompt += `- ACTION: Inform the caller that confirmation details will be sent via follow-up message after the call completes.\n\n`;
+        // Old SMS step (SMS never worked; replaced by WhatsApp). The AI must never promise a message.
+        prompt += `## STEP ${stepNum}: ${data.label || 'Share details'} [Type: Share Details]\n`;
+        prompt += `- ACTION: Do not promise to send any message. Offer to repeat the details slowly on the call instead.\n\n`;
         break;
 
       case 'extractVariable':

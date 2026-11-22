@@ -22,6 +22,7 @@ import { sealAgentSecrets, maskAgentSecrets } from '../utils/agentSecrets';
 import { TextModelError, generateText, sanitizeChatHistory } from '../services/ai/textModel';
 import { enhancePrompt, PromptCoachEnhanceRequestSchema, PromptCoachInputError } from '../services/PromptCoachService';
 import { runTestLab, listTestLabRuns, getTestLabRun, TestLabInputError } from '../services/TestLabService';
+import { routingConfigProblem } from '../runtime/callRouting';
 
 const router = Router();
 
@@ -592,6 +593,11 @@ router.post(
       const { firstMessage: syncedFirstMessage, config: normalizedConfig } = normalizeGreetingConfig(agentConfig, req.body);
       // Webhook secret / MCP keys are stored encrypted and never sent back in plain text.
       const finalConfig = sealAgentSecrets(configObject(normalizedConfig), {});
+      const routingProblem = routingConfigProblem((finalConfig as any)?.functions, flowGraph);
+      if (routingProblem) {
+        res.status(400).json({ success: false, error: routingProblem, code: 'VALIDATION_ERROR' });
+        return;
+      }
 
       const newAgent = await prisma.agent.create({
         data: {
@@ -758,6 +764,19 @@ router.put(
         const normalized = normalizeGreetingConfig(baseConfig, req.body);
         finalConfigToSave = JSON.stringify(sealAgentSecrets(configObject(normalized.config), configObject(exists.agentConfig)));
         syncedFirstMessage = normalized.firstMessage;
+      }
+
+      // Transfer numbers, specialist agents and WhatsApp templates are checked on save (server side).
+      if (finalConfigToSave !== undefined || flowGraph !== undefined) {
+        const routingProblem = routingConfigProblem(
+          configObject(finalConfigToSave !== undefined ? finalConfigToSave : exists.agentConfig)?.functions,
+          flowGraph !== undefined ? flowGraph : exists.flowGraph,
+          { functions: configObject(exists.agentConfig)?.functions, flowGraph: exists.flowGraph },
+        );
+        if (routingProblem) {
+          res.status(400).json({ success: false, error: routingProblem, code: 'VALIDATION_ERROR' });
+          return;
+        }
       }
 
       // Explicitly update matching record
