@@ -7,7 +7,7 @@ import { ADMIN_EMAIL } from '../config/constants';
 import { isIpAllowed, getTrustedClientIp } from '../utils/ipChecker';
 import { normalizeEmail, isDisposableEmail } from '../utils/emailNormalizer';
 import { normalizePhoneNumber } from '../utils/phoneValidator';
-import { isTransientDbError, isTransientAuthProviderError } from '../utils/transientErrors';
+import { isTransientDbError, isTransientAuthProviderError, describeDbError } from '../utils/transientErrors';
 
 export interface AuthenticatedRequest extends Request {
   userId?: string;
@@ -19,7 +19,21 @@ export interface AuthenticatedRequest extends Request {
   };
 }
 
+/**
+ * Requests this middleware has already authenticated. Most routers are mounted with requireAuth
+ * AND list it again on each route, so without this every request verified the token with Supabase
+ * and read the user rows twice (double load on the auth provider and the connection pool).
+ */
+const authenticatedRequests = new WeakSet<object>();
+/** Requests that already used their one server-side retry after a temporary database error. */
+const retriedRequests = new WeakSet<object>();
+const AUTH_DB_RETRY_DELAY_MS = 300;
+
 export async function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  if (authenticatedRequests.has(req) && req.userId) {
+    next();
+    return;
+  }
   let activePhase = 'token_verification';
   try {
     let authHeader = req.headers.authorization;
@@ -231,14 +245,22 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     if (req && typeof req === 'object') {
       req.auth = { userId };
     }
+    authenticatedRequests.add(req);
     next();
   } catch (err: any) {
     const refCode = `AUTH-TRACE-${Date.now()}`;
     if (isTransientDbError(err)) {
-      // Database briefly unreachable (restart, pool reconnect, network blip): retryable, not a bug.
+      // Database briefly unreachable (restart, failover, pooler connection limit): retry once on
+      // the server first, so a short blip never reaches the customer.
+      if (!retriedRequests.has(req) && !res.headersSent) {
+        retriedRequests.add(req);
+        logger.warn(`requireAuth: temporary database error, retrying once [Phase: ${activePhase}]`, describeDbError(err));
+        await new Promise((resolve) => setTimeout(resolve, AUTH_DB_RETRY_DELAY_MS));
+        return requireAuth(req, res, next);
+      }
       logger.warn(`requireAuth: database temporarily unavailable [${refCode}] [Phase: ${activePhase}]`, {
         error: err?.message,
-        code: err?.code,
+        ...describeDbError(err),
         refCode,
       });
       sendTemporarilyUnavailable(res, refCode);
@@ -246,7 +268,7 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     }
     logger.error(`requireAuth Middleware Authentication Exception [${refCode}] [Phase: ${activePhase}]`, {
       error: err?.message,
-      code: err?.code,
+      ...describeDbError(err),
       stack: err?.stack,
       refCode,
     });
