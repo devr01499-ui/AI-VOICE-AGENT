@@ -28,6 +28,7 @@ function buildApp({ corsOrigin } = {}) {
   app.use(express.json({ limit: '25mb' }));
   app.use(express.urlencoded({ extended: true }));
   app.use(d('middleware/requestId').requestIdMiddleware);
+  app.use(d('middleware/rejectNullCharacters').rejectNullCharacters);
   app.use(d('utils/whiteLabel').whiteLabelResponses);
   const { requireAuth } = d('middleware/auth');
   const { requireAuthOrApiKey } = d('middleware/authWrapper');

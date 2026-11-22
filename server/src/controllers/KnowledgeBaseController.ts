@@ -92,7 +92,11 @@ async function checkAgentAttachRoom(agentId: string, limits: KbPlanLimits, clien
  * Creates the document row (and optional agent link) under a per-workspace lock, re-checking the
  * plan limits inside it so two parallel uploads cannot both slip past the last free slot.
  */
-async function createDocument(userId: string, name: string, contentText: string, agentId: string | undefined, limits: KbPlanLimits) {
+async function createDocument(userId: string, name: string, rawText: string, agentId: string | undefined, limits: KbPlanLimits) {
+  // Postgres cannot store NUL characters in text; PDF and web-page extraction can produce them
+  // (audit #162: the upload then failed with a database error).
+  const contentText = rawText.replace(/\u0000/g, '');
+  name = name.replace(/\u0000/g, '');
   return prisma.$transaction(async (tx) => {
     await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtext($1))', `kb:${userId}`);
     checkRoom(limits, await workspaceUsage(userId, tx), contentText.length);
