@@ -631,3 +631,25 @@ Owner decisions:
   - a real Meta send and webhook.
 
   Steps are in PROGRESS "Needs owner verification" item 31.
+
+## AUTH-TRACE again + Edit Studio does nothing (2026-11-22, branch fix/auth-db-error-shapes)
+- **Owner report:** "We could not verify your session ... AUTH-TRACE-1795370858084" (23:37:38 IST, about 2 h after the last deploy at 21:43), and "users can't open agents through the Edit Studio button".
+- **Root cause 1 (proven on a real test database):** the earlier fix (474acce) was tested with hand-made error objects. Real Prisma 7 + adapter-pg errors look different: P2010/P2039 with the Postgres code inside `meta.driverAdapterError.cause` (`originalCode`, `kind`, `originalMessage`), and no `cause` chain. So these were all treated as bugs and answered with the 500 the owner saw:
+  - a database restart or failover (57P01);
+  - "too many clients" (53300);
+  - the Supabase pooler limits ("Max client connections reached", EMAXCONNSESSION, XX000).
+  A probe against the native test DB showed `isTransientDbError = false` for all of them.
+- **Root cause 2:** most routers are mounted with `requireAuth` and list it again on each route (125 places), so every request verified the token with Supabase and read the user rows twice. That doubled connection use, which is exactly the pressure that triggers the pooler limit.
+- **Root cause 3 (Edit Studio):** the Agents list can come from the browser cache (`cache_agent_rows`) while the server fails. The Edit Studio click then loaded the agent with no error handling, so a failed load was swallowed and nothing happened.
+- **Fix:**
+  - `utils/transientErrors.ts` reads Prisma 7's real shape (meta.driverAdapterError, adapter kinds, P2037, pooler messages); `describeDbError` puts the Prisma code, adapter kind and pg code in the log line.
+  - `requireAuth` retries once on the server (300 ms) before answering 503, and authenticates a request only once, even when listed twice.
+  - Edit Studio shows a disabled/busy state while loading and a dismissible message naming the agent and the reason (session ended, AUTH-TRACE reference, "Agent not found").
+- **Tests:**
+  - `test_auth_transient.js` (in test:security), with errors raised by the real test database: 15/15 pass; on the old code 9/15.
+  - `e2e/edit-studio-open.spec.ts` 2/2; on the old App.tsx 0/2. Edit Studio specs (prompt edit, flow builder, test lab) 13/13.
+  - Screenshots: Frontend/test-results/edit-studio-open-error-{1440,390}.png.
+- **Not verifiable here:**
+  - which of these errors production actually hit at 23:37. The new log line (code / adapterKind / pgCode) will say so next time; the old line is in the Render log under `AUTH-TRACE-1795370858084`.
+  - whether the agent load failed in production for this reason or another. The page now shows the real reason.
+- **Found, not fixed (pre-existing):** at 390 px the Agents page folder column takes about half the width, so the agent table is cramped (visible in the 390 screenshot).
