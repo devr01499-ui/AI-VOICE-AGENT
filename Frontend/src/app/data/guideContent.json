@@ -20,7 +20,7 @@
     ]
   },
   "groups": [
-    { "id": "build", "title": "Build your agent", "sections": ["agents", "agent-editor", "knowledge-base"] },
+    { "id": "build", "title": "Build your agent", "sections": ["agents", "agent-editor", "transfers-whatsapp", "knowledge-base"] },
     { "id": "deploy", "title": "Connect and start calling", "sections": ["phone-numbers", "calling-config", "batch-calls"] },
     { "id": "data", "title": "Calls and contacts", "sections": ["call-history", "contacts"] },
     { "id": "monitor", "title": "Monitor and improve", "sections": ["analytics", "live-monitoring", "quality-assurance", "call-reports", "alerting"] },
@@ -67,6 +67,31 @@
       ],
       "images": [
         { "src": "/guide/agent-editor.webp", "alt": "Agent editor with voice, language and call direction controls, the instruction box, settings panels and Test Audio, Test LLM and Test Lab tabs", "caption": "The agent editor: instructions on the left, settings in the middle, testing on the right." }
+      ]
+    },
+    "transfers-whatsapp": {
+      "title": "Live transfers and WhatsApp: hand the call over, send the details",
+      "where": "Agents → Edit Studio → Functions (in a conversational flow: the Call Transfer, Agent Transfer and WhatsApp Message steps)",
+      "lead": "Your agent does not have to handle every call alone. It can put the caller through to someone on your team, pass the call to another of your agents, or send the details on WhatsApp once the caller says yes. All three are included in every paid plan.",
+      "steps": [
+        "Open the agent, expand Functions and click Add Function.",
+        "Transfer Call to a Person: enter your team's mobile or landline number with +91 and describe when to use it, for example \"the caller asks for a person\" or \"a dental emergency\". You can also write what the caller hears if nobody picks up.",
+        "Transfer to Another Agent: choose one of your other agents, such as a billing desk, and describe when to hand over. The call stays connected and the new agent gets a summary of the conversation, so the caller is not asked the same questions again.",
+        "Send WhatsApp Message: connect your WhatsApp Business number in Integrations first. Then choose a template that Meta has approved and say what goes into each variable, such as the caller's first name or the appointment time.",
+        "Save the agent and place a test call. Ask for a person, for billing, or for the details on WhatsApp, and listen to how the agent handles each request.",
+        "Open Call History afterwards: every call shows its transfers and WhatsApp messages, including whether the message was delivered and read."
+      ],
+      "tips": [
+        "Before a transfer the agent tells the caller it is connecting them. The call then rings your team with your Claritiy number as caller ID. If nobody answers, the caller hears your message and you get a \"Missed live transfer\" notification with their number.",
+        "Minutes are charged for the whole call, including the time the caller spends with your team.",
+        "WhatsApp messages go only to the caller's own number, only after they agree, and at most 3 per call. A reply of STOP opts that person out. Claritiy does not send SMS.",
+        "The agent can only use the numbers, agents and templates you saved here. It can never dial or message anything else.",
+        "Supervisors can also hand a live call to a person themselves from Live Monitoring."
+      ],
+      "images": [
+        { "src": "/guide/handoff-functions.webp", "alt": "Agent editor with three functions: transfer to a person, transfer to another agent, and send a WhatsApp message", "caption": "Functions: a transfer to the front desk, a hand-off to the billing desk and a WhatsApp confirmation." },
+        { "src": "/guide/whatsapp-step.webp", "alt": "Edit Function dialog for Send WhatsApp Message, with an approved template and its two variables", "caption": "A WhatsApp step: the approved template and what the agent fills into each variable." },
+        { "src": "/guide/call-handoffs.webp", "alt": "Call transcript in Call History showing a completed transfer to the front desk and a WhatsApp confirmation that was read", "caption": "Call History shows each transfer and WhatsApp message with its status." }
       ]
     },
     "knowledge-base": {
@@ -275,7 +300,7 @@
         "Need your CRM or order system? Use Functions in the agent editor to call your own APIs during the call, and Webhook Settings to receive every finished call."
       ],
       "images": [
-        { "src": "/guide/integrations.webp", "alt": "Integrations page with the Google Calendar connection card", "caption": "Integrations: Google Calendar." }
+        { "src": "/guide/integrations.webp", "alt": "Integrations page with the Google Calendar card and a connected WhatsApp Business card showing its webhook details and approved templates", "caption": "Integrations: Google Calendar and WhatsApp Business." }
       ]
     },
     "billing": {

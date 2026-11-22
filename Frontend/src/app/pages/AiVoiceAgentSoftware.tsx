@@ -4,7 +4,7 @@ import {
   Play, Pause, Terminal, 
   ChevronRight, Network, Check,
   Bot, HeartPulse, ShoppingBag, Landmark, 
-  HelpCircle, Globe2
+  HelpCircle, Globe2, PhoneForwarded, MessageCircle
 } from "lucide-react";
 import { PUBLIC_PLANS, effectiveRate } from '../lib/plans';
 
@@ -285,7 +285,7 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="bg-[#EBE9E2] p-6 rounded-[2px] border border-[#CBC8BE] hover:border-[#9C998F] transition-colors space-y-3">
             <div className="w-9 h-9 rounded-[2px] bg-[#DFDCD4] text-[#121212] border border-[#CBC8BE] flex items-center justify-center font-bold">
               <Zap className="w-4 h-4" />
@@ -323,6 +323,26 @@ export default function AiVoiceAgentSoftware({ setPage }: PageProps) {
             <h3 className="text-base font-medium text-[#121212] font-sans">DPDP & Edge PII Redaction</h3>
             <p className="text-xs text-[#262523] leading-relaxed font-sans">
               Engineered for strict telecom governance. Personal identifiers and bank details are scrubbed from audio transcripts before persistence.
+            </p>
+          </div>
+
+          <div className="bg-[#EBE9E2] p-6 rounded-[2px] border border-[#CBC8BE] hover:border-[#9C998F] transition-colors space-y-3">
+            <div className="w-9 h-9 rounded-[2px] bg-[#DFDCD4] text-[#121212] border border-[#CBC8BE] flex items-center justify-center font-bold">
+              <PhoneForwarded className="w-4 h-4" />
+            </div>
+            <h3 className="text-base font-medium text-[#121212] font-sans">Live Transfer to Your Team</h3>
+            <p className="text-xs text-[#262523] leading-relaxed font-sans">
+              When a caller asks for a person, the agent says it is connecting them and the call rings your team, with your own number as caller ID. It can also pass the call to another of your agents, such as a billing desk, along with a summary so nobody has to repeat themselves.
+            </p>
+          </div>
+
+          <div className="bg-[#EBE9E2] p-6 rounded-[2px] border border-[#CBC8BE] hover:border-[#9C998F] transition-colors space-y-3">
+            <div className="w-9 h-9 rounded-[2px] bg-[#DFDCD4] text-[#121212] border border-[#CBC8BE] flex items-center justify-center font-bold">
+              <MessageCircle className="w-4 h-4" />
+            </div>
+            <h3 className="text-base font-medium text-[#121212] font-sans">WhatsApp Follow-ups</h3>
+            <p className="text-xs text-[#262523] leading-relaxed font-sans">
+              Booking confirmations, brochures or location links go out on WhatsApp from your own business number, using templates Meta has approved. The agent asks first and sends only to callers who say yes.
             </p>
           </div>
         </div>

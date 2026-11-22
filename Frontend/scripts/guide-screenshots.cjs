@@ -24,6 +24,22 @@ const SHOTS = [
   { name: 'agents', section: '' },
   { name: 'create-agent', section: '', action: clickButton(/Create an Agent/i) },
   { name: 'agent-editor', section: '', action: async (page) => { await page.getByRole('row', { name: /Lotus Dental/ }).getByRole('button', { name: /Edit Studio/i }).click(); } },
+  // Live transfers and WhatsApp: the receptionist's hand-off functions, and the WhatsApp step.
+  { name: 'handoff-functions', section: '', action: async (page) => {
+    await page.getByRole('row', { name: /Lotus Dental Receptionist/ }).getByRole('button', { name: /Edit Studio/i }).click();
+    await page.getByRole('button', { name: /Functions \(3\)/ }).click();
+    await page.getByText('send_appointment_confirmation').scrollIntoViewIfNeeded();
+  } },
+  { name: 'whatsapp-step', section: '', action: async (page) => {
+    await page.getByRole('row', { name: /Lotus Dental Receptionist/ }).getByRole('button', { name: /Edit Studio/i }).click();
+    await page.getByRole('button', { name: /Functions \(3\)/ }).click();
+    await page.getByTitle('Edit Function').nth(2).click();
+    await page.getByText(/your appointment at Lotus Dental Clinic is confirmed/).first().waitFor();
+  } },
+  { name: 'call-handoffs', section: 'calls', action: async (page) => {
+    await page.getByRole('button', { name: /Transcript/i }).first().click();
+    await page.getByTestId('call-handoffs').scrollIntoViewIfNeeded();
+  } },
   { name: 'knowledge-base', section: 'knowledge' },
   { name: 'phone-numbers', section: 'numbers' },
   { name: 'calling-config', section: 'calling' },
@@ -65,7 +81,9 @@ async function toWebp(page, png, quality = 0.82) {
   const browser = await chromium.launch();
   const { context } = await newDemoContext(browser);
   const problems = [];
-  for (const shot of SHOTS) {
+  // GUIDE_SHOTS=name,name retakes only those screens (the others keep their current image).
+  const only = (process.env.GUIDE_SHOTS || '').split(',').map((s) => s.trim()).filter(Boolean);
+  for (const shot of SHOTS.filter((s) => !only.length || only.includes(s.name))) {
     const page = await context.newPage();
     page.on('pageerror', (e) => problems.push(`${shot.name}: CRASH ${String(e.message).slice(0, 160)}`));
     page.on('console', (m) => { if (m.type() === 'error' && !/ERR_FAILED/.test(m.text())) problems.push(`${shot.name}: console ${m.text().slice(0, 160)}`); });
