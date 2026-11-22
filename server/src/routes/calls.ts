@@ -13,6 +13,7 @@ import { getWebhookSigningSecret } from '../utils/security';
 import { ADMIN_EMAIL } from '../config/constants';
 import { isAllowedRecordingUrl } from '../services/RecordingService';
 import { getWorkspaceDayBounds } from '../lib/calendar/timezone';
+import { parseDateRange } from '../utils/queryDates';
 
 const router = Router();
 
@@ -115,9 +116,14 @@ router.get(
         }
         where.createdAt = { gte: start };
       } else if (startDate || endDate) {
+        const range = parseDateRange(startDate, endDate); // audit #161: a bad date is a 400, not a 500
+        if (!range.ok) {
+          res.status(400).json({ success: false, error: range.error });
+          return;
+        }
         where.createdAt = {};
-        if (startDate) where.createdAt.gte = new Date(startDate);
-        if (endDate) where.createdAt.lte = new Date(endDate);
+        if (range.start) where.createdAt.gte = range.start;
+        if (range.end) where.createdAt.lte = range.end;
       }
 
       const [totalCount, calls] = await Promise.all([

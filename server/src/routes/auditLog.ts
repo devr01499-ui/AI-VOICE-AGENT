@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireRole, AuthenticatedRequest } from '../middleware/auth';
 import { logger } from '../utils/logger';
+import { parseDateRange } from '../utils/queryDates';
 
 const router = Router();
 
@@ -33,13 +34,14 @@ router.get(
       }
 
       if (startDate || endDate) {
+        const range = parseDateRange(startDate, endDate); // audit #161: a bad date is a 400, not a 500
+        if (!range.ok) {
+          res.status(400).json({ success: false, error: range.error });
+          return;
+        }
         whereClause.createdAt = {};
-        if (startDate && typeof startDate === 'string') {
-          whereClause.createdAt.gte = new Date(startDate);
-        }
-        if (endDate && typeof endDate === 'string') {
-          whereClause.createdAt.lte = new Date(endDate);
-        }
+        if (range.start) whereClause.createdAt.gte = range.start;
+        if (range.end) whereClause.createdAt.lte = range.end;
       }
 
       const take = Math.min(Math.max(parseInt(String(limit), 10) || 50, 1), 200);
