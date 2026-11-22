@@ -1,4 +1,5 @@
 import { formatDateTime, formatTime } from '../../lib/dateFormat';
+import { DIRECTION_TEXTS, DIRECTION_HEADER, HANDBOOK_HEADER, stripGeneratedPromptBlocks } from './promptBlocks';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   ArrowLeft,
@@ -162,33 +163,28 @@ export function compilePromptWithHandbook(
   enabledPresets: string[] = [],
   direction: string = 'outbound'
 ): string {
-  // Strip any pre-existing handbook / call direction sections to avoid recursive accumulation
-  let cleanPrompt = (prompt || '')
-    .replace(/\n*\[CALL DIRECTION INSTRUCTION\][\s\S]*?(?=\n*\[[A-Z\s_]+\]|$)/g, '')
-    .replace(/\n*\[AGENT HANDBOOK INSTRUCTIONS\][\s\S]*?(?=\n*\[[A-Z\s_]+\]|$)/g, '')
-    .trim();
-
-  let directionText = '';
-  if (direction === 'inbound') {
-    directionText = "This is an inbound call — the caller reached out to you. Never introduce an unprompted sales pitch or reason for calling, as the caller already has a reason for reaching out. Open by identifying the business/agent and inviting them to share what they need. Listen for and directly address what they say before offering anything else. If they seem to be waiting or the greeting overlaps with hold time, keep the opening brief and get to 'how can I help' quickly.";
-  } else if (direction === 'outbound') {
-    directionText = "This is an outbound call you are initiating. Keep your opening brief and state who's calling and why within the first two sentences (people who didn't request the call have short patience). If the person sounds uninterested, busy, or asks to not be called again, acknowledge respectfully and offer to end the call or follow up later rather than pushing to continue. Never claim the person asked for this call. If asked 'how did you get my number', give an honest, direct answer if your context/prompt provides one, otherwise say a team member can follow up with that detail. Keep pitching proportionate — one clear value statement, not repeated re-pitching if the person has already responded neutrally or negatively.";
-  } else if (direction === 'both') {
-    directionText = "This agent handles both inbound and outbound calls. Rely on the agent's prompt and let context (how the call started) guide tone naturally without forced direction framing.";
-  }
+  // Take off the previously generated blocks (only the generated lines: the customer's own text,
+  // wherever it was typed, is kept) so they are never duplicated or swallowed.
+  const cleanPrompt = stripPromptForEditing(prompt);
+  const directionText = DIRECTION_TEXTS[direction] || '';
 
   const active = HANDBOOK_PRESETS.filter(p => enabledPresets.includes(p.id));
   let result = cleanPrompt;
 
   if (directionText) {
-    result += `\n\n[CALL DIRECTION INSTRUCTION]\n${directionText}`;
+    result += `\n\n${DIRECTION_HEADER}\n${directionText}`;
   }
 
   if (active.length > 0) {
-    result += `\n\n[AGENT HANDBOOK INSTRUCTIONS]\n` + active.map(p => `- ${p.instruction}`).join('\n');
+    result += `\n\n${HANDBOOK_HEADER}\n` + active.map(p => `- ${p.instruction}`).join('\n');
   }
 
   return result;
+}
+
+/** The customer's own instructions, without the generated direction/handbook blocks. */
+export function stripPromptForEditing(prompt: string | null | undefined): string {
+  return stripGeneratedPromptBlocks(prompt, HANDBOOK_PRESETS.map((p) => p.instruction));
 }
 
 const normalizeLangCode = (code?: string): string => {
@@ -300,8 +296,9 @@ export default function SinglePromptStudio({
     return typeof applied === 'string' && allowed.includes(applied) ? applied : 'other';
   });
 
+  // The editor shows only the customer's own text; the generated blocks are added back on save.
   const [systemPrompt, setSystemPrompt] = useState(
-    initialAgent?.systemPrompt ||
+    stripPromptForEditing(initialAgent?.systemPrompt) ||
       'You are an energetic and friendly outbound sales agent for a dental clinic. Your primary goal is to engage potential new patients, inform them about the clinic\'s services, and schedule a consultation.'
   );
   const initialGreeting = useMemo(() => {

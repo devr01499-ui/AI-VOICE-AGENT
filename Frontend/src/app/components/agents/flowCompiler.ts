@@ -1,3 +1,5 @@
+import { stripGeneratedPromptBlocks } from './promptBlocks';
+
 export interface FlowNodeData {
   label: string;
   text?: string;
@@ -82,9 +84,8 @@ export function extractFlowGlobalPrompt(saved?: string | null): string {
   let text = saved;
   const idx = text.indexOf(FLOW_PROMPT_HEADER);
   if (idx >= 0) text = text.slice(0, idx);
-  return text
-    .replace(/\n*\[CALL DIRECTION INSTRUCTION\][\s\S]*?(?=\n*\[[A-Z\s_]+\]|$)/g, '')
-    .replace(/\n*\[AGENT HANDBOOK INSTRUCTIONS\][\s\S]*?(?=\n*\[[A-Z\s_]+\]|$)/g, '')
+  // Only the generated lines come off; anything the customer typed after them is kept.
+  return stripGeneratedPromptBlocks(text)
     .split(GLOBAL_PROMPT_PLACEHOLDER).join('')
     .trim();
 }
