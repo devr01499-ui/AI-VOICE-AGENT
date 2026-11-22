@@ -4,8 +4,14 @@
  * answer "try again" (HTTP 503) instead of a hard error, and the browser can retry safely.
  */
 
-/** Prisma error codes for "could not reach / lost / timed out on the database". */
-const TRANSIENT_PRISMA_CODES = new Set(['P1001', 'P1002', 'P1008', 'P1017', 'P2024']);
+/** Prisma error codes for "could not reach / lost / timed out on the database / too many connections". */
+const TRANSIENT_PRISMA_CODES = new Set(['P1001', 'P1002', 'P1008', 'P1017', 'P2024', 'P2037']);
+
+/**
+ * Prisma 7 driver-adapter error kinds (adapter-pg `convertDriverError`) that mean "connection
+ * problem", not "bad query". Prisma wraps them as `meta.driverAdapterError.cause.kind`.
+ */
+const TRANSIENT_ADAPTER_KINDS = new Set(['DatabaseNotReachable', 'ConnectionClosed', 'SocketTimeout', 'TooManyConnections']);
 
 /** Node / pg network error codes. */
 const TRANSIENT_NET_CODES = new Set([
@@ -31,6 +37,16 @@ const TRANSIENT_MESSAGE = new RegExp(
     'timed out fetching a new connection',
     'socket hang up',
     'fetch failed',
+    // Postgres restart / failover (57P01 text) and Supabase's connection pooler (Supavisor) limits:
+    'terminating connection due to administrator command',
+    'too many clients',
+    'max client connections reached',
+    'max clients reached',
+    'emaxconn',
+    'echeckouttimeout',
+    'unable to check out (process|connection)',
+    'connection to database closed',
+    'dbhandler exited',
   ].join('|'),
   'i',
 );
@@ -45,19 +61,40 @@ function codeOf(err: unknown): string {
 export function isTransientDbError(err: unknown): boolean {
   if (!err) return false;
   const seen = new Set<unknown>();
-  let current: unknown = err;
-  // Walk the cause chain: driver adapters wrap the pg error inside the Prisma error.
-  while (current && typeof current === 'object' && !seen.has(current)) {
+  const queue: unknown[] = [err];
+  // Walk every wrapper: `cause` chains, and Prisma 7's `meta.driverAdapterError` (whose `cause`
+  // holds the pg code as `originalCode` / `code`, the adapter `kind` and `originalMessage`).
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current || typeof current !== 'object' || seen.has(current)) continue;
     seen.add(current);
-    const code = codeOf(current);
-    if (TRANSIENT_PRISMA_CODES.has(code) || TRANSIENT_NET_CODES.has(code)) return true;
-    const name = String((current as { name?: unknown }).name ?? '');
-    if (name === 'PrismaClientInitializationError') return true;
-    const message = String((current as { message?: unknown }).message ?? '');
-    if (TRANSIENT_MESSAGE.test(message)) return true;
-    current = (current as { cause?: unknown }).cause;
+    const fields = current as {
+      name?: unknown; message?: unknown; kind?: unknown; originalCode?: unknown; originalMessage?: unknown;
+      cause?: unknown; meta?: { driverAdapterError?: unknown };
+    };
+    const codes = [codeOf(current), String(fields.originalCode ?? '')];
+    if (codes.some((c) => TRANSIENT_PRISMA_CODES.has(c) || TRANSIENT_NET_CODES.has(c))) return true;
+    if (TRANSIENT_ADAPTER_KINDS.has(String(fields.kind ?? ''))) return true;
+    if (String(fields.name ?? '') === 'PrismaClientInitializationError') return true;
+    if (TRANSIENT_MESSAGE.test(String(fields.message ?? '')) || TRANSIENT_MESSAGE.test(String(fields.originalMessage ?? ''))) return true;
+    queue.push(fields.cause, fields.meta?.driverAdapterError);
   }
   return false;
+}
+
+/**
+ * Short, safe description of a database error for logs: the Prisma code plus the driver-adapter
+ * kind / pg code, so an AUTH-TRACE reference in the Render log says what actually failed.
+ */
+export function describeDbError(err: unknown): { code: string; adapterKind?: string; pgCode?: string } {
+  const code = codeOf(err);
+  const cause = (err as { meta?: { driverAdapterError?: { cause?: { kind?: unknown; originalCode?: unknown; code?: unknown } } } } | null)
+    ?.meta?.driverAdapterError?.cause;
+  return {
+    code,
+    ...(cause?.kind ? { adapterKind: String(cause.kind) } : {}),
+    ...(cause?.originalCode || cause?.code ? { pgCode: String(cause.originalCode ?? cause.code) } : {}),
+  };
 }
 
 /**

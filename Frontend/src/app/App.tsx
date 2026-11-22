@@ -1064,6 +1064,39 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [importStatus, setImportStatus] = useState<{ loading: boolean; error: string | null; success: string | null }>({ loading: false, error: null, success: null });
   const [exportingId, setExportingId] = useState<string | null>(null);
+  // Edit Studio loads the full agent first. A failed load used to be swallowed (the click did
+  // nothing); now the button shows progress and the page says what went wrong.
+  const [openingStudioId, setOpeningStudioId] = useState<string | null>(null);
+  const [studioOpenError, setStudioOpenError] = useState<string | null>(null);
+
+  const handleOpenStudio = async (a: AgentRow) => {
+    if (openingStudioId) return;
+    setStudioOpenError(null);
+    setOpeningStudioId(a.id as string);
+    try {
+      const fullAgent = await fetchAgent(a.id as string);
+      if (a.type === 'conversational' || fullAgent.flowGraph) {
+        setStudioAgent({
+          id: a.id as string,
+          name: a.name as string,
+          systemPrompt: fullAgent.systemPrompt ?? undefined,
+          flowGraph: fullAgent.flowGraph ?? undefined,
+          agent: fullAgent,
+        });
+      } else if (setSinglePromptStudioAgent) {
+        setSinglePromptStudioAgent(fullAgent);
+      }
+    } catch (err: any) {
+      const msg = String(err?.message || err || '');
+      setStudioOpenError(
+        msg === 'UNAUTHORIZED_ACCESS'
+          ? 'Your session has ended. Please sign in again to open this agent.'
+          : `We could not open "${a.name}". ${msg || 'Please try again in a few seconds.'}`
+      );
+    } finally {
+      setOpeningStudioId(null);
+    }
+  };
 
   const handleImportClick = () => {
     setImportStatus({ loading: false, error: null, success: null });
@@ -1668,6 +1701,17 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
           </div>
         </div>
 
+        {studioOpenError && (
+          <div role="alert" data-testid="studio-open-error" className="mx-4 mt-3 p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg text-rose-700 dark:text-rose-300 text-xs flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+              <span className="break-words min-w-0">{studioOpenError}</span>
+            </div>
+            <button onClick={() => setStudioOpenError(null)} aria-label="Dismiss" className="text-rose-500 hover:text-rose-700 shrink-0">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
         {/* Status Alerts for Agent Import/Export */}
         {importStatus.error && (
           <div className="mx-4 mt-3 p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg text-rose-700 dark:text-rose-300 text-xs flex items-center justify-between">
@@ -1747,21 +1791,10 @@ function DashAgents({ session, profile, setApiAgents, setStudioAgent, setSingleP
                         <span>Call</span>
                       </button>
                       <button
-                        onClick={async () => {
-                          const fullAgent = await fetchAgent(a.id as string);
-                          if (a.type === 'conversational' || fullAgent.flowGraph) {
-                            setStudioAgent({
-                              id: a.id as string,
-                              name: a.name as string,
-                              systemPrompt: fullAgent.systemPrompt ?? undefined,
-                              flowGraph: fullAgent.flowGraph ?? undefined,
-                              agent: fullAgent,
-                            });
-                          } else if (setSinglePromptStudioAgent) {
-                            setSinglePromptStudioAgent(fullAgent);
-                          }
-                        }}
-                        className="px-3 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-semibold rounded-md hover:bg-indigo-100 transition-colors"
+                        onClick={() => handleOpenStudio(a)}
+                        disabled={openingStudioId !== null}
+                        aria-busy={openingStudioId === a.id}
+                        className="px-3 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-semibold rounded-md hover:bg-indigo-100 transition-colors disabled:opacity-60 disabled:cursor-wait"
                       >
                         Edit Studio
                       </button>
