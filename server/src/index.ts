@@ -28,6 +28,7 @@ import { ADMIN_EMAIL } from './config/constants';
 import { logger } from './utils/logger';
 import { errorHandler, AppError } from './utils/errorHandler';
 import { requestIdMiddleware } from './middleware/requestId';
+import { rejectNullCharacters } from './middleware/rejectNullCharacters';
 import { whiteLabelResponses } from './utils/whiteLabel';
 import { initializeProviders } from './config/providers';
 import { ProviderManager } from './providers/ProviderManager';
@@ -159,6 +160,9 @@ app.use(express.urlencoded({ extended: true }));
 
 // ── Request ID ────────────────────────────────────
 app.use(requestIdMiddleware);
+
+// ── NUL characters: Postgres cannot store them, so refuse with a 400 instead of a 500 (audit #162) ──
+app.use(rejectNullCharacters);
 
 // ── White label: no carrier names in customer-facing API text (audit #95) ──
 app.use(whiteLabelResponses);

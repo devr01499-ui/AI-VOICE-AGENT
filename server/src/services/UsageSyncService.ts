@@ -2,6 +2,7 @@ import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { releaseCarrierNumber, type ReleaseOutcome } from './CarrierNumberReleaseService';
+import { AppError } from '../types/errors';
 
 export type NumberReleaseResult =
   | { released: true }
@@ -23,7 +24,8 @@ export class UsageSyncService {
     });
 
     if (!phoneNumber) {
-      throw new Error('Phone number not found or not owned by user');
+      // A typed 404 (audit #163): the plain Error made DELETE /numbers/:id answer 500.
+      throw new AppError(404, 'NOT_FOUND', 'Phone number not found or not owned by user');
     }
 
     let outcome: ReleaseOutcome = await releaseCarrierNumber(phoneNumber);

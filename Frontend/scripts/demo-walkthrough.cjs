@@ -11,13 +11,16 @@ const fs = require('fs');
 const { newDemoContext } = require('./lib/demoBrowser.cjs');
 const base = process.argv[2] || 'http://localhost:5180';
 const shotDir = process.argv[3] || '';
+// Optional: screen width (390 = phone) and the demo API origin.
+const width = Number(process.env.WALK_WIDTH || 1440);
+const api = process.env.WALK_API || 'http://127.0.0.1:54400';
 // "agent_studio" / "create_agent" open the first agent's editor / the Create Agent dialog from the Agents page.
 const SECTIONS = ['agent_studio', 'create_agent', 'agents','calling', 'batch', 'calls', 'numbers', 'knowledge', 'voices', 'calendar', 'settings', 'billing', 'companion', 'chat_history', 'contacts', 'analytics', 'live_monitoring', 'qa', 'alerting', 'integrations', 'reports'];
 
 (async () => {
   const browser = await chromium.launch();
   // Signed-in demo session; every non-local host is blocked (lib/demoBrowser.cjs).
-  const { context, blocked } = await newDemoContext(browser);
+  const { context, blocked } = await newDemoContext(browser, { viewport: { width, height: width < 600 ? 844 : 900 } });
 
   const report = [];
   for (const section of SECTIONS) {
@@ -28,7 +31,7 @@ const SECTIONS = ['agent_studio', 'create_agent', 'agents','calling', 'batch', '
     page.on('pageerror', (e) => problems.push(`CRASH: ${String(e.message).slice(0, 220)}`));
     page.on('response', (r) => {
       const u = r.url();
-      if (/127\.0\.0\.1:54400/.test(u) && r.status() >= 400) problems.push(`API ${r.status()} ${r.request().method()} ${u.replace('http://127.0.0.1:54400', '')}`);
+      if (u.startsWith(api) && r.status() >= 400) problems.push(`API ${r.status()} ${r.request().method()} ${u.replace(api, '')}`);
     });
     const onAgents = ['agents', 'agent_studio', 'create_agent'].includes(section);
     const url = onAgents ? `${base}/dashboard` : `${base}/dashboard/${section}`;
@@ -38,6 +41,9 @@ const SECTIONS = ['agent_studio', 'create_agent', 'agents','calling', 'batch', '
       if (section === 'create_agent') { await page.getByRole('button', { name: /Create an Agent/i }).first().click(); await page.waitForLoadState('networkidle'); }
     } catch (e) { problems.push(`navigation: ${String(e.message).slice(0, 120)}`); }
     await page.waitForTimeout(1500);
+    // No sideways scrolling: content wider than the screen is a layout bug (especially on phones).
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth).catch(() => 0);
+    if (overflow > 2) problems.push(`page is ${overflow}px wider than the screen`);
     const banners = await page.locator('[role="alert"], .text-rose-700, .text-red-600, .text-red-500').allInnerTexts().catch(() => []);
     // A one-word status badge ("Failed" on a failed call) is data, not an error banner.
     for (const b of banners) if (b.trim() && !/^(failed|error)$/i.test(b.trim()) && /fail|error|could not|unable|wrong|denied/i.test(b)) problems.push(`banner: ${b.trim().slice(0, 160)}`);

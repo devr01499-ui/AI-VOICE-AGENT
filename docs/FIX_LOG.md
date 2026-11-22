@@ -545,3 +545,44 @@ One entry per fix, newest at the bottom. Template:
   - Test: `test_auth_transient.js` in test:security: 8/8; on the old code 3/8.
   - Regression: test:security 100%, OWASP 23/23, payment security 16/16, Playwright 149 passed / 1 skipped, typecheck 0, build OK.
   - **Not verifiable here:** the exact failing phase of that one production request. It is in the Render log line containing `AUTH-TRACE-1795322434580` (PROGRESS owner step 30).
+
+## Double audit, frontend and backend (2026-11-22, branch fix/double-audit)
+New guards, all wired into test:security:
+- `test:api-contract`: 161 frontend calls checked against the 199 server routes by method and path. No mismatches.
+- `test:query-junk`: 47 GET routes × 8 junk query strings, plus 75 write routes × 5 wrong-shaped JSON bodies. None may answer 500.
+- `test:agent-tags`.
+
+Browser tooling (local only; it refuses non-local hosts):
+- `Frontend/scripts/demo-actions.cjs`: 9 real-API UI actions, 9/9.
+- `demo-walkthrough.cjs` at 390 px: CLEAN.
+- `site-audit.cjs`: 19 public pages at 2 widths, 111 internal links. CLEAN.
+
+Fixes:
+- **#158 (e07011d): text typed after a saved agent's generated prompt blocks was silently lost on Save.**
+  - Root cause: a regex removed everything from the generated header to the end of the prompt.
+  - Fix: the line parser `promptBlocks.ts` removes generated lines only.
+  - Test: `e2e/agent-prompt-edit.spec.ts` (2 tests). They failed before the fix and pass after.
+- **#159 (e303031): UI polish.**
+  - Status codes are readable on phones and in Live Monitoring.
+  - A failed retention change now shows an error.
+  - Phone placeholders and flow-template transfer numbers are valid Indian numbers.
+- **#160 (d2b448a): tags sent as text made agent create, get and update answer 500.**
+  - Fix: `tagList` normalises them.
+  - Test: `test:agent-tags` was 0/3 before the fix and is 3/3 after.
+- **#161 (92e477d): an invalid date filter answered 500.**
+  - Affected: Call History, chat history and audit logs.
+  - Fix: they now answer 400 (`utils/queryDates.ts`).
+  - Test: `test:query-junk`.
+- **#162 (d267bfe): a NUL character in any input answered 500.**
+  - Fix: the request is now rejected with 400 (`middleware/rejectNullCharacters.ts`), and KB documents are cleaned instead of failing.
+  - Test: `test:query-junk` had 5 failures before the fix and passes after.
+- **#163 (0bbfba7): DELETE /numbers/:id for a number the customer does not own answered 500.**
+  - Fix: it now answers 404 (a typed AppError in `UsageSyncService.releaseNumber`).
+  - Test: `test:query-junk` write-route pass, which failed before the fix and passes after. `test_carrier_accuracy` 8/8; `test_audit_batch4` 8/8.
+
+Noted, not changed:
+- CORS does not allow PATCH, but no client sends PATCH.
+- `npm audit` (server, production dependencies) shows:
+  - 4 high: prisma CLI at build time, and zod 3, which is accepted item A1;
+  - 5 moderate: transitive dependencies of googleapis.
+- Upgrades were deferred: node_modules is shared with another working session.
