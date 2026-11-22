@@ -6,7 +6,9 @@
  */
 
 const http = require('http');
-const { WebSocketServer } = require('ws');
+const path = require('path');
+// ws is a server dependency (the repo root does not install it): resolve it there.
+const { WebSocketServer } = require('module').createRequire(path.resolve(__dirname, '../server/package.json'))('ws');
 
 const PORT = parseInt(process.env.FAKE_GEMINI_PORT || '8095', 10);
 let rejectNextSetup = process.env.REJECT_FIRST_SETUP === 'true';

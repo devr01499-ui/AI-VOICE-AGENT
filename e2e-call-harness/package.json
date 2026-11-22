@@ -1,0 +1,4 @@
+{
+  "//": "The repo root is \"type\": \"module\"; these harness scripts are CommonJS (require).",
+  "type": "commonjs"
+}
