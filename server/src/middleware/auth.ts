@@ -7,6 +7,7 @@ import { ADMIN_EMAIL } from '../config/constants';
 import { isIpAllowed, getTrustedClientIp } from '../utils/ipChecker';
 import { normalizeEmail, isDisposableEmail } from '../utils/emailNormalizer';
 import { normalizePhoneNumber } from '../utils/phoneValidator';
+import { isTransientDbError, isTransientAuthProviderError } from '../utils/transientErrors';
 
 export interface AuthenticatedRequest extends Request {
   userId?: string;
@@ -50,6 +51,19 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     // Verify signature via official Supabase client SDK getUser call
     const { data: { user }, error } = await supabaseClient.auth.getUser(token);
 
+    if (error && isTransientAuthProviderError(error)) {
+      // The auth provider could not be reached: the token was not rejected. Answer "try again"
+      // (503) instead of 401, because the dashboard signs the customer out on a 401.
+      const refCode = `AUTH-TRACE-${Date.now()}`;
+      logger.warn(`requireAuth: auth provider temporarily unavailable [${refCode}]`, {
+        error: error.message,
+        status: (error as { status?: number }).status,
+        refCode,
+      });
+      sendTemporarilyUnavailable(res, refCode);
+      return;
+    }
+
     if (error || !user) {
       res.status(401).json({ success: false, error: 'Unauthorized: Invalid Supabase signature token' });
       return;
@@ -79,6 +93,7 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
       return;
     }
 
+    activePhase = 'user_lookup';
     const existingUser = await prisma.user.findUnique({ where: { id: userId }, select: { accountType: true } });
     const isExistingAdmin = existingUser?.accountType === 'admin';
 
@@ -219,16 +234,37 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     next();
   } catch (err: any) {
     const refCode = `AUTH-TRACE-${Date.now()}`;
+    if (isTransientDbError(err)) {
+      // Database briefly unreachable (restart, pool reconnect, network blip): retryable, not a bug.
+      logger.warn(`requireAuth: database temporarily unavailable [${refCode}] [Phase: ${activePhase}]`, {
+        error: err?.message,
+        code: err?.code,
+        refCode,
+      });
+      sendTemporarilyUnavailable(res, refCode);
+      return;
+    }
     logger.error(`requireAuth Middleware Authentication Exception [${refCode}] [Phase: ${activePhase}]`, {
-      error: err.message,
-      stack: err.stack,
+      error: err?.message,
+      code: err?.code,
+      stack: err?.stack,
       refCode,
     });
     const displayError = env.NODE_ENV === 'development'
-      ? `Internal Server Authentication Exception: Failed during ${activePhase} (${err.message || 'unknown error'})`
-      : `Internal Server Authentication Exception (Reference: ${refCode})`;
+      ? `Session check failed during ${activePhase} (${err?.message || 'unknown error'})`
+      : `We could not verify your session. Please refresh the page; if this keeps happening, contact support with reference ${refCode}.`;
     res.status(500).json({ success: false, error: displayError });
   }
+}
+
+/** 503 + Retry-After: the browser retries read requests by itself (Frontend api.ts). */
+function sendTemporarilyUnavailable(res: Response, refCode: string): void {
+  res.set('Retry-After', '2');
+  res.status(503).json({
+    success: false,
+    code: 'AUTH_TEMPORARILY_UNAVAILABLE',
+    error: `The service is briefly unavailable. Please try again in a few seconds (reference ${refCode}).`,
+  });
 }
 
 export function requireEditor(req: AuthenticatedRequest, res: Response, next: NextFunction): void {

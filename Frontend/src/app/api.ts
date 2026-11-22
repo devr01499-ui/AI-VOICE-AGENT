@@ -229,14 +229,24 @@ async function apiFetchWithMeta<T>(
     ...(options.headers as Record<string, string> | undefined),
   };
 
-  let res: Response;
-  try {
-    res = await fetch(url, { ...options, headers });
-  } catch (err: any) {
-    if (err?.name === 'TypeError' || err?.message === 'Failed to fetch') {
-      throw new Error(`Unable to connect to backend server at ${API_BASE}. The backend may be spinning up or temporarily rate-limited. Please retry in a few seconds.`);
+  // Read-only requests are retried when the server says "briefly unavailable" (502/503/504, e.g.
+  // during a restart): safe because GET has no side effects. Writes are never retried here.
+  const method = (options.method || 'GET').toUpperCase();
+  const maxAttempts = method === 'GET' ? 3 : 1;
+  let res!: Response;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      res = await fetch(url, { ...options, headers });
+    } catch (err: any) {
+      if (err?.name === 'TypeError' || err?.message === 'Failed to fetch') {
+        throw new Error(`Unable to connect to backend server at ${API_BASE}. The backend may be spinning up or temporarily rate-limited. Please retry in a few seconds.`);
+      }
+      throw err;
     }
-    throw err;
+    if (attempt === maxAttempts || ![502, 503, 504].includes(res.status)) break;
+    const retryAfterSec = Number(res.headers.get('retry-after'));
+    const waitMs = Number.isFinite(retryAfterSec) && retryAfterSec > 0 ? Math.min(retryAfterSec, 5) * 1000 : attempt * 1000;
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
   }
 
   if (res.status === 401) {
