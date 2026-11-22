@@ -653,3 +653,19 @@ Owner decisions:
   - which of these errors production actually hit at 23:37. The new log line (code / adapterKind / pgCode) will say so next time; the old line is in the Render log under `AUTH-TRACE-1795370858084`.
   - whether the agent load failed in production for this reason or another. The page now shows the real reason.
 - **Found, not fixed (pre-existing):** at 390 px the Agents page folder column takes about half the width, so the agent table is cramped (visible in the 390 screenshot).
+
+## Features page: live transfers and WhatsApp (2026-11-23, branch feat/features-page-whatsapp)
+- **Product Guide (`/guide`):**
+  - New section "Live transfers and WhatsApp" under "Build your agent", with 6 steps and 5 tips.
+  - 3 new screenshots: `handoff-functions`, `whatsapp-step` and `call-handoffs`.
+  - The `integrations`, `agent-editor` and `call-transcript` screenshots were retaken.
+- **Screenshots and demo data:**
+  - Taken from the real dashboard against the demo backend.
+  - The demo seed now holds fictional data: a connected WhatsApp number, a billing agent, the receptionist's three hand-off functions, and one transfer and one WhatsApp message.
+  - `GUIDE_SHOTS=a,b` retakes only the named screens.
+- **AI Voice Agent Software page:** 2 new feature cards ("Live Transfer to Your Team", "WhatsApp Follow-ups"). The grid is now 3 per row.
+- **Call History:** the transfer label shows "front desk" rather than "front_desk".
+- **Proof:**
+  - Build gate: the guide has 17 sections and every screenshot exists.
+  - Screenshots: `docs/proof/features-guide-transfers-whatsapp-{1440,390}.png` and `features-software-cards-{1440,390}.png`, with no sideways overflow.
+  - Tests: marketing claims 39/39, demo smoke 5/5, guide and viewport specs 63/63.

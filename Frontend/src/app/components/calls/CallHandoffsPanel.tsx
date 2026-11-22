@@ -49,7 +49,7 @@ export function CallHandoffsPanel({ callId, className = '' }: { callId: string; 
             {t.kind === 'human' ? <PhoneForwarded className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" /> : <UserCheck className="w-3.5 h-3.5 text-emerald-500 mt-0.5 flex-shrink-0" />}
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-slate-800 dark:text-slate-200 break-words">
-                {t.kind === 'human' ? `Transferred to ${t.destinationLabel || 'your team'}` : `Handed to ${t.toAgentName || t.destinationLabel || 'another agent'}`}
+                {t.kind === 'human' ? `Transferred to ${(t.destinationLabel || 'your team').replace(/_/g, ' ')}` : `Handed to ${t.toAgentName || (t.destinationLabel || 'another agent').replace(/_/g, ' ')}`}
                 {t.destinationNumber ? <span className="font-mono font-normal text-slate-500"> ({t.destinationNumber})</span> : null}
               </p>
               <p className="text-[11px] text-slate-500">{TRANSFER_STATUS[t.status] || t.status} · {formatTime(t.createdAt, { hour: '2-digit', minute: '2-digit' })}</p>
