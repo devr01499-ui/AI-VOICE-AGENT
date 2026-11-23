@@ -653,3 +653,13 @@ Owner decisions:
   - which of these errors production actually hit at 23:37. The new log line (code / adapterKind / pgCode) will say so next time; the old line is in the Render log under `AUTH-TRACE-1795370858084`.
   - whether the agent load failed in production for this reason or another. The page now shows the real reason.
 - **Found, not fixed (pre-existing):** at 390 px the Agents page folder column takes about half the width, so the agent table is cramped (visible in the 390 screenshot).
+
+## Agents page on phones and tablets (2026-11-23, branch fix/agents-mobile-layout)
+- **Found during the Edit Studio fix:** below 1024 px the Agents page kept its 224 px folder column next to the main sidebar. The table box clips its overflow, so the row actions were pushed off-screen: at 390 px the Call button started at x = 835 px, and Call, Edit Studio, Export and Delete could not be reached on a phone. The Delete button also had no accessible name.
+- **Fix (App.tsx, layout only):**
+  - The folder column shows from 1024 px. Its only action, "Template Agents", opens the same create screen as "Create an Agent", which stays visible.
+  - The header wraps; search is full width on phones.
+  - Agent Type shows from 640 px; Voice, Phone and Last edited from 1024 px. Anything wider scrolls inside the table box, never the page.
+  - Delete is labelled "Delete agent <name>"; the type badge stays on one line.
+- **Tests:** `e2e/agents-mobile-layout.spec.ts`, at 390, 768 and 1440 px: every action is inside the viewport, no sideways scroll, and desktop still shows the folders and all six columns. 3/3 pass; on the old App.tsx 0/3. Full Playwright 166 passed / 1 skipped; typecheck 0; build OK.
+- **Screenshots:** docs/proof/agents-mobile-390.png, agents-tablet-768.png, agents-desktop-1440.png.
