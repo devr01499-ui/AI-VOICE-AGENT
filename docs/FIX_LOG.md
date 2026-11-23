@@ -679,3 +679,26 @@ Owner decisions:
   - Delete is labelled "Delete agent <name>"; the type badge stays on one line.
 - **Tests:** `e2e/agents-mobile-layout.spec.ts`, at 390, 768 and 1440 px: every action is inside the viewport, no sideways scroll, and desktop still shows the folders and all six columns. 3/3 pass; on the old App.tsx 0/3. Full Playwright 166 passed / 1 skipped; typecheck 0; build OK.
 - **Screenshots:** docs/proof/agents-mobile-390.png, agents-tablet-768.png, agents-desktop-1440.png.
+
+## Session check redesigned: AUTH-TRACE on Edit Studio (2026-11-23, branch fix/auth-session-resolver)
+- **Owner report:** "We could not open "Medical Clinic Receptionist". We could not verify your session ... AUTH-TRACE-1795435853155" (17:40:53 IST). Production had restarted at 17:33 IST with no deploy (`/live` uptime), and was already running the 2026-11-22 fix, so this was not a classified blip.
+- **Ruled out, with evidence:**
+  - shutdown disconnecting the database: Prisma reconnects by itself (probe: queries after `$disconnect` succeed, also during a burst);
+  - named prepared statements on the transaction pooler: adapter-pg uses unnamed statements;
+  - unique phone numbers: `contactNumber` is not unique;
+  - the phone and email helpers: they cannot throw on odd input.
+- **Root cause, reproduced on the old code:** for EVERY request the old check:
+  - verified the token with Supabase;
+  - read the user row, then looked the email up again;
+  - WROTE the user row (`upsert`), which Prisma runs as read-then-write.
+
+  A dashboard page fires about 10 requests in parallel with one token, so each page load meant 10 Supabase calls, 30+ queries and 10 writes to the same row. Proven failure: a new account's first page load (10 parallel requests) failed with P2002 `users_email_key` in `database_upsert`, which is exactly this AUTH-TRACE 500. Any failure in that write also blocked existing customers, whose request needs no write at all.
+- **Fix (`middleware/auth.ts`):**
+  - Parallel requests with the same token share one verification. Nothing is cached after it settles: sign-out, suspension and role changes still apply to the next request.
+  - The user row is written only when the name or phone actually changed. A failed sync for an existing account logs a warning and uses the stored row.
+  - The email lookup is skipped when the row already holds that email.
+  - A new account's create re-reads the winner's row on P2002. This guard is defensive: I could not trigger the race through the new path, even with 8 tabs.
+  - Same checks, statuses and messages as before: 401, 403 not-verified/disposable/suspended, 409 duplicate, IP allowlist per request.
+  - A 500 now ends with `(stage/code)`, e.g. `(team_lookup/TypeError)`: the stage name and error code, never the message. The next screenshot names the cause even without the Render log.
+- **Tests:** `test_auth_session_resolver.js` (new, in test:security) 9/9; on the old code 3/9. `test_auth_transient` 15/15. test:security exit 0 (PGlite), OWASP 23/23, payment security 16/16, typecheck 0, build OK.
+- **Not verifiable here:** which stage failed for that production request. The old log line is in Render under `AUTH-TRACE-1795435853155`; any new error now names its stage on screen. Also why production restarted at 17:33 IST without a deploy (Render → Events / Logs: look for "uncaught exception", "out of memory" or a health-check restart).
