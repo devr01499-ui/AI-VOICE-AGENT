@@ -386,6 +386,43 @@ async function main() {
     await prisma.systemAlert.deleteMany({ where: { OR: [{ userId: id }, { id: { in: [first.alertId, c2.alertId] } }] } });
   });
 
+  await test('A14 first-owner bootstrap: the platform owner email gets an owner row (still needs 2FA); anyone else does not', async () => {
+    const supa = require('../dist/utils/supabase');
+    const { requireStaff, resetStaffRateLimitForTests } = require('../dist/middleware/requireStaff');
+    const { ADMIN_EMAIL } = require('../dist/config/constants');
+    const owner = ADMIN_EMAIL.toLowerCase();
+    const existing = await prisma.staffUser.findUnique({ where: { email: owner } });
+    if (existing) await prisma.staffUser.delete({ where: { id: existing.id } });
+    const original = supa.supabaseClient.auth.getUser;
+    const prevStrict = process.env.ENABLE_STRICT_AUTH;
+    process.env.ENABLE_STRICT_AUTH = 'true';
+    const tok = (aal) => `x.${Buffer.from(JSON.stringify({ aal })).toString('base64')}.y`;
+    const as = (email, confirmed = true) => { supa.supabaseClient.auth.getUser = async () => ({ data: { user: { email, email_confirmed_at: confirmed ? new Date().toISOString() : null, app_metadata: {} } }, error: null }); };
+    const run = (t) => call(requireStaff('settings:manage'), { headers: { authorization: `Bearer ${t}` } });
+    try {
+      resetStaffRateLimitForTests();
+      as('stranger@claritiy-test.co.in');
+      assert.strictEqual((await run(tok('aal2'))).statusCode, 403, 'not staff');
+      assert.strictEqual(await prisma.staffUser.findUnique({ where: { email: 'stranger@claritiy-test.co.in' } }), null);
+      as(owner, false);
+      assert.strictEqual((await run(tok('aal2'))).statusCode, 403, 'unconfirmed email is not enough');
+      as(owner);
+      const noMfa = await run(tok('aal1'));
+      assert.strictEqual(noMfa.body.error, 'MFA_REQUIRED', 'still needs 2FA');
+      assert.strictEqual(await prisma.staffUser.count({ where: { email: owner, role: 'owner' } }), 1, 'owner row created');
+      assert.strictEqual((await run(tok('aal2'))).statusCode, 'next', 'owner in with 2FA');
+      const row = await prisma.staffUser.findUnique({ where: { email: owner } });
+      await prisma.staffUser.update({ where: { id: row.id }, data: { status: 'disabled' } });
+      assert.strictEqual((await run(tok('aal2'))).statusCode, 403, 'a disabled owner row is never re-enabled');
+    } finally {
+      supa.supabaseClient.auth.getUser = original;
+      process.env.ENABLE_STRICT_AUTH = prevStrict;
+      resetStaffRateLimitForTests();
+      await prisma.staffUser.deleteMany({ where: { email: owner } });
+      if (existing) await prisma.staffUser.create({ data: existing });
+    }
+  });
+
   console.log(`\nAdmin panel backend: ${passed}/${total} passed`);
 }
 

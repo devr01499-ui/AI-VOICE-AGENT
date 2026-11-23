@@ -44,7 +44,11 @@ export class VobizProvider implements ITelephonyProvider {
   private readonly authToken: string;
 
   constructor() {
-    this.baseUrl = (env.VOBIZ_API_URL || 'https://api.vobiz.ai').trim();
+    // Same rule as every other Vobiz caller: VOBIZ_API_URL may be given with or without the
+    // documented /api/v1 suffix; requests always go to <root>/api/v1/... (production had the bare
+    // root, so every call, hang-up and transfer path here answered 404).
+    const root = (env.VOBIZ_API_URL || 'https://api.vobiz.ai').trim().replace(/\/+$/, '').replace(/\/api\/v1$/i, '') || 'https://api.vobiz.ai';
+    this.baseUrl = `${root}/api/v1`;
     this.authId = (env.VOBIZ_AUTH_ID || 'MA_PLACEHOLDER').trim();
     this.authToken = (env.VOBIZ_AUTH_TOKEN || 'placeholder').trim();
   }
@@ -86,7 +90,7 @@ export class VobizProvider implements ITelephonyProvider {
     const start = Date.now();
     try {
       const response = await fetch(
-        `${this.baseUrl}/Account/${this.authId}`,
+        `${this.baseUrl}/Account/${this.authId}/`,
         {
           method: 'GET',
           headers: this.buildHeaders(),

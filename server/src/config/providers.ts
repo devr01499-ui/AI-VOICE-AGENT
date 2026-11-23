@@ -22,17 +22,20 @@ export async function initializeProviders(): Promise<void> {
   const manager = ProviderManager.instance;
 
   // ─── Vobiz Telephony ───────────────────────────
+  // A failed start-up check must not switch telephony off until the next restart (a carrier blip
+  // at boot used to leave no telephony provider at all, so every outgoing call and hang-up failed).
+  // The provider is registered either way; a failed check is logged loudly and each call then
+  // reports the carrier's real answer.
+  const vobiz = new VobizProvider();
   try {
-    const vobiz = new VobizProvider();
     await vobiz.connect();
-    manager.registerProvider(vobiz);
     logger.info('Providers: Vobiz telephony initialized');
   } catch (err) {
-    logger.error('Providers: Vobiz initialization failed', {
+    logger.error('[ADMIN_ALERT][VOBIZ] Start-up check failed; telephony stays registered and calls will report the carrier error', {
       error: err instanceof Error ? err.message : String(err),
     });
-    // Non-fatal: server can start without telephony for API development
   }
+  manager.registerProvider(vobiz);
 
   // ─── Realtime AI Provider ──────────────────────
   let hasRealtime = false;

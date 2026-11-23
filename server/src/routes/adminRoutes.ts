@@ -12,6 +12,7 @@ import { BillingService } from '../services/BillingService';
 import { CallService } from '../services/CallService';
 import { logAdminRead } from '../admin/audit';
 import { PLAN_CONFIG, PLAN_VALIDITY_DAYS } from '../config/plans';
+import { adminOriginsFrom } from '../config/cors';
 import { PlatformConfigService } from '../services/PlatformConfigService';
 import { NotificationService, ANNOUNCEMENT_TYPE } from '../services/NotificationService';
 import { PAYMENT_REVIEW_TYPE, parseIssueMeta, closeIssuesForPayment, notifyCustomerOfRefund } from '../services/PaymentIssueService';
@@ -194,7 +195,7 @@ adminRouter.get('/health', requireStaff('metrics:view'), async (req: StaffAuthen
       security: {
         strictAuth: process.env.ENABLE_STRICT_AUTH === 'true',
         ipAllowlistEnabled: configured('ADMIN_IP_ALLOWLIST'),
-        adminOrigin: process.env.ADMIN_ORIGIN || 'https://admin.claritiy.com',
+        adminOrigin: adminOriginsFrom(process.env.ADMIN_ORIGIN).join(', '),
         encryptionKeySet: configured('ENCRYPTION_KEY'),
         twoFactorRequiredForAllRoles: true,
         staffRateLimitPerMinute: 120,

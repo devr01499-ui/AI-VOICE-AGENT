@@ -246,6 +246,50 @@ async function main() {
     assert.ok(note, 'user asked to complete KYC');
   });
 
+  await test('legacy switch: a sub-account Vobiz does not have is marked once and never retried; platform admins are skipped', async () => {
+    const { promoteLegacySubAccounts } = require('../dist/services/VobizKycModeService');
+    const ghost = await newUser();
+    const ghostSub = await prisma.vobizSubAccount.create({ data: { userId: ghost.id, authId: `SA_GHOST${crypto.randomBytes(4).toString('hex').toUpperCase()}`, authToken: 'x', kycMode: 'personal_use' } });
+    const admin = await newUser({ accountType: 'admin' });
+    const adminSub = await prisma.vobizSubAccount.create({ data: { userId: admin.id, authId: `SA_ADMIN${crypto.randomBytes(4).toString('hex').toUpperCase()}`, authToken: 'x', kycMode: 'personal_use' } });
+    const putsFor = (authId) => calls.filter((c) => c.method === 'PUT' && c.url.includes(authId)).length;
+    await promoteLegacySubAccounts(svc, { userIds: [ghost.id, admin.id] });
+    assert.strictEqual(putsFor(ghostSub.authId), 1, 'tried once');
+    assert.strictEqual((await prisma.vobizSubAccount.findUnique({ where: { id: ghostSub.id } })).kycMode, 'missing_at_carrier');
+    await promoteLegacySubAccounts(svc, { userIds: [ghost.id, admin.id] });
+    assert.strictEqual(putsFor(ghostSub.authId), 1, 'not retried');
+    assert.strictEqual(putsFor(adminSub.authId), 0, 'platform admin never switched');
+  });
+
+  await test('Vobiz provider: requests go to <root>/api/v1 whether VOBIZ_API_URL has the suffix or not; a failed start-up check keeps telephony registered', async () => {
+    const { env } = require('../dist/config/env');
+    const { VobizProvider } = require('../dist/providers/vobiz/VobizProvider');
+    const saved = { url: env.VOBIZ_API_URL, id: env.VOBIZ_AUTH_ID, token: env.VOBIZ_AUTH_TOKEN };
+    const origFetch = global.fetch;
+    const seen = [];
+    global.fetch = async (u) => { seen.push(String(u)); return new Response('{}', { status: 404 }); };
+    try {
+      env.VOBIZ_AUTH_ID = 'MA_TESTROOT';
+      env.VOBIZ_AUTH_TOKEN = 'test-token';
+      for (const setting of ['https://api.vobiz.ai', 'https://api.vobiz.ai/', 'https://api.vobiz.ai/api/v1', '']) {
+        env.VOBIZ_API_URL = setting;
+        seen.length = 0;
+        await new VobizProvider().healthCheck();
+        assert.strictEqual(seen[0], 'https://api.vobiz.ai/api/v1/Account/MA_TESTROOT/', `setting "${setting}" -> ${seen[0]}`);
+      }
+      // Carrier answers 404 at boot: the provider is still registered for calls and hang-ups.
+      const { initializeProviders } = require('../dist/config/providers');
+      const { ProviderManager } = require('../dist/providers/ProviderManager');
+      await initializeProviders();
+      assert.ok(ProviderManager.instance.getTelephonyProvider(), 'telephony provider registered');
+    } finally {
+      global.fetch = origFetch;
+      env.VOBIZ_API_URL = saved.url;
+      env.VOBIZ_AUTH_ID = saved.id;
+      env.VOBIZ_AUTH_TOKEN = saved.token;
+    }
+  });
+
   console.log(`\nCarrier accuracy: ${passed}/${total} passed`);
   fake.close();
   await prisma.$disconnect().catch(() => {});

@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { PermissionName, hasPermission } from '../admin/permissions';
 import { isIpAllowed, getTrustedClientIp } from '../utils/ipChecker';
+import { ADMIN_EMAIL } from '../config/constants';
 
 export interface StaffContext {
   id: string;
@@ -92,9 +93,21 @@ export function requireStaff(permission?: PermissionName) {
       const verifiedEmail = user.email.toLowerCase().trim();
 
       // 4. Verify Active Staff Membership in database
-      const staffRecord = await prisma.staffUser.findUnique({
+      let staffRecord = await prisma.staffUser.findUnique({
         where: { email: verifiedEmail },
       });
+
+      // First owner bootstrap: staff can only be invited by an existing owner, so the platform
+      // owner's own address (ADMIN_EMAIL, confirmed by Supabase) gets an owner row on first sign-in
+      // when it has none. Two-factor is still required below; a disabled row is never re-enabled.
+      if (!staffRecord && verifiedEmail === ADMIN_EMAIL.toLowerCase() && user.email_confirmed_at) {
+        staffRecord = await prisma.staffUser.upsert({
+          where: { email: verifiedEmail },
+          create: { email: verifiedEmail, name: 'Owner', role: 'owner', status: 'invited', createdBy: 'bootstrap' },
+          update: {},
+        });
+        logger.info('[ADMIN_AUTH] Platform owner added to the staff list on first sign-in', { staffId: staffRecord.id });
+      }
 
       if (!staffRecord || staffRecord.status === 'disabled') {
         logger.warn('[ADMIN_AUTH] Non-staff or disabled staff attempt', { email: verifiedEmail, path: req.path });
