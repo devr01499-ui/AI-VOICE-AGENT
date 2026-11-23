@@ -158,6 +158,12 @@ async function main() {
     // An extra column production may carry: the sync must keep it.
     await db.query('ALTER TABLE users ADD COLUMN legacy_note TEXT');
 
+    // Production (Render build of 80e3140): calendar_bookings had no foreign key to agents and
+    // held a booking of an agent that no longer exists; adding the key failed the whole deploy.
+    await db.query('ALTER TABLE calendar_bookings DROP CONSTRAINT calendar_bookings_agent_id_fkey');
+    await db.query(`INSERT INTO calendar_bookings (id, workspace_id, agent_id, start_utc, end_utc, idempotency_key, updated_at)
+      VALUES ('bk-orphan', 'u-sync', 'agent-that-was-deleted', now(), now() + interval '30 minutes', 'idem-orphan', now())`);
+
     await test('sync adds every missing column and table, in one go', async () => {
       const r = runSync(env);
       assert.strictEqual(r.code, 0, r.out);
@@ -169,6 +175,19 @@ async function main() {
         assert.ok(await hasTable(t), t);
       }
       await db.query('SELECT plan_expires_at FROM users'); // the failing query now works
+    });
+
+    await test('a missing foreign key with old orphan rows no longer fails the deploy (production 80e3140)', async () => {
+      const con = (await db.query(`SELECT convalidated FROM pg_constraint WHERE conname = 'calendar_bookings_agent_id_fkey'`)).rows[0];
+      assert.ok(con, 'the foreign key was added');
+      assert.strictEqual(con.convalidated, false, 'NOT VALID: old rows not checked');
+      assert.strictEqual((await db.query(`SELECT 1 FROM calendar_bookings WHERE id = 'bk-orphan'`)).rowCount, 1, 'old row untouched');
+      await assert.rejects(
+        db.query(`INSERT INTO calendar_bookings (id, workspace_id, agent_id, start_utc, end_utc, idempotency_key, updated_at)
+          VALUES ('bk-new', 'u-sync', 'no-such-agent', now(), now(), 'idem-new', now())`),
+        (e) => e.code === '23503',
+        'enforced for new rows',
+      );
     });
 
     await test('nothing is ever dropped: the full-text index and an extra column survive', async () => {

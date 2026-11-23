@@ -732,3 +732,9 @@ Owner decisions:
 
   test:security exit 0 (PGlite), OWASP 23/23, payment 16/16, typecheck 0, build OK.
 - **Not verifiable here:** the run against production itself. The Render build log will show `[schema-sync] apply: ...` lines and `database schema is up to date`; anything listed as "kept as is" is drift for the owner to review.
+
+## Deploy schema sync: foreign keys added NOT VALID (2026-11-23, branch fix/schema-sync-fk-not-valid)
+- **Render build of 80e3140 failed safely.** The sync found production missing more than the 5 known migrations: also `notification_receipts`, `kyc_email_logs`, `test_lab_runs`, and 5 foreign keys on the calendar tables. Adding `calendar_bookings_agent_id_fkey` failed because an old booking points to an agent that no longer exists. Everything rolled back, the build stopped, and the running version stayed live, as designed.
+- **Fix:** foreign keys are now added `NOT VALID`. Postgres enforces them for every new and changed row without checking or touching old rows. Inside the same transaction the sync then tries `VALIDATE CONSTRAINT` under a savepoint; if old rows do not match, it logs a note and keeps going. No row is changed or deleted.
+- **"Kept as is" lines in that log (harmless, left alone):** `updated_at` defaults on 3 calendar/scheduling tables, and older names for 6 indexes.
+- **Test:** `test_deploy_schema_sync.js` reproduces production (no agent foreign key + a booking of a deleted agent). The 80e3140 script fails with the same error; now 10/10: key added NOT VALID, old row untouched, new orphan rows refused (23503), second run changes nothing.
