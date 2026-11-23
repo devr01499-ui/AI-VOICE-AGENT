@@ -102,6 +102,7 @@ Sizes: App.tsx 8378 · SinglePromptStudio.tsx 4636 · VisualFlowCanvas.tsx 1648 
 - Timing: S/utils/CallTimingTracker.ts (357 lines); personas S/config/voicePersonas.ts L56-80; `hangupCarrierLeg` S/core/telephony/carrierHangup.ts L100
 
 ## S7 Security plumbing (Phase 12)
+- Admin console: `Admin/` (Vite SPA, own nav in App.tsx; pages/ControlPanel.tsx = owner settings) → S/routes/adminRoutes.ts (every route `requireStaff(permission)`, writes via admin/audit.ts withAudit) ; S/services/PlatformConfigService.ts = live plan overrides + switches (admin_settings), public read S/routes/publicPlatform.ts → Frontend lib/plans.ts usePublicPlans/usePlatformState.
 - S/index.ts: helmet L88-122, CORS L136-158, parsers L160-166, general limiter L324, mounts L330-353, admin gate L356-366, error handler L383, WS auth L530-610, listen L664-756, shutdown L758-808
 - S/middleware/auth.ts L21/L230/L247; requireStaff.ts L41 (MFA L115-118); S/utils/ssrfValidator.ts L148, L240; S/config/env.ts L14-143
 - CI: `.github/workflows/call-path-e2e.yml`, `deploy-render.yml` (no typecheck/build/test workflow yet)

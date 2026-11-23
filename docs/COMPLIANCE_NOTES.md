@@ -165,3 +165,8 @@ Owner decisions:
 - /privacy section 5 ("Integration and Connector Data") ends with a placeholder: "[TEXT TRUNCATED HERE; PLEASE PROVIDE THE REMAINDER …]". It is visible on the live site.
 - The same page names Twilio as a provider; Twilio is not used.
 - The legal text was not rewritten here.
+
+## Prices changed from the admin Control Panel (2026-11-23)
+- Checkout always charges the live server price, and the Razorpay checkout shows that amount before payment. The website and dashboard show the live price once the page has loaded.
+- Search-engine copies of the site (pre-rendered HTML, structured data, public/llms.txt) keep the prices written in the code until the next deploy. Conservative rule: after a lasting price change, update the code defaults the same day and redeploy, so an advertised price never differs from the charged price for long (consumer-protection risk). Temporary promotions are safer as custom plans + payment links.
+- Admin refunds are full refunds through Razorpay; the minutes from that purchase are taken back. Have the refund policy page reviewed so it matches this (lawyer).

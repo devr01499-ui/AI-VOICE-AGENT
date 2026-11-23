@@ -85,6 +85,17 @@ SIP / dev tooling: `SIP_ENCRYPTION_KEY` (still a fallback encryption key — do 
   - Tokens and app secrets are stored encrypted with `ENCRYPTION_KEY`.
 - **Incident:** search the logs for `[CALL_TRANSFER]`, `[ADMIN_ALERT][CALL_TRANSFER]`, `[WHATSAPP]` and `[WHATSAPP_WEBHOOK]`.
 
+## Admin console and Control Panel (2026-11-23)
+- **Where it runs:** its own Vercel project (root `Admin/`, built with base `/`) and/or under `https://www.claritiy.com/admin` (copied in by `scripts/build_all.js`, base `/admin/`). The server answers `/api/v2/admin/*` only from `ADMIN_ORIGIN` (default `https://admin.claritiy.com`). If you use the `/admin` copy on the main site, set `ADMIN_ORIGIN=https://www.claritiy.com` on Render, otherwise every console request gets 404.
+- **Who gets in:** a row in `staff_users` (status active/invited), `ENABLE_STRICT_AUTH=true`, and two-factor (authenticator app) for every role, the owner included. The first sign-in shows a QR code to scan. Optional `ADMIN_IP_ALLOWLIST`.
+- **Control Panel (owner):** plan prices/minutes/limits and "on sale", pause outgoing calls, pause sign-ups, dashboard banner, staff limits, announcements. Stored in `admin_settings` (`platform.plans`, `platform.switches`, `caps_<role>`); every change is in `admin_audit_logs` with before/after and the reason. Servers re-read every 30 s.
+  - "Back to standard" returns a plan to the values in `server/src/config/plans.ts`.
+  - A price change applies to new checkouts at once. Payments already started keep the price and minutes stamped on their Razorpay order.
+  - The website shows live prices after its first API answer. Search-engine copies (pre-rendered pages, `public/llms.txt`) keep the code values until the code defaults are changed and the site is redeployed: after a lasting price change, ask for `config/plans.ts` and `Frontend/src/app/lib/plans.ts` to be updated (test:marketing-claims keeps them equal).
+- **Emergency stop:** Control Panel → "Pause all outgoing calls". New calls are refused, scheduled calls wait, campaigns pause and resume by themselves when switched off. Calls already in progress continue; incoming calls are not affected. Log marker for paused campaigns: status reason starting `Paused by Claritiy`.
+- **Refunds:** Payments page → Refund. Razorpay is asked first; only an accepted refund is recorded, and the minutes that purchase added are taken back. A `refund_pending` payment means Razorpay refunded but recording failed: log `[CRITICAL_ADMIN_ALERT] Refund issued at Razorpay but not recorded`.
+- **Force sign-out:** sets `users.sessions_revoked_at`; any session signed in before it gets 401 `SESSION_REVOKED`. The customer can sign in again.
+
 ## Deploy / rollback / incident steps
 
 ### Deploy
