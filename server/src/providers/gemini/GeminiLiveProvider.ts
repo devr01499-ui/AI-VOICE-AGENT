@@ -103,10 +103,33 @@ export function buildResumptionSetup(original: any, model: string, handle: strin
   return { setup: { ...base, model: base.model || model, sessionResumption: { handle } } };
 }
 
+/**
+ * The message that carries caller audio to Gemini Live.
+ *
+ * MUST be `realtime_input.audio` (one Blob). The old `realtime_input.media_chunks` is deprecated,
+ * and gemini-3.8-live (the primary model) silently DROPS it: the agent says its greeting (sent as
+ * text) but never hears the caller and never answers (owner reports, last on 2026-11-23). It is
+ * the only field in the message: `audio` and `media_chunks` together are rejected with 1007.
+ * The fallback model (gemini-2.5-flash-native-audio-preview-12-2025) also accepts `audio`.
+ * Locked by scripts/test_gemini_audio_input.js and the call harness's fake Gemini.
+ */
+export function buildRealtimeAudioMessage(audioBase64: string): { realtime_input: { audio: { mime_type: string; data: string } } } {
+  return {
+    realtime_input: {
+      audio: {
+        mime_type: 'audio/pcm;rate=16000',
+        data: audioBase64,
+      },
+    },
+  };
+}
+
 interface ActiveSession {
   ws: WebSocket;
   callbacks: RealtimeEventCallbacks;
   createdAt: number;
+  /** Caller audio chunks forwarded to Google (logged on the first one and periodically). */
+  callerAudioChunks?: number;
   balanceInterval?: NodeJS.Timeout;
   agentId?: string;
   userId?: string;
@@ -253,9 +276,11 @@ export class GeminiLiveProvider implements IRealtimeProvider {
   static async runStartupSelfTest(): Promise<boolean> {
     logger.info('[BOOT_SELF_TEST] Initiating Gemini Live startup validation...');
     try {
-      const apiKey = process.env.GEMINI_API_KEY || '';
+      // Same keys the calls use (GEMINI_API_KEY or GOOGLE_API_KEY); checking only the first one
+      // printed "empty key" on servers whose calls worked.
+      const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
       if (!apiKey) {
-        logger.warn('[BOOT_SELF_TEST] Default or empty GEMINI_API_KEY detected. Startup test passed in sandbox mode.');
+        logger.warn('[BOOT_SELF_TEST] No platform Gemini key (GEMINI_API_KEY / GOOGLE_API_KEY): calls work only for accounts with their own key. Startup test passed in sandbox mode.');
         return true;
       }
 
@@ -939,27 +964,18 @@ export class GeminiLiveProvider implements IRealtimeProvider {
     const session = this.activeSessions.get(sessionId);
     if (!session || session.ws.readyState !== WebSocket.OPEN) return;
 
-    logger.info('[LATENCY_TEST] Caller audio received', {
-      sessionId,
-      timestamp: Date.now(),
-      bytes: audioBase64.length,
-    });
+    // One log line for the first chunk and then every ~10 s of audio (was one line per chunk:
+    // 50-125 lines per second per call).
+    session.callerAudioChunks = (session.callerAudioChunks || 0) + 1;
+    if (session.callerAudioChunks === 1 || session.callerAudioChunks % 1000 === 0) {
+      logger.info('[CALLER_AUDIO] forwarding caller audio to Gemini', {
+        sessionId,
+        chunks: session.callerAudioChunks,
+        bytes: audioBase64.length,
+      });
+    }
 
-    // STRICT WIRE REQ: High-frequency streaming data chunks must use snake_case
-    // Google's wire protocol requires snake_case for realtime_input streaming,
-    // even though the one-time setup message uses camelCase.
-    session.ws.send(
-      JSON.stringify({
-        realtime_input: {
-          media_chunks: [
-            {
-              mime_type: 'audio/pcm;rate=16000',
-              data: audioBase64,
-            },
-          ],
-        },
-      })
-    );
+    session.ws.send(JSON.stringify(buildRealtimeAudioMessage(audioBase64)));
   }
 
   sendFunctionResult(sessionId: string, callId: string, result: string): void {
@@ -1174,7 +1190,8 @@ export class GeminiLiveProvider implements IRealtimeProvider {
             }
             callTimingTracker.markTurnFirstAudioReceived(session.callId, currentTurn);
           }
-          logger.info('[LATENCY_TEST] Audio chunk sent back from Gemini', {
+          // Per-chunk detail at debug level only (timing is recorded by callTimingTracker above).
+          logger.debug('[LATENCY_TEST] Audio chunk sent back from Gemini', {
             sessionId,
             timestamp: Date.now(),
             bytes: part.inlineData.data.length,

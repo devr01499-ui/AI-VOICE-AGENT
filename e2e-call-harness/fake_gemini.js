@@ -12,6 +12,8 @@ const { WebSocketServer } = require('module').createRequire(path.resolve(__dirna
 
 const PORT = parseInt(process.env.FAKE_GEMINI_PORT || '8095', 10);
 let rejectNextSetup = process.env.REJECT_FIRST_SETUP === 'true';
+let callerAudioHeard = 0;
+let callerAudioDropped = 0;
 
 // Generate 16000Hz 16-bit PCM silent/tone audio frame (320 bytes = 20ms)
 const SAMPLE_PCM_FRAME = Buffer.alloc(320, 0x55).toString('base64');
@@ -26,6 +28,14 @@ const server = http.createServer((req, res) => {
         { name: 'models/gemini-2.5-flash-native-audio-preview-12-2025', displayName: 'Gemini 2.5 Flash Native Audio (preview 12-2025)' },
       ],
     }));
+    return;
+  }
+
+  // Caller audio actually heard (realtime_input.audio) vs dropped (media_chunks), for the
+  // simulator's "the agent hears the caller" requirement.
+  if (req.url === '/control/stats') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ callerAudioHeard, callerAudioDropped }));
     return;
   }
 
@@ -130,8 +140,23 @@ wss.on('connection', (ws, req) => {
         return;
       }
 
-      // 3. Handle Streaming Audio (realtime_input)
-      if (msg.realtime_input && isSetupComplete) {
+      // 3. Handle Streaming Audio — exactly like gemini-3.8-live (owner report 2026-11-23: agent
+      // greeted, then never answered). Only `realtime_input.audio` is heard; the deprecated
+      // `media_chunks` is silently dropped; both together are rejected (1007). This fake used to
+      // answer any realtime_input, so the harness passed while real calls were deaf.
+      const rt = msg.realtime_input || msg.realtimeInput;
+      if (rt && (rt.media_chunks || rt.mediaChunks) && rt.audio) {
+        ws.close(1007, 'Request contains an invalid argument.');
+        return;
+      }
+      const audio = rt && rt.audio;
+      const audioMime = audio && (audio.mime_type || audio.mimeType);
+      if (rt && !audio) {
+        callerAudioDropped++;
+        return; // media_chunks (or anything else): ignored, no error — the real model's behaviour
+      }
+      if (audio && isSetupComplete && /^audio\/pcm/.test(String(audioMime)) && audio.data) {
+        callerAudioHeard++;
         // Send periodic audio response chunks
         if (!audioInterval) {
           audioInterval = setInterval(() => {
