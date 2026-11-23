@@ -14,6 +14,7 @@ import { logAdminRead } from '../admin/audit';
 import { PLAN_CONFIG, PLAN_VALIDITY_DAYS } from '../config/plans';
 import { PlatformConfigService } from '../services/PlatformConfigService';
 import { NotificationService, ANNOUNCEMENT_TYPE } from '../services/NotificationService';
+import { PAYMENT_REVIEW_TYPE, parseIssueMeta, closeIssuesForPayment, notifyCustomerOfRefund } from '../services/PaymentIssueService';
 import rateLimit from 'express-rate-limit';
 
 /** Built per use, so a test (or a key rotation) that swaps the gateway client is honoured. */
@@ -2352,7 +2353,7 @@ adminRouter.post('/payments/:id/refund', requireStaff('refunds:manage'), async (
         customerActionDescription: `Payment of INR ${Number(txRecord.amount).toLocaleString('en-IN')} refunded by Claritiy Support`,
       },
       async (tx) => {
-        const updatedTx = await tx.paymentTransaction.update({ where: { id: transactionId }, data: { status: 'refunded' } });
+        const updatedTx = await tx.paymentTransaction.update({ where: { id: transactionId }, data: { status: 'refunded', refundedAmount: Number(txRecord.amount) } });
         await tx.invoice.updateMany({ where: { paymentTransactionId: transactionId }, data: { status: 'refunded' } });
 
         // Minutes this purchase added (ledger rows that reference it).
@@ -2390,7 +2391,12 @@ adminRouter.post('/payments/:id/refund', requireStaff('refunds:manage'), async (
       }
     );
 
-    res.status(200).json({ success: true, data: updated });
+    // The refund is done and recorded: close any "needs your decision" case for this payment and
+    // tell the customer (bell + email). Best effort, never undoes the refund.
+    const casesClosed = await closeIssuesForPayment(txRecord.paymentId).catch(() => 0);
+    await notifyCustomerOfRefund({ userId: txRecord.userId, amountInr: Number(txRecord.amount), refundId: refundResult.refundId, planName: txRecord.planName });
+
+    res.status(200).json({ success: true, data: { ...updated, casesClosed, customerNotified: true } });
   } catch (err: any) {
     // Money has gone back to the customer but the records could not be updated: leave the payment in
     // refund_pending (visible in the console) and alert loudly so a person finishes it.
@@ -3005,5 +3011,88 @@ adminRouter.post('/calls/:id/recording-link', requireStaff('call_content:view'),
   } catch (err: any) {
     logger.error('[ADMIN_API] Failed to create recording link', { callId, error: err.message });
     res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Could not open the recording.' });
+  }
+});
+
+// ─── Payments waiting for the owner's decision (no automatic refunds, owner rule 2026-11-23) ───
+
+/**
+ * GET /api/v2/admin/payment-issues
+ * Open cases: a customer paid but did not get what they paid for. Each row has the payment (for the
+ * one-click Refund button) and the customer.
+ */
+adminRouter.get('/payment-issues', requireStaff('payments:view'), async (_req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const rows = await prisma.systemAlert.findMany({
+      where: { userId: null, type: PAYMENT_REVIEW_TYPE, isResolved: false },
+      orderBy: { createdAt: 'asc' },
+      take: 200,
+    });
+    const metas = rows.map((r) => ({ row: r, meta: parseIssueMeta(r.metadata) }));
+    const customerIds = Array.from(new Set(metas.map((m) => m.meta?.customerId).filter(Boolean) as string[]));
+    const paymentIds = metas.map((m) => m.meta?.paymentId).filter(Boolean) as string[];
+    const [customers, txs] = await Promise.all([
+      prisma.user.findMany({ where: { id: { in: customerIds } }, select: { id: true, email: true, fullName: true, contactNumber: true } }),
+      prisma.paymentTransaction.findMany({ where: { paymentId: { in: paymentIds } }, select: { id: true, paymentId: true, status: true, amount: true, planName: true } }),
+    ]);
+    const customerMap = new Map(customers.map((c) => [c.id, c]));
+    const txMap = new Map(txs.map((t) => [t.paymentId, t]));
+    res.status(200).json({
+      success: true,
+      data: metas.map(({ row, meta }) => ({
+        id: row.id,
+        createdAt: row.createdAt,
+        reason: meta?.reason || row.message,
+        source: meta?.source || null,
+        amountInr: meta?.amountInr ?? null,
+        paymentId: meta?.paymentId || null,
+        orderId: meta?.orderId || null,
+        customer: meta?.customerId ? customerMap.get(meta.customerId) || { id: meta.customerId } : null,
+        payment: meta?.paymentId ? txMap.get(meta.paymentId) || null : null,
+      })),
+    });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to list payment issues', { error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to load payments waiting for a decision' });
+  }
+});
+
+/**
+ * POST /api/v2/admin/payment-issues/:id/close
+ * Closes a case WITHOUT a refund (e.g. the number was set up by hand). To refund, use the Refund
+ * button (POST /payments/:id/refund), which closes the case itself.
+ */
+const ISSUE_OUTCOMES = ['number_set_up', 'no_refund', 'other'];
+
+adminRouter.post('/payment-issues/:id/close', requireStaff('refunds:manage'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const id = paramOf(req);
+  const outcome = req.body?.outcome;
+  const reason = reasonOf(req.body);
+  if (!ISSUE_OUTCOMES.includes(outcome) || !reason) {
+    sendValidation(res, [`An outcome (${ISSUE_OUTCOMES.join(', ')}) and a reason are required.`]);
+    return;
+  }
+  try {
+    const row = await prisma.systemAlert.findFirst({ where: { id, userId: null, type: PAYMENT_REVIEW_TYPE } });
+    if (!row) {
+      res.status(404).json({ error: 'NOT_FOUND', message: 'Case not found.' });
+      return;
+    }
+    if (row.isResolved) {
+      res.status(409).json({ error: 'ALREADY_CLOSED', message: 'This case is already closed.' });
+      return;
+    }
+    const meta = parseIssueMeta(row.metadata);
+    await withAudit(
+      { ...auditBase(req), action: 'payments:issue_closed', targetType: 'SystemAlert', targetId: id, customerId: meta?.customerId || null, reason },
+      async (tx) => {
+        await tx.systemAlert.update({ where: { id }, data: { isResolved: true } });
+        return { result: null, before: { isResolved: false }, after: { isResolved: true, outcome, refunded: false, paymentId: meta?.paymentId || null } };
+      }
+    );
+    res.status(200).json({ success: true });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to close payment issue', { id, error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to close the case.' });
   }
 });

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { adminFetch } from '../lib/api';
+import { useAuth } from '../context/AuthContext';
 import {
   Users, PhoneCall, ShieldAlert, Sparkles, Activity, AlertTriangle,
   ArrowRight, CheckCircle2, Bot, Megaphone, Clock, AlertCircle,
@@ -21,6 +22,8 @@ export const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
+  const [openPaymentIssues, setOpenPaymentIssues] = useState(0);
+  const { hasPermission } = useAuth();
 
   const loadOverview = async () => {
     try {
@@ -37,6 +40,10 @@ export const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
       if (aRes?.success) setAttentionList(aRes.data);
       if (hRes?.success) setHealthData(hRes.data);
       if (dRes?.success) setDailyMetrics(dRes.data || []);
+      if (hasPermission('payments:view')) {
+        const issues = await adminFetch<{ data: unknown[] }>('/api/v2/admin/payment-issues').catch(() => null);
+        setOpenPaymentIssues(Array.isArray(issues?.data) ? issues!.data.length : 0);
+      }
       setLastRefreshed(new Date());
     } catch (err) {
       setError('Failed to load overview data.');
@@ -118,6 +125,16 @@ export const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
 
   return (
     <div className="space-y-8 font-sans">
+      {openPaymentIssues > 0 && (
+        <button
+          type="button"
+          onClick={() => onNavigate('/payments')}
+          className="w-full text-left p-4 rounded-2xl bg-amber-950/40 border border-amber-600/50 text-amber-200 text-sm hover:bg-amber-950/60 cursor-pointer"
+        >
+          <strong className="text-white">{openPaymentIssues} payment{openPaymentIssues === 1 ? '' : 's'} waiting for your decision.</strong>{' '}
+          A customer paid but did not get what they paid for. Open Payments to refund or close each one.
+        </button>
+      )}
       {/* Page Title */}
       <div className="flex items-start justify-between">
         <div>

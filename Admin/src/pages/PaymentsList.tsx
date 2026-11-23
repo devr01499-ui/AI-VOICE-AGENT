@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { fmtDateTime, inr } from '../lib/format';
 import { ErrorNote, SuccessNote } from '../components/Dialog';
 import { RefundDialog, RefundTarget } from '../components/RefundDialog';
+import { PaymentIssues } from '../components/PaymentIssues';
 import { CreditCard, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 
 interface PaymentsListProps {
@@ -75,6 +76,8 @@ export const PaymentsList: React.FC<PaymentsListProps> = ({ onSelectCustomer }) 
 
       <SuccessNote message={notice} />
       <ErrorNote message={error} />
+
+      <PaymentIssues onSelectCustomer={onSelectCustomer} onChanged={fetchPayments} />
 
       <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
         <div className="overflow-x-auto">

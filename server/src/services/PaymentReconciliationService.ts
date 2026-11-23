@@ -4,6 +4,23 @@ import { getPlanConfig } from '../config/plans';
 import { fulfillPlanPurchase } from './PlanFulfillmentService';
 import { BillingService, planTermsFromOrderNotes } from './BillingService';
 import { logAuditEvent } from '../utils/auditLogger';
+import { reportPaymentIssue } from './PaymentIssueService';
+
+/**
+ * A paid number with no number after the grace period becomes a case on the admin Payments page
+ * (owner rule 2026-11-23: refunds only by the owner's decision). Idempotent per payment.
+ */
+async function holdForOwner(entry: { paymentId: string; orderId: string; userId?: string; amountInr: number }): Promise<void> {
+  if (!entry.userId) {
+    logger.error('[ADMIN_ALERT][PAYMENTS] paid number without a customer id in the order notes — check in Razorpay', entry);
+    return;
+  }
+  try {
+    await reportPaymentIssue({ userId: entry.userId, paymentId: entry.paymentId, orderId: entry.orderId, amountInr: entry.amountInr, reason: 'Paid for a phone number, but no number was set up (found by the payment check)', source: 'reconciliation' });
+  } catch (err: any) {
+    logger.error('[ADMIN_ALERT][PAYMENTS] could not open a review case for an unprovisioned paid number', { ...entry, error: err?.message });
+  }
+}
 
 /**
  * One rule set for "a plan payment was captured", used by the Razorpay webhook and by the
@@ -103,6 +120,7 @@ export async function runPaymentReconciliation(opts: { lookbackHours?: number; n
             const entry = { paymentId: pay.id, orderId: recorded.orderId, userId: recorded.userId, amountInr: Number(pay.amount) / 100 };
             report.unprovisionedNumberPayments.push(entry);
             logger.error('[ADMIN_ALERT][PAYMENTS] paid phone number was never provisioned — assign a number or refund', entry);
+            await holdForOwner(entry);
             continue;
           }
         }
@@ -129,6 +147,7 @@ export async function runPaymentReconciliation(opts: { lookbackHours?: number; n
         const entry = { paymentId: pay.id, orderId: pay.order_id, userId: order.notes.userId, amountInr: Number(pay.amount) / 100 };
         report.unprovisionedNumberPayments.push(entry);
         logger.error('[ADMIN_ALERT][PAYMENTS] paid phone number was never provisioned — assign a number or refund', entry);
+        await holdForOwner(entry);
       }
     } catch (err: any) {
       report.errors++;

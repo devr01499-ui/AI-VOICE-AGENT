@@ -113,7 +113,8 @@ async function main() {
     assert.ok(claim.indexOf('reserveNumberSlot(userId)') < claim.indexOf('purchaseAndAssignNumber'), 'claim reserves before provisioning');
     const purchase = section("router.post('/purchase'", "router.post('/claim'");
     assert.ok(purchase.indexOf('reserveNumberSlot(userId)') > purchase.indexOf('redeemNumberPayment') && purchase.indexOf('reserveNumberSlot(userId)') < purchase.indexOf('purchaseAndAssignNumber'));
-    assert.ok(/NUMBER_SLOT_TAKEN[\s\S]{0,40}|refundOrder\(paymentId, paid\.amountPaise\)/.test(purchase), 'a paid purchase that loses the slot is refunded');
+    // Owner rule 2026-11-23: no automatic refund; a paid purchase that loses the slot becomes an owner case.
+    assert.ok(/reserveNumberSlot\(userId\)\)\) \{\s*await reportUndelivered\(/.test(purchase) && !purchase.includes('refundOrder('), 'a paid purchase that loses the slot becomes an owner case (no automatic refund)');
     const plivoClaim = section("router.post('/plivo/claim'");
     assert.ok(plivoClaim.indexOf('reserveNumberSlot(userId)') < plivoClaim.indexOf('purchaseAndAssignNumber'));
     // Phase 13: the unused paid /plivo/purchase route (no screen, no order flow creates its orders) is gone.

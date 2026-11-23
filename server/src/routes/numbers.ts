@@ -17,6 +17,7 @@ import { reserveNumberSlot, releaseNumberSlot, NUMBER_SLOT_TAKEN_MESSAGE } from 
 import { checkRequiredKycDocumentsVerified } from '../services/KycVerificationService';
 import { PlivoService } from '../core/telephony/PlivoService';
 import { NotificationService } from '../services/NotificationService';
+import { reportPaymentIssue } from '../services/PaymentIssueService';
 import { AppError } from '../types/errors';
 
 export { checkRequiredKycDocumentsVerified };
@@ -305,18 +306,24 @@ router.post('/purchase', requireAuth, requireEditor, requirePaidPlan, sensitiveO
   const expectedPrice = paid.amountInr;
   // Take the account's single number slot atomically: two purchases at the same moment cannot
   // both win. A repeat of the same paid request continues to the idempotent provisioning below.
-  if (!paid.alreadyRedeemed && !(await reserveNumberSlot(userId))) {
-    const refund = await billingService.refundOrder(paymentId, paid.amountPaise);
-    if (refund.success) {
-      await prisma.paymentTransaction.updateMany({ where: { paymentId, userId }, data: { status: 'refunded', refundedAmount: paid.amountInr } }).catch(() => {});
-    } else {
-      logger.error('[ADMIN_ALERT][NUMBERS] number slot already taken and automatic refund failed — refund manually', { userId, paymentId });
+  // Owner rule (2026-11-23): nothing is refunded automatically. A paid purchase that cannot be
+  // delivered becomes a case on the admin Payments page; the owner decides (one-click refund there).
+  const reportUndelivered = async (reason: string) => {
+    try {
+      await reportPaymentIssue({ userId, paymentId, orderId, amountInr: paid.amountInr, reason, source: 'number_purchase' });
+    } catch (reportErr: any) {
+      logger.error('[ADMIN_ALERT][PAYMENT_REVIEW] could not record a paid, undelivered number purchase — check this payment by hand', { userId, paymentId, orderId, reason, error: reportErr?.message });
     }
+  };
+  const PAYMENT_SAFE = 'Your payment is safe and you do not need to pay again: our team has been alerted and will contact you within one working day to set up your number or refund you.';
+
+  if (!paid.alreadyRedeemed && !(await reserveNumberSlot(userId))) {
+    await reportUndelivered('The account already holds a phone number (one number per plan), so this paid number was not set up');
     res.status(409).json({
       success: false,
       code: 'NUMBER_SLOT_TAKEN',
-      error: `${NUMBER_SLOT_TAKEN_MESSAGE} ${refund.success ? 'Your payment has been refunded.' : 'Our team will refund your payment.'}`,
-      refunded: refund.success,
+      error: `${NUMBER_SLOT_TAKEN_MESSAGE} ${PAYMENT_SAFE}`,
+      refunded: false,
       numberLocked: true,
     });
     return;
@@ -382,7 +389,7 @@ router.post('/purchase', requireAuth, requireEditor, requirePaidPlan, sensitiveO
   } catch (err: any) {
     const errorMessage = err.message || '';
 
-    // Detect post-payment Vobiz failure — must refund user and fire admin alert
+    // Detect post-payment carrier failure — the owner decides (refund from the admin console).
     if (errorMessage.includes('[VOBIZ_PURCHASE_FAILURE]')) {
       logger.error('[ADMIN_ALERT][VOBIZ_LOW_BALANCE] CRITICAL: Post-payment Vobiz purchase failure - Master Vobiz balance insufficient or provider error', {
         userId,
@@ -393,58 +400,28 @@ router.post('/purchase', requireAuth, requireEditor, requirePaidPlan, sensitiveO
       });
 
       await releaseNumberSlot(userId, 'carrier_purchase_failed');
-      // Refund exactly what Razorpay confirmed was paid.
-      const amountInPaise = paid.amountPaise;
-      const refundResult = await billingService.refundOrder(paymentId, amountInPaise);
-      if (refundResult.success) {
-        await prisma.paymentTransaction.updateMany({
-          where: { paymentId, userId },
-          data: { status: 'refunded', refundedAmount: paid.amountInr },
-        }).catch(() => {});
-      }
-
-      if (refundResult.success) {
-        res.status(503).json({
-          success: false,
-          error: 'This number is temporarily unavailable due to a provisioning issue. Your payment has been refunded automatically. Please try a different number or contact support.',
-          refunded: true,
-          refundId: refundResult.refundId,
-        });
-      } else {
-        // Refund also failed — this needs immediate human attention
-        logger.error('[VOBIZ_PURCHASE_FAILURE][REFUND_FAILED] URGENT: Manual refund required', {
-          userId,
-          paymentId,
-          orderId,
-          amountInPaise,
-        });
-        res.status(503).json({
-          success: false,
-          error: 'A provisioning error occurred and we were unable to automatically refund your payment. Please contact support immediately — no number was assigned and you will be refunded manually.',
-          refunded: false,
-        });
-      }
+      await reportUndelivered('The carrier refused to sell this number (master balance or carrier error)');
+      res.status(503).json({
+        success: false,
+        error: `This number could not be set up because of a temporary carrier issue. ${PAYMENT_SAFE}`,
+        refunded: false,
+      });
       return;
     }
 
-    // Payment taken but no number: refund automatically, or alert a person (audit #4).
-    const refundPaidButUnprovisioned = async (reason: string) => {
-      await releaseNumberSlot(userId, reason);
-      const refund = await billingService.refundOrder(paymentId, paid.amountPaise);
-      if (refund.success) {
-        await prisma.paymentTransaction.updateMany({ where: { paymentId, userId }, data: { status: 'refunded', refundedAmount: paid.amountInr } }).catch(() => {});
-      } else {
-        logger.error('[ADMIN_ALERT][NUMBERS] paid number purchase failed and the automatic refund failed — refund manually', { userId, paymentId, orderId, reason });
-      }
-      return refund.success;
+    // Payment taken but no number (audit #4): free the number slot and record the case for the
+    // owner; no automatic refund (owner rule 2026-11-23).
+    const holdForOwnerDecision = async (slotReason: string, ownerReason: string) => {
+      await releaseNumberSlot(userId, slotReason);
+      await reportUndelivered(ownerReason);
     };
 
     if (errorMessage.includes('Price changed')) {
-      const refunded = await refundPaidButUnprovisioned('price_changed');
+      await holdForOwnerDecision('price_changed', `The number's price changed during checkout (${errorMessage})`);
       res.status(409).json({
         success: false,
-        error: `${errorMessage} ${refunded ? 'Your payment has been refunded.' : 'Our team will refund your payment.'}`,
-        refunded,
+        error: `The price of this number changed while you were paying, so it was not set up. ${PAYMENT_SAFE}`,
+        refunded: false,
       });
       return;
     }
@@ -458,13 +435,11 @@ router.post('/purchase', requireAuth, requireEditor, requirePaidPlan, sensitiveO
     }
 
     logger.error('Numbers: purchase failed after payment', { userId, orderId, error: errorMessage });
-    const refunded = await refundPaidButUnprovisioned('purchase_failed');
+    await holdForOwnerDecision('purchase_failed', `Setting up the number failed after payment (${errorMessage.slice(0, 200)})`);
     res.status(500).json({
       success: false,
-      error: refunded
-        ? 'The number could not be set up. Your payment has been refunded automatically. Please try another number.'
-        : 'The number could not be set up. Our team has been alerted and will refund your payment.',
-      refunded,
+      error: `The number could not be set up. ${PAYMENT_SAFE}`,
+      refunded: false,
     });
   }
 });
