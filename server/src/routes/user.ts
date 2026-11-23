@@ -12,6 +12,7 @@ import { EncryptionService } from '../utils/EncryptionService';
 import { getPlanConcurrency } from '../config/plans';
 import { supabaseClient } from '../utils/supabase';
 import { getTrustedClientIp } from '../utils/ipChecker';
+import { PlatformConfigService } from '../services/PlatformConfigService';
 
 /**
  * Signed-in user id from an optional Bearer token, or null. Used by the public consent route so that
@@ -509,6 +510,15 @@ publicUserRouter.post('/validate-signup', signupLimiter, authIpThrottleDelay, as
 
     if (!email || typeof email !== 'string') {
       res.status(400).json({ success: false, error: 'Email address is required.' });
+      return;
+    }
+
+    // Admin panel switch: new sign-ups paused (checked before an auth account is created).
+    await PlatformConfigService.ensureLoaded();
+    if (PlatformConfigService.areSignupsPaused()) {
+      const { signupsPausedMessage } = PlatformConfigService.getSwitches();
+      // error carries the readable text (the sign-up form shows `error` as-is); code is machine-readable.
+      res.status(403).json({ success: false, error: signupsPausedMessage, code: 'SIGNUPS_PAUSED', message: signupsPausedMessage });
       return;
     }
 

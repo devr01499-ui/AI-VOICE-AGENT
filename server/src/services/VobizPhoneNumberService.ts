@@ -38,6 +38,9 @@ export class VobizPhoneNumberService extends VobizIntegrationService {
          }
          return { order: existingOrder, phoneNumber: existingPhone };
       }
+      if (existingOrder.orderStatus === 'resolved') {
+         throw new Error('Our support team has already closed this purchase (refunded or set up by hand). Please check your email or contact support.');
+      }
       if (existingOrder.orderStatus === 'failed') {
          throw new Error('This payment has already been processed but the purchase failed. Please contact support for a refund.');
       }

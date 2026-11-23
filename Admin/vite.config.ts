@@ -4,7 +4,10 @@ import tailwindcss from '@tailwindcss/vite';
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: './',
+  // Absolute, so deep links (/customers/<id>) and refreshes load the scripts. '/' for the console's
+  // own domain (admin.claritiy.com); scripts/build_all.js sets ADMIN_BASE=/admin/ for the copy
+  // served on the main site.
+  base: process.env.ADMIN_BASE || '/',
   plugins: [
     react(),
     tailwindcss(),

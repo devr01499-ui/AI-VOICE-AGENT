@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { adminFetch } from '../lib/api';
+import { fmtDateTime } from '../lib/format';
+import { ErrorNote } from '../components/Dialog';
 import { FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export const AuditLogsList: React.FC = () => {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -12,6 +15,7 @@ export const AuditLogsList: React.FC = () => {
   const fetchLogs = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const res = await adminFetch<{
         success: boolean;
         data: any[];
@@ -23,8 +27,8 @@ export const AuditLogsList: React.FC = () => {
         setTotalPages(res.pagination.totalPages || 1);
         setTotalCount(res.pagination.total || 0);
       }
-    } catch (err) {
-      console.error('Failed to load audit logs', err);
+    } catch (err: any) {
+      setLoadError(err?.message || 'Failed to load audit logs');
     } finally {
       setLoading(false);
     }
@@ -36,6 +40,7 @@ export const AuditLogsList: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <ErrorNote message={loadError} />
       <div>
         <h1 className="text-xl font-bold text-white flex items-center gap-2">
           <FileText className="h-5 w-5 text-white" />
@@ -77,7 +82,7 @@ export const AuditLogsList: React.FC = () => {
                 logs.map((log) => (
                   <tr key={log.id} className="hover:bg-slate-800/40 transition-colors">
                     <td className="px-5 py-3.5 font-mono text-[11px] text-slate-400">
-                      {new Date(log.createdAt).toLocaleString()}
+                      {fmtDateTime(log.createdAt)}
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="font-semibold text-white">{log.staffEmail}</div>

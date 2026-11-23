@@ -13,6 +13,11 @@ export interface FulfillPlanPurchaseParams {
   staffId?: string;
   razorpayLinkId?: string;
   amountOverrideInr?: number;
+  /**
+   * Minutes promised when the order or link was created (checkout snapshot). Used instead of the
+   * plan's current minutes, so an admin price/minutes edit never changes what was already paid for.
+   */
+  minutesOverride?: number;
 }
 
 /**
@@ -28,6 +33,9 @@ export function higherAccountTier(current: string | null | undefined, purchased:
 
 export async function fulfillPlanPurchase(params: FulfillPlanPurchaseParams) {
   const { userId, orderId, paymentId, planKey, source, staffId, razorpayLinkId, amountOverrideInr } = params;
+  const minutesOverride = typeof params.minutesOverride === 'number' && Number.isFinite(params.minutesOverride) && params.minutesOverride > 0
+    ? params.minutesOverride
+    : undefined;
 
   // 1. Resolve the plan. Built-in plans always come from PLAN_CONFIG (the server's price list). A
   // staff catalog row applies only when it is active, uses its own key, and, when it is made for one
@@ -49,7 +57,7 @@ export async function fulfillPlanPurchase(params: FulfillPlanPurchaseParams) {
   if (catalogPlan) {
     planName = catalogPlan.name;
     priceInr = amountOverrideInr ?? catalogPlan.priceInr;
-    addedMinutes = catalogPlan.minutes;
+    addedMinutes = minutesOverride ?? catalogPlan.minutes;
     accountType = catalogPlan.accountType;
   } else {
     // Fallback to existing PLAN_CONFIG constant
@@ -59,7 +67,7 @@ export async function fulfillPlanPurchase(params: FulfillPlanPurchaseParams) {
     }
     planName = staticPlan.name;
     priceInr = amountOverrideInr ?? staticPlan.price;
-    addedMinutes = staticPlan.minutes;
+    addedMinutes = minutesOverride ?? staticPlan.minutes;
     accountType = staticPlan.accountType || 'developer';
   }
 

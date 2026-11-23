@@ -6,7 +6,7 @@ import {
   Radio} from "lucide-react";
 import Lottie from "lottie-react";
 import { voiceOrbLottieData } from "../animation/lottieVoiceData";
-import { LOWEST_PLAN, formatInr } from "../../lib/plans";
+import { formatInr, usePublicPlans, lowestPricePlan } from "../../lib/plans";
 
 type Page = any;
 interface HeroProps {
@@ -418,6 +418,7 @@ function HdGeometricalArchitectureDiagram() {
 
 // ── Main Hero Section (EdgeSkool Minimalist Wireframe Style) ─────────────────
 export default function Hero({ setPage }: HeroProps) {
+  const lowestPlan = lowestPricePlan(usePublicPlans());
   return (
     <section className="relative overflow-hidden pt-6 pb-16 lg:pt-8 lg:pb-20 bg-[#E5E3DC]">
       
@@ -475,7 +476,7 @@ export default function Hero({ setPage }: HeroProps) {
                 { label: "Replies", value: "Real-time" },
                 { label: "Indian Languages", value: "7 + Auto" },
                 { label: "AI Voices", value: "30" },
-                { label: "Plans from", value: formatInr(LOWEST_PLAN.price) }
+                { label: "Plans from", value: formatInr(lowestPlan.price) }
               ].map((stat, idx) => (
                 <div key={idx} className="bg-[#EBE9E2] border border-[#CBC8BE] p-3 rounded-[2px] space-y-0.5">
                   <p className="text-base sm:text-lg font-bold text-[#121212] font-mono">

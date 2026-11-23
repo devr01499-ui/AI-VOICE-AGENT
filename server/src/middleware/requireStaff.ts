@@ -102,22 +102,16 @@ export function requireStaff(permission?: PermissionName) {
         return;
       }
 
-      // If invited, activate on first verified login with exact email
       let currentStaff = staffRecord;
-      if (staffRecord.status === 'invited') {
-        currentStaff = await prisma.staffUser.update({
-          where: { id: staffRecord.id },
-          data: { status: 'active', lastLoginAt: new Date() },
-        });
-        logger.info('[ADMIN_AUTH] Activated invited staff member on first login', { staffId: staffRecord.id, email: staffRecord.email });
-      }
 
       // 5. Verify AAL2 (MFA completed)
       const jwtPayload = parseJwtPayload(token);
       const aal = jwtPayload?.aal || user.app_metadata?.aal || 'aal1';
       const isMfaBypassedInTest = (process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development') && req.headers['x-bypass-mfa'] === 'true';
 
-      if (aal !== 'aal2' && !isMfaBypassedInTest && currentStaff.role !== 'owner') {
+      // Every role, the owner included (owner decision 2026-11-23: the panel controls prices and
+      // money, so a leaked password alone must never open it).
+      if (aal !== 'aal2' && !isMfaBypassedInTest) {
         logger.warn('[ADMIN_AUTH] Staff MFA requirement unfulfilled (aal2 required)', {
           staffId: currentStaff.id,
           currentAal: aal,
@@ -151,7 +145,31 @@ export function requireStaff(permission?: PermissionName) {
         return;
       }
 
-      // 7. Attach staff context and proceed
+      // 7. Per-person rate limit (the router-level limiter runs before sign-in is known, so it can
+      // only count per IP; this one counts each staff member separately).
+      if (!takeStaffRequestSlot(currentStaff.id)) {
+        res.status(429).json({ error: 'RATE_LIMIT_EXCEEDED', message: 'Too many admin requests. Please slow down.' });
+        return;
+      }
+
+      // 8. An invited person becomes active only after a fully verified (two-factor) sign-in.
+      // lastLoginAt is refreshed at most once an hour (no database write per request).
+      const now = Date.now();
+      if (currentStaff.status === 'invited' || !currentStaff.lastLoginAt || now - currentStaff.lastLoginAt.getTime() > LAST_LOGIN_REFRESH_MS) {
+        try {
+          currentStaff = await prisma.staffUser.update({
+            where: { id: currentStaff.id },
+            data: { lastLoginAt: new Date(now), ...(currentStaff.status === 'invited' ? { status: 'active' } : {}) },
+          });
+          if (staffRecord.status === 'invited') {
+            logger.info('[ADMIN_AUTH] Activated invited staff member on first verified login', { staffId: currentStaff.id });
+          }
+        } catch (touchErr: any) {
+          logger.warn('[ADMIN_AUTH] Could not record last login (request continues)', { staffId: currentStaff.id, error: touchErr?.message });
+        }
+      }
+
+      // 9. Attach staff context and proceed
       req.staff = {
         id: currentStaff.id,
         email: currentStaff.email,
@@ -162,8 +180,34 @@ export function requireStaff(permission?: PermissionName) {
 
       next();
     } catch (err: any) {
+      // The token was checked above; reaching here means the database or auth provider failed.
       logger.error('[ADMIN_AUTH] Exception during staff auth verification', { error: err.message });
-      res.status(401).json({ error: 'UNAUTHORIZED', message: 'Authentication verification failure' });
+      res.status(503).json({ error: 'ADMIN_AUTH_UNAVAILABLE', message: 'Sign-in could not be checked right now. Please try again in a moment.' });
     }
   };
+}
+
+const LAST_LOGIN_REFRESH_MS = 60 * 60 * 1000;
+const STAFF_WINDOW_MS = 60 * 1000;
+const STAFF_MAX_PER_WINDOW = 120;
+const staffWindows = new Map<string, { start: number; count: number }>();
+
+/** Fixed one-minute window per staff member: 120 requests. */
+function takeStaffRequestSlot(staffId: string): boolean {
+  const now = Date.now();
+  const w = staffWindows.get(staffId);
+  if (!w || now - w.start >= STAFF_WINDOW_MS) {
+    staffWindows.set(staffId, { start: now, count: 1 });
+    if (staffWindows.size > 1000) {
+      for (const [k, v] of staffWindows) if (now - v.start >= STAFF_WINDOW_MS) staffWindows.delete(k);
+    }
+    return true;
+  }
+  w.count++;
+  return w.count <= STAFF_MAX_PER_WINDOW;
+}
+
+/** Tests only. */
+export function resetStaffRateLimitForTests(): void {
+  staffWindows.clear();
 }

@@ -190,3 +190,11 @@ Method: an import graph from the real entry points (Frontend and Admin `src/main
 - **Kept on purpose:**
   - 19 frontend values that are still written by live code but never read (for example `agentsLoading`). Removing them means editing live setter calls for no user-visible gain.
   - 16 Express handlers where not every path returns (`return res.json()` mixed with `res.json()`). Express ignores the return value; there is no runtime effect.
+
+## 8. Admin routes removed (2026-11-23, branch fix/admin-panel)
+| Route | Evidence | Decision |
+|---|---|---|
+| PATCH /api/v2/admin/numbers/:id/activate | No caller in Admin/, Frontend/, scripts. Set a number active AND its KYC verified with no check (bypasses B9: never auto-approve). | REMOVED |
+| POST /api/v2/admin/customers/:id/kyc/reset | No caller. Only set phone_numbers.kyc_status=pending, which blocked calls while the real KYC (carrier sub-account, documents) stayed unchanged. | REMOVED |
+| POST /api/v2/admin/orders/:orderId/retry | Called by Admin Numbers page. Reset the order to 'validating', a state nothing processes; the customer was then stuck on "purchase already in progress". | REPLACED by POST /orders/:orderId/resolve (audited, after a refund or manual assignment) |
+Guarded by test:admin-panel A8 and test:api-contract (every console call must reach a real route).

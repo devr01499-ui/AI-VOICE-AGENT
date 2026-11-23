@@ -81,16 +81,16 @@ export const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
       icon: PhoneCall,
     },
     {
-      label: 'Vobiz Minutes Used',
+      label: 'Call Minutes Used',
       value: metrics?.vobizMinutesUsed ?? 0,
-      sub: 'internal ledger · call_usage',
+      sub: 'all carriers · billed call minutes',
       icon: Sparkles,
       suffix: 'min',
     },
     {
-      label: 'Minutes Granted',
-      value: metrics?.totalMinutesGranted ?? 0,
-      sub: 'all credits ever issued',
+      label: 'Minutes Sold / Given',
+      value: (metrics?.totalMinutesPurchased ?? 0) + (metrics?.totalMinutesGranted ?? 0),
+      sub: `${(metrics?.totalMinutesPurchased ?? 0).toLocaleString('en-IN')} bought · ${(metrics?.totalMinutesGranted ?? 0).toLocaleString('en-IN')} free`,
       icon: TrendingUp,
       suffix: 'min',
     },
@@ -338,7 +338,7 @@ export const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
       {/* Data Source Footer */}
       <div className="flex items-center gap-3 text-[11px] text-zinc-600 font-mono">
         <Database className="h-3.5 w-3.5" />
-        <span>Data source: internal PostgreSQL database · Vobiz minutes from MinutesLedger (call_usage entries)</span>
+        <span>Data source: internal database · call minutes from the minutes ledger (call_usage entries)</span>
         <span className="ml-auto flex items-center gap-1">
           <Clock className="h-3 w-3" />
           Last refreshed: {lastRefreshed.toLocaleTimeString()}

@@ -4,6 +4,7 @@ import { env } from '../config/env';
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { getPlanConfig, PLAN_CONFIG } from '../config/plans';
+import { PlatformConfigService } from './PlatformConfigService';
 
 /**
  * Payments (Razorpay). Every decision about money is made here, on the server:
@@ -27,6 +28,21 @@ export class PaymentVerificationError extends Error {
 interface RazorpayLike {
   orders: { create(o: any): Promise<any>; fetch(id: string): Promise<any> };
   payments: { fetch(id: string): Promise<any>; refund(id: string, o: any): Promise<any>; all?(q: any): Promise<any> };
+  paymentLink?: { create(o: any): Promise<any>; cancel(id: string): Promise<any> };
+}
+
+/**
+ * Price (paise) and minutes a plan order was created with. Orders made before the snapshot existed
+ * (or with an unreadable one) fall back to the plan's current values, which is what they were
+ * checked against before. Notes are set by the server and read back from Razorpay, never from the browser.
+ */
+export function planTermsFromOrderNotes(notes: Record<string, string>, planConfig: { price: number; minutes: number }): { pricePaise: number; minutes: number } {
+  const snapPaise = Number(notes.planPricePaise);
+  const snapMinutes = Number(notes.planMinutes);
+  const hasSnapshot = Number.isInteger(snapPaise) && snapPaise >= 100 && Number.isFinite(snapMinutes) && snapMinutes > 0;
+  return hasSnapshot
+    ? { pricePaise: snapPaise, minutes: snapMinutes }
+    : { pricePaise: Math.round(planConfig.price * 100), minutes: planConfig.minutes };
 }
 
 /** Razorpay returns empty notes as [] — normalise to a plain object. */
@@ -130,9 +146,14 @@ export class BillingService {
   async createPlanPurchaseOrder(planInput: string, userId: string) {
     if (!userId) throw new PaymentVerificationError(401, 'Unauthorized', 'UNAUTHORIZED');
     await this.assertAccountCanBuy(userId);
+    // Prices and "can be bought" may be changed from the admin panel: use the stored values.
+    await PlatformConfigService.ensureLoaded();
     const planConfig = typeof planInput === 'string' ? getPlanConfig(planInput) : null;
     if (!planConfig) throw new PaymentVerificationError(400, 'Invalid or unknown plan name', 'PLAN_UNKNOWN');
     const planKey = Object.keys(PLAN_CONFIG).find((k) => PLAN_CONFIG[k] === planConfig) || planConfig.name.toLowerCase();
+    if (planConfig.purchasable === false) {
+      throw new PaymentVerificationError(409, 'This plan is not available right now. Please choose another plan.', 'PLAN_NOT_AVAILABLE');
+    }
     // The ₹1 trial is once per account (audit #3: it could be bought repeatedly, 25 × ₹1 = 500 minutes).
     if (planKey === 'trial') {
       const usedTrial = await prisma.paymentTransaction.findFirst({
@@ -143,10 +164,13 @@ export class BillingService {
         throw new PaymentVerificationError(409, 'The trial can be used once per account. Please choose a plan.', 'TRIAL_ALREADY_USED');
       }
     }
+    const pricePaise = Math.round(planConfig.price * 100);
     return this.createOrder(
-      Math.round(planConfig.price * 100),
+      pricePaise,
       `plan_${planKey}_${userId.slice(0, 8)}_${Date.now()}`,
-      { userId, purpose: 'plan', planKey }
+      // The terms shown at checkout travel with the order (set by the server, read back from
+      // Razorpay), so an admin price/minutes change in between never breaks this payment.
+      { userId, purpose: 'plan', planKey, planPricePaise: String(pricePaise), planMinutes: String(planConfig.minutes) }
     );
   }
 
@@ -294,7 +318,8 @@ export class BillingService {
         throw new PaymentVerificationError(400, 'This payment was made for a different plan. Please contact support if money was deducted.', 'PLAN_MISMATCH');
       }
     }
-    if (verified.amountPaise !== Math.round(planConfig.price * 100)) {
+    const terms = planTermsFromOrderNotes(verified.notes, planConfig);
+    if (verified.amountPaise !== terms.pricePaise) {
       throw new PaymentVerificationError(400, 'Payment order amount does not match requested plan price.', 'PAYMENT_AMOUNT_MISMATCH');
     }
 
@@ -305,6 +330,8 @@ export class BillingService {
       paymentId: params.paymentId,
       planKey,
       source: 'self_serve',
+      amountOverrideInr: terms.pricePaise / 100,
+      minutesOverride: terms.minutes,
     });
     return { planKey, planName: planConfig.name, alreadyActive: result.isIdempotent === true };
   }
@@ -351,8 +378,66 @@ export class BillingService {
     }
   }
 
-  /** Full or partial refund (used when a paid number cannot be provisioned). */
-  async refundOrder(paymentId: string, amountInPaise: number): Promise<{ success: boolean; refundId?: string }> {
+  /**
+   * Razorpay payment link for an admin-priced plan (the amount is computed by the caller from the
+   * server's plan price). Without a gateway: a clearly marked test link in dev/test, 503 otherwise.
+   */
+  async createPaymentLink(params: {
+    amountPaise: number;
+    description: string;
+    customer: { name?: string; email?: string; contact?: string };
+    notes: Record<string, string>;
+    expireBy: number;
+  }): Promise<{ id: string; shortUrl: string; mock: boolean }> {
+    if (!Number.isInteger(params.amountPaise) || params.amountPaise < 100) {
+      throw new PaymentVerificationError(400, 'Minimum amount must be at least ₹1', 'PAYMENT_AMOUNT_INVALID');
+    }
+    if (this.mockMode) {
+      const id = `plink_mock_${crypto.randomUUID().replace(/-/g, '').slice(0, 14)}`;
+      return { id, shortUrl: '', mock: true };
+    }
+    const gateway = this.requireGateway();
+    if (!gateway.paymentLink) {
+      throw new PaymentVerificationError(503, 'Payment links are not available right now.', 'PAYMENT_GATEWAY_UNAVAILABLE');
+    }
+    try {
+      const contact = params.customer.contact && /^\+?\d{10,15}$/.test(params.customer.contact) ? params.customer.contact : undefined;
+      const link = await gateway.paymentLink.create({
+        amount: params.amountPaise,
+        currency: 'INR',
+        accept_partial: false,
+        description: params.description,
+        customer: { name: params.customer.name, email: params.customer.email, ...(contact ? { contact } : {}) },
+        notify: { email: true, sms: Boolean(contact) },
+        reminder_enable: true,
+        notes: params.notes,
+        expire_by: params.expireBy,
+      });
+      if (!link?.id || !link?.short_url) throw new Error('gateway returned no link');
+      return { id: String(link.id), shortUrl: String(link.short_url), mock: false };
+    } catch (err: any) {
+      logger.error('BillingService: failed to create payment link', { error: err?.error?.description || err?.message || String(err) });
+      throw new PaymentVerificationError(502, 'Razorpay could not create the payment link. Please try again.', 'PAYMENT_LINK_FAILED');
+    }
+  }
+
+  /** Cancels an unpaid payment link at Razorpay (no-op for a dev/test mock link). */
+  async cancelPaymentLink(linkId: string): Promise<void> {
+    if (linkId.startsWith('plink_mock_') && BillingService.isMockAllowed()) return;
+    const gateway = this.requireGateway();
+    if (!gateway.paymentLink) {
+      throw new PaymentVerificationError(503, 'Payment links are not available right now.', 'PAYMENT_GATEWAY_UNAVAILABLE');
+    }
+    try {
+      await gateway.paymentLink.cancel(linkId);
+    } catch (err: any) {
+      logger.error('BillingService: failed to cancel payment link', { linkId, error: err?.error?.description || err?.message || String(err) });
+      throw new PaymentVerificationError(502, 'Razorpay could not cancel the link (it may already be paid or expired). Check the Razorpay dashboard.', 'PAYMENT_LINK_CANCEL_FAILED');
+    }
+  }
+
+  /** Full or partial refund (a paid number that cannot be provisioned, or an admin refund). */
+  async refundOrder(paymentId: string, amountInPaise: number, reason = 'Number could not be provisioned'): Promise<{ success: boolean; refundId?: string }> {
     if (!this.razorpay) {
       if (this.mockMode) {
         logger.warn('BillingService.refundOrder: mock mode — refund not executed', { paymentId });
@@ -365,7 +450,7 @@ export class BillingService {
       const refund = await this.razorpay.payments.refund(paymentId, {
         amount: amountInPaise,
         speed: 'optimum',
-        notes: { reason: 'Number could not be provisioned' },
+        notes: { reason: reason.slice(0, 250) },
       });
       logger.info('BillingService.refundOrder: refund issued', { paymentId, refundId: refund.id });
       return { success: true, refundId: refund.id };

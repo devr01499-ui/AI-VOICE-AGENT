@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { adminFetch } from '../lib/api';
+import { fmtDateTime } from '../lib/format';
 import { useAuth } from '../context/AuthContext';
 import { Shield, UserPlus, AlertCircle } from 'lucide-react';
 
@@ -68,7 +69,7 @@ export const StaffList: React.FC = () => {
       await adminFetch(`/api/v2/admin/staff/${user.id}/${action}`, { method: 'POST' });
       await fetchStaff();
     } catch (err: any) {
-      alert(err.message || `Failed to ${action} staff member`);
+      setError(err.message || `Failed to ${action} staff member`);
     }
   };
 
@@ -173,7 +174,7 @@ export const StaffList: React.FC = () => {
                         {u.createdBy || 'System'}
                       </td>
                       <td className="px-4 py-3.5 font-mono text-[11px] text-slate-400">
-                        {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : 'Never'}
+                        {u.lastLoginAt ? fmtDateTime(u.lastLoginAt) : 'Never'}
                       </td>
                       <td className="px-4 py-3.5 text-right">
                         {canModify ? (
@@ -248,11 +249,11 @@ export const StaffList: React.FC = () => {
                   onChange={(e) => setInviteRole(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white capitalize cursor-pointer"
                 >
-                  <option value="support">Support (Grant cap: 50m, No Deduct)</option>
-                  <option value="sales">Sales (Grant cap: 100m, No Deduct)</option>
-                  <option value="admin">Admin (Grant cap: 500m, Deduct allowed)</option>
-                  <option value="finance">Finance (Payments view, No Grants)</option>
-                  <option value="owner">Owner (Full unrestricted root access)</option>
+                  <option value="support">Support (customers, small minute grants)</option>
+                  <option value="sales">Sales (plans, payment links, small grants)</option>
+                  <option value="admin">Admin (everything except staff and Control Panel)</option>
+                  <option value="finance">Finance (payments, refunds, exports)</option>
+                  <option value="owner">Owner (full access, including Control Panel)</option>
                 </select>
               </div>
 

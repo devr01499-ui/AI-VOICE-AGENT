@@ -30,6 +30,8 @@ model User {
   numberLocked          Boolean  @default(false) @map("number_locked")
   /// End of the current plan's validity (purchase + 30 days). Null = bought before validity existed (expires only when minutes run out).
   planExpiresAt         DateTime? @map("plan_expires_at")
+  /// Admin "force sign-out": sessions whose sign-in happened before this time are refused.
+  sessionsRevokedAt     DateTime? @map("sessions_revoked_at")
   dataRetentionDays     Int?     @map("data_retention_days")
   allowedIpRanges       String[] @default([]) @map("allowed_ip_ranges")
   maxConcurrentCalls    Int?     @default(10) @map("max_concurrent_calls")

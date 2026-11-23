@@ -27,6 +27,7 @@ import { hasCallableBalance } from '../utils/balanceUtils';
 import { EncryptionService } from '../utils/EncryptionService';
 import { checkOutboundDestination } from '../utils/destinationPolicy';
 import { getPlanConcurrency } from '../config/plans';
+import { PlatformConfigService } from './PlatformConfigService';
 
 // ─── Input Shapes ─────────────────────────────────
 
@@ -69,6 +70,14 @@ export class CallService {
     const destination = checkOutboundDestination(phoneNumber);
     if (!destination.allowed) {
       throw new ValidationError('Destination not allowed', [{ field: 'phoneNumber', message: destination.reason }]);
+    }
+
+    // ── Platform emergency switch (admin panel): no outgoing call is placed while it is on ──
+    await PlatformConfigService.ensureLoaded();
+    if (PlatformConfigService.isOutboundPaused()) {
+      throw new ValidationError('Outbound calling is paused', [
+        { field: 'calling', message: PlatformConfigService.getSwitches().outboundPausedMessage },
+      ]);
     }
 
     return withUserCallLock(userId, async () => {

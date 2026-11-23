@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { adminFetch } from '../lib/api';
+import { adminFetch, API_BASE } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import { fmtDateTime } from '../lib/format';
+import { Dialog, ErrorNote, SuccessNote, ReasonField, reasonOk, dangerBtn, secondaryBtn } from '../components/Dialog';
+
+/** A call that may still be connected (both stored spellings). */
+const isLive = (status: string) => ['in_progress', 'in-progress', 'ringing', 'initiated', 'queued'].includes(status);
 import {
   PhoneCall,
   Search,
@@ -18,7 +23,14 @@ interface CallsListProps {
 }
 
 export const CallsList: React.FC<CallsListProps> = ({ onSelectCustomer }) => {
-  const { staff } = useAuth();
+  const { staff, hasPermission } = useAuth();
+  const canTerminate = hasPermission('calls:terminate');
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [endTarget, setEndTarget] = useState<any | null>(null);
+  const [endReason, setEndReason] = useState('');
+  const [endBusy, setEndBusy] = useState(false);
+  const [endError, setEndError] = useState<string | null>(null);
+  const [endNotice, setEndNotice] = useState<string | null>(null);
   const [calls, setCalls] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -29,9 +41,38 @@ export const CallsList: React.FC<CallsListProps> = ({ onSelectCustomer }) => {
   const [directionFilter, setDirectionFilter] = useState('all');
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
 
+  // Asks the server for a short-lived signed link (each play is written to the admin audit log).
+  const openRecording = async (callId: string) => {
+    try {
+      setLoadError(null);
+      const res = await adminFetch<{ data: { url: string } }>(`/api/v2/admin/calls/${callId}/recording-link`, { method: 'POST', body: JSON.stringify({}) });
+      setPlaybackUrl(`${API_BASE}${res.data.url}`);
+    } catch (err: any) {
+      setLoadError(err?.message || 'Could not open the recording');
+    }
+  };
+
+  const endCall = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!endTarget || !reasonOk(endReason)) return;
+    setEndBusy(true);
+    setEndError(null);
+    try {
+      await adminFetch(`/api/v2/admin/calls/${endTarget.id}/terminate`, { method: 'POST', body: JSON.stringify({ reason: endReason.trim() }) });
+      setEndNotice(`Call to ${endTarget.recipientPhoneNumber} ended.`);
+      setEndTarget(null);
+      fetchCalls();
+    } catch (err: any) {
+      setEndError(err?.message || 'Could not end the call');
+    } finally {
+      setEndBusy(false);
+    }
+  };
+
   const fetchCalls = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '25',
@@ -51,8 +92,8 @@ export const CallsList: React.FC<CallsListProps> = ({ onSelectCustomer }) => {
         setTotalPages(res.pagination.totalPages || 1);
         setTotalCount(res.pagination.total || 0);
       }
-    } catch (err) {
-      console.error('Failed to load calls', err);
+    } catch (err: any) {
+      setLoadError(err?.message || 'Failed to load calls');
     } finally {
       setLoading(false);
     }
@@ -66,7 +107,7 @@ export const CallsList: React.FC<CallsListProps> = ({ onSelectCustomer }) => {
 
   // Identify stale in-progress/ringing calls (> 2 hours old)
   const staleCalls = calls.filter((c) => {
-    if (c.status !== 'in_progress' && c.status !== 'ringing') return false;
+    if (!isLive(c.status)) return false;
     const createdAt = new Date(c.createdAt).getTime();
     return Date.now() - createdAt > 2 * 60 * 60 * 1000;
   });
@@ -86,6 +127,7 @@ export const CallsList: React.FC<CallsListProps> = ({ onSelectCustomer }) => {
         return 'bg-amber-950/60 text-amber-400 border-amber-800/60';
       case 'failed':
       case 'no_answer':
+      case 'no-answer':
       case 'busy':
         return 'bg-red-950/60 text-red-400 border-red-800/60';
       case 'canceled':
@@ -107,6 +149,9 @@ export const CallsList: React.FC<CallsListProps> = ({ onSelectCustomer }) => {
           Real-time and historic call sessions across all customer agents and batch campaigns ({totalCount} total)
         </p>
       </div>
+
+      <ErrorNote message={loadError} />
+      <SuccessNote message={endNotice} />
 
       {/* Stale Calls Alert Banner */}
       {staleCalls.length > 0 && (
@@ -163,7 +208,7 @@ export const CallsList: React.FC<CallsListProps> = ({ onSelectCustomer }) => {
               <option value="failed" className="bg-zinc-950">Failed</option>
               <option value="no_answer" className="bg-zinc-950">No Answer</option>
               <option value="busy" className="bg-zinc-950">Busy</option>
-              <option value="canceled" className="bg-zinc-950">Canceled</option>
+              <option value="cancelled" className="bg-zinc-950">Cancelled</option>
             </select>
           </div>
 
@@ -219,7 +264,7 @@ export const CallsList: React.FC<CallsListProps> = ({ onSelectCustomer }) => {
                 </tr>
               ) : (
                 calls.map((c) => {
-                  const isStale = (c.status === 'in_progress' || c.status === 'ringing') &&
+                  const isStale = isLive(c.status) &&
                     Date.now() - new Date(c.createdAt).getTime() > 2 * 60 * 60 * 1000;
 
                   return (
@@ -239,6 +284,15 @@ export const CallsList: React.FC<CallsListProps> = ({ onSelectCustomer }) => {
                         >
                           {c.status} {isStale ? '(STALE)' : ''}
                         </span>
+                        {canTerminate && isLive(c.status) && (
+                          <button
+                            type="button"
+                            onClick={() => { setEndTarget(c); setEndReason(''); setEndError(null); }}
+                            className="block mt-1 text-[10px] text-red-300 hover:text-white underline cursor-pointer"
+                          >
+                            End call
+                          </button>
+                        )}
                       </td>
                       <td className="px-3 py-3.5">
                         {c.endReason ? (
@@ -258,9 +312,9 @@ export const CallsList: React.FC<CallsListProps> = ({ onSelectCustomer }) => {
                       <td className="px-4 py-3.5">
                         <button
                           type="button"
-                          onClick={() => c.userId && onSelectCustomer?.(c.userId)}
+                          onClick={() => c.user?.id && onSelectCustomer?.(c.user.id)}
                           className={`text-left text-white font-medium truncate max-w-xs block ${
-                            onSelectCustomer && c.userId ? 'cursor-pointer hover:underline' : ''
+                            onSelectCustomer && c.user?.id ? 'cursor-pointer hover:underline' : ''
                           }`}
                         >
                           {c.user?.fullName || 'User'}
@@ -282,13 +336,13 @@ export const CallsList: React.FC<CallsListProps> = ({ onSelectCustomer }) => {
                       </td>
 
                       <td className="px-4 py-3.5 font-mono text-[11px] text-zinc-400">
-                        {new Date(c.createdAt).toLocaleString()}
+                        {fmtDateTime(c.createdAt)}
                       </td>
                       <td className="px-4 py-3.5 text-right">
                         {isOwner ? (
-                          c.recordingUrl ? (
+                          c.hasRecording ? (
                             <button
-                              onClick={() => setPlaybackUrl(c.recordingUrl)}
+                              onClick={() => openRecording(c.id)}
                               className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-700 text-[11px] font-medium inline-flex items-center gap-1 cursor-pointer"
                             >
                               <Play className="h-3 w-3" />
@@ -356,6 +410,17 @@ export const CallsList: React.FC<CallsListProps> = ({ onSelectCustomer }) => {
           </div>
         </div>
       )}
+
+      <Dialog open={endTarget !== null} onClose={() => { if (!endBusy) setEndTarget(null); }} title="End this call now?" description={endTarget ? `Hangs up the call to ${endTarget.recipientPhoneNumber} for both sides. Minutes used so far are billed once, as usual.` : ''}>
+        <ErrorNote message={endError} />
+        <form onSubmit={endCall} className="space-y-4">
+          <ReasonField value={endReason} onChange={setEndReason} placeholder="e.g. Stuck call, customer complaint, abuse" />
+          <div className="flex justify-end gap-2">
+            <button type="button" className={secondaryBtn} onClick={() => setEndTarget(null)} disabled={endBusy}>Cancel</button>
+            <button type="submit" className={dangerBtn} disabled={endBusy || !reasonOk(endReason)}>{endBusy ? 'Ending…' : 'End call'}</button>
+          </div>
+        </form>
+      </Dialog>
     </div>
   );
 };

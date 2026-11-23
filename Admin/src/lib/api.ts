@@ -4,7 +4,7 @@ const isLocal =
   typeof window !== 'undefined' &&
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-const API_BASE =
+export const API_BASE =
   import.meta.env.VITE_API_BASE ||
   (isLocal
     ? 'http://localhost:3001'
@@ -22,6 +22,45 @@ export class AdminApiError extends Error {
     this.code = code;
     this.data = data;
   }
+}
+
+/**
+ * One key per dialog opening: the server applies an action with the same key only once, so a
+ * double click or a network retry never grants minutes or a plan twice.
+ */
+export function newRequestKey(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return `k${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`;
+}
+
+/**
+ * Downloads a file from an admin endpoint WITH the sign-in token (a plain link or window.open
+ * sends no token, so every export used to fail with 401).
+ */
+export async function adminDownload(endpoint: string, fallbackName: string): Promise<void> {
+  const session = (await supabase.auth.getSession()).data.session;
+  const res = await fetch(`${API_BASE}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`, {
+    headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+  });
+  if (!res.ok) {
+    let msg = `Download failed (HTTP ${res.status})`;
+    try {
+      const body = await res.json();
+      msg = body.message || body.error || msg;
+    } catch { /* not JSON */ }
+    throw new AdminApiError(msg, res.status);
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get('content-disposition') || '';
+  const match = disposition.match(/filename="?([^";]+)"?/i);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = match ? match[1] : fallbackName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export async function adminFetch<T = any>(

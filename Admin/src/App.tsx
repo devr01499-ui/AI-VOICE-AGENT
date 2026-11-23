@@ -12,12 +12,13 @@ import { AuditLogsList } from './pages/AuditLogsList';
 import { StaffList } from './pages/StaffList';
 import { PlansList } from './pages/PlansList';
 import { Settings } from './pages/Settings';
+import { ControlPanel } from './pages/ControlPanel';
 import { UsagePage } from './pages/UsagePage';
 import { Login } from './pages/Login';
 import { MfaEnroll } from './pages/MfaEnroll';
 
 const AdminRouter: React.FC = () => {
-  const { user, mfaRequired, loading } = useAuth();
+  const { user, staff, mfaRequired, accessDenied, error: authError, loading, signOut, recheck } = useAuth();
   const [currentPath, setCurrentPath] = useState<string>('/overview');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
@@ -94,6 +95,28 @@ const AdminRouter: React.FC = () => {
     return <MfaEnroll onVerified={() => navigate('/overview')} />;
   }
 
+  // Signed in, but the server did not confirm an active staff member (or could not be reached):
+  // never render the console shell without a verified staff profile.
+  if (!staff) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center p-4 text-white">
+        <div className="max-w-md w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-6 space-y-4 text-center">
+          <h1 className="text-base font-bold">{accessDenied ? 'No access to the admin console' : 'Could not open the console'}</h1>
+          <p className="text-xs text-zinc-400 break-words">
+            {accessDenied || authError || 'The server did not confirm your staff access.'}
+          </p>
+          <p className="text-[11px] text-zinc-500 break-all">Signed in as {user.email}</p>
+          <div className="flex justify-center gap-2">
+            {!accessDenied && (
+              <button onClick={() => recheck()} className="px-4 py-2 bg-white text-black font-semibold rounded-xl text-xs cursor-pointer">Try again</button>
+            )}
+            <button onClick={() => signOut()} className="px-4 py-2 bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-xl text-xs cursor-pointer">Sign out</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Render current page content
   const renderContent = () => {
     if (selectedCustomerId) {
@@ -126,6 +149,8 @@ const AdminRouter: React.FC = () => {
         return <AuditLogsList />;
       case '/settings':
         return <Settings />;
+      case '/control':
+        return <ControlPanel />;
       default:
         return (
           <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-8 text-center space-y-3">

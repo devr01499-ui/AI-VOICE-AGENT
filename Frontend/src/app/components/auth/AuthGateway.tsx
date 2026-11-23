@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { apiClient } from '../../api';
 import { initialAuthRedirect } from '../../lib/authRedirect';
+import { usePlatformState, AUTH_NOTICE_KEY } from '../../lib/plans';
 import { normalizePhoneNumber, isValidEmailFormat, passwordPolicyError } from '../../lib/phone';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -253,7 +254,16 @@ export default function AuthGateway({ onSuccess, forceReset = false }: AuthGatew
   const [contactNumber, setContactNumber] = useState('');
   const [loading, setLoading] = useState(false);
   // A failed or expired email/OAuth link is explained once, on arrival.
-  const [error, setError] = useState(initialAuthRedirect.errorMessage || '');
+  // A notice left by the dashboard (a new account refused while sign-ups are paused) wins.
+  const [error, setError] = useState(() => {
+    try {
+      const notice = sessionStorage.getItem(AUTH_NOTICE_KEY);
+      if (notice) { sessionStorage.removeItem(AUTH_NOTICE_KEY); return notice; }
+    } catch { /* private mode */ }
+    return initialAuthRedirect.errorMessage || '';
+  });
+  // Admin-panel switch: new sign-ups paused (the server refuses them either way).
+  const platform = usePlatformState();
   const [message, setMessage] = useState('');
   const [honeypot, setHoneypot] = useState('');
 
@@ -539,6 +549,11 @@ export default function AuthGateway({ onSuccess, forceReset = false }: AuthGatew
               )}
 
               {/* Error/success banners */}
+              {mode === 'signup' && platform.signupsPaused && (
+                <div role="status" className="bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl p-3.5 text-xs">
+                  {platform.signupsPausedMessage || 'New sign-ups are paused right now. Existing customers can still sign in.'}
+                </div>
+              )}
               <AnimatePresence>
                 {error && (
                   <motion.div

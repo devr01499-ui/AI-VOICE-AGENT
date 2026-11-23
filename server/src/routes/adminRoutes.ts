@@ -10,24 +10,109 @@ import { withAudit } from '../admin/audit';
 import { validateGrantCap, getRoleCaps, validateDiscountCap } from '../admin/capEnforcement';
 import { BillingService } from '../services/BillingService';
 import { CallService } from '../services/CallService';
-import { supabaseAdmin } from '../utils/supabase';
+import { logAdminRead } from '../admin/audit';
+import { PLAN_CONFIG, PLAN_VALIDITY_DAYS } from '../config/plans';
+import { PlatformConfigService } from '../services/PlatformConfigService';
+import { NotificationService, ANNOUNCEMENT_TYPE } from '../services/NotificationService';
 import rateLimit from 'express-rate-limit';
 
-const billingService = new BillingService();
+/** Built per use, so a test (or a key rotation) that swaps the gateway client is honoured. */
+const billing = () => new BillingService();
 
 export const adminRouter = Router();
 
-// Staff rate limiter keyed strictly by staffId (not IP)
-const staffRateLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 120, // 120 requests per minute per staff member
-  keyGenerator: (req: any) => req.staff?.id || 'unknown_staff',
+// Pre-sign-in limiter, counted per client IP (who the caller is is not known yet at this point).
+// The per-staff limit (120/min) is applied inside requireStaff once the person is verified.
+const adminIpLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
   handler: (_req, res) => {
     res.status(429).json({ error: 'RATE_LIMIT_EXCEEDED', message: 'Too many admin requests. Please slow down.' });
   },
 });
 
-adminRouter.use(staffRateLimiter);
+adminRouter.use(adminIpLimiter);
+
+// ─── Shared input rules ─────────────────────────
+/** Largest number of minutes one admin action may add or remove. */
+export const MAX_ADMIN_MINUTES = 100_000;
+const ACCOUNT_STATUSES = ['active', 'restricted', 'suspended'];
+const CUSTOMER_SORTS: Record<string, any> = {
+  newest: [{ createdAt: 'desc' }, { id: 'asc' }],
+  oldest: [{ createdAt: 'asc' }, { id: 'asc' }],
+  minutes: [{ minutesRemainingSeconds: 'desc' }, { id: 'asc' }],
+  calls: [{ calls: { _count: 'desc' } }, { id: 'asc' }],
+};
+const RISK_LEVELS = ['none', 'watch', 'high'];
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+function paramOf(req: StaffAuthenticatedRequest, name = 'id'): string {
+  const v = (req.params as Record<string, string | string[]>)[name];
+  return String(Array.isArray(v) ? v[0] : v || '');
+}
+
+function requestIdOf(req: StaffAuthenticatedRequest): string | undefined {
+  const h = req.headers['x-request-id'];
+  const v = Array.isArray(h) ? h[0] : h;
+  return typeof v === 'string' && v.length <= 100 ? v : undefined;
+}
+
+/** A written reason (3-500 characters) is required for every change. */
+function reasonOf(body: any): string | null {
+  const r = body?.reason;
+  if (typeof r !== 'string') return null;
+  const t = r.trim();
+  return t.length >= 3 && t.length <= 500 ? t : null;
+}
+
+/** Whole minutes, 1 .. MAX_ADMIN_MINUTES. Anything else (text, decimals, negatives) is refused. */
+function wholeMinutesOf(v: unknown): number | null {
+  const n = typeof v === 'string' && v.trim() !== '' ? Number(v) : v;
+  return typeof n === 'number' && Number.isInteger(n) && n > 0 && n <= MAX_ADMIN_MINUTES ? n : null;
+}
+
+/** The browser sends one key per dialog, so a double click or a retry never applies twice. */
+function idempotencyKeyOf(req: StaffAuthenticatedRequest): string | null {
+  const raw = req.body?.idempotencyKey ?? req.headers['idempotency-key'];
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  return typeof v === 'string' && /^[A-Za-z0-9_:.-]{8,128}$/.test(v) ? v : null;
+}
+
+async function customerExists(id: string): Promise<boolean> {
+  if (!id || id.length > 100) return false;
+  return Boolean(await prisma.user.findUnique({ where: { id }, select: { id: true } }));
+}
+
+function auditBase(req: StaffAuthenticatedRequest) {
+  return { staff: req.staff!, ip: req.ip, userAgent: req.get('User-Agent'), requestId: requestIdOf(req) };
+}
+
+/** "ABCDE1234F" -> "******234F": staff can match a document without seeing the full number. */
+function maskTail(v: string | null | undefined, keep = 4): string | null {
+  if (!v) return v ?? null;
+  const s = String(v);
+  return s.length <= keep ? '*'.repeat(s.length) : `${'*'.repeat(s.length - keep)}${s.slice(-keep)}`;
+}
+
+/** Known service errors become a plain message with the right status; anything else is generic. */
+function sendServiceError(res: Response, err: any, fallback: string): void {
+  const msg = String(err?.message || '');
+  if (msg.startsWith('INSUFFICIENT_BALANCE')) {
+    res.status(400).json({ error: 'INSUFFICIENT_BALANCE', message: 'The customer does not have that many minutes. Lower the amount (only the owner may push a balance below zero).' });
+    return;
+  }
+  if (msg.startsWith('USER_NOT_FOUND')) {
+    res.status(404).json({ error: 'NOT_FOUND', message: 'Customer not found.' });
+    return;
+  }
+  if (msg.startsWith('AUDIT_ERROR')) {
+    res.status(400).json({ error: 'REASON_REQUIRED', message: 'A reason is required.' });
+    return;
+  }
+  res.status(500).json({ error: 'INTERNAL_ERROR', message: fallback });
+}
 
 /**
  * GET /api/v2/admin/me
@@ -61,14 +146,18 @@ adminRouter.get('/health', requireStaff('metrics:view'), async (req: StaffAuthen
     await prisma.$queryRaw`SELECT 1`;
     dbLatencyMs = Date.now() - startTime;
   } catch (err: any) {
-    dbStatus = `unhealthy: ${err.message}`;
+    // The raw driver message can name hosts and users: it goes to the log, not the screen.
+    logger.error('[ADMIN_API] Health: database check failed', { error: err?.message });
+    dbStatus = 'unhealthy';
   }
 
-  // Ledger reconciliation check count
+  // Ledger reconciliation check on the 20 most recently active accounts (a fixed sample of the
+  // oldest rows never looked at anyone who actually uses the product).
   let ledgerMismatchesCount = 0;
   try {
     const userSample = await prisma.user.findMany({
       take: 20,
+      orderBy: { updatedAt: 'desc' },
       select: { id: true },
     });
     for (const u of userSample) {
@@ -82,6 +171,7 @@ adminRouter.get('/health', requireStaff('metrics:view'), async (req: StaffAuthen
   const geminiConfigured = !!process.env.GEMINI_API_KEY;
   const razorpayConfigured = !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
   const trustProxyActive = req.app.get('trust proxy') === 1;
+  const configured = (name: string) => Boolean(process.env[name] && String(process.env[name]).trim());
 
   res.status(200).json({
     success: true,
@@ -92,7 +182,21 @@ adminRouter.get('/health', requireStaff('metrics:view'), async (req: StaffAuthen
       integrations: {
         gemini: geminiConfigured ? 'configured' : 'missing_key',
         razorpay: razorpayConfigured ? 'configured' : 'missing_credentials',
+        razorpayWebhook: configured('RAZORPAY_WEBHOOK_SECRET') ? 'configured' : 'missing_secret',
+        carrierVobiz: configured('VOBIZ_AUTH_ID') ? 'configured' : 'not_configured',
+        carrierPlivo: configured('PLIVO_AUTH_ID') ? 'configured' : 'not_configured',
+        email: configured('RESEND_API_KEY') ? 'configured' : 'not_configured',
         trustProxy: trustProxyActive ? 'active (level 1)' : 'misconfigured',
+      },
+      // Real state of the admin console's own protections (the Settings page shows these instead of
+      // fixed text). Booleans only: no address lists or secrets leave the server.
+      security: {
+        strictAuth: process.env.ENABLE_STRICT_AUTH === 'true',
+        ipAllowlistEnabled: configured('ADMIN_IP_ALLOWLIST'),
+        adminOrigin: process.env.ADMIN_ORIGIN || 'https://admin.claritiy.com',
+        encryptionKeySet: configured('ENCRYPTION_KEY'),
+        twoFactorRequiredForAllRoles: true,
+        staffRateLimitPerMinute: 120,
       },
       audit: {
         ledgerSampleMismatches: ledgerMismatchesCount,
@@ -105,17 +209,25 @@ adminRouter.get('/health', requireStaff('metrics:view'), async (req: StaffAuthen
 /**
  * POST /api/v2/admin/customers/:id/suspend
  */
-adminRouter.post('/customers/:id/suspend', requireStaff('customers:suspend'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
-  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const { category, reason } = req.body;
+export const SUSPENSION_CATEGORIES: SuspensionCategory[] = [
+  'illegal_activity', 'telecom_abuse', 'payment_fraud', 'non_compliance', 'suspicious_traffic', 'requested_by_user', 'other',
+];
 
-  if (!category || !reason || !reason.trim()) {
-    res.status(400).json({ error: 'category and detailed reason are required.' });
+adminRouter.post('/customers/:id/suspend', requireStaff('customers:suspend'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const id = paramOf(req);
+  const category = req.body?.category;
+  const reason = reasonOf(req.body);
+
+  if (!SUSPENSION_CATEGORIES.includes(category) || !reason) {
+    res.status(400).json({ error: 'VALIDATION_ERROR', message: `A category (${SUSPENSION_CATEGORIES.join(', ')}) and a reason of at least 3 characters are required.` });
+    return;
+  }
+  if (!(await customerExists(id))) {
+    res.status(404).json({ error: 'NOT_FOUND', message: 'Customer not found.' });
     return;
   }
 
-  const reqIdHeader = req.headers['x-request-id'];
-  const requestId = (Array.isArray(reqIdHeader) ? reqIdHeader[0] : reqIdHeader) || undefined;
+  const requestId = requestIdOf(req);
 
   try {
     const updated = await AccountEnforcementService.suspendAccount({
@@ -139,16 +251,19 @@ adminRouter.post('/customers/:id/suspend', requireStaff('customers:suspend'), as
  * POST /api/v2/admin/customers/:id/restrict
  */
 adminRouter.post('/customers/:id/restrict', requireStaff('customers:restrict'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
-  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const { reason } = req.body;
+  const id = paramOf(req);
+  const reason = reasonOf(req.body);
 
-  if (!reason || !reason.trim()) {
-    res.status(400).json({ error: 'reason is required.' });
+  if (!reason) {
+    res.status(400).json({ error: 'VALIDATION_ERROR', message: 'A reason of at least 3 characters is required.' });
+    return;
+  }
+  if (!(await customerExists(id))) {
+    res.status(404).json({ error: 'NOT_FOUND', message: 'Customer not found.' });
     return;
   }
 
-  const reqIdHeader = req.headers['x-request-id'];
-  const requestId = (Array.isArray(reqIdHeader) ? reqIdHeader[0] : reqIdHeader) || undefined;
+  const requestId = requestIdOf(req);
 
   try {
     const updated = await AccountEnforcementService.restrictAccount({
@@ -171,16 +286,19 @@ adminRouter.post('/customers/:id/restrict', requireStaff('customers:restrict'), 
  * POST /api/v2/admin/customers/:id/restore
  */
 adminRouter.post('/customers/:id/restore', requireStaff('customers:restore'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
-  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const { reason } = req.body;
+  const id = paramOf(req);
+  const reason = reasonOf(req.body);
 
-  if (!reason || !reason.trim()) {
-    res.status(400).json({ error: 'reason is required.' });
+  if (!reason) {
+    res.status(400).json({ error: 'VALIDATION_ERROR', message: 'A reason of at least 3 characters is required.' });
+    return;
+  }
+  if (!(await customerExists(id))) {
+    res.status(404).json({ error: 'NOT_FOUND', message: 'Customer not found.' });
     return;
   }
 
-  const reqIdHeader = req.headers['x-request-id'];
-  const requestId = (Array.isArray(reqIdHeader) ? reqIdHeader[0] : reqIdHeader) || undefined;
+  const requestId = requestIdOf(req);
 
   try {
     const updated = await AccountEnforcementService.restoreAccount({
@@ -203,62 +321,71 @@ adminRouter.post('/customers/:id/restore', requireStaff('customers:restore'), as
  * POST /api/v2/admin/customers/:id/minutes/grant
  */
 adminRouter.post('/customers/:id/minutes/grant', requireStaff('minutes:grant'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
-  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const { minutes, reason, idempotencyKey } = req.body;
+  const id = paramOf(req);
+  const minutes = wholeMinutesOf(req.body?.minutes);
+  const reason = reasonOf(req.body);
+  const key = idempotencyKeyOf(req);
 
-  if (!minutes || minutes <= 0 || !reason || !reason.trim()) {
-    res.status(400).json({ error: 'minutes (> 0) and reason are required.' });
+  if (minutes === null || !reason) {
+    res.status(400).json({ error: 'VALIDATION_ERROR', message: `Minutes must be a whole number from 1 to ${MAX_ADMIN_MINUTES.toLocaleString('en-IN')}, and a reason is required.` });
+    return;
+  }
+  if (!key) {
+    res.status(400).json({ error: 'IDEMPOTENCY_KEY_REQUIRED', message: 'Missing request key. Reload the page and try again.' });
+    return;
+  }
+  if (!(await customerExists(id))) {
+    res.status(404).json({ error: 'NOT_FOUND', message: 'Customer not found.' });
     return;
   }
 
-  // Enforce staff role grant cap per Founder Decision #3
-  const capError = await validateGrantCap(req.staff!.role, req.staff!.id, Number(minutes));
-  if (capError) {
-    res.status(403).json({ error: 'OVER_ROLE_CAP', message: capError });
+  // A retry of the same dialog (same key) returns the first result without counting against the cap.
+  const replay = await prisma.minutesLedger.findUnique({ where: { idempotencyKey: `admin_grant:${key}` } });
+  if (!replay) {
+    // Enforce staff role grant cap per Founder Decision #3
+    const capError = await validateGrantCap(req.staff!.role, req.staff!.id, minutes);
+    if (capError) {
+      res.status(403).json({ error: 'OVER_ROLE_CAP', message: capError });
+      return;
+    }
+  } else if (replay.userId !== id) {
+    res.status(409).json({ error: 'IDEMPOTENCY_KEY_REUSED', message: 'This request key belongs to another action. Reload the page and try again.' });
     return;
   }
-
-  const rawIdempotency = idempotencyKey || req.headers['idempotency-key'];
-  const effectiveIdempotencyKey = (Array.isArray(rawIdempotency) ? rawIdempotency[0] : rawIdempotency || `grant_${id}_${Date.now()}`) as string;
-  const reqIdHeader = req.headers['x-request-id'];
-  const requestId = (Array.isArray(reqIdHeader) ? reqIdHeader[0] : reqIdHeader) || undefined;
 
   try {
     const result = await withAudit(
       {
-        staff: req.staff!,
+        ...auditBase(req),
         action: 'minutes:grant',
         targetType: 'User',
         targetId: id,
         customerId: id,
-        reason: reason.trim(),
+        reason,
         isCustomerVisible: true,
         customerActionDescription: `Granted ${minutes} promotional minutes by Claritiy Support`,
-        requestId,
-        ip: req.ip,
-        userAgent: req.get('User-Agent'),
       },
       async (tx) => {
         const credit = await MinutesService.credit(
           {
             userId: id,
-            deltaSeconds: Math.round(minutes * 60),
+            deltaSeconds: minutes * 60,
             reason: 'admin_grant',
-            note: reason.trim(),
+            note: reason,
             actorType: 'staff',
             actorId: req.staff!.id,
-            idempotencyKey: effectiveIdempotencyKey,
+            idempotencyKey: `admin_grant:${key}`,
           },
           tx
         );
-        return { result: credit, after: { grantedMinutes: minutes, newBalanceSeconds: credit.balanceSeconds } };
+        return { result: credit, after: { grantedMinutes: minutes, newBalanceSeconds: credit.balanceSeconds, idempotent: Boolean(replay) } };
       }
     );
 
     res.status(200).json({ success: true, data: result });
   } catch (err: any) {
     logger.error('[ADMIN_API] Failed to grant minutes', { customerId: id, error: err.message });
-    res.status(500).json({ error: err.message || 'Failed to grant minutes' });
+    sendServiceError(res, err, 'Failed to grant minutes.');
   }
 });
 
@@ -266,11 +393,17 @@ adminRouter.post('/customers/:id/minutes/grant', requireStaff('minutes:grant'), 
  * POST /api/v2/admin/customers/:id/minutes/deduct
  */
 adminRouter.post('/customers/:id/minutes/deduct', requireStaff('minutes:deduct'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
-  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const { minutes, reason, allowNegative, idempotencyKey } = req.body;
+  const id = paramOf(req);
+  const minutes = wholeMinutesOf(req.body?.minutes);
+  const reason = reasonOf(req.body);
+  const key = idempotencyKeyOf(req);
 
-  if (!minutes || minutes <= 0 || !reason || !reason.trim()) {
-    res.status(400).json({ error: 'minutes (> 0) and reason are required.' });
+  if (minutes === null || !reason) {
+    res.status(400).json({ error: 'VALIDATION_ERROR', message: `Minutes must be a whole number from 1 to ${MAX_ADMIN_MINUTES.toLocaleString('en-IN')}, and a reason is required.` });
+    return;
+  }
+  if (!key) {
+    res.status(400).json({ error: 'IDEMPOTENCY_KEY_REQUIRED', message: 'Missing request key. Reload the page and try again.' });
     return;
   }
 
@@ -280,39 +413,41 @@ adminRouter.post('/customers/:id/minutes/deduct', requireStaff('minutes:deduct')
     res.status(403).json({ error: 'FORBIDDEN', message: `Your role (${req.staff!.role}) does not have permission to deduct minutes.` });
     return;
   }
+  if (!(await customerExists(id))) {
+    res.status(404).json({ error: 'NOT_FOUND', message: 'Customer not found.' });
+    return;
+  }
+  const replay = await prisma.minutesLedger.findUnique({ where: { idempotencyKey: `admin_deduct:${key}` }, select: { userId: true } });
+  if (replay && replay.userId !== id) {
+    res.status(409).json({ error: 'IDEMPOTENCY_KEY_REUSED', message: 'This request key belongs to another action. Reload the page and try again.' });
+    return;
+  }
 
   // Only Owner can force negative balance
-  const canAllowNegative = req.staff!.role === 'owner' && allowNegative === true;
-  const rawIdempotency = idempotencyKey || req.headers['idempotency-key'];
-  const effectiveIdempotencyKey = (Array.isArray(rawIdempotency) ? rawIdempotency[0] : rawIdempotency || `deduct_${id}_${Date.now()}`) as string;
-  const reqIdHeader = req.headers['x-request-id'];
-  const requestId = (Array.isArray(reqIdHeader) ? reqIdHeader[0] : reqIdHeader) || undefined;
+  const canAllowNegative = req.staff!.role === 'owner' && req.body?.allowNegative === true;
 
   try {
     const result = await withAudit(
       {
-        staff: req.staff!,
+        ...auditBase(req),
         action: 'minutes:deduct',
         targetType: 'User',
         targetId: id,
         customerId: id,
-        reason: reason.trim(),
+        reason,
         isCustomerVisible: true,
         customerActionDescription: `Deducted ${minutes} minutes by Claritiy Support`,
-        requestId,
-        ip: req.ip,
-        userAgent: req.get('User-Agent'),
       },
       async (tx) => {
         const debit = await MinutesService.debit(
           {
             userId: id,
-            deltaSeconds: Math.round(minutes * 60),
+            deltaSeconds: minutes * 60,
             reason: 'admin_deduct',
-            note: reason.trim(),
+            note: reason,
             actorType: 'staff',
             actorId: req.staff!.id,
-            idempotencyKey: effectiveIdempotencyKey,
+            idempotencyKey: `admin_deduct:${key}`,
             allowNegative: canAllowNegative,
           },
           tx
@@ -324,7 +459,7 @@ adminRouter.post('/customers/:id/minutes/deduct', requireStaff('minutes:deduct')
     res.status(200).json({ success: true, data: result });
   } catch (err: any) {
     logger.error('[ADMIN_API] Failed to deduct minutes', { customerId: id, error: err.message });
-    res.status(500).json({ error: err.message || 'Failed to deduct minutes' });
+    sendServiceError(res, err, 'Failed to deduct minutes.');
   }
 });
 
@@ -364,16 +499,17 @@ adminRouter.get('/staff', requireStaff('staff:manage'), async (req: StaffAuthent
  * Invites a new staff member with a specified role.
  */
 adminRouter.post('/staff/invite', requireStaff('staff:manage'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
-  const { email, name, role } = req.body;
+  const { email, name, role } = req.body || {};
 
-  if (!email || !name || !role) {
-    res.status(400).json({ error: 'email, name, and role are required.' });
+  if (typeof email !== 'string' || !EMAIL_RE.test(email.trim()) || email.length > 254
+    || typeof name !== 'string' || !name.trim() || name.trim().length > 100) {
+    res.status(400).json({ error: 'VALIDATION_ERROR', message: 'A valid email address and a name (up to 100 characters) are required.' });
     return;
   }
 
   const validRoles: StaffRole[] = ['owner', 'admin', 'sales', 'support', 'finance'];
   if (!validRoles.includes(role)) {
-    res.status(400).json({ error: `Invalid role. Must be one of: ${validRoles.join(', ')}` });
+    res.status(400).json({ error: 'INVALID_ROLE', message: `Invalid role. Must be one of: ${validRoles.join(', ')}` });
     return;
   }
 
@@ -415,8 +551,12 @@ adminRouter.post('/staff/invite', requireStaff('staff:manage'), async (req: Staf
 
     res.status(201).json({ success: true, data: newStaff });
   } catch (err: any) {
-    logger.error('[ADMIN_API] Failed to invite staff', { email: normalizedEmail, error: err.message });
-    res.status(500).json({ error: err.message || 'Failed to invite staff member' });
+    if (err?.code === 'P2002') {
+      res.status(409).json({ error: 'CONFLICT', message: 'A staff member with this email already exists.' });
+      return;
+    }
+    logger.error('[ADMIN_API] Failed to invite staff', { error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to invite staff member.' });
   }
 });
 
@@ -436,6 +576,10 @@ adminRouter.patch('/staff/:id', requireStaff('staff:manage'), async (req: StaffA
   const validRoles: StaffRole[] = ['owner', 'admin', 'sales', 'support', 'finance'];
   if (role !== undefined && role !== null && role !== '' && !validRoles.includes(role)) {
     res.status(400).json({ error: 'INVALID_ROLE', message: `Invalid role. Must be one of: ${validRoles.join(', ')}` });
+    return;
+  }
+  if (name !== undefined && name !== null && (typeof name !== 'string' || !name.trim() || name.trim().length > 100)) {
+    res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Name must be 1-100 characters.' });
     return;
   }
 
@@ -497,7 +641,7 @@ adminRouter.patch('/staff/:id', requireStaff('staff:manage'), async (req: StaffA
     res.status(200).json({ success: true, data: updated });
   } catch (err: any) {
     logger.error('[ADMIN_API] Failed to update staff', { targetId, error: err.message });
-    res.status(500).json({ error: err.message || 'Failed to update staff member' });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to update staff member.' });
   }
 });
 
@@ -562,25 +706,14 @@ adminRouter.post('/staff/:id/disable', requireStaff('staff:manage'), async (req:
       }
     );
 
-    // Revoke Supabase sessions if supabaseAdmin is configured
-    if (supabaseAdmin) {
-      try {
-        // Attempt session signout via Supabase admin API
-        const { data: users } = await supabaseAdmin.auth.admin.listUsers();
-        const supaUser = users?.users?.find((u) => u.email?.toLowerCase() === targetStaff.email.toLowerCase());
-        if (supaUser) {
-          await supabaseAdmin.auth.admin.signOut(supaUser.id);
-          logger.info('[ADMIN_API] Revoked Supabase session for disabled staff', { email: targetStaff.email, supaUserId: supaUser.id });
-        }
-      } catch (authRevokeErr: any) {
-        logger.warn('[ADMIN_API] Non-fatal: Supabase session revocation failed', { error: authRevokeErr.message });
-      }
-    }
-
+    // No session revocation call is needed: requireStaff re-reads the staff row on every request,
+    // so a disabled person is refused from their very next request. (The old code listed only the
+    // first 50 sign-in accounts and passed a user id where Supabase expects the user's own token,
+    // so it never signed anyone out.)
     res.status(200).json({ success: true, data: disabled });
   } catch (err: any) {
     logger.error('[ADMIN_API] Failed to disable staff', { targetId, error: err.message });
-    res.status(500).json({ error: err.message || 'Failed to disable staff member' });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to disable staff member.' });
   }
 });
 
@@ -624,7 +757,7 @@ adminRouter.post('/staff/:id/enable', requireStaff('staff:manage'), async (req: 
     res.status(200).json({ success: true, data: enabled });
   } catch (err: any) {
     logger.error('[ADMIN_API] Failed to enable staff', { targetId, error: err.message });
-    res.status(500).json({ error: err.message || 'Failed to enable staff member' });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to enable staff member.' });
   }
 });
 
@@ -645,10 +778,22 @@ adminRouter.get('/customers', requireStaff('customers:view'), async (req: StaffA
   const whereClause: any = {};
 
   if (status && typeof status === 'string' && status !== 'all') {
+    if (!ACCOUNT_STATUSES.includes(status)) {
+      res.status(400).json({ error: 'VALIDATION_ERROR', message: `status must be one of: all, ${ACCOUNT_STATUSES.join(', ')}` });
+      return;
+    }
     whereClause.accountStatus = status;
+  }
+  if (typeof q === 'string' && q.length > 200) {
+    res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Search text is too long.' });
+    return;
   }
 
   if (risk && typeof risk === 'string' && risk !== 'all') {
+    if (!RISK_LEVELS.includes(risk)) {
+      res.status(400).json({ error: 'VALIDATION_ERROR', message: `risk must be one of: all, ${RISK_LEVELS.join(', ')}` });
+      return;
+    }
     const riskProfiles = await prisma.customerAdminProfile.findMany({
       where: { riskLevel: risk },
       select: { userId: true },
@@ -673,7 +818,8 @@ adminRouter.get('/customers', requireStaff('customers:view'), async (req: StaffA
         where: whereClause,
         skip,
         take,
-        orderBy: { createdAt: 'desc' },
+        // Sorted in the database (sorting one page in the browser showed the wrong customers).
+        orderBy: CUSTOMER_SORTS[typeof req.query.sort === 'string' && CUSTOMER_SORTS[req.query.sort] ? req.query.sort : 'newest'],
         select: {
           id: true,
           email: true,
@@ -745,30 +891,65 @@ adminRouter.get('/customers/:id', requireStaff('customers:view'), async (req: St
   const customerId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
   try {
+    // An explicit field list: the full row carried the password hash, the customer's own AI key,
+    // encrypted calendar tokens and the carrier sub-account token to every staff role.
     const user = await prisma.user.findUnique({
       where: { id: customerId },
-      include: {
-        vobizSubAccount: true,
-        phoneNumbers: {
-          select: { id: true, phoneNumber: true, status: true, kycStatus: true },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        contactNumber: true,
+        companyGstin: true,
+        accountType: true,
+        accountStatus: true,
+        suspendedAt: true,
+        suspendedReason: true,
+        callingBalanceMinutes: true,
+        minutesRemainingSeconds: true,
+        totalMinutesConsumed: true,
+        billingBalance: true,
+        planExpiresAt: true,
+        numberLocked: true,
+        maxConcurrentCalls: true,
+        dataRetentionDays: true,
+        lastSeenAt: true,
+        createdAt: true,
+        updatedAt: true,
+        vobizSubAccount: {
+          select: { authId: true, kycMode: true, kycStatus: true, businessType: true, kycCallsBlocked: true, kycVerifiedAt: true, createdAt: true },
         },
-        kycDocuments: true,
+        phoneNumbers: {
+          select: { id: true, phoneNumber: true, status: true, kycStatus: true, telephonyProvider: true, purchasedAt: true },
+        },
+        kycDocuments: {
+          select: {
+            id: true, documentType: true, status: true, panNumber: true, panType: true, fullName: true, gstin: true,
+            aadhaarNumber: true, failureReason: true, verifiedAt: true, createdAt: true, updatedAt: true,
+          },
+        },
       },
     });
 
     if (!user) {
-      res.status(404).json({ error: 'Customer not found' });
+      res.status(404).json({ error: 'NOT_FOUND', message: 'Customer not found' });
       return;
     }
+    const kycDocuments = user.kycDocuments.map((d) => ({
+      ...d,
+      panNumber: maskTail(d.panNumber),
+      aadhaarNumber: maskTail(d.aadhaarNumber),
+    }));
 
     const [callsCount, agentsCount, phoneNumbersCount, apiKeysCount, adminProfile, totalPayments] = await Promise.all([
       prisma.call.count({ where: { userId: customerId } }),
       prisma.agent.count({ where: { userId: customerId } }),
       prisma.phoneNumber.count({ where: { userId: customerId } }),
-      prisma.apiKey.count({ where: { userId: customerId } }),
+      prisma.apiKey.count({ where: { userId: customerId, isActive: true } }),
       prisma.customerAdminProfile.findUnique({ where: { userId: customerId } }),
+      // Fulfilled payments are stored as 'completed' ('paid' is kept for older rows).
       prisma.paymentTransaction.aggregate({
-        where: { userId: customerId, status: 'paid' },
+        where: { userId: customerId, status: { in: ['completed', 'paid'] } },
         _sum: { amount: true },
       }),
     ]);
@@ -777,6 +958,7 @@ adminRouter.get('/customers/:id', requireStaff('customers:view'), async (req: St
       success: true,
       data: {
         ...user,
+        kycDocuments,
         adminProfile: adminProfile || null,
         stats: {
           callsCount,
@@ -833,7 +1015,9 @@ adminRouter.get('/customers/:id/calls', requireStaff('customers:view'), async (r
 
     res.status(200).json({
       success: true,
-      data: calls,
+      // The carrier recording address never leaves the server: the owner gets hasRecording and
+      // asks POST /calls/:id/recording-link for a short-lived, audited playback link.
+      data: calls.map(({ recordingUrl, ...c }: any) => ({ ...c, hasRecording: isOwner ? Boolean(recordingUrl) : undefined })),
       pagination: {
         page: pageNum,
         limit: take,
@@ -1039,11 +1223,15 @@ adminRouter.get('/customers/:id/notes', requireStaff('customers:view'), async (r
  * Create a CRM note.
  */
 adminRouter.post('/customers/:id/notes', requireStaff('customers:edit'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
-  const customerId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const { body, pinned = false } = req.body;
+  const customerId = paramOf(req);
+  const { body, pinned = false } = req.body || {};
 
-  if (!body || !body.trim()) {
-    res.status(400).json({ error: 'Note body is required.' });
+  if (typeof body !== 'string' || !body.trim() || body.length > 5000) {
+    res.status(400).json({ error: 'VALIDATION_ERROR', message: 'A note of 1-5,000 characters is required.' });
+    return;
+  }
+  if (!(await customerExists(customerId))) {
+    res.status(404).json({ error: 'NOT_FOUND', message: 'Customer not found.' });
     return;
   }
 
@@ -1090,11 +1278,17 @@ adminRouter.get('/customers/:id/follow-ups', requireStaff('customers:view'), asy
  * Schedule a new follow-up.
  */
 adminRouter.post('/customers/:id/follow-ups', requireStaff('customers:edit'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
-  const customerId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const { note, dueAt } = req.body;
+  const customerId = paramOf(req);
+  const { note, dueAt } = req.body || {};
+  const due = typeof dueAt === 'string' || typeof dueAt === 'number' ? new Date(dueAt) : null;
+  const maxDue = Date.now() + 2 * 365 * 86400000;
 
-  if (!note || !dueAt) {
-    res.status(400).json({ error: 'Note and dueAt date are required.' });
+  if (typeof note !== 'string' || !note.trim() || note.length > 2000 || !due || Number.isNaN(due.getTime()) || due.getTime() > maxDue) {
+    res.status(400).json({ error: 'VALIDATION_ERROR', message: 'A note (up to 2,000 characters) and a valid due date within two years are required.' });
+    return;
+  }
+  if (!(await customerExists(customerId))) {
+    res.status(404).json({ error: 'NOT_FOUND', message: 'Customer not found.' });
     return;
   }
 
@@ -1104,7 +1298,7 @@ adminRouter.post('/customers/:id/follow-ups', requireStaff('customers:edit'), as
         userId: customerId,
         staffId: req.staff!.id,
         note: note.trim(),
-        dueAt: new Date(dueAt),
+        dueAt: due,
       },
     });
 
@@ -1116,30 +1310,99 @@ adminRouter.post('/customers/:id/follow-ups', requireStaff('customers:edit'), as
 });
 
 /**
+ * POST /api/v2/admin/customers/:id/follow-ups/:followUpId/done
+ * Marks a follow-up as done (it stays in the history).
+ */
+adminRouter.post('/customers/:id/follow-ups/:followUpId/done', requireStaff('customers:edit'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const customerId = paramOf(req);
+  const followUpId = paramOf(req, 'followUpId');
+  try {
+    // Compound filter: the follow-up must belong to this customer.
+    const updated = await prisma.followUp.updateMany({
+      where: { id: followUpId, userId: customerId, doneAt: null },
+      data: { doneAt: new Date() },
+    });
+    if (updated.count === 0) {
+      const exists = await prisma.followUp.findFirst({ where: { id: followUpId, userId: customerId }, select: { id: true } });
+      if (!exists) {
+        res.status(404).json({ error: 'NOT_FOUND', message: 'Follow-up not found.' });
+        return;
+      }
+    }
+    res.status(200).json({ success: true });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to complete follow-up', { customerId, error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to update follow-up.' });
+  }
+});
+
+/**
  * PATCH /api/v2/admin/customers/:id/profile
  * Update tags, risk level, or assigned staff.
  */
 adminRouter.patch('/customers/:id/profile', requireStaff('customers:edit'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
-  const customerId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const { tags, riskLevel, riskNote, assignedStaffId } = req.body;
+  const customerId = paramOf(req);
+  const { tags, riskLevel, riskNote, assignedStaffId } = req.body || {};
+  const reason = reasonOf(req.body) || 'Customer profile updated';
+
+  const cleanTags = tags === undefined ? undefined
+    : Array.isArray(tags) && tags.length <= 20 && tags.every((t) => typeof t === 'string' && t.trim() && t.length <= 40)
+      ? Array.from(new Set(tags.map((t: string) => t.trim().toLowerCase())))
+      : null;
+  if (cleanTags === null
+    || (riskLevel !== undefined && !RISK_LEVELS.includes(riskLevel))
+    || (riskNote !== undefined && riskNote !== null && (typeof riskNote !== 'string' || riskNote.length > 1000))
+    || (assignedStaffId !== undefined && assignedStaffId !== null && typeof assignedStaffId !== 'string')) {
+    res.status(400).json({ error: 'VALIDATION_ERROR', message: `Up to 20 tags of 40 characters; risk level one of ${RISK_LEVELS.join(', ')}; note up to 1,000 characters.` });
+    return;
+  }
 
   try {
-    const updated = await prisma.customerAdminProfile.upsert({
-      where: { userId: customerId },
-      create: {
-        userId: customerId,
-        tags: Array.isArray(tags) ? tags : [],
-        riskLevel: riskLevel || 'none',
-        riskNote: riskNote || null,
-        assignedStaffId: assignedStaffId || null,
+    if (!(await customerExists(customerId))) {
+      res.status(404).json({ error: 'NOT_FOUND', message: 'Customer not found.' });
+      return;
+    }
+    if (assignedStaffId) {
+      const owner = await prisma.staffUser.findUnique({ where: { id: assignedStaffId }, select: { status: true } });
+      if (!owner || owner.status === 'disabled') {
+        res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Assigned staff member not found or disabled.' });
+        return;
+      }
+    }
+    const before = await prisma.customerAdminProfile.findUnique({ where: { userId: customerId } });
+    const updated = await withAudit(
+      {
+        ...auditBase(req),
+        action: 'customers:profile_update',
+        targetType: 'CustomerAdminProfile',
+        targetId: customerId,
+        customerId,
+        reason,
       },
-      update: {
-        tags: Array.isArray(tags) ? tags : undefined,
-        riskLevel: riskLevel || undefined,
-        riskNote: riskNote !== undefined ? riskNote : undefined,
-        assignedStaffId: assignedStaffId !== undefined ? assignedStaffId : undefined,
-      },
-    });
+      async (tx) => {
+        const row = await tx.customerAdminProfile.upsert({
+          where: { userId: customerId },
+          create: {
+            userId: customerId,
+            tags: cleanTags || [],
+            riskLevel: riskLevel || 'none',
+            riskNote: riskNote || null,
+            assignedStaffId: assignedStaffId || null,
+          },
+          update: {
+            tags: cleanTags,
+            riskLevel: riskLevel || undefined,
+            riskNote: riskNote !== undefined ? riskNote : undefined,
+            assignedStaffId: assignedStaffId !== undefined ? assignedStaffId : undefined,
+          },
+        });
+        return {
+          result: row,
+          before: before ? { tags: before.tags, riskLevel: before.riskLevel, riskNote: before.riskNote, assignedStaffId: before.assignedStaffId } : undefined,
+          after: { tags: row.tags, riskLevel: row.riskLevel, riskNote: row.riskNote, assignedStaffId: row.assignedStaffId },
+        };
+      }
+    );
 
     res.status(200).json({ success: true, data: updated });
   } catch (err: any) {
@@ -1153,42 +1416,37 @@ adminRouter.patch('/customers/:id/profile', requireStaff('customers:edit'), asyn
  * Revokes customer sessions.
  */
 adminRouter.post('/customers/:id/force-logout', requireStaff('security:force_logout'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
-  const customerId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const customerId = paramOf(req);
+  const reason = reasonOf(req.body) || 'Staff initiated forced session termination';
 
   try {
-    const user = await prisma.user.findUnique({ where: { id: customerId } });
+    const user = await prisma.user.findUnique({ where: { id: customerId }, select: { id: true, sessionsRevokedAt: true } });
     if (!user) {
-      res.status(404).json({ error: 'Customer not found' });
+      res.status(404).json({ error: 'NOT_FOUND', message: 'Customer not found' });
       return;
     }
 
-    if (supabaseAdmin) {
-      try {
-        const { data: users } = await supabaseAdmin.auth.admin.listUsers();
-        const supaUser = users?.users?.find((u) => u.email?.toLowerCase() === user.email.toLowerCase());
-        if (supaUser) {
-          await supabaseAdmin.auth.admin.signOut(supaUser.id);
-        }
-      } catch (err: any) {
-        logger.warn('[ADMIN_API] Supabase signOut error on customer force-logout', { error: err.message });
-      }
-    }
-
+    // Every session signed in before now is refused by requireAuth from the next request on
+    // (the customer can sign in again). Recorded in the same transaction as the audit entry.
+    const revokedAt = new Date();
     await withAudit(
       {
-        staff: req.staff!,
+        ...auditBase(req),
         action: 'security:force_logout',
         targetType: 'User',
         targetId: customerId,
         customerId,
-        reason: 'Staff initiated forced session termination',
-        ip: req.ip,
-        userAgent: req.get('User-Agent'),
+        reason,
+        isCustomerVisible: true,
+        customerActionDescription: 'All sessions were signed out by Claritiy Support',
       },
-      async () => ({ result: { terminated: true } })
+      async (tx) => {
+        await tx.user.update({ where: { id: customerId }, data: { sessionsRevokedAt: revokedAt } });
+        return { result: { terminated: true }, before: { sessionsRevokedAt: user.sessionsRevokedAt ? user.sessionsRevokedAt.toISOString() : null }, after: { sessionsRevokedAt: revokedAt.toISOString() } };
+      }
     );
 
-    res.status(200).json({ success: true, message: 'Customer sessions terminated successfully.' });
+    res.status(200).json({ success: true, message: 'All of this customer\'s sessions are signed out. They can sign in again.' });
   } catch (err: any) {
     logger.error('[ADMIN_API] Failed to force logout customer', { customerId, error: err.message });
     res.status(500).json({ error: 'Failed to terminate sessions' });
@@ -1200,19 +1458,24 @@ adminRouter.post('/customers/:id/force-logout', requireStaff('security:force_log
  * Revokes all API keys for the customer.
  */
 adminRouter.post('/customers/:id/revoke-api-keys', requireStaff('security:revoke_keys'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
-  const customerId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const customerId = paramOf(req);
+  const reason = reasonOf(req.body) || 'Staff revoked all customer API keys';
 
   try {
+    if (!(await customerExists(customerId))) {
+      res.status(404).json({ error: 'NOT_FOUND', message: 'Customer not found.' });
+      return;
+    }
     const count = await withAudit(
       {
-        staff: req.staff!,
+        ...auditBase(req),
         action: 'security:revoke_keys',
         targetType: 'User',
         targetId: customerId,
         customerId,
-        reason: 'Staff revoked all customer API keys',
-        ip: req.ip,
-        userAgent: req.get('User-Agent'),
+        reason,
+        isCustomerVisible: true,
+        customerActionDescription: 'All API keys were revoked by Claritiy Support',
       },
       async (tx) => {
         const updated = await tx.apiKey.updateMany({
@@ -1258,13 +1521,15 @@ adminRouter.get('/metrics/overview', requireStaff('metrics:view'), async (_req: 
       prisma.user.count({ where: { accountStatus: 'restricted' } }),
       prisma.call.count(),
       prisma.call.count({ where: { status: 'completed' } }),
-      prisma.call.count({ where: { status: { in: ['failed', 'no_answer', 'busy'] } } }),
-      prisma.call.count({ where: { status: 'in_progress' } }),
-      prisma.call.count({ where: { status: { in: ['queued', 'ringing'] } } }),
+      // Both spellings are stored (carrier callbacks use hyphens, the app uses underscores).
+      prisma.call.count({ where: { status: { in: ['failed', 'no_answer', 'no-answer', 'busy'] } } }),
+      prisma.call.count({ where: { status: { in: ['in_progress', 'in-progress'] } } }),
+      prisma.call.count({ where: { status: { in: ['queued', 'ringing', 'initiated'] } } }),
       prisma.agent.count(),
       prisma.batch.count(),
+      // Free minutes given by staff (purchases are counted separately below).
       prisma.minutesLedger.aggregate({
-        where: { deltaSeconds: { gt: 0 } },
+        where: { reason: 'admin_grant', deltaSeconds: { gt: 0 } },
         _sum: { deltaSeconds: true },
       }),
       prisma.minutesLedger.aggregate({
@@ -1272,6 +1537,10 @@ adminRouter.get('/metrics/overview', requireStaff('metrics:view'), async (_req: 
         _sum: { deltaSeconds: true },
       }),
     ]);
+    const purchasedMinutes = await prisma.minutesLedger.aggregate({
+      where: { reason: 'plan_purchase', deltaSeconds: { gt: 0 } },
+      _sum: { deltaSeconds: true },
+    });
 
     res.status(200).json({
       success: true,
@@ -1291,6 +1560,7 @@ adminRouter.get('/metrics/overview', requireStaff('metrics:view'), async (_req: 
         totalAgents,
         totalCampaigns,
         totalMinutesGranted: Math.round((totalMinutesLedger._sum.deltaSeconds || 0) / 60),
+        totalMinutesPurchased: Math.round((purchasedMinutes._sum.deltaSeconds || 0) / 60),
         vobizMinutesUsed: Math.round(Math.abs(vobizMinutesUsed._sum.deltaSeconds || 0) / 60),
         geminiTokenUsage: {
           available: false,
@@ -1347,10 +1617,14 @@ adminRouter.get('/usage', requireStaff('metrics:view'), async (req: StaffAuthent
         _count: true,
       }),
       prisma.minutesLedger.aggregate({
-        where: { deltaSeconds: { gt: 0 } },
+        where: { reason: 'admin_grant', deltaSeconds: { gt: 0 } },
         _sum: { deltaSeconds: true },
       }),
     ]);
+    const totalPurchasedAgg = await prisma.minutesLedger.aggregate({
+      where: { reason: 'plan_purchase', deltaSeconds: { gt: 0 } },
+      _sum: { deltaSeconds: true },
+    });
 
     res.status(200).json({
       success: true,
@@ -1358,6 +1632,7 @@ adminRouter.get('/usage', requireStaff('metrics:view'), async (req: StaffAuthent
         summary: {
           totalMinutesUsed: Math.round(Math.abs(totalUsageAgg._sum.deltaSeconds || 0) / 60),
           totalMinutesGranted: Math.round((totalGrantedAgg._sum.deltaSeconds || 0) / 60),
+          totalMinutesPurchased: Math.round((totalPurchasedAgg._sum.deltaSeconds || 0) / 60),
           callUsageRecordsCount: totalUsageAgg._count,
           providerStatus: {
             vobiz: {
@@ -1397,11 +1672,34 @@ adminRouter.get('/calls', requireStaff('customers:view'), async (req: StaffAuthe
   const skip = (pageNum - 1) * take;
 
   const whereClause: any = {};
+  // A status filter matches both stored spellings (no-answer / no_answer, in-progress / in_progress).
+  const STATUS_ALIASES: Record<string, string[]> = {
+    completed: ['completed'],
+    failed: ['failed'],
+    no_answer: ['no_answer', 'no-answer'],
+    busy: ['busy'],
+    in_progress: ['in_progress', 'in-progress'],
+    ringing: ['ringing', 'initiated'],
+    queued: ['queued'],
+    cancelled: ['cancelled', 'canceled'],
+  };
   if (status && typeof status === 'string' && status !== 'all') {
-    whereClause.status = status;
+    if (!STATUS_ALIASES[status]) {
+      res.status(400).json({ error: 'VALIDATION_ERROR', message: `status must be one of: all, ${Object.keys(STATUS_ALIASES).join(', ')}` });
+      return;
+    }
+    whereClause.status = { in: STATUS_ALIASES[status] };
   }
   if (direction && typeof direction === 'string' && direction !== 'all') {
+    if (!['inbound', 'outbound'].includes(direction)) {
+      res.status(400).json({ error: 'VALIDATION_ERROR', message: 'direction must be all, inbound or outbound' });
+      return;
+    }
     whereClause.callDirection = direction;
+  }
+  if (typeof q === 'string' && q.length > 200) {
+    res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Search text is too long.' });
+    return;
   }
   if (q && typeof q === 'string' && q.trim()) {
     const term = q.trim();
@@ -1451,7 +1749,9 @@ adminRouter.get('/calls', requireStaff('customers:view'), async (req: StaffAuthe
 
     res.status(200).json({
       success: true,
-      data: calls,
+      // The carrier recording address never leaves the server: the owner gets hasRecording and
+      // asks POST /calls/:id/recording-link for a short-lived, audited playback link.
+      data: calls.map(({ recordingUrl, ...c }: any) => ({ ...c, hasRecording: isOwner ? Boolean(recordingUrl) : undefined })),
       pagination: {
         page: pageNum,
         limit: take,
@@ -1620,303 +1920,493 @@ adminRouter.get('/metrics/daily', requireStaff('metrics:view'), async (_req: Sta
 });
 
 /**
- * PATCH /api/v2/admin/numbers/:id/activate
- * Approves and activates a phone number from the provisioning queue.
+ * Number activation and KYC "reset" routes were removed (fix/admin-panel 2026-11-23):
+ *  - PATCH /numbers/:id/activate marked a number active AND its KYC verified without any check,
+ *    bypassing the real KYC state and the paid-plan rule (CLAUDE.md B9: never auto-approve).
+ *  - POST /customers/:id/kyc/reset only set phone_numbers.kyc_status = pending, which blocked the
+ *    customer's calls while the real KYC record (carrier sub-account, documents) stayed unchanged.
+ * Neither was called by the admin console. KYC truth comes from the carrier sync (routes/kyc.ts).
  */
-adminRouter.patch('/numbers/:id/activate', requireStaff('numbers:activate'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
-  const numberId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-
-  try {
-    const existing = await prisma.phoneNumber.findUnique({ where: { id: numberId } });
-    if (!existing) {
-      res.status(404).json({ error: 'Phone number not found.' });
-      return;
-    }
-
-    const updated = await withAudit(
-      {
-        staff: req.staff!,
-        action: 'numbers:activate',
-        targetType: 'PhoneNumber',
-        targetId: numberId,
-        customerId: existing.userId,
-        reason: 'Staff approved KYC compliance and activated phone number',
-        ip: req.ip,
-        userAgent: req.get('User-Agent'),
-      },
-      async (tx) => {
-        const resNum = await tx.phoneNumber.update({
-          where: { id: numberId },
-          data: { status: 'active', kycStatus: 'verified' },
-        });
-        return { result: resNum, after: { status: 'active', kycStatus: 'verified' } };
-      }
-    );
-
-    res.status(200).json({ success: true, data: updated });
-  } catch (err: any) {
-    logger.error('[ADMIN_API] Failed to activate number', { numberId, error: err.message });
-    res.status(500).json({ error: 'Failed to activate phone number' });
-  }
-});
-
-/**
- * POST /api/v2/admin/customers/:id/kyc/reset
- * Resets KYC status for a customer's phone numbers so they can re-submit documents.
- */
-adminRouter.post('/customers/:id/kyc/reset', requireStaff('kyc:reset'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
-  const customerId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-
-  try {
-    const updated = await withAudit(
-      {
-        staff: req.staff!,
-        action: 'kyc:reset',
-        targetType: 'User',
-        targetId: customerId,
-        customerId,
-        reason: 'Staff reset customer KYC verification state',
-        ip: req.ip,
-        userAgent: req.get('User-Agent'),
-      },
-      async (tx) => {
-        const resNumbers = await tx.phoneNumber.updateMany({
-          where: { userId: customerId },
-          data: { kycStatus: 'pending' },
-        });
-        return { result: resNumbers, after: { kycStatus: 'pending', count: resNumbers.count } };
-      }
-    );
-
-    res.status(200).json({ success: true, data: updated });
-  } catch (err: any) {
-    logger.error('[ADMIN_API] Failed to reset KYC', { customerId, error: err.message });
-    res.status(500).json({ error: 'Failed to reset customer KYC' });
-  }
-});
 
 /**
  * POST /api/v2/admin/calls/:id/terminate
- * Terminates an in-flight call session immediately.
+ * Terminates an in-flight call session immediately (single hang-up path: CallService.terminateCall).
  */
 adminRouter.post('/calls/:id/terminate', requireStaff('calls:terminate'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
-  const callId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const callId = paramOf(req);
+  const reason = reasonOf(req.body) || 'Staff initiated immediate call termination';
 
   try {
-    await CallService.terminateCall(callId);
+    const callRow = await prisma.call.findUnique({ where: { id: callId }, select: { id: true, userId: true, status: true } });
+    if (!callRow) {
+      res.status(404).json({ error: 'NOT_FOUND', message: 'Call not found.' });
+      return;
+    }
+    // Same end path as a supervisor hang-up (final status, minutes billed once, carrier leg closed).
+    await CallService.terminateCall(callId, 'user_terminated', `Ended by Claritiy support: ${reason}`.slice(0, 300), 'system');
     await withAudit(
       {
-        staff: req.staff!,
+        ...auditBase(req),
         action: 'calls:terminate',
         targetType: 'Call',
         targetId: callId,
-        reason: 'Staff initiated immediate call termination',
-        ip: req.ip,
-        userAgent: req.get('User-Agent'),
+        customerId: callRow.userId,
+        reason,
       },
-      async () => ({ result: { terminated: true } })
+      async () => ({ result: { terminated: true }, before: { status: callRow.status } })
     );
 
     res.status(200).json({ success: true, message: 'Call terminated successfully.' });
   } catch (err: any) {
     logger.error('[ADMIN_API] Failed to terminate call', { callId, error: err.message });
-    res.status(500).json({ error: err.message || 'Failed to terminate call' });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to terminate call.' });
   }
 });
 
+// ─── Plans: built-in (server price list) and private custom plans ───
+
+/** Account tiers a custom plan may grant: exactly the tiers the built-in plans use. */
+export const PLAN_ACCOUNT_TYPES = ['trial', 'starter', 'developer', 'professional', 'enterprise'];
+const PLAN_KEY_RE = /^[a-z0-9_]{3,40}$/;
+
+/** List price per minute of the built-in plan that grants this tier (best public rate as fallback). */
+function listRatePerMinute(accountType: string): number {
+  const plans = Object.values(PLAN_CONFIG);
+  const tier = plans.find((p) => p.accountType === accountType && p.minutes > 0);
+  if (tier) return tier.price / tier.minutes;
+  return Math.min(...plans.filter((p) => p.accountType !== 'trial' && p.minutes > 0).map((p) => p.price / p.minutes));
+}
+
+/** Discount (0-100, one decimal) of a price for some minutes against the tier's list rate. */
+export function computedDiscountPercent(priceInr: number, minutes: number, accountType: string): number {
+  const list = listRatePerMinute(accountType);
+  if (!(list > 0) || !(minutes > 0)) return 0;
+  const d = (1 - (priceInr / minutes) / list) * 100;
+  return Math.max(0, Math.round(d * 10) / 10);
+}
+
+function builtInPlanList() {
+  return Object.entries(PLAN_CONFIG).map(([key, p]) => ({
+    key,
+    name: p.name,
+    priceInr: p.price,
+    minutes: p.minutes,
+    accountType: p.accountType,
+    maxConcurrentCalls: p.maxConcurrentCalls,
+    purchasable: p.purchasable !== false,
+  }));
+}
+
 /**
  * GET /api/v2/admin/plans
- * Lists all catalog and custom private plans.
+ * Custom private plans (data) plus the built-in price list as the server applies it right now.
  */
 adminRouter.get('/plans', requireStaff('plans:manage'), async (_req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const plans = await prisma.planCatalog.findMany({
       orderBy: { createdAt: 'desc' },
+      take: 500,
     });
-    res.status(200).json({ success: true, data: plans });
+    res.status(200).json({ success: true, data: plans, builtIn: builtInPlanList() });
   } catch (err: any) {
     logger.error('[ADMIN_API] Failed to list plans', { error: err.message });
-    res.status(500).json({ error: 'Failed to retrieve plans' });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to retrieve plans' });
   }
 });
 
 /**
  * POST /api/v2/admin/plans/custom
- * Creates a custom private plan for a specific customer with role discount cap enforcement.
+ * Creates a private plan (optionally for one customer). The discount is computed by the server
+ * from price and minutes against the list rate of the same tier, and checked against the role cap.
+ * A custom plan is sold only through a payment link (or given with "Assign plan").
  */
 adminRouter.post('/plans/custom', requireStaff('plans:manage'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
-  const { key, name, priceInr, minutes, accountType, customerUserId, validityDays, discountPercent } = req.body;
+  const body = req.body || {};
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  const priceInr = Number(body.priceInr);
+  const minutes = Number(body.minutes);
+  const accountType = typeof body.accountType === 'string' ? body.accountType : '';
+  const validityDays = body.validityDays === undefined || body.validityDays === null || body.validityDays === '' ? null : Number(body.validityDays);
+  const customerUserId = typeof body.customerUserId === 'string' && body.customerUserId.trim() ? body.customerUserId.trim() : null;
+  const reason = reasonOf(body) || `Created custom plan ${name}`;
+  const planKey = typeof body.key === 'string' && body.key.trim() ? body.key.trim().toLowerCase() : `custom_${Date.now().toString(36)}`;
 
-  if (!name || !priceInr || !minutes) {
-    res.status(400).json({ error: 'name, priceInr, and minutes are required.' });
+  if (!name || name.length > 80
+    || !Number.isInteger(priceInr) || priceInr < 1 || priceInr > 10_000_000
+    || !Number.isInteger(minutes) || minutes < 1 || minutes > 1_000_000
+    || !PLAN_ACCOUNT_TYPES.includes(accountType)
+    || (validityDays !== null && (!Number.isInteger(validityDays) || validityDays < 1 || validityDays > 365))) {
+    res.status(400).json({
+      error: 'VALIDATION_ERROR',
+      message: `Name (up to 80 characters), whole-rupee price 1-1,00,00,000, whole minutes 1-10,00,000, features of one of: ${PLAN_ACCOUNT_TYPES.join(', ')}, and validity 1-365 days are required.`,
+    });
+    return;
+  }
+  if (!PLAN_KEY_RE.test(planKey) || (PLAN_CONFIG as Record<string, unknown>)[planKey]) {
+    res.status(400).json({ error: 'INVALID_PLAN_KEY', message: 'The plan key must be 3-40 lowercase letters, digits or _ and must not be a built-in plan name.' });
+    return;
+  }
+  if (customerUserId && !(await customerExists(customerUserId))) {
+    res.status(404).json({ error: 'NOT_FOUND', message: 'Customer not found.' });
     return;
   }
 
-  // Validate discount percentage against role caps
-  const discountErr = await validateDiscountCap(req.staff!.role, discountPercent || 0);
+  const discountPercent = computedDiscountPercent(priceInr, minutes, accountType);
+  const discountErr = await validateDiscountCap(req.staff!.role, discountPercent);
   if (discountErr) {
     res.status(403).json({ error: 'OVER_DISCOUNT_CAP', message: discountErr });
     return;
   }
 
-  const planKey = key ? key.trim().toLowerCase() : `custom_${Date.now()}`;
-
   try {
     const newPlan = await withAudit(
       {
-        staff: req.staff!,
+        ...auditBase(req),
         action: 'plans:manage',
         targetType: 'PlanCatalog',
         targetId: planKey,
         customerId: customerUserId,
-        reason: `Created custom plan ${name} for ₹${priceInr} (${minutes} mins)`,
-        ip: req.ip,
-        userAgent: req.get('User-Agent'),
+        reason,
       },
       async (tx) => {
         const p = await tx.planCatalog.create({
           data: {
             key: planKey,
-            name: name.trim(),
-            priceInr: Number(priceInr),
-            minutes: Number(minutes),
-            accountType: accountType || 'growth',
+            name,
+            priceInr,
+            minutes,
+            accountType,
             isPublic: false,
-            customerUserId: customerUserId || null,
-            validityDays: validityDays ? Number(validityDays) : null,
+            customerUserId,
+            validityDays,
             active: true,
             createdBy: req.staff!.email,
           },
         });
-        return { result: p, after: { planKey, name, priceInr, minutes } };
+        return { result: p, after: { planKey, name, priceInr, minutes, accountType, validityDays, customerUserId, discountPercent } };
       }
     );
 
-    res.status(201).json({ success: true, data: newPlan });
+    res.status(201).json({ success: true, data: { ...newPlan, discountPercent } });
   } catch (err: any) {
+    if (err?.code === 'P2002') {
+      res.status(409).json({ error: 'CONFLICT', message: 'A plan with this key already exists.' });
+      return;
+    }
     logger.error('[ADMIN_API] Failed to create custom plan', { error: err.message });
-    res.status(500).json({ error: 'Failed to create custom plan' });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to create custom plan' });
   }
 });
 
 /**
+ * PATCH /api/v2/admin/plans/:id
+ * Turns a custom plan on or off (price and minutes are fixed once created: make a new plan instead,
+ * so a link or invoice never changes meaning afterwards).
+ */
+adminRouter.patch('/plans/:id', requireStaff('plans:manage'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const id = paramOf(req);
+  const active = req.body?.active;
+  const reason = reasonOf(req.body);
+  if (typeof active !== 'boolean' || !reason) {
+    res.status(400).json({ error: 'VALIDATION_ERROR', message: 'active (true/false) and a reason are required.' });
+    return;
+  }
+  try {
+    const row = await prisma.planCatalog.findUnique({ where: { id } });
+    if (!row) {
+      res.status(404).json({ error: 'NOT_FOUND', message: 'Plan not found.' });
+      return;
+    }
+    const updated = await withAudit(
+      { ...auditBase(req), action: 'plans:toggle', targetType: 'PlanCatalog', targetId: row.key, customerId: row.customerUserId, reason },
+      async (tx) => ({ result: await tx.planCatalog.update({ where: { id }, data: { active } }), before: { active: row.active }, after: { active } })
+    );
+    res.status(200).json({ success: true, data: updated });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to update plan', { id, error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to update plan' });
+  }
+});
+
+/** The plan a payment link or assignment may use for this customer, or null. */
+async function resolveSellablePlan(planKey: string, customerUserId: string) {
+  const key = String(planKey || '').trim().toLowerCase();
+  const builtIn = (PLAN_CONFIG as Record<string, typeof PLAN_CONFIG[string]>)[key];
+  if (builtIn) {
+    return { key, name: builtIn.name, priceInr: builtIn.price, minutes: builtIn.minutes, accountType: builtIn.accountType, validityDays: null as number | null, custom: false };
+  }
+  const row = await prisma.planCatalog.findUnique({ where: { key } });
+  if (!row || !row.active || (row.customerUserId && row.customerUserId !== customerUserId)) return null;
+  return { key, name: row.name, priceInr: row.priceInr, minutes: row.minutes, accountType: row.accountType, validityDays: row.validityDays, custom: true };
+}
+
+/**
  * POST /api/v2/admin/payments/create-link
- * Generates a Razorpay payment link for customer checkout.
+ * Creates a real Razorpay payment link for one customer and one plan. Price and minutes come from
+ * the server (plan price minus the discount, checked against the role cap). When the link is paid,
+ * the Razorpay webhook (payment_link.paid) fulfils exactly this amount and these minutes.
  */
 adminRouter.post('/payments/create-link', requireStaff('payment_links:create'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
-  const { customerUserId, planKey, customPlanId, amountInr, minutes, discountPercent } = req.body;
+  const body = req.body || {};
+  const customerUserId = typeof body.customerUserId === 'string' ? body.customerUserId.trim() : '';
+  const discountPercent = body.discountPercent === undefined || body.discountPercent === '' ? 0 : Number(body.discountPercent);
+  const expiresInDays = body.expiresInDays === undefined || body.expiresInDays === '' ? 7 : Number(body.expiresInDays);
+  const reason = reasonOf(body) || 'Payment link for a customer';
 
-  if (!customerUserId || !amountInr || !minutes) {
-    res.status(400).json({ error: 'customerUserId, amountInr, and minutes are required.' });
+  if (!customerUserId || typeof body.planKey !== 'string' || !body.planKey.trim()) {
+    res.status(400).json({ error: 'VALIDATION_ERROR', message: 'A customer and a plan are required (price and minutes always come from the plan).' });
     return;
   }
-
-  const discountErr = await validateDiscountCap(req.staff!.role, discountPercent || 0);
-  if (discountErr) {
-    res.status(403).json({ error: 'OVER_DISCOUNT_CAP', message: discountErr });
+  if (!Number.isFinite(discountPercent) || discountPercent < 0 || discountPercent > 100 || !Number.isInteger(expiresInDays) || expiresInDays < 1 || expiresInDays > 30) {
+    res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Discount must be 0-100% and the link must expire in 1-30 days.' });
     return;
   }
-
-  const mockLinkId = `plink_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
   try {
+    const customer = await prisma.user.findUnique({ where: { id: customerUserId }, select: { id: true, email: true, fullName: true, contactNumber: true, accountStatus: true } });
+    if (!customer) {
+      res.status(404).json({ error: 'NOT_FOUND', message: 'Customer not found.' });
+      return;
+    }
+    if (customer.accountStatus === 'suspended') {
+      res.status(409).json({ error: 'ACCOUNT_SUSPENDED', message: 'This account is suspended. Restore it before sending a payment link.' });
+      return;
+    }
+    const plan = await resolveSellablePlan(body.planKey, customerUserId);
+    if (!plan) {
+      res.status(400).json({ error: 'PLAN_UNKNOWN', message: 'Unknown or inactive plan, or a custom plan made for another customer.' });
+      return;
+    }
+
+    const amountInr = Math.max(1, Math.round(plan.priceInr * (1 - discountPercent / 100)));
+    // The cap applies to the total discount against list price (a custom plan may already be discounted).
+    const totalDiscount = computedDiscountPercent(amountInr, plan.minutes, plan.accountType);
+    const discountErr = await validateDiscountCap(req.staff!.role, Math.max(discountPercent, totalDiscount));
+    if (discountErr) {
+      res.status(403).json({ error: 'OVER_DISCOUNT_CAP', message: discountErr });
+      return;
+    }
+
+    const expireBy = Math.floor(Date.now() / 1000) + expiresInDays * 86400;
+    const gatewayLink = await billing().createPaymentLink({
+      amountPaise: amountInr * 100,
+      description: `Claritiy Voice ${plan.name} plan (${plan.minutes.toLocaleString('en-IN')} minutes)`.slice(0, 2048),
+      customer: { name: customer.fullName || undefined, email: customer.email, contact: customer.contactNumber || undefined },
+      notes: { userId: customer.id, purpose: 'plan_link', planKey: plan.key, minutes: String(plan.minutes) },
+      expireBy,
+    });
+
     const paymentLink = await withAudit(
       {
-        staff: req.staff!,
+        ...auditBase(req),
         action: 'payment_links:create',
         targetType: 'PaymentLink',
-        targetId: mockLinkId,
-        customerId: customerUserId,
-        reason: `Generated payment link for ₹${amountInr} (${minutes} mins)`,
-        ip: req.ip,
-        userAgent: req.get('User-Agent'),
+        targetId: gatewayLink.id,
+        customerId: customer.id,
+        reason,
       },
       async (tx) => {
         const link = await tx.paymentLink.create({
           data: {
-            userId: customerUserId,
-            planKey: planKey || null,
-            customPlanId: customPlanId || null,
-            amountInr: Number(amountInr),
-            minutes: Number(minutes),
+            userId: customer.id,
+            planKey: plan.key,
+            customPlanId: plan.custom ? plan.key : null,
+            amountInr,
+            minutes: plan.minutes,
             status: 'created',
-            razorpayLinkId: mockLinkId,
-            shortUrl: `https://pages.claritiy.com/pay/${mockLinkId}`,
+            razorpayLinkId: gatewayLink.id,
+            shortUrl: gatewayLink.shortUrl || null,
+            expiresAt: new Date(expireBy * 1000),
             createdByStaffId: req.staff!.id,
           },
         });
-        return { result: link, after: { razorpayLinkId: mockLinkId, amountInr, minutes } };
+        return { result: link, after: { razorpayLinkId: gatewayLink.id, planKey: plan.key, amountInr, minutes: plan.minutes, discountPercent, testMode: gatewayLink.mock } };
       }
     );
 
-    res.status(201).json({ success: true, data: paymentLink });
+    res.status(201).json({ success: true, data: { ...paymentLink, testMode: gatewayLink.mock } });
   } catch (err: any) {
+    if (err?.status && err?.code) {
+      res.status(err.status).json({ error: err.code, message: err.message });
+      return;
+    }
     logger.error('[ADMIN_API] Failed to create payment link', { error: err.message });
-    res.status(500).json({ error: 'Failed to create payment link' });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to create payment link' });
+  }
+});
+
+/**
+ * GET /api/v2/admin/payment-links?customerId=
+ */
+adminRouter.get('/payment-links', requireStaff('payments:view'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const customerId = typeof req.query.customerId === 'string' ? req.query.customerId : undefined;
+  try {
+    const links = await prisma.paymentLink.findMany({
+      where: customerId ? { userId: customerId } : {},
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    res.status(200).json({ success: true, data: links });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to list payment links', { error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to load payment links' });
+  }
+});
+
+/**
+ * POST /api/v2/admin/payment-links/:id/cancel
+ * Cancels an unpaid link at Razorpay first; only then is it marked cancelled here.
+ */
+adminRouter.post('/payment-links/:id/cancel', requireStaff('payment_links:create'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const id = paramOf(req);
+  const reason = reasonOf(req.body) || 'Payment link cancelled';
+  try {
+    const link = await prisma.paymentLink.findUnique({ where: { id } });
+    if (!link) {
+      res.status(404).json({ error: 'NOT_FOUND', message: 'Payment link not found.' });
+      return;
+    }
+    if (link.status !== 'created') {
+      res.status(409).json({ error: 'NOT_CANCELLABLE', message: `This link is already ${link.status}.` });
+      return;
+    }
+    await billing().cancelPaymentLink(link.razorpayLinkId);
+    const updated = await withAudit(
+      { ...auditBase(req), action: 'payment_links:cancel', targetType: 'PaymentLink', targetId: link.razorpayLinkId, customerId: link.userId, reason },
+      async (tx) => ({ result: await tx.paymentLink.update({ where: { id }, data: { status: 'cancelled' } }), before: { status: link.status }, after: { status: 'cancelled' } })
+    );
+    res.status(200).json({ success: true, data: updated });
+  } catch (err: any) {
+    if (err?.status && err?.code) {
+      res.status(err.status).json({ error: err.code, message: err.message });
+      return;
+    }
+    logger.error('[ADMIN_API] Failed to cancel payment link', { id, error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to cancel payment link' });
   }
 });
 
 /**
  * POST /api/v2/admin/payments/:id/refund
- * Processes refund via Razorpay and marks transaction/invoice as refunded.
+ * Full refund through Razorpay. Order of operations:
+ *   1. claim the payment (completed -> refund_pending) so two clicks can never refund twice;
+ *   2. ask Razorpay; on failure the payment goes back to completed and nothing else changes;
+ *   3. on success, in one transaction: payment + invoice "refunded", the minutes that purchase added
+ *      are taken back (never below zero), and optionally the plan ends now.
  */
 adminRouter.post('/payments/:id/refund', requireStaff('refunds:manage'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
-  const transactionId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const { reason } = req.body;
+  const transactionId = paramOf(req);
+  const reason = reasonOf(req.body);
+  const endPlan = req.body?.endPlan === true;
 
-  if (!reason || !reason.trim()) {
-    res.status(400).json({ error: 'Refund reason is mandatory.' });
+  if (!reason) {
+    res.status(400).json({ error: 'VALIDATION_ERROR', message: 'A refund reason (at least 3 characters) is mandatory.' });
     return;
   }
 
+  const txRecord = await prisma.paymentTransaction.findUnique({ where: { id: transactionId } }).catch(() => null);
+  if (!txRecord) {
+    res.status(404).json({ error: 'NOT_FOUND', message: 'Payment transaction not found.' });
+    return;
+  }
+  const refundable = ['completed', 'paid'];
+  if (!refundable.includes(txRecord.status) || !txRecord.paymentId || !(Number(txRecord.amount) > 0)) {
+    res.status(409).json({ error: 'NOT_REFUNDABLE', message: `This payment cannot be refunded (status: ${txRecord.status}).` });
+    return;
+  }
+
+  // 1. Claim.
+  const claim = await prisma.paymentTransaction.updateMany({
+    where: { id: transactionId, status: { in: refundable } },
+    data: { status: 'refund_pending' },
+  });
+  if (claim.count !== 1) {
+    res.status(409).json({ error: 'NOT_REFUNDABLE', message: 'This payment is already being refunded or was refunded.' });
+    return;
+  }
+
+  // 2. Gateway.
+  const amountPaise = Math.round(Number(txRecord.amount) * 100);
+  const refundResult = await billing().refundOrder(txRecord.paymentId, amountPaise, `Admin refund: ${reason}`.slice(0, 250));
+  if (!refundResult.success) {
+    await prisma.paymentTransaction.update({ where: { id: transactionId }, data: { status: txRecord.status } }).catch(() => {});
+    await withAudit(
+      { ...auditBase(req), action: 'refunds:failed', targetType: 'PaymentTransaction', targetId: transactionId, customerId: txRecord.userId, reason },
+      async () => ({ result: null, after: { gateway: 'refund_failed', amountPaise } })
+    ).catch(() => {});
+    res.status(502).json({ error: 'REFUND_FAILED', message: 'Razorpay did not accept the refund. Nothing was changed. Check the Razorpay dashboard, then try again.' });
+    return;
+  }
+
+  // 3. Record.
   try {
-    const txRecord = await prisma.paymentTransaction.findUnique({ where: { id: transactionId } });
-    if (!txRecord) {
-      res.status(404).json({ error: 'Payment transaction not found.' });
-      return;
-    }
-
-    const refundResult = await billingService.refundOrder(txRecord.paymentId, Math.round((txRecord.amount || 0) * 100));
-
     const updated = await withAudit(
       {
-        staff: req.staff!,
+        ...auditBase(req),
         action: 'refunds:manage',
         targetType: 'PaymentTransaction',
         targetId: transactionId,
         customerId: txRecord.userId,
-        reason: reason.trim(),
-        ip: req.ip,
-        userAgent: req.get('User-Agent'),
+        reason,
+        isCustomerVisible: true,
+        customerActionDescription: `Payment of INR ${Number(txRecord.amount).toLocaleString('en-IN')} refunded by Claritiy Support`,
       },
       async (tx) => {
-        const updatedTx = await tx.paymentTransaction.update({
-          where: { id: transactionId },
-          data: { status: 'refunded' },
-        });
+        const updatedTx = await tx.paymentTransaction.update({ where: { id: transactionId }, data: { status: 'refunded' } });
+        await tx.invoice.updateMany({ where: { paymentTransactionId: transactionId }, data: { status: 'refunded' } });
 
-        await tx.invoice.updateMany({
-          where: { paymentTransactionId: transactionId },
-          data: { status: 'refunded' },
+        // Minutes this purchase added (ledger rows that reference it).
+        const credits = await tx.minutesLedger.aggregate({
+          where: { userId: txRecord.userId, refType: 'payment_transaction', refId: transactionId, deltaSeconds: { gt: 0 } },
+          _sum: { deltaSeconds: true },
         });
-
-        return { result: { ...updatedTx, refundId: refundResult.refundId }, after: { status: 'refunded' } };
+        const creditedSeconds = credits._sum.deltaSeconds || 0;
+        const user = await tx.user.findUnique({ where: { id: txRecord.userId }, select: { minutesRemainingSeconds: true } });
+        const takeBack = Math.min(creditedSeconds, Math.max(0, Math.floor(user?.minutesRemainingSeconds || 0)));
+        if (takeBack > 0) {
+          await MinutesService.debit(
+            {
+              userId: txRecord.userId,
+              deltaSeconds: takeBack,
+              reason: 'refund',
+              refType: 'payment_transaction',
+              refId: transactionId,
+              note: `Refund of ${txRecord.planName}: purchased minutes removed`,
+              actorType: 'staff',
+              actorId: req.staff!.id,
+              idempotencyKey: `refund_${transactionId}`,
+            },
+            tx
+          );
+        }
+        if (endPlan) {
+          await tx.user.update({ where: { id: txRecord.userId }, data: { planExpiresAt: new Date() } });
+        }
+        return {
+          result: { ...updatedTx, refundId: refundResult.refundId, minutesRemoved: Math.round(takeBack / 60), planEnded: endPlan },
+          before: { status: txRecord.status },
+          after: { status: 'refunded', refundId: refundResult.refundId, minutesRemoved: Math.round(takeBack / 60), planEnded: endPlan },
+        };
       }
     );
 
     res.status(200).json({ success: true, data: updated });
   } catch (err: any) {
-    logger.error('[ADMIN_API] Failed to refund payment', { transactionId, error: err.message });
-    res.status(500).json({ error: err.message || 'Failed to refund payment' });
+    // Money has gone back to the customer but the records could not be updated: leave the payment in
+    // refund_pending (visible in the console) and alert loudly so a person finishes it.
+    logger.error('[CRITICAL_ADMIN_ALERT] Refund issued at Razorpay but not recorded', { transactionId, refundId: refundResult.refundId, error: err.message });
+    res.status(500).json({ error: 'REFUND_NOT_RECORDED', message: `Razorpay refunded the payment (refund ${refundResult.refundId}), but the records could not be updated. The payment stays "refund_pending"; ask engineering to finish it.` });
   }
 });
 
 /**
  * GET /api/v2/admin/exports/:type
- * Generates and downloads audit CSV files for customers, calls, or payments.
+ * CSV download of customers, calls or payments (latest 5,000 rows). Every export is recorded in the
+ * admin audit log as a sensitive read.
  */
 adminRouter.get('/exports/:type', requireStaff('exports:csv'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
-  const exportType = Array.isArray(req.params.type) ? req.params.type[0] : req.params.type;
+  const exportType = paramOf(req, 'type');
+  const LIMIT = 5000;
 
   try {
     let csvData = '';
@@ -1924,39 +2414,42 @@ adminRouter.get('/exports/:type', requireStaff('exports:csv'), async (req: Staff
 
     if (exportType === 'customers') {
       const users = await prisma.user.findMany({
-        take: 2000,
+        take: LIMIT,
         orderBy: { createdAt: 'desc' },
-        select: { id: true, email: true, fullName: true, accountStatus: true, callingBalanceMinutes: true, createdAt: true },
+        select: { id: true, email: true, fullName: true, accountType: true, accountStatus: true, minutesRemainingSeconds: true, planExpiresAt: true, createdAt: true },
       });
-      csvData = 'ID,Email,FullName,AccountStatus,BalanceMinutes,CreatedAt\n' +
-        users.map((u) => csvLine([u.id, u.email, u.fullName || '', u.accountStatus, u.callingBalanceMinutes, u.createdAt.toISOString()])).join('\n');
+      csvData = 'ID,Email,FullName,Plan,AccountStatus,MinutesRemaining,PlanEnds,CreatedAt\n' +
+        users.map((u) => csvLine([u.id, u.email, u.fullName || '', u.accountType, u.accountStatus, Math.floor((u.minutesRemainingSeconds || 0) / 60), u.planExpiresAt ? u.planExpiresAt.toISOString() : '', u.createdAt.toISOString()])).join('\n');
     } else if (exportType === 'calls') {
       const calls = await prisma.call.findMany({
-        take: 2000,
+        take: LIMIT,
         orderBy: { createdAt: 'desc' },
-        select: { id: true, recipientPhoneNumber: true, status: true, durationSeconds: true, createdAt: true, userId: true },
+        select: { id: true, recipientPhoneNumber: true, status: true, callDirection: true, durationSeconds: true, createdAt: true, userId: true },
       });
-      csvData = 'ID,RecipientNumber,Status,DurationSeconds,UserId,CreatedAt\n' +
-        calls.map((c) => csvLine([c.id, c.recipientPhoneNumber, c.status, c.durationSeconds || 0, c.userId, c.createdAt.toISOString()])).join('\n');
+      csvData = 'ID,Number,Direction,Status,DurationSeconds,UserId,CreatedAt\n' +
+        calls.map((c) => csvLine([c.id, c.recipientPhoneNumber, c.callDirection || '', c.status, c.durationSeconds || 0, c.userId, c.createdAt.toISOString()])).join('\n');
     } else if (exportType === 'payments') {
       const payments = await prisma.paymentTransaction.findMany({
-        take: 2000,
+        take: LIMIT,
         orderBy: { createdAt: 'desc' },
-        select: { id: true, paymentId: true, planName: true, amount: true, status: true, userId: true, createdAt: true },
+        select: { id: true, paymentId: true, planName: true, amount: true, status: true, source: true, userId: true, createdAt: true },
       });
-      csvData = 'ID,PaymentId,PlanName,AmountINR,Status,UserId,CreatedAt\n' +
-        payments.map((p) => csvLine([p.id, p.paymentId, p.planName, p.amount || 0, p.status, p.userId, p.createdAt.toISOString()])).join('\n');
+      csvData = 'ID,PaymentId,PlanName,AmountINR,Status,Source,UserId,CreatedAt\n' +
+        payments.map((p) => csvLine([p.id, p.paymentId, p.planName, p.amount || 0, p.status, p.source || '', p.userId, p.createdAt.toISOString()])).join('\n');
     } else {
-      res.status(400).json({ error: 'Invalid export type. Must be customers, calls, or payments.' });
+      res.status(400).json({ error: 'VALIDATION_ERROR', message: 'Invalid export type. Must be customers, calls, or payments.' });
       return;
     }
 
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename=claritiy_${exportType}_${now}.csv`);
-    res.status(200).send(csvData);
+    await logAdminRead({ ...auditBase(req), action: 'exports:csv', targetType: 'Export', targetId: exportType, reason: `CSV export of ${exportType}` });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="claritiy_${exportType}_${now}.csv"`);
+    // BOM so Excel opens Hindi and other non-Latin names correctly.
+    res.status(200).send(`﻿${csvData}`);
   } catch (err: any) {
     logger.error('[ADMIN_API] Failed to generate export', { exportType, error: err.message });
-    res.status(500).json({ error: 'Failed to generate CSV export' });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to generate CSV export' });
   }
 });
 
@@ -2011,6 +2504,8 @@ adminRouter.get('/provisioning-alerts', requireStaff('customers:view'), async (r
     const systemAlerts = await prisma.systemAlert.findMany({
       where: {
         type: 'FAILED_PROVISIONING',
+        userId: null,
+        isResolved: false,
       },
       orderBy: { createdAt: 'desc' },
       take: 50,
@@ -2039,29 +2534,476 @@ adminRouter.get('/provisioning-alerts', requireStaff('customers:view'), async (r
 });
 
 /**
- * POST /api/v2/admin/orders/:orderId/retry
- * Resets a failed phone number order for retry.
+ * POST /api/v2/admin/orders/:orderId/resolve
+ * Closes a failed number order after a person has dealt with it (refunded, assigned by hand in the
+ * carrier console, or other). Replaces the old "retry", which reset the order to 'validating':
+ * nothing ever picks that state up, and the customer was then stuck on "purchase already in
+ * progress" for that payment (and for an already-bought number a re-run would buy it twice).
  */
-adminRouter.post('/orders/:orderId/retry', requireStaff('numbers:activate') /* changes order state: write permission, not view */, async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+const ORDER_RESOLUTIONS = ['refunded', 'assigned_manually', 'other'];
+
+adminRouter.post('/orders/:orderId/resolve', requireStaff('numbers:activate'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const orderId = paramOf(req, 'orderId');
+  const resolution = req.body?.resolution;
+  const reason = reasonOf(req.body);
+  if (!ORDER_RESOLUTIONS.includes(resolution) || !reason) {
+    res.status(400).json({ error: 'VALIDATION_ERROR', message: `A resolution (${ORDER_RESOLUTIONS.join(', ')}) and a reason are required.` });
+    return;
+  }
   try {
-    const orderId = String(req.params.orderId);
     const order = await prisma.phoneNumberOrder.findUnique({ where: { id: orderId } });
     if (!order) {
-      res.status(404).json({ success: false, error: 'Order not found' });
+      res.status(404).json({ success: false, error: 'NOT_FOUND', message: 'Order not found' });
       return;
     }
-
-    await prisma.phoneNumberOrder.update({
-      where: { id: orderId },
-      data: { orderStatus: 'validating', failureReason: null },
-    });
-
-    res.status(200).json({
-      success: true,
-      message: `Order ${orderId} reset to validating status for retry.`,
-    });
+    if (!['failed', 'assignment_failed'].includes(order.orderStatus)) {
+      res.status(409).json({ success: false, error: 'NOT_FAILED', message: `Only failed orders can be resolved (this one is ${order.orderStatus}).` });
+      return;
+    }
+    const note = `Resolved by support (${resolution}): ${reason}`;
+    await withAudit(
+      { ...auditBase(req), action: 'orders:resolve', targetType: 'PhoneNumberOrder', targetId: orderId, customerId: order.userId, reason },
+      async (tx) => {
+        await tx.phoneNumberOrder.update({
+          where: { id: orderId },
+          data: { orderStatus: 'resolved', failureReason: `${order.failureReason ? `${order.failureReason} | ` : ''}${note}`.slice(0, 2000) },
+        });
+        return { result: null, before: { orderStatus: order.orderStatus }, after: { orderStatus: 'resolved', resolution } };
+      }
+    );
+    res.status(200).json({ success: true, message: 'Order marked as resolved.' });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message || 'Retry initiation failed' });
+    logger.error('[ADMIN_API] Failed to resolve order', { orderId, error: err.message });
+    res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: 'Failed to resolve the order.' });
   }
 });
 
+
+// ═════════════════════════════════════════════════════════════════════════════
+// CONTROL PANEL (owner request 2026-11-23): settings that used to need a code change
+// ═════════════════════════════════════════════════════════════════════════════
+
+function sendValidation(res: Response, errors: string[]): void {
+  res.status(400).json({ error: 'VALIDATION_ERROR', message: errors.join(' '), errors });
+}
+
+/**
+ * GET /api/v2/admin/platform
+ * Plans (default vs live), switches, role caps. Owner only (settings:manage).
+ */
+adminRouter.get('/platform', requireStaff('settings:manage'), async (_req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    res.status(200).json({ success: true, data: await PlatformConfigService.getAdminView() });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to load platform settings', { error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to load platform settings' });
+  }
+});
+
+/**
+ * PUT /api/v2/admin/platform/plans/:key
+ * Changes a built-in plan (price, minutes, limits, can be bought). Takes effect for new checkouts
+ * at once; payments already started keep the terms they were created with.
+ */
+adminRouter.put('/platform/plans/:key', requireStaff('settings:manage'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const reason = reasonOf(req.body);
+  if (!reason) {
+    sendValidation(res, ['A reason (at least 3 characters) is required.']);
+    return;
+  }
+  try {
+    const result = await PlatformConfigService.updatePlan(paramOf(req, 'key'), req.body?.plan ?? {}, { ...auditBase(req), reason });
+    if (!result.ok) {
+      sendValidation(res, result.errors);
+      return;
+    }
+    res.status(200).json({ success: true, data: await PlatformConfigService.getAdminView() });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to update plan settings', { error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to save the plan' });
+  }
+});
+
+/**
+ * POST /api/v2/admin/platform/plans/:key/reset
+ * Back to the values written in the code (config/plans.ts).
+ */
+adminRouter.post('/platform/plans/:key/reset', requireStaff('settings:manage'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const reason = reasonOf(req.body);
+  if (!reason) {
+    sendValidation(res, ['A reason (at least 3 characters) is required.']);
+    return;
+  }
+  try {
+    const result = await PlatformConfigService.resetPlan(paramOf(req, 'key'), { ...auditBase(req), reason });
+    if (!result.ok) {
+      sendValidation(res, result.errors);
+      return;
+    }
+    res.status(200).json({ success: true, data: await PlatformConfigService.getAdminView() });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to reset plan settings', { error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to reset the plan' });
+  }
+});
+
+/**
+ * PUT /api/v2/admin/platform/switches
+ * Maintenance banner, pause sign-ups, pause outgoing calling (partial updates allowed).
+ */
+adminRouter.put('/platform/switches', requireStaff('settings:manage'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const reason = reasonOf(req.body);
+  if (!reason) {
+    sendValidation(res, ['A reason (at least 3 characters) is required.']);
+    return;
+  }
+  try {
+    const result = await PlatformConfigService.updateSwitches(req.body?.switches ?? {}, { ...auditBase(req), reason });
+    if (!result.ok) {
+      sendValidation(res, result.errors);
+      return;
+    }
+    res.status(200).json({ success: true, data: await PlatformConfigService.getAdminView() });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to update platform switches', { error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to save the switches' });
+  }
+});
+
+/**
+ * PUT /api/v2/admin/platform/caps/:role
+ * Per-role limits for granting minutes and discounts (admin, sales, support, finance).
+ */
+adminRouter.put('/platform/caps/:role', requireStaff('settings:manage'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const reason = reasonOf(req.body);
+  if (!reason) {
+    sendValidation(res, ['A reason (at least 3 characters) is required.']);
+    return;
+  }
+  try {
+    const result = await PlatformConfigService.updateRoleCaps(paramOf(req, 'role'), req.body?.caps ?? {}, { ...auditBase(req), reason });
+    if (!result.ok) {
+      sendValidation(res, result.errors);
+      return;
+    }
+    res.status(200).json({ success: true, data: await PlatformConfigService.getAdminView() });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to update role caps', { error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to save the caps' });
+  }
+});
+
+/** Same request key = same action: answers a retry without doing it twice. */
+async function alreadyDone(action: string, requestId: string): Promise<boolean> {
+  return Boolean(await prisma.adminAuditLog.findFirst({ where: { action, requestId }, select: { id: true } }));
+}
+
+/**
+ * POST /api/v2/admin/customers/:id/plan/assign
+ * Gives a customer a plan without a payment (e.g. a goodwill upgrade): sets the plan tier and a
+ * fresh validity window, and (optionally) adds the plan's minutes through the minutes ledger
+ * (counted against the role's grant cap). The tier is set exactly (it can also lower a tier).
+ */
+adminRouter.post('/customers/:id/plan/assign', requireStaff('plans:assign'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const id = paramOf(req);
+  const reason = reasonOf(req.body);
+  const key = idempotencyKeyOf(req);
+  const creditMinutes = req.body?.creditMinutes !== false;
+  const rawDays = req.body?.validityDays;
+  const validityDays = rawDays === undefined || rawDays === null || rawDays === '' ? null : Number(rawDays);
+
+  if (!reason || typeof req.body?.planKey !== 'string' || (validityDays !== null && (!Number.isInteger(validityDays) || validityDays < 1 || validityDays > 365))) {
+    sendValidation(res, ['A plan, a reason, and (optional) validity of 1-365 days are required.']);
+    return;
+  }
+  if (!key) {
+    res.status(400).json({ error: 'IDEMPOTENCY_KEY_REQUIRED', message: 'Missing request key. Reload the page and try again.' });
+    return;
+  }
+  const requestId = `plan_assign:${key}`;
+
+  try {
+    const customer = await prisma.user.findUnique({ where: { id }, select: { id: true, accountType: true, planExpiresAt: true } });
+    if (!customer) {
+      res.status(404).json({ error: 'NOT_FOUND', message: 'Customer not found.' });
+      return;
+    }
+    if (customer.accountType === 'admin') {
+      res.status(409).json({ error: 'PLATFORM_ADMIN_ACCOUNT', message: 'This is a platform admin account (unlimited). It does not take customer plans.' });
+      return;
+    }
+    if (await alreadyDone('plans:assign', requestId)) {
+      res.status(200).json({ success: true, data: { idempotent: true } });
+      return;
+    }
+    await PlatformConfigService.ensureLoaded();
+    const plan = await resolveSellablePlan(req.body.planKey, id);
+    if (!plan) {
+      res.status(400).json({ error: 'PLAN_UNKNOWN', message: 'Unknown or inactive plan, or a custom plan made for another customer.' });
+      return;
+    }
+    if (creditMinutes) {
+      const capError = await validateGrantCap(req.staff!.role, req.staff!.id, plan.minutes);
+      if (capError) {
+        res.status(403).json({ error: 'OVER_ROLE_CAP', message: capError });
+        return;
+      }
+    }
+    const days = validityDays ?? plan.validityDays ?? PLAN_VALIDITY_DAYS;
+    const expiresAt = new Date(Date.now() + days * 86400000);
+
+    const result = await withAudit<Record<string, unknown>>(
+      {
+        ...auditBase(req),
+        requestId,
+        action: 'plans:assign',
+        targetType: 'User',
+        targetId: id,
+        customerId: id,
+        reason,
+        isCustomerVisible: true,
+        customerActionDescription: `${plan.name} plan activated by Claritiy Support${creditMinutes ? ` with ${plan.minutes} minutes` : ''}`,
+      },
+      async (tx) => {
+        // Lock the customer row and re-check, so two identical requests cannot both apply.
+        await tx.$executeRaw`SELECT 1 FROM users WHERE id = ${id} FOR UPDATE`;
+        const dup = await tx.adminAuditLog.findFirst({ where: { action: 'plans:assign', requestId }, select: { id: true } });
+        if (dup) return { result: { idempotent: true } };
+        let balanceSeconds: number | undefined;
+        if (creditMinutes) {
+          const credit = await MinutesService.credit({
+            userId: id,
+            deltaSeconds: plan.minutes * 60,
+            reason: 'admin_grant',
+            refType: 'plan_assignment',
+            refId: plan.key,
+            note: `${plan.name} plan assigned by support: ${reason}`.slice(0, 500),
+            actorType: 'staff',
+            actorId: req.staff!.id,
+            idempotencyKey: requestId,
+          }, tx);
+          balanceSeconds = credit.balanceSeconds;
+        }
+        const heldNumbers = await tx.phoneNumber.count({ where: { userId: id } });
+        await tx.user.update({
+          where: { id },
+          data: {
+            accountType: plan.accountType,
+            planExpiresAt: expiresAt,
+            ...(heldNumbers === 0 ? { numberLocked: false } : {}),
+          },
+        });
+        return {
+          result: { planKey: plan.key, accountType: plan.accountType, planExpiresAt: expiresAt.toISOString(), minutesAdded: creditMinutes ? plan.minutes : 0, balanceSeconds },
+          before: { accountType: customer.accountType, planExpiresAt: customer.planExpiresAt ? customer.planExpiresAt.toISOString() : null },
+          after: { planKey: plan.key, accountType: plan.accountType, planExpiresAt: expiresAt.toISOString(), minutesAdded: creditMinutes ? plan.minutes : 0 },
+        };
+      }
+    );
+    res.status(200).json({ success: true, data: result });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to assign plan', { customerId: id, error: err.message });
+    sendServiceError(res, err, 'Failed to assign the plan.');
+  }
+});
+
+/**
+ * POST /api/v2/admin/customers/:id/plan/extend
+ * Moves the plan end date later by N days (from today if the plan has already ended).
+ */
+adminRouter.post('/customers/:id/plan/extend', requireStaff('plans:assign'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const id = paramOf(req);
+  const reason = reasonOf(req.body);
+  const key = idempotencyKeyOf(req);
+  const days = Number(req.body?.days);
+  if (!reason || !Number.isInteger(days) || days < 1 || days > 365) {
+    sendValidation(res, ['Days (1-365) and a reason are required.']);
+    return;
+  }
+  if (!key) {
+    res.status(400).json({ error: 'IDEMPOTENCY_KEY_REQUIRED', message: 'Missing request key. Reload the page and try again.' });
+    return;
+  }
+  const requestId = `plan_extend:${key}`;
+  try {
+    const customer = await prisma.user.findUnique({ where: { id }, select: { id: true, planExpiresAt: true } });
+    if (!customer) {
+      res.status(404).json({ error: 'NOT_FOUND', message: 'Customer not found.' });
+      return;
+    }
+    if (await alreadyDone('plans:extend', requestId)) {
+      res.status(200).json({ success: true, data: { idempotent: true } });
+      return;
+    }
+    const result = await withAudit<Record<string, unknown>>(
+      {
+        ...auditBase(req),
+        requestId,
+        action: 'plans:extend',
+        targetType: 'User',
+        targetId: id,
+        customerId: id,
+        reason,
+        isCustomerVisible: true,
+        customerActionDescription: `Plan validity extended by ${days} day(s) by Claritiy Support`,
+      },
+      async (tx) => {
+        await tx.$executeRaw`SELECT 1 FROM users WHERE id = ${id} FOR UPDATE`;
+        if (await tx.adminAuditLog.findFirst({ where: { action: 'plans:extend', requestId }, select: { id: true } })) return { result: { idempotent: true } };
+        const fresh = await tx.user.findUnique({ where: { id }, select: { planExpiresAt: true } });
+        const base = Math.max(Date.now(), fresh?.planExpiresAt ? fresh.planExpiresAt.getTime() : 0);
+        const next = new Date(base + days * 86400000);
+        await tx.user.update({ where: { id }, data: { planExpiresAt: next } });
+        return {
+          result: { planExpiresAt: next.toISOString() },
+          before: { planExpiresAt: fresh?.planExpiresAt ? fresh.planExpiresAt.toISOString() : null },
+          after: { planExpiresAt: next.toISOString(), days },
+        };
+      }
+    );
+    res.status(200).json({ success: true, data: result });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to extend plan', { customerId: id, error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to extend the plan.' });
+  }
+});
+
+/**
+ * GET /api/v2/admin/announcements — the latest 30 announcements shown in every customer's bell.
+ */
+adminRouter.get('/announcements', requireStaff('settings:manage'), async (_req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const rows = await prisma.systemAlert.findMany({
+      where: { userId: null, type: ANNOUNCEMENT_TYPE },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+      select: { id: true, message: true, metadata: true, createdAt: true, _count: { select: { receipts: true } } },
+    });
+    res.status(200).json({
+      success: true,
+      data: rows.map((r) => {
+        let important = false;
+        try { important = JSON.parse(r.metadata || '{}').isImportant === true; } catch { /* old rows */ }
+        return { id: r.id, message: r.message, isImportant: important, createdAt: r.createdAt, readOrDismissedBy: r._count.receipts };
+      }),
+    });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to list announcements', { error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to load announcements' });
+  }
+});
+
+/**
+ * POST /api/v2/admin/announcements — posts a message to every customer's notification bell.
+ */
+adminRouter.post('/announcements', requireStaff('settings:manage'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+  const reason = reasonOf(req.body) || 'Announcement to all customers';
+  if (!message || message.length > 2000) {
+    sendValidation(res, ['The announcement must be 1-2,000 characters.']);
+    return;
+  }
+  try {
+    const created = await NotificationService.createInAppNotification({
+      type: ANNOUNCEMENT_TYPE,
+      title: 'Announcement',
+      message,
+      isImportant: req.body?.isImportant === true,
+    });
+    const createdId = (created as { id?: string } | null)?.id || 'announcement';
+    await withAudit(
+      { ...auditBase(req), action: 'announcements:create', targetType: 'SystemAlert', targetId: String(createdId), reason },
+      async () => ({ result: null, after: { message, isImportant: req.body?.isImportant === true } })
+    );
+    res.status(201).json({ success: true, data: created });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to post announcement', { error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to post the announcement' });
+  }
+});
+
+/**
+ * POST /api/v2/admin/announcements/:id/delete — removes it from every customer's bell.
+ */
+adminRouter.post('/announcements/:id/delete', requireStaff('settings:manage'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const id = paramOf(req);
+  const reason = reasonOf(req.body) || 'Announcement removed';
+  try {
+    const row = await prisma.systemAlert.findFirst({ where: { id, userId: null, type: ANNOUNCEMENT_TYPE } });
+    if (!row) {
+      res.status(404).json({ error: 'NOT_FOUND', message: 'Announcement not found.' });
+      return;
+    }
+    await withAudit(
+      { ...auditBase(req), action: 'announcements:delete', targetType: 'SystemAlert', targetId: id, reason },
+      async (tx) => {
+        await tx.systemAlert.delete({ where: { id } });
+        return { result: null, before: { message: row.message } };
+      }
+    );
+    res.status(200).json({ success: true });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to delete announcement', { error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to delete the announcement' });
+  }
+});
+
+/**
+ * POST /api/v2/admin/alerts/:id/resolve — marks an internal operations alert (e.g. failed
+ * provisioning) as handled, so the Numbers page only lists open ones.
+ */
+adminRouter.post('/alerts/:id/resolve', requireStaff('numbers:activate'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const id = paramOf(req);
+  const reason = reasonOf(req.body);
+  if (!reason) {
+    sendValidation(res, ['A reason (at least 3 characters) is required.']);
+    return;
+  }
+  try {
+    // Only internal alerts (no owner, not an announcement): customer notifications are not touched here.
+    const row = await prisma.systemAlert.findFirst({ where: { id, userId: null, NOT: { type: ANNOUNCEMENT_TYPE } } });
+    if (!row) {
+      res.status(404).json({ error: 'NOT_FOUND', message: 'Alert not found.' });
+      return;
+    }
+    await withAudit(
+      { ...auditBase(req), action: 'alerts:resolve', targetType: 'SystemAlert', targetId: id, reason },
+      async (tx) => {
+        await tx.systemAlert.update({ where: { id }, data: { isResolved: true } });
+        return { result: null, before: { isResolved: row.isResolved }, after: { isResolved: true } };
+      }
+    );
+    res.status(200).json({ success: true });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to resolve alert', { error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to resolve the alert' });
+  }
+});
+
+/**
+ * POST /api/v2/admin/calls/:id/recording-link
+ * Owner only (call_content:view). Returns the same short-lived signed stream link customers get
+ * (RecordingService.createPlaybackLink); the carrier address is never sent to the browser.
+ * Every request is written to the admin audit log as a sensitive read.
+ */
+adminRouter.post('/calls/:id/recording-link', requireStaff('call_content:view'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const callId = paramOf(req);
+  try {
+    const callRow = await prisma.call.findUnique({ where: { id: callId }, select: { id: true, userId: true } });
+    if (!callRow) {
+      res.status(404).json({ error: 'NOT_FOUND', message: 'Call not found.' });
+      return;
+    }
+    const { createPlaybackLink } = await import('../services/RecordingService');
+    const link = await createPlaybackLink(callRow.userId, callId);
+    if (!link) {
+      res.status(404).json({ error: 'NO_RECORDING', message: 'This call has no recording.' });
+      return;
+    }
+    await logAdminRead({ ...auditBase(req), action: 'call_content:recording_play', targetType: 'Call', targetId: callId, customerId: callRow.userId, reason: reasonOf(req.body) || 'Recording played in the admin console' });
+    res.status(200).json({ success: true, data: link });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to create recording link', { callId, error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Could not open the recording.' });
+  }
+});
