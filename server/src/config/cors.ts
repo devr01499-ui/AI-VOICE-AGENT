@@ -32,9 +32,25 @@ function originOf(url?: string): string | null {
   }
 }
 
+export const DEFAULT_ADMIN_ORIGIN = 'https://admin.claritiy.com';
+
+/**
+ * Exact browser origins of the admin console. ADMIN_ORIGIN may list several, comma separated
+ * (e.g. the console's own Vercel address and admin.claritiy.com). Each entry is normalised to its
+ * origin (scheme + host); paths, trailing slashes and junk entries are ignored. Never a wildcard:
+ * an arbitrary *.vercel.app site must not reach the admin API.
+ */
+export function adminOriginsFrom(raw?: string | null): string[] {
+  const list = String(raw || '')
+    .split(',')
+    .map((s) => originOf(s.trim()))
+    .filter((o): o is string => Boolean(o) && /^https?:\/\/[^*]+$/.test(o as string));
+  return list.length ? Array.from(new Set(list)) : [DEFAULT_ADMIN_ORIGIN];
+}
+
 export function isAllowedCorsOrigin(origin: string, cfg: CorsPolicyEnv): boolean {
   const allowed = new Set<string>(PRODUCTION_ORIGINS);
-  allowed.add(cfg.adminOrigin || 'https://admin.claritiy.com');
+  adminOriginsFrom(cfg.adminOrigin).forEach((o) => allowed.add(o));
   const frontend = originOf(cfg.frontendUrl);
   if (frontend) allowed.add(frontend);
   if (cfg.nodeEnv !== 'production') DEV_ORIGINS.forEach((o) => allowed.add(o));

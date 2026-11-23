@@ -102,6 +102,18 @@ async function main() {
     assert.ok(isAllowedCorsOrigin('http://localhost:5173', { nodeEnv: 'development' }));
   });
 
+  await test('CORS: ADMIN_ORIGIN lists several exact console origins; never a wildcard; PATCH allowed', async () => {
+    const { isAllowedCorsOrigin, adminOriginsFrom } = require('../dist/config/cors');
+    const cfg = { nodeEnv: 'production', adminOrigin: 'https://claritiy-admin-abc123.vercel.app/ , https://admin.claritiy.com, *.vercel.app, not a url' };
+    assert.deepStrictEqual(adminOriginsFrom(cfg.adminOrigin), ['https://claritiy-admin-abc123.vercel.app', 'https://admin.claritiy.com']);
+    assert.ok(isAllowedCorsOrigin('https://claritiy-admin-abc123.vercel.app', cfg), 'the console on its Vercel address');
+    assert.ok(!isAllowedCorsOrigin('https://someone-else.vercel.app', cfg), 'any other Vercel site refused');
+    assert.deepStrictEqual(adminOriginsFrom(''), ['https://admin.claritiy.com'], 'default when unset');
+    const src = require('fs').readFileSync(require('path').join(__dirname, '../src/index.ts'), 'utf8');
+    assert.ok(/methods: \[[^\]]*'PATCH'/.test(src), 'PATCH in the CORS methods (admin console uses it)');
+    assert.ok(src.includes('adminOrigins.includes(origin)'), 'admin route gate uses the same list');
+  });
+
   await test('toll fraud: Indian numbers allowed, premium-rate and foreign numbers refused by default', async () => {
     const { checkOutboundDestination: chk } = require('../dist/utils/destinationPolicy');
     for (const n of ['+919812345678', '919812345678', '09812345678', '9812345678', '+911123456789', '+918045678901']) {
@@ -330,7 +342,7 @@ async function main() {
     const limits = require('../dist/config/limits');
     assert.strictEqual(limits.WS_MAX_AUDIO_MESSAGE_BYTES, 1024 * 1024);
     assert.strictEqual(limits.WS_MAX_TRANSCRIPT_MESSAGE_BYTES, 64 * 1024);
-    const src = fs.readFileSync(path.join(__dirname, '../src/index.ts'), 'utf8');
+    const src = require('fs').readFileSync(require('path').join(__dirname, '../src/index.ts'), 'utf8');
     const servers = src.match(/new WebSocketServer\(\{[\s\S]*?\}\)/g) || [];
     assert.strictEqual(servers.length, 3);
     for (const s of servers) assert.ok(/maxPayload: WS_MAX_/.test(s), s);

@@ -5,6 +5,9 @@ import { EncryptionService } from '../utils/EncryptionService';
 import { logger } from '../utils/logger';
 import { ProviderError } from '../types/errors';
 
+/** kycMode of a local sub-account row that Vobiz says does not exist (never retried). */
+export const SUB_ACCOUNT_MISSING_MODE = 'missing_at_carrier';
+
 export class VobizSubAccountService {
   private readonly baseUrl: string;
   private readonly masterAuthId: string;
@@ -327,6 +330,13 @@ export class VobizSubAccountService {
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
+      if (res.status === 404) {
+        // The carrier has no such sub-account (e.g. a leftover test row): retrying every 30 minutes
+        // can never succeed. Mark it once and stop; calls stay blocked for it (it cannot call anyway).
+        await prisma.vobizSubAccount.update({ where: { id: subAccount.id }, data: { kycMode: SUB_ACCOUNT_MISSING_MODE, kycCallsBlocked: true } }).catch(() => {});
+        logger.error('[ADMIN_ALERT][VOBIZ_KYC_MODE] sub-account does not exist at Vobiz; marked missing_at_carrier and no longer retried', { userId: subAccount.userId, subAuthId: subAccount.authId });
+        return false;
+      }
       logger.error('[ADMIN_ALERT][VOBIZ_KYC_MODE] Vobiz refused switching sub-account to customer_use', { userId: subAccount.userId, subAuthId: subAccount.authId, status: res.status, body: text.slice(0, 300) });
       return false;
     }

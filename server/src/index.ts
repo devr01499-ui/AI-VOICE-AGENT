@@ -18,7 +18,17 @@ import { env } from './config/env';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import { isAllowedCorsOrigin } from './config/cors';
+import { isAllowedCorsOrigin, adminOriginsFrom } from './config/cors';
+
+const blockedOriginLoggedAt = new Map<string, number>();
+/** Names the refused browser origin in the log, at most once a minute per origin. */
+function logBlockedOrigin(origin: string): void {
+  const now = Date.now();
+  if (now - (blockedOriginLoggedAt.get(origin) || 0) < 60_000) return;
+  if (blockedOriginLoggedAt.size > 500) blockedOriginLoggedAt.clear();
+  blockedOriginLoggedAt.set(origin, now);
+  console.warn(JSON.stringify({ level: 'warn', message: '[CORS] Request from an origin that is not allowed (set ADMIN_ORIGIN / FRONTEND_URL if it is yours)', origin: origin.slice(0, 200) }));
+}
 import { WS_MAX_AUDIO_MESSAGE_BYTES, WS_MAX_TRANSCRIPT_MESSAGE_BYTES } from './config/limits';
 import http from 'http';
 import { WebSocketServer } from 'ws';
@@ -142,11 +152,14 @@ app.use(cors({
       callback(null, true);
     } else {
       // 403 with a clear code instead of a logged 500 "unexpected error" for every blocked origin.
+      // The origin is logged (once a minute each) so a mis-set ADMIN_ORIGIN / FRONTEND_URL is visible.
+      logBlockedOrigin(origin);
       callback(new AppError(403, 'CORS_ORIGIN_BLOCKED', 'Cross-Origin Request Blocked by Security Policy'));
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  // PATCH is used by the admin console (customer profile, staff, custom plans).
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-request-id', 'x-user-id', 'Idempotency-Key', 'idempotency-key']
 }));
 
@@ -363,13 +376,16 @@ app.use('/api/v2/reports', requireAuth, reportsRoutes);
 app.use('/api/v2/public', publicPlatformRouter);
 
 // Administrative Console API — Guarded by strict origin policy, RBAC and AAL2 MFA
-const adminOrigin = process.env.ADMIN_ORIGIN || 'https://admin.claritiy.com';
+// ADMIN_ORIGIN may list several exact origins, comma separated (config/cors.ts adminOriginsFrom).
+const adminOrigins = adminOriginsFrom(process.env.ADMIN_ORIGIN);
+logger.info('[ADMIN_AUTH] Admin console allowed from', { origins: adminOrigins });
 app.use('/api/v2/admin', (req, res, next) => {
   const origin = req.headers.origin;
   if (origin) {
     const isLocalhostAdmin = (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) && process.env.NODE_ENV !== 'production';
-    const isProductionAdmin = origin === adminOrigin;
+    const isProductionAdmin = adminOrigins.includes(origin);
     if (!isLocalhostAdmin && !isProductionAdmin) {
+      logger.warn('[ADMIN_AUTH] Admin request from an origin not in ADMIN_ORIGIN', { origin });
       res.status(404).json({ error: 'Not found' });
       return;
     }

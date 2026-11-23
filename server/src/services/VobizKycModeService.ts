@@ -2,6 +2,7 @@ import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { VobizSubAccountService } from './VobizSubAccountService';
 import { NotificationService } from './NotificationService';
+import { ADMIN_EMAIL } from '../config/constants';
 
 /**
  * Every customer must pass their OWN KYC with Vobiz (owner decision 2026-11-19).
@@ -39,7 +40,14 @@ export async function promoteLegacySubAccounts(
   opts: { userIds?: string[] } = {},
 ): Promise<{ switched: number; failed: number }> {
   const pending = await prisma.vobizSubAccount.findMany({
-    where: { kycMode: 'personal_use', NOT: { authId: { startsWith: 'SA_MOCK_' } }, ...(opts.userIds ? { userId: { in: opts.userIds } } : {}) },
+    where: {
+      kycMode: 'personal_use',
+      NOT: { authId: { startsWith: 'SA_MOCK_' } },
+      // Platform admin accounts are not KYC-gated for calls, and the owner's email is already used
+      // by the master account (Vobiz answers 409), so they are never switched.
+      user: { is: { accountType: { not: 'admin' }, email: { not: ADMIN_EMAIL } } },
+      ...(opts.userIds ? { userId: { in: opts.userIds } } : {}),
+    },
     // Least recently tried first, so accounts Vobiz keeps refusing never block the rest.
     orderBy: { updatedAt: 'asc' },
     select: { id: true, userId: true, authId: true, user: { select: { email: true } } },
