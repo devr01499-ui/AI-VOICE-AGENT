@@ -312,6 +312,39 @@ async function main() {
     }
   });
 
+  await test('A11 recordings: lists never carry the carrier URL; playback is a signed, audited link (owner only)', async () => {
+    const id = await newUser();
+    const agent = await prisma.agent.create({ data: { userId: id, name: 'Rec', systemPrompt: 'x' } });
+    const carrierUrl = 'https://media.vobiz.ai/v1/Account/MA_X/Recording/rec-123.mp3';
+    const callRow = await prisma.call.create({ data: { userId: id, agentId: agent.id, recipientPhoneNumber: '+919811100099', status: 'completed', recordingUrl: carrierUrl } });
+    const list = await call(h('get', '/calls'), { query: { q: callRow.id }, staff: OWNER });
+    assert.strictEqual(list.statusCode, 200, JSON.stringify(list.body));
+    assert.ok(!JSON.stringify(list.body).includes('media.vobiz.ai'), 'carrier URL not sent');
+    assert.strictEqual(list.body.data.find((c) => c.id === callRow.id).hasRecording, true);
+    const perCustomer = await call(h('get', '/customers/:id/calls'), { params: { id }, staff: OWNER });
+    assert.ok(!JSON.stringify(perCustomer.body).includes('media.vobiz.ai'));
+    const { hasPermission } = require('../dist/admin/permissions');
+    assert.strictEqual(hasPermission('admin', 'call_content:view'), false, 'owner only');
+    const link = await call(h('post', '/calls/:id/recording-link'), { params: { id: callRow.id }, body: {}, staff: OWNER });
+    assert.strictEqual(link.statusCode, 200, JSON.stringify(link.body));
+    assert.ok(link.body.data.url.startsWith(`/api/v2/recordings/${callRow.id}/stream?`), 'our signed stream endpoint');
+    assert.ok(!link.body.data.url.includes('vobiz'), 'not the carrier address');
+    assert.ok(await prisma.adminAuditLog.findFirst({ where: { action: 'call_content:recording_play', targetId: callRow.id } }), 'listening is audited');
+    await prisma.call.delete({ where: { id: callRow.id } }).catch(() => {});
+    await prisma.agent.delete({ where: { id: agent.id } }).catch(() => {});
+  });
+
+  await test('A12 customer list sorting is done by the server across all pages', async () => {
+    const r = await call(h('get', '/customers'), { query: { sort: 'oldest', limit: '5' }, staff: OWNER });
+    assert.strictEqual(r.statusCode, 200, JSON.stringify(r.body));
+    const oldest = await prisma.user.findMany({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: 5, select: { id: true } });
+    assert.deepStrictEqual(r.body.data.map((u) => u.id), oldest.map((u) => u.id));
+    const byCalls = await call(h('get', '/customers'), { query: { sort: 'calls', limit: '3' }, staff: OWNER });
+    assert.strictEqual(byCalls.statusCode, 200, JSON.stringify(byCalls.body));
+    const counts = byCalls.body.data.map((u) => u.callsCount);
+    assert.deepStrictEqual(counts, [...counts].sort((a, b) => b - a));
+  });
+
   console.log(`\nAdmin panel backend: ${passed}/${total} passed`);
 }
 

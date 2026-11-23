@@ -39,6 +39,12 @@ adminRouter.use(adminIpLimiter);
 /** Largest number of minutes one admin action may add or remove. */
 export const MAX_ADMIN_MINUTES = 100_000;
 const ACCOUNT_STATUSES = ['active', 'restricted', 'suspended'];
+const CUSTOMER_SORTS: Record<string, any> = {
+  newest: [{ createdAt: 'desc' }, { id: 'asc' }],
+  oldest: [{ createdAt: 'asc' }, { id: 'asc' }],
+  minutes: [{ minutesRemainingSeconds: 'desc' }, { id: 'asc' }],
+  calls: [{ calls: { _count: 'desc' } }, { id: 'asc' }],
+};
 const RISK_LEVELS = ['none', 'watch', 'high'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -812,7 +818,8 @@ adminRouter.get('/customers', requireStaff('customers:view'), async (req: StaffA
         where: whereClause,
         skip,
         take,
-        orderBy: { createdAt: 'desc' },
+        // Sorted in the database (sorting one page in the browser showed the wrong customers).
+        orderBy: CUSTOMER_SORTS[typeof req.query.sort === 'string' && CUSTOMER_SORTS[req.query.sort] ? req.query.sort : 'newest'],
         select: {
           id: true,
           email: true,
@@ -1008,7 +1015,9 @@ adminRouter.get('/customers/:id/calls', requireStaff('customers:view'), async (r
 
     res.status(200).json({
       success: true,
-      data: calls,
+      // The carrier recording address never leaves the server: the owner gets hasRecording and
+      // asks POST /calls/:id/recording-link for a short-lived, audited playback link.
+      data: calls.map(({ recordingUrl, ...c }: any) => ({ ...c, hasRecording: isOwner ? Boolean(recordingUrl) : undefined })),
       pagination: {
         page: pageNum,
         limit: take,
@@ -1740,7 +1749,9 @@ adminRouter.get('/calls', requireStaff('customers:view'), async (req: StaffAuthe
 
     res.status(200).json({
       success: true,
-      data: calls,
+      // The carrier recording address never leaves the server: the owner gets hasRecording and
+      // asks POST /calls/:id/recording-link for a short-lived, audited playback link.
+      data: calls.map(({ recordingUrl, ...c }: any) => ({ ...c, hasRecording: isOwner ? Boolean(recordingUrl) : undefined })),
       pagination: {
         page: pageNum,
         limit: take,
@@ -2966,5 +2977,33 @@ adminRouter.post('/alerts/:id/resolve', requireStaff('numbers:activate'), async 
   } catch (err: any) {
     logger.error('[ADMIN_API] Failed to resolve alert', { error: err.message });
     res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to resolve the alert' });
+  }
+});
+
+/**
+ * POST /api/v2/admin/calls/:id/recording-link
+ * Owner only (call_content:view). Returns the same short-lived signed stream link customers get
+ * (RecordingService.createPlaybackLink); the carrier address is never sent to the browser.
+ * Every request is written to the admin audit log as a sensitive read.
+ */
+adminRouter.post('/calls/:id/recording-link', requireStaff('call_content:view'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const callId = paramOf(req);
+  try {
+    const callRow = await prisma.call.findUnique({ where: { id: callId }, select: { id: true, userId: true } });
+    if (!callRow) {
+      res.status(404).json({ error: 'NOT_FOUND', message: 'Call not found.' });
+      return;
+    }
+    const { createPlaybackLink } = await import('../services/RecordingService');
+    const link = await createPlaybackLink(callRow.userId, callId);
+    if (!link) {
+      res.status(404).json({ error: 'NO_RECORDING', message: 'This call has no recording.' });
+      return;
+    }
+    await logAdminRead({ ...auditBase(req), action: 'call_content:recording_play', targetType: 'Call', targetId: callId, customerId: callRow.userId, reason: reasonOf(req.body) || 'Recording played in the admin console' });
+    res.status(200).json({ success: true, data: link });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to create recording link', { callId, error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Could not open the recording.' });
   }
 });

@@ -178,7 +178,8 @@ async function main() {
     const validate = handlerOf(publicUserRouter, 'post', '/validate-signup');
     const v = await call(validate, { body: { email: 'new.person@claritiy-test.co.in' } });
     assert.strictEqual(v.statusCode, 403);
-    assert.strictEqual(v.body.error, 'SIGNUPS_PAUSED');
+    assert.strictEqual(v.body.code, 'SIGNUPS_PAUSED');
+    assert.ok(/paused/i.test(v.body.error), 'readable message for the sign-up form');
     const supa = require('../dist/utils/supabase');
     const { requireAuth } = require('../dist/middleware/auth');
     const existing = await newUser({ accountType: 'professional' });

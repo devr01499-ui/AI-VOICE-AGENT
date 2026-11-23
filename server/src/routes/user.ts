@@ -517,7 +517,8 @@ publicUserRouter.post('/validate-signup', signupLimiter, authIpThrottleDelay, as
     await PlatformConfigService.ensureLoaded();
     if (PlatformConfigService.areSignupsPaused()) {
       const { signupsPausedMessage } = PlatformConfigService.getSwitches();
-      res.status(403).json({ success: false, error: 'SIGNUPS_PAUSED', message: signupsPausedMessage });
+      // error carries the readable text (the sign-up form shows `error` as-is); code is machine-readable.
+      res.status(403).json({ success: false, error: signupsPausedMessage, code: 'SIGNUPS_PAUSED', message: signupsPausedMessage });
       return;
     }
 
