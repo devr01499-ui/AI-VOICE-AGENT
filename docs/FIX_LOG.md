@@ -702,3 +702,33 @@ Owner decisions:
   - A 500 now ends with `(stage/code)`, e.g. `(team_lookup/TypeError)`: the stage name and error code, never the message. The next screenshot names the cause even without the Render log.
 - **Tests:** `test_auth_session_resolver.js` (new, in test:security) 9/9; on the old code 3/9. `test_auth_transient` 15/15. test:security exit 0 (PGlite), OWASP 23/23, payment security 16/16, typecheck 0, build OK.
 - **Not verifiable here:** which stage failed for that production request. The old log line is in Render under `AUTH-TRACE-1795435853155`; any new error now names its stage on screen. Also why production restarted at 17:33 IST without a deploy (Render → Events / Logs: look for "uncaught exception", "out of memory" or a health-check restart).
+
+## The real cause of the AUTH-TRACE errors: production database missing 5 migrations (2026-11-23, branch fix/deploy-schema-sync)
+- **Evidence:** the new on-screen tag read `AUTH-TRACE-1795438024855 (user_lookup/42703)`. 42703 is Postgres "column does not exist". The Render log of the a571846 deploy showed `phone_numbers.inbound_enabled` and `batches.scheduled_at` missing. The build line read `Running build command 'npm install; npm run build'`.
+- **Root cause:** the live service's dashboard Build Command (which overrides render.yaml) never touched the database. So none of the migrations after the baseline reached production:
+  - `users.plan_expires_at` (20261119120000);
+  - `phone_numbers.inbound_enabled` (20261118100000);
+  - `batches.scheduled_at` (20261119090000);
+  - `plivo_compliance_applications` (20261119130000);
+  - WhatsApp + call transfer tables (20261122120000).
+
+  Every request that read a full user row failed with 42703, which customers saw as "We could not verify your session". The two earlier AUTH-TRACE fixes were real hardening but not this cause. The stage/code tag added in fix/auth-session-resolver is what exposed it.
+- **Fix:** `server/scripts/deploy_schema_sync.js`, run as `postbuild`, so it runs on every Render deploy without changing the dashboard:
+  - asks `prisma migrate diff --from-config-datasource` for the SQL from the live database to schema.prisma;
+  - applies only additive parts (CREATE TABLE, CREATE INDEX, ALTER TABLE ADD COLUMN / ADD CONSTRAINT, clause by clause) in ONE transaction, with lock and statement timeouts, plus a migration's one-time data step when its column is added (the inbound_enabled status conversion);
+  - never drops, renames or retypes anything: those parts are logged as "kept as is";
+  - re-checks afterwards;
+  - uses session mode (5432) instead of the transaction pooler (6543) for schema changes;
+  - runs only on Render (RENDER=true and no local .env), so a developer's build never touches the production database in server/.env (verified: the local build prints "skipped: not a Render build"). SCHEMA_SYNC=off disables it.
+
+  If additive SQL fails, everything is rolled back and the build fails, so Render keeps the running version. render.yaml buildCommand now matches reality (no `db push`).
+- **Tests:** `test_deploy_schema_sync.js` (test:schema-sync; its unit part is in test:security) 9/9 on a real Postgres built from the baseline (= production's state):
+  - reproduces the 42703;
+  - the sync adds every missing column and table;
+  - the full-text index and an extra column survive;
+  - the inbound data step runs;
+  - a second run changes nothing;
+  - a failing statement rolls back everything (exit 1).
+
+  test:security exit 0 (PGlite), OWASP 23/23, payment 16/16, typecheck 0, build OK.
+- **Not verifiable here:** the run against production itself. The Render build log will show `[schema-sync] apply: ...` lines and `database schema is up to date`; anything listed as "kept as is" is drift for the owner to review.
