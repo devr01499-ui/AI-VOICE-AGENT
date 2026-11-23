@@ -86,7 +86,9 @@ async function main() {
     }
   });
 
-  await test('#4 /numbers/purchase refunds the payment when the number cannot be set up after paying', async () => {
+  // Owner rule 2026-11-23 replaces the automatic refund of audit #4: the payment is kept, the owner
+  // gets a case on the admin Payments page and decides; the customer is told the money is safe.
+  await test('#4 /numbers/purchase: no automatic refund; the owner gets a review case and the customer is told', async () => {
     const { BillingService } = require('../dist/services/BillingService');
     const { VobizPhoneNumberService } = require('../dist/services/VobizPhoneNumberService');
     const { VobizSubAccountService } = require('../dist/services/VobizSubAccountService');
@@ -142,10 +144,14 @@ async function main() {
         });
         const body = await r.json();
         assert.strictEqual(r.status, expectStatus, `${failure}: status (got ${r.status} ${JSON.stringify(body)})`);
-        assert.strictEqual(body.refunded, true, `${failure}: refunded flag`);
-        assert.ok(refunds.some((x) => x.id === paymentId && x.amount === 49900), `${failure}: full amount refunded at the gateway`);
+        assert.strictEqual(body.refunded, false, `${failure}: nothing refunded automatically`);
+        assert.ok(/payment is safe/i.test(body.error) && !/refunded automatically/i.test(body.error), `${failure}: honest message`);
+        assert.strictEqual(refunds.filter((x) => x.id === paymentId).length, 0, `${failure}: no refund at the gateway`);
         const tx = await prisma.paymentTransaction.findFirst({ where: { paymentId } });
-        assert.strictEqual(tx.status, 'refunded', `${failure}: payment marked refunded`);
+        assert.strictEqual(tx.status, 'completed', `${failure}: payment kept on record`);
+        const cases = await prisma.systemAlert.findMany({ where: { userId: null, type: 'PAYMENT_REVIEW', isResolved: false, metadata: { contains: paymentId } } });
+        assert.strictEqual(cases.length, 1, `${failure}: one case for the owner`);
+        assert.ok(await prisma.systemAlert.findFirst({ where: { userId: u, title: 'We received your payment' } }), `${failure}: customer told`);
         const after = await prisma.user.findUnique({ where: { id: u }, select: { numberLocked: true } });
         assert.strictEqual(after.numberLocked, false, `${failure}: slot released (no number was given)`);
       }

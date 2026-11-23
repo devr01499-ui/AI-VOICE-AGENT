@@ -345,6 +345,47 @@ async function main() {
     assert.deepStrictEqual(counts, [...counts].sort((a, b) => b - a));
   });
 
+  await test('A13 no automatic refund: case → console list → one-click refund closes it and tells the customer', async () => {
+    const { reportPaymentIssue } = require('../dist/services/PaymentIssueService');
+    const id = await newUser();
+    const paymentId = `pay_rev_${id.slice(0, 8)}`;
+    const orderId = `order_rev_${id.slice(0, 8)}`;
+    const first = await reportPaymentIssue({ userId: id, paymentId, orderId, amountInr: 499, reason: 'Carrier refused the number', source: 'reconciliation' });
+    const again = await reportPaymentIssue({ userId: id, paymentId, orderId, amountInr: 499, reason: 'Carrier refused the number', source: 'reconciliation' });
+    assert.strictEqual(first.created, true);
+    assert.strictEqual(again.created, false, 'one case per payment');
+    assert.strictEqual(await prisma.systemAlert.count({ where: { userId: id, title: 'We received your payment' } }), 1, 'customer told once');
+    assert.strictEqual(gw.refunds.filter((r) => r.id === paymentId).length, 0, 'nothing refunded by itself');
+    const list = await call(h('get', '/payment-issues'), { staff: OWNER });
+    const row = list.body.data.find((r) => r.paymentId === paymentId);
+    assert.ok(row && row.payment && row.payment.status === 'completed' && row.customer.email, JSON.stringify(row));
+    const refund = await call(h('post', '/payments/:id/refund'), { params: { id: row.payment.id }, body: { reason: 'Owner approved the refund' }, staff: OWNER });
+    assert.strictEqual(refund.statusCode, 200, JSON.stringify(refund.body));
+    assert.strictEqual(refund.body.data.casesClosed, 1, 'the case closes with the refund');
+    assert.strictEqual(gw.refunds.filter((r) => r.id === paymentId).length, 1, 'Razorpay asked once');
+    assert.strictEqual(gw.refunds.find((r) => r.id === paymentId).amount, 49900);
+    const tx = await prisma.paymentTransaction.findFirst({ where: { paymentId } });
+    assert.strictEqual(tx.status, 'refunded');
+    assert.strictEqual(tx.refundedAmount, 499);
+    assert.ok(await prisma.systemAlert.findFirst({ where: { userId: id, title: 'Refund issued' } }), 'customer notified of the refund');
+    const after = await call(h('get', '/payment-issues'), { staff: OWNER });
+    assert.ok(!after.body.data.some((r) => r.paymentId === paymentId), 'no longer waiting');
+
+    // Close without a refund (number set up by hand): audited, nothing sent to Razorpay.
+    const p2 = `pay_rev2_${id.slice(0, 8)}`;
+    const c2 = await reportPaymentIssue({ userId: id, paymentId: p2, orderId: `order_rev2_${id.slice(0, 8)}`, amountInr: 499, reason: 'Assignment failed', source: 'number_purchase' });
+    const noReason = await call(h('post', '/payment-issues/:id/close'), { params: { id: c2.alertId }, body: { outcome: 'number_set_up' }, staff: OWNER });
+    assert.strictEqual(noReason.statusCode, 400);
+    const closed = await call(h('post', '/payment-issues/:id/close'), { params: { id: c2.alertId }, body: { outcome: 'number_set_up', reason: 'Assigned by hand in the carrier console' }, staff: OWNER });
+    assert.strictEqual(closed.statusCode, 200, JSON.stringify(closed.body));
+    assert.strictEqual(gw.refunds.filter((r) => r.id === p2).length, 0);
+    assert.strictEqual((await prisma.paymentTransaction.findFirst({ where: { paymentId: p2 } })).status, 'completed');
+    assert.ok(await prisma.adminAuditLog.findFirst({ where: { action: 'payments:issue_closed', targetId: c2.alertId } }));
+    const { hasPermission } = require('../dist/admin/permissions');
+    assert.strictEqual(hasPermission('support', 'refunds:manage'), false, 'support cannot refund or close cases');
+    await prisma.systemAlert.deleteMany({ where: { OR: [{ userId: id }, { id: { in: [first.alertId, c2.alertId] } }] } });
+  });
+
   console.log(`\nAdmin panel backend: ${passed}/${total} passed`);
 }
 

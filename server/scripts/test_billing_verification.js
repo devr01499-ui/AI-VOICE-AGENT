@@ -310,7 +310,10 @@ async function main() {
     assert.ok(!/baseCost|setupFee\s*=/.test(createOrder), 'browser price fields must not be read');
     const purchase = src.slice(src.indexOf("router.post('/purchase'"), src.indexOf("router.post('/claim'"));
     assert.ok(purchase.includes('redeemNumberPayment') && !/req\.body[^;]*expectedPrice/.test(purchase));
-    assert.ok(purchase.includes('const amountInPaise = paid.amountPaise'), 'refunds use the verified amount');
+    // Owner rule 2026-11-23: no automatic refund in the purchase route; undelivered payments become
+    // owner cases with the verified amount (refunds happen only from the admin console).
+    assert.ok(!purchase.includes('refundOrder('), 'no automatic refund');
+    assert.ok(purchase.includes('amountInr: paid.amountInr'), 'cases carry the verified amount');
     // Phase 13: the only other paid number route (/plivo/purchase) was unused and removed.
     assert.ok(!src.includes("router.post('/plivo/purchase'") && !src.includes('verifyPayment('));
   });
