@@ -158,6 +158,14 @@ jobs:
         env:
           CI: 'true'
         run: npx playwright test --workers=2 --reporter=line
+      - name: Install admin console
+        working-directory: Admin
+        run: npm ci
+      - name: Playwright (admin console)
+        working-directory: Frontend
+        env:
+          CI: 'true'
+        run: npx playwright test -c playwright.admin.config.ts --reporter=line
       - name: Upload report on failure
         if: failure()
         uses: actions/upload-artifact@v4

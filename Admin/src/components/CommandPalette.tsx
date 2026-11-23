@@ -13,12 +13,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose,
   const [customerResults, setCustomerResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
 
+  // Ctrl/Cmd+K (open and close) is handled by AdminLayout, which owns the open state.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        isOpen ? onClose() : undefined;
-      }
       if (e.key === 'Escape' && isOpen) {
         onClose();
       }
