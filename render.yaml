@@ -9,7 +9,10 @@ services:
     healthCheckPath: /live
     maxShutdownDelaySeconds: 90
     rootDir: server
-    buildCommand: npm install --include=dev && npx prisma generate && npx prisma db push --skip-generate && npm run build
+    # The live service's dashboard Build Command is `npm install; npm run build` (it overrides this
+    # file). `npm run build` = prisma generate -> tsc -> scripts/deploy_schema_sync.js, which adds
+    # missing tables/columns/indexes (additive only, one transaction, never drops) on Render builds.
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
     envVars:
       - key: PORT
