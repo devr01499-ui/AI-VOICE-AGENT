@@ -18,6 +18,7 @@ import {
   ExternalLink,
   ChevronRight,
   BarChart3,
+  SlidersHorizontal,
   Receipt,
 } from 'lucide-react';
 
@@ -34,6 +35,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ currentPath, onNavigat
 
   const navItems = [
     { label: 'Overview', path: '/overview', icon: LayoutDashboard },
+    { label: 'Control Panel', path: '/control', icon: SlidersHorizontal, perm: 'settings:manage' },
     { label: 'Customers', path: '/customers', icon: Users, perm: 'customers:view' },
     { label: 'Calls & Telephony', path: '/calls', icon: PhoneCall },
     { label: 'Usage & Telemetry', path: '/usage', icon: BarChart3, perm: 'metrics:view' },

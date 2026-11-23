@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { adminFetch } from '../lib/api';
+import { fmtDateTime } from '../lib/format';
 import {
   Activity,
   PhoneCall,
@@ -86,7 +87,7 @@ export const UsagePage: React.FC<UsagePageProps> = ({ onSelectCustomer }) => {
         {/* Vobiz Minutes Used */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between text-zinc-400 mb-2">
-            <span className="text-[11px] font-mono uppercase tracking-wider">Vobiz Telephony Used</span>
+            <span className="text-[11px] font-mono uppercase tracking-wider">Call Minutes Used (all carriers)</span>
             <PhoneCall className="h-4 w-4 text-zinc-400" />
           </div>
           <div className="text-2xl font-bold font-mono text-white">
@@ -101,7 +102,7 @@ export const UsagePage: React.FC<UsagePageProps> = ({ onSelectCustomer }) => {
         {/* Minutes Granted */}
         <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between text-zinc-400 mb-2">
-            <span className="text-[11px] font-mono uppercase tracking-wider">Minutes Credited / Granted</span>
+            <span className="text-[11px] font-mono uppercase tracking-wider">Minutes Given Free (staff grants)</span>
             <TrendingDown className="h-4 w-4 text-emerald-400 rotate-180" />
           </div>
           <div className="text-2xl font-bold font-mono text-emerald-400">
@@ -286,7 +287,7 @@ export const UsagePage: React.FC<UsagePageProps> = ({ onSelectCustomer }) => {
                   return (
                     <tr key={t.id} className="hover:bg-zinc-900/40 font-mono">
                       <td className="px-5 py-3 text-zinc-400 text-[11px]">
-                        {new Date(t.createdAt).toLocaleString()}
+                        {fmtDateTime(t.createdAt)}
                       </td>
                       <td className="px-4 py-3 font-sans">
                         <button

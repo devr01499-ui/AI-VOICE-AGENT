@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { adminFetch } from '../lib/api';
+import { useAuth } from '../context/AuthContext';
+import { fmtDate, fmtDateTime } from '../lib/format';
+import { Dialog, ErrorNote, ReasonField, reasonOk, fieldClass, labelClass, primaryBtn, secondaryBtn } from '../components/Dialog';
 import { Hash, CheckCircle2, AlertCircle, Clock, AlertTriangle, RefreshCw, ShieldAlert, ArrowRight } from 'lucide-react';
 
 interface NumbersListProps {
@@ -19,16 +22,25 @@ export const NumbersList: React.FC<NumbersListProps> = ({ onSelectCustomer }) =>
     systemAlerts: [],
   });
   const [loading, setLoading] = useState(true);
-  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [retryMessage, setRetryMessage] = useState<string | null>(null);
+  const { hasPermission } = useAuth();
+  const canResolve = hasPermission('numbers:activate');
+  // Resolve dialog: a failed order (after refunding / assigning by hand) or an internal alert.
+  const [resolveTarget, setResolveTarget] = useState<{ kind: 'order' | 'alert'; id: string; label: string } | null>(null);
+  const [resolution, setResolution] = useState('refunded');
+  const [resolveReason, setResolveReason] = useState('');
+  const [resolveBusy, setResolveBusy] = useState(false);
+  const [resolveError, setResolveError] = useState<string | null>(null);
 
   async function loadNumbers() {
     try {
       setLoading(true);
+      setLoadError(null);
       const res = await adminFetch<{ success: boolean; data: any[] }>('/api/v2/admin/numbers');
       if (res.success) setNumbers(res.data);
-    } catch (err) {
-      console.error('Failed to load numbers', err);
+    } catch (err: any) {
+      setLoadError(err?.message || 'Failed to load phone numbers');
     } finally {
       setLoading(false);
     }
@@ -37,14 +49,36 @@ export const NumbersList: React.FC<NumbersListProps> = ({ onSelectCustomer }) =>
   async function loadAlerts() {
     try {
       setLoading(true);
+      setLoadError(null);
       const res = await adminFetch<{ success: boolean; data: any }>('/api/v2/admin/provisioning-alerts');
       if (res.success && res.data) {
         setAlertsData(res.data);
       }
-    } catch (err) {
-      console.error('Failed to load provisioning alerts', err);
+    } catch (err: any) {
+      setLoadError(err?.message || 'Failed to load provisioning alerts');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function submitResolve(e: React.FormEvent) {
+    e.preventDefault();
+    if (!resolveTarget || !reasonOk(resolveReason)) return;
+    setResolveBusy(true);
+    setResolveError(null);
+    try {
+      if (resolveTarget.kind === 'order') {
+        await adminFetch(`/api/v2/admin/orders/${resolveTarget.id}/resolve`, { method: 'POST', body: JSON.stringify({ resolution, reason: resolveReason.trim() }) });
+      } else {
+        await adminFetch(`/api/v2/admin/alerts/${resolveTarget.id}/resolve`, { method: 'POST', body: JSON.stringify({ reason: resolveReason.trim() }) });
+      }
+      setRetryMessage(`${resolveTarget.label} marked as resolved.`);
+      setResolveTarget(null);
+      loadAlerts();
+    } catch (err: any) {
+      setResolveError(err?.message || 'Could not resolve');
+    } finally {
+      setResolveBusy(false);
     }
   }
 
@@ -55,24 +89,6 @@ export const NumbersList: React.FC<NumbersListProps> = ({ onSelectCustomer }) =>
       loadAlerts();
     }
   }, [activeTab]);
-
-  async function handleRetryOrder(orderId: string) {
-    try {
-      setRetryingId(orderId);
-      setRetryMessage(null);
-      const res = await adminFetch<{ success: boolean; message: string }>(`/api/v2/admin/orders/${orderId}/retry`, {
-        method: 'POST',
-      });
-      if (res.success) {
-        setRetryMessage(`Order ${orderId.slice(0, 8)} successfully reset for retry.`);
-        loadAlerts();
-      }
-    } catch (err: any) {
-      alert(`Retry failed: ${err?.message || String(err)}`);
-    } finally {
-      setRetryingId(null);
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -120,6 +136,7 @@ export const NumbersList: React.FC<NumbersListProps> = ({ onSelectCustomer }) =>
           <span>{retryMessage}</span>
         </div>
       )}
+      <ErrorNote message={loadError} />
 
       {activeTab === 'numbers' ? (
         <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
@@ -202,7 +219,7 @@ export const NumbersList: React.FC<NumbersListProps> = ({ onSelectCustomer }) =>
                         {n.agent?.name || 'Unassigned'}
                       </td>
                       <td className="px-4 py-3.5 font-mono text-[11px] text-slate-400">
-                        {new Date(n.purchasedAt).toLocaleDateString()}
+                        {fmtDate(n.purchasedAt)}
                       </td>
                     </tr>
                   ))
@@ -275,23 +292,59 @@ export const NumbersList: React.FC<NumbersListProps> = ({ onSelectCustomer }) =>
                           {o.failureReason || 'Operational provider error'}
                         </td>
                         <td className="px-4 py-3 font-mono text-[11px] text-slate-400">
-                          {new Date(o.createdAt).toLocaleString()}
+                          {fmtDateTime(o.createdAt)}
                         </td>
                         <td className="px-4 py-3">
-                          <button
-                            onClick={() => handleRetryOrder(o.id)}
-                            disabled={retryingId === o.id}
-                            className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-1"
-                          >
-                            <RefreshCw className={`w-3 h-3 ${retryingId === o.id ? 'animate-spin' : ''}`} />
-                            Retry
-                          </button>
+                          {canResolve ? (
+                            <button
+                              onClick={() => { setResolveTarget({ kind: 'order', id: o.id, label: `Order ${o.id.slice(0, 8)}` }); setResolution('refunded'); setResolveReason(''); setResolveError(null); }}
+                              className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1"
+                              title="After you have refunded the customer or assigned the number by hand in the carrier console"
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                              Mark resolved
+                            </button>
+                          ) : <span className="text-[10px] text-zinc-500">—</span>}
                         </td>
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          {/* Open internal alerts (e.g. a number bought but not assigned) */}
+          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+            <div className="p-4 bg-slate-950/80 border-b border-slate-800">
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-red-400" />
+                <span>Open provisioning alerts ({alertsData.systemAlerts.length})</span>
+              </h2>
+              <p className="text-[11px] text-slate-400 mt-1">Fix these in the carrier console (or refund), then mark them handled.</p>
+            </div>
+            <div className="divide-y divide-slate-800/60">
+              {alertsData.systemAlerts.length === 0 ? (
+                <p className="text-center py-8 text-slate-500 font-mono text-xs">No open alerts.</p>
+              ) : (
+                alertsData.systemAlerts.map((a) => (
+                  <div key={a.id} className="p-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3 text-xs">
+                    <div className="min-w-0">
+                      <p className="text-white font-semibold">{a.title}</p>
+                      <p className="text-red-300 break-words mt-0.5">{a.message}</p>
+                      <p className="text-[10px] text-slate-500 font-mono mt-1">{fmtDateTime(a.createdAt)}</p>
+                    </div>
+                    {canResolve && (
+                      <button
+                        onClick={() => { setResolveTarget({ kind: 'alert', id: a.id, label: 'Alert' }); setResolveReason(''); setResolveError(null); }}
+                        className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-xs font-bold shrink-0 self-start"
+                      >
+                        Mark handled
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -330,7 +383,7 @@ export const NumbersList: React.FC<NumbersListProps> = ({ onSelectCustomer }) =>
                           {u.email}
                         </td>
                         <td className="px-4 py-3 font-mono text-[11px] text-slate-400">
-                          {new Date(u.verifiedAt).toLocaleString()}
+                          {fmtDateTime(u.verifiedAt)}
                         </td>
                         <td className="px-4 py-3">
                           <button
@@ -350,6 +403,34 @@ export const NumbersList: React.FC<NumbersListProps> = ({ onSelectCustomer }) =>
           </div>
         </div>
       )}
+
+      <Dialog
+        open={resolveTarget !== null}
+        onClose={() => { if (!resolveBusy) setResolveTarget(null); }}
+        title={resolveTarget?.kind === 'order' ? 'Mark this order as resolved' : 'Mark this alert as handled'}
+        description={resolveTarget?.kind === 'order'
+          ? 'Use this only after the customer was refunded (Payments page) or the number was assigned by hand in the carrier console. It does not buy or retry anything.'
+          : 'Removes it from the open alerts list. The record stays in the audit log.'}
+      >
+        <ErrorNote message={resolveError} />
+        <form onSubmit={submitResolve} className="space-y-4">
+          {resolveTarget?.kind === 'order' && (
+            <div>
+              <label className={labelClass}>What was done</label>
+              <select value={resolution} onChange={(e) => setResolution(e.target.value)} className={fieldClass}>
+                <option value="refunded">Customer refunded</option>
+                <option value="assigned_manually">Number assigned by hand in the carrier console</option>
+                <option value="other">Other (explain below)</option>
+              </select>
+            </div>
+          )}
+          <ReasonField value={resolveReason} onChange={setResolveReason} />
+          <div className="flex justify-end gap-2">
+            <button type="button" className={secondaryBtn} onClick={() => setResolveTarget(null)} disabled={resolveBusy}>Cancel</button>
+            <button type="submit" className={primaryBtn} disabled={resolveBusy || !reasonOk(resolveReason)}>{resolveBusy ? 'Saving…' : 'Confirm'}</button>
+          </div>
+        </form>
+      </Dialog>
     </div>
   );
 };

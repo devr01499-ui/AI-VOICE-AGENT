@@ -8,7 +8,7 @@ interface MfaEnrollProps {
 }
 
 export const MfaEnroll: React.FC<MfaEnrollProps> = ({ onVerified }) => {
-  const { user, signOut, refreshStaff } = useAuth();
+  const { user, signOut, recheck } = useAuth();
   const [totpCode, setTotpCode] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -37,11 +37,18 @@ export const MfaEnroll: React.FC<MfaEnrollProps> = ({ onVerified }) => {
             setIsEnrollingNew(false);
           }
         } else {
+          // Remove half-finished setups first: Supabase refuses a second unverified factor with the
+          // same name, which used to leave a person stuck on "Failed to initialize MFA" after
+          // closing the page once mid-setup.
+          const stale = (data?.all || []).filter((f: any) => f.factor_type === 'totp' && f.status === 'unverified');
+          for (const f of stale) {
+            await supabase.auth.mfa.unenroll({ factorId: f.id });
+          }
           // No verified factor, initiate enrollment
           const enrollRes = await supabase.auth.mfa.enroll({
             factorType: 'totp',
             issuer: 'Claritiy Voice Admin',
-            friendlyName: user?.email || 'Staff TOTP',
+            friendlyName: `${user?.email || 'Staff'} (${new Date().toISOString().slice(0, 10)})`,
           });
           if (enrollRes.error) throw enrollRes.error;
 
@@ -66,7 +73,7 @@ export const MfaEnroll: React.FC<MfaEnrollProps> = ({ onVerified }) => {
     return () => {
       mounted = false;
     };
-  }, [user]);
+  }, [user?.id]); // id, not the object: a refreshed session object must not restart setup (new QR)
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,7 +97,8 @@ export const MfaEnroll: React.FC<MfaEnrollProps> = ({ onVerified }) => {
       });
       if (verifyRes.error) throw verifyRes.error;
 
-      await refreshStaff();
+      // The session is now at the two-factor level: re-check with the server before opening.
+      await recheck();
       if (onVerified) {
         onVerified();
       } else {

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { adminFetch } from '../lib/api';
+import { fmtDate } from '../lib/format';
 import { CustomerSummary } from '../types/admin';
 import {
   Search,
@@ -40,6 +41,7 @@ export const CustomersList: React.FC<CustomersListProps> = ({ onSelectCustomer }
         limit: '20',
         status: statusFilter,
         risk: riskFilter,
+        sort: sortBy,
       });
       if (search.trim()) params.set('q', search.trim());
 
@@ -50,15 +52,8 @@ export const CustomersList: React.FC<CustomersListProps> = ({ onSelectCustomer }
       }>(`/api/v2/admin/customers?${params.toString()}`);
 
       if (res.success) {
-        let sorted = [...res.data];
-        if (sortBy === 'oldest') {
-          sorted.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-        } else if (sortBy === 'minutes') {
-          sorted.sort((a, b) => (b.minutesRemainingSeconds || 0) - (a.minutesRemainingSeconds || 0));
-        } else if (sortBy === 'calls') {
-          sorted.sort((a, b) => (b.callsCount || 0) - (a.callsCount || 0));
-        }
-        setCustomers(sorted);
+        // Sorted by the server across all pages.
+        setCustomers(res.data);
         setTotalPages(res.pagination.totalPages || 1);
         setTotalCount(res.pagination.total || 0);
       }
@@ -323,7 +318,7 @@ export const CustomersList: React.FC<CustomersListProps> = ({ onSelectCustomer }
                       {/* Last Seen */}
                       <td className="px-3 py-3.5 font-mono text-[10px] text-zinc-400">
                         {c.lastSeenAt ? (
-                          <span>{new Date(c.lastSeenAt).toLocaleDateString()}</span>
+                          <span>{fmtDate(c.lastSeenAt)}</span>
                         ) : (
                           <span className="text-zinc-600">Never</span>
                         )}
@@ -331,7 +326,7 @@ export const CustomersList: React.FC<CustomersListProps> = ({ onSelectCustomer }
 
                       {/* Joined */}
                       <td className="px-3 py-3.5 font-mono text-[11px] text-zinc-400">
-                        {new Date(c.createdAt).toLocaleDateString()}
+                        {fmtDate(c.createdAt)}
                       </td>
 
                       {/* Actions */}
