@@ -27,6 +27,7 @@ export class PaymentVerificationError extends Error {
 interface RazorpayLike {
   orders: { create(o: any): Promise<any>; fetch(id: string): Promise<any> };
   payments: { fetch(id: string): Promise<any>; refund(id: string, o: any): Promise<any>; all?(q: any): Promise<any> };
+  paymentLink?: { create(o: any): Promise<any>; cancel(id: string): Promise<any> };
 }
 
 /** Razorpay returns empty notes as [] — normalise to a plain object. */
@@ -351,8 +352,66 @@ export class BillingService {
     }
   }
 
-  /** Full or partial refund (used when a paid number cannot be provisioned). */
-  async refundOrder(paymentId: string, amountInPaise: number): Promise<{ success: boolean; refundId?: string }> {
+  /**
+   * Razorpay payment link for an admin-priced plan (the amount is computed by the caller from the
+   * server's plan price). Without a gateway: a clearly marked test link in dev/test, 503 otherwise.
+   */
+  async createPaymentLink(params: {
+    amountPaise: number;
+    description: string;
+    customer: { name?: string; email?: string; contact?: string };
+    notes: Record<string, string>;
+    expireBy: number;
+  }): Promise<{ id: string; shortUrl: string; mock: boolean }> {
+    if (!Number.isInteger(params.amountPaise) || params.amountPaise < 100) {
+      throw new PaymentVerificationError(400, 'Minimum amount must be at least ₹1', 'PAYMENT_AMOUNT_INVALID');
+    }
+    if (this.mockMode) {
+      const id = `plink_mock_${crypto.randomUUID().replace(/-/g, '').slice(0, 14)}`;
+      return { id, shortUrl: '', mock: true };
+    }
+    const gateway = this.requireGateway();
+    if (!gateway.paymentLink) {
+      throw new PaymentVerificationError(503, 'Payment links are not available right now.', 'PAYMENT_GATEWAY_UNAVAILABLE');
+    }
+    try {
+      const contact = params.customer.contact && /^\+?\d{10,15}$/.test(params.customer.contact) ? params.customer.contact : undefined;
+      const link = await gateway.paymentLink.create({
+        amount: params.amountPaise,
+        currency: 'INR',
+        accept_partial: false,
+        description: params.description,
+        customer: { name: params.customer.name, email: params.customer.email, ...(contact ? { contact } : {}) },
+        notify: { email: true, sms: Boolean(contact) },
+        reminder_enable: true,
+        notes: params.notes,
+        expire_by: params.expireBy,
+      });
+      if (!link?.id || !link?.short_url) throw new Error('gateway returned no link');
+      return { id: String(link.id), shortUrl: String(link.short_url), mock: false };
+    } catch (err: any) {
+      logger.error('BillingService: failed to create payment link', { error: err?.error?.description || err?.message || String(err) });
+      throw new PaymentVerificationError(502, 'Razorpay could not create the payment link. Please try again.', 'PAYMENT_LINK_FAILED');
+    }
+  }
+
+  /** Cancels an unpaid payment link at Razorpay (no-op for a dev/test mock link). */
+  async cancelPaymentLink(linkId: string): Promise<void> {
+    if (linkId.startsWith('plink_mock_') && BillingService.isMockAllowed()) return;
+    const gateway = this.requireGateway();
+    if (!gateway.paymentLink) {
+      throw new PaymentVerificationError(503, 'Payment links are not available right now.', 'PAYMENT_GATEWAY_UNAVAILABLE');
+    }
+    try {
+      await gateway.paymentLink.cancel(linkId);
+    } catch (err: any) {
+      logger.error('BillingService: failed to cancel payment link', { linkId, error: err?.error?.description || err?.message || String(err) });
+      throw new PaymentVerificationError(502, 'Razorpay could not cancel the link (it may already be paid or expired). Check the Razorpay dashboard.', 'PAYMENT_LINK_CANCEL_FAILED');
+    }
+  }
+
+  /** Full or partial refund (a paid number that cannot be provisioned, or an admin refund). */
+  async refundOrder(paymentId: string, amountInPaise: number, reason = 'Number could not be provisioned'): Promise<{ success: boolean; refundId?: string }> {
     if (!this.razorpay) {
       if (this.mockMode) {
         logger.warn('BillingService.refundOrder: mock mode — refund not executed', { paymentId });
@@ -365,7 +424,7 @@ export class BillingService {
       const refund = await this.razorpay.payments.refund(paymentId, {
         amount: amountInPaise,
         speed: 'optimum',
-        notes: { reason: 'Number could not be provisioned' },
+        notes: { reason: reason.slice(0, 250) },
       });
       logger.info('BillingService.refundOrder: refund issued', { paymentId, refundId: refund.id });
       return { success: true, refundId: refund.id };

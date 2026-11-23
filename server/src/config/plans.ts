@@ -25,6 +25,8 @@ export interface PlanDetails {
   accountType: string;
   kbLimits: KbPlanLimits;
   calendarLimits: CalendarPlanLimits;
+  /** False = the plan cannot be bought right now (set from the admin panel). Missing = true. */
+  purchasable?: boolean;
 }
 
 /**

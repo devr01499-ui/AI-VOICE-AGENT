@@ -52,9 +52,18 @@ export async function getRoleCaps(role: string): Promise<RoleCaps> {
 /**
  * Checks how many minutes the staff member has already granted today.
  */
+/** Start of the current day in India (IST, UTC+05:30), whatever the server's own time zone is. */
+export function istDayStart(now: Date = new Date()): Date {
+  const IST_OFFSET_MS = 330 * 60 * 1000;
+  const shifted = new Date(now.getTime() + IST_OFFSET_MS);
+  shifted.setUTCHours(0, 0, 0, 0);
+  return new Date(shifted.getTime() - IST_OFFSET_MS);
+}
+
 export async function getGrantedTodayMinutes(staffId: string): Promise<number> {
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+  // "Today" is the Indian business day (the server runs in UTC on Render, so its own midnight
+  // fell at 05:30 IST and the daily cap reset in the middle of the morning).
+  const todayStart = istDayStart();
 
   const result = await prisma.minutesLedger.aggregate({
     where: {

@@ -52,6 +52,24 @@ type SessionResult =
  */
 const inflightSessions = new Map<string, Promise<SessionResult>>();
 
+/**
+ * When the person actually signed in (ms). Supabase keeps the original sign-in time in the `amr`
+ * claim across refreshes; `iat` (issue time) is the fallback. Read only after getUser() has
+ * verified the token.
+ */
+export function sessionSignInTimeMs(token: string): number {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split('.')[1] || '', 'base64').toString('utf8'));
+    const amrTimes = Array.isArray(payload?.amr)
+      ? payload.amr.map((a: any) => Number(a?.timestamp)).filter((n: number) => Number.isFinite(n) && n > 0)
+      : [];
+    const sec = amrTimes.length ? Math.min(...amrTimes) : Number(payload?.iat);
+    return Number.isFinite(sec) && sec > 0 ? sec * 1000 : 0;
+  } catch {
+    return 0;
+  }
+}
+
 function tokenKey(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
@@ -201,6 +219,17 @@ async function resolveSession(token: string): Promise<SessionResult> {
       } catch (syncErr: any) {
         logger.warn('[requireAuth] profile sync skipped; using the stored profile', { userId, ...describeDbError(syncErr) });
       }
+    }
+
+    // Admin "force sign-out": a session whose sign-in happened before the revocation time is
+    // refused. The sign-in time (amr) survives token refreshes, so the browser cannot quietly
+    // refresh its way back in; the dashboard signs out on this 401 and shows the login page.
+    if (userProfile.sessionsRevokedAt && sessionSignInTimeMs(token) <= new Date(userProfile.sessionsRevokedAt).getTime()) {
+      return {
+        kind: 'deny',
+        status: 401,
+        body: { success: false, error: 'SESSION_REVOKED', message: 'You were signed out by Claritiy support. Please sign in again.' },
+      };
     }
 
     phase = 'team_lookup';

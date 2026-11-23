@@ -83,6 +83,11 @@ async function handlePaymentCaptured(event: string, payload: any, eventId: strin
   });
 }
 
+/** Tests only: the production payment_link.paid handler (signature checks are covered elsewhere). */
+export function handlePaymentLinkPaidForTests(payload: any): Promise<void> {
+  return handlePaymentLinkPaid(payload);
+}
+
 async function handlePaymentLinkPaid(payload: any): Promise<void> {
   const linkEntity = payload?.payment_link?.entity || {};
   const paymentEntity = payload?.payment?.entity || {};
@@ -107,6 +112,8 @@ async function handlePaymentLinkPaid(payload: any): Promise<void> {
     staffId: link.createdByStaffId || undefined,
     razorpayLinkId,
     amountOverrideInr: Number(link.amountInr),
+    // The link promised these minutes when it was sent; a later plan edit must not change them.
+    minutesOverride: Number(link.minutes),
   });
   await prisma.paymentLink.updateMany({ where: { razorpayLinkId }, data: { status: 'paid' } });
   await logAuditEvent({
