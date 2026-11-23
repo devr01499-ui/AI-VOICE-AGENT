@@ -74,7 +74,7 @@ async function main() {
 
   await test('both answer handlers put the recording XML before the audio stream', async () => {
     const src = fs.readFileSync(path.join(__dirname, '../src/controllers/CallController.ts'), 'utf8');
-    const placements = src.match(/<Response>\r?\n\$\{recXml\}  <Stream/g) || [];
+    const placements = src.match(/<Response>\r?\n\$\{recXml\} {2}<Stream/g) || [];
     assert.strictEqual(placements.length, 2);
   });
 

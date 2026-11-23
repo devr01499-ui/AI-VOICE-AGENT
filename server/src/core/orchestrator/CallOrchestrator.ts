@@ -414,7 +414,7 @@ export class CallOrchestrator extends EventEmitter {
       const finalVoice = validVoices.includes(voiceName.toLowerCase()) ? voiceName : 'Puck';
 
       const llmProvider = rawConfig.llm?.provider || 
-        (Boolean(env.GEMINI_API_KEY || env.GOOGLE_API_KEY) ? 'gemini' : 'openai');
+        ((env.GEMINI_API_KEY || env.GOOGLE_API_KEY) ? 'gemini' : 'openai');
 
       // (The system instruction is built by the provider from the agent itself; an unused local
       // copy built here was removed with the dead code sweep, audit #142.)

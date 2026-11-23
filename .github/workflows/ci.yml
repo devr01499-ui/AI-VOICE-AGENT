@@ -47,6 +47,10 @@ jobs:
           DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci
           DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/ci
         run: npx prisma generate
+      - name: Install root (lint tooling)
+        run: npm ci --ignore-scripts
+      - name: Lint (0 errors; hook order, unreachable code, duplicate keys)
+        run: npm run lint -- --quiet
       - name: Typecheck (must be 0 errors, frontend and server)
         run: npm run typecheck
       - name: Build (frontend + admin bundle)
