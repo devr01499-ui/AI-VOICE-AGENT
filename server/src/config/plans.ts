@@ -136,6 +136,16 @@ export const PLAN_CONFIG: Record<string, PlanDetails> = {
   },
 };
 
+/**
+ * The price list as written in this file. PLAN_CONFIG above is the LIVE list: the owner can change
+ * price, minutes, limits and "can be bought" from the admin panel (PlatformConfigService applies
+ * those overrides to PLAN_CONFIG in place, so every reader below sees them). "Reset" in the panel
+ * goes back to these values.
+ */
+export const DEFAULT_PLAN_CONFIG: Readonly<Record<string, Readonly<PlanDetails>>> = Object.freeze(
+  Object.fromEntries(Object.entries(PLAN_CONFIG).map(([k, v]) => [k, Object.freeze(JSON.parse(JSON.stringify(v)) as PlanDetails)]))
+);
+
 export function getCalendarPlanLimits(planNameOrAccountType?: string | null): CalendarPlanLimits {
   if (!planNameOrAccountType) return PLAN_CONFIG.trial.calendarLimits;
   const key = planNameOrAccountType.trim().toLowerCase();

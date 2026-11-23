@@ -2,7 +2,7 @@ import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { getPlanConfig } from '../config/plans';
 import { fulfillPlanPurchase } from './PlanFulfillmentService';
-import { BillingService } from './BillingService';
+import { BillingService, planTermsFromOrderNotes } from './BillingService';
 import { logAuditEvent } from '../utils/auditLogger';
 
 /**
@@ -31,14 +31,20 @@ export async function fulfilCapturedPlanPayment(p: {
     return 'rejected';
   }
   if (p.status && p.status !== 'captured') return 'not_captured';
-  if ((p.currency || 'INR') !== 'INR' || !Number.isInteger(p.amountPaise) || p.amountPaise !== Math.round(planConfig.price * 100)) {
+  // The price and minutes stamped on the order at checkout (an admin edit since then does not matter).
+  const terms = planTermsFromOrderNotes(p.notes, planConfig);
+  if ((p.currency || 'INR') !== 'INR' || !Number.isInteger(p.amountPaise) || p.amountPaise !== terms.pricePaise) {
     logger.error('[PAYMENTS] Security alert: paid amount/currency does not match the plan; NOT fulfilled', {
-      orderId: p.orderId, paymentId: p.paymentId, paidPaise: p.amountPaise, currency: p.currency, expectedPaise: Math.round(planConfig.price * 100), via: p.via,
+      orderId: p.orderId, paymentId: p.paymentId, paidPaise: p.amountPaise, currency: p.currency, expectedPaise: terms.pricePaise, via: p.via,
     });
     return 'rejected';
   }
   const planKey = String(p.notes.planKey).toLowerCase();
-  const result = await fulfillPlanPurchase({ userId, orderId: p.orderId, paymentId: p.paymentId, planKey, source: 'self_serve' });
+  const result = await fulfillPlanPurchase({
+    userId, orderId: p.orderId, paymentId: p.paymentId, planKey, source: 'self_serve',
+    amountOverrideInr: terms.pricePaise / 100,
+    minutesOverride: terms.minutes,
+  });
   if (result.isIdempotent) return 'already_fulfilled';
   await logAuditEvent({
     workspaceOwnerId: userId,

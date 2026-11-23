@@ -19,6 +19,7 @@ export type PermissionName =
   | 'minutes:grant'
   | 'minutes:deduct'
   | 'plans:manage'
+  | 'plans:assign'
   | 'payment_links:create'
   | 'refunds:manage'
   | 'numbers:activate'
@@ -57,6 +58,8 @@ export const PERMISSION_ROLE_MAP: Record<PermissionName, readonly StaffRole[]> =
 
   // Catalog & Sales Links
   'plans:manage': ['owner', 'admin', 'sales'],
+  // Giving a plan without payment (or extending one) is a money action: owner and admin only.
+  'plans:assign': ['owner', 'admin'],
   'payment_links:create': ['owner', 'admin', 'sales'],
 
   // Operations & Compliance

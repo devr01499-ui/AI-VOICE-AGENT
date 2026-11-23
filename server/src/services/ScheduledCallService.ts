@@ -4,6 +4,7 @@ import { CallService } from './CallService';
 import { BatchService } from './BatchService';
 import { getNextRetryTime } from '../lib/calendar/retryPolicy';
 import { isWithinCallingHours } from '../lib/calendar/timezone';
+import { PlatformConfigService } from './PlatformConfigService';
 
 /**
  * Places the follow-up calls an agent booked during a call (rows in scheduled_calls) when they fall
@@ -61,6 +62,10 @@ async function bumpCampaign(batchId: string | null, field: 'completedCount' | 'f
 
 export async function runScheduledCalls(now: Date = new Date(), opts: { ids?: string[] } = {}): Promise<ExecutorReport> {
   const report: ExecutorReport = { claimed: 0, placed: 0, rescheduled: 0, failed: 0, canceled: 0 };
+  // Platform emergency switch: leave every due call untouched (still 'scheduled'); the next run
+  // after the switch is turned off places them.
+  await PlatformConfigService.ensureLoaded();
+  if (PlatformConfigService.isOutboundPaused()) return report;
   const due = await prisma.scheduledCall.findMany({
     where: { status: 'scheduled', scheduledAtUtc: { lte: now }, ...(opts.ids ? { id: { in: opts.ids } } : {}) },
     orderBy: { scheduledAtUtc: 'asc' },

@@ -77,6 +77,8 @@ import { BatchService } from './services/BatchService';
 import { requireAuthOrApiKey } from './middleware/authWrapper';
 import { requireCallingMinutes } from './middleware/planValidation';
 import { adminRouter } from './routes/adminRoutes';
+import { publicPlatformRouter } from './routes/publicPlatform';
+import { PlatformConfigService } from './services/PlatformConfigService';
 import { razorpayWebhookRouter } from './routes/razorpayWebhook';
 import { reapStuckCalls } from './utils/concurrency';
 
@@ -357,6 +359,8 @@ app.use('/api/v2/qa', requireAuth, qaRoutes);
 app.use('/api/v2/alerting', requireAuth, alertingRoutes);
 app.use('/api/v2/audit-logs', requireAuth, auditLogRoutes);
 app.use('/api/v2/reports', requireAuth, reportsRoutes);
+// Public read-only platform state (live plan prices, maintenance banner, pause flags).
+app.use('/api/v2/public', publicPlatformRouter);
 
 // Administrative Console API — Guarded by strict origin policy, RBAC and AAL2 MFA
 const adminOrigin = process.env.ADMIN_ORIGIN || 'https://admin.claritiy.com';
@@ -755,6 +759,10 @@ async function bootstrap(): Promise<void> {
 
     // Payments: every 15 min, make sure every captured payment was fulfilled (no-op without keys).
     startPaymentReconciliation();
+
+    // Admin-panel platform settings (plan prices/limits, pause switches, banner): load now and
+    // re-read every 30 s so a change made on another instance is picked up.
+    PlatformConfigService.startAutoRefresh();
 
     // KYC: switch every customer's Vobiz sub-account to customer_use so Vobiz verifies each user's
     // own KYC (older ones inherited Claritiy's master KYC). Retries every 30 min until done.

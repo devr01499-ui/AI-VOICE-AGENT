@@ -7,6 +7,7 @@ import { ADMIN_EMAIL } from '../config/constants';
 import { countActiveCalls, countGlobalActiveCalls, GLOBAL_TELEPHONY_CAP } from '../utils/concurrency';
 import { getCallableSecondsRemaining } from '../utils/balanceUtils';
 import { getPlanConcurrency } from '../config/plans';
+import { PlatformConfigService, PLATFORM_PAUSE_PREFIX } from './PlatformConfigService';
 
 const ACCOUNT_TELEPHONY_CAP = GLOBAL_TELEPHONY_CAP; // Centralized telephony cap
 const LOCK_TIMEOUT_MS = 60000; // 60s stale worker lock threshold
@@ -444,6 +445,14 @@ export class BatchService {
 
       const isAdmin = user.accountType === 'admin' || user.email === ADMIN_EMAIL;
 
+      // ── Platform emergency switch (admin panel) ──
+      await PlatformConfigService.ensureLoaded();
+      if (PlatformConfigService.isOutboundPaused()) {
+        logger.info(`BatchService: Batch ${batchId} paused: platform outbound calling is paused`);
+        await releaseLock({ status: 'paused', statusReason: PLATFORM_PAUSE_PREFIX });
+        return;
+      }
+
       // ── Batch-level validation: Calling hours ──
       const windowCheck = this.isWithinCallingWindow(batch.scheduleConfig);
       if (!windowCheck.allowed) {
@@ -526,6 +535,13 @@ export class BatchService {
         if (!stateCheck || stateCheck.status === 'cancelled' || stateCheck.status === 'paused') {
           logger.info(`BatchService: Batch ${batchId} stopping due to status: ${stateCheck?.status}`);
           await releaseLock();
+          return;
+        }
+
+        // Platform emergency switch mid-batch (no recipient is claimed while it is on)
+        if (PlatformConfigService.isOutboundPaused()) {
+          logger.info(`BatchService: Batch ${batchId} paused mid-run: platform outbound calling is paused`);
+          await releaseLock({ status: 'paused', statusReason: PLATFORM_PAUSE_PREFIX });
           return;
         }
 
@@ -882,6 +898,17 @@ export class BatchService {
           data: { status: 'running', statusReason: null, lockedBy: null, lockedAt: null },
         });
         if (resumed.count) logger.info(`BatchService: calling hours open — resumed campaign ${b.id}`);
+      }
+
+      // 1c. Campaigns paused only by the platform emergency switch resume when it is turned off
+      // (the dispatcher re-checks calling hours, minutes and account status before dialling).
+      await PlatformConfigService.ensureLoaded();
+      if (!PlatformConfigService.isOutboundPaused()) {
+        const platformResumed = await prisma.batch.updateMany({
+          where: { status: 'paused', statusReason: PLATFORM_PAUSE_PREFIX },
+          data: { status: 'running', statusReason: null, lockedBy: null, lockedAt: null },
+        });
+        if (platformResumed.count) logger.info(`BatchService: platform calling resumed — ${platformResumed.count} campaign(s) running again`);
       }
 
       // 2. Find running batches with stale lock

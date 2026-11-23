@@ -11,7 +11,9 @@ import { validateGrantCap, getRoleCaps, validateDiscountCap } from '../admin/cap
 import { BillingService } from '../services/BillingService';
 import { CallService } from '../services/CallService';
 import { logAdminRead } from '../admin/audit';
-import { PLAN_CONFIG } from '../config/plans';
+import { PLAN_CONFIG, PLAN_VALIDITY_DAYS } from '../config/plans';
+import { PlatformConfigService } from '../services/PlatformConfigService';
+import { NotificationService, ANNOUNCEMENT_TYPE } from '../services/NotificationService';
 import rateLimit from 'express-rate-limit';
 
 /** Built per use, so a test (or a key rotation) that swaps the gateway client is honoured. */
@@ -2491,6 +2493,8 @@ adminRouter.get('/provisioning-alerts', requireStaff('customers:view'), async (r
     const systemAlerts = await prisma.systemAlert.findMany({
       where: {
         type: 'FAILED_PROVISIONING',
+        userId: null,
+        isResolved: false,
       },
       orderBy: { createdAt: 'desc' },
       take: 50,
@@ -2563,3 +2567,404 @@ adminRouter.post('/orders/:orderId/resolve', requireStaff('numbers:activate'), a
   }
 });
 
+
+// ═════════════════════════════════════════════════════════════════════════════
+// CONTROL PANEL (owner request 2026-11-23): settings that used to need a code change
+// ═════════════════════════════════════════════════════════════════════════════
+
+function sendValidation(res: Response, errors: string[]): void {
+  res.status(400).json({ error: 'VALIDATION_ERROR', message: errors.join(' '), errors });
+}
+
+/**
+ * GET /api/v2/admin/platform
+ * Plans (default vs live), switches, role caps. Owner only (settings:manage).
+ */
+adminRouter.get('/platform', requireStaff('settings:manage'), async (_req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    res.status(200).json({ success: true, data: await PlatformConfigService.getAdminView() });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to load platform settings', { error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to load platform settings' });
+  }
+});
+
+/**
+ * PUT /api/v2/admin/platform/plans/:key
+ * Changes a built-in plan (price, minutes, limits, can be bought). Takes effect for new checkouts
+ * at once; payments already started keep the terms they were created with.
+ */
+adminRouter.put('/platform/plans/:key', requireStaff('settings:manage'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const reason = reasonOf(req.body);
+  if (!reason) {
+    sendValidation(res, ['A reason (at least 3 characters) is required.']);
+    return;
+  }
+  try {
+    const result = await PlatformConfigService.updatePlan(paramOf(req, 'key'), req.body?.plan ?? {}, { ...auditBase(req), reason });
+    if (!result.ok) {
+      sendValidation(res, result.errors);
+      return;
+    }
+    res.status(200).json({ success: true, data: await PlatformConfigService.getAdminView() });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to update plan settings', { error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to save the plan' });
+  }
+});
+
+/**
+ * POST /api/v2/admin/platform/plans/:key/reset
+ * Back to the values written in the code (config/plans.ts).
+ */
+adminRouter.post('/platform/plans/:key/reset', requireStaff('settings:manage'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const reason = reasonOf(req.body);
+  if (!reason) {
+    sendValidation(res, ['A reason (at least 3 characters) is required.']);
+    return;
+  }
+  try {
+    const result = await PlatformConfigService.resetPlan(paramOf(req, 'key'), { ...auditBase(req), reason });
+    if (!result.ok) {
+      sendValidation(res, result.errors);
+      return;
+    }
+    res.status(200).json({ success: true, data: await PlatformConfigService.getAdminView() });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to reset plan settings', { error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to reset the plan' });
+  }
+});
+
+/**
+ * PUT /api/v2/admin/platform/switches
+ * Maintenance banner, pause sign-ups, pause outgoing calling (partial updates allowed).
+ */
+adminRouter.put('/platform/switches', requireStaff('settings:manage'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const reason = reasonOf(req.body);
+  if (!reason) {
+    sendValidation(res, ['A reason (at least 3 characters) is required.']);
+    return;
+  }
+  try {
+    const result = await PlatformConfigService.updateSwitches(req.body?.switches ?? {}, { ...auditBase(req), reason });
+    if (!result.ok) {
+      sendValidation(res, result.errors);
+      return;
+    }
+    res.status(200).json({ success: true, data: await PlatformConfigService.getAdminView() });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to update platform switches', { error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to save the switches' });
+  }
+});
+
+/**
+ * PUT /api/v2/admin/platform/caps/:role
+ * Per-role limits for granting minutes and discounts (admin, sales, support, finance).
+ */
+adminRouter.put('/platform/caps/:role', requireStaff('settings:manage'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const reason = reasonOf(req.body);
+  if (!reason) {
+    sendValidation(res, ['A reason (at least 3 characters) is required.']);
+    return;
+  }
+  try {
+    const result = await PlatformConfigService.updateRoleCaps(paramOf(req, 'role'), req.body?.caps ?? {}, { ...auditBase(req), reason });
+    if (!result.ok) {
+      sendValidation(res, result.errors);
+      return;
+    }
+    res.status(200).json({ success: true, data: await PlatformConfigService.getAdminView() });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to update role caps', { error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to save the caps' });
+  }
+});
+
+/** Same request key = same action: answers a retry without doing it twice. */
+async function alreadyDone(action: string, requestId: string): Promise<boolean> {
+  return Boolean(await prisma.adminAuditLog.findFirst({ where: { action, requestId }, select: { id: true } }));
+}
+
+/**
+ * POST /api/v2/admin/customers/:id/plan/assign
+ * Gives a customer a plan without a payment (e.g. a goodwill upgrade): sets the plan tier and a
+ * fresh validity window, and (optionally) adds the plan's minutes through the minutes ledger
+ * (counted against the role's grant cap). The tier is set exactly (it can also lower a tier).
+ */
+adminRouter.post('/customers/:id/plan/assign', requireStaff('plans:assign'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const id = paramOf(req);
+  const reason = reasonOf(req.body);
+  const key = idempotencyKeyOf(req);
+  const creditMinutes = req.body?.creditMinutes !== false;
+  const rawDays = req.body?.validityDays;
+  const validityDays = rawDays === undefined || rawDays === null || rawDays === '' ? null : Number(rawDays);
+
+  if (!reason || typeof req.body?.planKey !== 'string' || (validityDays !== null && (!Number.isInteger(validityDays) || validityDays < 1 || validityDays > 365))) {
+    sendValidation(res, ['A plan, a reason, and (optional) validity of 1-365 days are required.']);
+    return;
+  }
+  if (!key) {
+    res.status(400).json({ error: 'IDEMPOTENCY_KEY_REQUIRED', message: 'Missing request key. Reload the page and try again.' });
+    return;
+  }
+  const requestId = `plan_assign:${key}`;
+
+  try {
+    const customer = await prisma.user.findUnique({ where: { id }, select: { id: true, accountType: true, planExpiresAt: true } });
+    if (!customer) {
+      res.status(404).json({ error: 'NOT_FOUND', message: 'Customer not found.' });
+      return;
+    }
+    if (customer.accountType === 'admin') {
+      res.status(409).json({ error: 'PLATFORM_ADMIN_ACCOUNT', message: 'This is a platform admin account (unlimited). It does not take customer plans.' });
+      return;
+    }
+    if (await alreadyDone('plans:assign', requestId)) {
+      res.status(200).json({ success: true, data: { idempotent: true } });
+      return;
+    }
+    await PlatformConfigService.ensureLoaded();
+    const plan = await resolveSellablePlan(req.body.planKey, id);
+    if (!plan) {
+      res.status(400).json({ error: 'PLAN_UNKNOWN', message: 'Unknown or inactive plan, or a custom plan made for another customer.' });
+      return;
+    }
+    if (creditMinutes) {
+      const capError = await validateGrantCap(req.staff!.role, req.staff!.id, plan.minutes);
+      if (capError) {
+        res.status(403).json({ error: 'OVER_ROLE_CAP', message: capError });
+        return;
+      }
+    }
+    const days = validityDays ?? plan.validityDays ?? PLAN_VALIDITY_DAYS;
+    const expiresAt = new Date(Date.now() + days * 86400000);
+
+    const result = await withAudit<Record<string, unknown>>(
+      {
+        ...auditBase(req),
+        requestId,
+        action: 'plans:assign',
+        targetType: 'User',
+        targetId: id,
+        customerId: id,
+        reason,
+        isCustomerVisible: true,
+        customerActionDescription: `${plan.name} plan activated by Claritiy Support${creditMinutes ? ` with ${plan.minutes} minutes` : ''}`,
+      },
+      async (tx) => {
+        // Lock the customer row and re-check, so two identical requests cannot both apply.
+        await tx.$executeRaw`SELECT 1 FROM users WHERE id = ${id} FOR UPDATE`;
+        const dup = await tx.adminAuditLog.findFirst({ where: { action: 'plans:assign', requestId }, select: { id: true } });
+        if (dup) return { result: { idempotent: true } };
+        let balanceSeconds: number | undefined;
+        if (creditMinutes) {
+          const credit = await MinutesService.credit({
+            userId: id,
+            deltaSeconds: plan.minutes * 60,
+            reason: 'admin_grant',
+            refType: 'plan_assignment',
+            refId: plan.key,
+            note: `${plan.name} plan assigned by support: ${reason}`.slice(0, 500),
+            actorType: 'staff',
+            actorId: req.staff!.id,
+            idempotencyKey: requestId,
+          }, tx);
+          balanceSeconds = credit.balanceSeconds;
+        }
+        const heldNumbers = await tx.phoneNumber.count({ where: { userId: id } });
+        await tx.user.update({
+          where: { id },
+          data: {
+            accountType: plan.accountType,
+            planExpiresAt: expiresAt,
+            ...(heldNumbers === 0 ? { numberLocked: false } : {}),
+          },
+        });
+        return {
+          result: { planKey: plan.key, accountType: plan.accountType, planExpiresAt: expiresAt.toISOString(), minutesAdded: creditMinutes ? plan.minutes : 0, balanceSeconds },
+          before: { accountType: customer.accountType, planExpiresAt: customer.planExpiresAt ? customer.planExpiresAt.toISOString() : null },
+          after: { planKey: plan.key, accountType: plan.accountType, planExpiresAt: expiresAt.toISOString(), minutesAdded: creditMinutes ? plan.minutes : 0 },
+        };
+      }
+    );
+    res.status(200).json({ success: true, data: result });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to assign plan', { customerId: id, error: err.message });
+    sendServiceError(res, err, 'Failed to assign the plan.');
+  }
+});
+
+/**
+ * POST /api/v2/admin/customers/:id/plan/extend
+ * Moves the plan end date later by N days (from today if the plan has already ended).
+ */
+adminRouter.post('/customers/:id/plan/extend', requireStaff('plans:assign'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const id = paramOf(req);
+  const reason = reasonOf(req.body);
+  const key = idempotencyKeyOf(req);
+  const days = Number(req.body?.days);
+  if (!reason || !Number.isInteger(days) || days < 1 || days > 365) {
+    sendValidation(res, ['Days (1-365) and a reason are required.']);
+    return;
+  }
+  if (!key) {
+    res.status(400).json({ error: 'IDEMPOTENCY_KEY_REQUIRED', message: 'Missing request key. Reload the page and try again.' });
+    return;
+  }
+  const requestId = `plan_extend:${key}`;
+  try {
+    const customer = await prisma.user.findUnique({ where: { id }, select: { id: true, planExpiresAt: true } });
+    if (!customer) {
+      res.status(404).json({ error: 'NOT_FOUND', message: 'Customer not found.' });
+      return;
+    }
+    if (await alreadyDone('plans:extend', requestId)) {
+      res.status(200).json({ success: true, data: { idempotent: true } });
+      return;
+    }
+    const result = await withAudit<Record<string, unknown>>(
+      {
+        ...auditBase(req),
+        requestId,
+        action: 'plans:extend',
+        targetType: 'User',
+        targetId: id,
+        customerId: id,
+        reason,
+        isCustomerVisible: true,
+        customerActionDescription: `Plan validity extended by ${days} day(s) by Claritiy Support`,
+      },
+      async (tx) => {
+        await tx.$executeRaw`SELECT 1 FROM users WHERE id = ${id} FOR UPDATE`;
+        if (await tx.adminAuditLog.findFirst({ where: { action: 'plans:extend', requestId }, select: { id: true } })) return { result: { idempotent: true } };
+        const fresh = await tx.user.findUnique({ where: { id }, select: { planExpiresAt: true } });
+        const base = Math.max(Date.now(), fresh?.planExpiresAt ? fresh.planExpiresAt.getTime() : 0);
+        const next = new Date(base + days * 86400000);
+        await tx.user.update({ where: { id }, data: { planExpiresAt: next } });
+        return {
+          result: { planExpiresAt: next.toISOString() },
+          before: { planExpiresAt: fresh?.planExpiresAt ? fresh.planExpiresAt.toISOString() : null },
+          after: { planExpiresAt: next.toISOString(), days },
+        };
+      }
+    );
+    res.status(200).json({ success: true, data: result });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to extend plan', { customerId: id, error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to extend the plan.' });
+  }
+});
+
+/**
+ * GET /api/v2/admin/announcements — the latest 30 announcements shown in every customer's bell.
+ */
+adminRouter.get('/announcements', requireStaff('settings:manage'), async (_req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const rows = await prisma.systemAlert.findMany({
+      where: { userId: null, type: ANNOUNCEMENT_TYPE },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+      select: { id: true, message: true, metadata: true, createdAt: true, _count: { select: { receipts: true } } },
+    });
+    res.status(200).json({
+      success: true,
+      data: rows.map((r) => {
+        let important = false;
+        try { important = JSON.parse(r.metadata || '{}').isImportant === true; } catch { /* old rows */ }
+        return { id: r.id, message: r.message, isImportant: important, createdAt: r.createdAt, readOrDismissedBy: r._count.receipts };
+      }),
+    });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to list announcements', { error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to load announcements' });
+  }
+});
+
+/**
+ * POST /api/v2/admin/announcements — posts a message to every customer's notification bell.
+ */
+adminRouter.post('/announcements', requireStaff('settings:manage'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+  const reason = reasonOf(req.body) || 'Announcement to all customers';
+  if (!message || message.length > 2000) {
+    sendValidation(res, ['The announcement must be 1-2,000 characters.']);
+    return;
+  }
+  try {
+    const created = await NotificationService.createInAppNotification({
+      type: ANNOUNCEMENT_TYPE,
+      title: 'Announcement',
+      message,
+      isImportant: req.body?.isImportant === true,
+    });
+    const createdId = (created as { id?: string } | null)?.id || 'announcement';
+    await withAudit(
+      { ...auditBase(req), action: 'announcements:create', targetType: 'SystemAlert', targetId: String(createdId), reason },
+      async () => ({ result: null, after: { message, isImportant: req.body?.isImportant === true } })
+    );
+    res.status(201).json({ success: true, data: created });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to post announcement', { error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to post the announcement' });
+  }
+});
+
+/**
+ * POST /api/v2/admin/announcements/:id/delete — removes it from every customer's bell.
+ */
+adminRouter.post('/announcements/:id/delete', requireStaff('settings:manage'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const id = paramOf(req);
+  const reason = reasonOf(req.body) || 'Announcement removed';
+  try {
+    const row = await prisma.systemAlert.findFirst({ where: { id, userId: null, type: ANNOUNCEMENT_TYPE } });
+    if (!row) {
+      res.status(404).json({ error: 'NOT_FOUND', message: 'Announcement not found.' });
+      return;
+    }
+    await withAudit(
+      { ...auditBase(req), action: 'announcements:delete', targetType: 'SystemAlert', targetId: id, reason },
+      async (tx) => {
+        await tx.systemAlert.delete({ where: { id } });
+        return { result: null, before: { message: row.message } };
+      }
+    );
+    res.status(200).json({ success: true });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to delete announcement', { error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to delete the announcement' });
+  }
+});
+
+/**
+ * POST /api/v2/admin/alerts/:id/resolve — marks an internal operations alert (e.g. failed
+ * provisioning) as handled, so the Numbers page only lists open ones.
+ */
+adminRouter.post('/alerts/:id/resolve', requireStaff('numbers:activate'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const id = paramOf(req);
+  const reason = reasonOf(req.body);
+  if (!reason) {
+    sendValidation(res, ['A reason (at least 3 characters) is required.']);
+    return;
+  }
+  try {
+    // Only internal alerts (no owner, not an announcement): customer notifications are not touched here.
+    const row = await prisma.systemAlert.findFirst({ where: { id, userId: null, NOT: { type: ANNOUNCEMENT_TYPE } } });
+    if (!row) {
+      res.status(404).json({ error: 'NOT_FOUND', message: 'Alert not found.' });
+      return;
+    }
+    await withAudit(
+      { ...auditBase(req), action: 'alerts:resolve', targetType: 'SystemAlert', targetId: id, reason },
+      async (tx) => {
+        await tx.systemAlert.update({ where: { id }, data: { isResolved: true } });
+        return { result: null, before: { isResolved: row.isResolved }, after: { isResolved: true } };
+      }
+    );
+    res.status(200).json({ success: true });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to resolve alert', { error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to resolve the alert' });
+  }
+});

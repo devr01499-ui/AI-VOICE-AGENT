@@ -9,6 +9,7 @@ import { isIpAllowed, getTrustedClientIp } from '../utils/ipChecker';
 import { normalizeEmail, isDisposableEmail } from '../utils/emailNormalizer';
 import { normalizePhoneNumber } from '../utils/phoneValidator';
 import { isTransientDbError, isTransientAuthProviderError, describeDbError } from '../utils/transientErrors';
+import { PlatformConfigService } from '../services/PlatformConfigService';
 
 export interface AuthenticatedRequest extends Request {
   userId?: string;
@@ -178,6 +179,17 @@ async function resolveSession(token: string): Promise<SessionResult> {
     const contactNumber = phoneCheck.ok ? phoneCheck.e164 : null;
 
     if (!userProfile) {
+      // Admin panel switch: no new accounts while sign-ups are paused (Google sign-in included).
+      // Existing accounts are never affected; the platform owner's own account is always allowed.
+      phase = 'signup_gate';
+      await PlatformConfigService.ensureLoaded();
+      if (PlatformConfigService.areSignupsPaused() && normalizedEmail !== ADMIN_EMAIL) {
+        return {
+          kind: 'deny',
+          status: 403,
+          body: { success: false, error: 'SIGNUPS_PAUSED', message: PlatformConfigService.getSwitches().signupsPausedMessage },
+        };
+      }
       phase = 'database_upsert';
       // First request of a new account. NEVER allow client metadata to set or escalate
       // accountType! accountType is exclusively modified by authoritative BillingService

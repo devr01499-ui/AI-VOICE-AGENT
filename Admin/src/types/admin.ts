@@ -14,6 +14,7 @@ export type PermissionName =
   | 'minutes:grant'
   | 'minutes:deduct'
   | 'plans:manage'
+  | 'plans:assign'
   | 'payment_links:create'
   | 'refunds:manage'
   | 'numbers:activate'
