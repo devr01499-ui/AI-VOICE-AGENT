@@ -28,7 +28,11 @@ const START = ['/', '/pricing', '/guide', '/faq', '/how-it-works', '/solutions',
         broken: [...document.images].filter((i) => i.complete && i.naturalWidth === 0 && !/^data:/.test(i.src)).map((i) => i.src),
         notFound: /Page not found/i.test(document.body.innerText),
         hrefs: [...document.querySelectorAll('a[href]')].map((a) => a.getAttribute('href')),
-      }));
+      })).catch((e) => {
+        // A page that navigates away by itself (redirect, reload) is a finding, not an audit crash.
+        errs.push(`page changed while being checked (now ${page.url()}): ${String(e.message).slice(0, 100)}`);
+        return { overflow: 0, broken: [], notFound: false, hrefs: [] };
+      });
       const tag = `${path} @${width}`;
       for (const e of [...new Set(errs)]) problems.push(`${tag}: console ${e}`);
       if (info.overflow > 2) problems.push(`${tag}: page is ${info.overflow}px wider than the screen`);
