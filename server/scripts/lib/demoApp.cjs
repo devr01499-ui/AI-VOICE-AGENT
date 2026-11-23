@@ -48,11 +48,14 @@ function buildApp({ corsOrigin } = {}) {
   app.use('/api/v2/whatsapp', requireAuth, d('routes/whatsapp').default);
   app.use('/api/v2/webhooks/whatsapp', d('routes/whatsapp').whatsappWebhookRouter);
   app.use('/api/v2/webhooks/transfer', d('routes/transferWebhooks').default);
+  app.use('/api/v2/recordings', d('routes/webhooks').recordingStreamRouter);
+  app.use('/api/v2/contact', d('routes/contact').default);
   app.use('/api/v2/analytics', requireAuth, d('routes/analytics').default);
   app.use('/api/v2/qa', requireAuth, d('routes/qa').default);
   app.use('/api/v2/alerting', requireAuth, d('routes/alerting').default);
   app.use('/api/v2/audit-logs', requireAuth, d('routes/auditLog').default);
   app.use('/api/v2/reports', requireAuth, d('routes/reports').default);
+  app.use('/api/v2/public', d('routes/publicPlatform').publicPlatformRouter);
   app.use((_req, res) => res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Endpoint not found' } }));
   app.use(d('utils/errorHandler').errorHandler);
   return app;
