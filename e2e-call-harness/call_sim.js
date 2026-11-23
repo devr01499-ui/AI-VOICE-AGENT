@@ -51,6 +51,13 @@ function httpRequest(options, postData) {
   });
 }
 
+/** What the fake Gemini has heard from callers so far (Requirement 4). */
+async function getFakeGeminiStats() {
+  const port = parseInt(process.env.FAKE_GEMINI_PORT || '8095', 10);
+  const res = await httpRequest({ host: '127.0.0.1', port, path: '/control/stats', method: 'GET' });
+  return JSON.parse(res.body);
+}
+
 // A dedicated, deterministic harness tenant: a paying customer (not an admin, so the real balance
 // and plan checks run) with minutes left. Never "the first user in the database".
 const HARNESS_USER_ID = '00000000-0000-4000-8000-0000000ca11e';
@@ -330,6 +337,24 @@ async function runSimulator(mode = 'outbound') {
   assert(totalConnectedSeconds >= 10, `REQUIREMENT 2 FAILED: Total connected duration ${totalConnectedSeconds}s < 10s`);
   console.log(`✓ Requirement 2 Passed: WebSocket remained open and active for ${totalConnectedSeconds}s (>= 10s threshold)`);
 
+  // REQUIREMENT 4: the agent HEARS the caller (owner report 2026-11-23: "the agent spoke, I
+  // answered, no response"). Requirement 1 is met by the greeting alone, so a call whose caller
+  // audio never reached Gemini still passed. The caller now speaks (1 s of a loud tone, so no
+  // noise gate drops it) and the fake Gemini, which hears only the format the real model accepts,
+  // must report that it received it.
+  const statsBefore = await getFakeGeminiStats();
+  const speechFrame = Buffer.alloc(320);
+  for (let i = 0; i < 160; i++) speechFrame.writeInt16LE(i % 2 === 0 ? 12000 : -12000, i * 2);
+  for (let f = 0; f < 50 && ws.readyState === WebSocket.OPEN; f++) {
+    ws.send(JSON.stringify({ event: 'media', media: { payload: speechFrame.toString('base64') } }));
+    await new Promise((res) => setTimeout(res, 20));
+  }
+  await new Promise((res) => setTimeout(res, 500));
+  const statsAfter = await getFakeGeminiStats();
+  const heard = statsAfter.callerAudioHeard - statsBefore.callerAudioHeard;
+  assert(heard > 0, `REQUIREMENT 4 FAILED: Gemini never heard the caller (heard ${heard} frames, dropped ${statsAfter.callerAudioDropped - statsBefore.callerAudioDropped} in an unaccepted format)`);
+  console.log(`✓ Requirement 4 Passed: Gemini heard the caller (${heard} audio frames)`);
+
   // Close carrier WebSocket cleanly
   try {
     ws.send(JSON.stringify({ event: 'stop' }));
@@ -357,7 +382,7 @@ async function runSimulator(mode = 'outbound') {
 
   // Persist cleanup
   await prisma.call.delete({ where: { id: callId } }).catch(() => {});
-  console.log(`🎉 CALL CASE [${mode.toUpperCase()}] FULLY PASSED ALL 3 REQUIREMENTS\n`);
+  console.log(`🎉 CALL CASE [${mode.toUpperCase()}] FULLY PASSED ALL 4 REQUIREMENTS\n`);
   return true;
 }
 

@@ -751,3 +751,22 @@ Owner decisions:
 - **Fix:** foreign keys are now added `NOT VALID`. Postgres enforces them for every new and changed row without checking or touching old rows. Inside the same transaction the sync then tries `VALIDATE CONSTRAINT` under a savepoint; if old rows do not match, it logs a note and keeps going. No row is changed or deleted.
 - **"Kept as is" lines in that log (harmless, left alone):** `updated_at` defaults on 3 calendar/scheduling tables, and older names for 6 indexes.
 - **Test:** `test_deploy_schema_sync.js` reproduces production (no agent foreign key + a booking of a deleted agent). The 80e3140 script fails with the same error; now 10/10: key added NOT VALID, old row untouched, new orphan rows refused (23503), second run changes nothing.
+
+## The agent greets, then never answers the caller (2026-11-23, branch fix/gemini-audio-input)
+- **Owner report:** desktop test call: "agent spoke, I answered back but no response", and "this same issue happened many times".
+- **Root cause:** caller audio went to Gemini as `realtime_input.media_chunks`. Google deprecated that field, and the primary model `gemini-3.8-live` silently drops it: no error, the model just hears nothing. The greeting is sent as text, so it still worked.
+  - Desktop tests (SandboxStreamHandler) and phone calls (pipeline → `GeminiLiveProvider.sendAudio`) share this one function, so both were affected.
+  - Earlier attempts flipped between formats (call_process_log.md, 2026-07): `audio` was rejected then only because it was sent together with `media_chunks`.
+- **Why tests never caught it:** the call harness's fake Gemini answered ANY `realtime_input`, and its only audio check (first AI audio within 3 s) is met by the greeting alone. The harness was green while real calls were deaf.
+- **Fix:**
+  - `GeminiLiveProvider.buildRealtimeAudioMessage`: caller audio is sent as `realtime_input.audio` (`audio/pcm;rate=16000`), the only field in the message. Google's current reference uses it, and the fallback model accepts it too.
+  - The per-chunk log line (50-125 per second per call) became a line on the first chunk and every 1000 chunks; the per-chunk model-audio line is debug-only (timing stays in callTimingTracker).
+  - The boot self-test also reads `GOOGLE_API_KEY`. It printed "empty GEMINI_API_KEY" on a server whose calls work.
+- **Regression locks:**
+  - `e2e-call-harness/fake_gemini.js` now behaves like gemini-3.8-live: it hears only `realtime_input.audio`, silently drops `media_chunks`, rejects both together (1007), and reports `/control/stats`.
+  - `call_sim.js` Requirement 4: the caller speaks (a loud tone) and the fake must report it heard it.
+  - `scripts/test_gemini_audio_input.js` (test:gemini-audio, in test:security): greeting → caller audio → the agent answers; the log is not flooded; no code sends `media_chunks`.
+- **Proof:**
+  - test_gemini_audio_input: 0/4 on the old code (the agent's audio = ["greeting"] only), 4/4 now.
+  - Call harness on the old code: Requirements 1-2 pass, Requirement 4 fails ("heard 0 frames, dropped 50").
+- **Not verifiable here:** a real call against Google with the production key. After deploy: one desktop test and one phone call; the agent must answer. The Render log shows `[CALLER_AUDIO] forwarding caller audio to Gemini` once per call start.
