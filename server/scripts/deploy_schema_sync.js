@@ -76,9 +76,15 @@ function classify(sql) {
     if (alter) {
       // Clauses are separated by ",\n" in Prisma's output.
       const clauses = alter[2].split(/,\s*\n\s*(?=(?:ADD|DROP|ALTER|RENAME|SET|VALIDATE)\b)/i).map((c) => c.trim());
-      const adds = clauses.filter((c) => /^ADD (COLUMN|CONSTRAINT)\b/i.test(c));
+      const isFk = (c) => /^ADD CONSTRAINT\s+"[^"]+"\s+FOREIGN KEY\b/i.test(c);
+      const adds = clauses.filter((c) => /^ADD (COLUMN|CONSTRAINT)\b/i.test(c) && !isFk(c));
       const others = clauses.filter((c) => !/^ADD (COLUMN|CONSTRAINT)\b/i.test(c));
       if (adds.length) additive.push(`ALTER TABLE ${alter[1]} ${adds.join(',\n')}`);
+      // A new foreign key on an existing table checks every old row; one leftover row (e.g. a
+      // booking of a deleted agent) failed the whole deploy (2026-11-23). NOT VALID enforces it
+      // for every new and changed row without checking or touching old rows; applyAdditive
+      // then tries VALIDATE separately and only reports when old rows do not match.
+      clauses.filter(isFk).forEach((c) => additive.push(`ALTER TABLE ${alter[1]} ${c.replace(/\s+NOT VALID\s*$/i, '')} NOT VALID`));
       others.forEach((c) => skipped.push(`ALTER TABLE ${alter[1]} ${c}`));
       continue;
     }
@@ -122,6 +128,20 @@ async function applyAdditive(url, statements) {
     for (const stmt of statements) {
       log('apply:', stmt.replace(/\s+/g, ' ').slice(0, 200));
       await client.query(stmt);
+    }
+    // Check old rows against each new foreign key; a mismatch is reported, never fatal, and no
+    // row is changed (the key stays NOT VALID: enforced for new and changed rows only).
+    for (const stmt of statements) {
+      const fk = stmt.match(/^ALTER TABLE ("[^"]+")\s+ADD CONSTRAINT ("[^"]+")\s+FOREIGN KEY\b[\s\S]*NOT VALID$/i);
+      if (!fk) continue;
+      await client.query('SAVEPOINT fk_validate');
+      try {
+        await client.query(`ALTER TABLE ${fk[1]} VALIDATE CONSTRAINT ${fk[2]}`);
+        await client.query('RELEASE SAVEPOINT fk_validate');
+      } catch (err) {
+        await client.query('ROLLBACK TO SAVEPOINT fk_validate');
+        log(`note: ${fk[2]} on ${fk[1]} is enforced for new and changed rows; some OLD rows point to rows that no longer exist (kept untouched): ${String(err.message).slice(0, 160)}`);
+      }
     }
     await client.query('COMMIT');
   } catch (err) {
