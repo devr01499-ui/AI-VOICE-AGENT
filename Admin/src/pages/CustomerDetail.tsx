@@ -87,7 +87,9 @@ export const CustomerDetail: React.FC<CustomerDetailProps> = ({ customerId, onBa
 
   const fetchCustomer = async () => {
     try {
-      setLoading(true);
+      // Full-page spinner only for the first load; a refresh after an action keeps the page (and
+      // any open dialog with its success message) on screen.
+      if (!customer) setLoading(true);
       setError(null);
       const res = await adminFetch<{ success: boolean; data: any }>(`/api/v2/admin/customers/${customerId}`);
       if (res.success) {
@@ -136,6 +138,9 @@ export const CustomerDetail: React.FC<CustomerDetailProps> = ({ customerId, onBa
   };
 
   useEffect(() => {
+    // Another customer opened: never show the previous one while the new one loads.
+    setCustomer(null);
+    setLoading(true);
     fetchCustomer();
   }, [customerId]);
 

@@ -15,7 +15,9 @@ execSync('npm run --prefix Frontend build', { stdio: 'inherit', cwd: rootDir });
 
 // 2. Build Admin Console
 console.log('🛠️ [BUILD_ALL] Building Admin Console SPA...');
-execSync('npm run --prefix Admin build', { stdio: 'inherit', cwd: rootDir });
+// Served under /admin on the main site, so its assets must load from /admin/assets/... (a relative
+// base broke every deep link such as /admin/customers/<id>: the page came up blank).
+execSync('npm run --prefix Admin build', { stdio: 'inherit', cwd: rootDir, env: { ...process.env, ADMIN_BASE: '/admin/' } });
 
 // 3. Copy Admin/dist into Frontend/dist/admin for single-domain routing
 const adminDist = path.join(rootDir, 'Admin', 'dist');

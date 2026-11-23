@@ -11,6 +11,8 @@ import AgentConfigPanel from "./components/agents/AgentConfigPanel";
 import VisualFlowCanvas from "./components/agents/VisualFlowCanvas";
 import SinglePromptStudio from "./components/agents/SinglePromptStudio";
 import { DashCalendar } from "./components/calendar/CalendarOverview";
+import PlatformBanner from "./components/platform/PlatformBanner";
+import { loadLivePlatform, getPlatformState, AUTH_NOTICE_KEY } from "./lib/plans";
 import {
   fetchAgents, fetchAgent, fetchCalls, fetchProfile, createAgent, updateAgent, deleteAgent, 
   exportAgentAsJson, importAgentFromJson,
@@ -18,6 +20,7 @@ import {
   fetchKBList, fetchKBLimits, uploadKBDocument, scrapeKBUrl, deleteKBDocument, reindexKBDocument, testKBQuery, fetchCalendarBatches, createBatchCampaign, pauseBatchCampaign, resumeBatchCampaign, cancelBatchCampaign,
   fetchDataRetention, updateDataRetention, 
   apiClient,
+  API_BASE,
   type ApiAgent, type ApiCall, type ApiProfile, type ApiKnowledgeBase, type KBTestQueryResult,
 } from "./api";
 import { motion, AnimatePresence } from "motion/react";
@@ -5465,7 +5468,15 @@ function DashboardPage({ session }: { session: Session }) {
     fetchProfile().then(p => {
       setProfile(p);
       if (p) localStorage.setItem('cache_user_profile', JSON.stringify(p));
-    }).catch(() => {}); 
+    }).catch((err) => {
+      // A brand-new account (e.g. Google) while sign-ups are paused in the admin panel: the server
+      // refuses to create it. Sign out and explain on the sign-up page instead of a broken dashboard.
+      if (String(err?.message) === 'SIGNUPS_PAUSED') {
+        const msg = getPlatformState().signupsPausedMessage || 'New sign-ups are paused right now. Please try again later or write to support@claritiy.com.';
+        try { sessionStorage.setItem(AUTH_NOTICE_KEY, msg); } catch { /* private mode */ }
+        supabase.auth.signOut().catch(() => {}).finally(() => { window.location.assign('/signup'); });
+      }
+    }); 
     fetchAgents().then(data => {
       setApiAgents(data);
       localStorage.setItem('cache_api_agents', JSON.stringify(data));
@@ -5834,6 +5845,12 @@ export default function App() {
   });
 
 
+  // Live plan prices/limits and platform switches from the admin Control Panel (once per visit;
+  // the built-in values are shown until this answers, so nothing waits on it).
+  useEffect(() => {
+    loadLivePlatform(API_BASE);
+  }, []);
+
   // Sync state with browser back/forward buttons
   useEffect(() => {
     const handlePopState = () => {
@@ -6093,6 +6110,7 @@ export default function App() {
           onSuccessRedirect={() => handleNavigate(readPendingPlan() ? "pricing" : "dashboard")}
         >
           <DashboardErrorBoundary>
+            <PlatformBanner />
             <DashboardPage session={session!} />
           </DashboardErrorBoundary>
         </ProtectedRoute>

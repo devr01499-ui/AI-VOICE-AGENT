@@ -6,7 +6,7 @@ import {
   Bot, HeartPulse, ShoppingBag, Landmark, 
   HelpCircle, Globe2, PhoneForwarded, MessageCircle
 } from "lucide-react";
-import { PUBLIC_PLANS, effectiveRate } from '../lib/plans';
+import { effectiveRate, usePublicPlans, bestRatePlan } from '../lib/plans';
 
 type Page = any;
 
@@ -110,8 +110,9 @@ function SavingsCalculator() {
   const [monthlyCalls, setMonthlyCalls] = useState(5000);
   const avgDurationMins = 2.5;
 
-  // Effective rate of the largest plan (price ÷ minutes), from lib/plans.ts.
-  const claritiyCostPerMin = Number(effectiveRate(PUBLIC_PLANS[PUBLIC_PLANS.length - 1]));
+  // Best effective rate among plans on sale (price ÷ minutes), live from the server.
+  const bestPlan = bestRatePlan(usePublicPlans());
+  const claritiyCostPerMin = Number(effectiveRate(bestPlan));
   const claritiyMonthlyCost = Math.round(monthlyCalls * avgDurationMins * claritiyCostPerMin);
 
   const humanCostPerMin = 18.5;
@@ -171,7 +172,7 @@ function SavingsCalculator() {
           <div className="text-xl md:text-2xl font-mono font-bold text-[#121212]">
             ₹{claritiyMonthlyCost.toLocaleString()}
           </div>
-          <span className="text-[11px] text-[#121212] block font-mono">from ₹{effectiveRate(PUBLIC_PLANS[PUBLIC_PLANS.length - 1])}/min effective</span>
+          <span className="text-[11px] text-[#121212] block font-mono">from ₹{effectiveRate(bestPlan)}/min effective</span>
         </div>
 
         <div className="space-y-1 bg-[#EBE9E2] border border-[#CBC8BE] p-3 rounded-[2px]">

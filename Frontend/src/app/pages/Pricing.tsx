@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { Check, Loader2 } from "lucide-react";
 import { API_BASE } from "../api";
-import { PUBLIC_PLANS, formatInr, effectiveRate, PLAN_VALIDITY_DAYS, NUMBER_RELEASE_GRACE_DAYS } from '../lib/plans';
+import { formatInr, effectiveRate, PLAN_VALIDITY_DAYS, NUMBER_RELEASE_GRACE_DAYS, usePublicPlans } from '../lib/plans';
 import { supabase } from "../lib/supabaseClient";
 
 declare global {
@@ -20,6 +20,8 @@ interface PricingProps {
 }
 
 export default function Pricing({ setPage, isDashboard }: PricingProps) {
+  // Live prices and limits from the server (set in the admin Control Panel); plans taken off sale are hidden.
+  const livePlans = usePublicPlans();
   const [purchasingPlan, setPurchasingPlan] = useState<string | null>(null);
 
   const waitForRazorpay = () => {
@@ -229,7 +231,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
 
         {/* Plan cards: every number comes from lib/plans.ts, which mirrors the server's PLAN_CONFIG. */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {PUBLIC_PLANS.map((plan) => {
+          {livePlans.map((plan) => {
             const featured = plan.key === 'growth';
             const features = [
               `${plan.minutes.toLocaleString('en-IN')} calling minutes, valid ${PLAN_VALIDITY_DAYS} days (one-time, no auto-renewal)`,

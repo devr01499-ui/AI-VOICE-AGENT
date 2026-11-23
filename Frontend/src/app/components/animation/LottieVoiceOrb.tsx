@@ -6,7 +6,7 @@ import {
   ArrowRight, Check
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { PUBLIC_PLANS, effectiveRate } from '../../lib/plans';
+import { effectiveRate, usePublicPlans, bestRatePlan } from '../../lib/plans';
 
 interface LottieVoiceOrbProps {
   className?: string;
@@ -14,6 +14,7 @@ interface LottieVoiceOrbProps {
 }
 
 export default function LottieVoiceOrb({ className = "", onExploreClick }: LottieVoiceOrbProps) {
+  const livePlans = usePublicPlans();
   const lottieRef = useRef<LottieRefCurrentProps>(null);
   const [isPlaying, setIsPlaying] = useState(true);
   const [activeScenario, setActiveScenario] = useState<number>(0);
@@ -251,7 +252,7 @@ export default function LottieVoiceOrb({ className = "", onExploreClick }: Lotti
 
             <div className="bg-[#DFDCD4] p-3 rounded-[2px] border border-[#CBC8BE]">
               <span className="text-[10px] font-mono text-[#262523] block uppercase tracking-wider">TELEPHONY COST</span>
-              <span className="text-sm font-mono font-bold text-[#121212]">from ₹{effectiveRate(PUBLIC_PLANS[PUBLIC_PLANS.length - 1])}/min</span>
+              <span className="text-sm font-mono font-bold text-[#121212]">from ₹{effectiveRate(bestRatePlan(livePlans))}/min</span>
             </div>
           </div>
 
