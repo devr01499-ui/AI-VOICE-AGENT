@@ -2453,7 +2453,7 @@ adminRouter.get('/exports/:type', requireStaff('exports:csv'), async (req: Staff
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="claritiy_${exportType}_${now}.csv"`);
     // BOM so Excel opens Hindi and other non-Latin names correctly.
-    res.status(200).send(`﻿${csvData}`);
+    res.status(200).send(`\uFEFF${csvData}`);
   } catch (err: any) {
     logger.error('[ADMIN_API] Failed to generate export', { exportType, error: err.message });
     res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to generate CSV export' });
