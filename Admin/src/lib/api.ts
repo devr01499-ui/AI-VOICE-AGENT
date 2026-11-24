@@ -10,6 +10,21 @@ export const API_BASE =
     ? 'http://localhost:3001'
     : 'https://ai-voice-agent-backend-mv32.onrender.com');
 
+/**
+ * Owner access key (owner decision 2026-11-24: no login screen). Set VITE_ADMIN_ACCESS_KEY only in
+ * the admin console's own Vercel project, to the same value as ADMIN_ACCESS_KEY on the server.
+ * When it is set, the console opens without a sign-in and every request carries the key; when it is
+ * not set (e.g. the /admin copy on the main site), the normal sign-in + two-factor flow is used.
+ */
+export const ACCESS_KEY: string = String(import.meta.env.VITE_ADMIN_ACCESS_KEY || '').trim();
+export const ACCESS_KEY_MODE = ACCESS_KEY.length >= 32;
+
+async function authHeaders(): Promise<Record<string, string>> {
+  if (ACCESS_KEY_MODE) return { 'x-admin-access-key': ACCESS_KEY };
+  const session = (await supabase.auth.getSession()).data.session;
+  return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+}
+
 export class AdminApiError extends Error {
   status: number;
   code?: string;
@@ -38,9 +53,8 @@ export function newRequestKey(): string {
  * sends no token, so every export used to fail with 401).
  */
 export async function adminDownload(endpoint: string, fallbackName: string): Promise<void> {
-  const session = (await supabase.auth.getSession()).data.session;
   const res = await fetch(`${API_BASE}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`, {
-    headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+    headers: await authHeaders(),
   });
   if (!res.ok) {
     let msg = `Download failed (HTTP ${res.status})`;
@@ -67,18 +81,12 @@ export async function adminFetch<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const session = (await supabase.auth.getSession()).data.session;
-  const token = session?.access_token;
-
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'x-request-id': `admin_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    ...(await authHeaders()),
     ...(options.headers as Record<string, string>),
   };
-
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
 
   const url = `${API_BASE}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 

@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 import { supabaseClient } from '../utils/supabase';
 import { prisma } from '../lib/prisma';
@@ -65,6 +66,49 @@ export function requireStaff(permission?: PermissionName) {
         res.status(403).json({ error: 'FORBIDDEN', message: 'Client IP not permitted' });
         return;
       }
+    }
+
+    // 1b. Owner access key (owner decision 2026-11-24: no login screen on the admin console).
+    // The console's own Vercel project carries ADMIN_ACCESS_KEY in its build; the server accepts a
+    // request that presents the same key as the platform owner. Without the key, knowing the public
+    // API address is not enough. Only active when ADMIN_ACCESS_KEY (>= 32 characters) is set on the
+    // server; a wrong key is refused and logged.
+    const presentedKey = req.headers['x-admin-access-key'];
+    if (typeof presentedKey === 'string' && presentedKey) {
+      if (!accessKeyMatches(presentedKey)) {
+        logger.warn('[ADMIN_AUTH] Wrong or disabled admin access key', { path: req.path, ip: getTrustedClientIp(req) });
+        res.status(401).json({ error: 'UNAUTHORIZED', message: 'Invalid admin access key' });
+        return;
+      }
+      try {
+        const ownerEmail = ADMIN_EMAIL.toLowerCase();
+        const ownerRow = await prisma.staffUser.upsert({
+          where: { email: ownerEmail },
+          create: { email: ownerEmail, name: 'Owner', role: 'owner', status: 'active', createdBy: 'access_key', lastLoginAt: new Date() },
+          update: {},
+        });
+        if (ownerRow.status === 'disabled' || ownerRow.role !== 'owner') {
+          res.status(403).json({ error: 'FORBIDDEN', message: 'The owner staff account is disabled.' });
+          return;
+        }
+        if (!permission) {
+          res.status(500).json({ error: 'CONFIGURATION_ERROR: Route lacks declared permission gate' });
+          return;
+        }
+        if (!takeStaffRequestSlot(ownerRow.id)) {
+          res.status(429).json({ error: 'RATE_LIMIT_EXCEEDED', message: 'Too many admin requests. Please slow down.' });
+          return;
+        }
+        if (ownerRow.status === 'invited' || !ownerRow.lastLoginAt || Date.now() - ownerRow.lastLoginAt.getTime() > LAST_LOGIN_REFRESH_MS) {
+          await prisma.staffUser.update({ where: { id: ownerRow.id }, data: { lastLoginAt: new Date(), status: 'active' } }).catch(() => {});
+        }
+        req.staff = { id: ownerRow.id, email: ownerRow.email, name: ownerRow.name, role: 'owner', status: 'active' };
+        next();
+      } catch (err: any) {
+        logger.error('[ADMIN_AUTH] Access-key sign-in failed', { error: err?.message });
+        res.status(503).json({ error: 'ADMIN_AUTH_UNAVAILABLE', message: 'Sign-in could not be checked right now. Please try again in a moment.' });
+      }
+      return;
     }
 
     // 2. Extract Bearer token
@@ -201,6 +245,18 @@ export function requireStaff(permission?: PermissionName) {
 }
 
 const LAST_LOGIN_REFRESH_MS = 60 * 60 * 1000;
+
+/** Minimum length of ADMIN_ACCESS_KEY; a shorter value switches the key off (fail-closed). */
+export const ADMIN_ACCESS_KEY_MIN_LENGTH = 32;
+
+/** Timing-safe comparison with the server's ADMIN_ACCESS_KEY (off when unset or too short). */
+function accessKeyMatches(presented: string): boolean {
+  const expected = String(process.env.ADMIN_ACCESS_KEY || '').trim();
+  if (expected.length < ADMIN_ACCESS_KEY_MIN_LENGTH) return false;
+  const a = crypto.createHash('sha256').update(presented.trim()).digest();
+  const b = crypto.createHash('sha256').update(expected).digest();
+  return crypto.timingSafeEqual(a, b);
+}
 const STAFF_WINDOW_MS = 60 * 1000;
 const STAFF_MAX_PER_WINDOW = 120;
 const staffWindows = new Map<string, { start: number; count: number }>();

@@ -423,6 +423,41 @@ async function main() {
     }
   });
 
+  await test('A15 owner access key: the right key opens the console as owner (no login); wrong, short or unset keys are refused', async () => {
+    const { requireStaff, resetStaffRateLimitForTests } = require('../dist/middleware/requireStaff');
+    const { ADMIN_EMAIL } = require('../dist/config/constants');
+    const prev = { strict: process.env.ENABLE_STRICT_AUTH, key: process.env.ADMIN_ACCESS_KEY };
+    const goodKey = crypto.randomBytes(32).toString('hex');
+    const run = (key, perm = 'settings:manage') => call(requireStaff(perm), { headers: key === undefined ? {} : { 'x-admin-access-key': key } });
+    process.env.ENABLE_STRICT_AUTH = 'true';
+    resetStaffRateLimitForTests();
+    try {
+      process.env.ADMIN_ACCESS_KEY = goodKey;
+      const ok = await new Promise((resolve) => {
+        const res = { statusCode: 200, status(c) { this.statusCode = c; return this; }, json(b) { this.body = b; resolve(this); return this; } };
+        const req = { headers: { 'x-admin-access-key': goodKey }, ip: '127.0.0.1', path: '/x', get: () => 'test' };
+        requireStaff('refunds:manage')(req, res, () => resolve({ statusCode: 'next', staff: req.staff }));
+      });
+      assert.strictEqual(ok.statusCode, 'next', 'right key opens it');
+      assert.strictEqual(ok.staff.role, 'owner');
+      assert.strictEqual(ok.staff.email, ADMIN_EMAIL.toLowerCase(), 'acts as the platform owner (audit log names the owner)');
+      assert.strictEqual((await run(`${goodKey}x`)).statusCode, 401, 'wrong key refused');
+      assert.strictEqual((await run(undefined)).statusCode, 401, 'no key and no login refused');
+      process.env.ADMIN_ACCESS_KEY = 'short-key';
+      assert.strictEqual((await run('short-key')).statusCode, 401, 'a key under 32 characters is switched off');
+      delete process.env.ADMIN_ACCESS_KEY;
+      assert.strictEqual((await run(goodKey)).statusCode, 401, 'unset on the server: key mode off');
+      process.env.ADMIN_ACCESS_KEY = goodKey;
+      process.env.ENABLE_STRICT_AUTH = 'false';
+      assert.strictEqual((await run(goodKey)).statusCode, 403, 'ENABLE_STRICT_AUTH still required');
+    } finally {
+      process.env.ENABLE_STRICT_AUTH = prev.strict;
+      if (prev.key === undefined) delete process.env.ADMIN_ACCESS_KEY; else process.env.ADMIN_ACCESS_KEY = prev.key;
+      resetStaffRateLimitForTests();
+      await prisma.staffUser.deleteMany({ where: { email: ADMIN_EMAIL.toLowerCase(), createdBy: 'access_key' } });
+    }
+  });
+
   console.log(`\nAdmin panel backend: ${passed}/${total} passed`);
 }
 

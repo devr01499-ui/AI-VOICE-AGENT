@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { StaffUser, PermissionName } from '../types/admin';
-import { adminFetch, AdminApiError } from '../lib/api';
+import { adminFetch, AdminApiError, ACCESS_KEY_MODE } from '../lib/api';
 
 interface AuthContextType {
   user: any | null;
@@ -49,6 +49,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null);
       const res = await adminFetch<{ success: boolean; data: StaffUser }>('/api/v2/admin/me');
       setStaff(res.data || null);
+      // Access-key build: there is no Supabase user; the confirmed staff identity stands in for it.
+      if (ACCESS_KEY_MODE && res.data) setUser({ email: res.data.email });
       setAccessDenied(null);
       setMfaRequired(false);
     } catch (err: any) {
@@ -69,6 +71,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const evaluate = useCallback(async () => {
     if (checking.current) return checking.current;
     checking.current = (async () => {
+      // Owner access-key build: no sign-in, no two-factor screen. The server confirms the key in /me.
+      if (ACCESS_KEY_MODE) {
+        setMfaRequired(false);
+        await fetchStaffProfile();
+        return;
+      }
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
         setUser(null);
@@ -93,6 +101,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     evaluate();
+    if (ACCESS_KEY_MODE) return undefined;
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       // Token refreshes do not change who is signed in; everything else is re-checked.
       if (event === 'TOKEN_REFRESHED') return;
