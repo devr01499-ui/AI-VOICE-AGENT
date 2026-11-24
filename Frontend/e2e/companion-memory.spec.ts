@@ -14,24 +14,31 @@ test.beforeEach(async ({ page }) => {
       continuous = false; interimResults = false; lang = '';
       onstart: any; onresult: any; onerror: any; onend: any;
       running = false;
+      // Like a real browser: speech can only be heard after onstart has fired.
+      started = false;
       start() {
         if (this.running) throw new Error('already started');
         this.running = true;
         w.__recognition = this;
-        setTimeout(() => this.onstart && this.onstart(), 0);
+        setTimeout(() => {
+          if (!this.running) return;
+          this.started = true;
+          if (this.onstart) this.onstart();
+        }, 0);
       }
       stop() {
         if (!this.running) return;
         this.running = false;
-        setTimeout(() => this.onend && this.onend(), 0);
+        this.started = false;
+        setTimeout(() => { if (this.onend) this.onend(); }, 0);
       }
     }
     w.SpeechRecognition = FakeRecognition;
     w.webkitSpeechRecognition = FakeRecognition;
-    // The test "speaks" one final sentence into the running recognizer.
+    // The test "speaks" one final sentence into the recognizer once it is listening.
     w.__say = (text: string) => {
       const r = w.__recognition;
-      if (!r || !r.running) return false;
+      if (!r || !r.started) return false;
       const result: any = [{ transcript: text }];
       result.isFinal = true;
       r.onresult({ resultIndex: 0, results: [result] });
@@ -42,7 +49,12 @@ test.beforeEach(async ({ page }) => {
     Object.defineProperty(w, 'speechSynthesis', {
       configurable: true,
       value: {
-        speak(u: any) { setTimeout(() => { u.onstart && u.onstart(); setTimeout(() => u.onend && u.onend(), 20); }, 0); },
+        speak(u: any) {
+          setTimeout(() => {
+            if (u.onstart) u.onstart();
+            setTimeout(() => { if (u.onend) u.onend(); }, 20);
+          }, 0);
+        },
         cancel() {},
       },
     });
