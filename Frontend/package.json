@@ -28,7 +28,7 @@
     "@lottiefiles/dotlottie-react": "^0.18.0",
     "@radix-ui/react-compose-refs": "1.1.5",
     "@radix-ui/react-popover": "1.1.6",
-    "@supabase/supabase-js": "2.45.0",
+    "@supabase/supabase-js": "2.117.3",
     "@xyflow/react": "^12.11.3",
     "clsx": "2.1.1",
     "lottie-react": "^2.4.1",
