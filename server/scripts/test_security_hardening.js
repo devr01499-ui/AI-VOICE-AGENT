@@ -124,6 +124,12 @@ async function main() {
     assert.strictEqual(adminOriginPatternsFrom('*.vercel.app, https://*, https://ab*cd.vercel.app, http://abc*def.vercel.app').length, 0, 'no broad patterns, no plain http');
   });
 
+  await test('admin access key never ships in the main-site /admin copy (build_all blanks it and checks the bundle)', async () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '../../scripts/build_all.js'), 'utf8');
+    assert.ok(/ADMIN_BASE: '\/admin\/', VITE_ADMIN_ACCESS_KEY: ''/.test(src), 'key blanked for the main-site admin build');
+    assert.ok(src.includes('refusing to publish it'), 'bundle checked for the key');
+  });
+
   await test('toll fraud: Indian numbers allowed, premium-rate and foreign numbers refused by default', async () => {
     const { checkOutboundDestination: chk } = require('../dist/utils/destinationPolicy');
     for (const n of ['+919812345678', '919812345678', '09812345678', '9812345678', '+911123456789', '+918045678901']) {
