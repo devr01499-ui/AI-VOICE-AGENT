@@ -99,13 +99,16 @@ export class CallController {
         }
       });
 
-      // Ensure dynamic agent context matching
-      const activeAgent = await prisma.agent.findUnique({
-        where: { id: agentId }
+      // Tenant isolation: a customer may only use their own agent (looked up with their userId, never
+      // by id alone). The platform admin keeps the legacy default agent. Same answer for "not yours"
+      // and "does not exist", and the id is not echoed back.
+      const activeAgent = await prisma.agent.findFirst({
+        where: callerIsAdmin ? { id: agentId } : { id: agentId, userId: effectiveUserId },
+        select: { id: true },
       });
 
       if (!activeAgent) {
-        if (agentId === "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380d22") {
+        if (callerIsAdmin && agentId === "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380d22") {
           // Only seed default agent if it is the legacy agent id and is missing
           await prisma.agent.create({
             data: {
@@ -119,7 +122,7 @@ export class CallController {
             }
           });
         } else {
-          res.status(404).json({ success: false, error: `Agent with ID ${agentId} not found` });
+          res.status(404).json({ success: false, error: 'Agent not found' });
           return;
         }
       }
