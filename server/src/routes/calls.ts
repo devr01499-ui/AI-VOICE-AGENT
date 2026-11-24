@@ -27,17 +27,17 @@ const initiateCallSchema = z.object({
     .string()
     .min(7, 'Phone number too short')
     .max(16, 'Phone number too long'),
-  agentId: z.string().uuid('agentId must be a valid UUID'),
+  agentId: z.guid('agentId must be a valid UUID'),
   userId: z.string().optional(),
   fromPhoneNumber: z.string().optional(),
   record: z.boolean().optional(),
   isRecordingEnabled: z.boolean().optional(),
-  userData: z.record(z.unknown()).optional(),
+  userData: z.record(z.string(), z.unknown()).optional(),
   maxDuration: z.number().int().min(30).max(7200).optional(),
 });
 
 const callIdParamSchema = z.object({
-  callId: z.string().uuid('callId must be a valid UUID'),
+  callId: z.guid('callId must be a valid UUID'),
 });
 
 // ─── Routes ──────────────────────────────────────

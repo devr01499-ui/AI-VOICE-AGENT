@@ -43,9 +43,11 @@ Status legend: **FIXED** (code changed and tested here) · **OK** (checked, no c
 
 ## 3. Accepted / owner items
 
-- **A1 zod (high, ACCEPTED until the zod 4 migration):** "memory exhaustion while validating oversized constrained collections". Only zod 4.6.6+ has the fix, and that is a breaking major upgrade touching every route schema.
-  - Mitigation: every request body is capped at 10 MB before zod runs, and arrays from users have explicit caps (batch recipients 5,000, KB uploads 20 MB).
-  - Plan: migrate to zod 4 as a separate, fully regression-tested change.
+- **A1 zod (high) — FIXED 2026-11-24 (branch fix/zod-4):** "memory exhaustion while validating oversized constrained collections" (GHSA-mrhx-c7xc-m3w5).
+  - The old mitigation did not hold: a 10 MB body carries ~2 million array items, and zod 3 built one issue per bad item (measured: 300,000 issues from one Prompt Coach request).
+  - Server now on zod 4.6.7 (pinned). zod 4 stops at a size limit, but an array with NO `.max()` still makes one issue per bad item (measured ~640 MB for 2 M items), so every user-facing collection has a limit: agent tags `.max(50)`; Prompt Coach `businessFacts` checks its key count (max 50) before its values.
+  - Behaviour kept: IDs use `z.guid()` (zod 3's loose 8-4-4-4-12 check; zod 4's `.uuid()` would refuse non-RFC IDs); `PORT` default is the number 3001 (zod 4 does not parse defaults).
+  - Guard: `npm run test:validation-limits` (in test:security): version check, hostile payloads answer one issue in < 1.5 s, and a static check that every `z.array()` in `src/routes` has a `.max()`. Old code 3/8, now 8/8.
 - **A2 glob/minimatch/rimraf (moderate, ACCEPTED):** these are reached only through `googleapis → gaxios → rimraf` file utilities, with no user-controlled patterns. They clear with the next googleapis major.
 - **A3 Rate-limit store:** in memory per instance. Correct while Render runs one instance (`plan: starter`). Before scaling to 2+ instances, move the limiter store to Redis (connection details are owner infrastructure).
 - **A4 Supabase RLS (OWNER):** the browser apps never read tables directly (no `supabase.from(...)` in Frontend or Admin); every read goes through this API. The public anon key therefore only needs auth. Turning on RLS with no policies on every `public` table blocks direct PostgREST access with that key. Owner steps 22–23.

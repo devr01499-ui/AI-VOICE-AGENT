@@ -752,8 +752,8 @@ router.get('/:callId', async (req: Request, res: Response, next: NextFunction): 
 const correctionSchema = z.object({
   label: z.string().optional(),
   correctedLabel: z.string().optional(),
-  fields: z.record(z.any()).optional(),
-  correctedFields: z.record(z.any()).optional(),
+  fields: z.record(z.string(), z.any()).optional(),
+  correctedFields: z.record(z.string(), z.any()).optional(),
   score: z.number().nullable().optional(),
   notes: z.string().optional(),
 });
