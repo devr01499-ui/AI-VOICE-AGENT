@@ -14,7 +14,7 @@ import { z } from 'zod';
 const envSchema = z.object({
   // ── Database ────────────────────────────────
   DATABASE_URL: z
-    .string({ required_error: 'DATABASE_URL is required' })
+    .string({ error: 'DATABASE_URL is required' })
     .trim()
     .min(1, 'DATABASE_URL must not be empty'),
 
@@ -24,7 +24,8 @@ const envSchema = z.object({
     .trim()
     .regex(/^\d+$/, 'PORT must be a numeric string')
     .transform(Number)
-    .default('3001'),
+    // zod 4 returns a default as is (it is not parsed), so it is the parsed number.
+    .default(3001),
 
   SIP_ENCRYPTION_KEY: z
     .string()

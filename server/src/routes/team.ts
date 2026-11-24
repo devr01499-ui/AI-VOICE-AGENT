@@ -15,7 +15,7 @@ const inviteSchema = z.object({
 });
 
 const memberIdSchema = z.object({
-  memberId: z.string().uuid(),
+  memberId: z.guid(),
 });
 
 const updateRoleSchema = z.object({

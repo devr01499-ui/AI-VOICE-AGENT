@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+/** Prompt Coach "generate" uses 7 business facts; 50 leaves room without allowing abuse. */
+export const MAX_BUSINESS_FACTS = 50;
+
 export const PlaybookRequiredFieldSchema = z.object({
   key: z.string(),
   label: z.string(),
@@ -46,7 +49,14 @@ export const PromptCoachReviewSchema = z.object({
 
 export const PromptCoachGenerateRequestSchema = z.object({
   playbookId: z.string().min(1),
-  businessFacts: z.record(z.string()),
+  // Key count is checked BEFORE the values: zod reports one issue per bad value, so an object with
+  // millions of non-string values would otherwise allocate millions of issues (memory DoS).
+  businessFacts: z
+    .custom<Record<string, unknown>>(
+      (v) => typeof v === 'object' && v !== null && !Array.isArray(v) && Object.keys(v).length <= MAX_BUSINESS_FACTS,
+      { message: `businessFacts must be an object with at most ${MAX_BUSINESS_FACTS} fields` },
+    )
+    .pipe(z.record(z.string(), z.string())),
 });
 
 export const PromptCoachGenerateResponseSchema = z.object({

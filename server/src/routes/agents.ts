@@ -48,7 +48,7 @@ const storeTags = (raw: unknown): string => JSON.stringify(tagList(raw));
 // ─── Validation Schemas ──────────────────────────
 
 const agentIdParamSchema = z.object({
-  agentId: z.string().uuid('agentId must be a valid UUID'),
+  agentId: z.guid('agentId must be a valid UUID'),
 });
 
 const listQuerySchema = z.object({
@@ -65,7 +65,7 @@ const listQuerySchema = z.object({
  */
 const MAX_CONFIG_BYTES = 1_000_000;
 const MAX_FLOW_BYTES = 2_000_000;
-const jsonSized = (max: number) => z.union([z.string(), z.record(z.unknown())]).refine(
+const jsonSized = (max: number) => z.union([z.string(), z.record(z.string(), z.unknown())]).refine(
   (v) => (typeof v === 'string' ? v : JSON.stringify(v)).length <= max,
   { message: `is too large (limit ${Math.round(max / 1000)} KB)` },
 );
@@ -1120,7 +1120,7 @@ router.post(
       if (!parseResult.success) {
         res.status(400).json({
           success: false,
-          error: 'Validation error: ' + parseResult.error.errors.map(e => e.message).join(', '),
+          error: 'Validation error: ' + parseResult.error.issues.map(e => e.message).join(', '),
         });
         return;
       }

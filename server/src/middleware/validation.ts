@@ -64,7 +64,7 @@ export function validateBody(schema: ZodSchema) {
  * import { z } from 'zod';
  * import { validateParams } from '../middleware/validation';
  *
- * const idParamSchema = z.object({ id: z.string().uuid() });
+ * const idParamSchema = z.object({ id: z.guid() });
  * router.get('/agents/:id', validateParams(idParamSchema), getAgentHandler);
  * ```
  */
