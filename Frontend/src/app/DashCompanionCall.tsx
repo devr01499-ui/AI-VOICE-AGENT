@@ -5,11 +5,17 @@ import { PhoneOff, Mic, MicOff, Loader2, Bot } from "lucide-react";
 export function DashCompanionCall({ agentId, onEnd }: { agentId: string; onEnd: () => void }) {
   const [callState, setCallState] = useState<"idle" | "listening" | "thinking" | "speaking">("idle");
   const [transcript, setTranscript] = useState("");
-  const [history, setHistory] = useState<Array<{role: 'user'|'model', text: string}>>([]);
   const [error, setError] = useState("");
   
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<SpeechSynthesis>(window.speechSynthesis);
+  // The recognizer is set up once, so its handlers must never read render-time values: the
+  // conversation lives in a ref (always current) and the speech handler is reached through a ref.
+  const historyRef = useRef<Array<{role: 'user'|'model', text: string}>>([]);
+  const handleUserSpeechRef = useRef<(text: string) => void>(() => {});
+  const pushHistory = (turn: {role: 'user'|'model', text: string}) => {
+    historyRef.current = [...historyRef.current, turn];
+  };
 
   // Initialize Speech Recognition
   useEffect(() => {
@@ -44,19 +50,16 @@ export function DashCompanionCall({ agentId, onEnd }: { agentId: string; onEnd: 
       setTranscript(finalTranscript || interimTranscript);
       
       if (finalTranscript) {
-        handleUserSpeech(finalTranscript);
+        handleUserSpeechRef.current(finalTranscript);
       }
     };
-    
+
     recognition.onerror = (event: any) => {
       console.error("Speech recognition error", event.error);
       if (event.error === 'not-allowed') {
         setError("Microphone access denied. Please allow microphone permissions.");
       }
-      // If it fails because of silence, just restart if we are still active
-      if (callState === "listening" && event.error !== 'not-allowed') {
-        setTimeout(() => startListening(), 1000);
-      }
+      // After a silence error the browser fires onend, which restarts listening (below).
     };
 
     recognition.onend = () => {
@@ -95,11 +98,12 @@ export function DashCompanionCall({ agentId, onEnd }: { agentId: string; onEnd: 
   const handleUserSpeech = async (text: string) => {
     stopListening();
     setCallState("thinking");
-    setHistory(p => [...p, { role: 'user', text }]);
-    
+    const earlier = historyRef.current; // the conversation before this sentence
+    pushHistory({ role: 'user', text });
+
     try {
-      const response = await chatWithAgent(agentId, text, history);
-      setHistory(p => [...p, { role: 'model', text: response.text }]);
+      const response = await chatWithAgent(agentId, text, earlier);
+      pushHistory({ role: 'model', text: response.text });
       speakResponse(response.text);
     } catch (err: any) {
       // The server sends a clear, customer-safe message (never provider or server details).
@@ -107,6 +111,8 @@ export function DashCompanionCall({ agentId, onEnd }: { agentId: string; onEnd: 
       setCallState("idle");
     }
   };
+  // Every render: the recognizer (set up once) always calls this render's handler.
+  useEffect(() => { handleUserSpeechRef.current = handleUserSpeech; });
 
   const speakResponse = (text: string) => {
     if (!synthRef.current) return;
@@ -201,15 +207,15 @@ export function DashCompanionCall({ agentId, onEnd }: { agentId: string; onEnd: 
       {/* Call Controls */}
       <div className="flex items-center gap-6">
         {callState === "idle" ? (
-          <button onClick={handleStartCall} className="w-16 h-16 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105">
+          <button onClick={handleStartCall} aria-label="Start talking" className="w-16 h-16 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105">
             <Mic className="w-6 h-6" />
           </button>
         ) : (
           <>
-            <button onClick={() => { stopListening(); setCallState("idle"); }} className="w-12 h-12 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full flex items-center justify-center shadow transition-transform hover:scale-105">
+            <button onClick={() => { stopListening(); setCallState("idle"); }} aria-label="Pause listening" className="w-12 h-12 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full flex items-center justify-center shadow transition-transform hover:scale-105">
               <MicOff className="w-5 h-5" />
             </button>
-            <button onClick={handleEndCall} className="w-16 h-16 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105">
+            <button onClick={handleEndCall} aria-label="End call" className="w-16 h-16 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105">
               <PhoneOff className="w-6 h-6" />
             </button>
           </>
