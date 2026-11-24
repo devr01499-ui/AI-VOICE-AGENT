@@ -138,5 +138,10 @@
   },
   "optionalDependencies": {
     "@ngrok/ngrok": "^1.4.0"
+  },
+  "overrides": {
+    "googleapis-common": {
+      "gaxios": "7.3.1"
+    }
   }
 }
