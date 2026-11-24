@@ -78,7 +78,9 @@ export function RealCallModal({
   const [availableAgents, setAvailableAgents] = useState<ApiAgent[]>([]);
   // Recording is decided by the agent's "Record calls" setting, which also plays the recording notice.
   const recordCall = agentRecordsCalls(availableAgents.find((a) => a.id === selectedAgentId));
-  const [loadingInitial, setLoadingInitial] = useState(false);
+  // True from the first frame while the customer's numbers and agents load, so no placeholder
+  // number or agent is ever shown as if it were theirs.
+  const [loadingInitial, setLoadingInitial] = useState(open);
 
   // Active Call State
   const [inCall, setInCall] = useState(false);
@@ -346,6 +348,13 @@ export function RealCallModal({
   if (!open) return null;
 
   const currentAgent = availableAgents.find((a) => a.id === selectedAgentId);
+  // Only the customer's own numbers and agents are offered (the server refuses anything else).
+  const noNumbers = !loadingInitial && availableNumbers.length === 0;
+  const noAgents = !loadingInitial && availableAgents.length === 0;
+  const cannotCall = loadingInitial || noAgents || !selectedAgentId;
+  // Incoming calls are answered by the agent assigned to the number, not the one picked above.
+  const selectedNumberRecord = availableNumbers.find((n) => n.phoneNumber === selectedFromNumber);
+  const inboundAgent = availableAgents.find((a) => a.id === (selectedNumberRecord?.assignedAgentId ?? selectedNumberRecord?.agentId));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fadeIn">
@@ -575,17 +584,23 @@ export function RealCallModal({
                 <select
                   value={selectedFromNumber}
                   onChange={(e) => setSelectedFromNumber(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-mono"
+                  disabled={loadingInitial || noNumbers}
+                  data-testid="from-number-select"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-mono disabled:opacity-60"
                 >
                   {availableNumbers.map((num) => (
                     <option key={num.id} value={num.phoneNumber}>
                       {num.phoneNumber} ({num.region || 'India Local'} • {['twilio', 'exotel'].includes(num.telephonyProvider?.toLowerCase()) ? num.telephonyProvider.toUpperCase() : 'Carrier'})
                     </option>
                   ))}
-                  {availableNumbers.length === 0 && (
-                    <option value="">+918065530386 (Claritiy System Line)</option>
-                  )}
+                  {loadingInitial && availableNumbers.length === 0 && <option value="">Loading your numbers…</option>}
+                  {noNumbers && <option value="">No phone number yet</option>}
                 </select>
+                {noNumbers && (
+                  <p data-testid="no-number-help" className="text-[11px] text-amber-700 dark:text-amber-400">
+                    You need an active phone number to place calls. Get one under Phone Numbers (needs an active paid plan).
+                  </p>
+                )}
               </div>
 
               {/* Agent Selection */}
@@ -596,17 +611,23 @@ export function RealCallModal({
                 <select
                   value={selectedAgentId}
                   onChange={(e) => setSelectedAgentId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  disabled={loadingInitial || noAgents}
+                  data-testid="agent-select"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 disabled:opacity-60"
                 >
                   {availableAgents.map((ag) => (
                     <option key={ag.id} value={ag.id}>
                       {ag.name} ({ag.voiceName || 'Puck'} Voice • {ag.languageMode || 'English'})
                     </option>
                   ))}
-                  {availableAgents.length === 0 && (
-                    <option value="d0eebc99-9c0b-4ef8-bb6d-6bb9bd380d22">Claritiy Voice Assistant (Default)</option>
-                  )}
+                  {loadingInitial && availableAgents.length === 0 && <option value="">Loading your agents…</option>}
+                  {noAgents && <option value="">No agents yet</option>}
                 </select>
+                {noAgents && (
+                  <p data-testid="no-agent-help" className="text-[11px] text-amber-700 dark:text-amber-400">
+                    Create an agent first (Agents → Create Agent), then come back to place a test call.
+                  </p>
+                )}
               </div>
 
               {/* Recording follows the agent's setting (read-only here). */}
@@ -622,7 +643,7 @@ export function RealCallModal({
               <div className="pt-2">
                 <button
                   type="submit"
-                  disabled={connecting}
+                  disabled={connecting || cannotCall}
                   className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white text-xs font-extrabold shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   <PhoneCall className="w-4 h-4" />
@@ -630,6 +651,20 @@ export function RealCallModal({
                 </button>
               </div>
             </form>
+          ) : loadingInitial || noNumbers || !selectedFromNumber ? (
+            /* INBOUND: the customer needs their own number before anyone can call it */
+            <div data-testid="inbound-no-number" className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-2">
+              {loadingInitial ? (
+                <p className="text-xs text-slate-500">Loading your numbers…</p>
+              ) : (
+                <>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">No phone number yet</h4>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 max-w-md mx-auto">
+                    To test an incoming call, get a phone number under Phone Numbers (needs an active paid plan) and assign an agent to it. Callers to that number reach your agent.
+                  </p>
+                </>
+              )}
+            </div>
           ) : (
             /* INBOUND TEST INSTRUCTIONS & REAL-TIME RADAR */
             <div className="space-y-5 animate-fadeIn">
@@ -640,10 +675,10 @@ export function RealCallModal({
 
                 <div className="flex items-center justify-center gap-3">
                   <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white font-mono tracking-tight">
-                    {selectedFromNumber || '+918065530386'}
+                    {selectedFromNumber}
                   </h2>
                   <button
-                    onClick={() => handleCopy(selectedFromNumber || '+918065530386')}
+                    onClick={() => handleCopy(selectedFromNumber)}
                     title="Copy phone number"
                     className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 transition-colors cursor-pointer"
                   >
@@ -658,7 +693,7 @@ export function RealCallModal({
 
                 <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200">
                   <Bot className="w-4 h-4 text-emerald-600" />
-                  <span>Assigned Inbound Agent: <strong>{currentAgent?.name || 'Claritiy Voice Assistant'}</strong></span>
+                  <span>Assigned Inbound Agent: <strong data-testid="inbound-agent-name">{inboundAgent?.name || 'No agent assigned to this number'}</strong></span>
                 </div>
               </div>
 
@@ -675,7 +710,7 @@ export function RealCallModal({
                     <span>Live Inbound Radar Active</span>
                   </h4>
                   <p className="text-xs text-slate-400">
-                    Listening for incoming call rings on {selectedFromNumber || '+91 80 6553 0386'}...
+                    Listening for incoming call rings on {selectedFromNumber}...
                   </p>
                 </div>
 
