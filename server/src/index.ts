@@ -160,7 +160,7 @@ app.use(cors({
   credentials: true,
   // PATCH is used by the admin console (customer profile, staff, custom plans).
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-request-id', 'x-user-id', 'Idempotency-Key', 'idempotency-key']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-request-id', 'x-user-id', 'Idempotency-Key', 'idempotency-key', 'x-admin-access-key']
 }));
 
 // ── Body Parsing ──────────────────────────────────

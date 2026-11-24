@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { ACCESS_KEY_MODE } from '../../lib/api';
 import { CommandPalette } from '../CommandPalette';
 import {
   LayoutDashboard,
@@ -137,6 +138,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ currentPath, onNavigat
             </span>
           </div>
 
+          {!ACCESS_KEY_MODE && (
           <button
             onClick={() => signOut()}
             className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 text-xs transition-colors cursor-pointer"
@@ -144,6 +146,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ currentPath, onNavigat
             <LogOut className="h-3.5 w-3.5" />
             <span>Sign Out</span>
           </button>
+          )}
         </div>
       </aside>
 
@@ -191,7 +194,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ currentPath, onNavigat
               </button>
             );
           })}
-          <div className="pt-2 border-t border-zinc-800">
+          <div className={`pt-2 border-t border-zinc-800 ${ACCESS_KEY_MODE ? 'hidden' : ''}`}>
             <button
               onClick={() => signOut()}
               className="w-full text-left px-3 py-2 rounded-lg text-sm text-zinc-400 hover:text-white"
