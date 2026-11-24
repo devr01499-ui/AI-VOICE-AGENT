@@ -48,11 +48,36 @@ export function adminOriginsFrom(raw?: string | null): string[] {
   return list.length ? Array.from(new Set(list)) : [DEFAULT_ADMIN_ORIGIN];
 }
 
+/**
+ * Deployment-address patterns in ADMIN_ORIGIN. Vercel gives every deployment its own address
+ * (<project>-<hash>-<team>.vercel.app), so an exact entry stops matching after the next deploy.
+ * A pattern may contain ONE "*" inside the first part of the host name, with fixed text on both
+ * sides (at least 3 characters each), e.g. https://ai-voice-agent-i23g-*-rohits-projects-50816922.vercel.app.
+ * The "*" matches letters, digits and "-" only (never a dot), so "*.vercel.app", "https://*" or a
+ * pattern without the team name are refused: another Vercel account cannot produce a matching address.
+ */
+export function adminOriginPatternsFrom(raw?: string | null): RegExp[] {
+  const out: RegExp[] = [];
+  for (const entry of String(raw || '').split(',').map((s) => s.trim().replace(/\/+$/, '').toLowerCase())) {
+    const m = entry.match(/^https:\/\/([a-z0-9-]{3,})\*([a-z0-9-]{3,})((?:\.[a-z0-9-]+)+)$/);
+    if (!m) continue;
+    const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    out.push(new RegExp(`^https://${esc(m[1])}[a-z0-9-]+${esc(m[2])}${esc(m[3])}$`));
+  }
+  return out;
+}
+
+/** True when the origin is an admin console address from ADMIN_ORIGIN (exact entry or pattern). */
+export function isAdminOrigin(origin: string, raw?: string | null): boolean {
+  const o = String(origin || '').toLowerCase();
+  return adminOriginsFrom(raw).includes(o) || adminOriginPatternsFrom(raw).some((re) => re.test(o));
+}
+
 export function isAllowedCorsOrigin(origin: string, cfg: CorsPolicyEnv): boolean {
   const allowed = new Set<string>(PRODUCTION_ORIGINS);
   adminOriginsFrom(cfg.adminOrigin).forEach((o) => allowed.add(o));
   const frontend = originOf(cfg.frontendUrl);
   if (frontend) allowed.add(frontend);
   if (cfg.nodeEnv !== 'production') DEV_ORIGINS.forEach((o) => allowed.add(o));
-  return allowed.has(origin) || ANCHORED_DOMAIN.test(origin) || BACKEND_DOMAIN.test(origin);
+  return allowed.has(origin) || isAdminOrigin(origin, cfg.adminOrigin) || ANCHORED_DOMAIN.test(origin) || BACKEND_DOMAIN.test(origin);
 }

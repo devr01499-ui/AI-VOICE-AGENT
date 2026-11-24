@@ -111,7 +111,23 @@ async function main() {
     assert.deepStrictEqual(adminOriginsFrom(''), ['https://admin.claritiy.com'], 'default when unset');
     const src = require('fs').readFileSync(require('path').join(__dirname, '../src/index.ts'), 'utf8');
     assert.ok(/methods: \[[^\]]*'PATCH'/.test(src), 'PATCH in the CORS methods (admin console uses it)');
-    assert.ok(src.includes('adminOrigins.includes(origin)'), 'admin route gate uses the same list');
+    assert.ok(src.includes('isAdminOrigin(origin, process.env.ADMIN_ORIGIN)'), 'admin route gate uses the same rule as CORS');
+    // Deployment-address pattern for ONE Vercel project (every deploy gets a new address).
+    const { isAdminOrigin, adminOriginPatternsFrom } = require('../dist/config/cors');
+    const pat = 'https://ai-voice-agent-i23g-*-rohits-projects-50816922.vercel.app, https://ai-voice-agent-i23g.vercel.app';
+    assert.ok(isAdminOrigin('https://ai-voice-agent-i23g-m0r1jash8-rohits-projects-50816922.vercel.app', pat), 'any deployment of that project');
+    assert.ok(isAdminOrigin('https://ai-voice-agent-i23g.vercel.app', pat), 'its production address');
+    assert.ok(isAllowedCorsOrigin('https://ai-voice-agent-i23g-56fnd9dim-rohits-projects-50816922.vercel.app', { nodeEnv: 'production', adminOrigin: pat }));
+    assert.ok(!isAdminOrigin('https://ai-voice-agent-i23g-x-attacker-team.vercel.app', pat), 'another team refused');
+    assert.ok(!isAdminOrigin('https://ai-voice-agent-i23g-a.b-rohits-projects-50816922.vercel.app', pat), 'star never spans a dot');
+    assert.ok(!isAdminOrigin('https://evil.com/ai-voice-agent-i23g-x-rohits-projects-50816922.vercel.app', pat));
+    assert.strictEqual(adminOriginPatternsFrom('*.vercel.app, https://*, https://ab*cd.vercel.app, http://abc*def.vercel.app').length, 0, 'no broad patterns, no plain http');
+  });
+
+  await test('admin access key never ships in the main-site /admin copy (build_all blanks it and checks the bundle)', async () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '../../scripts/build_all.js'), 'utf8');
+    assert.ok(/ADMIN_BASE: '\/admin\/', VITE_ADMIN_ACCESS_KEY: ''/.test(src), 'key blanked for the main-site admin build');
+    assert.ok(src.includes('refusing to publish it'), 'bundle checked for the key');
   });
 
   await test('toll fraud: Indian numbers allowed, premium-rate and foreign numbers refused by default', async () => {

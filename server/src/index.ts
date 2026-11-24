@@ -18,7 +18,7 @@ import { env } from './config/env';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import { isAllowedCorsOrigin, adminOriginsFrom } from './config/cors';
+import { isAllowedCorsOrigin, adminOriginsFrom, adminOriginPatternsFrom, isAdminOrigin } from './config/cors';
 
 const blockedOriginLoggedAt = new Map<string, number>();
 /** Names the refused browser origin in the log, at most once a minute per origin. */
@@ -378,12 +378,12 @@ app.use('/api/v2/public', publicPlatformRouter);
 // Administrative Console API — Guarded by strict origin policy, RBAC and AAL2 MFA
 // ADMIN_ORIGIN may list several exact origins, comma separated (config/cors.ts adminOriginsFrom).
 const adminOrigins = adminOriginsFrom(process.env.ADMIN_ORIGIN);
-logger.info('[ADMIN_AUTH] Admin console allowed from', { origins: adminOrigins });
+logger.info('[ADMIN_AUTH] Admin console allowed from', { origins: adminOrigins, patterns: adminOriginPatternsFrom(process.env.ADMIN_ORIGIN).map(String) });
 app.use('/api/v2/admin', (req, res, next) => {
   const origin = req.headers.origin;
   if (origin) {
     const isLocalhostAdmin = (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) && process.env.NODE_ENV !== 'production';
-    const isProductionAdmin = adminOrigins.includes(origin);
+    const isProductionAdmin = isAdminOrigin(origin, process.env.ADMIN_ORIGIN);
     if (!isLocalhostAdmin && !isProductionAdmin) {
       logger.warn('[ADMIN_AUTH] Admin request from an origin not in ADMIN_ORIGIN', { origin });
       res.status(404).json({ error: 'Not found' });
