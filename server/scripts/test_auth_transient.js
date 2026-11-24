@@ -90,13 +90,22 @@ async function main() {
 
   // Real Prisma 7 + adapter-pg errors, raised by the test database itself (not hand-made objects):
   // this is the shape production sees (P2010 / P2039 with the pg code in meta.driverAdapterError).
+  // Raising 57P01 ("terminating connection") makes the pool drop that connection, and the next
+  // query can then fail with "connection terminated" instead of the requested code. Only an error
+  // that really carries the requested code is returned (up to 5 tries), so the classifier is
+  // always judged on the error the test means.
   async function realDbError(pgCode, message) {
-    try {
-      await prisma.$queryRawUnsafe(`DO $$ BEGIN RAISE EXCEPTION '${message}' USING ERRCODE = '${pgCode}'; END $$`);
-    } catch (err) {
-      return err;
+    let last = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        await prisma.$queryRawUnsafe(`DO $$ BEGIN RAISE EXCEPTION '${message}' USING ERRCODE = '${pgCode}'; END $$`);
+      } catch (err) {
+        last = err;
+        if (String(err && err.message).includes(`Code: \`${pgCode}\``)) return err;
+      }
+      await new Promise((r) => setTimeout(r, 200));
     }
-    throw new Error(`expected the database to raise ${pgCode}`);
+    throw new Error(`expected the database to raise ${pgCode}, got: ${String(last && last.message).slice(0, 200)}`);
   }
   const realRestart = await realDbError('57P01', 'terminating connection due to administrator command');
   const realTooMany = await realDbError('53300', 'sorry, too many clients already');
