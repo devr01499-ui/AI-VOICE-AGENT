@@ -62,6 +62,7 @@ SIP / dev tooling: `SIP_ENCRYPTION_KEY` (still a fallback encryption key — do 
 ## Carriers (accuracy rules, docs checked 2026-11-19)
 - **Vobiz:**
   - Every customer sub-account is `customer_use`, so Vobiz verifies that customer's own KYC and blocks their calls until it is done. Older `personal_use` accounts are switched by the boot job `VobizKycModeService` (retried every 30 min; look for `[ADMIN_ALERT][VOBIZ_KYC_MODE]` in the Render log).
+  - KYC results reach Claritiy two ways: the webhook `POST /api/v2/kyc/webhook/vobiz` (fast; needs `VOBIZ_WEBHOOK_SECRET` and the URL set in the Vobiz console), and the boot job `VobizKycStatusPoll` (every 5 min, up to 50 pending accounts per run, least recently checked first). Either one marks the account verified, unblocks calls, activates KYC-gated numbers and tells the customer once. Render log: `VobizKycStatusPoll: KYC result picked up from Vobiz`.
   - Numbers are bought on the master account, then moved with `assign-subaccount`.
   - Releasing a number: unrent, or unassign first. A number cannot leave a sub-account for 15 days after its last call; it is kept as `release_pending` and retried hourly.
 - **Plivo** (business customers only):

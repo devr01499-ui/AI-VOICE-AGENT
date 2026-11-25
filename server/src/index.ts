@@ -802,6 +802,13 @@ async function bootstrap(): Promise<void> {
       .then(({ startPlivoCompliancePoll }) => startPlivoCompliancePoll())
       .catch((err) => logger.warn('Business KYC: poll not started', { error: err instanceof Error ? err.message : String(err) }));
 
+    // Customer KYC at Vobiz: every 5 min, pick up approvals/rejections for accounts under review
+    // (unlocks calls and the number, tells the customer). Before this, an approval waited for the
+    // Vobiz webhook or for the customer to reopen Calling Config.
+    import('./services/VobizKycStatusPoll')
+      .then(({ startVobizKycStatusPoll }) => startVobizKycStatusPoll())
+      .catch((err) => logger.warn('KYC: Vobiz status poll not started', { error: err instanceof Error ? err.message : String(err) }));
+
     // Data retention (DPDP): purge expired calls and recordings every hour. It was never started before.
     DataRetentionJob.startBackgroundWorker();
 
