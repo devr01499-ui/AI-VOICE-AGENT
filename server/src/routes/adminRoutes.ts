@@ -3097,3 +3097,139 @@ adminRouter.post('/payment-issues/:id/close', requireStaff('refunds:manage'), as
     res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to close the case.' });
   }
 });
+
+// ─── KYC overview (owner request 2026-11-25) ───
+// Read-only view of every customer's KYC, plus "re-check with the carrier now". There is NO manual
+// approve: approval only ever comes from the carrier's own verification (CLAUDE.md B9).
+
+const KYC_FILTERS: Record<string, any> = {
+  all: { OR: [{ vobizSubAccount: { isNot: null } }, { plivoCompliance: { isNot: null } }, { kycDocuments: { some: {} } }] },
+  pending: { vobizSubAccount: { is: { kycStatus: 'pending' } } },
+  verified: { vobizSubAccount: { is: { kycStatus: 'verified' } } },
+  failed: { vobizSubAccount: { is: { kycStatus: 'failed' } } },
+  blocked: { vobizSubAccount: { is: { kycCallsBlocked: true } } },
+  // Paying customers who have not started KYC with either carrier yet.
+  not_started: { vobizSubAccount: { is: null }, plivoCompliance: { is: null }, accountType: { notIn: ['free', 'admin'] } },
+};
+
+/**
+ * GET /api/v2/admin/kyc?status=&q=&page=&limit=
+ */
+adminRouter.get('/kyc', requireStaff('customers:view'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const status = typeof req.query.status === 'string' && req.query.status ? req.query.status : 'all';
+  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  const pageNum = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
+  const take = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '25'), 10) || 25));
+  if (!KYC_FILTERS[status] || q.length > 200) {
+    sendValidation(res, [`status must be one of: ${Object.keys(KYC_FILTERS).join(', ')}; search up to 200 characters.`]);
+    return;
+  }
+  const where: any = { AND: [KYC_FILTERS[status]] };
+  if (q) {
+    where.AND.push({ OR: [{ email: { contains: q, mode: 'insensitive' } }, { fullName: { contains: q, mode: 'insensitive' } }, { id: { equals: q } }] });
+  }
+  try {
+    const [total, users, byStatus, blocked, notStarted] = await Promise.all([
+      prisma.user.count({ where }),
+      prisma.user.findMany({
+        where,
+        skip: (pageNum - 1) * take,
+        take,
+        orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          accountType: true,
+          planExpiresAt: true,
+          vobizSubAccount: { select: { authId: true, kycMode: true, kycStatus: true, kycCallsBlocked: true, kycVerifiedAt: true, businessType: true, updatedAt: true } },
+          plivoCompliance: { select: { status: true, businessName: true, rejectionReason: true, updatedAt: true } },
+          kycDocuments: { select: { documentType: true, status: true, failureReason: true, updatedAt: true }, orderBy: { updatedAt: 'desc' }, take: 10 },
+          phoneNumbers: { select: { status: true, kycStatus: true } },
+        },
+      }),
+      prisma.vobizSubAccount.groupBy({ by: ['kycStatus'], _count: { _all: true } }),
+      prisma.vobizSubAccount.count({ where: { kycCallsBlocked: true } }),
+      prisma.user.count({ where: KYC_FILTERS.not_started }),
+    ]);
+    res.status(200).json({
+      success: true,
+      data: users.map((u) => ({
+        id: u.id,
+        email: u.email,
+        fullName: u.fullName,
+        accountType: u.accountType,
+        planExpiresAt: u.planExpiresAt,
+        carrierKyc: u.vobizSubAccount
+          ? {
+            status: u.vobizSubAccount.kycStatus,
+            callsBlocked: u.vobizSubAccount.kycCallsBlocked,
+            mode: u.vobizSubAccount.kycMode,
+            businessType: u.vobizSubAccount.businessType,
+            verifiedAt: u.vobizSubAccount.kycVerifiedAt,
+            lastCheckedAt: u.vobizSubAccount.updatedAt,
+            simulated: u.vobizSubAccount.authId.startsWith('SA_MOCK_'),
+          }
+          : null,
+        businessKyc: u.plivoCompliance,
+        documents: u.kycDocuments,
+        numbersWaitingOnKyc: u.phoneNumbers.filter((n) => n.kycStatus !== 'verified').length,
+        numbersTotal: u.phoneNumbers.length,
+      })),
+      summary: {
+        byStatus: Object.fromEntries(byStatus.map((g) => [g.kycStatus, g._count._all])),
+        callsBlocked: blocked,
+        notStarted,
+      },
+      pagination: { page: pageNum, limit: take, total, totalPages: Math.max(1, Math.ceil(total / take)) },
+    });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] Failed to list KYC', { error: err.message });
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to load KYC' });
+  }
+});
+
+/**
+ * POST /api/v2/admin/customers/:id/kyc/recheck
+ * Asks the carrier for this customer's KYC result right now (the same check the 5-minute job and
+ * the carrier webhook use). Never approves anything itself; when the carrier's answer changes the
+ * status to verified/failed, the customer is told once.
+ */
+adminRouter.post('/customers/:id/kyc/recheck', requireStaff('kyc:recheck'), async (req: StaffAuthenticatedRequest, res: Response): Promise<void> => {
+  const id = paramOf(req);
+  try {
+    const sub = await prisma.vobizSubAccount.findUnique({ where: { userId: id }, select: { authId: true, kycStatus: true, kycCallsBlocked: true, kycMode: true } });
+    if (!sub) {
+      const exists = await customerExists(id);
+      res.status(exists ? 409 : 404).json(exists
+        ? { error: 'NO_CARRIER_KYC', message: 'This customer has no carrier KYC account yet (KYC not started, or they use the business-KYC carrier).' }
+        : { error: 'NOT_FOUND', message: 'Customer not found.' });
+      return;
+    }
+    if (sub.authId.startsWith('SA_MOCK_')) {
+      res.status(409).json({ error: 'SIMULATED', message: 'This is a simulated (test) carrier account; there is nothing to check.' });
+      return;
+    }
+    const { VobizSubAccountService } = await import('../services/VobizSubAccountService');
+    // Fails closed: when the carrier does not answer, nothing stored changes.
+    await new VobizSubAccountService().syncKycStatus(id);
+    const after = await prisma.vobizSubAccount.findUnique({ where: { userId: id }, select: { kycStatus: true, kycCallsBlocked: true, kycMode: true, kycVerifiedAt: true } });
+    const changed = Boolean(after && after.kycStatus !== sub.kycStatus);
+    if (after && changed && (after.kycStatus === 'verified' || after.kycStatus === 'failed')) {
+      const { notifyUserKycStatus } = await import('./kyc');
+      await notifyUserKycStatus(id, after.kycStatus);
+    }
+    await withAudit(
+      { ...auditBase(req), action: 'kyc:recheck', targetType: 'User', targetId: id, customerId: id, reason: reasonOf(req.body) || 'KYC re-checked with the carrier from the admin console' },
+      async () => ({
+        result: null,
+        before: { kycStatus: sub.kycStatus, kycCallsBlocked: sub.kycCallsBlocked },
+        after: { kycStatus: after?.kycStatus ?? null, kycCallsBlocked: after?.kycCallsBlocked ?? null, changed },
+      })
+    );
+    res.status(200).json({ success: true, data: { before: sub.kycStatus, after: after?.kycStatus ?? sub.kycStatus, changed, callsBlocked: after?.kycCallsBlocked ?? sub.kycCallsBlocked, verifiedAt: after?.kycVerifiedAt ?? null } });
+  } catch (err: any) {
+    logger.error('[ADMIN_API] KYC re-check failed', { customerId: id, error: err.message });
+    res.status(502).json({ error: 'CARRIER_UNAVAILABLE', message: 'The carrier did not answer. Nothing was changed; try again in a minute.' });
+  }
+});

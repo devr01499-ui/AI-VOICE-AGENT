@@ -304,6 +304,22 @@ export const CustomerDetail: React.FC<CustomerDetailProps> = ({ customerId, onBa
     }
   };
 
+  // Asks the carrier for this customer's KYC result now (it never approves anything by itself).
+  const [kycChecking, setKycChecking] = useState(false);
+  const handleKycRecheck = async () => {
+    try {
+      setKycChecking(true);
+      setTabError(null);
+      const res = await adminFetch<{ data: { before: string; after: string; changed: boolean } }>(`/api/v2/admin/customers/${customerId}/kyc/recheck`, { method: 'POST', body: JSON.stringify({}) });
+      setNotice(res.data.changed ? `Carrier KYC is now "${res.data.after}" (was "${res.data.before}"). The customer was told.` : `No change from the carrier (still "${res.data.after}").`);
+      await fetchCustomer();
+    } catch (err: any) {
+      setTabError(err?.message || 'KYC re-check failed');
+    } finally {
+      setKycChecking(false);
+    }
+  };
+
   const handleForceLogout = () => {
     setModalInput({ ...modalInput, reason: '' });
     setActionModal('forceLogout');
@@ -647,6 +663,22 @@ export const CustomerDetail: React.FC<CustomerDetailProps> = ({ customerId, onBa
                 <span>KYC & Verification</span>
                 <ShieldCheck className="h-4 w-4 text-emerald-400" />
               </h3>
+              {customer.vobizSubAccount && (
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span>
+                    Carrier KYC:{' '}
+                    <span className={customer.vobizSubAccount.kycStatus === 'verified' ? 'text-emerald-400 font-semibold' : customer.vobizSubAccount.kycStatus === 'failed' ? 'text-red-300 font-semibold' : 'text-amber-300 font-semibold'}>
+                      {customer.vobizSubAccount.kycStatus}
+                    </span>
+                    {customer.vobizSubAccount.kycCallsBlocked && <span className="text-red-300"> · calls blocked</span>}
+                  </span>
+                  {hasPermission('kyc:recheck') && !String(customer.vobizSubAccount.authId || '').startsWith('SA_MOCK_') && (
+                    <button onClick={handleKycRecheck} disabled={kycChecking} className="text-[11px] text-zinc-300 hover:text-white underline cursor-pointer disabled:opacity-50">
+                      {kycChecking ? 'Checking…' : 'Re-check now'}
+                    </button>
+                  )}
+                </div>
+              )}
               <div className="space-y-2.5 text-xs">
                 {(!customer.kycDocuments || customer.kycDocuments.length === 0) ? (
                   <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-400 text-xs">

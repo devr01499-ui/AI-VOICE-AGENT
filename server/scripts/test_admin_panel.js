@@ -458,6 +458,58 @@ async function main() {
     }
   });
 
+  await test('A16 KYC page: filters by carrier status; re-check asks the carrier, tells the customer once on a real change, never approves by itself', async () => {
+    const { VobizSubAccountService } = require('../dist/services/VobizSubAccountService');
+    const pendingUser = await newUser({ accountType: 'developer' });
+    const notStarted = await newUser({ accountType: 'developer' });
+    await prisma.vobizSubAccount.create({ data: { userId: pendingUser, authId: `SA_KYCT${crypto.randomBytes(4).toString('hex').toUpperCase()}`, authToken: 'x', kycMode: 'customer_use', kycStatus: 'pending', kycCallsBlocked: true } });
+    const list = (status) => call(h('get', '/kyc'), { query: { status, limit: '100' }, staff: OWNER });
+    const pend = await list('pending');
+    assert.strictEqual(pend.statusCode, 200, JSON.stringify(pend.body));
+    assert.ok(pend.body.data.some((u) => u.id === pendingUser && u.carrierKyc.status === 'pending' && u.carrierKyc.callsBlocked));
+    assert.ok(!pend.body.data.some((u) => u.id === notStarted));
+    assert.ok((await list('not_started')).body.data.some((u) => u.id === notStarted), 'paying customer without KYC listed as not started');
+    assert.ok(pend.body.summary.byStatus.pending >= 1);
+    assert.strictEqual((await list('approve_all')).statusCode, 400, 'unknown filter refused');
+
+    const recheck = h('post', '/customers/:id/kyc/recheck');
+    const original = VobizSubAccountService.prototype.syncKycStatus;
+    let carrierSays = 'pending';
+    VobizSubAccountService.prototype.syncKycStatus = async function (userId) {
+      await prisma.vobizSubAccount.update({ where: { userId }, data: { kycStatus: carrierSays, kycCallsBlocked: carrierSays !== 'verified' } });
+      return { kycStatus: carrierSays, isVerified: carrierSays === 'verified' };
+    };
+    const notices = () => prisma.systemAlert.count({ where: { userId: pendingUser } });
+    try {
+      const n0 = await notices();
+      const same = await call(recheck, { params: { id: pendingUser }, body: {}, staff: OWNER });
+      assert.strictEqual(same.statusCode, 200, JSON.stringify(same.body));
+      assert.strictEqual(same.body.data.changed, false);
+      assert.strictEqual(await notices(), n0, 'no notice when nothing changed');
+      carrierSays = 'verified';
+      const approved = await call(recheck, { params: { id: pendingUser }, body: {}, staff: OWNER });
+      assert.strictEqual(approved.body.data.after, 'verified');
+      assert.strictEqual(approved.body.data.callsBlocked, false);
+      assert.strictEqual(await notices(), n0 + 1, 'customer told once');
+      await call(recheck, { params: { id: pendingUser }, body: {}, staff: OWNER });
+      assert.strictEqual(await notices(), n0 + 1, 'not told again for the same result');
+      assert.ok(await prisma.adminAuditLog.findFirst({ where: { action: 'kyc:recheck', targetId: pendingUser } }), 'audited');
+      const none = await call(recheck, { params: { id: notStarted }, body: {}, staff: OWNER });
+      assert.strictEqual(none.statusCode, 409, 'no carrier KYC account: nothing to check');
+      VobizSubAccountService.prototype.syncKycStatus = async () => { throw new Error('carrier down'); };
+      const down = await call(recheck, { params: { id: pendingUser }, body: {}, staff: OWNER });
+      assert.strictEqual(down.statusCode, 502);
+      assert.strictEqual((await prisma.vobizSubAccount.findUnique({ where: { userId: pendingUser } })).kycStatus, 'verified', 'nothing changed when the carrier is down');
+      const { hasPermission } = require('../dist/admin/permissions');
+      assert.strictEqual(hasPermission('sales', 'kyc:recheck'), false);
+      assert.ok(!routeLayer(adminRouter, 'post', '/customers/:id/kyc/approve'), 'no manual approve route');
+    } finally {
+      VobizSubAccountService.prototype.syncKycStatus = original;
+      await prisma.vobizSubAccount.deleteMany({ where: { userId: pendingUser } });
+      await prisma.systemAlert.deleteMany({ where: { userId: pendingUser } });
+    }
+  });
+
   console.log(`\nAdmin panel backend: ${passed}/${total} passed`);
 }
 

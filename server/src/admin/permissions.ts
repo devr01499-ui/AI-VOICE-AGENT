@@ -24,6 +24,7 @@ export type PermissionName =
   | 'refunds:manage'
   | 'numbers:activate'
   | 'kyc:reset'
+  | 'kyc:recheck'
   | 'security:force_logout'
   | 'security:revoke_keys'
   | 'calls:terminate'
@@ -65,6 +66,8 @@ export const PERMISSION_ROLE_MAP: Record<PermissionName, readonly StaffRole[]> =
   // Operations & Compliance
   'numbers:activate': ['owner', 'admin'],
   'kyc:reset': ['owner', 'admin', 'support'],
+  // Ask the carrier for a customer's KYC result now (never approves by itself).
+  'kyc:recheck': ['owner', 'admin', 'support'],
   'security:force_logout': ['owner', 'admin', 'support'],
   'security:revoke_keys': ['owner', 'admin', 'support'],
   'calls:terminate': ['owner', 'admin', 'support'],
