@@ -17,6 +17,7 @@ import { PlatformConfigService } from '../services/PlatformConfigService';
 import { NotificationService, ANNOUNCEMENT_TYPE } from '../services/NotificationService';
 import { PAYMENT_REVIEW_TYPE, parseIssueMeta, closeIssuesForPayment, notifyCustomerOfRefund } from '../services/PaymentIssueService';
 import rateLimit from 'express-rate-limit';
+import { isPlatformAccount, kycSummary } from '../utils/kycStatus';
 
 /** Built per use, so a test (or a key rotation) that swaps the gateway client is honoured. */
 const billing = () => new BillingService();
@@ -919,7 +920,7 @@ adminRouter.get('/customers/:id', requireStaff('customers:view'), async (req: St
         createdAt: true,
         updatedAt: true,
         vobizSubAccount: {
-          select: { authId: true, kycMode: true, kycStatus: true, businessType: true, kycCallsBlocked: true, kycVerifiedAt: true, createdAt: true },
+          select: { authId: true, kycMode: true, kycStatus: true, businessType: true, kycCallsBlocked: true, kycVerifiedAt: true, kycCheckedAt: true, kycVerifications: true, createdAt: true },
         },
         phoneNumbers: {
           select: { id: true, phoneNumber: true, status: true, kycStatus: true, telephonyProvider: true, purchasedAt: true },
@@ -961,6 +962,8 @@ adminRouter.get('/customers/:id', requireStaff('customers:view'), async (req: St
       data: {
         ...user,
         kycDocuments,
+        // The same KYC summary the customer's own KYC page shows (utils/kycStatus.kycSummary).
+        kyc: kycSummary(user.vobizSubAccount, isPlatformAccount(user)),
         adminProfile: adminProfile || null,
         stats: {
           callsCount,
@@ -3102,6 +3105,8 @@ adminRouter.post('/payment-issues/:id/close', requireStaff('refunds:manage'), as
 // Read-only view of every customer's KYC, plus "re-check with the carrier now". There is NO manual
 // approve: approval only ever comes from the carrier's own verification (CLAUDE.md B9).
 
+const KYC_SELECT = { authId: true, kycMode: true, kycStatus: true, kycCallsBlocked: true, kycVerifiedAt: true, kycCheckedAt: true, kycVerifications: true, businessType: true } as const;
+
 const KYC_FILTERS: Record<string, any> = {
   all: { OR: [{ vobizSubAccount: { isNot: null } }, { plivoCompliance: { isNot: null } }, { kycDocuments: { some: {} } }] },
   pending: { vobizSubAccount: { is: { kycStatus: 'pending' } } },
@@ -3142,7 +3147,7 @@ adminRouter.get('/kyc', requireStaff('customers:view'), async (req: StaffAuthent
           fullName: true,
           accountType: true,
           planExpiresAt: true,
-          vobizSubAccount: { select: { authId: true, kycMode: true, kycStatus: true, kycCallsBlocked: true, kycVerifiedAt: true, businessType: true, updatedAt: true } },
+          vobizSubAccount: { select: KYC_SELECT },
           plivoCompliance: { select: { status: true, businessName: true, rejectionReason: true, updatedAt: true } },
           kycDocuments: { select: { documentType: true, status: true, failureReason: true, updatedAt: true }, orderBy: { updatedAt: 'desc' }, take: 10 },
           phoneNumbers: { select: { status: true, kycStatus: true } },
@@ -3160,17 +3165,8 @@ adminRouter.get('/kyc', requireStaff('customers:view'), async (req: StaffAuthent
         fullName: u.fullName,
         accountType: u.accountType,
         planExpiresAt: u.planExpiresAt,
-        carrierKyc: u.vobizSubAccount
-          ? {
-            status: u.vobizSubAccount.kycStatus,
-            callsBlocked: u.vobizSubAccount.kycCallsBlocked,
-            mode: u.vobizSubAccount.kycMode,
-            businessType: u.vobizSubAccount.businessType,
-            verifiedAt: u.vobizSubAccount.kycVerifiedAt,
-            lastCheckedAt: u.vobizSubAccount.updatedAt,
-            simulated: u.vobizSubAccount.authId.startsWith('SA_MOCK_'),
-          }
-          : null,
+        // The same reader the customer's KYC page uses (utils/kycStatus.kycSummary).
+        carrierKyc: u.vobizSubAccount ? kycSummary(u.vobizSubAccount, isPlatformAccount(u)) : null,
         businessKyc: u.plivoCompliance,
         documents: u.kycDocuments,
         numbersWaitingOnKyc: u.phoneNumbers.filter((n) => n.kycStatus !== 'verified').length,
@@ -3211,23 +3207,21 @@ adminRouter.post('/customers/:id/kyc/recheck', requireStaff('kyc:recheck'), asyn
       return;
     }
     const { VobizSubAccountService } = await import('../services/VobizSubAccountService');
-    // Fails closed: when the carrier does not answer, nothing stored changes.
-    await new VobizSubAccountService().syncKycStatus(id);
-    const after = await prisma.vobizSubAccount.findUnique({ where: { userId: id }, select: { kycStatus: true, kycCallsBlocked: true, kycMode: true, kycVerifiedAt: true } });
-    const changed = Boolean(after && after.kycStatus !== sub.kycStatus);
-    if (after && changed && (after.kycStatus === 'verified' || after.kycStatus === 'failed')) {
-      const { notifyUserKycStatus } = await import('./kyc');
-      await notifyUserKycStatus(id, after.kycStatus);
-    }
+    // The single KYC writer (stores, mirrors to numbers, audits, notifies the customer of a change).
+    // When the carrier does not answer it changes nothing and returns null.
+    const r = await new VobizSubAccountService().refreshKyc(id, 'admin_recheck');
+    if (!r) throw new Error('carrier did not answer');
+    const after = await prisma.vobizSubAccount.findUnique({ where: { userId: id }, select: { ...KYC_SELECT, user: { select: { email: true, accountType: true } } } });
+    const kyc = kycSummary(after, isPlatformAccount(after?.user));
     await withAudit(
       { ...auditBase(req), action: 'kyc:recheck', targetType: 'User', targetId: id, customerId: id, reason: reasonOf(req.body) || 'KYC re-checked with the carrier from the admin console' },
       async () => ({
         result: null,
         before: { kycStatus: sub.kycStatus, kycCallsBlocked: sub.kycCallsBlocked },
-        after: { kycStatus: after?.kycStatus ?? null, kycCallsBlocked: after?.kycCallsBlocked ?? null, changed },
+        after: { kycStatus: kyc.status, kycCallsBlocked: kyc.callsBlocked, changed: r.changed },
       })
     );
-    res.status(200).json({ success: true, data: { before: sub.kycStatus, after: after?.kycStatus ?? sub.kycStatus, changed, callsBlocked: after?.kycCallsBlocked ?? sub.kycCallsBlocked, verifiedAt: after?.kycVerifiedAt ?? null } });
+    res.status(200).json({ success: true, data: { before: sub.kycStatus, after: kyc.status, changed: r.changed, callsBlocked: kyc.callsBlocked, verifiedAt: kyc.verifiedAt, kyc } });
   } catch (err: any) {
     logger.error('[ADMIN_API] KYC re-check failed', { customerId: id, error: err.message });
     res.status(502).json({ error: 'CARRIER_UNAVAILABLE', message: 'The carrier did not answer. Nothing was changed; try again in a minute.' });

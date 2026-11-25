@@ -66,6 +66,7 @@ export async function promoteLegacySubAccounts(
       continue;
     }
     switched++;
+    await service.refreshKyc(sub.userId, 'kyc_mode_switch').catch(() => null);
     const after = await prisma.vobizSubAccount.findUnique({ where: { id: sub.id }, select: { kycCallsBlocked: true } });
     if (after?.kycCallsBlocked) {
       await NotificationService.createInAppNotification({

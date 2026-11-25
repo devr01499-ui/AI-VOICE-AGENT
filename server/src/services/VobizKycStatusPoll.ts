@@ -9,7 +9,7 @@ import { ADMIN_EMAIL } from '../config/constants';
  * reached Claritiy only if Vobiz's webhook arrived, or when the customer happened to open Calling
  * Config; otherwise the account stayed "pending", calls stayed blocked and the number stayed off.
  *
- * Every run checks the least recently checked pending sub-accounts. syncKycStatus reads Vobiz's
+ * Every run checks the least recently checked pending sub-accounts. refreshKyc reads Vobiz's
  * documented KYC status endpoint, stores the verdict (only the user's OWN customer_use KYC counts),
  * updates KYC-gated numbers and activates them. A real change to verified/failed is announced once,
  * exactly like the webhook path (the email itself is de-duplicated by kyc_email_logs).
@@ -38,13 +38,11 @@ export async function refreshPendingVobizKyc(
   let changed = 0;
   for (const sub of pending) {
     try {
-      // Fails closed: on a carrier error it returns 'pending' and leaves the stored state alone.
-      const result = await service.syncKycStatus(sub.userId);
-      if (result.kycStatus !== sub.kycStatus && (result.kycStatus === 'verified' || result.kycStatus === 'failed')) {
+      // refreshKyc stores, audits and notifies a change; on a carrier error it changes nothing.
+      const result = await service.refreshKyc(sub.userId, 'kyc_poll');
+      if (result?.changed) {
         changed++;
         logger.info('VobizKycStatusPoll: KYC result picked up from Vobiz', { userId: sub.userId, kycStatus: result.kycStatus });
-        const { notifyUserKycStatus } = await import('../routes/kyc');
-        await notifyUserKycStatus(sub.userId, result.kycStatus);
       }
     } catch (err) {
       logger.warn('VobizKycStatusPoll: check failed; retried on a later run', { userId: sub.userId, error: String(err) });

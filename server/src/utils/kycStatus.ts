@@ -1,3 +1,5 @@
+import { ADMIN_EMAIL } from '../config/constants';
+
 /**
  * Single rule for the account-level KYC state (audit #2 and #17).
  *
@@ -15,11 +17,6 @@ export function normalizeKycStatus(raw: unknown): KycState {
   return 'pending';
 }
 
-/**
- * Next stored state. A verified account is never downgraded by a later sync or webhook (the
- * carrier sometimes reports intermediate states after approval); calls are blocked unless the
- * account is verified, or when the carrier explicitly says calls are blocked.
- */
 /**
  * One-time repair (audit #2): accounts verified before this fix still carry the column default
  * kycCallsBlocked=true. Unblock verified accounts once; a later carrier sync re-applies a real block.
@@ -57,33 +54,65 @@ export async function repairInactiveInboundNumbers(): Promise<number> {
   return res.count;
 }
 
-export function nextKycState(
-  current: string | null | undefined,
-  incomingRaw: unknown,
-  carrierCallsBlocked?: unknown,
-): { kycStatus: KycState; kycCallsBlocked: boolean; changed: boolean } {
-  const incoming = normalizeKycStatus(incomingRaw);
-  const currentNorm = normalizeKycStatus(current);
-  const kycStatus: KycState = currentNorm === 'verified' && incoming !== 'verified' ? 'verified' : incoming;
-  const blockedByCarrier = typeof carrierCallsBlocked === 'boolean' ? carrierCallsBlocked : undefined;
-  const kycCallsBlocked = kycStatus !== 'verified' || blockedByCarrier === true;
-  return { kycStatus, kycCallsBlocked, changed: kycStatus !== current };
-}
 
 /**
- * Reads Vobiz's KYC status response (GET /api/v1/sub-accounts/{SA}/kyc/status) for ONE user.
- * A user is verified only when Vobiz itself verified that user's own documents: the sub-account must
- * be `customer_use` (a `personal_use` sub-account inherits the master account's KYC, so it reports
- * "not blocked" without the user ever being checked), its overall status must be verified, and
- * Vobiz must not be blocking its calls.
+ * The platform's own account (the owner): its sub-account is personal_use and, as Vobiz documents,
+ * inherits the platform's (parent account's) KYC. Every customer must pass their own KYC.
  */
-export function vobizKycVerdict(data: any): { kycStatus: KycState; kycCallsBlocked: boolean; customerUse: boolean; kycMode: string | null } {
-  const kycMode = typeof data?.kyc_mode === 'string' ? data.kyc_mode : null;
+export function isPlatformAccount(user: { accountType?: string | null; email?: string | null } | null | undefined): boolean {
+  return user?.accountType === 'admin' || String(user?.email || '').trim().toLowerCase() === ADMIN_EMAIL;
+}
+
+export type KycVerifications = Record<'pan' | 'gst' | 'aadhaar' | 'cin', string>;
+
+/**
+ * THE KYC rule, read from Vobiz's documented answer (GET /sub-accounts/{SA}/kyc/status):
+ *  - customer: verified only when kyc_mode is customer_use (their OWN KYC), overall_status is
+ *    verified and kyc_calls_blocked is false; overall failed = failed; anything else = pending.
+ *  - platform account: personal_use inherits the company's KYC, so verified only while Vobiz says
+ *    its calls are not blocked (source 'company').
+ * No "sticky" state: the carrier's latest answer is the truth, in both directions.
+ */
+export function vobizKycVerdict(data: any, platformAccount = false) {
+  const kycMode: string | null = typeof data?.kyc_mode === 'string' ? data.kyc_mode : null;
   const customerUse = kycMode === 'customer_use';
-  if (!customerUse) {
-    return { kycStatus: 'pending', kycCallsBlocked: true, customerUse: false, kycMode };
+  const inherited = platformAccount && kycMode === 'personal_use';
+  const notBlocked = data?.kyc_calls_blocked === false;
+  const overall = normalizeKycStatus(data?.overall_status ?? data?.kyc_status);
+  const kycStatus: KycState = inherited
+    ? (notBlocked ? 'verified' : 'pending')
+    : !customerUse ? 'pending'
+      : overall === 'failed' ? 'failed'
+        : overall === 'verified' && notBlocked ? 'verified' : 'pending';
+  const v = data?.verifications || {};
+  const doc = (k: string) => String(v[k] || data?.[`${k}_status`] || 'not_started').toLowerCase();
+  const verifications: KycVerifications = { pan: doc('pan'), gst: doc('gst'), aadhaar: doc('aadhaar'), cin: doc('cin') };
+  return { kycStatus, kycCallsBlocked: kycStatus !== 'verified', customerUse, kycMode, source: inherited ? 'company' as const : 'own' as const, verifications };
+}
+
+type StoredKyc = {
+  authId: string; kycMode: string; kycStatus: string; kycCallsBlocked: boolean; businessType: string;
+  kycVerifiedAt: Date | null; kycCheckedAt?: Date | null; kycVerifications?: unknown;
+};
+
+/**
+ * THE KYC reader. The customer dashboard and the admin console both show exactly this, built from
+ * the one stored row that only VobizSubAccountService.refreshKyc writes.
+ */
+export function kycSummary(sub: StoredKyc | null | undefined, platformAccount: boolean) {
+  if (!sub) {
+    return { status: 'not_started' as const, callsBlocked: true, source: null, mode: null, businessType: null, verifiedAt: null, checkedAt: null, verifications: null, simulated: false };
   }
-  const kycStatus = normalizeKycStatus(data?.overall_status ?? data?.kyc_status);
-  const kycCallsBlocked = kycStatus !== 'verified' || data?.kyc_calls_blocked !== false;
-  return { kycStatus: kycCallsBlocked && kycStatus === 'verified' ? 'pending' : kycStatus, kycCallsBlocked, customerUse: true, kycMode };
+  const status = normalizeKycStatus(sub.kycStatus);
+  return {
+    status,
+    callsBlocked: status !== 'verified' || sub.kycCallsBlocked,
+    source: platformAccount && sub.kycMode === 'personal_use' ? 'company' as const : 'own' as const,
+    mode: sub.kycMode,
+    businessType: sub.businessType,
+    verifiedAt: status === 'verified' ? sub.kycVerifiedAt : null,
+    checkedAt: sub.kycCheckedAt ?? null,
+    verifications: (sub.kycVerifications as KycVerifications | null) ?? null,
+    simulated: sub.authId.startsWith('SA_MOCK_'),
+  };
 }

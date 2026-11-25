@@ -452,6 +452,8 @@ model VobizSubAccount {
   businessType    String    @default("individual") @map("business_type") // individual | company
   kycCallsBlocked Boolean   @default(true) @map("kyc_calls_blocked")
   kycVerifiedAt   DateTime? @map("kyc_verified_at")
+  kycCheckedAt    DateTime? @map("kyc_checked_at") // last time the carrier answered (refreshKyc)
+  kycVerifications Json?    @map("kyc_verifications") // carrier's per-document result { pan, gst, aadhaar, cin }
   walletFundedAt DateTime? @map("wallet_funded_at")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")

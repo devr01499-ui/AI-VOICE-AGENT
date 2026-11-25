@@ -11,7 +11,8 @@ interface KycRow {
   fullName: string;
   accountType: string;
   planExpiresAt: string | null;
-  carrierKyc: { status: string; callsBlocked: boolean; mode: string; businessType: string; verifiedAt: string | null; lastCheckedAt: string; simulated: boolean } | null;
+  /** The same summary the customer's own KYC page shows (server utils/kycStatus.kycSummary). */
+  carrierKyc: { status: string; callsBlocked: boolean; source: 'own' | 'company'; mode: string; businessType: string; verifiedAt: string | null; checkedAt: string | null; verifications: Record<string, string> | null; simulated: boolean } | null;
   businessKyc: { status: string; businessName: string; rejectionReason: string | null; updatedAt: string } | null;
   documents: Array<{ documentType: string; status: string; failureReason: string | null; updatedAt: string }>;
   numbersWaitingOnKyc: number;
@@ -154,7 +155,11 @@ export const KycList: React.FC<{ onSelectCustomer?: (id: string) => void }> = ({
                       <div className="space-y-1">
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono uppercase font-semibold border ${badge(r.carrierKyc.status)}`}>{r.carrierKyc.status}</span>
                         {r.carrierKyc.callsBlocked && <div className="text-[10px] text-red-300">Calls blocked</div>}
-                        {r.carrierKyc.mode !== 'customer_use' && <div className="text-[10px] text-zinc-500">Mode: {r.carrierKyc.mode}</div>}
+                        {r.carrierKyc.source === 'company' && <div className="text-[10px] text-zinc-400">Company KYC (platform account)</div>}
+                        {r.carrierKyc.source === 'own' && r.carrierKyc.mode !== 'customer_use' && <div className="text-[10px] text-amber-300">Own KYC not set up yet ({r.carrierKyc.mode})</div>}
+                        {r.carrierKyc.verifications && r.carrierKyc.source === 'own' && (
+                          <div className="text-[10px] text-zinc-500">{Object.entries(r.carrierKyc.verifications).filter(([, v]) => v !== 'not_started').map(([k, v]) => `${k.toUpperCase()} ${v}`).join(' · ') || 'No documents at the carrier yet'}</div>
+                        )}
                         {r.carrierKyc.simulated && <div className="text-[10px] text-zinc-500">Simulated (test)</div>}
                         {r.carrierKyc.verifiedAt && <div className="text-[10px] text-zinc-500">Verified {fmtDateTime(r.carrierKyc.verifiedAt)}</div>}
                       </div>
@@ -187,7 +192,7 @@ export const KycList: React.FC<{ onSelectCustomer?: (id: string) => void }> = ({
                       <span>{r.numbersTotal}{r.numbersWaitingOnKyc > 0 && <span className="text-amber-300"> ({r.numbersWaitingOnKyc} waiting on KYC)</span>}</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-[11px] font-mono text-zinc-400">{r.carrierKyc ? fmtDateTime(r.carrierKyc.lastCheckedAt) : '—'}</td>
+                  <td className="px-4 py-3 text-[11px] font-mono text-zinc-400">{r.carrierKyc?.checkedAt ? fmtDateTime(r.carrierKyc.checkedAt) : r.carrierKyc ? 'Not yet' : '—'}</td>
                   <td className="px-4 py-3 text-right">
                     {canRecheck && r.carrierKyc && !r.carrierKyc.simulated && (
                       <button type="button" onClick={() => recheck(r)} disabled={checking !== null} className={secondaryBtn + ' inline-flex items-center gap-1.5'}>

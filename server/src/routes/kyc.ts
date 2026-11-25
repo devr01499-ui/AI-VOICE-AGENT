@@ -2,15 +2,14 @@ import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { requireActivePlan } from '../middleware/planValidation';
 import { prisma } from '../lib/prisma';
-import { nextKycState, vobizKycVerdict } from '../utils/kycStatus';
+import { isPlatformAccount, kycSummary } from '../utils/kycStatus';
 import { logger } from '../utils/logger';
-import { checkRequiredKycDocumentsVerified, checkAndApplyFullKycApproval, derivePanCategory, isMockVobizReference, liveKycDocumentReference, shownKycDocumentStatus } from '../services/KycVerificationService';
+import { checkRequiredKycDocumentsVerified, checkAndApplyFullKycApproval, derivePanCategory, isMockVobizReference, shownKycDocumentStatus } from '../services/KycVerificationService';
 import { VobizSubAccountService } from '../services/VobizSubAccountService';
 import { verifyVobizWebhook } from '../middleware/vobizWebhook';
 import { Resend } from 'resend';
 import { logAuditEvent } from '../utils/auditLogger';
 import { sensitiveOperationsLimiter } from '../middleware/rateLimiter';
-import { PhoneNumberActivationService } from '../services/PhoneNumberActivationService';
 import { NotificationService } from '../services/NotificationService';
 import { EncryptionService } from '../utils/EncryptionService';
 import { uploadGstCertificateToStorage } from '../utils/kycStorage';
@@ -369,9 +368,9 @@ router.get('/documents', requireAuth, requireActivePlan, async (req, res, next) 
       return;
     }
 
-    const [docs, subAccount, kycResult] = await Promise.all([
+    const [docs, { sub: subAccount, summary }, kycResult] = await Promise.all([
       prisma.kycDocument.findMany({ where: { userId } }),
-      prisma.vobizSubAccount.findUnique({ where: { userId } }),
+      kycSummaryFor(userId),
       checkRequiredKycDocumentsVerified(userId),
     ]);
 
@@ -381,24 +380,10 @@ router.get('/documents', requireAuth, requireActivePlan, async (req, res, next) 
 
     const businessType = kycResult.businessType;
     const isFullyVerified = kycResult.verified;
-
-    let overallStatus: 'verified' | 'pending' | 'failed' | 'not_submitted' = 'not_submitted';
-
-    if (isFullyVerified) { // same rule as the number gate (audit #7)
-      overallStatus = 'verified';
-    } else if (
-      (kycResult.requiredDocs.includes('PAN') && shownKycDocumentStatus(panDoc) === 'failed') ||
-      (kycResult.requiredDocs.includes('GST') && shownKycDocumentStatus(gstDoc) === 'failed') ||
-      (kycResult.requiredDocs.includes('Aadhaar') && shownKycDocumentStatus(aadhaarDoc) === 'failed')
-    ) {
-      overallStatus = 'failed';
-    } else if (
-      (kycResult.requiredDocs.includes('PAN') && shownKycDocumentStatus(panDoc) === 'pending') ||
-      (kycResult.requiredDocs.includes('GST') && shownKycDocumentStatus(gstDoc) === 'pending') ||
-      (kycResult.requiredDocs.includes('Aadhaar') && shownKycDocumentStatus(aadhaarDoc) === 'pending')
-    ) {
-      overallStatus = 'pending';
-    }
+    // The account headline is the carrier's verdict (kycSummary), exactly what the admin console
+    // shows; the per-document rows below are the detail. Every KYC submission creates the carrier
+    // account first, so "no carrier account" means KYC has not been submitted.
+    const overallStatus = summary.status === 'not_started' ? 'not_submitted' : summary.status;
 
     const documentList = [
       {
@@ -444,6 +429,7 @@ router.get('/documents', requireAuth, requireActivePlan, async (req, res, next) 
       data: {
         businessType,
         overallStatus,
+        kycSource: summary.source,
         isFullyVerified,
         subAccountAuthId: subAccount?.authId || null,
         documents: documentList,
@@ -1226,45 +1212,24 @@ router.post(['/initiate-session', '/start'], requireAuth, requireRole(['admin'])
  */
 router.post('/webhook/vobiz', verifyVobizWebhook, async (req, res, next) => {
   try {
-    const { sub_account_auth_id, phoneNumber, status, reason } = req.body || {};
+    // Documented KYC events (kyc.initiated/submitted/completed/failed/session_expired/session_revoked)
+    // name the sub-account in account_auth_id; older payloads used sub_account_auth_id / phoneNumber.
+    const body = req.body || {};
+    const authId = body.account_auth_id || body.data?.account_auth_id || body.sub_account_auth_id;
+    logger.info('KYC Webhook: received from Vobiz', { event: body.event || body.event_type, authId, phoneNumber: body.phoneNumber });
 
-    logger.info('KYC Webhook: Received update from Vobiz', { sub_account_auth_id, phoneNumber, status, reason });
-
-    // Which user does this concern? (sub-account id, else the number's owner)
-    let subAccount = sub_account_auth_id
-      ? await prisma.vobizSubAccount.findFirst({ where: { authId: String(sub_account_auth_id) } })
-      : null;
-    if (!subAccount && phoneNumber) {
-      const phoneRec = await prisma.phoneNumber.findUnique({ where: { phoneNumber: String(phoneNumber) } });
+    let subAccount = authId ? await prisma.vobizSubAccount.findFirst({ where: { authId: String(authId) } }) : null;
+    if (!subAccount && body.phoneNumber) {
+      const phoneRec = await prisma.phoneNumber.findUnique({ where: { phoneNumber: String(body.phoneNumber) } });
       if (phoneRec) subAccount = await prisma.vobizSubAccount.findUnique({ where: { userId: phoneRec.userId } });
     }
 
     if (subAccount) {
-      // The webhook body is not trusted for the verdict (its format is not documented by Vobiz):
-      // the state is read back from Vobiz's documented KYC status endpoint, and only the user's own
-      // customer_use KYC can make them verified.
+      // The body is only a trigger: the verdict is read back from Vobiz's documented status endpoint
+      // by the single KYC writer (stores, mirrors to numbers, activates, audits, notifies).
       const { VobizSubAccountService } = await import('../services/VobizSubAccountService');
-      const before = subAccount.kycStatus;
-      const applied = await new VobizSubAccountService().applyKycStatus(subAccount.userId, subAccount.authId);
-      if (!applied) {
-        logger.warn('KYC Webhook: could not confirm the status with Vobiz; state unchanged (next poll will retry)', { subAuthId: subAccount.authId });
-      } else {
-        await prisma.phoneNumber.updateMany({
-          where: { userId: subAccount.userId, aadhaarRequired: true },
-          data: { kycStatus: applied.kycStatus },
-        });
-        await PhoneNumberActivationService.evaluateAndActivateUserNumbers(subAccount.userId, 'kyc_webhook');
-        if (applied.kycStatus !== before && (applied.kycStatus === 'verified' || applied.kycStatus === 'failed')) {
-          await notifyUserKycStatus(subAccount.userId, applied.kycStatus, reason);
-        }
-        await logAuditEvent({
-          workspaceOwnerId: subAccount.userId,
-          actorUserId: subAccount.userId,
-          action: 'kyc.status_changed',
-          targetId: subAccount.authId,
-          metadata: { status: applied.kycStatus, previousStatus: before, reportedStatus: status, reason, source: 'webhook_confirmed' },
-        });
-      }
+      const applied = await new VobizSubAccountService().refreshKyc(subAccount.userId, 'kyc_webhook');
+      if (!applied) logger.warn('KYC Webhook: could not confirm the status with Vobiz; state unchanged (next poll will retry)', { subAuthId: subAccount.authId });
     }
 
     res.json({ success: true, message: 'KYC status processed successfully' });
@@ -1274,10 +1239,18 @@ router.post('/webhook/vobiz', verifyVobizWebhook, async (req, res, next) => {
   }
 });
 
+/** The one KYC summary for a workspace (the admin console reads the same kycSummary). */
+async function kycSummaryFor(userId: string) {
+  const sub = await prisma.vobizSubAccount.findUnique({ where: { userId }, include: { user: { select: { email: true, accountType: true } } } });
+  return { sub, summary: kycSummary(sub, isPlatformAccount(sub?.user)) };
+}
+
 /**
  * GET /api/v2/kyc/status
- * Queries live Vobiz sub-account KYC status (/api/v1/sub-accounts/{sub_auth_id}/kyc/status)
- * and syncs business_type and kyc_calls_blocked.
+ * Refreshes the KYC from the carrier through the single writer (VobizSubAccountService.refreshKyc)
+ * and answers with the single reader (kycSummary) the admin console uses too, so the customer and
+ * the admin console always show the same state. When the carrier does not answer, the last stored
+ * state is shown (live: false) — never a guess.
  */
 router.get('/status', requireAuth, requireActivePlan, async (req, res, next) => {
   try {
@@ -1286,137 +1259,31 @@ router.get('/status', requireAuth, requireActivePlan, async (req, res, next) => 
       res.status(401).json({ success: false, error: 'Unauthorized' });
       return;
     }
-
-    const subAccount = await prisma.vobizSubAccount.findUnique({ where: { userId } });
-    if (!subAccount) {
-      // Normal state before KYC starts, not an error (it logged a 404 in every new customer's
-      // browser console). No overallStatus: the KYC tab keeps the status from /documents.
+    if (!(await prisma.vobizSubAccount.findUnique({ where: { userId }, select: { id: true } }))) {
+      // Normal before KYC starts (no carrier account yet), not an error; /documents gives the headline.
       res.json({ success: true, data: { provisioned: false, kycStatus: 'none', isVerified: false, kycCallsBlocked: true } });
       return;
     }
-
-    const subAuthId = subAccount.authId;
-    const isMock = subAuthId.startsWith('SA_MOCK_') || (env.VOBIZ_AUTH_ID || '').includes('placeholder');
-
-    if (isMock) {
-      res.json({
-        success: true,
-        data: {
-          authId: subAuthId,
-          kycStatus: subAccount.kycStatus,
-          businessType: subAccount.businessType,
-          kycCallsBlocked: true,
-          isMock: true,
-        },
-      });
-      return;
-    }
-
-    const baseUrl = (env.VOBIZ_API_URL || 'https://api.vobiz.ai').replace(/\/+$/, '').replace(/\/api\/v1$/i, '');
-    const masterAuthId = env.VOBIZ_AUTH_ID;
-    const masterAuthToken = env.VOBIZ_AUTH_TOKEN;
-
-    if (!masterAuthId || !masterAuthToken || masterAuthId.includes('placeholder')) {
-      res.status(503).json({ success: false, error: 'Carrier credentials not configured.' });
-      return;
-    }
-
-    const vobizRes = await fetch(`${baseUrl}/api/v1/sub-accounts/${subAuthId}/kyc/status`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'X-Auth-ID': masterAuthId,
-        'X-Auth-Token': masterAuthToken,
-      },
+    const refreshed = await new VobizSubAccountService().refreshKyc(userId, 'kyc_page').catch((err: any) => {
+      logger.warn('KYC: carrier refresh failed; showing the stored state', { error: String(err?.message || err) });
+      return null;
     });
-
-    if (!vobizRes.ok) {
-      const errText = await vobizRes.text();
-      logger.warn('KYC: Failed to fetch live Vobiz status', { status: vobizRes.status, errText: errText.substring(0, 200) });
-      res.status(502).json({ success: false, error: 'Unable to query KYC provider status.' });
-      return;
-    }
-
-    const data = (await vobizRes.json()) as any;
-    // audit #17: normalise ("approved" -> "verified") and never downgrade a verified account;
-    // audit #2: store kycCallsBlocked so a verified account can actually place calls.
-    // Only the user's OWN KYC counts: a personal_use sub-account inherits the master account's KYC
-    // and reports "not blocked" without the user being checked, so it is switched to customer_use
-    // and treated as not verified until Vobiz verifies this user.
-    const verdict = vobizKycVerdict(data);
-    if (!verdict.customerUse) {
-      const owner = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
-      if (owner?.email) {
-        const { VobizSubAccountService } = await import('../services/VobizSubAccountService');
-        await new VobizSubAccountService().promoteToCustomerUse(subAccount, owner.email).catch(() => false);
-      }
-    }
-    const next = verdict.customerUse
-      ? nextKycState(subAccount.kycStatus, verdict.kycStatus, verdict.kycCallsBlocked)
-      : { kycStatus: 'pending' as const, kycCallsBlocked: true };
-    const overallStatus = next.kycStatus;
-    const kycCallsBlocked = next.kycCallsBlocked;
-    const liveBusinessType = data.business_type || subAccount.businessType || 'individual';
-
-    // Normalize per-document verifications:
-    // Schema defines verifications object { pan, gst, aadhaar, cin }
-    // but some endpoints return top-level pan_status, gst_status, aadhaar_status, cin_status
-    const verifications = {
-      pan: (data.verifications?.pan || data.pan_status || 'not_started').toLowerCase(),
-      gst: (data.verifications?.gst || data.gst_status || 'not_started').toLowerCase(),
-      aadhaar: (data.verifications?.aadhaar || data.aadhaar_status || 'not_started').toLowerCase(),
-      cin: (data.verifications?.cin || data.cin_status || 'not_started').toLowerCase(),
-    };
-
-    if (subAccount.businessType !== liveBusinessType || subAccount.kycStatus !== overallStatus || subAccount.kycCallsBlocked !== kycCallsBlocked) {
-      await prisma.vobizSubAccount.update({
-        where: { id: subAccount.id },
-        data: {
-          businessType: liveBusinessType,
-          kycStatus: overallStatus,
-          kycCallsBlocked,
-          kycVerifiedAt: subAccount.kycStatus === overallStatus ? subAccount.kycVerifiedAt : (overallStatus === 'verified' ? new Date() : (overallStatus === 'failed' ? null : subAccount.kycVerifiedAt)),
-        },
-      });
-    }
-
-    // Sync individual document records when the carrier reports them verified for THIS user's own
-    // (customer_use) KYC — a personal_use sub-account reports the master account's checks, which
-    // say nothing about this user. The record gets a reference to that live carrier result, so the
-    // number gate and the page agree (audit #7: documents showed "Verified" with no reference and
-    // the gate refused them as "PAN not verified").
-    if (verdict.customerUse) {
-      for (const docType of ['pan', 'gst', 'aadhaar'] as const) {
-        if (verifications[docType] !== 'verified') continue;
-        const ref = liveKycDocumentReference(subAuthId, docType);
-        if (!ref) continue;
-        const docs = await prisma.kycDocument.findMany({ where: { userId, documentType: docType }, select: { id: true, status: true, vobizReference: true, verifiedAt: true } });
-        for (const d of docs) {
-          // Keep a genuine reference (e.g. DigiLocker) — only fill in missing or made-up ones.
-          if (d.status === 'verified' && !isMockVobizReference(d.vobizReference)) continue;
-          await prisma.kycDocument.updateMany({
-            where: { id: d.id, userId },
-            data: { status: 'verified', verifiedAt: d.verifiedAt || new Date(), vobizReference: ref },
-          });
-        }
-      }
-    }
-
-    const isVerified = overallStatus === 'verified' && !kycCallsBlocked;
-    // REMOVED: GET /status is read-only and must NEVER trigger side effects or emails.
-    // checkAndApplyFullKycApproval is called only on real status transitions (webhooks and document verification POSTs).
-
+    const { sub, summary } = await kycSummaryFor(userId);
     res.json({
       success: true,
       data: {
-        authId: subAuthId,
-        subAccountId: subAuthId,
-        overallStatus,
-        kycStatus: overallStatus,
-        businessType: liveBusinessType,
-        kycCallsBlocked,
-        verifications,
-        isVerified,
+        authId: sub!.authId,
+        subAccountId: sub!.authId,
+        overallStatus: summary.status,
+        kycStatus: summary.status,
+        isVerified: summary.status === 'verified',
+        kycCallsBlocked: summary.callsBlocked,
+        businessType: summary.businessType,
+        verifications: summary.verifications,
+        source: summary.source,
+        checkedAt: summary.checkedAt,
+        live: Boolean(refreshed),
+        ...(summary.simulated ? { isMock: true } : {}),
       },
     });
   } catch (err) {
