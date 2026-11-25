@@ -2,6 +2,7 @@ import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { hasCallableBalance } from '../utils/balanceUtils';
 import { logAuditEvent } from '../utils/auditLogger';
+import { isPlatformAccount } from '../utils/kycStatus';
 import { AppError } from '../types/errors';
 
 export interface InboundCallResult {
@@ -217,7 +218,9 @@ export class InboundCallService {
       }
 
       // Provider-specific gating
-      if (numberRecord.telephonyProvider === 'vobiz' || !numberRecord.telephonyProvider) {
+      // The owner's account is the carrier's main account (its KYC is the carrier's own), exactly
+      // as the outbound gate treats it: never blocked by a sub-account's KYC row.
+      if ((numberRecord.telephonyProvider === 'vobiz' || !numberRecord.telephonyProvider) && !isPlatformAccount(user)) {
         const subAccount = await prisma.vobizSubAccount.findUnique({
           where: { userId: user.id }
         });

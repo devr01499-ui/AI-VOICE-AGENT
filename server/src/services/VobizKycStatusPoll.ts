@@ -1,7 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { VobizSubAccountService } from './VobizSubAccountService';
-import { ADMIN_EMAIL } from '../config/constants';
 
 /**
  * Picks up Vobiz KYC results for customers still under review (owner report 2026-11-25: approvals
@@ -13,7 +12,8 @@ import { ADMIN_EMAIL } from '../config/constants';
  * documented KYC status endpoint, stores the verdict (only the user's OWN customer_use KYC counts),
  * updates KYC-gated numbers and activates them. A real change to verified/failed is announced once,
  * exactly like the webhook path (the email itself is de-duplicated by kyc_email_logs).
- * Simulated (SA_MOCK_) sub-accounts and the platform admin are never polled.
+ * Simulated (SA_MOCK_) sub-accounts are skipped. The owner's account is the carrier's main account:
+ * refreshKyc corrects a stale row to verified without asking the carrier.
  */
 const BATCH = 50;
 const PAUSE_MS = 200;
@@ -26,7 +26,6 @@ export async function refreshPendingVobizKyc(
     where: {
       kycStatus: 'pending',
       NOT: { authId: { startsWith: 'SA_MOCK_' } },
-      user: { is: { accountType: { not: 'admin' }, email: { not: ADMIN_EMAIL } } },
       ...(opts.userIds ? { userId: { in: opts.userIds } } : {}),
     },
     // Least recently checked first, so one account the carrier keeps refusing never blocks the rest.

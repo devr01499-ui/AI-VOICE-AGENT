@@ -430,6 +430,7 @@ router.get('/documents', requireAuth, requireActivePlan, async (req, res, next) 
         businessType,
         overallStatus,
         kycSource: summary.source,
+        kycCallsBlocked: summary.callsBlocked,
         isFullyVerified,
         subAccountAuthId: subAccount?.authId || null,
         documents: documentList,
@@ -1241,8 +1242,11 @@ router.post('/webhook/vobiz', verifyVobizWebhook, async (req, res, next) => {
 
 /** The one KYC summary for a workspace (the admin console reads the same kycSummary). */
 async function kycSummaryFor(userId: string) {
-  const sub = await prisma.vobizSubAccount.findUnique({ where: { userId }, include: { user: { select: { email: true, accountType: true } } } });
-  return { sub, summary: kycSummary(sub, isPlatformAccount(sub?.user)) };
+  const [sub, user] = await Promise.all([
+    prisma.vobizSubAccount.findUnique({ where: { userId } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { email: true, accountType: true } }),
+  ]);
+  return { sub, summary: kycSummary(sub, isPlatformAccount(user)) };
 }
 
 /**
@@ -1259,7 +1263,8 @@ router.get('/status', requireAuth, requireActivePlan, async (req, res, next) => 
       res.status(401).json({ success: false, error: 'Unauthorized' });
       return;
     }
-    if (!(await prisma.vobizSubAccount.findUnique({ where: { userId }, select: { id: true } }))) {
+    const initial = await kycSummaryFor(userId);
+    if (!initial.sub && initial.summary.source !== 'company') {
       // Normal before KYC starts (no carrier account yet), not an error; /documents gives the headline.
       res.json({ success: true, data: { provisioned: false, kycStatus: 'none', isVerified: false, kycCallsBlocked: true } });
       return;
@@ -1272,8 +1277,8 @@ router.get('/status', requireAuth, requireActivePlan, async (req, res, next) => 
     res.json({
       success: true,
       data: {
-        authId: sub!.authId,
-        subAccountId: sub!.authId,
+        authId: sub?.authId ?? null,
+        subAccountId: sub?.authId ?? null,
         overallStatus: summary.status,
         kycStatus: summary.status,
         isVerified: summary.status === 'verified',

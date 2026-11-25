@@ -3166,7 +3166,7 @@ adminRouter.get('/kyc', requireStaff('customers:view'), async (req: StaffAuthent
         accountType: u.accountType,
         planExpiresAt: u.planExpiresAt,
         // The same reader the customer's KYC page uses (utils/kycStatus.kycSummary).
-        carrierKyc: u.vobizSubAccount ? kycSummary(u.vobizSubAccount, isPlatformAccount(u)) : null,
+        carrierKyc: u.vobizSubAccount || isPlatformAccount(u) ? kycSummary(u.vobizSubAccount, isPlatformAccount(u)) : null,
         businessKyc: u.plivoCompliance,
         documents: u.kycDocuments,
         numbersWaitingOnKyc: u.phoneNumbers.filter((n) => n.kycStatus !== 'verified').length,

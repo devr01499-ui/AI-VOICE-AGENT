@@ -357,15 +357,23 @@ export class VobizSubAccountService {
    */
   async refreshKyc(userId: string, source: string) {
     const sub = await prisma.vobizSubAccount.findUnique({ where: { userId }, include: { user: { select: { email: true, accountType: true } } } });
-    if (!sub || this.isMock || sub.authId.startsWith('SA_MOCK_') || sub.kycMode === SUB_ACCOUNT_MISSING_MODE) return null;
-    const platform = isPlatformAccount(sub.user);
+    if (!sub) return null;
+    if (isPlatformAccount(sub.user)) {
+      // The owner's account is the carrier's main account (KYC done with Vobiz when it was opened):
+      // never judged by a sub-account. Keep the stored row in line so every gate and filter agrees.
+      if (sub.kycStatus !== 'verified' || sub.kycCallsBlocked) {
+        await prisma.vobizSubAccount.update({ where: { id: sub.id }, data: { kycStatus: 'verified', kycCallsBlocked: false, kycVerifiedAt: sub.kycVerifiedAt ?? new Date() } });
+      }
+      return { kycStatus: 'verified' as const, kycCallsBlocked: false, customerUse: false, kycMode: sub.kycMode, verifications: null, previous: sub.kycStatus, changed: sub.kycStatus !== 'verified' };
+    }
+    if (this.isMock || sub.authId.startsWith('SA_MOCK_') || sub.kycMode === SUB_ACCOUNT_MISSING_MODE) return null;
     let data = await this.fetchKycStatus(sub.authId);
-    if (data && !platform && data.kyc_mode !== 'customer_use' && await this.promoteToCustomerUse(sub, sub.user.email || '')) {
+    if (data && data.kyc_mode !== 'customer_use' && await this.promoteToCustomerUse(sub, sub.user.email || '')) {
       data = await this.fetchKycStatus(sub.authId);
     }
     if (!data) return null;
 
-    const v = vobizKycVerdict(data, platform);
+    const v = vobizKycVerdict(data);
     const changed = v.kycStatus !== sub.kycStatus;
     await prisma.$transaction([
       prisma.vobizSubAccount.update({
@@ -542,11 +550,15 @@ export class VobizSubAccountService {
    * FAIL-CLOSED: when the carrier does not answer, the stored state is returned unchanged.
    */
   async syncKycStatus(userId: string): Promise<{ kycStatus: string; isVerified: boolean; changed: boolean }> {
-    if (this.isMock) return { kycStatus: 'pending', isVerified: false, changed: false };
     try {
       const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, accountType: true } });
       if (!user) return { kycStatus: 'pending', isVerified: false, changed: false };
-      if (!isPlatformAccount(user)) await this.getOrCreateSubAccount(userId, user.email);
+      if (isPlatformAccount(user)) {
+        const r = await this.refreshKyc(userId, 'sync_kyc'); // main account: verified, no carrier call
+        return { kycStatus: 'verified', isVerified: true, changed: Boolean(r?.changed) };
+      }
+      if (this.isMock) return { kycStatus: 'pending', isVerified: false, changed: false };
+      await this.getOrCreateSubAccount(userId, user.email);
       const r = await this.refreshKyc(userId, 'sync_kyc');
       const kycStatus = r?.kycStatus ?? normalizeKycStatus((await prisma.vobizSubAccount.findUnique({ where: { userId }, select: { kycStatus: true } }))?.kycStatus);
       return { kycStatus, isVerified: kycStatus === 'verified', changed: Boolean(r?.changed) };

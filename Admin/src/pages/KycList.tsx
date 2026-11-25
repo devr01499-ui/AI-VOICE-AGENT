@@ -155,7 +155,7 @@ export const KycList: React.FC<{ onSelectCustomer?: (id: string) => void }> = ({
                       <div className="space-y-1">
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono uppercase font-semibold border ${badge(r.carrierKyc.status)}`}>{r.carrierKyc.status}</span>
                         {r.carrierKyc.callsBlocked && <div className="text-[10px] text-red-300">Calls blocked</div>}
-                        {r.carrierKyc.source === 'company' && <div className="text-[10px] text-zinc-400">Company KYC (platform account)</div>}
+                        {r.carrierKyc.source === 'company' && <div className="text-[10px] text-zinc-400">Main carrier account (owner) — KYC done with the carrier</div>}
                         {r.carrierKyc.source === 'own' && r.carrierKyc.mode !== 'customer_use' && <div className="text-[10px] text-amber-300">Own KYC not set up yet ({r.carrierKyc.mode})</div>}
                         {r.carrierKyc.verifications && r.carrierKyc.source === 'own' && (
                           <div className="text-[10px] text-zinc-500">{Object.entries(r.carrierKyc.verifications).filter(([, v]) => v !== 'not_started').map(([k, v]) => `${k.toUpperCase()} ${v}`).join(' · ') || 'No documents at the carrier yet'}</div>
@@ -194,7 +194,7 @@ export const KycList: React.FC<{ onSelectCustomer?: (id: string) => void }> = ({
                   </td>
                   <td className="px-4 py-3 text-[11px] font-mono text-zinc-400">{r.carrierKyc?.checkedAt ? fmtDateTime(r.carrierKyc.checkedAt) : r.carrierKyc ? 'Not yet' : '—'}</td>
                   <td className="px-4 py-3 text-right">
-                    {canRecheck && r.carrierKyc && !r.carrierKyc.simulated && (
+                    {canRecheck && r.carrierKyc && !r.carrierKyc.simulated && r.carrierKyc.source === 'own' && (
                       <button type="button" onClick={() => recheck(r)} disabled={checking !== null} className={secondaryBtn + ' inline-flex items-center gap-1.5'}>
                         <RefreshCw className={`h-3.5 w-3.5 ${checking === r.id ? 'animate-spin' : ''}`} />
                         {checking === r.id ? 'Checking…' : 'Re-check now'}

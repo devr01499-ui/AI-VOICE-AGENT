@@ -56,8 +56,10 @@ export async function repairInactiveInboundNumbers(): Promise<number> {
 
 
 /**
- * The platform's own account (the owner): its sub-account is personal_use and, as Vobiz documents,
- * inherits the platform's (parent account's) KYC. Every customer must pass their own KYC.
+ * The platform owner's account (accountType admin / the owner's email). It IS the carrier's main
+ * account: Vobiz verified it when the account was opened and lets it call only because of that.
+ * Vobiz documents NO KYC field for a main account (GET /auth/me has none) — KYC status exists only
+ * for sub-accounts — so this account is never judged by a sub-account's KYC.
  */
 export function isPlatformAccount(user: { accountType?: string | null; email?: string | null } | null | undefined): boolean {
   return user?.accountType === 'admin' || String(user?.email || '').trim().toLowerCase() === ADMIN_EMAIL;
@@ -66,28 +68,22 @@ export function isPlatformAccount(user: { accountType?: string | null; email?: s
 export type KycVerifications = Record<'pan' | 'gst' | 'aadhaar' | 'cin', string>;
 
 /**
- * THE KYC rule, read from Vobiz's documented answer (GET /sub-accounts/{SA}/kyc/status):
- *  - customer: verified only when kyc_mode is customer_use (their OWN KYC), overall_status is
- *    verified and kyc_calls_blocked is false; overall failed = failed; anything else = pending.
- *  - platform account: personal_use inherits the company's KYC, so verified only while Vobiz says
- *    its calls are not blocked (source 'company').
- * No "sticky" state: the carrier's latest answer is the truth, in both directions.
+ * THE customer KYC rule, from Vobiz's documented answer (GET /sub-accounts/{SA}/kyc/status):
+ * verified only when kyc_mode is customer_use (the customer's OWN KYC — personal_use only inherits
+ * ours), overall_status is verified and kyc_calls_blocked is false; overall failed = failed;
+ * anything else = pending. No "sticky" state: the carrier's latest answer wins, both directions.
  */
-export function vobizKycVerdict(data: any, platformAccount = false) {
+export function vobizKycVerdict(data: any) {
   const kycMode: string | null = typeof data?.kyc_mode === 'string' ? data.kyc_mode : null;
   const customerUse = kycMode === 'customer_use';
-  const inherited = platformAccount && kycMode === 'personal_use';
-  const notBlocked = data?.kyc_calls_blocked === false;
   const overall = normalizeKycStatus(data?.overall_status ?? data?.kyc_status);
-  const kycStatus: KycState = inherited
-    ? (notBlocked ? 'verified' : 'pending')
-    : !customerUse ? 'pending'
-      : overall === 'failed' ? 'failed'
-        : overall === 'verified' && notBlocked ? 'verified' : 'pending';
+  const kycStatus: KycState = !customerUse ? 'pending'
+    : overall === 'failed' ? 'failed'
+      : overall === 'verified' && data?.kyc_calls_blocked === false ? 'verified' : 'pending';
   const v = data?.verifications || {};
   const doc = (k: string) => String(v[k] || data?.[`${k}_status`] || 'not_started').toLowerCase();
   const verifications: KycVerifications = { pan: doc('pan'), gst: doc('gst'), aadhaar: doc('aadhaar'), cin: doc('cin') };
-  return { kycStatus, kycCallsBlocked: kycStatus !== 'verified', customerUse, kycMode, source: inherited ? 'company' as const : 'own' as const, verifications };
+  return { kycStatus, kycCallsBlocked: kycStatus !== 'verified', customerUse, kycMode, verifications };
 }
 
 type StoredKyc = {
@@ -96,10 +92,14 @@ type StoredKyc = {
 };
 
 /**
- * THE KYC reader. The customer dashboard and the admin console both show exactly this, built from
- * the one stored row that only VobizSubAccountService.refreshKyc writes.
+ * THE KYC reader: the customer dashboard and the admin console both show exactly this.
+ * Customers: the stored carrier verdict (written only by VobizSubAccountService.refreshKyc).
+ * Platform owner: verified as the carrier's main account (source 'company'), with or without a row.
  */
 export function kycSummary(sub: StoredKyc | null | undefined, platformAccount: boolean) {
+  if (platformAccount) {
+    return { status: 'verified' as const, callsBlocked: false, source: 'company' as const, mode: 'main_account', businessType: sub?.businessType ?? null, verifiedAt: sub?.kycVerifiedAt ?? null, checkedAt: sub?.kycCheckedAt ?? null, verifications: null, simulated: false };
+  }
   if (!sub) {
     return { status: 'not_started' as const, callsBlocked: true, source: null, mode: null, businessType: null, verifiedAt: null, checkedAt: null, verifications: null, simulated: false };
   }
@@ -107,7 +107,7 @@ export function kycSummary(sub: StoredKyc | null | undefined, platformAccount: b
   return {
     status,
     callsBlocked: status !== 'verified' || sub.kycCallsBlocked,
-    source: platformAccount && sub.kycMode === 'personal_use' ? 'company' as const : 'own' as const,
+    source: 'own' as const,
     mode: sub.kycMode,
     businessType: sub.businessType,
     verifiedAt: status === 'verified' ? sub.kycVerifiedAt : null,
