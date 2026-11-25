@@ -673,10 +673,10 @@ export const CustomerDetail: React.FC<CustomerDetailProps> = ({ customerId, onBa
                       {customer.kyc.status.replace('_', ' ')}
                     </span>
                     {customer.kyc.callsBlocked && <span className="text-red-300"> · calls blocked</span>}
-                    {customer.kyc.source === 'company' && <span className="block text-[10px] text-zinc-400">Company KYC (platform account)</span>}
-                    <span className="block text-[10px] text-zinc-500">Last checked with the carrier: {customer.kyc.checkedAt ? new Date(customer.kyc.checkedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'not yet'}</span>
+                    {customer.kyc.source === 'company' && <span className="block text-[10px] text-zinc-400">Main carrier account (owner) — KYC done with the carrier</span>}
+                    {customer.kyc.source === 'own' && <span className="block text-[10px] text-zinc-500">Last checked with the carrier: {customer.kyc.checkedAt ? new Date(customer.kyc.checkedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'not yet'}</span>}
                   </span>
-                  {hasPermission('kyc:recheck') && customer.vobizSubAccount && !customer.kyc.simulated && (
+                  {hasPermission('kyc:recheck') && customer.vobizSubAccount && !customer.kyc.simulated && customer.kyc.source === 'own' && (
                     <button onClick={handleKycRecheck} disabled={kycChecking} className="text-[11px] text-zinc-300 hover:text-white underline cursor-pointer disabled:opacity-50">
                       {kycChecking ? 'Checking…' : 'Re-check now'}
                     </button>

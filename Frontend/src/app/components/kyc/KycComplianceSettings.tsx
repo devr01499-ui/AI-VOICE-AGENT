@@ -109,6 +109,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
           // The server's account headline (the carrier's verdict) — the admin console shows the same.
           localOverall = data.overallStatus || 'not_submitted';
           setKycSource(data.kycSource || null);
+          if (typeof data.kycCallsBlocked === 'boolean') setKycCallsBlocked(data.kycCallsBlocked);
           localFullyVerified = Boolean(data.isFullyVerified);
           loadedAuthId = data.subAccountAuthId || null;
           if (data.businessType) loadedBusinessType = data.businessType;
@@ -562,16 +563,16 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
           <div className="md:col-span-7 bg-slate-50/90 rounded-2xl p-4 border border-slate-200/60">
             <div className="flex justify-between items-center mb-2">
               <span className="text-xs font-bold text-slate-700">
-                Sub-Account Compliance ({businessType === 'company' ? 'Company Entity' : 'Individual / Sole Proprietor'})
+                {kycSource === 'company' ? 'Main carrier account' : `Sub-Account Compliance (${businessType === 'company' ? 'Company Entity' : 'Individual / Sole Proprietor'})`}
               </span>
               <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                {verifiedCount} of {requiredTotal} Documents Verified
+                {kycSource === 'company' ? 'KYC completed with the carrier' : `${verifiedCount} of ${requiredTotal} Documents Verified`}
               </span>
             </div>
             <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
               <div
                 className="h-full bg-emerald-500 transition-all duration-500 rounded-full"
-                style={{ width: `${(verifiedCount / requiredTotal) * 100}%` }}
+                style={{ width: kycSource === 'company' ? '100%' : `${(verifiedCount / requiredTotal) * 100}%` }}
               />
             </div>
           </div>
@@ -592,7 +593,7 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
                   : 'Outbound Calling Blocked'}:
               </strong>{' '}
               {kycCallsBlocked === false
-                ? 'Sub-account KYC approved. Outbound voice calling and number provisioning active.'
+                ? (kycSource === 'company' ? 'Main account KYC completed with the carrier. Calling and numbers active.' : 'Sub-account KYC approved. Outbound voice calling and number provisioning active.')
                 : isFullyVerified || verifiedCount === requiredTotal
                 ? 'Documents verified — waiting on provider confirmation (usually under a minute).'
                 : 'Telephony calls blocked per TRAI/DoT regulation until required identity documents are verified.'}

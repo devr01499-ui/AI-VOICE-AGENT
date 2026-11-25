@@ -127,7 +127,7 @@ async function main() {
       assert.strictEqual(await kycNotices(flaky.id), 1);
     });
 
-    await test('simulated sub-accounts and the platform admin are never polled', async () => {
+    await test('simulated sub-accounts are skipped; the owner (carrier main account) is set verified without a carrier call', async () => {
       const mockUser = crypto.randomUUID();
       const admin = crypto.randomUUID();
       users.push(mockUser, admin);
@@ -136,7 +136,9 @@ async function main() {
       await prisma.vobizSubAccount.create({ data: { userId: mockUser, authId: `SA_MOCK_${RUN}`, authToken: 'x' } });
       await prisma.vobizSubAccount.create({ data: { userId: admin, authId: `SA_ADMIN${RUN}`, authToken: 'x' } });
       const { checked } = await poll.refreshPendingVobizKyc(new VobizSubAccountService(), { pauseMs: 0, limit: 500, userIds: [mockUser, admin] });
-      assert.strictEqual(checked, 0);
+      assert.strictEqual(checked, 1, 'only the owner row (the SA_MOCK_ row is skipped)');
+      const a = await prisma.vobizSubAccount.findUnique({ where: { userId: admin } });
+      assert.deepStrictEqual([a.kycStatus, a.kycCallsBlocked], ['verified', false], 'SA_ADMIN is unknown to the fake carrier: no carrier call was needed');
     });
   } catch (e) {
     if (e.message !== 'stop') throw e;

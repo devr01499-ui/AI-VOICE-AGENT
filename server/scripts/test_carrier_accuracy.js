@@ -115,45 +115,49 @@ async function main() {
     assert.throws(() => VobizSubAccountService.createBody(''), /email/);
   });
 
-  await test('verdict (Vobiz docs): a customer is verified only by their OWN customer_use KYC; the platform account by the inherited company KYC', async () => {
-    const pick = (d, p) => { const v = vobizKycVerdict(d, p); return [v.kycStatus, v.kycCallsBlocked, v.source]; };
-    const personal = { kyc_mode: 'personal_use', overall_status: 'verified', kyc_calls_blocked: false };
-    assert.deepStrictEqual(pick(personal, false), ['pending', true, 'own'], 'a customer on inherited KYC is not verified');
-    assert.deepStrictEqual(pick(personal, true), ['verified', false, 'company'], 'the platform account is covered by the company KYC');
-    assert.deepStrictEqual(pick({ ...personal, kyc_calls_blocked: true }, true), ['pending', true, 'company']);
-    assert.deepStrictEqual(pick({ overall_status: 'verified', kyc_calls_blocked: false }, false), ['pending', true, 'own'], 'no kyc_mode = not proven');
-    assert.deepStrictEqual(pick({ kyc_mode: 'customer_use', overall_status: 'verified', kyc_calls_blocked: false }, false), ['verified', false, 'own']);
-    assert.deepStrictEqual(pick({ kyc_mode: 'customer_use', overall_status: 'verified', kyc_calls_blocked: true }, false), ['pending', true, 'own'], 'still blocked = not done');
-    assert.deepStrictEqual(pick({ kyc_mode: 'customer_use', overall_status: 'failed', kyc_calls_blocked: true }, false), ['failed', true, 'own']);
+  await test('verdict (Vobiz docs): a customer is verified only by their OWN customer_use KYC', async () => {
+    const pick = (d) => { const v = vobizKycVerdict(d); return [v.kycStatus, v.kycCallsBlocked]; };
+    assert.deepStrictEqual(pick({ kyc_mode: 'personal_use', overall_status: 'verified', kyc_calls_blocked: false }), ['pending', true], 'a customer on inherited KYC is not verified');
+    assert.deepStrictEqual(pick({ overall_status: 'verified', kyc_calls_blocked: false }), ['pending', true], 'no kyc_mode = not proven');
+    assert.deepStrictEqual(pick({ kyc_mode: 'customer_use', overall_status: 'verified', kyc_calls_blocked: false }), ['verified', false]);
+    assert.deepStrictEqual(pick({ kyc_mode: 'customer_use', overall_status: 'verified', kyc_calls_blocked: true }), ['pending', true], 'still blocked = not done');
+    assert.deepStrictEqual(pick({ kyc_mode: 'customer_use', overall_status: 'failed', kyc_calls_blocked: true }), ['failed', true]);
     assert.deepStrictEqual(vobizKycVerdict({ kyc_mode: 'customer_use', verifications: { pan: 'Verified', aadhaar: 'failed' } }).verifications, { pan: 'verified', gst: 'not_started', aadhaar: 'failed', cin: 'not_started' });
   });
 
-  await test('one KYC truth (owner report 2026-11-25: customer page "pending", admin console "verified"): no flip-flop, no sticky state', async () => {
+  await test('owner account (owner report 2026-11-25): the carrier main account is verified everywhere, never judged by a sub-account', async () => {
     const { kycSummary } = require('../dist/utils/kycStatus');
+    const { refreshPendingVobizKyc } = require('../dist/services/VobizKycStatusPoll');
     const stored = (id) => prisma.vobizSubAccount.findUnique({ where: { userId: id } });
-    // The platform account: personal_use sub-account, inherits the company's KYC.
+    // Exactly the reported state: a leftover personal_use sub-account that Vobiz reports as blocked,
+    // stored "pending, calls blocked" by the previous release.
     const owner = await newUser({ accountType: 'admin' });
     const sa = 'SA_PLAT' + crypto.randomBytes(3).toString('hex').toUpperCase();
-    kyc.set(sa, { kyc_mode: 'personal_use', overall_status: 'verified', kyc_calls_blocked: false, ownVerified: false });
-    await prisma.vobizSubAccount.create({ data: { userId: owner.id, authId: sa, authToken: 'x', kycMode: 'personal_use', kycStatus: 'pending' } });
-    const puts = calls.filter((c) => c.method === 'PUT').length;
-    for (const run of [() => svc.refreshKyc(owner.id, 'kyc_page'), () => svc.syncKycStatus(owner.id), () => svc.refreshKyc(owner.id, 'admin_recheck')]) {
+    kyc.set(sa, { kyc_mode: 'personal_use', overall_status: 'not_started', kyc_calls_blocked: true, ownVerified: false });
+    await prisma.vobizSubAccount.create({ data: { userId: owner.id, authId: sa, authToken: 'x', kycMode: 'missing_at_carrier', kycStatus: 'pending', kycCallsBlocked: true } });
+    const before = calls.length;
+    for (const run of [() => refreshPendingVobizKyc(svc, { pauseMs: 0, userIds: [owner.id] }), () => svc.refreshKyc(owner.id, 'kyc_page'), () => svc.syncKycStatus(owner.id)]) {
       await run();
       const row = await stored(owner.id);
-      assert.deepStrictEqual([row.kycStatus, row.kycCallsBlocked], ['verified', false], 'every path stores the same verdict');
-      const s = kycSummary(row, true);
-      assert.deepStrictEqual([s.status, s.callsBlocked, s.source], ['verified', false, 'company']);
-      assert.ok(s.checkedAt, 'last carrier answer is recorded');
+      assert.deepStrictEqual([row.kycStatus, row.kycCallsBlocked], ['verified', false], 'every path stores verified, calls not blocked');
+      assert.deepStrictEqual([kycSummary(row, true).status, kycSummary(row, true).callsBlocked, kycSummary(row, true).source], ['verified', false, 'company']);
     }
-    assert.strictEqual(calls.filter((c) => c.method === 'PUT').length, puts, 'the platform account is never switched to customer_use');
-    assert.strictEqual(await prisma.auditLog.count({ where: { workspaceOwnerId: owner.id, action: 'kyc.status_changed' } }), 1, 'changed once, not back and forth');
+    assert.strictEqual(calls.length, before, 'no carrier call and no customer_use switch for the main account');
+    assert.deepStrictEqual((await svc.syncKycStatus(owner.id)), { kycStatus: 'verified', isVerified: true, changed: false });
+    // An owner without any sub-account row is still the verified main account.
+    const bare = await newUser({ accountType: 'admin' });
+    assert.deepStrictEqual([kycSummary(null, true).status, kycSummary(null, true).source], ['verified', 'company']);
+    assert.strictEqual((await svc.syncKycStatus(bare.id)).isVerified, true);
+    assert.strictEqual(await prisma.vobizSubAccount.count({ where: { userId: bare.id } }), 0, 'no sub-account is created for the owner');
 
-    // The carrier's latest answer wins in both directions (no sticky "verified").
-    Object.assign(kyc.get(sa), { kyc_calls_blocked: true });
-    await svc.refreshKyc(owner.id, 'kyc_poll');
-    const blocked = await stored(owner.id);
-    assert.deepStrictEqual([blocked.kycStatus, blocked.kycVerifiedAt], ['pending', null]);
+    // Inbound and outbound gates both treat the owner's account as the main account.
+    const read = (p) => fs.readFileSync(path.join(__dirname, '..', 'src', p), 'utf8');
+    assert.ok(read('services/InboundCallService.ts').includes('!isPlatformAccount(user)'), 'inbound gate exempts the main account');
+    assert.ok(/isAdmin = user\.accountType === 'admin' \|\| user\.email === ADMIN_EMAIL/.test(read('services/CallService.ts')), 'outbound gate exempts the main account');
+  });
 
+  await test('one KYC truth for customers: no sticky state, carrier silent = no change, one reader everywhere', async () => {
+    const stored = (id) => prisma.vobizSubAccount.findUnique({ where: { userId: id } });
     const u = await newUser();
     const sub = await svc.getOrCreateSubAccount(u.id, u.email);
     Object.assign(kyc.get(sub.authId), { kyc_mode: 'customer_use', overall_status: 'verified', kyc_calls_blocked: false, ownVerified: true });
