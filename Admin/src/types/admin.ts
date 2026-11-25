@@ -19,6 +19,7 @@ export type PermissionName =
   | 'refunds:manage'
   | 'numbers:activate'
   | 'kyc:reset'
+  | 'kyc:recheck'
   | 'security:force_logout'
   | 'security:revoke_keys'
   | 'calls:terminate'

@@ -20,6 +20,7 @@ import {
   ChevronRight,
   BarChart3,
   SlidersHorizontal,
+  BadgeCheck,
   Receipt,
 } from 'lucide-react';
 
@@ -50,6 +51,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ currentPath, onNavigat
     { label: 'Overview', path: '/overview', icon: LayoutDashboard },
     { label: 'Control Panel', path: '/control', icon: SlidersHorizontal, perm: 'settings:manage' },
     { label: 'Customers', path: '/customers', icon: Users, perm: 'customers:view' },
+    { label: 'KYC', path: '/kyc', icon: BadgeCheck, perm: 'customers:view' },
     { label: 'Calls & Telephony', path: '/calls', icon: PhoneCall },
     { label: 'Usage & Telemetry', path: '/usage', icon: BarChart3, perm: 'metrics:view' },
     { label: 'Phone Numbers', path: '/numbers', icon: Hash, perm: 'numbers:activate' },
@@ -212,7 +214,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ currentPath, onNavigat
           <div className="flex items-center gap-2 text-xs font-mono text-zinc-400">
             <span>CONSOLE</span>
             <span className="text-zinc-600">/</span>
-            <span className="text-white capitalize">{currentPath.replace('/', '') || 'Overview'}</span>
+            <span className="text-white">{navItems.find((i) => currentPath === i.path || currentPath.startsWith(`${i.path}/`))?.label || 'Overview'}{currentPath.startsWith('/customers/') ? ' / Customer' : ''}</span>
           </div>
 
           <div className="flex items-center gap-3">

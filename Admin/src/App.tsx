@@ -13,6 +13,7 @@ import { StaffList } from './pages/StaffList';
 import { PlansList } from './pages/PlansList';
 import { Settings } from './pages/Settings';
 import { ControlPanel } from './pages/ControlPanel';
+import { KycList } from './pages/KycList';
 import { UsagePage } from './pages/UsagePage';
 import { Login } from './pages/Login';
 import { MfaEnroll } from './pages/MfaEnroll';
@@ -151,6 +152,8 @@ const AdminRouter: React.FC = () => {
         return <Settings />;
       case '/control':
         return <ControlPanel />;
+      case '/kyc':
+        return <KycList onSelectCustomer={(id) => navigate(`/customers/${id}`)} />;
       default:
         return (
           <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-8 text-center space-y-3">
