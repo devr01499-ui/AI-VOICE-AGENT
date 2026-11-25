@@ -93,23 +93,22 @@ async function main() {
     BillingService.setRazorpayClientForTests(null);
   });
 
-  await test('#2/#17 KYC state: normalised, never downgraded, calls unblocked only when verified', async () => {
-    const { nextKycState, normalizeKycStatus } = require('../dist/utils/kycStatus');
+  await test('#2/#17 KYC state: normalised; calls unblocked only when verified (the carrier is the truth, see test:carrier-accuracy)', async () => {
+    const { vobizKycVerdict, normalizeKycStatus } = require('../dist/utils/kycStatus');
     assert.strictEqual(normalizeKycStatus('APPROVED'), 'verified');
     assert.strictEqual(normalizeKycStatus('rejected'), 'failed');
     assert.strictEqual(normalizeKycStatus('not_started'), 'pending');
-    assert.deepStrictEqual(nextKycState('pending', 'approved'), { kycStatus: 'verified', kycCallsBlocked: false, changed: true });
-    assert.deepStrictEqual(nextKycState('verified', 'pending'), { kycStatus: 'verified', kycCallsBlocked: false, changed: false }, 'no downgrade');
-    assert.strictEqual(nextKycState('pending', 'pending').kycCallsBlocked, true);
-    assert.strictEqual(nextKycState('verified', 'verified', true).kycCallsBlocked, true, 'an explicit carrier block is honoured');
+    assert.strictEqual(vobizKycVerdict({ kyc_mode: 'customer_use', overall_status: 'approved', kyc_calls_blocked: false }).kycCallsBlocked, false);
+    assert.strictEqual(vobizKycVerdict({ kyc_mode: 'customer_use', overall_status: 'pending', kyc_calls_blocked: true }).kycCallsBlocked, true);
+    assert.strictEqual(vobizKycVerdict({ kyc_mode: 'customer_use', overall_status: 'verified', kyc_calls_blocked: true }).kycCallsBlocked, true, 'an explicit carrier block is honoured');
     for (const f of ['routes/kyc.ts', 'services/VobizSubAccountService.ts', 'services/KycVerificationService.ts']) {
       assert.ok(/kycCallsBlocked/.test(src(f)), `${f} must write kycCallsBlocked`);
     }
     const kyc = src('routes/kyc.ts');
-    // The KYC webhook no longer trusts its body: it reads the state back from Vobiz (applyKycStatus),
+    // The KYC webhook no longer trusts its body: it reads the state back from Vobiz (refreshKyc),
     // which stores kycCallsBlocked (behaviour proven in test:carrier-accuracy).
     const webhook = kyc.slice(kyc.indexOf("router.post('/webhook/vobiz'"), kyc.indexOf('GET /api/v2/kyc/status'));
-    assert.ok(/applyKycStatus\(/.test(webhook) && !/kycStatus: normalizedStatus/.test(webhook), 'webhook confirms with Vobiz instead of trusting the body');
+    assert.ok(/refreshKyc\(/.test(webhook) && !/kycStatus: normalizedStatus/.test(webhook), 'webhook confirms with Vobiz instead of trusting the body');
   });
 
   await test('#2 one-time repair unblocks already-verified accounts, once', async () => {

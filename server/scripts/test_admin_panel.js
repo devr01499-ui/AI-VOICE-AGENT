@@ -473,12 +473,13 @@ async function main() {
     assert.strictEqual((await list('approve_all')).statusCode, 400, 'unknown filter refused');
 
     const recheck = h('post', '/customers/:id/kyc/recheck');
-    const original = VobizSubAccountService.prototype.syncKycStatus;
+    // Only the carrier call is stubbed: the real single KYC writer (refreshKyc) runs.
+    const proto = VobizSubAccountService.prototype;
+    const original = proto.fetchKycStatus;
+    const mockGetter = Object.getOwnPropertyDescriptor(proto, 'isMock');
+    Object.defineProperty(proto, 'isMock', { get: () => false, configurable: true });
     let carrierSays = 'pending';
-    VobizSubAccountService.prototype.syncKycStatus = async function (userId) {
-      await prisma.vobizSubAccount.update({ where: { userId }, data: { kycStatus: carrierSays, kycCallsBlocked: carrierSays !== 'verified' } });
-      return { kycStatus: carrierSays, isVerified: carrierSays === 'verified' };
-    };
+    proto.fetchKycStatus = async () => ({ kyc_mode: 'customer_use', business_type: 'individual', overall_status: carrierSays, kyc_calls_blocked: carrierSays !== 'verified' });
     const notices = () => prisma.systemAlert.count({ where: { userId: pendingUser } });
     try {
       const n0 = await notices();
@@ -490,13 +491,17 @@ async function main() {
       const approved = await call(recheck, { params: { id: pendingUser }, body: {}, staff: OWNER });
       assert.strictEqual(approved.body.data.after, 'verified');
       assert.strictEqual(approved.body.data.callsBlocked, false);
+      const listed = (await list('verified')).body.data.find((u) => u.id === pendingUser);
+      assert.deepStrictEqual([listed.carrierKyc.status, listed.carrierKyc.source], ['verified', 'own'], 'admin list shows the same summary');
       assert.strictEqual(await notices(), n0 + 1, 'customer told once');
       await call(recheck, { params: { id: pendingUser }, body: {}, staff: OWNER });
       assert.strictEqual(await notices(), n0 + 1, 'not told again for the same result');
       assert.ok(await prisma.adminAuditLog.findFirst({ where: { action: 'kyc:recheck', targetId: pendingUser } }), 'audited');
       const none = await call(recheck, { params: { id: notStarted }, body: {}, staff: OWNER });
       assert.strictEqual(none.statusCode, 409, 'no carrier KYC account: nothing to check');
-      VobizSubAccountService.prototype.syncKycStatus = async () => { throw new Error('carrier down'); };
+      proto.fetchKycStatus = async () => null; // carrier did not answer
+      assert.strictEqual((await call(recheck, { params: { id: pendingUser }, body: {}, staff: OWNER })).statusCode, 502);
+      proto.fetchKycStatus = async () => { throw new Error('carrier down'); };
       const down = await call(recheck, { params: { id: pendingUser }, body: {}, staff: OWNER });
       assert.strictEqual(down.statusCode, 502);
       assert.strictEqual((await prisma.vobizSubAccount.findUnique({ where: { userId: pendingUser } })).kycStatus, 'verified', 'nothing changed when the carrier is down');
@@ -504,7 +509,8 @@ async function main() {
       assert.strictEqual(hasPermission('sales', 'kyc:recheck'), false);
       assert.ok(!routeLayer(adminRouter, 'post', '/customers/:id/kyc/approve'), 'no manual approve route');
     } finally {
-      VobizSubAccountService.prototype.syncKycStatus = original;
+      proto.fetchKycStatus = original;
+      Object.defineProperty(proto, 'isMock', mockGetter);
       await prisma.vobizSubAccount.deleteMany({ where: { userId: pendingUser } });
       await prisma.systemAlert.deleteMany({ where: { userId: pendingUser } });
     }

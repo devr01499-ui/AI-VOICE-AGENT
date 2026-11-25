@@ -16,6 +16,8 @@ const assert = require('assert');
 const crypto = require('crypto');
 const http = require('http');
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 
 let total = 0;
 let passed = 0;
@@ -113,11 +115,71 @@ async function main() {
     assert.throws(() => VobizSubAccountService.createBody(''), /email/);
   });
 
-  await test('verdict: personal_use (inherited master KYC) is never verified, even when Vobiz does not block calls', async () => {
-    assert.deepStrictEqual(vobizKycVerdict({ kyc_mode: 'personal_use', overall_status: 'verified', kyc_calls_blocked: false }), { kycStatus: 'pending', kycCallsBlocked: true, customerUse: false, kycMode: 'personal_use' });
-    assert.strictEqual(vobizKycVerdict({ overall_status: 'verified', kyc_calls_blocked: false }).kycCallsBlocked, true, 'no kyc_mode = not proven');
-    assert.deepStrictEqual(vobizKycVerdict({ kyc_mode: 'customer_use', overall_status: 'verified', kyc_calls_blocked: false }), { kycStatus: 'verified', kycCallsBlocked: false, customerUse: true, kycMode: 'customer_use' });
-    assert.strictEqual(vobizKycVerdict({ kyc_mode: 'customer_use', overall_status: 'verified', kyc_calls_blocked: true }).kycStatus, 'pending', 'still blocked = not done');
+  await test('verdict (Vobiz docs): a customer is verified only by their OWN customer_use KYC; the platform account by the inherited company KYC', async () => {
+    const pick = (d, p) => { const v = vobizKycVerdict(d, p); return [v.kycStatus, v.kycCallsBlocked, v.source]; };
+    const personal = { kyc_mode: 'personal_use', overall_status: 'verified', kyc_calls_blocked: false };
+    assert.deepStrictEqual(pick(personal, false), ['pending', true, 'own'], 'a customer on inherited KYC is not verified');
+    assert.deepStrictEqual(pick(personal, true), ['verified', false, 'company'], 'the platform account is covered by the company KYC');
+    assert.deepStrictEqual(pick({ ...personal, kyc_calls_blocked: true }, true), ['pending', true, 'company']);
+    assert.deepStrictEqual(pick({ overall_status: 'verified', kyc_calls_blocked: false }, false), ['pending', true, 'own'], 'no kyc_mode = not proven');
+    assert.deepStrictEqual(pick({ kyc_mode: 'customer_use', overall_status: 'verified', kyc_calls_blocked: false }, false), ['verified', false, 'own']);
+    assert.deepStrictEqual(pick({ kyc_mode: 'customer_use', overall_status: 'verified', kyc_calls_blocked: true }, false), ['pending', true, 'own'], 'still blocked = not done');
+    assert.deepStrictEqual(pick({ kyc_mode: 'customer_use', overall_status: 'failed', kyc_calls_blocked: true }, false), ['failed', true, 'own']);
+    assert.deepStrictEqual(vobizKycVerdict({ kyc_mode: 'customer_use', verifications: { pan: 'Verified', aadhaar: 'failed' } }).verifications, { pan: 'verified', gst: 'not_started', aadhaar: 'failed', cin: 'not_started' });
+  });
+
+  await test('one KYC truth (owner report 2026-11-25: customer page "pending", admin console "verified"): no flip-flop, no sticky state', async () => {
+    const { kycSummary } = require('../dist/utils/kycStatus');
+    const stored = (id) => prisma.vobizSubAccount.findUnique({ where: { userId: id } });
+    // The platform account: personal_use sub-account, inherits the company's KYC.
+    const owner = await newUser({ accountType: 'admin' });
+    const sa = 'SA_PLAT' + crypto.randomBytes(3).toString('hex').toUpperCase();
+    kyc.set(sa, { kyc_mode: 'personal_use', overall_status: 'verified', kyc_calls_blocked: false, ownVerified: false });
+    await prisma.vobizSubAccount.create({ data: { userId: owner.id, authId: sa, authToken: 'x', kycMode: 'personal_use', kycStatus: 'pending' } });
+    const puts = calls.filter((c) => c.method === 'PUT').length;
+    for (const run of [() => svc.refreshKyc(owner.id, 'kyc_page'), () => svc.syncKycStatus(owner.id), () => svc.refreshKyc(owner.id, 'admin_recheck')]) {
+      await run();
+      const row = await stored(owner.id);
+      assert.deepStrictEqual([row.kycStatus, row.kycCallsBlocked], ['verified', false], 'every path stores the same verdict');
+      const s = kycSummary(row, true);
+      assert.deepStrictEqual([s.status, s.callsBlocked, s.source], ['verified', false, 'company']);
+      assert.ok(s.checkedAt, 'last carrier answer is recorded');
+    }
+    assert.strictEqual(calls.filter((c) => c.method === 'PUT').length, puts, 'the platform account is never switched to customer_use');
+    assert.strictEqual(await prisma.auditLog.count({ where: { workspaceOwnerId: owner.id, action: 'kyc.status_changed' } }), 1, 'changed once, not back and forth');
+
+    // The carrier's latest answer wins in both directions (no sticky "verified").
+    Object.assign(kyc.get(sa), { kyc_calls_blocked: true });
+    await svc.refreshKyc(owner.id, 'kyc_poll');
+    const blocked = await stored(owner.id);
+    assert.deepStrictEqual([blocked.kycStatus, blocked.kycVerifiedAt], ['pending', null]);
+
+    const u = await newUser();
+    const sub = await svc.getOrCreateSubAccount(u.id, u.email);
+    Object.assign(kyc.get(sub.authId), { kyc_mode: 'customer_use', overall_status: 'verified', kyc_calls_blocked: false, ownVerified: true });
+    assert.strictEqual((await svc.refreshKyc(u.id, 'kyc_poll')).kycStatus, 'verified');
+    assert.deepStrictEqual((await stored(u.id)).kycVerifications, { pan: 'verified', gst: 'not_started', aadhaar: 'verified', cin: 'not_started' });
+    Object.assign(kyc.get(sub.authId), { overall_status: 'pending', kyc_calls_blocked: true });
+    await svc.refreshKyc(u.id, 'kyc_poll');
+    const down = await stored(u.id);
+    assert.deepStrictEqual([down.kycStatus, down.kycCallsBlocked], ['pending', true], 'a carrier downgrade is shown, never hidden');
+
+    // Carrier silent: nothing stored changes.
+    kyc.delete(sub.authId);
+    assert.strictEqual(await svc.refreshKyc(u.id, 'kyc_poll'), null);
+    assert.strictEqual((await stored(u.id)).kycStatus, 'pending');
+
+    // Every screen reads the one summary; nothing else computes a KYC headline or keeps a sticky state.
+    const read = (p) => fs.readFileSync(path.join(__dirname, '..', 'src', p), 'utf8');
+    const kycRoutes = read('routes/kyc.ts');
+    const docsRoute = kycRoutes.slice(kycRoutes.indexOf("router.get('/documents'"), kycRoutes.indexOf("router.post('/verify-document'"));
+    assert.ok(docsRoute.includes('kycSummaryFor(userId)'), '/kyc/documents headline = kycSummary');
+    assert.ok(kycRoutes.includes("refreshKyc(userId, 'kyc_page')") && kycRoutes.includes("refreshKyc(subAccount.userId, 'kyc_webhook')"));
+    const admin = read('routes/adminRoutes.ts');
+    assert.ok((admin.match(/kycSummary\(/g) || []).length >= 3, 'admin list, customer 360 and re-check use kycSummary');
+    for (const p of ['routes/kyc.ts', 'routes/adminRoutes.ts', 'services/VobizSubAccountService.ts', 'services/VobizKycStatusPoll.ts', 'utils/kycStatus.ts']) {
+      assert.ok(!/nextKycState|applyKycStatus/.test(read(p)), p + ': no second KYC writer / sticky rule');
+    }
   });
 
   await test('sync on a personal_use account switches it to customer_use and keeps an unverified user blocked', async () => {
@@ -185,6 +247,21 @@ async function main() {
       row = await prisma.vobizSubAccount.findUnique({ where: { id: sub.id } });
       assert.strictEqual(row.kycStatus, 'verified', 'verified once Vobiz confirms');
       assert.strictEqual(row.kycCallsBlocked, false);
+
+      // Documented KYC event: account_auth_id, X-Vobiz-Signature "sha256=<HMAC-SHA256 of the raw body,
+      // keyed with the parent account's auth token>".
+      const url = `http://127.0.0.1:${server.address().port}/api/v2/kyc/webhook/vobiz`;
+      const signed = (payload, key) => {
+        const body = JSON.stringify(payload);
+        const sig = 'sha256=' + crypto.createHmac('sha256', key).update(body).digest('hex');
+        return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Vobiz-Signature': sig }, body });
+      };
+      Object.assign(kyc.get(sub.authId), { overall_status: 'failed', kyc_calls_blocked: true, ownVerified: false });
+      assert.strictEqual((await signed({ event: 'kyc.failed', account_auth_id: sub.authId }, 'wrong_key')).status, 401, 'forged signature refused');
+      assert.strictEqual((await prisma.vobizSubAccount.findUnique({ where: { id: sub.id } })).kycStatus, 'verified', 'nothing changed by a forged call');
+      assert.strictEqual((await signed({ event: 'kyc.failed', account_auth_id: sub.authId }, process.env.VOBIZ_AUTH_TOKEN)).status, 200);
+      row = await prisma.vobizSubAccount.findUnique({ where: { id: sub.id } });
+      assert.deepStrictEqual([row.kycStatus, row.kycCallsBlocked], ['failed', true], 'documented event read back from Vobiz');
     } finally {
       server.close();
     }

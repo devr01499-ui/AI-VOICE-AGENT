@@ -65,6 +65,8 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
   const [verifyingDigiLocker, setVerifyingDigiLocker] = useState(false);
   const [aadhaarError, setAadhaarError] = useState<string | null>(null);
   const [kycCallsBlocked, setKycCallsBlocked] = useState<boolean | null>(null);
+  // 'company' = the platform's own account, covered by the company's KYC (inherited at the carrier)
+  const [kycSource, setKycSource] = useState<'own' | 'company' | null>(null);
   const [liveVerifications, setLiveVerifications] = useState<{ pan?: string; gst?: string; aadhaar?: string; cin?: string } | null>(null);
   const [businessType, setBusinessType] = useState<'individual' | 'company'>('individual');
   const [systemErrorMessage, setSystemErrorMessage] = useState<string | null>(null);
@@ -104,7 +106,9 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
         if (docRes.data?.success && docRes.data.data) {
           const data = docRes.data.data;
           loadedDocs = data.documents || [];
+          // The server's account headline (the carrier's verdict) — the admin console shows the same.
           localOverall = data.overallStatus || 'not_submitted';
+          setKycSource(data.kycSource || null);
           localFullyVerified = Boolean(data.isFullyVerified);
           loadedAuthId = data.subAccountAuthId || null;
           if (data.businessType) loadedBusinessType = data.businessType;
@@ -151,18 +155,14 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
           if (sData.businessType) {
             setBusinessType(sData.businessType);
           }
-          // /status is authoritative for overallStatus
+          // /status refreshes from the carrier; same headline as /documents and the admin console
           if (sData.overallStatus) {
             resolvedOverall = sData.overallStatus;
           }
+          if (sData.source) setKycSource(sData.source);
         }
       } catch (statusErr) {
         console.warn('KYC /status call failed:', statusErr);
-      }
-
-      // If local documents are verified, avoid showing "not_submitted"
-      if (localFullyVerified && (resolvedOverall === 'not_submitted' || !resolvedOverall)) {
-        resolvedOverall = 'pending';
       }
 
       setOverallStatus(resolvedOverall);
@@ -550,6 +550,9 @@ export function KycComplianceSettings({ onStatusChange }: { onStatusChange?: (st
             <div className="text-right">
               <span className="text-[11px] font-bold text-slate-400 block uppercase tracking-wider">Account Status</span>
               {renderStatusBadge(overallStatus)}
+              {kycSource === 'company' && (
+                <span className="text-[10px] text-slate-500 block mt-1">Covered by the company's KYC</span>
+              )}
             </div>
           </div>
         </div>

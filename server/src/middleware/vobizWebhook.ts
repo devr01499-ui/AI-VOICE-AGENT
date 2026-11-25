@@ -45,7 +45,8 @@ export function clearVobizReplayCacheForTesting(): void {
  * Unauthenticated or replayed requests are rejected with HTTP 401 / 403.
  */
 export const verifyVobizWebhook = (req: Request, res: Response, next: NextFunction): void => {
-  const sig = (req.header('X-Vobiz-Signature') || req.header('x-vobiz-signature') || '').trim();
+  // Documented KYC webhooks send "sha256=<hex>" (HMAC-SHA256 of the raw body); older ones bare hex.
+  const sig = (req.header('X-Vobiz-Signature') || '').trim().replace(/^sha256=/i, '');
   const token = (req.header('X-Vobiz-Token') || req.header('Authorization') || req.header('authorization') || '').trim();
   const secret = getWebhookSigningSecret();
 
