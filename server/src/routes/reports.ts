@@ -327,22 +327,28 @@ router.get('/summary', async (req: Request, res: Response, next: NextFunction): 
         callWhere.createdAt.lte = toDate;
       }
     }
+    // Every number is about the calls MADE in the range: results and jobs are filtered by their
+    // call's date (a call at 23:59 analysed after midnight used to count on a different day).
+    if (where.createdAt) {
+      where.call = { createdAt: where.createdAt };
+      delete where.createdAt;
+    }
 
     // The queue counts follow the same agent and date filters as everything else (audit #68).
     const jobWhere: any = { workspaceId };
     if (where.agentId) jobWhere.agentId = where.agentId;
-    if (where.createdAt) jobWhere.createdAt = where.createdAt;
+    if (where.call) jobWhere.call = where.call;
 
     const [
       totalCalls,
       analyzedCalls,
       pendingAnalysis,
-      failedJobs,
-      failedResults,
+      failedAnalysis,
       needsReviewCount,
       correctedCount,
       labelGroups,
       aggregates,
+      confidenceAggregate,
     ] = await Promise.all([
       prisma.call.count({ where: callWhere }),
       prisma.callResult.count({
@@ -357,16 +363,11 @@ router.get('/summary', async (req: Request, res: Response, next: NextFunction): 
           status: { in: ['pending', 'processing'] },
         },
       }),
-      prisma.analysisJob.count({
+      // A permanently failed report has BOTH a failed job and a failed result row: count calls once.
+      prisma.call.count({
         where: {
-          ...jobWhere,
-          status: 'failed',
-        },
-      }),
-      prisma.callResult.count({
-        where: {
-          ...where,
-          status: 'failed',
+          ...callWhere,
+          OR: [{ callResult: { is: { status: 'failed' } } }, { analysisJob: { is: { status: 'failed' } } }],
         },
       }),
       prisma.callResult.count({
@@ -391,10 +392,15 @@ router.get('/summary', async (req: Request, res: Response, next: NextFunction): 
           ...where,
           score: { not: null },
         },
-        _avg: {
-          score: true,
-          confidence: true,
+        _avg: { score: true },
+      }),
+      // Confidence over every analysed report (not only scored ones; pending/failed rows have 0).
+      prisma.callResult.aggregate({
+        where: {
+          ...where,
+          status: { in: ['completed', 'needs_review'] },
         },
+        _avg: { confidence: true },
       }),
     ]);
 
@@ -405,9 +411,9 @@ router.get('/summary', async (req: Request, res: Response, next: NextFunction): 
       }
     }
 
-    const failedAnalysis = failedJobs + failedResults;
-    const avgScore = aggregates._avg.score !== null ? Math.round(aggregates._avg.score) : 0;
-    const avgConfidence = aggregates._avg.confidence !== null ? Math.round(aggregates._avg.confidence * 100) / 100 : 0.85;
+    // No data = null (shown as "—"), never an invented number (it used to say 0.85 / 0).
+    const avgScore = aggregates._avg.score !== null ? Math.round(aggregates._avg.score) : null;
+    const avgConfidence = confidenceAggregate._avg.confidence !== null ? Math.round(confidenceAggregate._avg.confidence * 100) / 100 : null;
     const humanCorrectionRate = analyzedCalls > 0 ? Math.round((correctedCount / analyzedCalls) * 100) : 0;
 
     const summaryPayload = {

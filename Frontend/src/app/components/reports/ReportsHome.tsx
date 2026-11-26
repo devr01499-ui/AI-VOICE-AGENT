@@ -279,7 +279,7 @@ function ReportsHomeInner({ userRole = 'owner' }: ReportsHomeProps) {
             <BarChart3 className="w-4 h-4 text-indigo-500" />
           </div>
           <div className="text-2xl font-extrabold font-mono text-slate-900 dark:text-white">
-            {summaryLoading ? '—' : `${summary?.avgScore ?? 0}/100`}
+            {summaryLoading || summary?.avgScore == null ? '—' : `${summary.avgScore}/100`}
           </div>
           <p className="text-[10px] text-slate-400 mt-1">
             Deterministic mathematical rubric score
