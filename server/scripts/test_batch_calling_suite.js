@@ -409,40 +409,52 @@ async function runAcceptanceSuite() {
     console.log(`  ✓ Recipient failure contract verified: lastError="${recipientWithRealError.lastError}", lastErrorCode="${recipientWithRealError.lastErrorCode}"`);
     passed++;
 
-    // ── Test i: "Concurrent" campaigns really dial at the same time, within the plan's limit ──
-    console.log('\n--- TEST I: Concurrent dial mode runs calls at once (form value "concurrent") ---');
+    // ── Test i: "Concurrent" campaigns never exceed the plan's calls-at-once limit ──
+    // Owner decision 2026-11-26: every plan allows ONE call at a time (the next call starts when the
+    // previous one ends). When a plan is raised in the admin panel, a Concurrent campaign uses it.
+    console.log('\n--- TEST I: Concurrent dial mode respects the plan limit (1 today; 3 when raised) ---');
     const calendarSrc = require('fs').readFileSync(require('path').join(__dirname, '../src/routes/calendar.ts'), 'utf8');
     assert.ok(calendarSrc.includes("dialMode === 'concurrent' || dialMode === 'parallel' ? 'parallel' : 'sequential'"), 'the form value "concurrent" is stored as parallel');
-    const limitI = 3;
-    await prisma.user.update({ where: { id: testUser.id }, data: { maxConcurrentCalls: limitI } });
-    const batchI = await prisma.batch.create({
-      data: {
-        userId: testUser.id, agentId: testAgent.id, fromPhoneNumberId: userPlivoNumber.id, name: 'Concurrent batch',
-        status: 'running', dialMode: 'parallel', totalRecipients: 5,
-        recipients: { create: ['+919876500101', '+919876500102', '+919876500103', '+919876500104', '+919876500105'].map((p, i) => ({ phoneNumber: p, status: 'pending', position: i })) },
-      },
-    });
-    let maxLive = 0;
-    const processI = BatchService.processBatch(batchI.id, testUser.id);
-    // Calls are held open until three are live at once (or 20 s pass), then each ends after 1 s.
-    const startI = Date.now();
-    const holdI = setInterval(async () => {
-      const liveI = await prisma.call.findMany({ where: { userId: testUser.id, status: 'in_progress' } });
-      maxLive = Math.max(maxLive, liveI.length);
-      if (maxLive < limitI && Date.now() - startI < 20000) return;
-      for (const c of liveI) {
-        await prisma.call.update({ where: { id: c.id }, data: { status: 'completed', startTime: new Date(Date.now() - 30000), durationSeconds: 30 } });
-        callOrchestrator.emit('callEnded', { callId: c.id, reason: 'completed' });
-      }
-    }, 300);
-    await processI;
-    clearInterval(holdI);
-    await prisma.user.update({ where: { id: testUser.id }, data: { maxConcurrentCalls: 5 } });
-    const doneI = await prisma.batch.findUnique({ where: { id: batchI.id } });
-    assert.strictEqual(maxLive, limitI, `${limitI} calls should run at once (plan limit), saw ${maxLive}`);
-    assert.strictEqual(doneI.status, 'completed');
-    assert.strictEqual(doneI.completedCount, 5);
-    console.log(`  ✓ Up to ${maxLive} calls at once (limit ${limitI}); all 5 contacts answered; status ${doneI.status}`);
+    const { PLAN_CONFIG } = require('../dist/config/plans');
+    const planOfTester = Object.values(PLAN_CONFIG).find((p) => p.accountType === testUser.accountType);
+    const savedLimit = planOfTester.maxConcurrentCalls;
+    const runConcurrent = async (planLimit, tag) => {
+      planOfTester.maxConcurrentCalls = planLimit;
+      const batchI = await prisma.batch.create({
+        data: {
+          userId: testUser.id, agentId: testAgent.id, fromPhoneNumberId: userPlivoNumber.id, name: `Concurrent ${tag}`,
+          status: 'running', dialMode: 'parallel', totalRecipients: 5,
+          recipients: { create: [1, 2, 3, 4, 5].map((n, i) => ({ phoneNumber: `+91987650${tag}0${n}`, status: 'pending', position: i })) },
+        },
+      });
+      let maxLive = 0;
+      const startI = Date.now();
+      const processI = BatchService.processBatch(batchI.id, testUser.id);
+      // Calls are held open until the limit is reached (or 20 s pass), then they end.
+      const holdI = setInterval(async () => {
+        const liveI = await prisma.call.findMany({ where: { userId: testUser.id, status: 'in_progress' } });
+        maxLive = Math.max(maxLive, liveI.length);
+        if (maxLive < planLimit && Date.now() - startI < 20000) return;
+        for (const c of liveI) {
+          await prisma.call.update({ where: { id: c.id }, data: { status: 'completed', startTime: new Date(Date.now() - 30000), durationSeconds: 30 } });
+          callOrchestrator.emit('callEnded', { callId: c.id, reason: 'completed' });
+        }
+      }, 300);
+      await processI;
+      clearInterval(holdI);
+      const doneI = await prisma.batch.findUnique({ where: { id: batchI.id } });
+      assert.strictEqual(maxLive, planLimit, `plan limit ${planLimit}: saw ${maxLive} calls at once`);
+      assert.strictEqual(doneI.status, 'completed');
+      assert.strictEqual(doneI.completedCount, 5);
+      console.log(`  ✓ Plan limit ${planLimit}: at most ${maxLive} call(s) at once; all 5 contacts answered; status ${doneI.status}`);
+    };
+    try {
+      assert.strictEqual(savedLimit, 1, 'every plan allows one call at a time');
+      await runConcurrent(1, '11');
+      await runConcurrent(3, '12'); // as if raised in the admin panel
+    } finally {
+      planOfTester.maxConcurrentCalls = savedLimit;
+    }
     passed++;
 
   } catch (err) {

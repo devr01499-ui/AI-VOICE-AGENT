@@ -99,6 +99,16 @@ function planFactProblems() {
   // The crawler HTML takes its plan figures from lib/plans.ts (checked above) instead of typing them,
   // and refuses to build if it cannot read them; any rupee figure still typed there must be a real price.
   if (!seo.includes("'../src/app/lib/plans.ts'")) problems.push('prerender-seo.js must read the plan facts from lib/plans.ts');
+  // Calls at the same time: no page may promise more than the highest plan allows (owner decision
+  // 2026-11-26: one call at a time on every plan; the copy follows lib/plans.ts concurrencyText).
+  const maxConc = Math.max(...Object.values(PLAN_CONFIG).map((p) => p.maxConcurrentCalls));
+  const concClaim = /(?:up to|upto)\s+(\d+)\s+(?:calls?\s+)?(?:at once|at the same time|simultaneous|concurrent|per plan|on (?:Startup|Growth|Enterprise))|(\d+)\s+or\s+(\d+)\s+(?:at once|calls)/gi;
+  for (const f of files) {
+    for (const m of fs.readFileSync(f, 'utf8').matchAll(concClaim)) {
+      const n = Math.max(...[m[1], m[2], m[3]].filter(Boolean).map(Number));
+      if (n > maxConc) problems.push(`${path.relative(root, f)} promises ${n} calls at once ("${m[0]}"), plans allow ${maxConc}`);
+    }
+  }
   const prices = new Set(['startup', 'growth', 'enterprise'].map((k) => `₹${PLAN_CONFIG[k].price.toLocaleString('en-IN')}`));
   for (const m of seo.matchAll(/₹\s?[\d,]{3,}/g)) if (!prices.has(m[0].replace(/\s/g, ''))) problems.push(`prerender-seo.js types a price that is not a plan: ${m[0]}`);
   return problems;

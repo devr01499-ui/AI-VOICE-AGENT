@@ -34,6 +34,8 @@ const GUIDE = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../src/app/dat
 const PLANS_TS = fs.readFileSync(path.resolve(__dirname, '../src/app/lib/plans.ts'), 'utf-8');
 const PLANS = [...PLANS_TS.matchAll(/name: '(\w+)', price: (\d+), minutes: (\d+), maxConcurrentCalls: (\d+),\s*kbDocuments: (\d+)/g)]
   .map((m) => ({ name: m[1], price: +m[2], minutes: +m[3], concurrency: +m[4], kbDocuments: +m[5] }));
+/** Same wording as the app (lib/plans.ts concurrencyText). */
+const callsAtOnce = (n) => (n <= 1 ? 'one call at a time' : `up to ${n} calls at once`);
 const VALIDITY_DAYS = +((PLANS_TS.match(/PLAN_VALIDITY_DAYS = (\d+)/) || [])[1]);
 const GRACE_DAYS = +((PLANS_TS.match(/NUMBER_RELEASE_GRACE_DAYS = (\d+)/) || [])[1]);
 if (PLANS.length !== 3 || !VALIDITY_DAYS || !GRACE_DAYS) {
@@ -86,7 +88,7 @@ const SOFTWARE = {
   url: SITE,
   description: `AI voice agents that answer and place phone calls for Indian businesses in ${LANGUAGES}: appointment booking, COD order confirmation, payment reminders, lead qualification and customer support.`,
   publisher: { '@id': `${SITE}/#organization` },
-  offers: PLANS.map((p) => ({ '@type': 'Offer', name: `${p.name} plan`, price: String(p.price), priceCurrency: 'INR', description: `${p.minutes.toLocaleString('en-IN')} calling minutes valid ${VALIDITY_DAYS} days, one-time payment, one local +91 number after KYC, up to ${p.concurrency} calls at the same time` })),
+  offers: PLANS.map((p) => ({ '@type': 'Offer', name: `${p.name} plan`, price: String(p.price), priceCurrency: 'INR', description: `${p.minutes.toLocaleString('en-IN')} calling minutes valid ${VALIDITY_DAYS} days, one-time payment, one local +91 number after KYC, ${callsAtOnce(p.concurrency)}` })),
 };
 
 const a = (href, text) => `<a href="${href}" style="color: #059669; font-weight: 600;">${text}</a>`;
@@ -96,7 +98,7 @@ const p = (t) => `<p style="font-size: 1.05rem; line-height: 1.75; color: #37415
 const wrap = (inner) => `<div style="max-width: 1000px; margin: 0 auto; padding: 2rem 1rem; font-family: system-ui, -apple-system, sans-serif;">${inner}</div>`;
 const NAV_LINKS = [['/', 'Home'], ['/guide', 'Product guide'], ['/pricing', 'Pricing'], ['/how-it-works', 'How it works'], ['/solutions', 'Solutions'], ['/use-cases', 'Use cases'], ['/voices', 'Voices'], ['/faq', 'FAQ'], ['/docs', 'Developer docs'], ['/blog', 'Blog'], ['/contact', 'Contact']];
 const navLinks = () => `<nav style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 2rem; border-top: 1px solid #E5E7EB; padding-top: 1.5rem;">${NAV_LINKS.map(([href, text]) => a(href, text)).join('\n')}</nav>`;
-const planList = () => ul(PLANS.map((pl) => `<strong>${pl.name}</strong>: ${inr(pl.price)} for ${pl.minutes.toLocaleString('en-IN')} minutes (${inr(Math.round((pl.price / pl.minutes) * 100) / 100)} per minute effective), up to ${pl.concurrency} calls at once, ${pl.kbDocuments.toLocaleString('en-IN')} knowledge-base documents`));
+const planList = () => ul(PLANS.map((pl) => `<strong>${pl.name}</strong>: ${inr(pl.price)} for ${pl.minutes.toLocaleString('en-IN')} minutes (${inr(Math.round((pl.price / pl.minutes) * 100) / 100)} per minute effective), ${callsAtOnce(pl.concurrency)}, ${pl.kbDocuments.toLocaleString('en-IN')} knowledge-base documents`));
 
 // ── Core Static Marketing Pages ──────────────────────────────────────────────
 // title / description / h1 always come from seoPages.json; `summary` is the crawlable intro.
@@ -147,7 +149,7 @@ const corePages = [
       <h3 style="font-size: 1.1rem; font-weight: 700; margin-top: 1rem;">Can I try Claritiy Voice before I pay?</h3>
       ${p('Yes. Creating an account, building agents and chatting with them in Test LLM is free. Real phone calls, Test Lab practice callers and Prompt Coach start when you buy a plan.')}
       <h3 style="font-size: 1.1rem; font-weight: 700; margin-top: 1rem;">Which plan should I choose?</h3>
-      ${p(`Start with ${PLANS[0].name} if you are testing one use case, such as a clinic receptionist. ${PLANS[1].name} suits teams running daily campaigns, and ${PLANS[2].name} suits high volumes or more calls at the same time (up to ${PLANS[2].concurrency}).`)}
+      ${p(`Start with ${PLANS[0].name} if you are testing one use case, such as a clinic receptionist. ${PLANS[1].name} suits teams running daily campaigns, and ${PLANS[2].name} suits high volumes${PLANS[2].concurrency > 1 ? ` or more calls at the same time (up to ${PLANS[2].concurrency})` : ''}.`)}
       <h3 style="font-size: 1.1rem; font-weight: 700; margin-top: 1rem;">Is there a subscription or overage charge?</h3>
       ${p('No. Each plan is a one-time payment. When the minutes run out, calls stop until you buy another plan; nothing is charged automatically.')}
       <h3 style="font-size: 1.1rem; font-weight: 700; margin-top: 1rem;">How do I pay?</h3>

@@ -236,7 +236,7 @@ export default function Pricing({ setPage, isDashboard }: PricingProps) {
             const features = [
               `${plan.minutes.toLocaleString('en-IN')} calling minutes, valid ${PLAN_VALIDITY_DAYS} days (one-time, no auto-renewal)`,
               '1 local +91 phone number included (after KYC)',
-              `Up to ${plan.maxConcurrentCalls} simultaneous call${plan.maxConcurrentCalls === 1 ? '' : 's'}`,
+              plan.maxConcurrentCalls === 1 ? 'One call at a time' : `Up to ${plan.maxConcurrentCalls} simultaneous calls`,
               `${plan.kbDocuments.toLocaleString('en-IN')} knowledge-base documents`,
               `${plan.calendars} connected calendar${plan.calendars === 1 ? '' : 's'} · ${plan.bookingsPerMonth.toLocaleString('en-IN')} bookings / month`,
               'Prompt studio, visual flow builder & templates',

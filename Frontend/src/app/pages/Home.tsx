@@ -8,6 +8,7 @@ import {
   RefreshCw, Webhook, Languages, Activity
 } from "lucide-react";
 import LottieVoiceOrb from "../components/animation/LottieVoiceOrb";
+import { concurrencyText, usePublicPlans } from "../lib/plans";
 
 type Page = any;
 interface HomeProps { setPage: (p: Page) => void; }
@@ -257,10 +258,11 @@ function UseCaseSection({ setPage }: { setPage: (p: Page) => void }) {
 
 // ── Comparison Table ──────────────────────────────────────────────────────────
 function ComparisonSection({ setPage }: { setPage: (p: Page) => void }) {
+  const plans = usePublicPlans();
   const rows = [
     { feature: "Native Audio Pipeline", claritiy: "✅ Vertically Integrated", vapi: "❌ Stacked STT+LLM+TTS", legacy: "❌ Human only" },
     { feature: "Multilingual Support", claritiy: "✅ 7 Languages + Auto-Detect", vapi: "✅ Limited", legacy: "⚠️ Per hire" },
-    { feature: "Concurrent Calls", claritiy: "✅ Up to 15 per plan", vapi: "⚠️ Rate limited", legacy: "❌ Team capacity" },
+    { feature: "Concurrent Calls", claritiy: `✅ ${concurrencyText(plans)}`, vapi: "⚠️ Rate limited", legacy: "❌ Team capacity" },
     { feature: "RAG Knowledge Base", claritiy: "✅ Built-in", vapi: "⚠️ Manual setup", legacy: "❌ Scripts only" },
     { feature: "Indian +91 Number", claritiy: "✅ Included after KYC", vapi: "⚠️ Bought separately", legacy: "⚠️ Your own lines" },
     { feature: "Pricing Model", claritiy: "✅ All-inclusive minute plans", vapi: "❌ Each service billed separately", legacy: "❌ Salary per caller" },

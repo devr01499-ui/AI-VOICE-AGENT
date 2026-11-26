@@ -69,7 +69,7 @@ const INDUSTRIES = [
     id: "bpo", label: "BPO / Call Centers", icon: Headphones,
     headline: "AI Voice Agents for BPO & Call Centers",
     subhead: "Let an AI agent take routine questions, overflow and after-hours calls, and book call-backs, so your team handles the calls that need a person.",
-    stats: [{ v: "5 or 15", l: "Calls at once, by plan" }, { v: "24×7", l: "Routine calls" }, { v: "QA", l: "Scores for every call" }],
+    stats: [{ v: "1", l: "Call at a time per account" }, { v: "24×7", l: "Routine calls" }, { v: "QA", l: "Scores for every call" }],
     useCases: ["Overflow at peak times", "After-hours messages", "Routine FAQ answers", "Call-back booking", "Quality scoring of calls"],
     badge: "Overflow & After Hours",
     visual: "🎧",
