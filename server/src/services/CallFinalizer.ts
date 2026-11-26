@@ -11,6 +11,12 @@ import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { randomUUID } from 'crypto';
 
+/**
+ * The report waits this long after the call ends: the carrier's "call completed" webhook can arrive
+ * before the audio stream closes and the last transcript turns are saved.
+ */
+export const REPORT_SETTLE_SECONDS = 15;
+
 export class CallFinalizer {
   /**
    * Idempotently enqueues a post-call analysis job and ensures report visibility.
@@ -45,12 +51,13 @@ export class CallFinalizer {
         `INSERT INTO "analysis_jobs" (
           "id", "call_id", "workspace_id", "agent_id", "status", "attempts", "max_attempts", "next_run_at", "created_at", "updated_at"
         ) VALUES (
-          $1, $2, $3, $4, 'pending', 0, 5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+          $1, $2, $3, $4, 'pending', 0, 5, CURRENT_TIMESTAMP + make_interval(secs => $5), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
         ) ON CONFLICT ("call_id") DO NOTHING`,
         jobId,
         call.id,
         workspaceId,
-        agentId
+        agentId,
+        REPORT_SETTLE_SECONDS
       );
 
       // 2. Initialize pending callResult row so call is immediately visible in Reports

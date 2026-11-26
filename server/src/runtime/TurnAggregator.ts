@@ -231,9 +231,10 @@ export class TurnAggregator {
   }
 
   /**
-   * Teardown on call end: flush everything, then stop accepting fragments.
+   * Teardown on call end: flush everything, stop accepting fragments, and resolve once the last
+   * turns are saved (the call report is built from them: the caller's last words often decide it).
    */
-  public destroy(): void {
+  public destroy(): Promise<void> {
     this.closeTurn('agent');
     this.closeTurn('user');
     this.isDestroyed = true;
@@ -241,5 +242,6 @@ export class TurnAggregator {
       const t = this.timers[who];
       if (t) { clearTimeout(t); this.timers[who] = null; }
     }
+    return this.waitForPersistence();
   }
 }

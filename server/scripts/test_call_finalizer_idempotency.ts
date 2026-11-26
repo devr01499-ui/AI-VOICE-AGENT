@@ -24,6 +24,9 @@ async function drainUntil(check: () => Promise<boolean>, maxRounds = 25): Promis
   let processed = 0;
   for (let i = 0; i < maxRounds; i++) {
     if (await check()) break;
+    // New reports wait REPORT_SETTLE_SECONDS after the call ends (last transcript turns); this suite
+    // fast-forwards only that first wait. Retry backoff (attempts > 0) is left as it is.
+    await prisma.$executeRawUnsafe(`UPDATE "analysis_jobs" SET next_run_at = CURRENT_TIMESTAMP WHERE status = 'pending' AND attempts = 0 AND next_run_at > CURRENT_TIMESTAMP`);
     const n = await AnalysisWorker.processNextBatch(5);
     processed += n;
     if (n === 0) break;
@@ -247,7 +250,8 @@ async function runM1Suite() {
       `UPDATE "analysis_jobs"
        SET status = 'processing',
            locked_at = CURRENT_TIMESTAMP - INTERVAL '16 minutes',
-           locked_by = 'crashed-worker-pid-9999'
+           locked_by = 'crashed-worker-pid-9999',
+           next_run_at = CURRENT_TIMESTAMP - INTERVAL '16 minutes' -- it was due when the crashed worker claimed it
        WHERE call_id = $1`,
       staleCallId
     );
