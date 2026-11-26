@@ -861,3 +861,8 @@ Owner decisions:
 - **npm audit "3 high"** (all one advisory: effect <=3.22.0 ReDoS, GHSA-7589-6fvf-x4pw, pulled in only by Prisma's config loader @prisma/config pinning effect 3.20.0). npm's "fix" downgrades Prisma to 6 (breaking): not used. overrides effect 3.22.4 (fixed >=3.22.1; released 2026-10-22). npm audit --omit=dev: 0 vulnerabilities; prisma validate/generate/migrate deploy and the schema-sync test pass.
 - **Reviewed, not defects:** schema-sync "kept as is" lines (non-additive differences never auto-applied; owner step 25 / M0 migration discipline); WebSocket /live-transcript upgrade with "Malformed ticket" (callId "call-77", not a real call id) refused as designed; VOBIZ_WEBHOOK_SECRET missing is an owner setting (PROGRESS steps 20-24).
 - **Tests:** carrier-accuracy 14/14 (new probe test: before 13/14), security-hardening 16/16 (new log-flood test: before 15/16), test:security green.
+
+## fix/cors-log-branch (owner Render log 2026-11-26, after fix/render-log-issues)
+- **Confirmed fixed by that deploy:** "VobizProvider: connected" (2.8 s) replaced the false start-up alert; npm audit "found 0 vulnerabilities".
+- **My regression:** fix/render-log-issues excluded CORS_ORIGIN_BLOCKED from the warn branch, so refused requests fell into the else branch and were logged at ERROR level with a full stack ("Non-operational AppError"): worse than before. Its test only spied logger.warn.
+- **Fix:** the error handler logs nothing per request for CORS_ORIGIN_BLOCKED (the once-a-minute per-origin warning in index.ts stays); all other errors log exactly as before. The test now watches every logger level: it fails on the live code ("no per-request log line at any level") and passes now; security-hardening 16/16, test:security green.
