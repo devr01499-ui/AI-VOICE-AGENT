@@ -1095,10 +1095,12 @@ export interface ReportsSummary {
   pendingAnalysis: number;
   failedAnalysis: number;
   needsReviewCount: number;
-  avgScore: number;
+  /** null when no report in the range has a score. */
+  avgScore: number | null;
   humanCorrectionRate: number;
   labelDistribution: Record<string, number>;
-  avgConfidence: number;
+  /** null when no report in the range was analysed. */
+  avgConfidence: number | null;
 }
 
 export interface BlueprintSummary {

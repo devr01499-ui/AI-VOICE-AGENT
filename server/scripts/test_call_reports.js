@@ -4,6 +4,7 @@ require('./lib/testDbGuard.cjs'); // MUST stay first: blocks any non-test databa
  * Production code only; the AI model is replaced through the shared helper's test transport.
  *  A. the report is built from the COMPLETE transcript (last turns saved before it is queued).
  *  B. the analysis engine: verified outcomes, full AI report, JSON + retries, right template.
+ *  C. the dashboard numbers: no double counting, no invented averages, filtered by call date.
  */
 const assert = require('assert');
 const crypto = require('crypto');
@@ -203,8 +204,51 @@ async function main() {
     });
 
     setTextModelTransportForTests(null);
+
+    // ── C. The dashboard numbers (production GET /api/v2/reports/summary handler) ──
+    const reportsRouter = require('../dist/routes/reports').default;
+    const summaryHandler = reportsRouter.stack.find((l) => l.route && l.route.path === '/summary' && l.route.methods.get).route.stack.slice(-1)[0].handle;
+    const summary = (workspaceId, query = {}) => new Promise((resolve, reject) => {
+      const res = { statusCode: 200, status(c) { this.statusCode = c; return this; }, json(b) { resolve(b.data); return this; } };
+      Promise.resolve(summaryHandler({ effectiveWorkspaceId: workspaceId, userId: workspaceId, query, headers: {} }, res, reject)).catch(reject);
+    });
+
+    await test('C1 a permanently failed report counts once, not twice (failed job + failed result)', async () => {
+      const u = await newUser();
+      const c = await prisma.call.create({ data: { userId: u.id, agentId: u.agentId, recipientPhoneNumber: '+919812345678', status: 'completed' } });
+      await prisma.analysisJob.create({ data: { callId: c.id, workspaceId: u.id, agentId: u.agentId, status: 'failed', attempts: 5 } });
+      await prisma.callResult.create({ data: { callId: c.id, workspaceId: u.id, agentId: u.agentId, status: 'failed', resultLabel: 'Analysis Failed', confidence: 0, summary: ANALYSIS_FAILED_SUMMARY } });
+      const s = await summary(u.id);
+      assert.strictEqual(s.totalCalls, 1);
+      assert.strictEqual(s.failedAnalysis, 1, `failed counted ${s.failedAnalysis} times`);
+    });
+
+    await test('C2 no data means "no data": averages are null, never an invented 0.85 / 0', async () => {
+      const u = await newUser();
+      const s = await summary(u.id);
+      assert.deepStrictEqual([s.avgScore, s.avgConfidence], [null, null]);
+      const c = await prisma.call.create({ data: { userId: u.id, agentId: u.agentId, recipientPhoneNumber: '+919812345678', status: 'completed' } });
+      await prisma.callResult.create({ data: { callId: c.id, workspaceId: u.id, agentId: u.agentId, status: 'completed', resultLabel: 'No Answer', confidence: 1, score: null } });
+      const s2 = await summary(u.id);
+      assert.strictEqual(s2.avgConfidence, 1, 'confidence averages every analysed report, scored or not');
+      assert.strictEqual(s2.avgScore, null, 'no scored report -> no average score');
+    });
+
+    await test('C3 the date filter uses the CALL date: a call made on the day counts on that day even if analysed after midnight', async () => {
+      const u = await newUser();
+      const day = '2026-03-10';
+      const callAt = new Date('2026-03-10T18:20:00.000Z'); // 23:50 IST on 10 March
+      const analysedAt = new Date('2026-03-10T18:45:00.000Z'); // 00:15 IST on 11 March
+      const c = await prisma.call.create({ data: { userId: u.id, agentId: u.agentId, recipientPhoneNumber: '+919812345678', status: 'completed', createdAt: callAt } });
+      await prisma.callResult.create({ data: { callId: c.id, workspaceId: u.id, agentId: u.agentId, status: 'completed', resultLabel: 'Resolved', confidence: 0.9, score: 80, createdAt: analysedAt } });
+      const s = await summary(u.id, { dateFrom: day, dateTo: day, timezone: 'Asia/Kolkata' });
+      assert.deepStrictEqual([s.totalCalls, s.analyzedCalls, s.labelDistribution.Resolved], [1, 1, 1], JSON.stringify(s));
+      const next = await summary(u.id, { dateFrom: '2026-03-11', dateTo: '2026-03-11', timezone: 'Asia/Kolkata' });
+      assert.deepStrictEqual([next.totalCalls, next.analyzedCalls], [0, 0], 'not counted on the next day');
+    });
   } finally {
     await prisma.analysisJob.deleteMany({ where: { workspaceId: { in: users } } }).catch(() => {});
+    await prisma.callResult.deleteMany({ where: { call: { userId: { in: users } } } }).catch(() => {});
     await prisma.callResult.deleteMany({ where: { workspaceId: { in: users } } }).catch(() => {});
     await prisma.callEvent.deleteMany({ where: { call: { userId: { in: users } } } }).catch(() => {});
     await prisma.transcriptSegment.deleteMany({ where: { call: { userId: { in: users } } } }).catch(() => {});
