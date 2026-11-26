@@ -1725,38 +1725,46 @@ export class CallOrchestrator extends EventEmitter {
   }
 
   private startMidCallEnforcementMonitor() {
-    setInterval(async () => {
-      if (this.activeCalls.size === 0) return;
-
-      for (const [callId] of this.activeCalls) {
-        try {
-          const call = await prisma.call.findUnique({
-            where: { id: callId },
-            include: { user: true }
-          });
-          if (!call || !call.startTime || call.user.accountType === 'admin' || call.user.email === ADMIN_EMAIL) continue;
-
-          const elapsedSeconds = Math.round((Date.now() - call.startTime.getTime()) / 1000);
-          const remainingSeconds = getCallableSecondsRemaining(call.user);
-
-          if (elapsedSeconds >= remainingSeconds) {
-            logger.warn('[MID_CALL_CUTOFF] Minutes remaining depleted during call. Terminating with balance_exhausted.', {
-              callId,
-              userId: call.userId,
-              elapsedSeconds,
-              remainingSeconds,
-            });
-            const { CallService } = await import('../../services/CallService');
-            await CallService.terminateCall(callId, 'balance_exhausted', 'Minutes depleted during call', 'system').catch(async (termErr) => {
-              logger.warn('[MID_CALL_CUTOFF] CallService.terminateCall error, falling back to endCallSession', { callId, error: String(termErr) });
-              await this.endCallSession(callId, 'balance_exhausted', 'Minutes depleted during call', 'system');
-            });
-          }
-        } catch (monitorErr) {
-          logger.error('[MID_CALL_MONITOR_ERROR] Failed during mid-call check', { callId, error: String(monitorErr) });
-        }
-      }
+    const timer = setInterval(() => {
+      this.enforceMinutesOnActiveCalls().catch((err) => logger.error('[MID_CALL_MONITOR_ERROR] Failed during mid-call check', { error: String(err) }));
     }, 3000);
+    timer.unref?.();
+  }
+
+  /**
+   * Ends calls once a customer's minutes are used up. The balance is debited when a call ends, so
+   * calls running at the same time share it: their elapsed time is added up (oldest call first) and
+   * the calls that go past the balance are ended — a customer with 2 minutes left can no longer run
+   * three 2-minute calls at once. One query for all live calls. The owner's account is not limited.
+   * Returns the ids of the calls it ended.
+   */
+  async enforceMinutesOnActiveCalls(now: number = Date.now()): Promise<string[]> {
+    if (this.activeCalls.size === 0) return [];
+    const calls = await prisma.call.findMany({
+      where: { id: { in: [...this.activeCalls.keys()] }, startTime: { not: null } },
+      include: { user: true },
+      orderBy: { startTime: 'asc' },
+    });
+    const usedByUser = new Map<string, number>();
+    const ended: string[] = [];
+    for (const call of calls) {
+      if (call.user.accountType === 'admin' || call.user.email === ADMIN_EMAIL) continue;
+      const elapsedSeconds = Math.round((now - call.startTime!.getTime()) / 1000);
+      const usedSeconds = (usedByUser.get(call.userId) || 0) + elapsedSeconds;
+      usedByUser.set(call.userId, usedSeconds);
+      const remainingSeconds = getCallableSecondsRemaining(call.user);
+      if (usedSeconds < remainingSeconds) continue;
+      logger.warn('[MID_CALL_CUTOFF] Minutes remaining depleted during call. Terminating with balance_exhausted.', {
+        callId: call.id, userId: call.userId, elapsedSeconds, usedByAllLiveCalls: usedSeconds, remainingSeconds,
+      });
+      ended.push(call.id);
+      const { CallService } = await import('../../services/CallService');
+      await CallService.terminateCall(call.id, 'balance_exhausted', 'Minutes depleted during call', 'system').catch(async (termErr) => {
+        logger.warn('[MID_CALL_CUTOFF] CallService.terminateCall error, falling back to endCallSession', { callId: call.id, error: String(termErr) });
+        await this.endCallSession(call.id, 'balance_exhausted', 'Minutes depleted during call', 'system');
+      });
+    }
+    return ended;
   }
 
   getSessionInfo(callId: string) {
