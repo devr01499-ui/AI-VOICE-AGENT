@@ -357,15 +357,20 @@ export class VobizSubAccountService {
    */
   async refreshKyc(userId: string, source: string) {
     const sub = await prisma.vobizSubAccount.findUnique({ where: { userId }, include: { user: { select: { email: true, accountType: true } } } });
-    if (!sub) return null;
-    if (isPlatformAccount(sub.user)) {
+    const owner = sub ? isPlatformAccount(sub.user) : isPlatformAccount(await prisma.user.findUnique({ where: { id: userId }, select: { email: true, accountType: true } }));
+    if (owner) {
       // The owner's account is the carrier's main account (KYC done with Vobiz when it was opened):
-      // never judged by a sub-account. Keep the stored row in line so every gate and filter agrees.
-      if (sub.kycStatus !== 'verified' || sub.kycCallsBlocked) {
-        await prisma.vobizSubAccount.update({ where: { id: sub.id }, data: { kycStatus: 'verified', kycCallsBlocked: false, kycVerifiedAt: sub.kycVerifiedAt ?? new Date() } });
-      }
-      return { kycStatus: 'verified' as const, kycCallsBlocked: false, customerUse: false, kycMode: sub.kycMode, verifications: null, previous: sub.kycStatus, changed: sub.kycStatus !== 'verified' };
+      // never judged by a sub-account. Every stored copy — the sub-account row (if any) and the
+      // KYC-gated numbers — is kept verified so every gate and screen agrees. No carrier call.
+      await prisma.$transaction([
+        prisma.vobizSubAccount.updateMany({ where: { userId, OR: [{ kycStatus: { not: 'verified' } }, { kycCallsBlocked: true }] }, data: { kycStatus: 'verified', kycCallsBlocked: false, kycVerifiedAt: sub?.kycVerifiedAt ?? new Date() } }),
+        prisma.phoneNumber.updateMany({ where: { userId, aadhaarRequired: true, kycStatus: { not: 'verified' } }, data: { kycStatus: 'verified' } }),
+      ]);
+      const { PhoneNumberActivationService } = await import('./PhoneNumberActivationService');
+      await PhoneNumberActivationService.evaluateAndActivateUserNumbers(userId, source);
+      return { kycStatus: 'verified' as const, kycCallsBlocked: false, customerUse: false, kycMode: sub?.kycMode ?? null, verifications: null, previous: sub?.kycStatus ?? null, changed: Boolean(sub && sub.kycStatus !== 'verified') };
     }
+    if (!sub) return null;
     if (this.isMock || sub.authId.startsWith('SA_MOCK_') || sub.kycMode === SUB_ACCOUNT_MISSING_MODE) return null;
     let data = await this.fetchKycStatus(sub.authId);
     if (data && data.kyc_mode !== 'customer_use' && await this.promoteToCustomerUse(sub, sub.user.email || '')) {
