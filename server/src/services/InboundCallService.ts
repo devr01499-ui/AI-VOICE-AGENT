@@ -203,7 +203,9 @@ export class InboundCallService {
         };
       }
 
-      if (numberRecord.kycStatus !== 'verified') {
+      // Owner's numbers sit on the carrier's main account (KYC done with the carrier); outbound
+      // skips this check for the owner too (CallService.validateCallerNumber).
+      if (numberRecord.kycStatus !== 'verified' && !isPlatformAccount(user)) {
         logger.warn('InboundCallService: Inbound call blocked due to unverified KYC', { rawTo, kycStatus: numberRecord.kycStatus });
         const internalErr = 'Inbound calls blocked. KYC verification is pending or incomplete for this phone number.';
         const callId = await recordBlockedCall('provider_error', internalErr);

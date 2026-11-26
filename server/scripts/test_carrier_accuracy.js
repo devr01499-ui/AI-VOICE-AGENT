@@ -150,9 +150,30 @@ async function main() {
     assert.strictEqual((await svc.syncKycStatus(bare.id)).isVerified, true);
     assert.strictEqual(await prisma.vobizSubAccount.count({ where: { userId: bare.id } }), 0, 'no sub-account is created for the owner');
 
+    // The owner's numbers (Calling Configuration / Phone Numbers show their own KYC field): an
+    // earlier release stored "pending" on a KYC-gated number while the account row was already
+    // verified. The 5-minute job and every refresh put it right and activate it — with or without
+    // a sub-account row.
+    const ownerNumber = async (userId) => prisma.phoneNumber.create({ data: { userId, phoneNumber: rel(), countryCode: 'IN', telephonyProvider: 'vobiz', status: 'activation_pending', kycStatus: 'pending', aadhaarRequired: true } });
+    const n1 = await ownerNumber(owner.id);
+    assert.strictEqual((await stored(owner.id)).kycStatus, 'verified', 'precondition: row already verified');
+    await refreshPendingVobizKyc(svc, { pauseMs: 0, userIds: [owner.id] });
+    const n1After = await prisma.phoneNumber.findUnique({ where: { id: n1.id } });
+    assert.deepStrictEqual([n1After.kycStatus, n1After.status], ['verified', 'active'], 'owner number verified and active');
+    const n2 = await ownerNumber(bare.id);
+    await svc.syncKycStatus(bare.id);
+    const n2After = await prisma.phoneNumber.findUnique({ where: { id: n2.id } });
+    assert.deepStrictEqual([n2After.kycStatus, n2After.status], ['verified', 'active'], 'owner without a sub-account row too');
+    const cust = await newUser();
+    const n3 = await ownerNumber(cust.id);
+    await refreshPendingVobizKyc(svc, { pauseMs: 0, userIds: [cust.id] });
+    assert.strictEqual((await prisma.phoneNumber.findUnique({ where: { id: n3.id } })).kycStatus, 'pending', 'a customer number is never touched by the owner rule');
+
     // Inbound and outbound gates both treat the owner's account as the main account.
     const read = (p) => fs.readFileSync(path.join(__dirname, '..', 'src', p), 'utf8');
-    assert.ok(read('services/InboundCallService.ts').includes('!isPlatformAccount(user)'), 'inbound gate exempts the main account');
+    const inbound = read('services/InboundCallService.ts');
+    assert.ok(inbound.includes("numberRecord.kycStatus !== 'verified' && !isPlatformAccount(user)"), 'inbound per-number gate exempts the main account');
+    assert.ok(inbound.includes("!numberRecord.telephonyProvider) && !isPlatformAccount(user)"), 'inbound account gate exempts the main account');
     assert.ok(/isAdmin = user\.accountType === 'admin' \|\| user\.email === ADMIN_EMAIL/.test(read('services/CallService.ts')), 'outbound gate exempts the main account');
   });
 

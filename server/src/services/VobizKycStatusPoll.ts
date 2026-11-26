@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { VobizSubAccountService } from './VobizSubAccountService';
+import { ADMIN_EMAIL } from '../config/constants';
 
 /**
  * Picks up Vobiz KYC results for customers still under review (owner report 2026-11-25: approvals
@@ -13,7 +14,7 @@ import { VobizSubAccountService } from './VobizSubAccountService';
  * updates KYC-gated numbers and activates them. A real change to verified/failed is announced once,
  * exactly like the webhook path (the email itself is de-duplicated by kyc_email_logs).
  * Simulated (SA_MOCK_) sub-accounts are skipped. The owner's account is the carrier's main account:
- * refreshKyc corrects a stale row to verified without asking the carrier.
+ * every run, refreshKyc keeps its row and KYC-gated numbers verified without asking the carrier.
  */
 const BATCH = 50;
 const PAUSE_MS = 200;
@@ -22,10 +23,17 @@ export async function refreshPendingVobizKyc(
   service: VobizSubAccountService = new VobizSubAccountService(),
   opts: { limit?: number; pauseMs?: number; userIds?: string[] } = {},
 ): Promise<{ checked: number; changed: number }> {
+  const only = opts.userIds ? { id: { in: opts.userIds } } : {};
+  // The owner's account is the carrier's main account: refreshKyc keeps its row and its KYC-gated
+  // numbers verified without a carrier call (a handful of accounts, checked every run).
+  const owners = await prisma.user.findMany({ where: { ...only, OR: [{ accountType: 'admin' }, { email: ADMIN_EMAIL }] }, select: { id: true } });
+  for (const o of owners) await service.refreshKyc(o.id, 'kyc_poll').catch((err) => logger.warn('VobizKycStatusPoll: owner refresh failed', { userId: o.id, error: String(err) }));
+
   const pending = await prisma.vobizSubAccount.findMany({
     where: {
       kycStatus: 'pending',
       NOT: { authId: { startsWith: 'SA_MOCK_' } },
+      user: { is: { accountType: { not: 'admin' }, email: { not: ADMIN_EMAIL } } },
       ...(opts.userIds ? { userId: { in: opts.userIds } } : {}),
     },
     // Least recently checked first, so one account the carrier keeps refusing never blocks the rest.
@@ -52,7 +60,7 @@ export async function refreshPendingVobizKyc(
     if (pause > 0) await new Promise((r) => setTimeout(r, pause));
   }
   if (changed) logger.info('VobizKycStatusPoll: run finished', { checked: pending.length, changed });
-  return { checked: pending.length, changed };
+  return { checked: pending.length + owners.length, changed };
 }
 
 let timer: NodeJS.Timeout | null = null;
