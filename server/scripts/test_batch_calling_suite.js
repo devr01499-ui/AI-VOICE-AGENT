@@ -409,6 +409,42 @@ async function runAcceptanceSuite() {
     console.log(`  ✓ Recipient failure contract verified: lastError="${recipientWithRealError.lastError}", lastErrorCode="${recipientWithRealError.lastErrorCode}"`);
     passed++;
 
+    // ── Test i: "Concurrent" campaigns really dial at the same time, within the plan's limit ──
+    console.log('\n--- TEST I: Concurrent dial mode runs calls at once (form value "concurrent") ---');
+    const calendarSrc = require('fs').readFileSync(require('path').join(__dirname, '../src/routes/calendar.ts'), 'utf8');
+    assert.ok(calendarSrc.includes("dialMode === 'concurrent' || dialMode === 'parallel' ? 'parallel' : 'sequential'"), 'the form value "concurrent" is stored as parallel');
+    const limitI = 3;
+    await prisma.user.update({ where: { id: testUser.id }, data: { maxConcurrentCalls: limitI } });
+    const batchI = await prisma.batch.create({
+      data: {
+        userId: testUser.id, agentId: testAgent.id, fromPhoneNumberId: userPlivoNumber.id, name: 'Concurrent batch',
+        status: 'running', dialMode: 'parallel', totalRecipients: 5,
+        recipients: { create: ['+919876500101', '+919876500102', '+919876500103', '+919876500104', '+919876500105'].map((p, i) => ({ phoneNumber: p, status: 'pending', position: i })) },
+      },
+    });
+    let maxLive = 0;
+    const processI = BatchService.processBatch(batchI.id, testUser.id);
+    // Calls are held open until three are live at once (or 20 s pass), then each ends after 1 s.
+    const startI = Date.now();
+    const holdI = setInterval(async () => {
+      const liveI = await prisma.call.findMany({ where: { userId: testUser.id, status: 'in_progress' } });
+      maxLive = Math.max(maxLive, liveI.length);
+      if (maxLive < limitI && Date.now() - startI < 20000) return;
+      for (const c of liveI) {
+        await prisma.call.update({ where: { id: c.id }, data: { status: 'completed', startTime: new Date(Date.now() - 30000), durationSeconds: 30 } });
+        callOrchestrator.emit('callEnded', { callId: c.id, reason: 'completed' });
+      }
+    }, 300);
+    await processI;
+    clearInterval(holdI);
+    await prisma.user.update({ where: { id: testUser.id }, data: { maxConcurrentCalls: 5 } });
+    const doneI = await prisma.batch.findUnique({ where: { id: batchI.id } });
+    assert.strictEqual(maxLive, limitI, `${limitI} calls should run at once (plan limit), saw ${maxLive}`);
+    assert.strictEqual(doneI.status, 'completed');
+    assert.strictEqual(doneI.completedCount, 5);
+    console.log(`  ✓ Up to ${maxLive} calls at once (limit ${limitI}); all 5 contacts answered; status ${doneI.status}`);
+    passed++;
+
   } catch (err) {
     console.error('❌ Exception in acceptance test suite:', err);
     failed++;
@@ -438,9 +474,8 @@ async function runAcceptanceSuite() {
   console.log(`🏁 ACCEPTANCE SUITE RESULTS: ${passed} PASSED, ${failed} FAILED`);
   console.log('================================================================================');
 
-  if (failed > 0) {
-    process.exit(1);
-  }
+  // Exit explicitly: imported services keep timers alive, so the process never ended on success.
+  process.exit(failed > 0 ? 1 : 0);
 }
 
 runAcceptanceSuite().catch(err => {

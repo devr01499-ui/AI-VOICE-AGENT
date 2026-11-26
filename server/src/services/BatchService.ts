@@ -50,6 +50,8 @@ const ACTIVE_CALL_STATUSES = ['queued', 'ringing', 'in_progress', 'initiated', '
 
 /** Largest contact list one campaign may hold (one database write; split bigger lists). */
 export const MAX_BATCH_RECIPIENTS = 5000;
+/** Concurrent campaigns start at most one call per this many ms. */
+export const CONCURRENT_DIAL_GAP_MS = 1000;
 const MAX_RECIPIENT_DATA_BYTES = 2048;
 
 export interface PreparedRecipients {
@@ -518,6 +520,9 @@ export class BatchService {
         });
       }
 
+      // Concurrent campaigns: calls still running while the loop dials the next contact.
+      const inFlight = new Set<Promise<void>>();
+
       // ── Main Dispatch Loop ──
       while (true) {
         // Heartbeat lock renewal
@@ -613,8 +618,12 @@ export class BatchService {
           });
         }
 
-        // No more eligible contacts to process
+        // No more eligible contacts to process (a concurrent campaign first lets its running calls end)
         if (!nextRecipient) {
+          if (inFlight.size > 0) {
+            await Promise.race(inFlight);
+            continue;
+          }
           break;
         }
 
@@ -624,8 +633,8 @@ export class BatchService {
 
         const concurrencyLimit = isSequential ? 1 : userMaxConcurrency;
         if (userActiveCalls >= concurrencyLimit || globalActiveCalls >= ACCOUNT_TELEPHONY_CAP) {
-          logger.info(`BatchService: Concurrency limit active (${userActiveCalls}/${concurrencyLimit}). Waiting 8s before retry.`);
-          await new Promise(r => setTimeout(r, 8000));
+          logger.info(`BatchService: Concurrency limit active (${userActiveCalls}/${concurrencyLimit}). Waiting for a free line.`);
+          await Promise.race([...inFlight, new Promise(r => setTimeout(r, 8000))]);
           continue;
         }
 
@@ -755,24 +764,16 @@ export class BatchService {
 
         logger.info(`BatchService: Call initiated for recipient ${nextRecipient.id}`, { callId: callResult.callId });
 
-        // ── Await Call Completion (Event-driven with safety timeout) ──
-        // Safety timeout = call's max duration (default 1800s) + 30s grace period
-        const safetyTimeoutMs = (1800 + 30) * 1000;
-        const callEndResult = await callOrchestrator.waitForCallEnd(callResult.callId, safetyTimeoutMs);
-
-        if (callEndResult.reason === 'timeout') {
-          logger.warn(`BatchService: Call ${callResult.callId} reached safety timeout. Terminating session.`);
-          try {
-            await callOrchestrator.endCallSession(callResult.callId, 'timeout');
-          } catch {}
-          await prisma.call.update({
-            where: { id: callResult.callId },
-            data: { status: 'timeout', endTime: new Date() }
-          }).catch(() => {});
+        // ── Call completion: sequential waits here; concurrent dials the next contact at once ──
+        const finished = BatchService.finishCall(callResult.callId);
+        if (!isSequential) {
+          inFlight.add(finished);
+          finished.finally(() => inFlight.delete(finished));
+          // At most one new call per second (carriers limit calls started per second).
+          await new Promise(r => setTimeout(r, CONCURRENT_DIAL_GAP_MS));
+          continue;
         }
-
-        // Single-writer: Resolve recipient outcome derived from Call record
-        await BatchService.resolveRecipientOutcome(callResult.callId, callEndResult.reason);
+        await finished;
 
         // ── Inter-call Delay Pacing ──
         // Next call starts at previous call end time + delay
@@ -831,6 +832,25 @@ export class BatchService {
     } catch (unexpectedErr) {
       logger.error(`BatchService: Unexpected error in batch runner for ${batchId}`, { error: String(unexpectedErr) });
       await releaseLock();
+    }
+  }
+
+  /**
+   * Waits for one campaign call to end (event-driven, safety timeout = max call length + 30 s), ends a
+   * call stuck past it, then records the contact's outcome from the Call row (single writer).
+   * Never throws: a failure here must not stop the campaign's other calls.
+   */
+  private static async finishCall(callId: string): Promise<void> {
+    try {
+      const callEndResult = await callOrchestrator.waitForCallEnd(callId, (1800 + 30) * 1000);
+      if (callEndResult.reason === 'timeout') {
+        logger.warn(`BatchService: Call ${callId} reached safety timeout. Terminating session.`);
+        try { await callOrchestrator.endCallSession(callId, 'timeout'); } catch {}
+        await prisma.call.update({ where: { id: callId }, data: { status: 'timeout', endTime: new Date() } }).catch(() => {});
+      }
+      await BatchService.resolveRecipientOutcome(callId, callEndResult.reason);
+    } catch (err) {
+      logger.error(`BatchService: could not record the outcome of call ${callId} (restart recovery resolves it)`, { error: String(err) });
     }
   }
 
