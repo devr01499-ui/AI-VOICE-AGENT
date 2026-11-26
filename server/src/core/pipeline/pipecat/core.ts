@@ -123,8 +123,11 @@ export class Pipeline {
 
   async stop(): Promise<void> {
     if (this.turnAggregator) {
-      this.turnAggregator.destroy();
+      // Wait (at most 3 s) until the last transcript turns are saved: the call report is queued
+      // right after this and must see the caller's final words.
+      const saved = this.turnAggregator.destroy();
       this.turnAggregator = null;
+      await Promise.race([saved, new Promise((r) => setTimeout(r, 3000))]);
     }
     if (this.sessionId) {
       await this.provider.closeSession(this.sessionId);
