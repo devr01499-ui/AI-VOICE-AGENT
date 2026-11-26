@@ -114,7 +114,9 @@ export function errorHandler(
       },
     };
 
-    if (appErr.isOperational !== false) {
+    // A refused origin is already logged once a minute per origin (index.ts logBlockedOrigin);
+    // logging every refused request too flooded the log (owner log 2026-11-26).
+    if (appErr.isOperational !== false && appErr.code !== 'CORS_ORIGIN_BLOCKED') {
       logger.warn('Operational error', {
         requestId,
         code: appErr.code,
