@@ -102,6 +102,26 @@ async function main() {
     assert.ok(isAllowedCorsOrigin('http://localhost:5173', { nodeEnv: 'development' }));
   });
 
+  await test('CORS: a refused origin is not logged per request (once a minute per origin is enough); other errors still are', async () => {
+    const fs = require('fs');
+    const path = require('path');
+    const { errorHandler, AppError } = require('../dist/utils/errorHandler');
+    const { logger } = require('../dist/utils/logger');
+    const warned = [];
+    const orig = logger.warn;
+    logger.warn = (msg, meta) => warned.push(meta && meta.code);
+    const res = { status() { return this; }, json() { return this; } };
+    try {
+      for (let i = 0; i < 20; i++) errorHandler(new AppError(403, 'CORS_ORIGIN_BLOCKED', 'Cross-Origin Request Blocked by Security Policy'), { headers: {} }, res, () => {});
+      assert.strictEqual(warned.filter((c) => c === 'CORS_ORIGIN_BLOCKED').length, 0, 'no per-request flood');
+      errorHandler(new AppError(404, 'NOT_FOUND', 'x'), { headers: {} }, res, () => {});
+      assert.ok(warned.includes('NOT_FOUND'), 'other operational errors are still logged');
+    } finally {
+      logger.warn = orig;
+    }
+    assert.ok(fs.readFileSync(path.join(__dirname, '../src/index.ts'), 'utf8').includes('< 60_000) return;'), 'the per-origin warning stays rate-limited');
+  });
+
   await test('CORS: ADMIN_ORIGIN lists several exact console origins; never a wildcard; PATCH allowed', async () => {
     const { isAllowedCorsOrigin, adminOriginsFrom } = require('../dist/config/cors');
     const cfg = { nodeEnv: 'production', adminOrigin: 'https://claritiy-admin-abc123.vercel.app/ , https://admin.claritiy.com, *.vercel.app, not a url' };

@@ -44,6 +44,11 @@ const fake = http.createServer((req, res) => {
     calls.push({ method: req.method, url, body, auth: req.headers['x-auth-id'] });
     const send = (status, obj) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(obj === undefined ? '' : JSON.stringify(obj)); };
     let m;
+    // Documented "Retrieve account": the account the auth headers belong to.
+    if (req.method === 'GET' && url === '/api/v1/auth/me') {
+      return req.headers['x-auth-id'] === MA && req.headers['x-auth-token'] === process.env.VOBIZ_AUTH_TOKEN
+        ? send(200, { auth_id: MA, is_active: true }) : send(401, { error: 'unauthorized', message: 'invalid credentials' });
+    }
     if (req.method === 'POST' && url === `/api/v1/accounts/${MA}/sub-accounts/`) {
       const sa = `SA_FAKE${RUN}${++saSeq}`;
       kyc.set(sa, { kyc_mode: body.kyc_mode || 'personal_use', overall_status: 'not_started', kyc_calls_blocked: body.kyc_mode === 'customer_use', ownVerified: false });
@@ -113,6 +118,26 @@ async function main() {
     assert.strictEqual(sub.kycMode, 'customer_use');
     assert.strictEqual(sub.kycCallsBlocked, true);
     assert.throws(() => VobizSubAccountService.createBody(''), /email/);
+  });
+
+  await test('carrier start-up check uses the documented Retrieve account call (GET /api/v1/auth/me), 10 s limit', async () => {
+    const { VobizProvider, VOBIZ_HEALTH_TIMEOUT_MS } = require('../dist/providers/vobiz/VobizProvider');
+    const before = calls.length;
+    const ok = await new VobizProvider().healthCheck();
+    assert.strictEqual(ok.healthy, true, JSON.stringify(ok));
+    assert.deepStrictEqual(calls.slice(before).map((c) => `${c.method} ${c.url}`), ['GET /api/v1/auth/me'], 'one documented call, nothing else');
+    assert.strictEqual(VOBIZ_HEALTH_TIMEOUT_MS, 10000);
+    const saved = process.env.VOBIZ_AUTH_TOKEN;
+    const { env } = require('../dist/config/env');
+    const savedEnv = env.VOBIZ_AUTH_TOKEN;
+    env.VOBIZ_AUTH_TOKEN = 'wrong_token_for_test';
+    try {
+      const bad = await new VobizProvider().healthCheck();
+      assert.deepStrictEqual([bad.healthy, bad.details], [false, 'Vobiz responded with status 401'], 'wrong credentials are reported as such');
+    } finally {
+      env.VOBIZ_AUTH_TOKEN = savedEnv;
+      process.env.VOBIZ_AUTH_TOKEN = saved;
+    }
   });
 
   await test('verdict (Vobiz docs): a customer is verified only by their OWN customer_use KYC', async () => {
@@ -402,7 +427,7 @@ async function main() {
         env.VOBIZ_API_URL = setting;
         seen.length = 0;
         await new VobizProvider().healthCheck();
-        assert.strictEqual(seen[0], 'https://api.vobiz.ai/api/v1/Account/MA_TESTROOT/', `setting "${setting}" -> ${seen[0]}`);
+        assert.strictEqual(seen[0], 'https://api.vobiz.ai/api/v1/auth/me', `setting "${setting}" -> ${seen[0]}`); // documented Retrieve account
       }
       // Carrier answers 404 at boot: the provider is still registered for calls and hang-ups.
       const { initializeProviders } = require('../dist/config/providers');

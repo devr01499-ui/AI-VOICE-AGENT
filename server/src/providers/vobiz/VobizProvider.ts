@@ -35,6 +35,9 @@ interface VobizCallStatusResponse {
   duration?: number;
 }
 
+/** How long the carrier credential check may take before it is reported as "no answer". */
+export const VOBIZ_HEALTH_TIMEOUT_MS = 10_000;
+
 export class VobizProvider implements ITelephonyProvider {
   public readonly name = 'vobiz';
   public readonly type = 'telephony';
@@ -77,7 +80,12 @@ export class VobizProvider implements ITelephonyProvider {
     logger.info('VobizProvider: disconnected');
   }
 
-  /** Pings the Vobiz account endpoint to verify credentials. */
+  /**
+   * Verifies the credentials with Vobiz's documented "Retrieve account" call (GET /api/v1/auth/me;
+   * the account the auth headers belong to). The old probe used GET /Account/{id}/, which the docs
+   * do not list for reading the account: on Render it timed out after 5 s at every start-up while
+   * calls worked (owner log 2026-11-26).
+   */
   async healthCheck(): Promise<HealthCheckResult> {
     if (this.isMock) {
       return {
@@ -89,14 +97,11 @@ export class VobizProvider implements ITelephonyProvider {
 
     const start = Date.now();
     try {
-      const response = await fetch(
-        `${this.baseUrl}/Account/${this.authId}/`,
-        {
-          method: 'GET',
-          headers: this.buildHeaders(),
-          signal: AbortSignal.timeout(5000),
-        }
-      );
+      const response = await fetch(`${this.baseUrl}/auth/me`, {
+        method: 'GET',
+        headers: this.buildHeaders(),
+        signal: AbortSignal.timeout(VOBIZ_HEALTH_TIMEOUT_MS),
+      });
       const latencyMs = Date.now() - start;
 
       if (response.ok) {
@@ -110,7 +115,8 @@ export class VobizProvider implements ITelephonyProvider {
       };
     } catch (err) {
       const latencyMs = Date.now() - start;
-      const message = err instanceof Error ? err.message : 'Unknown error';
+      const timedOut = err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError');
+      const message = timedOut ? `no answer from the carrier within ${VOBIZ_HEALTH_TIMEOUT_MS / 1000} s` : err instanceof Error ? err.message : 'Unknown error';
       return { healthy: false, latencyMs, details: message };
     }
   }
