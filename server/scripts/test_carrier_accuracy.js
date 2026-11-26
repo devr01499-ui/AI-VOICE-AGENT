@@ -207,6 +207,31 @@ async function main() {
     }
   });
 
+  await test('verified documents never approve the account by themselves: only the carrier verdict does (no email before approval)', async () => {
+    const kv = require('../dist/services/KycVerificationService');
+    const u = await newUser();
+    const sub = await svc.getOrCreateSubAccount(u.id, u.email);
+    Object.assign(kyc.get(sub.authId), { kyc_mode: 'customer_use', overall_status: 'pending', kyc_calls_blocked: true, ownVerified: false });
+    for (const documentType of ['pan', 'aadhaar']) {
+      await prisma.kycDocument.create({ data: { userId: u.id, documentType, status: 'verified', panNumber: documentType === 'pan' ? 'ABCPE1234F' : null, vobizReference: documentType === 'aadhaar' ? 'AR_DIGI7Q2X9K' : 'VER_PANCHECK77', verifiedAt: new Date() } });
+    }
+    assert.strictEqual((await kv.checkRequiredKycDocumentsVerified(u.id)).verified, true, 'precondition: documents verified');
+    // The document routes used to call checkAndApplyFullKycApproval here; now they ask the carrier.
+    if (kv.checkAndApplyFullKycApproval) await kv.checkAndApplyFullKycApproval(u.id).catch(() => {});
+    await svc.refreshKyc(u.id, 'kyc_document_verified');
+    let row = await prisma.vobizSubAccount.findUnique({ where: { userId: u.id } });
+    assert.deepStrictEqual([row.kycStatus, row.kycCallsBlocked], ['pending', true], 'carrier still blocks: account stays pending, calls blocked');
+    assert.strictEqual(await prisma.kycEmailLog.count({ where: { userId: u.id } }), 0, 'no approval email before the carrier approves');
+    assert.strictEqual(kv.checkAndApplyFullKycApproval, undefined, 'no document-based account approval exists');
+    const kycRoutes = fs.readFileSync(path.join(__dirname, '..', 'src', 'routes', 'kyc.ts'), 'utf8');
+    assert.strictEqual((kycRoutes.match(/refreshKyc\(userId, 'kyc_document_verified'\)/g) || []).length, 2, 'PAN/GST and Aadhaar routes ask the carrier');
+    // Once the carrier approves, the same writer verifies the account (and tells the customer once).
+    Object.assign(kyc.get(sub.authId), { overall_status: 'verified', kyc_calls_blocked: false, ownVerified: true });
+    await svc.refreshKyc(u.id, 'kyc_document_verified');
+    row = await prisma.vobizSubAccount.findUnique({ where: { userId: u.id } });
+    assert.deepStrictEqual([row.kycStatus, row.kycCallsBlocked], ['verified', false]);
+  });
+
   await test('sync on a personal_use account switches it to customer_use and keeps an unverified user blocked', async () => {
     const u = await newUser();
     const sub = await svc.getOrCreateSubAccount(u.id, u.email);

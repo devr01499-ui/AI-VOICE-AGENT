@@ -4,7 +4,7 @@ import { requireActivePlan } from '../middleware/planValidation';
 import { prisma } from '../lib/prisma';
 import { isPlatformAccount, kycSummary } from '../utils/kycStatus';
 import { logger } from '../utils/logger';
-import { checkRequiredKycDocumentsVerified, checkAndApplyFullKycApproval, derivePanCategory, isMockVobizReference, shownKycDocumentStatus } from '../services/KycVerificationService';
+import { checkRequiredKycDocumentsVerified, derivePanCategory, isMockVobizReference, shownKycDocumentStatus } from '../services/KycVerificationService';
 import { VobizSubAccountService } from '../services/VobizSubAccountService';
 import { verifyVobizWebhook } from '../middleware/vobizWebhook';
 import { Resend } from 'resend';
@@ -815,7 +815,9 @@ router.post('/verify-document', requireAuth, requireRole(['admin']), requireActi
       await notifyUserDocumentStatus(userId, documentType, verificationResultStatus, failureReason || undefined);
     }
 
-    // 7. Check if overall KYC can now be elevated to verified
+    // 7. A verified document never approves the account by itself (no approval email before the
+    // carrier approves): the single KYC writer reads the carrier's account verdict now; the 5-minute
+    // job picks up a later approval.
     if (verificationResultStatus === 'verified') {
       if (documentType === 'pan' && subAccount?.id) {
         await prisma.vobizSubAccount.update({
@@ -823,7 +825,8 @@ router.post('/verify-document', requireAuth, requireRole(['admin']), requireActi
           data: { businessType: cleanPanType === 'company' ? 'company' : 'individual' },
         }).catch((err) => logger.warn('KYC: failed to sync subAccount.businessType', { error: String(err) }));
       }
-      await checkAndApplyFullKycApproval(userId, subAccount.id);
+      await new VobizSubAccountService().refreshKyc(userId, 'kyc_document_verified')
+        .catch((err: any) => logger.warn('KYC: carrier check after a verified document failed; the 5-minute job retries', { error: String(err?.message || err) }));
     }
 
     res.json({
@@ -1089,7 +1092,8 @@ router.post(['/digilocker/verify', '/verify-aadhaar'], requireAuth, requireRole(
     await notifyUserDocumentStatus(userId, 'aadhaar', verificationResultStatus);
 
     if (verificationResultStatus === 'verified') {
-      await checkAndApplyFullKycApproval(userId, subAccount.id);
+      await new VobizSubAccountService().refreshKyc(userId, 'kyc_document_verified')
+        .catch((err: any) => logger.warn('KYC: carrier check after a verified document failed; the 5-minute job retries', { error: String(err?.message || err) }));
     }
 
     res.json({
