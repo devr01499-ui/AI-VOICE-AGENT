@@ -32,10 +32,15 @@ export interface VerificationResult {
  */
 export function normalizeEvidenceWhitespace(text: string): string {
   if (!text) return '';
+  // Same words in the same order still required; punctuation and spacing differences are ignored
+  // (a quote with one comma less used to wipe a correct field). Letters, digits and combining marks
+  // (Devanagari vowel signs) are kept, so Hindi quotes match too.
   return String(text)
+    .normalize('NFC')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\p{M}\s]/gu, ' ')
     .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase();
+    .trim();
 }
 
 /**

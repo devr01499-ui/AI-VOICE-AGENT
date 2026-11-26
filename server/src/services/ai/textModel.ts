@@ -133,6 +133,8 @@ export interface GenerateTextOptions {
   purpose: string;
   /** Earlier conversation turns, for chat-style features. */
   history?: ChatTurn[];
+  /** Models to try in order (default: the builder model list). */
+  models?: string[];
 }
 
 /** Turns from the browser into a valid conversation: known roles, text only, size-capped, starting with the user. */
@@ -164,7 +166,7 @@ export async function generateText(opts: GenerateTextOptions): Promise<{ text: s
   if (!apiKey) throw new TextModelError('not_configured', 'No AI model key is configured.');
 
   let lastKind: TextModelErrorKind = 'unavailable';
-  for (const model of textModelCandidates()) {
+  for (const model of (opts.models && opts.models.length ? opts.models : textModelCandidates())) {
     for (let attempt = 1; attempt <= 2; attempt++) {
       const started = Date.now();
       const timeoutMs = opts.timeoutMs ?? 25_000;

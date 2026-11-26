@@ -728,6 +728,11 @@ export class CallOrchestrator extends EventEmitter {
             logger.info(`Flow Engine: trigger ${name} tool call via Pipecat`, { callId, args });
             const reason = String(parsedArgs.reason || '').toLowerCase();
             const isOptOut = reason.includes('opt_out') || reason.includes('optout') || reason.includes('dnc') || reason.includes('do_not_call') || reason.includes('unsubscribe');
+            if (isOptOut) {
+              // The call report reads this (the end reason is stored as "completed").
+              await prisma.callEvent.create({ data: { callId, eventType: 'opt_out', payload: JSON.stringify({ reason: String(parsedArgs.reason || 'opt_out') }) } })
+                .catch((e: any) => logger.warn('Flow Engine: opt-out event not saved', { callId, error: String(e?.message || e) }));
+            }
             if (isOptOut && phoneNumber) {
               try {
                 const cleanDigits = phoneNumber.replace(/\D/g, '');

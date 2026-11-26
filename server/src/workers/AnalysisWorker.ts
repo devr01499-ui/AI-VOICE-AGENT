@@ -19,6 +19,12 @@ import { logger } from '../utils/logger';
 import { AnalysisService } from '../services/AnalysisService';
 import { randomUUID } from 'crypto';
 
+/**
+ * Shown to the customer when a report could not be produced after every retry. The technical reason
+ * stays in analysis_jobs.last_error for staff; it is never shown as the call summary.
+ */
+export const ANALYSIS_FAILED_SUMMARY = 'The AI report for this call could not be produced after several attempts. The transcript and recording are still available; use Re-analyze to try again.';
+
 export class AnalysisWorker {
   private static isRunning = false;
   private static intervalTimer: NodeJS.Timeout | null = null;
@@ -165,7 +171,7 @@ export class AnalysisWorker {
                   resultLabel: 'Analysis Failed',
                   confidence: 0,
                   score: null,
-                  summary: err.message || 'Analysis permanently failed after retries',
+                  summary: ANALYSIS_FAILED_SUMMARY,
                   fields: {},
                   evidence: {},
                   model: 'system',
@@ -173,7 +179,7 @@ export class AnalysisWorker {
                 update: {
                   status: 'failed',
                   resultLabel: 'Analysis Failed',
-                  summary: err.message || 'Analysis permanently failed after retries',
+                  summary: ANALYSIS_FAILED_SUMMARY,
                 },
               }).catch((e) => logger.warn('AnalysisWorker: Failed to record terminal failed callResult', { error: String(e) }));
             } else {

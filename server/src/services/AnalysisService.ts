@@ -12,10 +12,8 @@
 import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 import { WebhookDispatcher } from '../utils/WebhookDispatcher';
-import { EncryptionService } from '../utils/EncryptionService';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { configuredTextModel } from '../config/geminiModels';
-import { env } from '../config/env';
+import { textModelCandidates as geminiTextModelCandidates } from '../config/geminiModels';
+import { generateText, TextModelError } from './ai/textModel';
 import { REPORT_BLUEPRINTS, ReportBlueprint } from '../config/reportBlueprints';
 import {
   normalizeMoneyOrNumber,
@@ -89,6 +87,53 @@ export function withAgentPostCallConfig(base: ReportBlueprint, agent: any): Repo
   return { ...base, fields, ...(summary ? { summaryInstruction: summary } : {}) };
 }
 
+/**
+ * Agent role -> report template, most specific first (the first match wins). Each id is checked
+ * against the template's own name by test:call-reports, so the table can never drift from
+ * config/reportBlueprints.ts again (it had: sales agents got the Medical Clinic template, clinics
+ * Home Services, order desks Real Estate, hotels Debt Collections). Phrases are chosen so common
+ * prompt words ("24 hr", "in order to", "in the event", "premium service") do not match.
+ */
+export const AGENT_TEMPLATE_RULES: ReadonlyArray<readonly [string, RegExp]> = [
+  ['tpl-15', /\b(debt collections?|collections? agent|loan recovery|recovery agent|emi overdue|overdue emi|emi reminder|payment recovery)\b/i],
+  ['tpl-14', /\b(banking kyc|kyc reminder|kyc verification|re-kyc|account verification)\b/i],
+  ['tpl-13', /\b(insurance|policy renewal|insurance claim|claim intake)\b/i],
+  ['tpl-12', /\b(recruiter|recruitment|talent acquisition|hiring|job interviews?|candidate screening|pre-screening|human resources|sourcer)\b/i],
+  ['tpl-5', /\b(dental|dentist|orthodontist)\b/i],
+  ['tpl-2', /\b(doctor|clinic|hospital|patients?|medical)\b/i],
+  ['tpl-11', /\b(car dealership|dealership|test drives?|car service|vehicle service|automobile|two-wheeler)\b/i],
+  ['tpl-7', /\b(real estate|property|properties|broker|site visits?|apartments?|villas?|bhk|plots?)\b/i],
+  ['tpl-10', /\b(restaurant|table reservations?|takeout|takeaway|dine-in)\b/i],
+  ['tpl-9', /\b(e-?commerce|online store|order status|order tracking|returns? and refunds?|cash on delivery|cod orders?|order confirmation)\b/i],
+  ['tpl-8', /\b(saas|free trial|trial users?|product onboarding)\b/i],
+  ['tpl-6', /\b(home services?|plumbers?|plumbing|electricians?|ac repair|appliance repair|pest control|cleaning services?)\b/i],
+  ['tpl-4', /\b(win-?back|churn(ed)?|reactivation|lapsed customers?)\b/i],
+  ['tpl-3', /\b(sales|b2b|lead qualifi\w*|lead generation|outreach|prospects?|sdr|product demos?)\b/i],
+  ['tpl-1', /\b(receptionist|reception desk|front desk|visitors?)\b/i],
+];
+
+/** Used only when the agent gives no clue: strong phrases from the conversation itself. */
+export const CALL_TEMPLATE_RULES: ReadonlyArray<readonly [string, RegExp]> = [
+  ['tpl-12', /\b(open to a new role|years of experience|current ctc|notice period|job change)\b/i],
+  ['tpl-15', /\b(emi overdue|loan repayment|settlement amount|defaulter)\b/i],
+  ['tpl-7', /\b(site visit|sqft|bhk|property location)\b/i],
+  ['tpl-3', /\b(schedule a demo|product demo|interested in buying)\b/i],
+];
+
+/** Bumped when the analysis logic or prompt changes (stored on every report). */
+export const REPORT_PROMPT_VERSION = '2.0.0';
+
+/** The model's JSON report, or null when it is not a JSON object. */
+export function parseReportJson(text: string): Record<string, any> | null {
+  const clean = String(text || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+  try {
+    const v = JSON.parse(clean);
+    return v && typeof v === 'object' && !Array.isArray(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
 export class AnalysisService {
   /**
    * Resolves the matching report blueprint for an agent.
@@ -107,89 +152,30 @@ export class AnalysisService {
   private static resolveBaseBlueprint(agent: any, transcriptSegments?: any[]): ReportBlueprint {
     if (agent && agent.agentConfig) {
       try {
-        const config = typeof agent.agentConfig === 'string'
-          ? JSON.parse(agent.agentConfig)
-          : agent.agentConfig;
-
+        const config = typeof agent.agentConfig === 'string' ? JSON.parse(agent.agentConfig) : agent.agentConfig;
         if (config?.templateId && REPORT_BLUEPRINTS[config.templateId]) {
           return REPORT_BLUEPRINTS[config.templateId];
         }
       } catch {}
     }
 
-    // C1: First inspect transcript signals from the actual conversation if present
-    if (transcriptSegments && transcriptSegments.length > 0) {
-      const transText = transcriptSegments.map((s: any) => s.content || '').join(' ').toLowerCase();
-      if (/\b(open to a new role|years of experience|ctc|notice period|job change|interview)\b/i.test(transText)) {
-        return REPORT_BLUEPRINTS['tpl-12'];
-      }
-      if (/\b(schedule a demo|pricing|interested in buying|product demo)\b/i.test(transText)) {
-        return REPORT_BLUEPRINTS['tpl-2'];
-      }
-      if (/\b(site visit|sqft|bhk|flat price|property location)\b/i.test(transText)) {
-        return REPORT_BLUEPRINTS['tpl-3'];
-      }
-      if (/\b(emi overdue|loan repayment|settlement amount|defaulter)\b/i.test(transText)) {
-        return REPORT_BLUEPRINTS['tpl-4'];
-      }
-    }
-
-    // Role / Name / Prompt detection
-    const textToScan = [
+    // 1. The agent's own role (name, description, prompt). One agent keeps one template.
+    const agentText = [
       agent?.name || '',
       agent?.description || '',
       agent?.systemPrompt || '',
-      (typeof agent?.agentConfig === 'string' ? agent.agentConfig : JSON.stringify(agent?.agentConfig || {}))
-    ].join(' ').toLowerCase();
+    ].join(' ');
+    const byAgent = AGENT_TEMPLATE_RULES.find(([, re]) => re.test(agentText));
+    if (byAgent) return REPORT_BLUEPRINTS[byAgent[0]];
 
-    // Check specific industry / role patterns
-    if (/\b(recruiter|recruitment|talent|hiring|interview|hr|sourcer)\b/i.test(textToScan)) {
-      return REPORT_BLUEPRINTS['tpl-12'];
-    }
-    if (/\b(sales|outreach|demo|prospect|pitch|lead gen|qualification)\b/i.test(textToScan)) {
-      return REPORT_BLUEPRINTS['tpl-2'];
-    }
-    if (/\b(real estate|property|broker|site visit|apartment|flat)\b/i.test(textToScan)) {
-      return REPORT_BLUEPRINTS['tpl-3'];
-    }
-    if (/\b(collection|recovery|emi|overdue|payment reminder)\b/i.test(textToScan)) {
-      return REPORT_BLUEPRINTS['tpl-4'];
-    }
-    if (/\b(support|helpdesk|ticket|complaint|troubleshoot)\b/i.test(textToScan)) {
-      return REPORT_BLUEPRINTS['tpl-5'];
-    }
-    if (/\b(doctor|clinic|hospital|patient|consultation)\b/i.test(textToScan)) {
-      return REPORT_BLUEPRINTS['tpl-6'];
-    }
-    if (/\b(order|delivery|shipping|courier|logistics|dispatch)\b/i.test(textToScan)) {
-      return REPORT_BLUEPRINTS['tpl-7'];
-    }
-    if (/\b(loan|credit card|mortgage|banking|finance)\b/i.test(textToScan)) {
-      return REPORT_BLUEPRINTS['tpl-8'];
-    }
-    if (/\b(admission|course|student|coaching|university|college)\b/i.test(textToScan)) {
-      return REPORT_BLUEPRINTS['tpl-9'];
-    }
-    if (/\b(feedback|survey|nps|rating|review)\b/i.test(textToScan)) {
-      return REPORT_BLUEPRINTS['tpl-10'];
-    }
-    if (/\b(password reset|vpn|it support|laptop|software issue)\b/i.test(textToScan)) {
-      return REPORT_BLUEPRINTS['tpl-11'];
-    }
-    if (/\b(event|webinar|conference|rsvp)\b/i.test(textToScan)) {
-      return REPORT_BLUEPRINTS['tpl-13'];
-    }
-    if (/\b(dealership|test drive|car|vehicle|automobile)\b/i.test(textToScan)) {
-      return REPORT_BLUEPRINTS['tpl-14'];
-    }
-    if (/\b(hotel|resort|room booking|check-in|hospitality)\b/i.test(textToScan)) {
-      return REPORT_BLUEPRINTS['tpl-15'];
-    }
-    if (/\b(reception|receptionist|front desk|visitor)\b/i.test(textToScan)) {
-      return REPORT_BLUEPRINTS['tpl-1'];
+    // 2. Only when the agent gives no clue: strong phrases from the conversation itself.
+    if (transcriptSegments && transcriptSegments.length > 0) {
+      const transText = transcriptSegments.map((s: any) => s.content || '').join(' ');
+      const byCall = CALL_TEMPLATE_RULES.find(([, re]) => re.test(transText));
+      if (byCall) return REPORT_BLUEPRINTS[byCall[0]];
     }
 
-    // Explicit General Call Analysis blueprint fallback (never Receptionist)
+    // 3. General Call Analysis (never a specialised template by default).
     return REPORT_BLUEPRINTS['tpl-0'];
   }
 
@@ -324,126 +310,27 @@ export class AnalysisService {
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // 2. SIGNAL HIERARCHY LEVEL 2: System Events & Verified Tool Results (C9)
+    // 2. SIGNAL HIERARCHY LEVEL 2: verified events decide the OUTCOME LABEL (opt-out, booking,
+    //    transfer). The conversation is still analysed for the summary, sentiment and fields: these
+    //    are the most valuable calls and used to get only a fixed sentence and no extracted data.
     // ─────────────────────────────────────────────────────────────────────────────
-    const events = call.callEvents || [];
+    const verified = this.verifiedOutcome(call.callEvents || [], blueprint);
 
-    // Check for explicit Do Not Call / Opt-Out
-    const hasOptOutEvent = events.some((e: any) => {
-      if (e.eventType === 'opt_out') return true;
-      if (e.eventType === 'tool_call') {
-        try {
-          const payload = typeof e.payload === 'string' ? JSON.parse(e.payload) : (e.payload || {});
-          return (payload.toolName === 'register_opt_out' || payload.toolName === 'dnc') && payload.success === true;
-        } catch {
-          return e.payload && (e.payload.includes('register_opt_out') || e.payload.includes('dnc'));
-        }
-      }
-      return false;
-    });
-
-    if (hasOptOutEvent || endReason === 'opted_out') {
-      return await this.persistResult(call, blueprint, {
-        resultLabel: 'Opted Out',
-        status: 'completed',
-        score: 0,
-        confidence: 1.0,
-        summary: 'Caller requested not to be contacted again. Opt-out recorded.',
-        sentiment: 'Negative',
-        fields: { optOut: true },
-        evidence: {},
-        model: 'deterministic_signals',
-        latencyMs: Date.now() - startTime,
-      });
-    }
-
-    // Check for verified Appointment Booking / Calendar Tool Execution
-    const hasBookingSuccess = events.some((e: any) => {
-      if (e.eventType === 'tool_call') {
-        try {
-          const payload = typeof e.payload === 'string' ? JSON.parse(e.payload) : (e.payload || {});
-          return (
-            (payload.toolName === 'schedule_event' || payload.toolName === 'book_appointment' || payload.toolName === 'book_follow_up_call') &&
-            payload.success === true
-          );
-        } catch {
-          return (
-            (e.payload.includes('schedule_event') || e.payload.includes('book_appointment')) &&
-            !e.payload.includes('"error"') &&
-            !e.payload.includes('"success":false')
-          );
-        }
-      }
-      return false;
-    });
-
-    if (hasBookingSuccess) {
-      const bookingLabel = blueprint.labels.find(
-        (l) => l.priority <= 2 && /book|interview|scheduled/i.test(l.label) && !/not|un/i.test(l.label)
-      )?.label || 'Booked';
-
-      return await this.persistResult(call, blueprint, {
-        resultLabel: bookingLabel,
-        status: 'completed',
-        score: 100,
-        confidence: 1.0,
-        summary: 'Appointment successfully scheduled and confirmed via calendar tool.',
-        sentiment: 'Positive',
-        fields: { bookingConfirmed: true },
-        evidence: {},
-        model: 'deterministic_signals',
-        latencyMs: Date.now() - startTime,
-      });
-    }
-
-    // Check for Call Transfer Tool Execution
-    const hasTransferSuccess = events.some((e: any) => {
-      if (e.eventType === 'tool_call') {
-        try {
-          const payload = typeof e.payload === 'string' ? JSON.parse(e.payload) : (e.payload || {});
-          return (payload.toolName === 'transfer_call' || payload.toolName === 'live_handoff') && payload.success === true;
-        } catch {
-          return e.payload.includes('transfer_call') || e.payload.includes('live_handoff');
-        }
-      }
-      return false;
-    });
-
-    if (hasTransferSuccess) {
-      const transferLabel = blueprint.labels.find(
-        (l) => /transfer|escalat/i.test(l.label) && !/not|un/i.test(l.label)
-      )?.label || 'Transferred';
-
-      return await this.persistResult(call, blueprint, {
-        resultLabel: transferLabel,
-        status: 'completed',
-        score: null,
-        confidence: 1.0,
-        summary: 'Call successfully transferred to human representative.',
-        sentiment: 'Neutral',
-        fields: { transferred: true },
-        evidence: {},
-        model: 'deterministic_signals',
-        latencyMs: Date.now() - startTime,
-      });
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────────
-    // 3. SIGNAL HIERARCHY LEVEL 3 & 4: Model Extraction with Grounding & Rules
-    // ─────────────────────────────────────────────────────────────────────────────
     if (segments.length === 0) {
-      return await this.persistResult(call, blueprint, {
-        resultLabel: 'No Conversation',
-        status: 'completed',
-        score: null,
-        confidence: 1.0,
-        summary: 'No audio transcript segments captured for this call session.',
-        sentiment: 'Neutral',
-        fields: {},
-        evidence: {},
-        model: 'deterministic_signals',
-        latencyMs: Date.now() - startTime,
-      });
+      return await this.persistResult(call, blueprint, verified
+        ? { ...verified, status: 'completed', model: 'deterministic_signals', evidence: {}, latencyMs: Date.now() - startTime }
+        : {
+          resultLabel: 'No Conversation',
+          status: 'completed',
+          score: null,
+          confidence: 1.0,
+          summary: 'No audio transcript segments captured for this call session.',
+          sentiment: 'Neutral',
+          fields: {},
+          evidence: {},
+          model: 'deterministic_signals',
+          latencyMs: Date.now() - startTime,
+        });
     }
 
     const turns: SanitizedTranscriptTurn[] = segments.map((s: any, idx: number) => ({
@@ -455,33 +342,6 @@ export class AnalysisService {
     // Long call chunking
     const chunks = chunkTranscriptTurns(turns, 8000, 2);
     const chunkExtractionResults: Array<{ fields: Record<string, any>; evidence: Record<string, any>; lastTurnSequence: number }> = [];
-
-    const rawUserApiKey = EncryptionService.decryptIfEncrypted(call.user?.geminiApiKey);
-    const apiKey = rawUserApiKey || env.GEMINI_API_KEY || env.GOOGLE_API_KEY;
-    if (!apiKey || apiKey.trim() === '') {
-      logger.warn('AnalysisService: Missing Gemini API key for deep extraction, falling back to basic transcript summary', { callId });
-      return await this.persistResult(call, blueprint, {
-        resultLabel: blueprint.labels[blueprint.labels.length - 1]?.label || 'Unclear',
-        status: 'needs_review',
-        score: null,
-        confidence: 0.5,
-        summary: `Call completed with ${segments.length} transcript segments. Model extraction skipped due to missing API key.`,
-        sentiment: 'Neutral',
-        fields: { segmentCount: segments.length },
-        evidence: {},
-        model: 'fallback_no_api_key',
-        latencyMs: Date.now() - startTime,
-      });
-    }
-
-    const reportModelName = configuredTextModel(process.env.REPORT_ANALYSIS_MODEL);
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: reportModelName,
-      generationConfig: {
-        temperature: 0.0,
-      },
-    });
 
     const labelsEnum = blueprint.labels.map(l => l.label);
     const fieldsDescription = blueprint.fields
@@ -497,11 +357,15 @@ export class AnalysisService {
       evidence: Object.fromEntries(blueprint.fields.map(f => [f.name, { quote: 'verbatim quote', segmentIndex: 0 }])),
     }, null, 2);
 
-    let primarySummary = 'Call completed.';
-    let primarySentiment = 'Neutral';
-    let primaryResultLabel = 'Unclear';
-    let primaryConfidence = 0.7;
+    // The shared text-model helper: JSON output mode, timeout, one retry, fallback model, the
+    // workspace's own key first. A model failure is thrown so the worker retries with backoff.
+    const reportModels = geminiTextModelCandidates(process.env.REPORT_ANALYSIS_MODEL);
+    let reportModelName = reportModels[0];
 
+    let primaryResultLabel = 'Unclear';
+    let labelChosen = false;
+    let primaryConfidence = 0.5;
+    let primarySentiment = 'Neutral';
     const summaries: string[] = [];
 
     for (const chunk of chunks) {
@@ -517,65 +381,84 @@ export class AnalysisService {
         responseSchemaJson: responseSchemaExample,
       });
 
-      // 60-second timeout isolation (E1)
-      const genPromise = model.generateContent(prompt);
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Analysis model generation timed out after 60s')), 60000)
-      );
-
-      const genResult = await Promise.race([genPromise, timeoutPromise]);
-      let responseText = genResult.response.text().trim();
-      responseText = responseText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
-
-      let parsed: any = {};
+      let responseText: string;
       try {
-        parsed = JSON.parse(responseText);
-      } catch {
-        parsed = {
-          resultLabel: 'Unclear',
-          confidence: 0.5,
-          summary: responseText.slice(0, 200),
-          sentiment: 'Neutral',
-          fields: {},
-          evidence: {},
-        };
+        const out = await generateText({
+          workspaceId: call.userId,
+          purpose: 'call_report',
+          systemInstruction: 'You analyse a business phone call transcript and return only the JSON object requested. Use only what is in the transcript.',
+          prompt,
+          json: true,
+          temperature: 0,
+          maxOutputTokens: 8192,
+          timeoutMs: 60_000,
+          models: reportModels,
+        });
+        responseText = out.text;
+        reportModelName = out.model;
+      } catch (err) {
+        if (err instanceof TextModelError && err.kind === 'not_configured') {
+          logger.warn('AnalysisService: no AI key configured; report keeps the verified facts only', { callId });
+          return await this.persistResult(call, blueprint, verified
+            ? { ...verified, status: 'completed', model: 'deterministic_signals', evidence: {}, latencyMs: Date.now() - startTime }
+            : {
+              resultLabel: 'Unclear',
+              status: 'needs_review',
+              score: null,
+              confidence: 0.5,
+              summary: 'This call could not be analysed because no AI key is configured. The transcript is available.',
+              sentiment: 'Neutral',
+              fields: { segmentCount: segments.length },
+              evidence: {},
+              model: 'fallback_no_api_key',
+              latencyMs: Date.now() - startTime,
+            });
+        }
+        throw err;
       }
 
-      if (parsed.summary) {
-        summaries.push(parsed.summary);
+      const parsed = parseReportJson(responseText);
+      if (!parsed) {
+        throw new Error('The AI model returned an unreadable report (not JSON); the worker retries.');
       }
 
-      if (parsed.sentiment && parsed.sentiment !== 'Neutral') {
+      const chunkSummary = typeof parsed.summary === 'string' ? parsed.summary.trim() : '';
+      if (chunkSummary) summaries.push(chunkSummary);
+
+      if (typeof parsed.sentiment === 'string' && parsed.sentiment && parsed.sentiment !== 'Neutral') {
         primarySentiment = parsed.sentiment;
       }
 
-      // C8: Multi-chunk label preservation:
-      // The highest priority label (lowest priority number) wins across chunks!
-      if (parsed.resultLabel && labelsEnum.includes(parsed.resultLabel)) {
+      // C8: across chunks the highest-priority label (lowest number) wins; its confidence goes with it.
+      if (typeof parsed.resultLabel === 'string' && labelsEnum.includes(parsed.resultLabel)) {
         const candidatePriority = blueprint.labels.find((l) => l.label === parsed.resultLabel)?.priority ?? 999;
-        const currentPriority = blueprint.labels.find((l) => l.label === primaryResultLabel)?.priority ?? 999;
-
+        const currentPriority = labelChosen ? (blueprint.labels.find((l) => l.label === primaryResultLabel)?.priority ?? 999) : Infinity;
         if (candidatePriority < currentPriority) {
           primaryResultLabel = parsed.resultLabel;
-          if (typeof parsed.confidence === 'number') {
+          labelChosen = true;
+          if (typeof parsed.confidence === 'number' && parsed.confidence >= 0 && parsed.confidence <= 1) {
             primaryConfidence = parsed.confidence;
-          }
-          if (parsed.summary) {
-            primarySummary = parsed.summary;
           }
         }
       }
 
       const lastSeq = chunk.turns[chunk.turns.length - 1]?.sequenceNumber ?? 0;
       chunkExtractionResults.push({
-        fields: parsed.fields || {},
-        evidence: parsed.evidence || {},
+        fields: parsed.fields && typeof parsed.fields === 'object' ? parsed.fields : {},
+        evidence: parsed.evidence && typeof parsed.evidence === 'object' ? parsed.evidence : {},
         lastTurnSequence: lastSeq,
       });
     }
 
-    if (summaries.length > 1 && primarySummary === 'Call completed.') {
-      primarySummary = summaries.join(' ');
+    // The summary covers the WHOLE call: each part's summary in order (a long call has several).
+    const primarySummary = summaries.length > 0
+      ? summaries.join(' ')
+      : (verified?.summary || 'The AI model returned no summary for this call.');
+
+    // A verified event decides the label with certainty.
+    if (verified) {
+      primaryResultLabel = verified.resultLabel;
+      primaryConfidence = 1.0;
     }
 
     // Merge facts across chunks
@@ -635,12 +518,15 @@ export class AnalysisService {
       groundedEvidence,
       evidenceFindings,
     } = enforceEvidenceGrounding(normalizedFields, mergedEvidence, segments);
+    // Verified system facts (booking made, transfer, opt-out) are not transcript claims: added after
+    // the transcript check, and they win over anything the model extracted for the same field.
+    if (verified) Object.assign(groundedFields, verified.fields);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // 6. SCORING IN CODE (Section 5.9 & C5)
     // ─────────────────────────────────────────────────────────────────────────────
     const rubricScore = calculateRubricScore(blueprint, groundedFields);
-    const finalScore = rubricScore ? rubricScore.totalScore : null;
+    const finalScore = rubricScore ? rubricScore.totalScore : (verified ? verified.score : null);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // 7. ABSTENTION & CONFIDENCE REVIEW GATING (Section 5.7 & 5.8)
@@ -680,11 +566,45 @@ export class AnalysisService {
       fields: groundedFields,
       evidence: groundedEvidence,
       blueprintVersion: blueprint.version,
-      promptVersion: '1.0.0',
-      model: reportModelName,
+      promptVersion: REPORT_PROMPT_VERSION,
+      model: verified ? `${reportModelName}+verified_events` : reportModelName,
       inputHash: transcriptHash,
       latencyMs: Date.now() - startTime,
     });
+  }
+
+  /**
+   * The outcome a recorded event proves with certainty, in priority order: the caller opted out, an
+   * appointment was booked by the calendar tool, the call was handed to a person or another agent.
+   * Event names are the ones the runtime writes (CallOrchestrator opt_out / transfer_to_agent,
+   * CallTransferService transfer_to_human, CalendarService tool_call schedule_event); the older
+   * tool_call payloads are still read. Returns null when no event proves the outcome.
+   */
+  static verifiedOutcome(events: any[], blueprint: ReportBlueprint): {
+    resultLabel: string; score: number | null; confidence: number; summary: string; sentiment: string; fields: Record<string, any>;
+  } | null {
+    const payloadOf = (e: any): any => {
+      if (!e?.payload) return {};
+      if (typeof e.payload !== 'string') return e.payload;
+      try { return JSON.parse(e.payload); } catch { return {}; }
+    };
+    const tool = (e: any, names: string[]) => e.eventType === 'tool_call' && names.includes(payloadOf(e).toolName) && payloadOf(e).success === true;
+
+    if (events.some((e) => e.eventType === 'opt_out' || tool(e, ['register_opt_out', 'dnc']))) {
+      return { resultLabel: 'Opted Out', score: 0, confidence: 1.0, sentiment: 'Negative', fields: { optOut: true },
+        summary: 'The caller asked not to be contacted again; the number was added to the do-not-call list.' };
+    }
+    if (events.some((e) => tool(e, ['schedule_event', 'book_appointment', 'book_follow_up_call']))) {
+      const label = blueprint.labels.find((l) => l.priority <= 2 && /book|interview|scheduled/i.test(l.label) && !/not|un/i.test(l.label))?.label || 'Booked';
+      return { resultLabel: label, score: 100, confidence: 1.0, sentiment: 'Positive', fields: { bookingConfirmed: true },
+        summary: 'An appointment was booked and confirmed in the calendar during the call.' };
+    }
+    if (events.some((e) => e.eventType === 'transfer_to_human' || e.eventType === 'transfer_to_agent' || tool(e, ['transfer_call', 'live_handoff']))) {
+      const label = blueprint.labels.find((l) => /transfer|escalat/i.test(l.label) && !/not|un/i.test(l.label))?.label || 'Transferred';
+      return { resultLabel: label, score: null, confidence: 1.0, sentiment: 'Neutral', fields: { transferred: true },
+        summary: 'The call was transferred during the conversation.' };
+    }
+    return null;
   }
 
   /**

@@ -708,7 +708,8 @@ router.get('/:callId', async (req: Request, res: Response, next: NextFunction): 
         status: job.status,
         attempts: job.attempts,
         maxAttempts: job.maxAttempts,
-        lastError: job.lastError,
+        // The technical reason (model / provider text) stays in the job row for staff.
+        lastError: job.lastError ? (job.status === 'failed' ? 'The AI report could not be produced; use Re-analyze to try again.' : 'The last attempt did not finish; it is retried automatically.') : null,
         createdAt: job.createdAt.toISOString(),
         updatedAt: job.updatedAt.toISOString(),
       } : undefined,
