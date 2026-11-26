@@ -101,9 +101,9 @@ async function main() {
     assert.strictEqual(vobizKycVerdict({ kyc_mode: 'customer_use', overall_status: 'approved', kyc_calls_blocked: false }).kycCallsBlocked, false);
     assert.strictEqual(vobizKycVerdict({ kyc_mode: 'customer_use', overall_status: 'pending', kyc_calls_blocked: true }).kycCallsBlocked, true);
     assert.strictEqual(vobizKycVerdict({ kyc_mode: 'customer_use', overall_status: 'verified', kyc_calls_blocked: true }).kycCallsBlocked, true, 'an explicit carrier block is honoured');
-    for (const f of ['routes/kyc.ts', 'services/VobizSubAccountService.ts', 'services/KycVerificationService.ts']) {
-      assert.ok(/kycCallsBlocked/.test(src(f)), `${f} must write kycCallsBlocked`);
-    }
+    assert.ok(/kycCallsBlocked: v\.kycCallsBlocked/.test(src('services/VobizSubAccountService.ts')), 'the single KYC writer stores kycCallsBlocked');
+    // Documents never approve the account by themselves (fix/kyc-doc-approval-carrier).
+    assert.ok(!/vobizSubAccount\.update/.test(src('services/KycVerificationService.ts')), 'KycVerificationService must not write the account KYC');
     const kyc = src('routes/kyc.ts');
     // The KYC webhook no longer trusts its body: it reads the state back from Vobiz (refreshKyc),
     // which stores kycCallsBlocked (behaviour proven in test:carrier-accuracy).
