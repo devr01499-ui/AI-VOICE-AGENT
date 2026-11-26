@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 import { useState } from "react";
 import IndustryShowroomGrid from "../components/showroom/IndustryShowroomGrid";
+import { concurrencyText, usePublicPlans } from "../lib/plans";
 import { 
   ArrowRight, Landmark, Home as HomeIcon, 
   ShoppingBag, Truck, HeartPulse, CheckCircle2, MessageSquare,
@@ -258,6 +259,7 @@ const PRODUCTION_TEMPLATES: ShowcaseTemplate[] = [
 ];
 
 export default function Solutions({ setPage }: SolutionsProps) {
+  const plans = usePublicPlans();
   const [activeTab, setActiveTab] = useState("ecommerce");
   const [templateCategoryFilter, setTemplateCategoryFilter] = useState<string>("All");
   const [selectedTemplate, setSelectedTemplate] = useState<ShowcaseTemplate>(PRODUCTION_TEMPLATES[8]); // Default to COD
@@ -297,7 +299,6 @@ POST https://your-system.example.com/claritiy-webhook
 }`,
       metricsData: {
         latency: "Real-time",
-        concurrency: "5 or 15 at once",
         successRate: "Confirmed / cancelled / unreachable",
         format: "Recording optional"
       }
@@ -328,7 +329,6 @@ POST https://your-system.example.com/claritiy-webhook
 }`,
       metricsData: {
         latency: "Real-time",
-        concurrency: "5 or 15 at once",
         successRate: "Booked / call-back / question answered",
         format: "PII redaction option"
       }
@@ -359,7 +359,6 @@ POST https://your-system.example.com/claritiy-webhook
 }`,
       metricsData: {
         latency: "Real-time",
-        concurrency: "5 or 15 at once",
         successRate: "Promise to pay / call-back / unreachable",
         format: "Opt-out list honoured"
       }
@@ -391,7 +390,6 @@ POST https://your-system.example.com/claritiy-webhook
 }`,
       metricsData: {
         latency: "Real-time",
-        concurrency: "5 or 15 at once",
         successRate: "Qualified / not now / visit booked",
         format: "Recording optional"
       }
@@ -421,7 +419,6 @@ POST https://your-system.example.com/claritiy-webhook
 }`,
       metricsData: {
         latency: "Real-time",
-        concurrency: "5 or 15 at once",
         successRate: "Available / instructions / reschedule",
         format: "Recording optional"
       }
@@ -452,7 +449,6 @@ POST https://your-system.example.com/claritiy-webhook
 }`,
       metricsData: {
         latency: "Real-time",
-        concurrency: "5 or 15 at once",
         successRate: "Renew / not now / call-back",
         format: "Recording & retention you set"
       }
@@ -482,7 +478,6 @@ POST https://your-system.example.com/claritiy-webhook
 }`,
       metricsData: {
         latency: "Real-time",
-        concurrency: "5 or 15 at once",
         successRate: "Interested / booked / not now",
         format: "Recording optional"
       }
@@ -512,7 +507,6 @@ POST https://your-system.example.com/claritiy-webhook
 }`,
       metricsData: {
         latency: "Real-time",
-        concurrency: "5 or 15 at once",
         successRate: "Booked / call-back / not now",
         format: "Recording optional"
       }
@@ -908,8 +902,8 @@ POST https://your-system.example.com/claritiy-webhook
                 </div>
                 <div className="bg-[#EBE9E2] p-3.5 rounded-[2px] border border-[#CBC8BE] space-y-1">
                   <span className="text-[10px] text-[#262523] uppercase block">CALLS AT ONCE</span>
-                  <span className="text-[#121212] font-bold text-sm block">{currentSolution.metricsData.concurrency}</span>
-                  <span className="text-[10px] text-[#262523] block">Startup and Growth 5, Enterprise 15</span>
+                  <span className="text-[#121212] font-bold text-sm block">{concurrencyText(plans)}</span>
+                  <span className="text-[10px] text-[#262523] block">Same limit on every plan today</span>
                 </div>
                 <div className="bg-[#EBE9E2] p-3.5 rounded-[2px] border border-[#CBC8BE] space-y-1">
                   <span className="text-[10px] text-[#262523] uppercase block">OUTCOME LABELS</span>

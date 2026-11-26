@@ -43,10 +43,19 @@ async function main() {
     assert.strictEqual(getPlanConcurrency('starter'), 1);
     assert.strictEqual(getPlanConcurrency('developer'), PLAN_CONFIG.startup.maxConcurrentCalls);
     assert.strictEqual(getPlanConcurrency('professional'), PLAN_CONFIG.growth.maxConcurrentCalls);
-    assert.strictEqual(getPlanConcurrency('enterprise'), 15);
+    assert.strictEqual(getPlanConcurrency('enterprise'), PLAN_CONFIG.enterprise.maxConcurrentCalls);
+    // Owner decision 2026-11-26: one call at a time on every plan (raised later per plan in the admin panel).
+    for (const [key, plan] of Object.entries(PLAN_CONFIG)) assert.strictEqual(plan.maxConcurrentCalls, 1, `${key}: one call at a time`);
     assert.strictEqual(getPlanConcurrency('free'), 1, 'no plan -> 1');
     assert.strictEqual(getPlanConcurrency('trial', 10), 1, 'the old column default of 10 no longer applies');
-    assert.strictEqual(getPlanConcurrency('enterprise', 3), 3, 'customer may lower');
+    const saved = PLAN_CONFIG.enterprise.maxConcurrentCalls;
+    PLAN_CONFIG.enterprise.maxConcurrentCalls = 15; // as if raised in the admin panel
+    try {
+      assert.strictEqual(getPlanConcurrency('enterprise'), 15);
+      assert.strictEqual(getPlanConcurrency('enterprise', 3), 3, 'customer may lower');
+    } finally {
+      PLAN_CONFIG.enterprise.maxConcurrentCalls = saved;
+    }
     assert.ok(getPlanConcurrency('admin') > 1000);
   });
 

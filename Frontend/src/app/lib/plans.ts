@@ -24,17 +24,17 @@ export interface PublicPlan {
 
 export const PUBLIC_PLANS: PublicPlan[] = [
   {
-    key: 'startup', name: 'Startup', price: 3799, minutes: 750, maxConcurrentCalls: 5,
+    key: 'startup', name: 'Startup', price: 3799, minutes: 750, maxConcurrentCalls: 1,
     kbDocuments: 25, calendars: 3, bookingsPerMonth: 500,
     tag: 'Entry', description: 'For growing businesses starting with AI voice automation.',
   },
   {
-    key: 'growth', name: 'Growth', price: 10799, minutes: 2865, maxConcurrentCalls: 5,
+    key: 'growth', name: 'Growth', price: 10799, minutes: 2865, maxConcurrentCalls: 1,
     kbDocuments: 100, calendars: 5, bookingsPerMonth: 2500,
     tag: 'Teams', description: 'For high-volume teams running campaigns and inbound lines.',
   },
   {
-    key: 'enterprise', name: 'Enterprise', price: 30799, minutes: 10000, maxConcurrentCalls: 15,
+    key: 'enterprise', name: 'Enterprise', price: 30799, minutes: 10000, maxConcurrentCalls: 1,
     kbDocuments: 1000, calendars: 20, bookingsPerMonth: 10000,
     tag: 'Scale', description: 'For large operations that need the highest capacity.',
   },
@@ -46,6 +46,16 @@ export const formatInr = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 export const effectiveRate = (p: Pick<PublicPlan, 'price' | 'minutes'>) => (Math.round((p.price / p.minutes) * 100) / 100).toFixed(2);
 
 export const LOWEST_PLAN = PUBLIC_PLANS[0];
+
+/**
+ * How many calls a customer can run at once, worded from the plan values (the server enforces the
+ * same numbers). Today every plan is 1 (owner decision 2026-11-26: quality first).
+ */
+export const maxConcurrency = (plans: Pick<PublicPlan, 'maxConcurrentCalls'>[]) => Math.max(1, ...plans.map((p) => p.maxConcurrentCalls));
+export const concurrencyText = (plans: Pick<PublicPlan, 'maxConcurrentCalls'>[]) => {
+  const max = maxConcurrency(plans);
+  return max <= 1 ? 'One call at a time per account' : `Up to ${max} calls at once, by plan`;
+};
 
 /** The plan with the lowest price per minute (for "from ₹X/min" copy). */
 export const bestRatePlan = (plans: PublicPlan[]): PublicPlan =>

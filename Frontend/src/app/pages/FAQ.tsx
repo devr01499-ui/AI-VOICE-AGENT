@@ -75,7 +75,7 @@ const FAQS: FAQItem[] = [
   {
     category: "Calls & Languages",
     q: "How many calls can run at the same time?",
-    a: "Up to 5 calls at once on Startup and Growth, and up to 15 on Enterprise. Batch campaigns of up to 5,000 contacts dial through that capacity within TRAI calling hours, with automatic retries for unanswered or busy lines.",
+    a: "One call at a time per account on every plan for now, so every conversation gets full quality. Batch campaigns of up to 5,000 contacts dial one after another (the next call starts when the previous one ends) within TRAI calling hours, with automatic retries for unanswered or busy lines.",
   },
   {
     category: "Pricing & Plans",

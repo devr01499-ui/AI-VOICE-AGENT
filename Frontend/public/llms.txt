@@ -7,7 +7,7 @@
 - Billing: each answered call uses its started minutes, minimum one minute. Unanswered calls use no minutes. A plan ends when its minutes are used up or after 30 days, whichever comes first.
 - Phone numbers: every plan includes one local Indian (+91) number after KYC. The number is released 5 days after the plan ends unless a new plan is bought. Bring-your-own carrier or SIP trunk is not available.
 - KYC: individuals verify PAN and Aadhaar (via DigiLocker); companies verify a company PAN and GST certificate.
-- Calls at the same time: up to 5 on Startup and Growth, up to 15 on Enterprise.
+- Calls at the same time: one call at a time per account on every plan for now (the next call starts when the previous one ends).
 - Voice: a single speech-to-speech AI model with real-time, interruptible replies; 30 male and female voices.
 - Free to start: creating an account, building agents and chatting with an agent (Test LLM) is free. Real phone calls, Test Lab and Prompt Coach need a plan.
 - Live transfers (paid plans): the agent can hand a live call to a person on the customer's team (their phone number, the business number shown as caller ID; if nobody answers the caller hears a message and the business gets a call-back notification) or to another of the customer's AI agents, which receives a summary of the conversation. The whole call is billed per started minute.

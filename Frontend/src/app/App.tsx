@@ -61,7 +61,7 @@ import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import BrandSplash from "./components/common/BrandSplash";
 import { resolveRoute, pathForPage, type Page } from "./lib/routes";
 import { initialAuthRedirect } from "./lib/authRedirect";
-import { PUBLIC_PLANS } from './lib/plans';
+import { PUBLIC_PLANS, maxConcurrency, usePublicPlans } from './lib/plans';
 const Home = lazy(() => import("./pages/Home"));
 const Solutions = lazy(() => import("./pages/Solutions"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
@@ -1865,6 +1865,8 @@ interface DashBatchProps {
 }
 
 function DashBatch({ onNavigate }: DashBatchProps) {
+  // "Concurrent" only when a plan allows more than one call at once (today every plan is 1).
+  const concurrentAllowed = maxConcurrency(usePublicPlans()) > 1;
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [liveAgents, setLiveAgents] = useState<ApiAgent[]>([]);
   const [numbersList, setNumbersList] = useState<any[]>([]);
@@ -2313,17 +2315,24 @@ function DashBatch({ onNavigate }: DashBatchProps) {
                     <span className="text-xs font-bold block mb-1">Sequential (Recommended)</span>
                     <span className="text-[11px] text-muted-foreground block">Calls 1-by-1 with gap. Zero concurrency collision.</span>
                   </label>
-                  <label className={`p-3 rounded-xl border cursor-pointer transition-all ${form.dialMode === 'concurrent' ? 'border-[var(--nm-accent)] bg-[var(--nm-accent)]/5' : 'border-[var(--nm-border)]'}`}>
-                    <input
-                      type="radio"
-                      name="dialMode"
-                      checked={form.dialMode === 'concurrent'}
-                      onChange={() => setForm(f => ({ ...f, dialMode: 'concurrent' }))}
-                      className="hidden"
-                    />
-                    <span className="text-xs font-bold block mb-1">Concurrent</span>
-                    <span className="text-[11px] text-muted-foreground block">Dials up to account concurrency limit simultaneously.</span>
-                  </label>
+                  {concurrentAllowed ? (
+                    <label className={`p-3 rounded-xl border cursor-pointer transition-all ${form.dialMode === 'concurrent' ? 'border-[var(--nm-accent)] bg-[var(--nm-accent)]/5' : 'border-[var(--nm-border)]'}`}>
+                      <input
+                        type="radio"
+                        name="dialMode"
+                        checked={form.dialMode === 'concurrent'}
+                        onChange={() => setForm(f => ({ ...f, dialMode: 'concurrent' }))}
+                        className="hidden"
+                      />
+                      <span className="text-xs font-bold block mb-1">Concurrent</span>
+                      <span className="text-[11px] text-muted-foreground block">Dials up to account concurrency limit simultaneously.</span>
+                    </label>
+                  ) : (
+                    <div className="p-3 rounded-xl border border-[var(--nm-border)] opacity-70">
+                      <span className="text-xs font-bold block mb-1">One call at a time</span>
+                      <span className="text-[11px] text-muted-foreground block">The next call starts when the previous one ends, so every call gets full quality.</span>
+                    </div>
+                  )}
                 </div>
               </div>
 

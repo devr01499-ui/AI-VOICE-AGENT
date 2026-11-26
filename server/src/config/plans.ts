@@ -78,7 +78,7 @@ export const PLAN_CONFIG: Record<string, PlanDetails> = {
     },
   },
   startup: {
-    maxConcurrentCalls: 5,
+    maxConcurrentCalls: 1, // owner decision 2026-11-26: one call at a time per customer (raise per plan in Admin > Control Panel)
     name: 'Startup',
     price: 3799,
     minutes: 750,
@@ -97,7 +97,7 @@ export const PLAN_CONFIG: Record<string, PlanDetails> = {
     },
   },
   growth: {
-    maxConcurrentCalls: 5,
+    maxConcurrentCalls: 1, // owner decision 2026-11-26 (see Startup)
     name: 'Growth',
     price: 10799,
     minutes: 2865,
@@ -116,7 +116,7 @@ export const PLAN_CONFIG: Record<string, PlanDetails> = {
     },
   },
   enterprise: {
-    maxConcurrentCalls: 15,
+    maxConcurrentCalls: 1, // owner decision 2026-11-26 (see Startup)
     name: 'Enterprise',
     price: 30799,
     minutes: 10000,
